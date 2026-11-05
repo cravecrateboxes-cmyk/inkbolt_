@@ -224,11 +224,11 @@
       var horiz = cellIs(grid, p.c - 1, p.r, WALLISH) || cellIs(grid, p.c + 1, p.r, WALLISH);
       var vert = cellIs(grid, p.c, p.r - 1, WALLISH) || cellIs(grid, p.c, p.r + 1, WALLISH);
       var name = W.choose ? W.choose(p.c, p.r, horiz, horiz && vert, hash, grid) : pick(W.pieces, hash(p.c * 13, p.r * 17));
-      // wall modules face +/-Z; rotate for vertical runs. Optional per-face: the open side decides a 180 flip
+      // wall modules face +/-Z; rotate for vertical runs. faceOpen: turn the module's +Z face (Blender -Y) to the open side
       var yaw = (!horiz && vert) ? Math.PI / 2 : 0;
       if (W.faceOpen) {
         if (yaw === 0 && !solid(p.c, p.r - 1) && solid(p.c, p.r + 1)) yaw = Math.PI;
-        if (yaw !== 0 && !solid(p.c + 1, p.r) && solid(p.c - 1, p.r)) yaw = -Math.PI / 2;
+        if (yaw !== 0 && !solid(p.c - 1, p.r) && solid(p.c + 1, p.r)) yaw = -Math.PI / 2;   // +Z face toward the open (west) side
       }
       P.add(name, z.ox + p.c + 0.5, 0, z.oz + p.r + 0.5, yaw);
     });
