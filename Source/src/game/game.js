@@ -42,8 +42,16 @@
     Inp.init(canvas);
     if (Inp.touch) document.body.classList.add('touch-on');
     HUD.init(); M.init(); wireMenus();
+    // Blender GLBs: common, weapons, bots and the title/level-1 kit (brief 4.2 boot order)
+    IB.Assets.load(['common', 'weapons', 'bots', 'kit-toytown'], function (f) { bootProgress(0.2 + f * 0.7); })
+      .then(bootAfterAssets)
+      .catch(function (e) {
+        G.errors.push(String(e && e.message || e));
+        document.getElementById('boot').innerHTML = '<div class="plate ink panel"><h2>Could not load</h2><p>' + String(e && e.message || e) + '</p></div>';
+      });
+  };
+  function bootAfterAssets() {
     FX.init(R.scene); AI.init(R.scene); W.init(R.vmScene);
-    bootProgress(0.6);
     G.plan = IB.LEVEL_PLANS[params.get('plan') || 'greybox'];
     G.buildLevel();
     G.player = IB.Player.create();
@@ -63,7 +71,7 @@
     if (AUTOTEST) { G.startLevel(); }
     else G.toTitle();
     setTimeout(function () { var b = document.getElementById('boot'); b.classList.add('out'); setTimeout(function () { b.remove(); }, 320); IB.Plat.loaded(); }, 60);
-  };
+  }
   function firstGesture() { if (!A.ctx) { A.init(); A.setEnabled(G.settings.sfx); } A.resume(); }
   function onResize() { R.resize(); HUD.last.xh = null; if (G.mode === 'title') placeTitleCam(); }
 
@@ -262,14 +270,10 @@
   // ---------------- pickups ----------------
   function initPickups() {
     G.pickups = [];
-    var gA = new IB.Geo();
-    gA.box(0, 0.22, 0, 0.62, 0.44, 0.4, PAL.ammo); gA.box(0, 0.45, 0, 0.66, 0.06, 0.44, 0x1E559F, { hull: false }); gA.box(0, 0.22, 0.205, 0.3, 0.1, 0.02, PAL.paper, { hull: false });
-    var gH = new IB.Geo();
-    gH.cyl(0, 0, 0, 0.2, 0.2, 0.5, 10, PAL.green); gH.box(0, 0.26, 0.2, 0.18, 0.06, 0.02, PAL.paper, { hull: false }); gH.box(0, 0.26, 0.2, 0.06, 0.18, 0.02, PAL.paper, { hull: false });
-    var geo = { ammo: gA.build(), health: gH.build() };
+    var geo = { ammo: IB.Assets.get('PICKUP_Ammo'), health: IB.Assets.get('PICKUP_Health') };
     for (var i = 0; i < 12; i++) {
       var kind = i < 8 ? 'ammo' : 'health';
-      var m = new THREE.Mesh(geo[kind], Z.mat); m.visible = false; R.scene.add(m);
+      var m = new THREE.Mesh(geo[kind], IB.Assets.mat.weapons); m.visible = false; R.scene.add(m);
       G.pickups.push({ kind: kind, mesh: m, on: false, x: 0, z: 0 });
     }
   }
@@ -611,6 +615,7 @@
   // ---------------- test hooks ----------------
   window.__TEST__ = {
     state: function () {
+      if (!G.level || !G.run && G.mode === 'boot') return { mode: G.mode || 'boot', zones: [], errors: G.errors.slice() };
       var L = G.level, info = R.renderer.info;
       return {
         mode: G.mode, zone: G.zone, zones: L.zones.map(function (z) { return z.state; }),

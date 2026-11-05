@@ -93,8 +93,8 @@
     FX.particleScale = 1;
     // chunks
     FX.cCap = 96;
-    var cg = new IB.Geo(); cg.box(0, 0, 0, 1, 1, 1, PAL.ink, { hull: false });
-    FX.chunks = new THREE.InstancedMesh(cg.build(), new THREE.MeshBasicMaterial({ color: PAL.ink }), FX.cCap);
+    // scrap chunks: the fps-common ink chunk (a crushed can), unlit ink
+    FX.chunks = new THREE.InstancedMesh(IB.Assets.get('InkChunk_1'), new THREE.MeshBasicMaterial({ color: PAL.ink }), FX.cCap);
     FX.chunks.instanceMatrix.setUsage(THREE.DynamicDrawUsage); FX.chunks.frustumCulled = false;
     FX.cPool = []; for (i = 0; i < FX.cCap; i++) { FX.cPool.push({ on: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, rx: 0, ry: 0, rvx: 0, rvy: 0, t: 0, sx: 0.1, sy: 0.1, sz: 0.1 }); FX.chunks.setMatrixAt(i, ZERO); }
     scene.add(FX.chunks);
@@ -177,8 +177,8 @@
       var a = Math.random() * Math.PI * 2, sp = (power || 3) * (0.5 + Math.random());
       p.vx = Math.cos(a) * sp; p.vz = Math.sin(a) * sp; p.vy = 2.5 + Math.random() * 3;
       p.rvx = (Math.random() - 0.5) * 14; p.rvy = (Math.random() - 0.5) * 14; p.rx = 0; p.ry = 0;
-      var can = Math.random() < 0.5;
-      p.sx = can ? 0.14 : 0.07; p.sy = can ? 0.18 : 0.07; p.sz = can ? 0.14 : 0.16;
+      var k = 0.6 + Math.random() * 0.7;
+      p.sx = k; p.sy = k * (0.7 + Math.random() * 0.6); p.sz = k;
     }
   };
 
@@ -197,10 +197,9 @@
 
   // ---------- gems ----------
   FX.initGems = function (scene) {
-    var g = new IB.Geo();
-    g.sphere(0, 0, 0, 0.16, 0xffffff, { ws: 4, hs: 2, sy: 1.4, hullScale: 1 });
+    // one gem mesh (fps-weapons PICKUP_Gem), three gem types by instance colour and scale (brief 4.6)
     FX.gemCap = 240;
-    FX.gemMesh = new THREE.InstancedMesh(g.build(), IB.Render.toonMaterial({}), FX.gemCap);
+    FX.gemMesh = new THREE.InstancedMesh(IB.Assets.get('PICKUP_Gem'), IB.Assets.mat.weapons, FX.gemCap);
     FX.gemMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); FX.gemMesh.frustumCulled = false;
     FX.gems = [];
     for (var i = 0; i < FX.gemCap; i++) { FX.gems.push({ on: false, kind: 'chip', x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, bounced: false, t: 0, fly: false, zone: -1 }); FX.gemMesh.setMatrixAt(i, ZERO); FX.gemMesh.setColorAt(i, _c.set(PAL.chip)); }
@@ -246,7 +245,7 @@
       p.t += dt;
       if (p.t > 1.4) { p.on = false; FX.chunks.setMatrixAt(i, ZERO); continue; }
       p.vy -= 18 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
-      if (p.y < p.sy / 2) { p.y = p.sy / 2; p.vy = -p.vy * 0.3; p.vx *= 0.6; p.vz *= 0.6; p.rvx *= 0.5; p.rvy *= 0.5; }
+      if (p.y < 0.08) { p.y = 0.08; p.vy = -p.vy * 0.3; p.vx *= 0.6; p.vz *= 0.6; p.rvx *= 0.5; p.rvy *= 0.5; }
       p.rx += p.rvx * dt; p.ry += p.rvy * dt;
       var sc = p.t > 1.0 ? 1 - (p.t - 1.0) / 0.4 : 1;
       _q.setFromEuler(_e.set(p.rx, p.ry, 0));

@@ -111,150 +111,84 @@
   };
   Z.World = World;
 
-  // ---------------- kit (Toy Town greybox) ----------------
-  // Each theme maps symbols to geometry; palette = [main, secondary, accent, ground]
+  // ---------------- theme kits (Blender GLB pieces, brief 3.2 / 5.12) ----------------
+  // Each theme maps ASCII symbols to its kit's meshes. Pieces are placed per cell and merged per zone
+  // into one geometry on the kit's palette material (plus one for fps-common pieces such as spawn cans).
+  var KITS = IB.KITS;   // src/data/assets.js
+  Z.KITS = KITS;
+  function kitFor(theme) { return KITS[theme.kit || theme.id] || KITS.toytown; }
   function kitColors(theme) {
     var p = theme.palette.map(function (h) { return new THREE.Color(h); });
     return { main: p[0], second: p[1], accent: p[2], ground: p[3] };
   }
-  var WALL_SET = [PAL.tangerine, PAL.bubblegum, PAL.purple, 0x5BC0EB, PAL.sand, 0xF26B5B];
+  var _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _up = new THREE.Vector3(0, 1, 0), _p = new THREE.Vector3(), _s1 = new THREE.Vector3(1, 1, 1);
+  function M(x, y, z, yaw) { _q.setFromAxisAngle(_up, yaw || 0); _p.set(x, y, z); return _m.clone().compose(_p, _q, _s1); }
 
-  function buildWalls(g, z, grid, theme, world) {
+  function Parts() { this.kit = []; this.common = []; }
+  Parts.prototype.add = function (name, x, y, z, yaw) {
+    var list = IB.Assets.family[name] === 'common' ? this.common : this.kit;
+    list.push(IB.Assets.placed(name, M(x, y, z, yaw)));
+  };
+  function cellIs(grid, c, r, set) { return set.indexOf(grid.at(c, r)) >= 0; }
+
+  function buildWalls(P, z, grid, kit, world) {
     rects(grid, '#').forEach(function (R) {
-      var x0 = z.ox + R.c, z0 = z.oz + R.r, sx = R.w, sz = R.h, H = 3;
-      world.add(x0, 0, z0, x0 + sx, H, z0 + sz, 'wall', z.idx);
-      // shop-front segments along the longer axis, each its own colour with a parapet strip
-      var along = sx >= sz ? 'x' : 'z', len = along === 'x' ? sx : sz, seg = 0;
-      while (seg < len) {
-        var segLen = Math.min(len - seg, 3 + Math.floor(hash(R.c + seg, R.r) * 4));
-        var colr = WALL_SET[Math.floor(hash(R.c * 3 + seg, R.r * 7) * WALL_SET.length)];
-        var cx, cz, wx, wz;
-        if (along === 'x') { cx = x0 + seg + segLen / 2; cz = z0 + sz / 2; wx = segLen; wz = sz; }
-        else { cx = x0 + sx / 2; cz = z0 + seg + segLen / 2; wx = sx; wz = segLen; }
-        var hh = H + (hash(seg, R.c + R.r) > 0.6 ? 0.6 : 0);
-        g.box(cx, hh / 2, cz, wx, hh, wz, colr);
-        g.box(cx, hh + 0.12, cz, wx + 0.12, 0.24, wz + 0.12, 0xF4EEE2);
-        // windows / doors on both long faces
-        if (segLen >= 3) {
-          var n = Math.floor(segLen / 2.2);
-          for (var k = 0; k < n; k++) {
-            var off = (k + 0.5) * segLen / n - segLen / 2;
-            var isDoor = (k === 0 && hash(seg + 9, R.r) > 0.6);
-            var wy = isDoor ? 0.95 : 1.9, wh = isDoor ? 1.9 : 0.85, ww = isDoor ? 0.9 : 1.0;
-            var winCol = isDoor ? 0x3B3550 : 0x8ED2FF;
-            if (along === 'x') {
-              g.box(cx + off, wy, cz - wz / 2 - 0.03, ww, wh, 0.06, winCol, { hullScale: 0.7 });
-              g.box(cx + off, wy, cz + wz / 2 + 0.03, ww, wh, 0.06, winCol, { hullScale: 0.7 });
-            } else {
-              g.box(cx - wx / 2 - 0.03, wy, cz + off, 0.06, wh, ww, winCol, { hullScale: 0.7 });
-              g.box(cx + wx / 2 + 0.03, wy, cz + off, 0.06, wh, ww, winCol, { hullScale: 0.7 });
-            }
-          }
-        }
-        seg += segLen;
-      }
+      world.add(z.ox + R.c, 0, z.oz + R.r, z.ox + R.c + R.w, 3, z.oz + R.r + R.h, 'wall', z.idx);
+    });
+    var WALLISH = '#GE';
+    find(grid, '#').forEach(function (p) {
+      var horiz = cellIs(grid, p.c - 1, p.r, WALLISH) || cellIs(grid, p.c + 1, p.r, WALLISH);
+      var vert = cellIs(grid, p.c, p.r - 1, WALLISH) || cellIs(grid, p.c, p.r + 1, WALLISH);
+      var corner = horiz && vert;
+      // shop fronts: runs of 4 cells share a colour; windows most of the way, the odd door
+      var run = horiz ? Math.floor(p.c / 4) * 31 + p.r : Math.floor(p.r / 4) * 31 + p.c * 7;
+      var color = kit.wallColors[Math.floor(hash(run, horiz ? 3 : 5) * kit.wallColors.length)];
+      var h = hash(p.c * 13, p.r * 17), kind = corner ? 'Plain' : (h < 0.12 ? 'Door' : h < 0.72 ? 'Window' : 'Plain');
+      P.add(kit.prefix + 'Wall' + kind + '_' + color, z.ox + p.c + 0.5, 0, z.oz + p.r + 0.5, (!horiz && vert) ? Math.PI / 2 : 0);
     });
   }
-  function buildLowWalls(g, z, grid, theme, world) {
-    rects(grid, '=').forEach(function (R) {
-      var x0 = z.ox + R.c, z0 = z.oz + R.r;
-      world.add(x0, 0, z0, x0 + R.w, 1, z0 + R.h, 'cover', z.idx);
-      var along = R.w >= R.h, len = along ? R.w : R.h;
-      for (var i = 0; i < len; i++) {
-        var cx = along ? x0 + i + 0.5 : x0 + R.w / 2, cz = along ? z0 + R.h / 2 : z0 + i + 0.5;
-        var sx = along ? 1 : R.w, sz = along ? R.h : 1;
-        g.box(cx, 0.45, cz, sx - 0.04, 0.9, sz * 0.8, 0xD8D2C4, { topTint: 0xEAE5D8 });
-        g.box(cx, 0.95, cz, sx - 0.04, 0.1, sz * 0.9, i % 2 ? PAL.teal : PAL.ink, { hull: false });
-      }
+  function buildLowWalls(P, z, grid, kit, world) {
+    rects(grid, '=').forEach(function (R) { world.add(z.ox + R.c, 0, z.oz + R.r, z.ox + R.c + R.w, 1, z.oz + R.r + R.h, 'cover', z.idx); });
+    find(grid, '=').forEach(function (p) {
+      var vert = !(cellIs(grid, p.c - 1, p.r, '=') || cellIs(grid, p.c + 1, p.r, '=')) && (cellIs(grid, p.c, p.r - 1, '=') || cellIs(grid, p.c, p.r + 1, '='));
+      P.add(kit.prefix + kit.low[(p.c + p.r) % 2], z.ox + p.c + 0.5, 0, z.oz + p.r + 0.5, vert ? Math.PI / 2 : 0);
     });
   }
-  function buildCrates(g, z, grid, theme, world) {
+  function buildCrates(P, z, grid, kit, world) {
     find(grid, 'c').forEach(function (p) {
-      var x = z.ox + p.c + 0.5, zz = z.oz + p.r + 0.5;
-      // stack a second crate on some
-      var tall = hash(p.c * 5, p.r * 3) > 0.78;
+      var x = z.ox + p.c + 0.5, zz = z.oz + p.r + 0.5, tall = hash(p.c * 5, p.r * 3) > 0.78;
       world.add(x - 0.5, 0, zz - 0.5, x + 0.5, tall ? 2 : 1, zz + 0.5, 'cover', z.idx);
-      for (var s = 0; s < (tall ? 2 : 1); s++) {
-        var y = s + 0.5, colr = s ? PAL.bubblegum : PAL.tangerine;
-        g.box(x, y, zz, 0.96, 0.96, 0.96, colr);
-        g.box(x, y, zz - 0.49, 0.98, 0.12, 0.04, 0xC8642A, { hull: false });
-        g.box(x, y, zz + 0.49, 0.98, 0.12, 0.04, 0xC8642A, { hull: false });
-        g.box(x - 0.49, y, zz, 0.04, 0.12, 0.98, 0xC8642A, { hull: false });
-        g.box(x + 0.49, y, zz, 0.04, 0.12, 0.98, 0xC8642A, { hull: false });
-      }
+      P.add(kit.prefix + kit.crate, x, 0, zz, Math.floor(hash(p.c, p.r * 9) * 4) * Math.PI / 2);
+      if (tall) P.add(kit.prefix + kit.crateTop, x, 1, zz, 0.3);
     });
   }
-  function buildContainers(g, z, grid, theme, world) {
-    blocks(grid, 'C', 2, 2).forEach(function (R, i) {
-      var x0 = z.ox + R.c, z0 = z.oz + R.r, cx = x0 + R.w / 2, cz = z0 + R.h / 2, H = 2.5;
-      world.add(x0, 0, z0, x0 + R.w, H, z0 + R.h, 'cover', z.idx);
-      var colr = [PAL.teal, PAL.tangerine, PAL.bubblegum, 0x5BC0EB][Math.floor(hash(R.c, R.r) * 4)];
-      g.box(cx, H / 2, cz, R.w - 0.04, H, R.h - 0.04, colr);
-      // ribs
-      for (var k = 0; k < 4; k++) {
-        var o = -R.w / 2 + 0.3 + k * (R.w - 0.6) / 3;
-        g.box(cx + o, H / 2, cz - R.h / 2, 0.08, H - 0.2, 0.06, PAL.ink, { hull: false });
-        g.box(cx + o, H / 2, cz + R.h / 2, 0.08, H - 0.2, 0.06, PAL.ink, { hull: false });
-      }
-      g.box(cx, H + 0.03, cz, R.w - 0.2, 0.06, R.h - 0.2, 0xF4EEE2, { hull: false });
+  function buildContainers(P, z, grid, kit, world) {
+    blocks(grid, 'C', 2, 2).forEach(function (R) {
+      var x0 = z.ox + R.c, z0 = z.oz + R.r;
+      world.add(x0, 0, z0, x0 + R.w, 2.5, z0 + R.h, 'cover', z.idx);
+      P.add(kit.prefix + kit.containers[Math.floor(hash(R.c, R.r) * kit.containers.length)], x0 + R.w / 2, 0, z0 + R.h / 2, 0);
     });
   }
-  function buildLandmark(g, z, grid, theme, world) {
+  function buildLandmark(P, z, grid, kit, world) {
     blocks(grid, 'T', 6, 6).forEach(function (R) {
-      var x0 = z.ox + R.c, z0 = z.oz + R.r, cx = x0 + R.w / 2, cz = z0 + R.h / 2;
-      var hw = R.w / 2 - 0.2, hd = R.h / 2 - 0.2, legH = 7.5;
-      var legs = [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]];
-      legs.forEach(function (L) {
-        g.box(cx + L[0], legH / 2, cz + L[1], 0.28, legH, 0.28, PAL.purple);
-        world.add(cx + L[0] - 0.2, 0, cz + L[1] - 0.2, cx + L[0] + 0.2, legH, cz + L[1] + 0.2, 'wall', z.idx);
+      var cx = z.ox + R.c + R.w / 2, cz = z.oz + R.r + R.h / 2, hw = 1.3;
+      [[-hw, -hw], [hw, -hw], [hw, hw], [-hw, hw]].forEach(function (L) {
+        world.add(cx + L[0] - 0.2, 0, cz + L[1] - 0.2, cx + L[0] + 0.2, 7.5, cz + L[1] + 0.2, 'wall', z.idx);
       });
-      // cross bracing (rotated thin boxes)
-      var m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
-      for (var side = 0; side < 4; side++) {
-        var a = legs[side], b = legs[(side + 1) % 4];
-        var mx = cx + (a[0] + b[0]) / 2, mz = cz + (a[1] + b[1]) / 2, len = Math.hypot(b[0] - a[0], b[1] - a[1]);
-        var yaw = Math.atan2(b[1] - a[1], b[0] - a[0]);
-        for (var lv = 0; lv < 2; lv++) {
-          var y0 = 1.2 + lv * 3, diag = Math.hypot(len, 3), pitch = Math.atan2(3, len);
-          [1, -1].forEach(function (sgn) {
-            e.set(0, -yaw, sgn * pitch, 'YXZ'); q.setFromEuler(e);
-            m.compose(new THREE.Vector3(mx, y0 + 1.5, mz), q, new THREE.Vector3(1, 1, 1));
-            g.setMatrix(m); g.box(0, 0, 0, diag, 0.14, 0.14, PAL.purple); g.setMatrix(null);
-          });
-          g.box(mx, y0 + 3, mz, Math.abs(b[0] - a[0]) + 0.2, 0.18, Math.abs(b[1] - a[1]) + 0.2, PAL.purple);
-        }
-      }
-      var r = Math.max(hw, hd) + 0.5;
-      g.box(cx, legH + 0.1, cz, R.w + 0.6, 0.2, R.h + 0.6, 0x6A55B8);
-      g.cyl(cx, legH + 0.2, cz, r, r, 3.0, 14, 0xF4EEE2);
-      g.cyl(cx, legH + 1.2, cz, r + 0.03, r + 0.03, 0.5, 14, PAL.bubblegum, { hull: false, noTop: true, noBottom: true });
-      g.cyl(cx, legH + 3.2, cz, r + 0.1, 0.3, 1.4, 14, PAL.tangerine);
-      g.cyl(cx, legH + 4.6, cz, 0.08, 0.08, 1.0, 5, PAL.ink, { hull: false });
+      P.add(kit.prefix + kit.landmark, cx, 0, cz, 0);
     });
   }
-  function buildDecor(g, z, grid, theme) {
-    find(grid, 'p').forEach(function (p, i) {
-      var x = z.ox + p.c + 0.5, zz = z.oz + p.r + 0.5;
-      var col = [PAL.bubblegum, PAL.tangerine, PAL.teal, PAL.purple][i % 4];
-      // billboard on two posts, facing south (+z) toward the zone entry
-      g.box(x - 1.2, 2.2, zz, 0.16, 4.4, 0.16, PAL.gunmetal);
-      g.box(x + 1.2, 2.2, zz, 0.16, 4.4, 0.16, PAL.gunmetal);
-      g.box(x, 4.1, zz, 3.6, 1.6, 0.2, 0xFFFDF7);
-      g.box(x - 0.6, 4.1, zz + 0.12, 2.0, 0.8, 0.04, col, { hull: false });
-      g.box(x + 1.15, 4.1, zz + 0.12, 0.7, 0.7, 0.04, PAL.ink, { hull: false });
-    });
+  function buildDecor(P, z, grid, kit) {
+    find(grid, 'p').forEach(function (p, i) { P.add(kit.prefix + kit.billboards[i % kit.billboards.length], z.ox + p.c + 0.5, 0, z.oz + p.r + 0.5, 0); });
   }
-  function buildSpawnCans(g, z, grid, world) {
+  function buildSpawnCans(P, z, grid, world) {
     find(grid, 'S').forEach(function (p) {
       var x = z.ox + p.c + 0.5, zz = z.oz + p.r + 0.5;
-      g.cyl(x, 0, zz, 0.42, 0.48, 0.95, 10, 0x8C93A0);
-      g.cyl(x, 0.95, zz, 0.52, 0.5, 0.1, 10, 0x6E7480);
-      g.box(x, 1.08, zz, 0.3, 0.08, 0.08, PAL.ink, { hull: false });
+      P.add('SpawnCan', x, 0, zz, hash(p.c, p.r) * 6.28);
       world.add(x - 0.4, 0, zz - 0.4, x + 0.4, 1.0, zz + 0.4, 'cover', z.idx);
     });
   }
-  function buildPickupsMarks(g, z, grid) {
-    // painted lot lines on the ground around containers/crates for the "parking lot" read
+  function paintLotLines(g, z, grid) {
     for (var r = 3; r < grid.h - 3; r += 6) {
       for (var c = 2; c < grid.w - 2; c += 3) {
         if (hash(c, r) < 0.35) continue;
@@ -263,30 +197,20 @@
       }
     }
   }
+  function meshesFor(P, group) {
+    var out = [];
+    if (P.kit.length) { var a = new THREE.Mesh(IB.Assets.merge(P.kit), IB.Assets.mat[IB.Assets.family[Z.kitProbe]]); group.add(a); out.push(a); }
+    if (P.common.length) { var b = new THREE.Mesh(IB.Assets.merge(P.common), IB.Assets.mat.common); group.add(b); out.push(b); }
+    return out;
+  }
 
   // ---------------- gates ----------------
-  function makeGate(cx, cz, width, theme, zoneIdx, world, kind) {
-    var g = new IB.Geo();
-    var kc = kitColors(theme);
-    g.box(-width / 2 - 0.25, 1.8, 0, 0.5, 3.6, 0.7, PAL.gunmetal);
-    g.box(width / 2 + 0.25, 1.8, 0, 0.5, 3.6, 0.7, PAL.gunmetal);
-    g.box(0, 3.35, 0, width + 1.0, 0.6, 0.8, PAL.gunmetal);
-    g.box(-width / 2 + 0.3, 3.35, 0.42, 0.34, 0.24, 0.06, PAL.teal, { hullScale: 0.6 });
-    g.box(width / 2 - 0.3, 3.35, 0.42, 0.34, 0.24, 0.06, PAL.teal, { hullScale: 0.6 });
-    g.box(-width / 2 + 0.3, 3.35, -0.42, 0.34, 0.24, 0.06, PAL.teal, { hullScale: 0.6 });
-    g.box(width / 2 - 0.3, 3.35, -0.42, 0.34, 0.24, 0.06, PAL.teal, { hullScale: 0.6 });
-    var frame = new THREE.Mesh(g.build(), IB.Zones.mat);
-    // shutter: slats in theme main colour, hazard band of teal/ink blocks at the bottom
-    var s = new IB.Geo(), H = 3.05, slats = 9;
-    for (var i = 0; i < slats; i++) {
-      var y = 0.55 + i * (H - 0.55) / slats + (H - 0.55) / slats / 2;
-      s.box(0, y, 0, width, (H - 0.55) / slats - 0.05, 0.14, i % 2 ? kc.main : kc.main.clone().multiplyScalar(0.92), { hull: false });
-    }
-    var nb = 8;
-    for (var k = 0; k < nb; k++) s.box(-width / 2 + (k + 0.5) * width / nb, 0.27, 0, width / nb, 0.5, 0.16, k % 2 ? PAL.ink : PAL.teal, { hull: false });
-    s.boxHull(0, H / 2, 0, width, H, 0.16, 1);
-    var shutter = new THREE.Mesh(s.build(), IB.Zones.mat);
-    var grp = new THREE.Group(); grp.add(frame); grp.add(shutter);
+  // the frame is merged into the zone mesh; the shutter is its own mesh so it can roll up
+  function makeGate(P, cx, cz, width, kit, zoneIdx, world, kind) {
+    P.add(kit.prefix + kit.gateFrame, cx, 0, cz, 0);
+    var shutter = new THREE.Mesh(IB.Assets.get(kit.prefix + kit.shutter), IB.Assets.material(kit.prefix + kit.shutter));
+    shutter.scale.x = width / 3;
+    var grp = new THREE.Group(); grp.add(shutter);
     grp.position.set(cx, 0, cz);
     var box = world.add(cx - width / 2, 0, cz - 0.3, cx + width / 2, 3.2, cz + 0.3, 'gate', zoneIdx);
     return { group: grp, shutter: shutter, box: box, open: 1, target: 1, x: cx, z: cz, w: width, kind: kind, speed: 1 / 1.2 };
@@ -301,41 +225,41 @@
     var o = gate.open;
     gate.shutter.scale.y = Math.max(0.02, 1 - o);
     gate.shutter.position.y = o * 3.05;
+    gate.shutter.visible = o < 0.98;
     gate.box.on = o < 0.7;
   };
 
   // ---------------- trail ----------------
-  function buildTrail(level, from, to, theme, world, idx) {
-    var g = new IB.Geo(), kc = kitColors(theme);
+  var DULL = new THREE.Color(0xE9DFC8), TEAL = new THREE.Color(PAL.teal);
+  function buildTrail(level, from, to, theme, kit, world, idx) {
+    var g = new IB.Geo(), kc = kitColors(theme), P = new Parts();
     var x = from.x, z0 = from.z, z1 = to.z, w = 3;
-    // ground strip and walls either side
     g.flat([[x - w / 2 - 0.5, z1], [x + w / 2 + 0.5, z1], [x + w / 2 + 0.5, z0], [x - w / 2 - 0.5, z0]], 0.006, kc.ground.clone().multiplyScalar(0.96));
-    var len = z0 - z1, wallH = 2.6;
+    var len = z0 - z1;
     [-1, 1].forEach(function (sgn) {
       var wx = x + sgn * (w / 2 + 0.75);
-      g.box(wx, wallH / 2, (z0 + z1) / 2, 0.5, wallH, len, kc.second);
-      g.box(wx, wallH + 0.08, (z0 + z1) / 2, 0.62, 0.16, len, 0xF4EEE2);
-      for (var k = 1; k < len; k += 3) g.box(wx, wallH / 2, z1 + k, 0.56, wallH * 0.98, 0.2, kc.accent, { hull: false });
-      world.add(wx - 0.25, 0, z1, wx + 0.25, wallH, z0, 'wall', idx);
+      for (var k = 0; k < len; k++) P.add(kit.prefix + kit.trailWall, wx, 0, z1 + k + 0.5, 0);
+      world.add(wx - 0.25, 0, z1, wx + 0.25, 2.6, z0, 'wall', idx);
     });
-    var mesh = new THREE.Mesh(g.build(), IB.Zones.mat);
-    // arrows: one merged unlit mesh, recoloured per arrow
-    var a = new IB.Geo(), n = Math.floor(len / 2), dull = new THREE.Color(0xE9DFC8);
-    for (var i = 0; i < n; i++) {
-      var az = z0 - 1 - i * 2;
-      a.flat([[x, az - 0.5], [x + 0.7, az + 0.2], [x + 0.7, az + 0.55], [x, az - 0.15]], 0.02, dull);
-      a.flat([[x, az - 0.5], [x, az - 0.15], [x - 0.7, az + 0.55], [x - 0.7, az + 0.2]], 0.02, dull);
-    }
-    var ag = a.build();
+    var grp = new THREE.Group();
+    grp.add(new THREE.Mesh(g.build(), Z.mat));
+    meshesFor(P, grp);
+    // painted arrows: TrailArrow (fps-common) copies, recoloured per arrow when lit
+    var n = Math.floor(len / 2), src = IB.Assets.get('TrailArrow'), list = [];
+    for (var i = 0; i < n; i++) list.push(IB.Assets.placed('TrailArrow', M(x, 0.02, z0 - 1 - i * 2, 0)));
+    var ag = THREE.BufferGeometryUtils.mergeBufferGeometries(list, false);
+    var vertsPer = src.attributes.position.count;
+    var col = new Float32Array(ag.attributes.position.count * 3);
+    for (var v = 0; v < col.length; v += 3) { col[v] = DULL.r; col[v + 1] = DULL.g; col[v + 2] = DULL.b; }
+    ag.setAttribute('color', new THREE.BufferAttribute(col, 3));
     var arrows = new THREE.Mesh(ag, new THREE.MeshBasicMaterial({ vertexColors: true }));
-    var grp = new THREE.Group(); grp.add(mesh); grp.add(arrows);
-    var vertsPer = ag.attributes.position.count / Math.max(1, n);
+    grp.add(arrows);
     return { group: grp, arrows: arrows, count: n, vertsPer: vertsPer, lit: 0, litT: -1, x: x, z0: z0, z1: z1 };
   }
   Z.lightTrail = function (trail, n) {
-    var colA = trail.arrows.geometry.attributes.color, teal = new THREE.Color(PAL.teal), dull = new THREE.Color(0xE9DFC8);
+    var colA = trail.arrows.geometry.attributes.color;
     for (var i = 0; i < trail.count; i++) {
-      var c = i < n ? teal : dull;
+      var c = i < n ? TEAL : DULL;
       for (var v = 0; v < trail.vertsPer; v++) colA.setXYZ(i * trail.vertsPer + v, c.r, c.g, c.b);
     }
     colA.needsUpdate = true; trail.lit = n;
@@ -404,123 +328,120 @@
   Z.isOpen = function (zone, x, z) { var c = Z.navCell(zone, x, z); return c >= 0 && !zone.nav.blocked[c]; };
 
   // ---------------- level assembly ----------------
-  /* plan: {theme:{palette,...}, zones:[{map:'name', waves:[[['crawler',4]], ...]}]} */
+  /* plan: {theme:{id,palette,...}, zones:[{map:'name', waves:[[['crawler',4]], ...]}]} */
   Z.buildLevel = function (plan, scene) {
     if (!Z.mat) Z.mat = IB.Render.toonMaterial({});
-    var world = new World(), theme = plan.theme, kc = kitColors(theme);
-    var level = { world: world, zones: [], trails: [], plan: plan, root: new THREE.Group(), theme: theme };
+    var world = new World(), theme = plan.theme, kc = kitColors(theme), kit = kitFor(theme);
+    Z.kitProbe = kit.prefix + kit.crate;
+    var level = { world: world, zones: [], trails: [], plan: plan, root: new THREE.Group(), theme: theme, kit: kit, tris: 0 };
     scene.add(level.root);
     var prevExit = null;
     plan.zones.forEach(function (zp, idx) {
       var grid = Z.parse(IB.ZONE_MAPS[zp.map]);
-      var E = find(grid, 'E'), G = find(grid, 'G'), P = find(grid, 'P')[0];
+      var E = find(grid, 'E'), G = find(grid, 'G'), Pc = find(grid, 'P')[0];
       var ecx = E.length ? (E[0].c + E[E.length - 1].c + 1) / 2 : grid.w / 2;
       var ox, oz;
       if (!prevExit) { ox = -ecx; oz = -grid.h; }
       else { ox = prevExit.x - ecx; oz = prevExit.z - TRAIL_LEN - grid.h; }
       var zone = { idx: idx, ox: ox, oz: oz, w: grid.w, h: grid.h, grid: grid, plan: zp, group: new THREE.Group(), state: 'idle' };
-      zone.entry = { x: ox + P.c + 0.5, z: oz + P.r + 0.5 };
+      zone.entry = { x: ox + Pc.c + 0.5, z: oz + Pc.r + 0.5 };
       zone.spawns = find(grid, 'S').map(function (s) { return { x: ox + s.c + 0.5, z: oz + s.r + 0.5 }; });
       zone.pickups = find(grid, 'a').map(function (s) { return { kind: 'ammo', x: ox + s.c + 0.5, z: oz + s.r + 0.5 }; })
         .concat(find(grid, 'h').map(function (s) { return { kind: 'health', x: ox + s.c + 0.5, z: oz + s.r + 0.5 }; }));
-      var g = new IB.Geo();
-      // zone floor
+      var g = new IB.Geo(), P = new Parts();
       g.flat([[ox, oz], [ox + grid.w, oz], [ox + grid.w, oz + grid.h], [ox, oz + grid.h]], 0.004, kc.ground);
-      buildWalls(g, zone, grid, theme, world);
-      buildLowWalls(g, zone, grid, theme, world);
-      buildCrates(g, zone, grid, theme, world);
-      buildContainers(g, zone, grid, theme, world);
-      buildLandmark(g, zone, grid, theme, world);
-      buildDecor(g, zone, grid, theme);
-      buildSpawnCans(g, zone, grid, world);
-      buildPickupsMarks(g, zone, grid);
-      zone.tris = g.count();
-      zone.mesh = new THREE.Mesh(g.build(), Z.mat);
-      zone.group.add(zone.mesh);
-      // gates
-      if (E.length) {
-        zone.entryGate = makeGate(ox + ecx, oz + grid.h - 0.5, E.length, theme, idx, world, 'entry');
-        zone.group.add(zone.entryGate.group);
-      }
+      paintLotLines(g, zone, grid);
+      buildWalls(P, zone, grid, kit, world);
+      buildLowWalls(P, zone, grid, kit, world);
+      buildCrates(P, zone, grid, kit, world);
+      buildContainers(P, zone, grid, kit, world);
+      buildLandmark(P, zone, grid, kit, world);
+      buildDecor(P, zone, grid, kit);
+      buildSpawnCans(P, zone, grid, world);
+      if (E.length) zone.entryGate = makeGate(P, ox + ecx, oz + grid.h - 0.5, E.length, kit, idx, world, 'entry');
       var gcx = (G[0].c + G[G.length - 1].c + 1) / 2;
-      zone.exitGate = makeGate(ox + gcx, oz + 0.5, G.length, theme, idx, world, 'exit');
+      zone.exitGate = makeGate(P, ox + gcx, oz + 0.5, G.length, kit, idx, world, 'exit');
+      zone.ground = new THREE.Mesh(g.build(), Z.mat);
+      zone.group.add(zone.ground);
+      zone.meshes = meshesFor(P, zone.group);
+      zone.tris = zone.meshes.reduce(function (t, m) { return t + m.geometry.index.count / 3; }, 0);
+      level.tris += zone.tris;
+      if (zone.entryGate) zone.group.add(zone.entryGate.group);
       Z.setGate(zone.exitGate, false, true);
       zone.group.add(zone.exitGate.group);
       level.root.add(zone.group);
       buildNav(zone, world);
       level.zones.push(zone);
       if (prevExit) {
-        var tr = buildTrail(level, { x: prevExit.x, z: prevExit.z }, { x: prevExit.x, z: prevExit.z - TRAIL_LEN }, theme, world, idx - 1);
+        var tr = buildTrail(level, { x: prevExit.x, z: prevExit.z }, { x: prevExit.x, z: prevExit.z - TRAIL_LEN }, theme, kit, world, idx - 1);
         level.trails.push(tr); level.root.add(tr.group);
       }
       prevExit = { x: ox + gcx, z: oz };
     });
-    // final trail + exit hatch
-    var last = Z.buildHatch(level, prevExit, theme, world);
+    var last = Z.buildHatch(level, prevExit, theme, kit, world);
     level.trails.push(last.trail); level.root.add(last.trail.group);
     level.hatch = last.hatch; level.root.add(last.hatch.group);
     Z.buildBackdrop(level, theme);
     return level;
   };
 
-  Z.buildHatch = function (level, exit, theme, world) {
-    var tr = buildTrail(level, { x: exit.x, z: exit.z }, { x: exit.x, z: exit.z - 8 }, theme, world, level.zones.length - 1);
-    var hz = exit.z - 9.5, g = new IB.Geo();
-    // pad + end wall
+  Z.buildHatch = function (level, exit, theme, kit, world) {
+    var tr = buildTrail(level, { x: exit.x, z: exit.z }, { x: exit.x, z: exit.z - 8 }, theme, kit, world, level.zones.length - 1);
+    var hz = exit.z - 9.5, g = new IB.Geo(), P = new Parts();
     g.flat([[exit.x - 3, hz - 2.5], [exit.x + 3, hz - 2.5], [exit.x + 3, exit.z - 8], [exit.x - 3, exit.z - 8]], 0.006, 0xE6DCC6);
-    g.box(exit.x, 1.5, hz - 2.8, 6.5, 3, 0.5, PAL.gunmetal);
-    g.box(exit.x - 3.0, 1.5, hz, 0.5, 3, 5.5, PAL.gunmetal);
-    g.box(exit.x + 3.0, 1.5, hz, 0.5, 3, 5.5, PAL.gunmetal);
+    for (var k = 0; k < 6; k++) P.add(kit.prefix + kit.trailWall, exit.x - 2.5 + k, 0, hz - 2.8, Math.PI / 2);
+    for (k = 0; k < 5; k++) { P.add(kit.prefix + kit.trailWall, exit.x - 3.0, 0, hz - 2 + k, 0); P.add(kit.prefix + kit.trailWall, exit.x + 3.0, 0, hz - 2 + k, 0); }
     world.add(exit.x - 3.25, 0, hz - 3.05, exit.x + 3.25, 3, hz - 2.55, 'wall', -1);
     world.add(exit.x - 3.25, 0, hz - 2.75, exit.x - 2.75, 3, hz + 2.75, 'wall', -1);
     world.add(exit.x + 2.75, 0, hz - 2.75, exit.x + 3.25, 3, hz + 2.75, 'wall', -1);
-    g.cyl(exit.x, 0, hz, 1.25, 1.2, 0.12, 20, PAL.gunmetal);
-    g.cyl(exit.x, 0.12, hz, 0.95, 0.95, 0.02, 20, PAL.teal, { hull: false });
-    for (var i = 0; i < 6; i++) { var a = i / 6 * Math.PI * 2; g.cyl(exit.x + Math.cos(a) * 1.08, 0.12, hz + Math.sin(a) * 1.08, 0.07, 0.07, 0.05, 6, PAL.amber, { hull: false }); }
-    g.box(exit.x, 2.7, hz - 2.5, 2.4, 0.5, 0.1, PAL.teal);
-    var mesh = new THREE.Mesh(g.build(), Z.mat);
-    var grp = new THREE.Group(); grp.add(mesh);
+    P.add(kit.prefix + kit.hatch, exit.x, 0, hz, 0);
+    var grp = new THREE.Group(); grp.add(new THREE.Mesh(g.build(), Z.mat));
+    meshesFor(P, grp);
     return { trail: tr, hatch: { group: grp, x: exit.x, z: hz, r: 1.2 } };
   };
 
-  // distant rolling hills + tree cones beyond the playable area (printed backdrop, fogged)
+  // distant rolling hills and pines beyond the playable area (printed backdrop, fogged), outlined puff clouds
   Z.buildBackdrop = function (level, theme) {
-    var g = new IB.Geo(), kc = kitColors(theme);
+    var g = new IB.Geo(), kc = kitColors(theme), P = new Parts();
     var minZ = 0, maxZ = 0;
     level.zones.forEach(function (z) { minZ = Math.min(minZ, z.oz - 20); });
     var cz = (minZ + maxZ) / 2, rad = (maxZ - minZ) / 2 + 70;
     g.flat([[-rad - 60, cz - rad - 60], [rad + 60, cz - rad - 60], [rad + 60, cz + rad + 60], [-rad - 60, cz + rad + 60]], -0.02, kc.ground.clone().multiplyScalar(0.94));
+    var list = [];
     for (var i = 0; i < 26; i++) {
-      var a = i / 26 * Math.PI * 2, r = rad + 10 * hash(i, 3);
-      var x = Math.cos(a) * r * 0.6, z = cz + Math.sin(a) * r;
-      g.sphere(x, -2, z, 14 + 10 * hash(i, 7), i % 2 ? 0x7FC47A : 0x9AD38A, { ws: 10, hs: 6, sy: 0.55 });
-      if (i % 3 === 0) for (var t = 0; t < 3; t++) g.cyl(x + t * 3 - 3, 0, z - 12 * Math.sign(Math.sin(a) || 1), 1.2, 0, 4.5, 6, 0x3F8F6A);
+      var a = i / 26 * Math.PI * 2, r = rad + 10 * hash(i, 3), x = Math.cos(a) * r * 0.6, z = cz + Math.sin(a) * r;
+      var s = 0.9 + hash(i, 7) * 0.6, hm = M(x, -2, z, a);
+      hm.multiply(new THREE.Matrix4().makeScale(s, s * (0.8 + hash(i, 8) * 0.5), s));
+      list.push(IB.Assets.placed('Hill', hm));
+      if (i % 3 === 0) for (var t = 0; t < 3; t++) list.push(IB.Assets.placed('Tree', M(x + t * 3 - 3, 0, z - 12 * Math.sign(Math.sin(a) || 1), t)));
     }
-    var m = new THREE.Mesh(g.build(), Z.mat);
-    level.root.add(m);
-    level.backdrop = m;
-    // clouds: one instanced mesh of a puff
-    var c = new IB.Geo();
-    c.sphere(0, 0, 0, 2.2, 0xFFFDF7, { sy: 0.7 }); c.sphere(2.2, -0.3, 0.2, 1.6, 0xFFFDF7, { sy: 0.7 }); c.sphere(-2.1, -0.4, 0, 1.5, 0xFFFDF7, { sy: 0.7 });
-    if (!Z.cloudMat) { Z.cloudMat = IB.Render.toonMaterial({}); Z.cloudMat.emissive = new THREE.Color(0x8A8478); Z.cloudMat.fog = false; }
-    var N = 10, im = new THREE.InstancedMesh(c.build(), Z.cloudMat, N), mm = new THREE.Matrix4();
-    level.clouds = [];
-    for (var k = 0; k < N; k++) {
-      var cl = { x: (hash(k, 11) - 0.5) * 160, y: 26 + hash(k, 12) * 14, z: cz + (hash(k, 13) - 0.5) * 160, s: 1 + hash(k, 14) * 1.2 };
-      level.clouds.push(cl);
-      mm.makeScale(cl.s, cl.s, cl.s).setPosition(cl.x, cl.y, cl.z); im.setMatrixAt(k, mm);
-    }
-    im.frustumCulled = false;
-    level.cloudMesh = im; level.root.add(im);
+    var ground = new THREE.Mesh(g.build(), Z.mat);
+    var hills = new THREE.Mesh(IB.Assets.merge(list), IB.Assets.mat.common);
+    level.root.add(ground); level.root.add(hills);
+    level.backdrop = hills;
+    // clouds: one instanced mesh per puff shape, drifting
+    if (!Z.cloudMat) { Z.cloudMat = IB.Render.toonMaterial({ map: IB.Assets.palette.common, baked: 0.06 }); Z.cloudMat.emissive = new THREE.Color(0x7A7468); Z.cloudMat.fog = false; }
+    level.clouds = []; level.cloudMeshes = [];
+    ['Cloud_A', 'Cloud_B', 'Cloud_C'].forEach(function (name, si) {
+      var N = 4, im = new THREE.InstancedMesh(IB.Assets.get(name), Z.cloudMat, N);
+      im.frustumCulled = false;
+      for (var k = 0; k < N; k++) {
+        var j = si * 4 + k;
+        level.clouds.push({ mesh: im, i: k, x: (hash(j, 11) - 0.5) * 160, y: 26 + hash(j, 12) * 14, z: cz + (hash(j, 13) - 0.5) * 160, s: 1 + hash(j, 14) * 1.2, yaw: hash(j, 15) * 6.28 });
+      }
+      level.cloudMeshes.push(im); level.root.add(im);
+    });
+    Z.updateClouds(level, 0);
   };
+  var _cm = new THREE.Matrix4(), _cq = new THREE.Quaternion(), _cp = new THREE.Vector3(), _cs = new THREE.Vector3();
   Z.updateClouds = function (level, dt) {
-    if (!level.cloudMesh) return;
-    var mm = new THREE.Matrix4();
+    if (!level.clouds) return;
     for (var k = 0; k < level.clouds.length; k++) {
       var cl = level.clouds[k]; cl.x += dt * 0.6; if (cl.x > 90) cl.x = -90;
-      mm.makeScale(cl.s, cl.s, cl.s).setPosition(cl.x, cl.y, cl.z); level.cloudMesh.setMatrixAt(k, mm);
+      _cq.setFromAxisAngle(_up, cl.yaw); _cp.set(cl.x, cl.y, cl.z); _cs.set(cl.s, cl.s, cl.s);
+      cl.mesh.setMatrixAt(cl.i, _cm.compose(_cp, _cq, _cs));
     }
-    level.cloudMesh.instanceMatrix.needsUpdate = true;
+    level.cloudMeshes.forEach(function (m) { m.instanceMatrix.needsUpdate = true; });
   };
 
   // visibility: previous, current, next zone + trails around current

@@ -7,67 +7,75 @@
   var D2R = Math.PI / 180;
   var _dir = new THREE.Vector3(), _right = new THREE.Vector3(), _up = new THREE.Vector3(), _fwd = new THREE.Vector3();
 
-  // ---------------- viewmodels ----------------
-  function gloves(g, aim) {
-    // right hand on the grip, left hand forward on the guard; gunmetal gloves with an amber cuff stripe
-    g.box(0.0, -0.11, 0.07, 0.085, 0.1, 0.11, PAL.gunmetal);
-    g.box(0.0, -0.11, 0.135, 0.09, 0.03, 0.02, PAL.amber, { hull: false });
-    g.box(0.02, -0.2, 0.2, 0.1, 0.1, 0.24, 0x3A3846);
-    g.box(-0.035, -0.04, -0.17, 0.08, 0.075, 0.1, PAL.gunmetal);
-    g.box(-0.06, -0.09, -0.06, 0.08, 0.08, 0.22, 0x3A3846);
-  }
-  var MODELS = {
-    pip: function (g) {
-      g.box(0, 0.0, -0.06, 0.06, 0.07, 0.26, PAL.gunmetal);
-      g.box(0, 0.025, -0.06, 0.062, 0.02, 0.24, PAL.amber, { hull: false });
-      g.box(0, -0.075, 0.03, 0.055, 0.12, 0.07, 0x3A3846);
-      g.box(0, 0.045, -0.17, 0.02, 0.02, 0.02, PAL.ink, { hull: false });
-      gloves(g);
-      return { muzzle: [0, 0.0, -0.2], mag: [0, -0.13, 0.03] };
-    },
-    buzz: function (g) {
-      g.box(0, 0.0, -0.08, 0.075, 0.09, 0.36, PAL.gunmetal);
-      g.box(0, 0.035, -0.08, 0.077, 0.02, 0.3, PAL.amber, { hull: false });
-      g.box(0, 0.0, -0.3, 0.035, 0.035, 0.12, PAL.ink);
-      g.box(0, -0.08, 0.04, 0.06, 0.12, 0.07, 0x3A3846);
-      g.box(0, -0.09, -0.08, 0.045, 0.16, 0.06, 0x3A3846);
-      g.box(0, 0.0, 0.14, 0.05, 0.06, 0.12, PAL.gunmetal);
-      gloves(g);
-      return { muzzle: [0, 0.0, -0.37], mag: [0, -0.17, -0.08] };
-    }
-  };
-  function genericModel(g, def) {
-    var len = { pistol: 0.26, smg: 0.36, rifle: 0.5, sniper: 0.62, rocket: 0.6, shotgun: 0.5 }[def.cls] || 0.4;
-    g.box(0, 0, -len / 3, 0.08, 0.1, len, PAL.gunmetal);
-    g.box(0, 0.04, -len / 3, 0.082, 0.02, len * 0.8, PAL.amber, { hull: false });
-    g.box(0, -0.09, 0.03, 0.06, 0.12, 0.07, 0x3A3846);
-    gloves(g);
-    return { muzzle: [0, 0, -len / 3 - len / 2 - 0.02], mag: [0, -0.15, -len / 3] };
-  }
-
+  // ---------------- viewmodel: Blender arms rig (22 bones) + weapon meshes from fps-weapons.glb ----------------
   W.init = function (vmScene) {
+    var A = IB.Assets;
     W.vmRoot = new THREE.Group();
     vmScene.add(W.vmRoot);
-    W.vmMat = IB.Render.toonMaterial({ uni: IB.Render.vmOutline });
+    W.vmMat = IB.Render.toonMaterial({ uni: IB.Render.vmOutline, map: A.palette.weapons, baked: A.BAKED.weapons });
+    W.vmSkinMat = IB.Render.toonMaterial({ uni: IB.Render.vmOutline, map: A.palette.weapons, baked: A.BAKED.weapons, skinning: true });
+    var rig = W.rig = A.node.ARMS_Rig;
+    rig.parent && rig.parent.remove(rig);
+    rig.position.set(0, 0, 0); rig.updateMatrixWorld(true);
+    W.vmRoot.add(rig);
+    var arms = A.node.ARMS;
+    arms.material = W.vmSkinMat; arms.frustumCulled = false;
+    W.bone = { Weapon: rig.getObjectByName('Weapon'), Mag: rig.getObjectByName('Mag') };
+    // rest-pose world matrices (rig space) so meshes modelled in rig space can ride the bones
+    W.vmRoot.updateMatrixWorld(true);
+    var rigInv = rig.matrixWorld.clone().invert();
+    W.restInv = {};
+    ['Weapon', 'Mag'].forEach(function (b) {
+      var m = new THREE.Matrix4().multiplyMatrices(rigInv, W.bone[b].matrixWorld);
+      W.restInv[b] = m.clone().invert();
+      W.restPos = W.restPos || {}; W.restPos[b] = new THREE.Vector3().setFromMatrixPosition(m);
+    });
+    W.mixer = new THREE.AnimationMixer(rig);
+    W.clips = {};
+    A.gltf.weapons.animations.forEach(function (c) { W.clips[c.name] = c; });
     W.models = {};
-    // muzzle flash: flat comic star, unlit
+    // muzzle flash: flat comic star, unlit, parented to the active weapon's MUZZLE socket
     var star = new THREE.Shape(), pts = 10;
     for (var i = 0; i <= pts; i++) { var a = i / pts * Math.PI * 2, r = i % 2 ? 0.035 : 0.09; if (i === 0) star.moveTo(Math.cos(a) * r, Math.sin(a) * r); else star.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
     W.flash = new THREE.Mesh(new THREE.ShapeGeometry(star), new THREE.MeshBasicMaterial({ color: PAL.amber, depthTest: false }));
     var inner = new THREE.Mesh(new THREE.CircleGeometry(0.03, 8), new THREE.MeshBasicMaterial({ color: PAL.paper, depthTest: false }));
     inner.position.z = 0.001; W.flash.add(inner);
     W.flash.renderOrder = 10; inner.renderOrder = 11; W.flash.visible = false;
-    W.vmRoot.add(W.flash);
   };
   function model(id) {
     if (W.models[id]) return W.models[id];
-    var def = IB.WEAPONS[id], g = new IB.Geo();
-    var sock = (MODELS[id] || function (gg) { return genericModel(gg, def); })(g);
-    var mesh = new THREE.Mesh(g.build(), W.vmMat);
-    mesh.visible = false; W.vmRoot.add(mesh);
-    W.models[id] = { mesh: mesh, sock: sock };
+    var A = IB.Assets, key = 'WPN_' + id.toUpperCase();
+    if (!A.node[key]) return null;   // weapon without a Blender model yet
+    var gun = A.node[key], mag = A.node[key + '_Mag'];
+    [gun, mag].forEach(function (o) { if (o && o.parent) o.parent.remove(o); });
+    gun.material = W.vmMat; gun.frustumCulled = false; gun.matrixAutoUpdate = false; gun.matrix.copy(W.restInv.Weapon); gun.visible = false;
+    W.bone.Weapon.add(gun);
+    if (mag) {
+      // the Mag bone is keyed onto each weapon's MAG socket; keep the mesh in rig orientation at the bone head
+      mag.material = W.vmMat; mag.frustumCulled = false; mag.matrixAutoUpdate = false;
+      mag.matrix.copy(W.restInv.Mag).multiply(new THREE.Matrix4().makeTranslation(W.restPos.Mag.x, W.restPos.Mag.y, W.restPos.Mag.z));
+      mag.visible = false; W.bone.Mag.add(mag);
+    }
+    var muzzle = gun.getObjectByName(key + '_MUZZLE');
+    W.models[id] = { mesh: gun, mag: mag, muzzle: muzzle, key: id.toUpperCase() };
     return W.models[id];
   }
+  function showModel(id, on) { var m = W.models[id]; if (!m) return; m.mesh.visible = on; if (m.mag) m.mag.visible = on; if (on && m.muzzle) m.muzzle.add(W.flash); }
+
+  // ---------------- arm animation (Blender actions <WEAPON>_<Action>) ----------------
+  W.anim = function (s, name, opts) {
+    opts = opts || {};
+    var m = s.cur && W.models[s.cur]; if (!m) return;
+    var clip = W.clips[m.key + '_' + name]; if (!clip) return;
+    var act = W.mixer.clipAction(clip);
+    act.reset(); act.enabled = true; act.setEffectiveWeight(1);
+    act.setLoop(opts.once ? THREE.LoopOnce : THREE.LoopRepeat, Infinity);
+    act.clampWhenFinished = !!opts.once;
+    act.timeScale = opts.timeScale || 1;
+    act.play();
+    if (W.action && W.action !== act) act.crossFadeFrom(W.action, opts.fade === undefined ? 0.08 : opts.fade, false);
+    W.action = act; W.animName = name; W.animOnce = !!opts.once;
+  };
 
   // ---------------- state ----------------
   /* owned: array of weapon ids; fx: upgrade effects */
@@ -81,9 +89,9 @@
   W.give = function (s, id) {
     var def = IB.WEAPONS[id]; if (!def || def.fire === 'throw' || def.fire === 'melee' || def.fire === 'projectile') return;
     var mag = W.magSize(s, def);
+    if (!model(id)) return;   // only weapons with a Blender model are playable
     s.guns[id] = { id: id, def: def, mag: mag, reserve: (def.reserve === null || def.reserve === undefined || def.reserve === Infinity) ? Infinity : def.reserve };
     if (!s.slots[def.slot]) s.slots[def.slot] = id;
-    model(id);
   };
   W.magSize = function (s, def) { return IB.Upgrades ? IB.Upgrades.magSize(def.mag, s.fx.magLevel || 0) : def.mag; };
   W.refill = function (s) { Object.keys(s.guns).forEach(function (k) { var g = s.guns[k]; g.mag = W.magSize(s, g.def); g.reserve = (g.def.reserve == null || g.def.reserve === Infinity) ? Infinity : g.def.reserve; }); };
@@ -93,11 +101,12 @@
 
   W.equip = function (s, id, instant) {
     if (!s.guns[id] || (s.cur === id && s.state !== 'holster')) return;
-    if (s.cur && !instant) { s.pending = id; s.state = 'holster'; s.t = 0; return; }
-    if (s.cur) W.models[s.cur].mesh.visible = false;
+    if (s.cur && !instant) { s.pending = id; s.state = 'holster'; s.t = 0; W.anim(s, 'Holster', { once: true }); return; }
+    Object.keys(W.models).forEach(function (k) { showModel(k, false); });
     s.cur = id; s.state = 'draw'; s.t = 0; s.burst = 0; s.shotsInRow = 0; s.recoilP *= 0.5;
-    W.models[id].mesh.visible = true;
-    if (instant) s.state = 'idle';
+    showModel(id, true);
+    if (instant) { s.state = 'idle'; W.anim(s, 'Idle', { fade: 0 }); }
+    else W.anim(s, 'Draw', { once: true, fade: 0 });
     IB.Audio && IB.Audio.play('draw');
   };
   W.slot = function (s, n) { if (s.slots[n]) W.equip(s, s.slots[n]); };
@@ -110,6 +119,8 @@
     var g = W.current(s); if (!g || s.state !== 'idle') return;
     if (g.mag >= W.magSize(s, g.def) || g.reserve <= 0) return;
     s.state = 'reload'; s.t = 0; s.reloadT = g.def.reload * (s.fx.reloadMul || 1); s.burst = 0;
+    var rc = W.clips[W.models[s.cur].key + '_Reload'];
+    W.anim(s, 'Reload', { once: true, timeScale: rc ? rc.duration / s.reloadT : 1 });   // Quick Hands rescales the clip
     IB.Audio && IB.Audio.play('magOut');
   };
 
@@ -145,7 +156,7 @@
     p.weaponMoveMul = g.def.moveMul || 1;
     switch (s.state) {
       case 'holster':
-        if (s.t >= 0.2) { var nid = s.pending; s.pending = null; W.models[s.cur].mesh.visible = false; s.cur = null; W.equip(s, nid, false); }
+        if (s.t >= 0.2) { var nid = s.pending; s.pending = null; showModel(s.cur, false); s.cur = null; W.equip(s, nid, false); }
         return;
       case 'draw':
         if (s.t >= 0.3) s.state = 'idle';
@@ -191,6 +202,7 @@
     s.recoilY += (Math.random() * 2 - 1) * (d.recoilH || 0) * (s.fx.recoilMul || 1) * D2R;
     s.kickZv += 1.6 + rec * 0.5; s.kickRv += 2.0 + rec * 1.2;
     s.flashT = 0.045;
+    W.anim(s, 'Fire', { once: true, fade: 0.02 });
     IB.Audio && IB.Audio.play(d.id === 'buzz' ? 'buzz' : (d.id === 'pip' ? 'pip' : 'gun'), { pitch: 1 + (Math.random() * 0.08 - 0.04) });
     if (ctx.onFire) ctx.onFire(d);
   }
@@ -222,12 +234,12 @@
     var bobAmt = (headBob ? 1 : 0.5) * Math.min(1, hs / 6) * (1 - a * 0.8);
     x += Math.sin(player.bobT) * 0.012 * bobAmt; y += Math.abs(Math.cos(player.bobT)) * 0.012 * bobAmt;
     y += Math.sin(t * 1.6) * 0.003 * (1 - a);
-    if (player.sprinting) { x -= 0.04; y -= 0.06; rx -= 0.35; ry += 0.55; }
-    if (s.state === 'draw') { var k = 1 - s.t / 0.3; y -= k * k * 0.25; rx -= k * 0.8; }
-    if (s.state === 'holster') { var h = s.t / 0.2; y -= h * 0.25; rx -= h * 0.8; }
-    if (s.state === 'reload') {
-      var rk = s.t / s.reloadT, dip = Math.sin(Math.min(1, rk) * Math.PI);
-      y -= dip * 0.06; rz += dip * 0.5; rx += dip * 0.25;
+    // arm animation: once-clips (draw, fire, reload, holster) fall back to the Idle / Sprint loop
+    if (g && W.mixer) {
+      var want = player.sprinting ? 'Sprint' : 'Idle';
+      var busy = W.animOnce && W.action && W.action.isRunning();
+      if (!busy && W.animName !== want && s.state !== 'holster') W.anim(s, want, { fade: 0.12 });
+      W.mixer.update(dt);
     }
     y -= player.dip * 0.4;
     z += s.kickZ * 0.02; rx += s.kickR * 0.03;
@@ -236,9 +248,8 @@
     W.vmRoot.scale.setScalar(0.85);
     W.vmRoot.visible = !!g && !s.hidden;
     if (g) {
-      var m = W.models[g.id], mz = m.sock.muzzle;
       W.flash.visible = s.flashT > 0;
-      W.flash.position.set(mz[0], mz[1], mz[2] - 0.03);
+      W.flash.position.set(0, 0, -0.03);
       W.flash.rotation.z = Math.random() * 6.28;
       var fs = 0.8 + Math.random() * 0.5; W.flash.scale.set(fs, fs, fs);
     }

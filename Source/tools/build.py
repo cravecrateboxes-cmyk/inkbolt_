@@ -27,6 +27,9 @@ def write(p, s):
         f.write(s)
 
 
+ASSETS = {'common': 'fps-common.glb', 'weapons': 'fps-weapons.glb', 'bots': 'fps-bots.glb', 'kit-toytown': 'fps-kit-toytown.glb'}
+
+
 def zones_bundle():
     d = os.path.join(SRC, 'src/data/zones')
     maps = {}
@@ -58,6 +61,11 @@ def bundle(platform='plain', standalone=False):
     html = re.sub(r'<!--BUILD:CSS-->.*?<!--/BUILD:CSS-->', lambda m: '<style>\n' + css + '\n</style>', html, flags=re.S)
     scripts = script_list(html)
     game = ['window.__PLATFORM__ = %s;' % json.dumps(platform)]
+    if standalone:   # every GLB embedded as base64 (brief 4.2); decoded with GLTFLoader.parse
+        data = {}
+        for fam, fn in ASSETS.items():
+            data[fam] = base64.b64encode(open(os.path.join(SRC, 'assets', fn), 'rb').read()).decode()
+        game.append('window.IB = window.IB || {}; IB.GLB_DATA = ' + json.dumps(data) + ';')
     vendor_tags = []
     for s in scripts:
         if s.startswith('vendor/'):
@@ -82,12 +90,15 @@ def main():
         shutil.rmtree(up)
     os.makedirs(up)
     write(os.path.join(up, 'index.html'), bundle('plain', False))
-    for f in ('three.min.js', 'three-LICENSE.txt'):
+    for f in ('three.min.js', 'three-LICENSE.txt', 'GLTFLoader.js', 'BufferGeometryUtils.js'):
         shutil.copy(os.path.join(SRC, 'vendor', f), up)
+    os.makedirs(os.path.join(up, 'assets'))
+    for fn in ASSETS.values():
+        shutil.copy(os.path.join(SRC, 'assets', fn), os.path.join(up, 'assets'))
     # single-file offline build
     play = os.path.join(ROOT, 'Play Inkbolt.html')
     write(play, bundle('plain', True))
-    for p in (play, os.path.join(up, 'index.html')):
+    for p in [play, os.path.join(up, 'index.html')] + [os.path.join(SRC, 'assets', f) for f in ASSETS.values()]:
         print('%-60s %8.1f KB' % (os.path.relpath(p, ROOT), os.path.getsize(p) / 1024))
 
 

@@ -104,8 +104,8 @@ async function inputRun(browser, base) {
   await pg.keyboard.down('KeyW'); await pg.waitForTimeout(900); await pg.keyboard.up('KeyW');
   const p1 = (await st(pg)).pos;
   check('W moves forward (-Z)', p1[2] < p0[2] - 0.5, p0[2].toFixed(2) + ' -> ' + p1[2].toFixed(2));
-  await pg.keyboard.press('Space'); await pg.waitForTimeout(150);
-  check('Space jumps', (await st(pg)).pos[1] > 0.05);
+  await pg.keyboard.press('Space');
+  check('Space jumps', await until(pg, () => __TEST__.state().pos[1] > 0.05, null, 2000));
   const yaw0 = await pg.evaluate(() => IB.Game.player.yaw);
   await pg.mouse.move(640, 360); await pg.mouse.down({ button: 'right' }); await pg.mouse.move(540, 360, { steps: 5 }); await pg.mouse.up({ button: 'right' });
   const yaw1 = await pg.evaluate(() => IB.Game.player.yaw);

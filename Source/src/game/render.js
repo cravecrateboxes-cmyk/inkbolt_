@@ -33,7 +33,7 @@
     return { uInk: { value: new THREE.Color(PAL.ink) }, uOutBase: { value: base }, uOutK: { value: 0.002 }, px: px };
   }
 
-  var VERT_PARS = 'attribute vec3 aHull;\nvarying float vHull;\nuniform float uOutBase;\nuniform float uOutK;\n';
+  var VERT_PARS = 'attribute vec3 aHull;\nvarying float vHull;\nuniform float uOutBase;\nuniform float uOutK;\nuniform float uBaked;\n';
   var VERT_PROJECT = [
     'vec4 mvPosition = vec4( transformed, 1.0 );',
     '#ifdef USE_INSTANCING',
@@ -47,7 +47,7 @@
     '   hd = instanceMatrix * hd;',
     '  #endif',
     '  hd = modelViewMatrix * hd;',
-    '  mvPosition.xyz += hd.xyz * max( uOutBase, uOutK * -mvPosition.z );',
+    '  mvPosition.xyz += hd.xyz * max( 0.0, max( uOutBase, uOutK * -mvPosition.z ) - uBaked );',
     '  vHull = 1.0;',
     '}',
     'gl_Position = projectionMatrix * mvPosition;'
@@ -59,12 +59,15 @@
     var mat = new THREE.MeshToonMaterial({
       color: opts.color !== undefined ? opts.color : 0xffffff,
       vertexColors: opts.vertexColors !== false,
-      gradientMap: IB.Render.gradient
+      gradientMap: IB.Render.gradient,
+      map: opts.map || null
     });
+    if (opts.skinning) mat.skinning = true;
+    var baked = { value: opts.baked || 0 };
     var uni = opts.uni || IB.Render.worldOutline;
     var fx = !!opts.fx;
     mat.onBeforeCompile = function (sh) {
-      sh.uniforms.uInk = uni.uInk; sh.uniforms.uOutBase = uni.uOutBase; sh.uniforms.uOutK = uni.uOutK;
+      sh.uniforms.uInk = uni.uInk; sh.uniforms.uOutBase = uni.uOutBase; sh.uniforms.uOutK = uni.uOutK; sh.uniforms.uBaked = baked;
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', '#include <common>\n' + VERT_PARS + (fx ? 'attribute vec2 aFx;\nvarying vec2 vFx;\n' : ''))
         .replace('#include <project_vertex>', VERT_PROJECT + (fx ? '\nvFx = aFx;' : ''));
@@ -74,7 +77,7 @@
           (fx ? 'gl_FragColor.rgb = mix( gl_FragColor.rgb, vec3( 1.0 ), vFx.x );\ngl_FragColor.rgb = mix( gl_FragColor.rgb, uInk, vFx.y );\n' : '') +
           'if ( vHull > 0.5 ) gl_FragColor = vec4( uInk, 1.0 );\n#include <fog_fragment>');
     };
-    mat.customProgramCacheKey = function () { return 'ibtoon' + (fx ? 'fx' : '') + (uni === IB.Render.worldOutline ? 'w' : 'v'); };
+    mat.customProgramCacheKey = function () { return 'ibtoon' + (fx ? 'fx' : '') + (uni === IB.Render.worldOutline ? 'w' : 'v') + (opts.skinning ? 's' : ''); };
     return mat;
   }
 

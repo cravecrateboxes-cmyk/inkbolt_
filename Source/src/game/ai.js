@@ -11,39 +11,23 @@
   function stat(id, key, fallback) { var e = IB.ENEMIES && IB.ENEMIES[id]; return (e && e[key] !== undefined) ? e[key] : fallback; }
 
   // ---------------- visual definitions ----------------
+  // Robot parts come from fps-bots.glb (Blender). pose() places each instanced part every frame.
   var VIS = AI.VIS = {
     crawler: {
-      radius: 0.42, y0: 0.12, y1: 0.86, coreY: 0.86, coreR: 0.17, shadow: 0.5,
-      parts: {
-        Body: { count: 1, build: function (g) {
-          var tin = stat('crawler', 'color', '#C9CFD6');
-          g.cyl(0, 0.3, 0, 0.32, 0.31, 0.42, 12, tin);
-          g.cyl(0, 0.42, 0, 0.335, 0.335, 0.12, 12, 0xD9663B, { hull: false, noTop: true, noBottom: true });
-          g.cyl(0, 0.72, 0, 0.35, 0.35, 0.05, 12, 0xA9B0BA);
-          g.box(0, 0.6, 0.31, 0.34, 0.07, 0.06, PAL.ink, { hull: false });
-          g.box(0, 0.6, 0.335, 0.22, 0.03, 0.02, PAL.amber, { hull: false });
-          g.box(-0.24, 0.52, 0.2, 0.05, 0.05, 0.05, 0x8C93A0, { hull: false });
-          g.box(0.24, 0.52, 0.2, 0.05, 0.05, 0.05, 0x8C93A0, { hull: false });
-          g.sphere(0, 0.77, 0, 0.14, PAL.core, { ws: 8, hs: 4, sy: 0.6 });
-          g.cyl(0.12, 0.76, -0.08, 0.018, 0.018, 0.3, 4, PAL.ink, { hull: false });
-        } },
-        Leg: { count: 4, build: function (g) {
-          // spring coil (zigzag) from hip (y=0) down to a foot pad at y=-0.32
-          for (var i = 0; i < 4; i++) g.box((i % 2 ? 0.035 : -0.035), -0.04 - i * 0.065, 0, 0.13, 0.035, 0.06, 0x8C93A0, { hullScale: 0.6 });
-          g.box(0, -0.15, 0, 0.03, 0.3, 0.03, PAL.gunmetal, { hull: false });
-          g.cyl(0, -0.33, 0, 0.09, 0.07, 0.05, 6, PAL.gunmetal);
-        } },
-        Light: { count: 1, light: true, build: function (g) { g.box(0, 0, 0, 0.09, 0.09, 0.09, 0xffffff, { hullScale: 0.6 }); } }
+      radius: 0.42, y0: 0.12, y1: 0.86, coreR: 0.17, shadow: 0.5,
+      parts: { Body: { count: 1, asset: 'BOT_CRAWLER_Body' }, Leg: { count: 4, asset: 'BOT_CRAWLER_Leg' }, Light: { count: 1, light: true, asset: 'BOT_CRAWLER_Light' } },
+      sockets: function (v) {
+        v.hips = [0, 1, 2, 3].map(function (i) { var p = IB.Assets.socket('BOT_CRAWLER_HIP' + i); return [p.x, p.y, p.z]; });
+        v.coreY = IB.Assets.socket('BOT_CRAWLER_CORE').y;
       },
-      hips: [[-0.25, 0.25], [0.25, 0.25], [0.25, -0.25], [-0.25, -0.25]],
       pose: function (r, set) {
-        var bob = Math.abs(Math.sin(r.walk * 2)) * 0.05, crouch = r.crouch;
+        var v = VIS.crawler, bob = Math.abs(Math.sin(r.walk * 2)) * 0.05, crouch = r.crouch;
         var bodyY = bob - crouch * 0.12;
         set('Body', 0, 0, bodyY, 0, 0, 1);
         for (var i = 0; i < 4; i++) {
-          var h = VIS.crawler.hips[i], ph = Math.sin(r.walk * 2 + (i % 2) * Math.PI);
-          var sc = (0.33 + bodyY) / 0.33 * (1 + ph * 0.06);
-          set('Leg', i, h[0], 0.33 + bodyY, h[1], 0, Math.max(0.5, sc));
+          var h = v.hips[i], ph = Math.sin(r.walk * 2 + (i % 2) * Math.PI);
+          var sc = (h[1] + bodyY) / h[1] * (1 + ph * 0.06);
+          set('Leg', i, h[0], h[1] + bodyY, h[2], 0, Math.max(0.5, sc));
         }
         set('Light', 0, 0.12, 1.08 + bodyY, -0.08, 0, 1);
       }
@@ -53,8 +37,6 @@
   // ---------------- materials / meshes ----------------
   AI.init = function (scene) {
     AI.scene = scene;
-    AI.mat = IB.Render.toonMaterial({ fx: true });
-    AI.lightMat = IB.Render.toonMaterial({});
     var cmat = new THREE.MeshBasicMaterial({ color: PAL.ink, transparent: true, depthWrite: true });
     cmat.onBeforeCompile = function (sh) {
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aOp;\nvarying float vOp;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvOp = aOp;');
@@ -62,12 +44,15 @@
     };
     cmat.customProgramCacheKey = function () { return 'ibcorpse'; };
     AI.corpseMat = cmat;
+    var A = IB.Assets, bake = A.BAKED.bots;
+    AI.mat = IB.Render.toonMaterial({ fx: true, map: A.palette.bots, baked: bake });
+    AI.lightMat = IB.Render.toonMaterial({ map: A.palette.bots, baked: bake });
     Object.keys(VIS).forEach(function (id) {
       var v = VIS[id], T = { id: id, vis: v, parts: {}, slots: [], corpse: null };
-      var whole = new IB.Geo();
+      v.sockets(v);
       Object.keys(v.parts).forEach(function (pn) {
-        var P = v.parts[pn], g = new IB.Geo(); P.build(g);
-        var geo = g.build(), n = CAP * P.count;
+        var P = v.parts[pn];
+        var geo = A.get(P.asset).clone(), n = CAP * P.count;
         if (!P.light) { var fx = new THREE.InstancedBufferAttribute(new Float32Array(n * 2), 2); fx.setUsage(THREE.DynamicDrawUsage); geo.setAttribute('aFx', fx); }
         var im = new THREE.InstancedMesh(geo, P.light ? AI.lightMat : AI.mat, n);
         im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); im.frustumCulled = false;
@@ -76,9 +61,10 @@
         T.parts[pn] = { mesh: im, count: P.count };
       });
       // corpse geometry: whole robot in rest pose, all ink
-      var cg = new IB.Geo(); v.parts.Body.build(cg);
-      if (v.hips) v.hips.forEach(function (h) { cg.setMatrix(new THREE.Matrix4().makeTranslation(h[0], 0.33, h[1])); v.parts.Leg.build(cg); cg.setMatrix(null); });
-      var cgeo = cg.build(); cgeo.deleteAttribute('aHull');
+      var cparts = [A.placed(v.parts.Body.asset, new THREE.Matrix4())];
+      v.hips.forEach(function (h) { cparts.push(A.placed(v.parts.Leg.asset, new THREE.Matrix4().makeTranslation(h[0], h[1], h[2]))); });
+      var cgeo = A.merge(cparts);
+      ['aHull', 'uv', 'color', 'normal'].forEach(function (k) { cgeo.deleteAttribute(k); });
       var op = new THREE.InstancedBufferAttribute(new Float32Array(CORPSE_CAP), 1); op.setUsage(THREE.DynamicDrawUsage); cgeo.setAttribute('aOp', op);
       var cm = new THREE.InstancedMesh(cgeo, cmat, CORPSE_CAP);
       cm.instanceMatrix.setUsage(THREE.DynamicDrawUsage); cm.frustumCulled = false;
