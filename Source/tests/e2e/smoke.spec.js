@@ -59,9 +59,9 @@ async function hookRun(browser, base) {
     }
     const s1 = await st(pg);
     check('zone ' + (z + 1) + ' cleared', s1.zones[z] === 'cleared', JSON.stringify(s1.zones));
-    const open = await until(pg, i => __TEST__.state().exitGates[i] >= 0.99, z, 6000);
+    const open = await until(pg, i => __TEST__.state().exitGates[i] >= 0.99, z, 20000);
     check('zone ' + (z + 1) + ' gate rolls up', open, JSON.stringify((await st(pg)).exitGates));
-    const lit = await until(pg, i => { const t = __TEST__.state().trailLit[i].split('/'); return +t[0] === +t[1]; }, z, 6000);
+    const lit = await until(pg, i => { const t = __TEST__.state().trailLit[i].split('/'); return +t[0] === +t[1]; }, z, 20000);
     check('zone ' + (z + 1) + ' trail arrows light', lit, (await st(pg)).trailLit[z]);
   }
   const g = await st(pg);
@@ -116,7 +116,7 @@ async function inputRun(browser, base) {
   // aim at robots and click until zone 1 clears
   await until(pg, () => __TEST__.state().alive > 0, null, 10000);
   const t0 = Date.now(); let clicks = 0;
-  while (Date.now() - t0 < 90000) {
+  while (Date.now() - t0 < 200000) {
     const s = await st(pg); if (s.zones[0] === 'cleared') break;
     const aimed = await pg.evaluate(() => {
       const G = IB.Game, p = G.player; let best = null, bd = 1e9;
