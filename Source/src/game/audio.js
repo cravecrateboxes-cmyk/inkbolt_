@@ -48,7 +48,17 @@
     uiBack: function () { return norm(env(band(noise(len(0.03)), 1800, 3), 0.0005, 0.025, 3), 0.3); },
     hatch: function () { var o = new Float32Array(len(0.7)); mix(o, env(lowpass(noise(len(0.5)), 700), 0.02, 0.45, 1.5), 0.8); mix(o, env(band(noise(len(0.1)), 900, 1), 0.001, 0.1, 2), 1.2, 0.45); return norm(o, 0.7); },
     shove: function () { var o = new Float32Array(len(0.18)); mix(o, env(band(noise(len(0.15)), 800, 0.7), 0.01, 0.14, 2), 1); return norm(o, 0.5); },
-    servo: function () { var o = new Float32Array(len(0.5)); var t = tone(len(0.5), 210, 210, 'sq'); lowpass(t, 900); mix(o, t, 0.4); mix(o, band(noise(len(0.5)), 1200, 2), 0.2); return norm(o, 0.25); }
+    servo: function () { var o = new Float32Array(len(0.5)); var t = tone(len(0.5), 210, 210, 'sq'); lowpass(t, 900); mix(o, t, 0.4); mix(o, band(noise(len(0.5)), 1200, 2), 0.2); return norm(o, 0.25); },
+    // enemy bolt: hollow pipe "thoomp" + falling zap
+    bolt: function () { var o = new Float32Array(len(0.2)); var z = env(tone(len(0.16), 1500, 420, 'sq'), 0.001, 0.15, 2); lowpass(z, 3200); mix(o, z, 0.35); mix(o, env(band(noise(len(0.05)), 900, 1.2), 0.001, 0.045, 2), 0.9); mix(o, env(tone(len(0.08), 160, 90), 0.001, 0.08, 2), 0.6); return norm(o, 0.55); },
+    // bolt hits something: short crackle + thud
+    boltHit: function () { var o = new Float32Array(len(0.14)); mix(o, env(band(noise(len(0.06)), 2600, 2), 0.0005, 0.05, 3), 1); mix(o, env(tone(len(0.07), 260, 120), 0.001, 0.07, 2), 0.5); return norm(o, 0.5); },
+    // Bomber fuse: 0.6 s fizz rising in pitch with sparky crackles
+    fuse: function () { var n = len(0.62), o = new Float32Array(n); var h = highpass(noise(n), 2500); for (var i = 0; i < n; i++) h[i] *= (0.35 + 0.65 * i / n) * (0.7 + 0.3 * Math.sin(i / SR * 2 * Math.PI * 34)); mix(o, h, 0.6); for (var k = 0; k < 9; k++) mix(o, env(band(noise(len(0.012)), 4200 + k * 300, 4), 0.0005, 0.01, 3), 0.5, k * 0.065 + Math.random() * 0.02); var t = env(tone(len(0.6), 700, 1900, 'sq'), 0.05, 0.58, 0.5); lowpass(t, 2400); mix(o, t, 0.12); return norm(o, 0.5); },
+    // Bomber blast: low boom, noisy body, glass and can rattle
+    boom: function () { var o = new Float32Array(len(1.0)); mix(o, env(tone(len(0.5), 95, 32), 0.002, 0.5, 1.6), 1); mix(o, env(lowpass(noise(len(0.8)), 700), 0.002, 0.75, 1.8), 1.2); mix(o, env(band(noise(len(0.3)), 2400, 1), 0.001, 0.25, 2), 0.5); for (var i = 0; i < 4; i++) mix(o, env(band(noise(len(0.03)), 3400 + i * 600, 4), 0.0005, 0.025, 3), 0.35, 0.12 + i * 0.07); return norm(o, 0.95); },
+    // Drone windup: rotor whine spinning up
+    rotor: function () { var n = len(0.45), o = new Float32Array(n), ph = 0; for (var i = 0; i < n; i++) { var f = 140 + 260 * (i / n); ph += 2 * Math.PI * f / SR; o[i] = (Math.sin(ph) > 0 ? 1 : -1) * (0.6 + 0.4 * Math.sin(ph * 0.25)); } lowpass(o, 1800); mix(o, env(band(noise(n), 1600, 2), 0.05, 0.4, 1), 0.3); env(o, 0.06, 0.4, 0.8); return norm(o, 0.35); }
   };
 
   A.init = function () {

@@ -25,7 +25,7 @@
     bomber: {
       id: 'bomber', name: 'Bomber', built: 'Fizzing bottle on a roller', first: 3,
       hp: 25, shield: 0, speed: 4.2, chargeSpeed: 0, attack: 'Rushes, fuse flash, explodes',
-      damage: 35, blastRadius: 3, windup: 0.6, fuse: 0.6, recover: 0, range: 2,
+      damage: 35, robotDamage: 45, blastRadius: 3, windup: 0.6, fuse: 0.6, recover: 0, range: 2,
       hurtsRobots: true, gems: { chip: 2, shard: 0, core: 0 }, cost: 1.5, color: '#3E86D8',
       radius: 0.4, height: 0.9, coreOffset: [0, 0.45, 0.2], coreRadius: 0.15,
       notes: 'Shoot it early: its blast also hurts robots'
