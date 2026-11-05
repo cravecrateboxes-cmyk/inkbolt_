@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#15121C">
+<title>INKBOLT</title>
+<!--BUILD:CSS--><link rel="stylesheet" href="src/ui/ui.css"><!--/BUILD:CSS-->
+</head>
+<body>
+<div id="boot" class="boot"><div class="boot-plate"><span class="boot-word">INKBOLT</span><div class="boot-bar"><i id="bootBar"></i></div></div></div>
+<canvas id="c" aria-label="Game view"></canvas>
+<div id="touchLayer"></div>
+<div id="flash" class="flash"></div>
+<div id="hud" class="hud" hidden>
+  <div class="hud-tl">
+    <div class="plate ink gems" id="gems"><span class="gem-glyph" aria-hidden="true"></span><b id="gemCount">0</b></div>
+  </div>
+  <div class="hud-top">
+    <div class="plate ink score" id="score">
+      <span class="score-zone" id="scZone">ZONE 1/2</span>
+      <b class="score-time" id="scTime">00:00</b>
+      <span class="score-left" id="scLeft">0 LEFT</span>
+    </div>
+    <div class="pips" id="pips"></div>
+  </div>
+  <div class="feed" id="feed"></div>
+  <div class="xhair" id="xhair"><i></i><i></i><i></i><i></i></div>
+  <svg class="hitmark" id="hitmark" viewBox="-20 -20 40 40" aria-hidden="true"><path d="M-10-10l-6-6M10-10l6-6M-10 10l-6 6M10 10l6 6"/></svg>
+  <svg class="arcs" id="arcs" viewBox="-150 -150 300 300" aria-hidden="true"></svg>
+  <div class="plate ink health" id="health"><div class="hp-bar"><i id="hpFill"></i></div><b id="hpNum">100</b></div>
+  <div class="slots" id="slots"></div>
+  <div class="plate ammo" id="ammo"><b id="ammoMag">12</b><span id="ammoRes">/ ∞</span></div>
+  <div class="toast plate ink" id="toast" hidden></div>
+  <div class="elim" id="elim" hidden>
+    <div class="plate red elim-card">
+      <span class="elim-by">ELIMINATED BY</span>
+      <b class="elim-name" id="elimName">CRAWLER</b>
+      <span class="elim-row"><span id="elimCount">Back in 3</span><span id="elimRetries">Retries left 2</span></span>
+    </div>
+  </div>
+  <button class="plate ink pausebtn" id="pauseBtn" aria-label="Pause"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3v14H7zM14 5h3v14h-3z" fill="currentColor"/></svg></button>
+</div>
+<div id="touch" class="touch" hidden></div>
+<div id="overlay" class="overlay" hidden></div>
+<!--BUILD:JS-->
+<script src="vendor/three.min.js"></script>
+<script src="src/core/rng.js"></script>
+<script src="src/data/weapons.js"></script>
+<script src="src/data/enemies.js"></script>
+<script src="src/data/upgrades.js"></script>
+<script src="src/data/unlocks.js"></script>
+<script src="src/data/levels.js"></script>
+<script src="src/data/levelplans.js"></script>
+<script src="src/data/zones.gen.js"></script>
+<script src="src/core/damage.js"></script>
+<script src="src/core/gems.js"></script>
+<script src="src/core/upgrades.js"></script>
+<script src="src/core/saves.js"></script>
+<script src="src/core/levelgen.js"></script>
+<script src="src/game/platform.js"></script>
+<script src="src/game/render.js"></script>
+<script src="src/game/audio.js"></script>
+<script src="src/game/input.js"></script>
+<script src="src/game/zones.js"></script>
+<script src="src/game/player.js"></script>
+<script src="src/game/fx.js"></script>
+<script src="src/game/ai.js"></script>
+<script src="src/game/weapons.js"></script>
+<script src="src/ui/hud.js"></script>
+<script src="src/ui/menus.js"></script>
+<script src="src/game/game.js"></script>
+<!--/BUILD:JS-->
+</body>
+</html>

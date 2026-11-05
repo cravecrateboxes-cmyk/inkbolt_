@@ -1,0 +1,5 @@
+node_modules/
+__pycache__/
+Source/dist/
+Source/tests/e2e/screens/
+Source/tests/e2e/perf.json
