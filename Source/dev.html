@@ -12,8 +12,11 @@
 <canvas id="c" aria-label="Game view"></canvas>
 <div id="touchLayer"></div>
 <div id="flash" class="flash"></div>
+<div id="dim" class="waydim" aria-hidden="true"><i class="dim-tone"></i><i class="dim-vig"></i><i class="dim-dots"></i></div>
+<div id="hurt" class="hurt" aria-hidden="true"><i class="hurt-low"></i><i class="hurt-flash" id="hurtFlash"></i></div>
 <div id="hud" class="hud" hidden>
   <div class="hud-tl">
+    <div class="plate ink objective" id="objective" hidden><i class="obj-mark" aria-hidden="true"></i><span id="objText"></span></div>
     <div class="plate ink gems" id="gems"><span class="gem-glyph" aria-hidden="true"></span><b id="gemCount">0</b></div>
   </div>
   <div class="hud-top">
@@ -24,17 +27,40 @@
     </div>
     <div class="pips" id="pips"></div>
   </div>
-  <div class="feed" id="feed"></div>
-  <div class="xhair" id="xhair"><i></i><i></i><i></i><i></i></div>
-  <svg class="hitmark" id="hitmark" viewBox="-20 -20 40 40" aria-hidden="true"><path d="M-10-10l-6-6M10-10l6-6M-10 10l-6 6M10 10l6 6"/></svg>
+  <div class="hud-tr">
+    <div class="plate ink radar" id="radar" hidden><canvas id="radarCv" width="180" height="180"></canvas></div>
+    <div class="feed" id="feed"></div>
+  </div>
+  <div class="xhair" id="xhair"><i></i><i></i><i></i><i></i><b class="xdot"></b></div>
+  <svg class="hitmark" id="hitmark" viewBox="-20 -20 40 40" aria-hidden="true"><path class="hm-ink" d="M-9-9l-7-7M9-9l7-7M-9 9l-7 7M9 9l7 7"/><path class="hm" d="M-9-9l-7-7M9-9l7-7M-9 9l-7 7M9 9l7 7"/></svg>
   <svg class="arcs" id="arcs" viewBox="-150 -150 300 300" aria-hidden="true"></svg>
-  <div class="plate ink health" id="health"><div class="hp-bar"><i id="hpFill"></i></div><b id="hpNum">100</b></div>
-  <div class="slots" id="slots"></div>
-  <div class="plate ammo" id="ammo"><b id="ammoMag">12</b><span id="ammoRes">/ ∞</span></div>
+  <div class="confirm" id="confirm" hidden><span class="gem-glyph sm" aria-hidden="true"></span><b id="confirmNum">+1</b></div>
+  <div class="prompt" id="prompt" hidden><span class="key" id="promptKey">R</span><span id="promptText">Reload</span><i class="prompt-bar"><i id="promptFill"></i></i></div>
+  <div class="hud-bl">
+    <div class="plate ink health" id="health">
+      <svg class="hp-glyph" viewBox="-12 -12 24 24" aria-hidden="true"><polygon points="11,0 5.5,9.5 -5.5,9.5 -11,0 -5.5,-9.5 5.5,-9.5"/><circle r="3.6"/></svg>
+      <div class="hp-bar"><i id="hpFill"></i><i class="hp-ticks"></i></div><b id="hpNum">100</b>
+    </div>
+    <div class="stamina" id="stamina"><i id="stFill"></i></div>
+  </div>
+  <div class="hud-br">
+    <div class="slots" id="slots"></div>
+    <div class="plate ink weapon" id="weapon">
+      <div class="wpn-info">
+        <b class="wpn-name" id="wpnName">P-12 WARDEN</b>
+        <span class="wpn-cls"><span class="wpn-icon" id="wpnIcon"></span><span id="wpnCls">Pistol</span></span>
+        <div class="mag-strip" id="magStrip"><i id="magFill"></i></div>
+      </div>
+      <div class="plate ammo" id="ammo"><b id="ammoMag">12</b><span id="ammoRes">/ ∞</span></div>
+    </div>
+  </div>
+  <div class="pickup" id="pickup" hidden>
+    <div class="plate ink pickup-card"><span class="pickup-icon" id="pickupIcon"></span><span class="pickup-txt"><b id="pickupName">AR-22 RIVET</b><span id="pickupLine">New weapon · press 3</span></span></div>
+  </div>
   <div class="toast plate ink" id="toast" hidden></div>
   <div class="elim" id="elim" hidden>
     <div class="plate red elim-card">
-      <span class="elim-by">ELIMINATED BY</span>
+      <span class="elim-by">Eliminated by</span>
       <b class="elim-name" id="elimName">CRAWLER</b>
       <span class="elim-row"><span id="elimCount">Back in 3</span><span id="elimRetries">Retries left 2</span></span>
     </div>
@@ -43,6 +69,7 @@
 </div>
 <div id="touch" class="touch" hidden></div>
 <div id="overlay" class="overlay" hidden></div>
+<div id="loading" class="loading" hidden></div>
 <!--BUILD:JS-->
 <script src="vendor/three.min.js"></script>
 <script src="vendor/GLTFLoader.js"></script>

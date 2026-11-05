@@ -1,4 +1,6 @@
-/* INKBOLT HUD (section 2.4). DOM writes only when a value changes. */
+/* INKBOLT HUD (section 2.4). DOM writes only when a value changes; per-frame calls are cached.
+   Layout: objective + gems top-left, scoreboard top-centre, radar + kill feed top-right,
+   health + stamina bottom-left, weapon slots + weapon/ammo plate bottom-right (phones: see ui.css). */
 (function (IB) {
   'use strict';
   var H = IB.HUD = { last: {} };
@@ -10,31 +12,58 @@
     rifle: '<svg viewBox="0 0 40 20" aria-hidden="true"><path d="M1 6h36v3H24v8h-5l-1-5h-6l-3 5H4l3-6H1z" fill="currentColor"/></svg>',
     sniper: '<svg viewBox="0 0 40 20" aria-hidden="true"><path d="M1 8h38v2H24v7h-4l-1-5H6l-3 5H1zM12 4h10v3H12z" fill="currentColor"/></svg>',
     rocket: '<svg viewBox="0 0 40 20" aria-hidden="true"><path d="M2 6h30l6 4-6 4H2zM14 14h5v5h-5z" fill="currentColor"/></svg>',
+    shotgun: '<svg viewBox="0 0 40 20" aria-hidden="true"><path d="M1 6h37v3H1zM10 10h18v3H10zM6 9h6l-3 8H3z" fill="currentColor"/></svg>',
+    grenade: '<svg viewBox="0 0 40 20" aria-hidden="true"><path d="M14 5h12v13H14zM17 1h6v3h-6zM24 2h6v2h-6z" fill="currentColor"/></svg>',
     melee: '<svg viewBox="0 0 40 20" aria-hidden="true"><path d="M2 12 30 4l4 2-26 10zM30 4l6-2 2 3-4 1z" fill="currentColor"/></svg>',
     shove: '<svg viewBox="0 0 40 20" aria-hidden="true"><path d="M8 6h18l6 4-6 4H8z" fill="currentColor"/></svg>'
   };
+  var CLS_NAME = { pistol: 'Pistol', smg: 'SMG', rifle: 'Rifle', sniper: 'Sniper', rocket: 'Launcher', shotgun: 'Shotgun', grenade: 'Grenade', melee: 'Melee', shove: 'Shove' };
+  var CLS_SLOT = { pistol: 1, smg: 2, rifle: 3, sniper: 4, rocket: 5, melee: 6, shotgun: 9 };
   H.icon = function (cls) { return ICONS[cls] || ICONS.pistol; };
+  H.clsName = function (cls) { return CLS_NAME[cls] || 'Weapon'; };
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function touch() { return !!(IB.Input && IB.Input.touch) || document.body.classList.contains('touch-on'); }
 
   H.init = function () {
     H.el = {
       hud: $('hud'), gems: $('gems'), gemCount: $('gemCount'), scZone: $('scZone'), scTime: $('scTime'), scLeft: $('scLeft'), pips: $('pips'),
       feed: $('feed'), xhair: $('xhair'), hitmark: $('hitmark'), arcs: $('arcs'), health: $('health'), hpFill: $('hpFill'), hpNum: $('hpNum'),
       slots: $('slots'), ammo: $('ammo'), ammoMag: $('ammoMag'), ammoRes: $('ammoRes'), toast: $('toast'), elim: $('elim'),
-      elimName: $('elimName'), elimCount: $('elimCount'), elimRetries: $('elimRetries')
+      elimName: $('elimName'), elimCount: $('elimCount'), elimRetries: $('elimRetries'),
+      objective: $('objective'), objText: $('objText'), radar: $('radar'), radarCv: $('radarCv'),
+      weapon: $('weapon'), wpnName: $('wpnName'), wpnIcon: $('wpnIcon'), wpnCls: $('wpnCls'), magStrip: $('magStrip'), magFill: $('magFill'),
+      prompt: $('prompt'), promptKey: $('promptKey'), promptText: $('promptText'), promptFill: $('promptFill'),
+      stamina: $('stamina'), stFill: $('stFill'), dim: $('dim'), hurt: $('hurt'), hurtFlash: $('hurtFlash'),
+      pickup: $('pickup'), pickupIcon: $('pickupIcon'), pickupName: $('pickupName'), pickupLine: $('pickupLine'),
+      confirm: $('confirm'), confirmNum: $('confirmNum'), pauseBtn: $('pauseBtn')
     };
     H.arcs = [];
     for (var i = 0; i < 6; i++) {
       var g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-      g.innerHTML = '<path class="ink" d="M-34 -120 A124 124 0 0 1 34 -120"/><path d="M-32 -120 A124 124 0 0 1 32 -120"/>';
+      g.innerHTML = '<path class="ink" d="M-40 -116 A122 122 0 0 1 40 -116"/><path d="M-38 -116 A122 122 0 0 1 38 -116"/><path class="tip" d="M-9 -128 L0 -138 L9 -128Z"/>';
       g.style.opacity = 0; H.el.arcs.appendChild(g);
       H.arcs.push({ g: g, t: 0, ang: 0 });
     }
     H.feedRows = [];
+    H.wpn = { id: '', name: '', cls: 'pistol', mag: 0, magSize: 0, reserve: 0, reloading: false, reloadFrac: 0 };
+    // touch pause button: feeds the same input flag as Esc
+    if (H.el.pauseBtn) {
+      var press = function (e) { e.preventDefault(); e.stopPropagation(); if (IB.Input) IB.Input.pausePressed = true; };
+      H.el.pauseBtn.addEventListener('touchstart', press, { passive: false });
+      H.el.pauseBtn.addEventListener('click', press);
+    }
+    if (H.el.radarCv) H.radarCtx = H.el.radarCv.getContext('2d');
   };
-  H.show = function (on) { H.el.hud.hidden = !on; };
+  H.show = function (on) { H.el.hud.hidden = !on; if (!on) { H.el.hurt.classList.remove('low'); H.damageFlash(0); } else if (H.lowHp) H.el.hurt.classList.add('low'); };
 
   function set(key, val, fn) { if (H.last[key] !== val) { H.last[key] = val; fn(val); } }
-  H.reset = function () { H.last = {}; H.el.feed.innerHTML = ''; H.feedRows = []; };
+  H.reset = function () {
+    H.last = {}; H.el.feed.innerHTML = ''; H.feedRows = []; H.lowHp = false;
+    for (var k in WL) WL[k] = typeof WL[k] === 'number' ? -2 : null; WL.state = '';
+    H.el.hurt.classList.remove('low'); H.damageFlash(0);   // dim is left alone: game.js owns the fade across level loads
+    H.el.pickup.hidden = true; H.el.hud.classList.remove('picking'); H.el.prompt.hidden = true; H.el.confirm.hidden = true; H.el.toast.hidden = true;
+    pickT = 0; confirmT = 0; toastT = 0; hitT = 0;
+  };
 
   H.gems = function (n, pulse) {
     set('gems', n, function (v) { H.el.gemCount.textContent = v; });
@@ -43,9 +72,9 @@
   function mmss(t) { t = Math.max(0, Math.floor(t)); var m = Math.floor(t / 60), s = t % 60; return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s; }
   H.mmss = mmss;
   H.score = function (zone, total, time, left) {
-    set('zone', zone + '/' + total, function () { H.el.scZone.textContent = 'ZONE ' + zone + '/' + total; });
+    set('zone', zone + '/' + total, function () { H.el.scZone.innerHTML = 'ZONE <b>' + zone + '/' + total + '</b>'; });
     set('time', mmss(time), function (v) { H.el.scTime.textContent = v; });
-    set('left', left, function (v) { H.el.scLeft.textContent = v + ' LEFT'; });
+    set('left', left, function (v) { H.el.scLeft.innerHTML = '<b>' + v + '</b> LEFT'; H.el.scLeft.classList.toggle('zero', v === 0); });
   };
   H.pips = function (total, cur, cleared) {
     set('pips', total + ':' + cur + ':' + cleared, function () {
@@ -57,24 +86,80 @@
     var v = Math.max(0, Math.ceil(hp));
     set('hp', v + '/' + max, function () {
       H.el.hpNum.textContent = v; H.el.hpFill.style.width = Math.max(0, Math.min(100, hp / max * 100)) + '%';
-      H.el.health.classList.toggle('low', hp < 30);
+      var low = hp < 30 && hp > 0;
+      H.el.health.classList.toggle('low', low);
+      H.el.health.style.setProperty('--ticks', Math.max(2, Math.round(max / 10)));
+      if (low !== H.lowHp) { H.lowHp = low; H.el.hurt.classList.toggle('low', low && !H.el.hud.hidden); }
     });
   };
-  H.ammo = function (mag, res) {
-    set('ammo', mag + '/' + res, function () {
-      H.el.ammoMag.textContent = mag; H.el.ammoRes.textContent = '/ ' + (res === Infinity ? '∞' : res);
-      H.el.ammo.classList.toggle('empty', mag === 0);
-    });
+
+  /* ---------- weapon + ammo ---------- */
+  // d: {id, name, cls, mag, magSize, reserve, reloading, reloadFrac}; any field may be omitted to keep the last value.
+  // Called every frame: compares primitives and only touches the DOM on change (no closures or string keys).
+  var WL = { id: null, name: null, cls: null, melee: null, size: -1, mag: -1, res: -2, fill: -1, state: '', out: null, pfill: -1 };
+  H.weapon = function (d) {
+    var w = H.wpn, el = H.el, L = WL;
+    if (d.id !== undefined) w.id = d.id;
+    if (d.name !== undefined) w.name = d.name;
+    if (d.cls !== undefined) w.cls = d.cls;
+    if (d.mag !== undefined) w.mag = d.mag;
+    if (d.magSize !== undefined) w.magSize = d.magSize;
+    if (d.reserve !== undefined) w.reserve = d.reserve;
+    if (d.reloading !== undefined) w.reloading = d.reloading;
+    if (d.reloadFrac !== undefined) w.reloadFrac = d.reloadFrac;
+    if (w.id !== L.id || w.name !== L.name || w.cls !== L.cls) {
+      L.id = w.id; L.name = w.name; L.cls = w.cls;
+      el.wpnName.textContent = String(w.name || CLS_NAME[w.cls] || '').toUpperCase();
+      el.wpnIcon.innerHTML = H.icon(w.cls);
+      el.wpnCls.textContent = H.clsName(w.cls);
+    }
+    var melee = w.cls === 'melee' || w.cls === 'shove';
+    if (melee !== L.melee) { L.melee = melee; el.weapon.classList.toggle('melee', melee); L.mag = -1; }
+    var size = Math.max(1, w.magSize || w.mag || 1);
+    if (size !== L.size) { L.size = size; el.magStrip.style.setProperty('--seg', (size > 40 ? 100 / Math.ceil(size / 5) : 100 / size) + '%'); }
+    var res = w.reserve == null ? Infinity : w.reserve;
+    if (w.mag !== L.mag || res !== L.res) {
+      L.mag = w.mag; L.res = res;
+      el.ammoMag.textContent = melee ? '–' : w.mag;
+      el.ammoRes.textContent = melee ? '' : '/ ' + (res === Infinity ? '∞' : res);
+    }
+    var frac = Math.max(0, Math.min(1, w.mag / size));
+    var state = melee ? 'ok' : w.reloading ? 'reload' : w.mag === 0 ? 'empty' : frac <= 0.25 ? 'low' : 'ok';
+    var fill = w.reloading ? Math.max(0, Math.min(1, w.reloadFrac || 0)) : frac;
+    var fq = Math.round(fill * 200);
+    if (fq !== L.fill) { L.fill = fq; el.magFill.style.clipPath = 'inset(0 ' + ((1 - fq / 200) * 100).toFixed(1) + '% 0 0)'; }
+    var outOfAll = state === 'empty' && res === 0;
+    if (state !== L.state || outOfAll !== L.out) {
+      L.state = state; L.out = outOfAll;
+      el.weapon.classList.toggle('low', state === 'low');
+      el.weapon.classList.toggle('empty', state === 'empty');
+      el.weapon.classList.toggle('reloading', state === 'reload');
+      el.prompt.hidden = !(state === 'empty' || state === 'reload' || (state === 'low' && res !== 0));
+      el.prompt.className = 'prompt ' + state;
+      if (state === 'reload') { el.promptKey.hidden = true; el.promptText.textContent = 'Reloading'; }
+      else if (outOfAll) { el.promptKey.hidden = true; el.promptText.textContent = 'No ammo · swap weapon'; }
+      else { el.promptKey.hidden = false; el.promptKey.textContent = 'R'; el.promptText.textContent = state === 'low' ? 'Low ammo' : 'Reload'; }
+    }
+    if (state === 'reload') { var pq = Math.round(fill * 100); if (pq !== L.pfill) { L.pfill = pq; el.promptFill.style.width = pq + '%'; } }
   };
-  /* list: [{slot, cls, on}] */
+  // legacy: keeps name/class from the last HUD.weapon call
+  var AMMO = { mag: 0, reserve: 0, magSize: 0 };
+  H.ammo = function (mag, res) { AMMO.mag = mag; AMMO.reserve = res; AMMO.magSize = Math.max(H.wpn.magSize || 0, mag); H.weapon(AMMO); };
+
+  /* list: [{slot, cls, name?, on}] */
   H.slots = function (list) {
-    var key = list.map(function (s) { return s.slot + (s.on ? '*' : ''); }).join(',');
+    var key = list.map(function (s) { return s.slot + s.cls + (s.on ? '*' : ''); }).join(',');
     set('slots', key, function () {
       H.el.slots.innerHTML = list.map(function (s) {
-        return '<div class="plate ink slot' + (s.on ? ' on' : '') + '"><span class="key">' + s.slot + '</span>' + H.icon(s.cls) + '</div>';
+        return '<div class="plate ink slot' + (s.on ? ' on' : '') + '"' + (s.name ? ' title="' + esc(s.name) + '"' : '') + '><span class="key">' + s.slot + '</span>' + H.icon(s.cls) + '</div>';
       }).join('');
     });
   };
+
+  H.objective = function (text) {
+    set('obj', text || '', function (v) { H.el.objective.hidden = !v; H.el.objText.textContent = v; if (v) { H.el.objective.classList.remove('obj-in'); void H.el.objective.offsetWidth; H.el.objective.classList.add('obj-in'); } });
+  };
+
   /* spreadDeg, vfovDeg, hidden */
   H.crosshair = function (spreadDeg, vfov, hidden) {
     var gap = 4 + Math.tan(spreadDeg * Math.PI / 180) / Math.tan(vfov * Math.PI / 360) * (window.innerHeight / 2);
@@ -84,35 +169,185 @@
   var hitT = 0;
   H.hit = function (kind) {
     var el = H.el.hitmark;
+    el.setAttribute('class', 'hitmark');
+    void el.getBoundingClientRect();
     el.setAttribute('class', 'hitmark on' + (kind === 'core' ? ' core' : '') + (kind === 'kill' ? ' kill' : ''));
-    hitT = kind === 'kill' ? 0.22 : 0.12;
+    hitT = kind === 'kill' ? 0.32 : 0.14;
+    if (kind === 'kill') { H.el.xhair.classList.remove('kick'); void H.el.xhair.offsetWidth; H.el.xhair.classList.add('kick'); }
   };
   /* angle: radians, 0 = straight ahead, positive = to the right */
   H.arc = function (angle) {
     var a = H.arcs[0]; for (var i = 1; i < H.arcs.length; i++) if (H.arcs[i].t < a.t) a = H.arcs[i];
     a.t = 0.8; a.ang = angle;
+    a.g.setAttribute('transform', 'rotate(' + (angle * 180 / Math.PI).toFixed(1) + ')');
   };
-  H.feed = function (cls, name, gems) {
+
+  /* kill feed: weapon icon, weapon name, robot name, gem gain. weaponName is optional:
+     it falls back to the current weapon's name when the class matches. */
+  var confirmT = 0;
+  H.feed = function (cls, name, gems, weaponName) {
+    if (!weaponName && H.wpn && H.wpn.cls === cls) weaponName = H.wpn.name;
     var row = document.createElement('div');
     row.className = 'plate ink feed-row';
-    row.innerHTML = H.icon(cls) + '<span>' + name + '</span>' + (gems ? '<span class="feed-gem">+' + gems + '</span>' : '');
+    row.innerHTML = '<span class="feed-wpn">' + H.icon(cls) + (weaponName ? '<span>' + esc(weaponName) + '</span>' : '') + '</span>' +
+      '<b class="feed-bot">' + esc(name) + '</b>' + (gems ? '<span class="feed-gem">+' + gems + '</span>' : '');
     H.el.feed.insertBefore(row, H.el.feed.firstChild);
     H.feedRows.unshift({ el: row, t: 0 });
     while (H.feedRows.length > 4) { var r = H.feedRows.pop(); r.el.remove(); }
+    if (gems) {
+      H.el.confirmNum.textContent = '+' + gems;
+      H.el.confirm.hidden = false; H.el.confirm.classList.remove('on'); void H.el.confirm.offsetWidth; H.el.confirm.classList.add('on');
+      confirmT = 0.9;
+    }
   };
   var toastT = 0;
   H.toast = function (text, secs) { H.el.toast.textContent = text; H.el.toast.hidden = false; toastT = secs || 2.5; H.el.toast.style.animation = 'none'; void H.el.toast.offsetWidth; H.el.toast.style.animation = ''; };
   H.elim = function (show, name, count, retries) {
     H.el.elim.hidden = !show;
-    if (show) { H.el.elimName.textContent = name; H.el.elimCount.textContent = 'Back in ' + count; H.el.elimRetries.textContent = 'Retries left ' + retries; }
+    if (show) {
+      set('elim', name + count + ':' + retries, function () {
+        H.el.elimName.textContent = name; H.el.elimCount.textContent = 'Back in ' + count; H.el.elimRetries.textContent = 'Retries left ' + retries;
+      });
+    } else H.last.elim = null;
   };
+
+  /* new-weapon banner */
+  var pickT = 0;
+  H.pickup = function (name, cls, slot) {
+    slot = slot || CLS_SLOT[cls];
+    H.el.pickupIcon.innerHTML = H.icon(cls);
+    H.el.pickupName.textContent = String(name).toUpperCase();
+    var how = touch() ? 'tap swap to equip' : (slot ? 'press ' + slot + ' to equip' : 'equipped');
+    H.el.pickupLine.textContent = 'New ' + H.clsName(cls).toLowerCase().replace('smg', 'SMG') + ' · ' + how;
+    H.el.toast.hidden = true; toastT = 0;
+    H.el.hud.classList.add('picking');
+    H.el.pickup.hidden = false; H.el.pickup.classList.remove('out', 'on'); void H.el.pickup.offsetWidth; H.el.pickup.classList.add('on');
+    pickT = 3.2;
+  };
+
+  /* sprint stamina 0..1; hidden when full */
+  H.stamina = function (f, sliding) {
+    var q = Math.round(Math.max(0, Math.min(1, f)) * 100);
+    set('st', q + (sliding ? 1000 : 0), function () {
+      H.el.stamina.classList.toggle('on', q < 100);
+      H.el.stamina.classList.toggle('slide', !!sliding);
+      H.el.stamina.classList.toggle('low', q < 25);
+      H.el.stFill.style.width = q + '%';
+    });
+  };
+
+  /* full-screen ink darkening 0..1 (waypath walk-in and fade back). The HUD and touch buttons fade out over the last 40 %. */
+  H.dim = function (f) {
+    f = Math.max(0, Math.min(1, f || 0));
+    var q = Math.round(f * 500) / 500;
+    set('dim', q, function () {
+      var el = H.el.dim;
+      el.style.visibility = q > 0 ? 'visible' : 'hidden';
+      el.style.setProperty('--tone', Math.pow(q, 1.35).toFixed(3));
+      el.style.setProperty('--vig', Math.min(1, q * 1.8).toFixed(3));
+      var hudA = q <= 0.6 ? 1 : Math.max(0, 1 - (q - 0.6) / 0.35);
+      document.body.style.setProperty('--hud-a', hudA.toFixed(3));
+    });
+  };
+
+  /* hurt: Alert Red ink hatching at the screen edges, 0..1 */
+  H.damageFlash = function (f) {
+    var q = Math.round(Math.max(0, Math.min(1, f || 0)) * 100);
+    set('dmg', q, function () { H.el.hurtFlash.style.opacity = (q / 100).toFixed(2); });
+  };
+
+  /* ---------- radar ---------- */
+  // d: {px, pz, yaw, range, robots:[{x,z,alert}], gates:[{x,z,open}], pickups:[{x,z,kind}], exit:{x,z}|null}
+  // yaw 0 faces -Z; positive yaw turns left. Up on the radar is the view direction.
+  var PT = { x: 0, y: 0, edge: false };
+  var PICK = { health: '#5BCF4A', ammo: '#5B9BF5', weapon: '#FFB21E', gem: '#12C7B6' };
+  H.radar = function (d) {
+    var cv = H.el.radarCv, ctx = H.radarCtx; if (!ctx || !d) return;
+    if (H.el.radar.hidden) H.el.radar.hidden = false;
+    var css = cv.clientWidth || 160, dpr = Math.min(2, window.devicePixelRatio || 1), px = Math.round(css * dpr);
+    if (cv.width !== px) { cv.width = px; cv.height = px; }
+    var S = px, c = S / 2, R = S / 2 - 2 * dpr, range = d.range || 30, k = R / range;
+    var sy = Math.sin(d.yaw || 0), cy = Math.cos(d.yaw || 0);
+    var fx = -sy, fz = -cy, rx = cy, rz = -sy;
+    function map(x, z, clamp) {
+      var dx = x - d.px, dz = z - d.pz, u = (dx * rx + dz * rz) * k, v = -(dx * fx + dz * fz) * k;
+      var m = Math.sqrt(u * u + v * v), lim = R - 8 * dpr, edge = false;
+      if (m > lim) { if (!clamp) return null; u *= lim / m; v *= lim / m; edge = true; }
+      PT.x = c + u; PT.y = c + v; PT.edge = edge; return PT;
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, S, S);
+    // face
+    ctx.fillStyle = '#231E2E'; ctx.fillRect(0, 0, S, S);
+    // grid: 10 m ink lines
+    ctx.strokeStyle = 'rgba(255,253,247,.07)'; ctx.lineWidth = dpr;
+    var step = 10 * k;
+    ctx.beginPath();
+    for (var g = c % step; g < S; g += step) { ctx.moveTo(g, 0); ctx.lineTo(g, S); ctx.moveTo(0, g); ctx.lineTo(S, g); }
+    ctx.stroke();
+    // view cone
+    ctx.fillStyle = 'rgba(18,199,182,.16)';
+    ctx.beginPath(); ctx.moveTo(c, c); ctx.arc(c, c, R * 1.5, -Math.PI / 2 - 0.62, -Math.PI / 2 + 0.62); ctx.closePath(); ctx.fill();
+    // half-range ring
+    ctx.strokeStyle = 'rgba(255,253,247,.16)'; ctx.lineWidth = 1.5 * dpr; ctx.setLineDash([4 * dpr, 4 * dpr]);
+    ctx.beginPath(); ctx.arc(c, c, R / 2, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+    var i, p;
+    // gates: teal bars (closed = ink-cored)
+    var gates = d.gates || [];
+    for (i = 0; i < gates.length; i++) {
+      p = map(gates[i].x, gates[i].z, true);
+      ctx.save(); ctx.translate(p.x, p.y);
+      ctx.fillStyle = '#15121C'; ctx.fillRect(-7 * dpr, -4 * dpr, 14 * dpr, 8 * dpr);
+      ctx.fillStyle = gates[i].open ? '#12C7B6' : '#0B8F83'; ctx.fillRect(-5.5 * dpr, -2.5 * dpr, 11 * dpr, 5 * dpr);
+      if (!gates[i].open) { ctx.fillStyle = '#15121C'; ctx.fillRect(-1 * dpr, -2.5 * dpr, 2 * dpr, 5 * dpr); }
+      ctx.restore();
+    }
+    // pickups
+    var pk = d.pickups || [];
+    for (i = 0; i < pk.length; i++) {
+      p = map(pk[i].x, pk[i].z, false); if (!p) continue;
+      ctx.fillStyle = '#15121C'; ctx.fillRect(p.x - 4.5 * dpr, p.y - 4.5 * dpr, 9 * dpr, 9 * dpr);
+      ctx.fillStyle = PICK[pk[i].kind] || '#FFFDF7'; ctx.fillRect(p.x - 3 * dpr, p.y - 3 * dpr, 6 * dpr, 6 * dpr);
+    }
+    // exit: teal hex bolt, clamped to the edge
+    if (d.exit) {
+      p = map(d.exit.x, d.exit.z, true);
+      hex(ctx, p.x, p.y, 8 * dpr, '#15121C'); hex(ctx, p.x, p.y, 5.6 * dpr, '#12C7B6');
+      ctx.fillStyle = '#15121C'; ctx.beginPath(); ctx.arc(p.x, p.y, 1.8 * dpr, 0, Math.PI * 2); ctx.fill();
+    }
+    // robots
+    var rb = d.robots || [];
+    for (i = 0; i < rb.length; i++) {
+      var r = rb[i]; p = map(r.x, r.z, false); if (!p) continue;
+      var rad = (r.alert ? 5.2 : 4.2) * dpr * (S > 140 * dpr ? 1 : 0.85);
+      ctx.fillStyle = '#15121C'; ctx.beginPath(); ctx.arc(p.x, p.y, rad + 1.6 * dpr, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = r.alert ? '#FF5148' : '#FFFDF7'; ctx.beginPath(); ctx.arc(p.x, p.y, rad, 0, Math.PI * 2); ctx.fill();
+    }
+    // player arrow
+    ctx.save(); ctx.translate(c, c);
+    ctx.beginPath(); ctx.moveTo(0, -9 * dpr); ctx.lineTo(7 * dpr, 7 * dpr); ctx.lineTo(0, 3.5 * dpr); ctx.lineTo(-7 * dpr, 7 * dpr); ctx.closePath();
+    ctx.lineJoin = 'round'; ctx.lineWidth = 3.5 * dpr; ctx.strokeStyle = '#15121C'; ctx.stroke();
+    ctx.fillStyle = '#FFFDF7'; ctx.fill();
+    ctx.restore();
+  };
+  function hex(ctx, x, y, r, col) {
+    ctx.fillStyle = col; ctx.beginPath();
+    for (var i = 0; i < 6; i++) { var a = i * Math.PI / 3; ctx[i ? 'lineTo' : 'moveTo'](x + Math.cos(a) * r, y + Math.sin(a) * r); }
+    ctx.closePath(); ctx.fill();
+  }
 
   H.tick = function (dt) {
     if (hitT > 0) { hitT -= dt; if (hitT <= 0) H.el.hitmark.setAttribute('class', 'hitmark'); }
     if (toastT > 0) { toastT -= dt; if (toastT <= 0) H.el.toast.hidden = true; }
+    if (confirmT > 0) { confirmT -= dt; if (confirmT <= 0) H.el.confirm.hidden = true; }
+    if (pickT > 0) {
+      pickT -= dt;
+      if (pickT <= 0.3 && !H.el.pickup.classList.contains('out')) H.el.pickup.classList.add('out');
+      if (pickT <= 0) { H.el.pickup.hidden = true; H.el.hud.classList.remove('picking'); }
+    }
     for (var i = 0; i < H.arcs.length; i++) {
       var a = H.arcs[i];
-      if (a.t > 0) { a.t -= dt; a.g.style.opacity = Math.max(0, Math.min(1, a.t / 0.3)); a.g.setAttribute('transform', 'rotate(' + (a.ang * 180 / Math.PI) + ')'); }
+      if (a.t > 0) { a.t -= dt; a.g.style.opacity = Math.max(0, Math.min(1, a.t / 0.3)).toFixed(2); }
     }
     for (i = H.feedRows.length - 1; i >= 0; i--) {
       var r = H.feedRows[i]; r.t += dt;
