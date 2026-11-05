@@ -1096,67 +1096,505 @@ def build_weapon_meshes(pal):
 
 # ================================================================ arms: gloves, sleeves, 22-bone rig
 # Hand frame (right hand): origin = grip anchor (web of the hand), z = grip axis up, y = forward, x = right.
-# The glove is modelled closed around the standard grip section (HAND); the left glove is its mirror image.
+# Each glove is ONE closed surface: anatomical primitives (a tapered capsule per phalanx, palm slab, thenar,
+# heel, knuckle guard strip, padded back panel, wrist) are unioned by a voxel remesh, relaxed and decimated
+# to budget. Accent patches (knuckle guard, back panel) are painted on the dense union as palette UVs, which
+# the decimator keeps as clean seams; shading normals come from the dense union; skin weights come from the
+# nearest source primitive (falling off smoothly only between a bone and its parent, never finger to finger).
+# The ink shell is built from that one surface: no inner shells, so no cracks. Gauntlet cuff + amber stripe + sleeve hem + sleeve is one lathed
+# shell on the forearm; the glove's rounded wrist turns inside its open mouth (ball and socket), so wrist
+# bends never stretch skin or cut through the cuff.
+from mathutils.bvhtree import BVHTree
+
 FINGERS = ('INDEX', 'MIDDLE', 'RING', 'PINKY')
-FGZ = {'MIDDLE': -0.033, 'RING': -0.0525, 'PINKY': -0.071}
-WRIST = V((0.019, HAND['cy'] - 0.053, -0.060))
-PALM_C = V((0.012, HAND['cy'] - 0.010, -0.040))
 MIRROR = Matrix.Diagonal((-1, 1, 1, 1))
-SH = {'R': V((0.20, -0.58, -0.30)), 'L': V((-0.25, -0.50, -0.33))}
+SH = {'R': V((0.20, -0.58, -0.30)), 'L': V((-0.42, -0.50, -0.28))}     # shoulders (off screen): support arm comes in from lower left
 UPPER_LEN, FORE_LEN = 0.30, 0.29
+# fingers: knuckle height on the grip, radius at MCP / PIP / DIP / tip, phalanx lengths (joint to joint)
+FING = {'INDEX': (-0.0125, (0.0094, 0.0090, 0.0085, 0.0079), (0.041, 0.025, 0.016)),
+        'MIDDLE': (-0.0320, (0.0098, 0.0094, 0.0088, 0.0082), (0.045, 0.028, 0.018)),
+        'RING': (-0.0515, (0.0094, 0.0090, 0.0085, 0.0079), (0.043, 0.026, 0.017)),
+        'PINKY': (-0.0705, (0.0084, 0.0080, 0.0076, 0.0071), (0.035, 0.021, 0.015))}
+FLAT = 0.88             # finger section squashed along the grip axis: gaps between fingers survive the union
+INDEX_TRIGGER = [(0.0240, 0.0440, -0.0150), (0.0090, 0.0565, -0.0170), (-0.0040, 0.0560, -0.0180)]
+THUMB_R = (0.0118, 0.0112, 0.0106, 0.0098)
+WRIST = V((0.019, HAND['cy'] - 0.053, -0.060))
+PALM_C = V((0.014, HAND['cy'] - 0.012, -0.042))
+# Per-glove anatomy in model space (a right hand round the grip section; the left glove is mirrored by its
+# rest frame). grip: section the fingers wrap (the support glove closes round bigger parts: handguards,
+# foregrips, the strong hand); palm: slab stations (angle, z top, z bottom, thickness); mcp: knuckles
+# (angle, distance off the grip); thenar / heel: (angle, z, grow, radii); panel: angles.
+# thumb: CMC, MCP, IP, tip as (angle, z, distance off the grip): the strong thumb wraps the back of the grip.
+# The support thumb is modelled abducted, lying forward along the pistol frame under the strong thumb
+# (given in the strong hand's frame), so the two-hand pistol hold is its undeformed rest pose; on foregrips
+# it points forward along the grip, on handguards it tucks under with the palm.
+ANAT = {
+    'R': {'grip': {'hx': HAND['hx'], 'hy': HAND['hy'], 'cy': HAND['cy']}, 'mcp': (6.0, 0.0165), 'trigger': True,
+          'palm': [(18, -0.003, -0.079, 0.020), (0, -0.001, -0.085, 0.023), (-30, 0.003, -0.090, 0.025), (-60, 0.007, -0.092, 0.023),
+                   (-90, 0.010, -0.086, 0.018), (-118, 0.008, -0.062, 0.016), (-140, 0.003, -0.044, 0.014)],
+          'thumb': [(-97, -0.033, 0.0103), (-147, -0.013, 0.0170), (167, -0.004, 0.0184), (142, -0.002, 0.0248)],
+          'thenar': (-122, -0.026, 0.010, (0.011, 0.019, 0.020)), 'heel': (-55, -0.068, 0.012, (0.012, 0.020, 0.018)),
+          'panel': (4, -46)},
+    'L': {'grip': {'hx': 0.021, 'hy': 0.026, 'cy': HAND['cy']}, 'mcp': (6.0, 0.0165), 'trigger': False,
+          'palm': [(18, -0.003, -0.079, 0.020), (0, -0.001, -0.085, 0.023), (-30, 0.000, -0.090, 0.025), (-55, -0.004, -0.090, 0.023),
+                   (-78, -0.012, -0.082, 0.019)],
+          'thumb_strong': [(-0.044, -0.036, -0.032), (-0.040, -0.012, -0.024), (-0.035, 0.016, -0.020), (-0.031, 0.036, -0.019)],
+          'thenar': (-50, -0.016, 0.017, (0.012, 0.018, 0.016)), 'heel': (-58, -0.068, 0.012, (0.012, 0.020, 0.018)),
+          'panel': (4, -46)},
+}
+GLOVE_VOXEL = 0.0009
+GLOVE_TRIS = 480
+GLOVE_SMOOTH = 8
 
 
-def ell(theta, gz, grow):
+def gpt(G, theta, gz, grow):
+    """Point on the grip section (angle theta, 0 = right, 90 = front) grown outward by grow, at height gz."""
     t = D(theta)
-    return V(((HAND['hx'] + grow) * math.cos(t), HAND['cy'] + (HAND['hy'] + grow) * math.sin(t), gz))
+    return V(((G['hx'] + grow) * math.cos(t), G['cy'] + (G['hy'] + grow) * math.sin(t), gz))
 
 
-def finger_path(fn):
-    if fn == 'INDEX':          # along the frame, then curled round the trigger blade
-        return [((0.030, 0.000, -0.015), 0.020, 0.019), ((0.029, 0.024, -0.017), 0.019, 0.018),
-                ((0.016, 0.046, -0.020), 0.018, 0.017), ((0.004, 0.054, -0.021), 0.016, 0.015), ((-0.003, 0.054, -0.021), 0, 0)]
-    gz = FGZ[fn]
-    s = 0.88 if fn == 'PINKY' else 1.0
-    g = 0.0105 * s
-    return [(ell(4, gz, g + 0.003), 0.021 * s, 0.020 * s), (ell(45, gz, g), 0.020 * s, 0.019 * s), (ell(90, gz, g), 0.0195 * s, 0.0185 * s),
-            (ell(132, gz, g), 0.0185 * s, 0.0175 * s), (ell(160, gz, g - 0.001), 0.015 * s, 0.014 * s), (ell(173, gz, g - 0.004), 0, 0)]
+def tangent_ccw(P, A, B, cy):
+    """Angle of the point where a line from P touches the ellipse (A, B) wrapping counter-clockwise (+z)."""
+    def q(t):
+        return V((A * math.cos(t), cy + B * math.sin(t), 0))
+
+    def f(t):
+        d = q(t) - V((P.x, P.y, 0))
+        tg = V((-A * math.sin(t), B * math.cos(t), 0))
+        return d.x * tg.y - d.y * tg.x, d.dot(tg)
+    n = 720
+    best = None
+    a0 = math.atan2((P.y - cy) / B, P.x / A)
+    prev = f(a0)
+    for i in range(1, n + 1):
+        t0, t1 = a0 + 2 * math.pi * (i - 1) / n, a0 + 2 * math.pi * i / n
+        cur = f(t1)
+        if (prev[0] > 0) != (cur[0] > 0):
+            lo, hi, flo = t0, t1, prev[0]
+            for _ in range(40):
+                m = (lo + hi) / 2
+                fm = f(m)[0]
+                if (fm > 0) == (flo > 0):
+                    lo, flo = m, fm
+                else:
+                    hi = m
+            if f(lo)[1] > 0:
+                best = lo
+                break
+        prev = cur
+    return best
 
 
-THUMB1 = [((0.012, HAND['cy'] - 0.030, -0.024), 0.025, 0.023), ((-0.010, HAND['cy'] - 0.032, -0.013), 0.024, 0.022),
-          ((-0.028, HAND['cy'] - 0.018, -0.006), 0.022, 0.020)]
-THUMB2 = [((-0.028, HAND['cy'] - 0.018, -0.006), 0.022, 0.020), ((-0.035, HAND['cy'] + 0.004, -0.003), 0.020, 0.019),
-          ((-0.035, HAND['cy'] + 0.024, -0.002), 0.017, 0.016), ((-0.033, HAND['cy'] + 0.033, -0.002), 0, 0)]
+def finger_joints(side, fn):
+    """MCP, PIP, DIP, tip centre: each phalanx is a straight segment laid tangent to the grip (contact)."""
+    an = ANAT[side]
+    G = an['grip']
+    z, r, L = FING[fn]
+    P = gpt(G, an['mcp'][0], z, an['mcp'][1])
+    if fn == 'INDEX' and an['trigger']:          # trigger finger: along the frame, pad on the trigger
+        return [P] + [V(p) for p in INDEX_TRIGGER]
+    pts = [P]
+    for i, l in enumerate(L):
+        rr = (r[i] + r[i + 1]) / 2
+        A, B = G['hx'] + rr + 0.0006, G['hy'] + rr + 0.0006
+        t = tangent_ccw(P, A, B, G['cy'])
+        if t is None:
+            d = V((-math.sin(D(an['mcp'][0])), math.cos(D(an['mcp'][0])), 0))
+        else:
+            Q = V((A * math.cos(t), G['cy'] + B * math.sin(t), P.z))
+            d = Q - P
+            d.z = 0
+            d.normalize()
+        P = P + d * l + V((0, 0, -0.0008))
+        pts.append(P)
+    return pts
 
 
-def glove(k, side):
-    """One glove in hand-frame coordinates (k.xf carries the rest frame, mirrored for the left)."""
-    # palm / back of hand: C-shaped section wrapped round the back and right of the grip
-    angs = (26, -14, -62, -110, -150)
+def thumb_joints(side, X):
+    an = ANAT[side]
+    if 'thumb' in an:
+        return [gpt(an['grip'], th, z, g) for th, z, g in an['thumb']]
+    M = X[side].inverted() @ X['R']
+    return [M @ V(p) for p in an['thumb_strong']]
+
+
+# ---------------------------------------------------------------- closed primitives
+class Body:
+    """Overlapping closed primitives of one glove; each carries its bone and palette colour."""
+
+    def __init__(self, X):
+        self.X = X
+        self.parts = []
+
+    def _part(self, bone, color, prio):
+        bm = bmesh.new()
+        self.parts.append({'bm': bm, 'bone': bone, 'color': color, 'prio': prio})
+        return bm
+
+    def loft(self, rings, bone, color, prio=0):
+        bm = self._part(bone, color, prio)
+        vr = [[bm.verts.new(self.X @ V(p)) for p in r] for r in rings]
+        for i in range(len(vr) - 1):
+            a, b = vr[i], vr[i + 1]
+            n = max(len(a), len(b))
+            for j in range(n):
+                j2 = (j + 1) % n
+                if len(a) == 1:
+                    bm.faces.new((a[0], b[j], b[j2]))
+                elif len(b) == 1:
+                    bm.faces.new((a[j], a[j2], b[0]))
+                else:
+                    bm.faces.new((a[j], a[j2], b[j2], b[j]))
+        for r in (vr[0], vr[-1]):
+            if len(r) >= 3:
+                bm.faces.new(r)
+        bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 4])
+        bmesh.ops.recalc_face_normals(bm, faces=list(bm.faces))
+        return bm
+
+    def capsule(self, a, b, ra, rb, bone, color, up=(0, 0, 1), flat=1.0, seg=16, cap=5, prio=0):
+        """Round-ended tapered cylinder a -> b; the section is squashed along `up` by flat."""
+        a, b = V(a), V(b)
+        d = b - a
+        L = d.length
+        d.normalize()
+        u = V(up) - d * V(up).dot(d)
+        if u.length < 1e-6:
+            u = d.orthogonal()
+        u.normalize()
+        s = d.cross(u)
+        prof = [(-ra * math.cos(math.pi / 2 * i / cap), ra * math.sin(math.pi / 2 * i / cap)) for i in range(cap + 1)]
+        prof += [(L + rb * math.sin(math.pi / 2 * i / cap), rb * math.cos(math.pi / 2 * i / cap)) for i in range(cap + 1)]
+        rings = []
+        for t, r in prof:
+            c = a + d * t
+            if r < 1e-7:
+                rings.append([c])
+            else:
+                rings.append([c + s * (r * math.cos(2 * math.pi * k / seg)) + u * (r * flat * math.sin(2 * math.pi * k / seg)) for k in range(seg)])
+        return self.loft(rings, bone, color, prio)
+
+    def ellipsoid(self, c, radii, axes, bone, color, seg=16, prio=0):
+        """axes: three orthonormal vectors the radii run along."""
+        c = V(c)
+        rings = []
+        n = seg // 2
+        for i in range(n + 1):
+            ph = math.pi * i / n
+            z = -math.cos(ph)
+            rr = math.sin(ph)
+            if rr < 1e-6:
+                rings.append([c + axes[2] * (radii[2] * z)])
+            else:
+                rings.append([c + axes[0] * (radii[0] * rr * math.cos(2 * math.pi * k / seg)) + axes[1] * (radii[1] * rr * math.sin(2 * math.pi * k / seg))
+                              + axes[2] * (radii[2] * z) for k in range(seg)])
+        return self.loft(rings, bone, color, prio)
+
+
+def palm_at(palm, theta):
+    """Interpolated palm station (z top, z bottom, thickness) at an angle."""
+    for (t0, a0, b0, c0), (t1, a1, b1, c1) in zip(palm, palm[1:]):
+        if t1 <= theta <= t0:
+            k = (theta - t0) / (t1 - t0)
+            return a0 + (a1 - a0) * k, b0 + (b1 - b0) * k, c0 + (c1 - c0) * k
+    return palm[0][1:] if theta > palm[0][0] else palm[-1][1:]
+
+
+def rrect_gz(g0, g1, z0, z1, rc, seg=3):
+    """Rounded rectangle in (grow, z), counter-clockwise."""
+    rc = min(rc, (g1 - g0) / 2 - 1e-4, (z1 - z0) / 2 - 1e-4)
+    pts = []
+    for cg, cz, a0 in ((g1 - rc, z0 + rc, -90), (g1 - rc, z1 - rc, 0), (g0 + rc, z1 - rc, 90), (g0 + rc, z0 + rc, 180)):
+        for k in range(seg + 1):
+            a = D(a0 + 90.0 * k / seg)
+            pts.append((cg + rc * math.cos(a), cz + rc * math.sin(a)))
+    return pts
+
+
+def glove_body(side, X):
+    """All primitives of one glove in rig space (X: rest frames, the left one mirrored)."""
+    an = ANAT[side]
+    G = an['grip']
+    b = Body(X[side])
+    hb = 'HAND_' + side
+    g0 = 0.0012
+    Z = V((0, 0, 1))
+
+    def nrm(theta):
+        return V((math.cos(D(theta)) / G['hx'], math.sin(D(theta)) / G['hy'], 0)).normalized()
+    # palm slab wrapped round the grip; padded back panel raised on it
+    b.loft([[gpt(G, th, z, g) for g, z in rrect_gz(g0, g0 + T, zb, zt, 0.0075)] for th, zt, zb, T in an['palm']], hb, 'glove')
+    t0, t1 = an['panel']
     rings = []
-    for gz, f in ((0.006, 0.55), (-0.003, 1.0), (-0.044, 1.08), (-0.080, 0.95), (-0.090, 0.55)):
-        outer = [ell(a, gz, 0.0015 + (0.0155 if a > -100 else 0.013) * f) for a in angs]
-        inner = [ell(a, gz, 0.0015) for a in reversed(angs)]
-        rings.append(outer + inner)
-    k.tag = 'HAND_' + side
-    k.loft(rings, 'glove')
-    # knuckle pads (one per finger) and the padded back panel
-    for fn, gz in (('INDEX', -0.015), ('MIDDLE', FGZ['MIDDLE']), ('RING', FGZ['RING']), ('PINKY', FGZ['PINKY'])):
-        p = ell(8, gz, 0.0175)
-        k.cbox(p, (0.008, 0.013, 0.015 if fn != 'PINKY' else 0.013), 'glove3', ch=0.002, rot=(0, 0, 8), hull=False, axis='z')
-    p = ell(-38, -0.046, 0.0185)
-    k.cbox(p, (0.006, 0.026, 0.040), 'glove2', ch=0.002, rot=(0, 0, -38), hull=False, axis='z')
-    # wrist cuff of the glove
-    d = (WRIST - PALM_C).normalized()
-    k.tube([(PALM_C, 0.046, 0.044), (WRIST, 0.052, 0.048), (WRIST + d * 0.014, 0.054, 0.050)], 'glove', sides=8, up=(1, 0, 0))
-    # fingers
+    for i in range(7):
+        th = t0 + (t1 - t0) * i / 6
+        zt, zb, T = palm_at(an['palm'], th)
+        e = 0.004 if i in (0, 6) else 0.0
+        rings.append([gpt(G, th, z, g) for g, z in rrect_gz(g0 + T - 0.006, g0 + T + 0.0028 - e, zb + 0.013 + e, zt - 0.012 - e, 0.003, 2)])
+    b.loft(rings, hb, 'glove2', prio=2)
+    Xi = X[side].inverted()
+
+    def panel_paint(p):
+        q = Xi @ p
+        th = math.degrees(math.atan2((q.y - G['cy']) / (G['hy'] + 0.02), q.x / (G['hx'] + 0.02)))
+        if not t1 + 2.5 < th < t0 - 2.5:
+            return False
+        zt, zb, T = palm_at(an['palm'], th)
+        z0, z1 = zb + 0.0150, zt - 0.0140
+        u = (th - (t0 + t1) / 2) / ((t0 - t1) / 2 - 2.5)
+        v = (q.z - (z0 + z1) / 2) / ((z1 - z0) / 2)
+        return u ** 4 + v ** 4 < 1.0
+    b.parts[-1]['paint'] = panel_paint
+    # heel (hypothenar) and wrist; the wrist ends in a ball round the wrist joint
+    th, z, g, rad = an['heel']
+    n = nrm(th)
+    b.ellipsoid(gpt(G, th, z, 0.0) + n * g, rad, (n, Z.cross(n), Z), hb, 'glove')
+    wa = gpt(G, -50, -0.050, 0.012)
+    wd = (WRIST - wa).normalized()
+    b.capsule(wa, WRIST + wd * 0.002, 0.021, 0.0190, hb, 'glove', up=(0, 0, 1), flat=1.08)
+    # fingers: tapered capsule per phalanx; a padded knuckle guard strip over the four knuckles
+    kn = []
     for fn in FINGERS:
-        k.tag = fn + '_' + side
-        k.tube(finger_path(fn), 'glove2' if fn in ('MIDDLE', 'PINKY') else 'glove', sides=6, up=(0, 0, 1))
-    k.tag = 'THUMB1_' + side
-    k.tube(THUMB1, 'glove', sides=6, up=(0, 0, 1))
-    k.tag = 'THUMB2_' + side
-    k.tube(THUMB2, 'glove2', sides=6, up=(0, 0, 1))
-    k.tag = None
+        z, r, L = FING[fn]
+        J = finger_joints(side, fn)
+        fb = fn + '_' + side
+        for i in range(3):
+            b.capsule(J[i], J[i + 1], r[i], r[i + 1], fb, 'glove', up=(0, 0, 1), flat=FLAT, seg=14, cap=4)
+        out = (V((J[0].x, J[0].y - G['cy'], 0))).normalized()
+        kn.append((J[0] + out * (r[0] * 0.62), out))
+    ka, kb = kn[0][0] + V((0, 0, 0.004)), kn[-1][0] - V((0, 0, 0.002))
+    kout = (kn[0][1] + kn[-1][1]).normalized()
+    b.capsule(ka, kb, 0.0068, 0.0060, hb, 'glove3', up=tuple(kout), flat=0.85, seg=12, prio=1)
+    kaw, kbw, ko = X[side] @ ka, X[side] @ kb, (X[side].to_3x3() @ kout).normalized()
+
+    def knuckle_paint(p):
+        d = kbw - kaw
+        t = max(0.0, min(1.0, (p - kaw).dot(d) / d.length_squared))
+        q = p - (kaw + d * t)
+        return (q - ko * q.dot(ko)).length < 0.0058 and q.dot(ko) > 0.0015 and 0.02 < t < 0.98
+    b.parts[-1]['paint'] = knuckle_paint
+    # thumb: metacarpal inside the thenar mass, two phalanges
+    T = thumb_joints(side, X)
+    b.capsule(T[0], T[1], THUMB_R[0] + 0.004, THUMB_R[1], 'THUMB1_' + side, 'glove', up=(0, 0, 1), flat=0.95)
+    b.capsule(T[1], T[2], THUMB_R[1], THUMB_R[2], 'THUMB2_' + side, 'glove', up=(0, 0, 1), flat=0.92, seg=14)
+    b.capsule(T[2], T[3], THUMB_R[2], THUMB_R[3], 'THUMB2_' + side, 'glove', up=(0, 0, 1), flat=0.92, seg=14)
+    th, z, g, rad = an['thenar']
+    n = nrm(th)
+    b.ellipsoid(gpt(G, th, z, 0.0) + n * g, rad, (n, Z.cross(n), Z), 'THUMB1_' + side, 'glove')
+    return b
+
+
+# ---------------------------------------------------------------- union -> one surface
+def _apply(ob, kind, **props):
+    m = ob.modifiers.new(kind.lower(), kind)
+    for k, v in props.items():
+        setattr(m, k, v)
+    dg = bpy.context.evaluated_depsgraph_get()
+    new = bpy.data.meshes.new_from_object(ob.evaluated_get(dg))
+    ob.modifiers.clear()
+    old = ob.data
+    ob.data = new
+    bpy.data.meshes.remove(old)
+
+
+def union_surface(body, pal, voxel=GLOVE_VOXEL, tris=GLOVE_TRIS):
+    """Voxel union of the body's primitives, relaxed, colour regions painted (palette UVs: the decimator
+    keeps UV seams, so patch borders stay clean), decimated; returns a triangle bmesh."""
+    bm = bmesh.new()
+    for p in body.parts:
+        pb = p['bm']
+        pb.normal_update()
+        p['bvh'] = BVHTree.FromBMesh(pb)
+        vm = {v: bm.verts.new(v.co) for v in pb.verts}
+        for f in pb.faces:
+            bm.faces.new([vm[v] for v in f.verts])
+    me = bpy.data.meshes.new('_glove')
+    bm.to_mesh(me)
+    bm.free()
+    ob = bpy.data.objects.new('_glove', me)
+    bpy.context.scene.collection.objects.link(ob)
+    _apply(ob, 'REMESH', mode='VOXEL', voxel_size=voxel, adaptivity=0.0)
+    _apply(ob, 'LAPLACIANSMOOTH', iterations=GLOVE_SMOOTH, lambda_factor=0.6, use_volume_preserve=True, use_normalized=True)
+    hi = bmesh.new()
+    hi.from_mesh(ob.data)
+    hi.normal_update()
+    hi.faces.ensure_lookup_table()
+    hbvh = BVHTree.FromBMesh(hi)
+    uvl = hi.loops.layers.uv.verify()
+    acc = sorted([p for p in body.parts if p['prio'] > 0], key=lambda p: -p['prio'])
+    for f in hi.faces:
+        c = f.calc_center_median()
+        col = next((p['color'] for p in acc if sdist(c, p) < 0.0012 and p['paint'](c)), 'glove')
+        uv = pal.uv(pal.index(col))
+        for lp in f.loops:
+            lp[uvl].uv = uv
+    hi.to_mesh(ob.data)
+    n = len(hi.faces) * 2
+    _apply(ob, 'DECIMATE', decimate_type='COLLAPSE', ratio=min(1.0, tris / n), use_collapse_triangulate=True)
+    out = bmesh.new()
+    out.from_mesh(ob.data)
+    bpy.data.objects.remove(ob)
+    bmesh.ops.triangulate(out, faces=list(out.faces))
+    bmesh.ops.recalc_face_normals(out, faces=list(out.faces))
+    ouv = out.loops.layers.uv.active
+    for f in out.faces:
+        u, v = f.loops[0][ouv].uv
+        f.material_index = int(u * 8) + 8 * int(v * 8)
+    # shading normals from the dense smooth union (the decimated faces alone shade blotchy under toon bands)
+    sn = out.verts.layers.float_vector.new('snor')
+    for v in out.verts:
+        acc = V((0, 0, 0))
+        for loc, nor, idx, d in hbvh.find_nearest_range(v.co, 0.0035):
+            acc += nor * (hi.faces[idx].calc_area() * (1.0 - d / 0.0035))
+        if acc.length < 1e-9:
+            acc = v.normal.copy()
+        v[sn] = acc.normalized()
+    hi.free()
+    # collapse decimation folds (a face turned against its smooth neighbours would show its ink shell)
+    for _ in range(6):
+        out.normal_update()
+        bad = [f for f in out.faces if f.normal.dot(sum((v[sn] for v in f.verts), V((0, 0, 0))).normalized()) < 0.25]
+        if not bad:
+            break
+        bmesh.ops.collapse(out, edges=list({min(f.edges, key=lambda e: e.calc_length()) for f in bad}), uvs=True)
+    return out
+
+
+def sdist(p, part):
+    loc, nor, idx, d = part['bvh'].find_nearest(p)
+    if loc is None:
+        return 1e9
+    return d if (p - loc).dot(nor) >= 0 else -d
+
+
+def classify(bm, body, parents, sigma=0.0022):
+    """Vertex weights: nearest bone, blended smoothly only with its parent / child bone."""
+    weights = []
+    for v in bm.verts:
+        db = {}
+        for p in body.parts:
+            d = abs(sdist(v.co, p))
+            if d < db.get(p['bone'], 1e9):
+                db[p['bone']] = d
+        b0 = min(db, key=db.get)
+        w = {b0: 1.0}
+        for b1 in db:
+            if b1 != b0 and (parents.get(b1) == b0 or parents.get(b0) == b1):
+                k = math.exp(-(db[b1] - db[b0]) / sigma)
+                if k > 0.08:
+                    w[b1] = k
+        top = sorted(w.items(), key=lambda t: -t[1])[:2]
+        s = sum(x for _, x in top)
+        weights.append({bn: x / s for bn, x in top})
+    return weights
+
+
+# ---------------------------------------------------------------- forearm: gauntlet + stripe + sleeve (one shell)
+# profile along the forearm from the wrist joint (t, half width, half height, colour of the band that starts here)
+CUFF = [(0.016, 0.0215, 0.0200, 'glove3'), (-0.002, 0.0242, 0.0226, 'glove2'), (-0.0035, 0.0288, 0.0270, 'glove'),
+        (0.034, 0.0306, 0.0288, 'amber'), (0.050, 0.0313, 0.0295, 'glove'), (0.062, 0.0318, 0.0300, 'sleeve2'),
+        (0.064, 0.0412, 0.0396, 'sleeve2'), (0.084, 0.0412, 0.0396, 'sleeve'), (0.290, 0.0440, 0.0420, 'sleeve'),
+        (0.304, 0.0300, 0.0285, 'sleeve'), (0.308, 0.0, 0.0, 'sleeve')]
+
+
+def ring_pts(c, d, up, a, b, seg, a0=0.0):
+    u = up - d * up.dot(d)
+    u.normalize()
+    s = d.cross(u)
+    return [c + s * (a * math.cos(a0 + 2 * math.pi * k / seg)) + u * (b * math.sin(a0 + 2 * math.pi * k / seg)) for k in range(seg)]
+
+
+def lathe_shell(bm, prof, o, d, up, seg, pal, dl, gi, sl, sid):
+    """Closed loft of rings along d from o; bands coloured per ring; every vertex fully on bone index gi."""
+    rings = []
+    for t, a, b, _ in prof:
+        c = o + d * t
+        if a < 1e-7:
+            rings.append([bm.verts.new(c)])
+        else:
+            rings.append([bm.verts.new(p) for p in ring_pts(c, d, up, a, b, seg)])
+    faces = []
+    for i in range(len(rings) - 1):
+        A, B = rings[i], rings[i + 1]
+        n = max(len(A), len(B))
+        for j in range(n):
+            j2 = (j + 1) % n
+            if len(A) == 1:
+                f = bm.faces.new((A[0], B[j], B[j2]))
+            elif len(B) == 1:
+                f = bm.faces.new((A[j], A[j2], B[0]))
+            else:
+                f = bm.faces.new((A[j], A[j2], B[j2], B[j]))
+            f.material_index = pal.index(prof[i][3])
+            faces.append(f)
+    for r, i in ((rings[0], 0), (rings[-1], -1)):
+        if len(r) >= 3:
+            f = bm.faces.new(r)
+            f.material_index = pal.index(prof[i][3])
+            faces.append(f)
+    bmesh.ops.recalc_face_normals(bm, faces=faces)
+    for f in faces:
+        f[sl] = sid
+    for r in rings:
+        for v in r:
+            v[dl][gi] = 1.0
+    return faces
+
+
+def arms_hull(obj, pal, t):
+    """ib_lib.add_hull for the arms: glove vertices move out along their smooth shading normal (the
+    even-thickness boost spikes in concave creases between fingers), shells along a capped even normal."""
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    uvl = bm.loops.layers.uv['UVMap']
+    col = bm.loops.layers.float_color['Col']
+    sn = bm.verts.layers.float_vector.get('snor')
+    hull = bm.verts.layers.float_vector.new('_HULL')
+    faces = list(bm.faces)
+    bvh = BVHTree.FromBMesh(bm)
+    dup = bmesh.ops.duplicate(bm, geom=faces + list({e for f in faces for e in f.edges}) + list({v for f in faces for v in f.verts}))
+    nf = [g for g in dup['geom'] if isinstance(g, bmesh.types.BMFace)]
+    nv = [g for g in dup['geom'] if isinstance(g, bmesh.types.BMVert)]
+    bm.normal_update()
+    moves = {}
+    for v in nv:
+        if v[sn].length > 0.5:
+            # never push the shell through another part of the glove (tight creases, touching fingers)
+            n = v[sn].normalized()
+            hit = bvh.ray_cast(v.co + n * 0.0001, n, 2.0 * t)
+            k = 1.0 if hit[0] is None else max(0.25, min(1.0, 0.55 * (hit[3] + 0.0001) / t))
+            moves[v] = n * k
+            continue
+        ns = []
+        for f in v.link_faces:
+            n = f.normal
+            if n.length > 0.5 and not any(abs(n.dot(m)) > 0.9999 for m in ns):
+                ns.append(n.copy())
+        if not ns:
+            continue
+        d = V((0, 0, 0))
+        for n in ns:
+            d += n
+        if d.length < 1e-6:
+            d = ns[0].copy()
+        d.normalize()
+        moves[v] = d * (1.0 / min(max(d.dot(n), 0.7) for n in ns))
+    hi = pal.index('HULL')
+    hu, hv = pal.uv(hi)
+    for v, d in moves.items():
+        v.co += d * t
+        v[hull] = d
+    bmesh.ops.reverse_faces(bm, faces=nf)
+    for e in {e for f in nf for e in f.edges}:
+        e.smooth = True
+    for f in nf:
+        f.material_index = hi
+        f.smooth = True
+        for lp in f.loops:
+            lp[uvl].uv = (hu, hv)
+            lp[col] = (1.0, 1.0, 1.0, 1.0)
+    bm.to_mesh(obj.data)
+    bm.free()
 
 
 def two_bone(s, w, hint, U=UPPER_LEN, F=FORE_LEN):
@@ -1181,10 +1619,9 @@ def grip_frame(wid):
     return mat_trs((0, 0, 0), (-WEAPONS[wid]['rake'], 0, 0))
 
 
-
-
 def build_arms(pal):
     F0 = {'R': grip_frame('PIP'), 'L': left_hold('PIP')}
+    X = {s: F0[s] @ (MIRROR if s == 'L' else Matrix.Identity(4)) for s in ('R', 'L')}
     arm = bpy.data.armatures.new('ARMS_Rig')
     rig = bpy.data.objects.new('ARMS_Rig', arm)
     bpy.context.scene.collection.objects.link(rig)
@@ -1208,52 +1645,108 @@ def build_arms(pal):
     RIG['mag0'] = mag0
     RIG['F0'] = F0
     RIG['S0'], RIG['E0'], RIG['W0'] = {}, {}, {}
+    parents = {}
     for side in ('R', 'L'):
-        X = F0[side] @ (MIRROR if side == 'L' else Matrix.Identity(4))
-        wr = X @ WRIST
+        Xs = X[side]
+        wr = Xs @ WRIST
         s, e = two_bone(SH[side], wr, HINT[side])
         RIG['S0'][side], RIG['E0'][side], RIG['W0'][side] = s, e, wr
         bone('UPPERARM_' + side, s, e, 'Weapon')
         bone('FOREARM_' + side, e, wr, 'Weapon')
-        bone('HAND_' + side, wr, X @ PALM_C, 'Weapon')
-        bone('THUMB1_' + side, X @ V(THUMB1[0][0]), X @ V(THUMB1[-1][0]), 'HAND_' + side)
-        bone('THUMB2_' + side, X @ V(THUMB2[0][0]), X @ V(THUMB2[-2][0]), 'THUMB1_' + side)
+        bone('HAND_' + side, wr, Xs @ PALM_C, 'Weapon')
+        T = thumb_joints(side, X)
+        bone('THUMB1_' + side, Xs @ T[0], Xs @ T[1], 'HAND_' + side)
+        bone('THUMB2_' + side, Xs @ T[1], Xs @ T[3], 'THUMB1_' + side)
+        parents['THUMB1_' + side] = 'HAND_' + side
+        parents['THUMB2_' + side] = 'THUMB1_' + side
         for fn in FINGERS:
-            fp = finger_path(fn)
-            bone(fn + '_' + side, X @ V(fp[0][0]), X @ V(fp[-2][0]), 'HAND_' + side)
+            J = finger_joints(side, fn)
+            bone(fn + '_' + side, Xs @ J[0], Xs @ J[-1], 'HAND_' + side)
+            parents[fn + '_' + side] = 'HAND_' + side
     bpy.ops.object.mode_set(mode='OBJECT')
     assert len(arm.bones) == 22, len(arm.bones)
-
-    k = Kit(pal)
-    for side in ('R', 'L'):
-        X = F0[side] @ (MIRROR if side == 'L' else Matrix.Identity(4))
-        with k.at(m=X):
-            glove(k, side)
-        s, e, wr = RIG['S0'][side], RIG['E0'][side], RIG['W0'][side]
-        fd = (e - wr).normalized()          # wrist -> elbow
-        up = V((0, 0, 1))
-        k.tag = 'FOREARM_' + side
-        k.tube([(wr - fd * 0.006, 0.052, 0.048), (wr + fd * 0.045, 0.058, 0.054), (wr + fd * 0.092, 0.066, 0.062)], 'glove', sides=8, up=up)
-        k.tube([(wr + fd * 0.066, 0.073, 0.069), (wr + fd * 0.084, 0.073, 0.069)], 'amber', sides=8, up=up, hull=False)
-        k.tube([(wr + fd * 0.090, 0.084, 0.080), (wr + fd * 0.114, 0.084, 0.080)], 'sleeve2', sides=8, up=up)
-        k.tube([(wr + fd * 0.100, 0.076, 0.072), (e + fd * 0.02, 0.086, 0.082)], 'sleeve', sides=8, up=up)
-        k.tag = 'UPPERARM_' + side
-        ud = (e - s).normalized()
-        k.tube([(e + ud * 0.03, 0.084, 0.080), (s - ud * 0.02, 0.092, 0.090)], 'sleeve', sides=8, up=up)
-        k.tag = None
-    tags = dict(k.tags)
-    obj = finish('ARMS', k)
-    me = obj.data
     names = [b.name for b in arm.bones]
-    vg = {n: obj.vertex_groups.new(name=n) for n in names}
-    sid = me.attributes['shape_id'].data
-    owner = {}
+    gi = {n: i for i, n in enumerate(names)}
+
+    # one bmesh: both gloves (one surface each), both forearm shells, both upper sleeves
+    bm = bmesh.new()
+    dl = bm.verts.layers.deform.verify()
+    sl = bm.faces.layers.int.new('shape_id')
+    snl = bm.verts.layers.float_vector.new('snor')
+    sid = 0
+    for side in ('R', 'L'):
+        body = glove_body(side, X)
+        g = union_surface(body, pal)
+        ws = classify(g, body, parents)
+        vm = {}
+        gsn = g.verts.layers.float_vector['snor']
+        for v, w in zip(g.verts, ws):
+            nv = bm.verts.new(v.co)
+            nv[snl] = v[gsn]
+            for bn, x in w.items():
+                nv[dl][gi[bn]] = x
+            vm[v] = nv
+        sid += 1
+        for f in g.faces:
+            nf = bm.faces.new([vm[v] for v in f.verts])
+            nf.material_index = f.material_index
+            nf[sl] = sid
+        g.free()
+        for p in body.parts:
+            p['bm'].free()
+        s, e, wr = RIG['S0'][side], RIG['E0'][side], RIG['W0'][side]
+        fd = (e - wr).normalized()
+        up = V((0, 0, 1))
+        sid += 1
+        lathe_shell(bm, CUFF, wr, fd, up, 10, pal, dl, gi['FOREARM_' + side], sl, sid)
+        ud = (s - e).normalized()
+        sid += 1
+        lathe_shell(bm, [(-0.034, 0.0, 0.0, 'sleeve'), (-0.026, 0.036, 0.034, 'sleeve'), (0.000, 0.0465, 0.0445, 'sleeve'),
+                         ((s - e).length + 0.02, 0.050, 0.048, 'sleeve'), ((s - e).length + 0.03, 0.0, 0.0, 'sleeve')],
+                    e, ud, up, 8, pal, dl, gi['UPPERARM_' + side], sl, sid)
+    check_zfight('ARMS', bm, sl)
+    me = bpy.data.meshes.new('ARMS')
+    obj = bpy.data.objects.new('ARMS', me)
+    bpy.context.scene.collection.objects.link(obj)
+    for n in names:
+        obj.vertex_groups.new(name=n)
+    bm.to_mesh(me)
+    bm.free()
+    obj.data.materials.append(pal.material)
+    # palette UVs, white vertex colour, smooth glove / crisp cuff edges, then one ink shell per piece
+    b2 = bmesh.new()
+    b2.from_mesh(obj.data)
+    uvl = b2.loops.layers.uv.get('UVMap') or b2.loops.layers.uv.new('UVMap')
+    col = b2.loops.layers.float_color.new('Col')
+    sl2 = b2.faces.layers.int.get('shape_id')
+    for f in b2.faces:
+        u, v = pal.uv(f.material_index)
+        f.smooth = True
+        for lp in f.loops:
+            lp[uvl].uv = (u, v)
+            lp[col] = (1.0, 1.0, 1.0, 1.0)
+    for e in b2.edges:
+        if len(e.link_faces) != 2:
+            e.smooth = False
+        elif e.link_faces[0][sl2] % 3 != 1 and e.calc_face_angle(0.0) > math.radians(40):
+            e.smooth = False        # forearm shells: crisp rim / hem steps (gloves stay fully smooth)
+    b2.to_mesh(obj.data)
+    b2.free()
+    arms_hull(obj, pal, HULL_T)
+    me = obj.data
+    sn = me.attributes['snor'].data
+    hl = me.attributes['_HULL'].data
+    ln = []
+    for lp in me.loops:
+        vi = lp.vertex_index
+        n = sn[vi].vector
+        ln.append(tuple(n) if n.length > 0.5 and hl[vi].vector.length == 0 else (0.0, 0.0, 0.0))
+    me.normals_split_custom_set(ln)
+    me.attributes.remove(me.attributes['snor'])
+    print('ARMS: %d triangles incl. outline shell' % sum(len(p.vertices) - 2 for p in me.polygons))
     for p in me.polygons:
-        b = tags.get(sid[p.index].value)
-        for vi in p.vertices:
-            owner[vi] = b
-    for vi, b in owner.items():
-        vg[b].add([vi], 1.0, 'REPLACE')
+        p.material_index = 0
+    me.color_attributes.active_color = me.color_attributes['Col']
     obj.parent = rig
     mod = obj.modifiers.new('rig', 'ARMATURE')
     mod.object = rig
@@ -1279,23 +1772,77 @@ ANIM = {
     'NEEDLE': {'fire': 60 / 45, 'reload': 3.0, 'style': 'bolt', 'heavy': 1.4},
 }
 CARRY = {'pistol': (0.0, -0.01, 0.0), 'smg': (0.0, -0.13, -0.006), 'rifle': (0.0, -0.17, -0.010), 'sniper': (0.0, -0.17, -0.010)}
-GUARD_ROT = (-90, -115, 0)        # support glove under a handguard (grip axis along the barrel)
 
 
-# two-hand pistol hold: support glove offset (m), extra rotation (deg), thumb swing forward, finger curl
-PISTOL_LEFT = (-0.018, 0.018, -0.016, 8, 0, 14, 95, -8)
+# Support-hand holds. A hold is the support glove's grip axis (index end) and palm direction in weapon space
+# (hold_frame); the frame is then slid so the palm touches the part and centred on it (fit by ray casts on
+# the gun's visible surface), and the fingers / thumb close until they meet it (curl from the gap left).
+# two-hand pistol hold: support glove offset (m) and rotation (deg) from the grip frame, thumb swing, finger curl
+PISTOL_LEFT = (-0.018, 0.018, -0.016, 8, 0, 14, 0, -8)
+GUARD_PALM = V((0.70, 0.0, -0.71))      # handguards: palm under, fingers over the far side, forearm from below
+
+
+def hold_frame(o, axis, palm):
+    """Support-glove rest frame: model z (grip axis, index end) along axis, the palm side toward palm."""
+    z = V(axis).normalized()
+    x = -(V(palm) - z * V(palm).dot(z)).normalized()
+    M = Matrix((x, z.cross(x), z)).transposed().to_4x4()
+    M.translation = V(o)
+    return M
+
+
+def _gun_bvh(wid):
+    info = WEAPONS[wid]
+    if 'bvh' not in info:
+        bm = bmesh.new()
+        bm.from_mesh(bpy.data.objects['WPN_' + wid].data)
+        hl = bm.verts.layers.float_vector['_HULL']
+        bmesh.ops.delete(bm, geom=[v for v in bm.verts if v[hl].length > 0], context='VERTS')
+        info['bvh'] = BVHTree.FromBMesh(bm)
+        bm.free()
+    return info['bvh']
+
+
+def reach(wid, o, d, far=0.046):
+    """Distance from o (inside a part) out to the gun's visible surface along d."""
+    d = V(d).normalized()
+    hit = _gun_bvh(wid).ray_cast(V(o) + d * far, -d, far)
+    return far - hit[3] if hit[0] is not None else 0.0
 
 
 def left_hold(wid):
-    """Support-hand frame in weapon space for the hold pose."""
+    """Support-hand frame in weapon space for the hold pose (the fitted frame once fit_support ran)."""
     info = WEAPONS[wid]
+    if 'hold_L' in info:
+        return info['hold_L']
     if info['cls'] == 'pistol':
         o = PISTOL_LEFT
         return mat_trs(o[:3], (-info['rake'] + o[3], o[4], o[5]))
     if 'fore' in info:
         y, z = info['fore']
-        return mat_trs((0, y, z - 0.004), (0, 0, 0))
-    return mat_trs(info['guard'], GUARD_ROT)
+        return hold_frame((0, y, z - 0.004), (0, 0, 1), (-1, 0, 0))
+    return hold_frame(info['guard'], (0, 1, 0), GUARD_PALM)
+
+
+def fit_support():
+    """Slide each long gun's support frame onto its foregrip / handguard; curl fingers and thumb to the gap."""
+    G = ANAT['L']['grip']
+    for wid, info in WEAPONS.items():
+        if info['cls'] == 'pistol':
+            continue
+        F = left_hold(wid)
+        o, x, y, z = F.translation.copy(), F.col[0].xyz, F.col[1].xyz, F.col[2].xyz
+        palm = -x                                   # palm side (the glove is mirrored)
+        hs = [o + z * FING[fn][0] for fn in FINGERS]     # sample the part across the hand, index to pinky
+        rp = max(reach(wid, h, palm) for h in hs)
+        rf = sum(reach(wid, h, y) for h in hs) / 4
+        rb = sum(reach(wid, h, -y) for h in hs) / 4
+        F = F.copy()
+        clamp = lambda v, m: max(-m, min(m, v))
+        F.translation = o + palm * clamp(rp - G['hx'], 0.010) + y * clamp((rf - rb) / 2, 0.008)
+        info['hold_L'] = F
+        info['curl_L'] = max(-25.0, min(25.0, math.degrees((G['hy'] - (rf + rb) / 2) / 0.045)))
+        info.pop('bvh', None)
 
 
 def T(v):
@@ -1342,6 +1889,7 @@ class Poser:
         self.carry = V(CARRY[self.info['cls']])
         self.GR = mat_trs((0, 0, 0), (-self.info['rake'], 0, 0))
         self.GL = left_hold(wid)
+        self.cl0 = self.info.get('curl_L', 0.0)
         self.magS = V(self.info['mag'])
         self.magT = self.magS - RIG['mag0']
 
@@ -1350,8 +1898,10 @@ class Poser:
 
     def __call__(self, wl=(0, 0, 0), wr=(0, 0, 0), trig=0.0, FL=None, FR=None, mag=None, curlL=0.0, curlR=0.0, idx=0.0, thumbL=0.0, thumbR=0.0):
         W = self.wm(wl, wr)
-        if FL is None and self.info['cls'] == 'pistol':      # two-hand pistol hold: support thumb forward
+        if FL is None and self.info['cls'] == 'pistol':      # two-hand pistol hold
             thumbL, curlL = thumbL + PISTOL_LEFT[6], curlL + PISTOL_LEFT[7]
+        elif FL is None:                                     # foregrip / handguard: close on the part
+            thumbL, curlL = thumbL + self.cl0, curlL + self.cl0
         curl = {'INDEX_R': 14 * trig + idx, 'INDEX_L': curlL, 'THUMB1_L': thumbL, 'THUMB1_R': thumbR}
         for fn in ('MIDDLE', 'RING', 'PINKY'):
             curl[fn + '_R'] = curlR
@@ -1571,6 +2121,10 @@ def build_weapons(ao):
     build_weapon_meshes(pal)
     build_pickups(pal)
     rig, arms = build_arms(pal)
+    fit_support()
+    for wid, info in WEAPONS.items():
+        if 'curl_L' in info:
+            print('support hold %-10s offset %s curl %+.0f' % (wid, tuple(round(c, 3) for c in info['hold_L'].translation), info['curl_L']))
     build_actions(rig)
     export('weapons')
 
