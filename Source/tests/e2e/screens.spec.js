@@ -118,7 +118,7 @@ async function autoChecks(pg, label, touch) {
 
 (async () => {
   const server = await serve();
-  const url = 'http://localhost:' + server.address().port + '/' + encodeURI(TARGET) + '?autotest=1';
+  const url = 'http://localhost:' + server.address().port + '/' + encodeURI(TARGET) + '?autotest=1&plan=greybox';
   const browser = await chromium.launch({ args: ARGS });
   for (const v of VIEWS.filter(v => !VIEW_ONLY || VIEW_ONLY.includes(v.name))) {
     const dir = path.join(OUT, v.name); fs.mkdirSync(dir, { recursive: true });
