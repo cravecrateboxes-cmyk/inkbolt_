@@ -51,7 +51,7 @@
       });
   };
   function bootAfterAssets() {
-    FX.init(R.scene); AI.init(R.scene); W.init(R.vmScene);
+    FX.init(R.scene); AI.init(R.scene); W.init(R.vmScene); IB.Projectiles.init(R.scene);
     G.plan = IB.LEVEL_PLANS[params.get('plan') || 'greybox'];
     G.buildLevel();
     G.player = IB.Player.create();
@@ -111,7 +111,7 @@
 
   function resetLevelState() {
     var L = G.level;
-    AI.clear(); FX.clear();
+    AI.clear(); FX.clear(); IB.Projectiles.clear();
     L.zones.forEach(function (z, i) {
       z.state = 'idle'; z.wave = -1; z.waveT = 0; z.queue = []; z.clearT = -1; z.spawnedTotal = 0;
       if (z.entryGate) Z.setGate(z.entryGate, i > 0, true);
@@ -347,6 +347,8 @@
     HUD.gems(G.slot ? G.slot.gems : G.run.gems, true);
     A.gem(performance.now() / 1000);
   }
+  // screen shake as trauma (0..1): shake = trauma^2, decays over ~0.6 s; the Screen shake setting turns it off
+  G.addTrauma = function (t) { G.trauma = Math.min(1, (G.trauma || 0) + t); };
   G.hurt = function (robot, dmg) {
     var p = G.player;
     if (!p.alive || p.protect > 0 || G.complete) return;
@@ -528,7 +530,11 @@
       acc -= STEP; steps++;
       if (p.alive) IB.Player.step(p, { mx: G.complete ? 0 : Inp.mx, mz: G.complete ? 0 : Inp.mz, sprint: Inp.sprint, jumpPressed: jump }, G.level.world, STEP, footFx);
       jump = false;
-      if (G.run.started) AI.update(STEP, { player: p, world: G.level.world, level: G.level, activeZone: G.level.zones[G.zone].state === 'active' ? G.zone : -1, hurt: G.hurt });
+      if (G.run.started) {
+        var actx = { player: p, world: G.level.world, level: G.level, activeZone: G.level.zones[G.zone].state === 'active' ? G.zone : -1, hurt: G.hurt, shake: G.addTrauma, onKill: onKill };
+        AI.update(STEP, actx);
+        IB.Projectiles.update(STEP, actx);
+      }
       if (G.run.started && !G.dead) updateZones(STEP);
     }
     if (acc > STEP * 4) acc = 0;
