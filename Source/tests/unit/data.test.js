@@ -47,8 +47,9 @@ test('weapon table numbers (5.2)', () => {
 });
 
 test('every weapon has the required fields and names', () => {
-  const names = ['Pip', 'Hand Cannon', 'Twin Tap', 'Buzz', 'Whisk', 'Hornet', 'Rivet', 'Triplet', 'Long Tom', 'Brick',
-    'Needle', 'Can Cannon', 'Frag Can', 'Pop Flash', 'Katana', 'Fire Axe', 'Scrapper'];
+  const names = ['P-12 Warden', 'R-50 Ironjaw', 'P-16 Twinfire', 'KV-9 Buzzsaw', 'KV-4 Whiplash', 'KV-7 Hornet', 'AR-22 Rivet',
+    'AR-3 Tribolt', 'DMR-60 Longtom', 'LMG-26 Bricklayer', 'SR-160 Needle', 'RL-1 Canister', 'M-15 Frag Can', 'FX-2 Pop Flash',
+    'Mk-1 Ronin Blade', 'BA-7 Breacher Axe', 'SG-9 Scrapper'];
   assert.deepEqual(IB.WEAPON_ORDER.map((id) => W[id].name), names);
   assert.equal(Object.keys(W).length, 17);
   for (const w of Object.values(W)) {

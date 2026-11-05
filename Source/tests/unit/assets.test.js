@@ -31,12 +31,42 @@ test('every name the game asks for exists in its GLB', () => {
   for (const n of IB.kitAssetNames('toytown')) assert.ok(kitHave.has(n), 'kit-toytown missing ' + n);
 });
 
-test('every modelled weapon has a mesh, mag, sockets and all six arm actions', () => {
+test('every modelled weapon has a mesh, mag, sockets and all arm actions', () => {
   const anims = new Set(G.weapons.animations.map(a => a.name));
   for (const id of IB.MODELLED_WEAPONS) {
     const k = 'WPN_' + id.toUpperCase();
-    for (const s of ['', '_Mag', '_MUZZLE', '_MAG', '_EJECT']) assert.ok(names(G.weapons).has(k + s), k + s);
+    for (const s of ['', '_Mag', '_MUZZLE', '_MAG', '_EJECT', '_SIGHT']) assert.ok(names(G.weapons).has(k + s), k + s);
+    if (IB.SCOPED_WEAPONS.includes(id)) assert.ok(names(G.weapons).has(k + '_SCOPE'), k + '_SCOPE');
     for (const a of IB.ARM_ACTIONS) assert.ok(anims.has(id.toUpperCase() + '_' + a), 'action ' + id.toUpperCase() + '_' + a);
+  }
+  assert.ok(IB.ARM_ACTIONS.includes('Slide'));
+});
+
+test('sockets sit on their gun: MAG is the mag origin, SIGHT above the bore line, muzzle in front', () => {
+  for (const id of IB.MODELLED_WEAPONS) {
+    const k = 'WPN_' + id.toUpperCase();
+    const gun = G.weapons.nodes.find(n => n.name === k);
+    const kids = (gun.children || []).map(i => G.weapons.nodes[i]);
+    const at = s => (kids.find(n => n.name === k + s) || {}).translation;
+    for (const s of ['_MUZZLE', '_MAG', '_EJECT', '_SIGHT']) assert.ok(at(s), k + s + ' is a child of ' + k);
+    // glTF is Y-up, forward -Z: the muzzle is ahead of the sight, the sight above the muzzle line
+    assert.ok(at('_MUZZLE')[2] < at('_SIGHT')[2], k + ' muzzle ahead of sight');
+    assert.ok(at('_SIGHT')[1] > at('_MUZZLE')[1], k + ' sight above the bore');
+  }
+});
+
+test('arm action lengths follow the weapon table (reload, draw 0.3 s, holster 0.2 s, idle 2 s)', () => {
+  require('../../src/data/weapons.js');
+  const len = {};
+  for (const a of G.weapons.animations) len[a.name] = Math.max(...a.samplers.map(s => G.weapons.accessors[s.input].max[0]));
+  const near = (a, b, n) => assert.ok(Math.abs(a - b) <= 1 / 30 + 1e-4, n + ' ' + a + ' != ' + b);
+  for (const id of IB.MODELLED_WEAPONS) {
+    const K = id.toUpperCase(), w = IB.WEAPONS[id];
+    near(len[K + '_Reload'], w.reload, K + '_Reload');
+    near(len[K + '_Draw'], IB.WEAPON_RULES.draw, K + '_Draw');
+    near(len[K + '_Holster'], IB.WEAPON_RULES.holster, K + '_Holster');
+    near(len[K + '_Idle'], 2, K + '_Idle');
+    assert.ok(len[K + '_Fire'] <= Math.max(w.cycle, 2 / 30) + 1 / 30 + 1e-4, K + '_Fire ' + len[K + '_Fire'] + ' > cycle ' + w.cycle);
   }
 });
 
@@ -56,7 +86,11 @@ test('GLBs are quantized (KHR_mesh_quantization) and carry the outline attribute
 
 test('triangle budgets hold (including the outline hull)', () => {
   const all = Object.assign({}, ...Object.values(G).map(g => Object.fromEntries(g.nodes.filter(n => n.mesh !== undefined).map(n => [n.name, g]))));
-  for (const [n, max] of Object.entries(IB.TRI_BUDGET.meshes)) assert.ok(tris(all[n], n) <= max, n + ' ' + tris(all[n], n) + ' > ' + max);
+  for (const [n, max] of Object.entries(IB.TRI_BUDGET.meshes)) {
+    // a weapon's budget covers the gun and its detachable mag together
+    const t = tris(all[n], n) + (all[n + '_Mag'] ? tris(all[n + '_Mag'], n + '_Mag') : 0);
+    assert.ok(t <= max, n + ' ' + t + ' > ' + max);
+  }
   for (const [id, r] of Object.entries(IB.TRI_BUDGET.robots)) {
     const t = Object.entries(r.parts).reduce((s, [n, k]) => s + tris(G.bots, n) * k, 0);
     assert.ok(t <= r.max, id + ' ' + t + ' > ' + r.max);
