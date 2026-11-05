@@ -223,7 +223,7 @@
       if (!exposed) { P.roof.push(p); return; }
       var horiz = cellIs(grid, p.c - 1, p.r, WALLISH) || cellIs(grid, p.c + 1, p.r, WALLISH);
       var vert = cellIs(grid, p.c, p.r - 1, WALLISH) || cellIs(grid, p.c, p.r + 1, WALLISH);
-      var name = W.choose ? W.choose(p.c, p.r, horiz, horiz && vert, hash) : pick(W.pieces, hash(p.c * 13, p.r * 17));
+      var name = W.choose ? W.choose(p.c, p.r, horiz, horiz && vert, hash, grid) : pick(W.pieces, hash(p.c * 13, p.r * 17));
       // wall modules face +/-Z; rotate for vertical runs. Optional per-face: the open side decides a 180 flip
       var yaw = (!horiz && vert) ? Math.PI / 2 : 0;
       if (W.faceOpen) {
