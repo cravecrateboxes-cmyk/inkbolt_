@@ -468,7 +468,7 @@
     var p = G.player;
     if (!p.alive || p.protect > 0 || G.complete) return;
     p.health -= dmg; p.lastHurt = 0;
-    A.play('bite', { pos: robot }); A.play('hurt', { gain: 0.8 });
+    A.play(robot.proj ? (robot.type === 'bomber' ? 'boom' : 'boltHit') : 'bite', { pos: robot }); A.play('hurt', { gain: 0.8 });
     // arc pointing toward the attacker
     var dx = robot.x - p.x, dz = robot.z - p.z;
     var fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw), rx = Math.cos(p.yaw), rz = -Math.sin(p.yaw);

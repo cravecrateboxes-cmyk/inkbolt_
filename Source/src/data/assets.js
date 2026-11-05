@@ -23,7 +23,13 @@
   IB.ASSET_NAMES = {
     common: ['Cloud_A', 'Cloud_B', 'Cloud_C', 'Hill', 'Tree', 'TrailArrow', 'SpawnCan', 'InkChunk_0', 'InkChunk_1', 'InkChunk_2', 'InkChunk_3', 'InkChunk_4', 'InkChunk_5'],
     weapons: ['ARMS', 'ARMS_Rig', 'Weapon', 'Mag', 'HAND_R', 'HAND_L', 'PICKUP_Gem', 'PICKUP_Ammo', 'PICKUP_Health'],
-    bots: ['BOT_CRAWLER_Body', 'BOT_CRAWLER_Leg', 'BOT_CRAWLER_Light', 'BOT_CRAWLER_CORE', 'BOT_CRAWLER_HIP0', 'BOT_CRAWLER_HIP1', 'BOT_CRAWLER_HIP2', 'BOT_CRAWLER_HIP3']
+    bots: ['BOT_CRAWLER_Body', 'BOT_CRAWLER_Leg', 'BOT_CRAWLER_Light', 'BOT_CRAWLER_CORE', 'BOT_CRAWLER_HIP0', 'BOT_CRAWLER_HIP1', 'BOT_CRAWLER_HIP2', 'BOT_CRAWLER_HIP3',
+      'BOT_GUNNER_Body', 'BOT_GUNNER_Lid', 'BOT_GUNNER_Gun', 'BOT_GUNNER_Wheel', 'BOT_GUNNER_Light',
+      'BOT_GUNNER_CORE', 'BOT_GUNNER_GUN', 'BOT_GUNNER_GUNPIVOT', 'BOT_GUNNER_HINGE', 'BOT_GUNNER_WHEEL0', 'BOT_GUNNER_WHEEL1', 'BOT_GUNNER_LIGHT',
+      'BOT_BOMBER_Body', 'BOT_BOMBER_Roller', 'BOT_BOMBER_Cap', 'BOT_BOMBER_Light',
+      'BOT_BOMBER_CORE', 'BOT_BOMBER_AXLE', 'BOT_BOMBER_CAP', 'BOT_BOMBER_WICK',
+      'BOT_DRONE_Body', 'BOT_DRONE_Lid', 'BOT_DRONE_Rotor', 'BOT_DRONE_Gun', 'BOT_DRONE_Light',
+      'BOT_DRONE_CORE', 'BOT_DRONE_GUN', 'BOT_DRONE_GUNPIVOT', 'BOT_DRONE_LID', 'BOT_DRONE_ROTOR0', 'BOT_DRONE_ROTOR1', 'BOT_DRONE_ROTOR2', 'BOT_DRONE_ROTOR3', 'BOT_DRONE_LIGHT']
   };
   // weapons that have a Blender model + arm actions: WPN_<ID> (gun), WPN_<ID>_Mag (detachable mag; revolver: the
   // cylinder) and sockets WPN_<ID>_MUZZLE / _MAG / _EJECT / _SIGHT (a point on the sight line just behind the rear
@@ -44,7 +50,12 @@
       ARMS: 3000, PICKUP_Gem: 60, PICKUP_Ammo: 300, PICKUP_Health: 300,
       Cloud_A: 300, Cloud_B: 300, Cloud_C: 300, Hill: 300, Tree: 300, SpawnCan: 300, TrailArrow: 300,
       KIT_TOYTOWN_Landmark_WaterTower: 4000 },
-    robots: { crawler: { parts: { BOT_CRAWLER_Body: 1, BOT_CRAWLER_Leg: 4, BOT_CRAWLER_Light: 1 }, max: 1200 } },
+    robots: {
+      crawler: { parts: { BOT_CRAWLER_Body: 1, BOT_CRAWLER_Leg: 4, BOT_CRAWLER_Light: 1 }, max: 1200 },
+      gunner: { parts: { BOT_GUNNER_Body: 1, BOT_GUNNER_Lid: 1, BOT_GUNNER_Gun: 1, BOT_GUNNER_Wheel: 2, BOT_GUNNER_Light: 1 }, max: 2000 },
+      bomber: { parts: { BOT_BOMBER_Body: 1, BOT_BOMBER_Roller: 1, BOT_BOMBER_Cap: 1, BOT_BOMBER_Light: 1 }, max: 1400 },
+      drone: { parts: { BOT_DRONE_Body: 1, BOT_DRONE_Lid: 1, BOT_DRONE_Rotor: 4, BOT_DRONE_Gun: 1, BOT_DRONE_Light: 1 }, max: 1200 }
+    },
     kitMax: 40000, kitPropMax: 1200
   };
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
