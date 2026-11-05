@@ -115,9 +115,60 @@
     scene.add(FX.blobs);
     // gems
     FX.initGems(scene);
+    FX.initWords(scene);
+  };
+
+  // ---------- comic words (brief 2.5): explosions and boss phase changes only, from a fixed atlas of six ----------
+  var WORDS = ['BLAM', 'KRUNCH', 'CLANG', 'FWOOM', 'ZAP', 'KA-CHUNK'];
+  FX.initWords = function (scene) {
+    var tex = IB.Render.canvasTex(1024, 512, function (ctx) {
+      ctx.clearRect(0, 0, 1024, 512);
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+      WORDS.forEach(function (w, i) {
+        var cx = (i % 3) * 341 + 170, cy = Math.floor(i / 3) * 256 + 128;
+        // starburst plate behind the word
+        ctx.save(); ctx.translate(cx, cy); ctx.rotate(-0.08 + (i % 2) * 0.12);
+        ctx.beginPath();
+        for (var k = 0; k <= 22; k++) { var a = k / 22 * Math.PI * 2, r = (k % 2 ? 0.62 : 1) * 118; ctx.lineTo(Math.cos(a) * r * 1.35, Math.sin(a) * r * 0.85); }
+        ctx.fillStyle = '#FFB21E'; ctx.fill(); ctx.lineWidth = 12; ctx.strokeStyle = '#15121C'; ctx.stroke();
+        var size = w.length > 6 ? 58 : 76;
+        ctx.font = '900 ' + size + 'px Archivo, Arial Black, sans-serif';
+        ctx.lineWidth = 16; ctx.strokeStyle = '#15121C'; ctx.strokeText(w, 0, 6);
+        ctx.fillStyle = '#FFFDF7'; ctx.fillText(w, 0, 6);
+        ctx.restore();
+      });
+    });
+    FX.words = [];
+    for (var i = 0; i < 6; i++) {
+      var mat = new THREE.SpriteMaterial({ map: tex.clone(), transparent: true, depthTest: false, fog: false });
+      mat.map.needsUpdate = true; mat.map.repeat.set(1 / 3, 1 / 2);
+      var sp = new THREE.Sprite(mat); sp.visible = false; sp.renderOrder = 20; scene.add(sp);
+      FX.words.push({ sprite: sp, t: 0, on: false });
+    }
+  };
+  FX.word = function (text, x, y, z, size) {
+    if (!FX.words) return;
+    var i = WORDS.indexOf(text); if (i < 0) i = 0;
+    var w = FX.words[0]; for (var k = 1; k < FX.words.length; k++) if (!FX.words[k].on || FX.words[k].t > w.t) { w = FX.words[k]; if (!w.on) break; }
+    w.on = true; w.t = 0; w.size = size || 2.6;
+    w.sprite.material.map.offset.set((i % 3) / 3, 1 - (Math.floor(i / 3) + 1) / 2);
+    w.sprite.position.set(x, y, z); w.sprite.visible = true;
+  };
+  FX.updateWords = function (dt) {
+    if (!FX.words) return;
+    FX.words.forEach(function (w) {
+      if (!w.on) return;
+      w.t += dt;
+      // pop 0.92 -> 1.08 -> 1.0, hold, then shrink away (0.7 s total)
+      var k = w.t < 0.12 ? 0.6 + w.t / 0.12 * 0.5 : w.t < 0.2 ? 1.1 - (w.t - 0.12) / 0.08 * 0.1 : w.t < 0.55 ? 1 : 1 - (w.t - 0.55) / 0.15;
+      if (w.t >= 0.7) { w.on = false; w.sprite.visible = false; return; }
+      w.sprite.scale.set(w.size * 1.4 * k, w.size * k, 1);
+      w.sprite.position.y += dt * 0.3;
+    });
   };
 
   FX.clear = function () {
+    if (FX.words) FX.words.forEach(function (w) { w.on = false; w.sprite.visible = false; });
     var i;
     for (i = 0; i < FX.decalCap; i++) FX.decals.setMatrixAt(i, ZERO);
     FX.decals.instanceMatrix.needsUpdate = true; FX.decalNext = 0; FX.decalCount = 0;
@@ -223,6 +274,7 @@
   /* player: {x,y,z}; magnet radius; onCollect(kind) */
   FX.update = function (dt, cam, player, magnet, onCollect) {
     var i, p;
+    FX.updateWords(dt);
     // particles
     for (i = 0; i < FX.pCap; i++) {
       p = FX.pool[i];

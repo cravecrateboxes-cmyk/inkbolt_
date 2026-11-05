@@ -176,7 +176,7 @@ b, .num { font-variant-numeric: tabular-nums; }
 .slot.on .key { color: var(--teal-hi); }
 .weapon { width: 372px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 10px 10px 10px 18px; --ch: 10px; }
 .wpn-info { display: grid; gap: 5px; min-width: 0; }
-.wpn-name { font-stretch: 125%; font-weight: 900; font-size: var(--t22); line-height: 1; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wpn-name { font-stretch: 82%; font-weight: 900; font-size: var(--t22);   /* condensed so the longest name (LMG-26 BRICKLAYER) fits */ line-height: 1; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wpn-cls { display: flex; align-items: center; gap: 8px; font-size: var(--t13); color: var(--paper-2); font-weight: 700; }
 .wpn-icon { display: inline-flex; color: var(--teal); }
 .wpn-icon svg { width: 32px; height: 16px; }
@@ -277,7 +277,7 @@ body.touch-on .radar canvas { clip-path: polygon(12px 0, calc(100% - 12px) 0, 10
 body.touch-on .feed { display: none; }
 body.touch-on .hud-br { bottom: auto; top: calc(var(--sat) + var(--gap) + 58px); display: flex; flex-direction: column-reverse; align-items: flex-end; gap: 10px; }
 body.touch-on .weapon { width: 256px; padding: 7px 7px 7px 12px; gap: 10px; }
-body.touch-on .wpn-name { font-size: 15px; font-stretch: 112%; }
+body.touch-on .wpn-name { font-size: 15px; font-stretch: 75%; }
 body.touch-on .wpn-cls { display: none; }
 body.touch-on .mag-strip { height: 7px; margin-top: 4px; }
 body.touch-on .ammo { width: 84px; height: 46px; padding-top: 3px; --ch: 7px; }
@@ -5535,7 +5535,10 @@ window.IB = window.IB || {}; IB.GLB_DATA = {"bots": "Z2xURgIAAACALAMAWFwAAEpTT05
        clouds: true|false
      },
      floor: { color: '#hex', lines: [{ dir: 'x'|'z', every: 2, width: 0.05, color: '#hex', y: 0.01 }], trail: '#hex' },
-     wall: { height: 3, roof: '#hex', pieces: ['Wall_A', ...] | choose: function (c, r, horiz, corner, hash) -> name },
+     wall: { height: 3, roof: '#hex', faceOpen: bool,
+             pieces: ['Wall_A', ...] | choose: function (c, r, horiz, corner, hash, grid) -> name },
+             (grid: {w, h, at(c, r)}; c/r = cell; modules face +/-Z and are turned 90 for vertical runs; with faceOpen the
+              module's +Z face (= Blender -Y face) is turned toward the open side, so one-sided walls face the room)
      symbols: {                    // any ASCII symbol except the built-ins below
        '=': { pieces: [...], h: 1, rotate: 'run'|'random90'|<radians>, stack: { piece, chance, h }, collide: true },
        'K': { size: [w, d], pieces: [...], h: 1.4, flip: true },   // multi-cell prefab tiled over each block of K
@@ -7482,12 +7485,12 @@ window.IB = window.IB || {}; IB.GLB_DATA = {"bots": "Z2xURgIAAACALAMAWFwAAEpTT05
       if (!exposed) { P.roof.push(p); return; }
       var horiz = cellIs(grid, p.c - 1, p.r, WALLISH) || cellIs(grid, p.c + 1, p.r, WALLISH);
       var vert = cellIs(grid, p.c, p.r - 1, WALLISH) || cellIs(grid, p.c, p.r + 1, WALLISH);
-      var name = W.choose ? W.choose(p.c, p.r, horiz, horiz && vert, hash) : pick(W.pieces, hash(p.c * 13, p.r * 17));
-      // wall modules face +/-Z; rotate for vertical runs. Optional per-face: the open side decides a 180 flip
+      var name = W.choose ? W.choose(p.c, p.r, horiz, horiz && vert, hash, grid) : pick(W.pieces, hash(p.c * 13, p.r * 17));
+      // wall modules face +/-Z; rotate for vertical runs. faceOpen: turn the module's +Z face (Blender -Y) to the open side
       var yaw = (!horiz && vert) ? Math.PI / 2 : 0;
       if (W.faceOpen) {
         if (yaw === 0 && !solid(p.c, p.r - 1) && solid(p.c, p.r + 1)) yaw = Math.PI;
-        if (yaw !== 0 && !solid(p.c + 1, p.r) && solid(p.c - 1, p.r)) yaw = -Math.PI / 2;
+        if (yaw !== 0 && !solid(p.c - 1, p.r) && solid(p.c + 1, p.r)) yaw = -Math.PI / 2;   // +Z face toward the open (west) side
       }
       P.add(name, z.ox + p.c + 0.5, 0, z.oz + p.r + 0.5, yaw);
     });
@@ -8156,9 +8159,60 @@ window.IB = window.IB || {}; IB.GLB_DATA = {"bots": "Z2xURgIAAACALAMAWFwAAEpTT05
     scene.add(FX.blobs);
     // gems
     FX.initGems(scene);
+    FX.initWords(scene);
+  };
+
+  // ---------- comic words (brief 2.5): explosions and boss phase changes only, from a fixed atlas of six ----------
+  var WORDS = ['BLAM', 'KRUNCH', 'CLANG', 'FWOOM', 'ZAP', 'KA-CHUNK'];
+  FX.initWords = function (scene) {
+    var tex = IB.Render.canvasTex(1024, 512, function (ctx) {
+      ctx.clearRect(0, 0, 1024, 512);
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+      WORDS.forEach(function (w, i) {
+        var cx = (i % 3) * 341 + 170, cy = Math.floor(i / 3) * 256 + 128;
+        // starburst plate behind the word
+        ctx.save(); ctx.translate(cx, cy); ctx.rotate(-0.08 + (i % 2) * 0.12);
+        ctx.beginPath();
+        for (var k = 0; k <= 22; k++) { var a = k / 22 * Math.PI * 2, r = (k % 2 ? 0.62 : 1) * 118; ctx.lineTo(Math.cos(a) * r * 1.35, Math.sin(a) * r * 0.85); }
+        ctx.fillStyle = '#FFB21E'; ctx.fill(); ctx.lineWidth = 12; ctx.strokeStyle = '#15121C'; ctx.stroke();
+        var size = w.length > 6 ? 58 : 76;
+        ctx.font = '900 ' + size + 'px Archivo, Arial Black, sans-serif';
+        ctx.lineWidth = 16; ctx.strokeStyle = '#15121C'; ctx.strokeText(w, 0, 6);
+        ctx.fillStyle = '#FFFDF7'; ctx.fillText(w, 0, 6);
+        ctx.restore();
+      });
+    });
+    FX.words = [];
+    for (var i = 0; i < 6; i++) {
+      var mat = new THREE.SpriteMaterial({ map: tex.clone(), transparent: true, depthTest: false, fog: false });
+      mat.map.needsUpdate = true; mat.map.repeat.set(1 / 3, 1 / 2);
+      var sp = new THREE.Sprite(mat); sp.visible = false; sp.renderOrder = 20; scene.add(sp);
+      FX.words.push({ sprite: sp, t: 0, on: false });
+    }
+  };
+  FX.word = function (text, x, y, z, size) {
+    if (!FX.words) return;
+    var i = WORDS.indexOf(text); if (i < 0) i = 0;
+    var w = FX.words[0]; for (var k = 1; k < FX.words.length; k++) if (!FX.words[k].on || FX.words[k].t > w.t) { w = FX.words[k]; if (!w.on) break; }
+    w.on = true; w.t = 0; w.size = size || 2.6;
+    w.sprite.material.map.offset.set((i % 3) / 3, 1 - (Math.floor(i / 3) + 1) / 2);
+    w.sprite.position.set(x, y, z); w.sprite.visible = true;
+  };
+  FX.updateWords = function (dt) {
+    if (!FX.words) return;
+    FX.words.forEach(function (w) {
+      if (!w.on) return;
+      w.t += dt;
+      // pop 0.92 -> 1.08 -> 1.0, hold, then shrink away (0.7 s total)
+      var k = w.t < 0.12 ? 0.6 + w.t / 0.12 * 0.5 : w.t < 0.2 ? 1.1 - (w.t - 0.12) / 0.08 * 0.1 : w.t < 0.55 ? 1 : 1 - (w.t - 0.55) / 0.15;
+      if (w.t >= 0.7) { w.on = false; w.sprite.visible = false; return; }
+      w.sprite.scale.set(w.size * 1.4 * k, w.size * k, 1);
+      w.sprite.position.y += dt * 0.3;
+    });
   };
 
   FX.clear = function () {
+    if (FX.words) FX.words.forEach(function (w) { w.on = false; w.sprite.visible = false; });
     var i;
     for (i = 0; i < FX.decalCap; i++) FX.decals.setMatrixAt(i, ZERO);
     FX.decals.instanceMatrix.needsUpdate = true; FX.decalNext = 0; FX.decalCount = 0;
@@ -8264,6 +8318,7 @@ window.IB = window.IB || {}; IB.GLB_DATA = {"bots": "Z2xURgIAAACALAMAWFwAAEpTT05
   /* player: {x,y,z}; magnet radius; onCollect(kind) */
   FX.update = function (dt, cam, player, magnet, onCollect) {
     var i, p;
+    FX.updateWords(dt);
     // particles
     for (i = 0; i < FX.pCap; i++) {
       p = FX.pool[i];
@@ -9349,6 +9404,7 @@ window.IB = window.IB || {}; IB.GLB_DATA = {"bots": "Z2xURgIAAACALAMAWFwAAEpTT05
       FX.chunk(x, y, z, 6, 5);
     }
     sfx('boom', x, z, 1);
+    if (IB.FX && IB.FX.word) IB.FX.word(['BLAM', 'KRUNCH', 'FWOOM'][(Math.random() * 3) | 0], x, y + 0.9, z, 1.7);
     // player: distance to the capsule surface, cover halves it
     if (p && p.alive) {
       var cy = Math.max(p.y + PLAYER_R, Math.min(p.y + PLAYER_H - PLAYER_R, y));

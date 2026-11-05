@@ -168,7 +168,7 @@ b, .num { font-variant-numeric: tabular-nums; }
 .slot.on .key { color: var(--teal-hi); }
 .weapon { width: 372px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 10px 10px 10px 18px; --ch: 10px; }
 .wpn-info { display: grid; gap: 5px; min-width: 0; }
-.wpn-name { font-stretch: 125%; font-weight: 900; font-size: var(--t22); line-height: 1; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wpn-name { font-stretch: 82%; font-weight: 900; font-size: var(--t22);   /* condensed so the longest name (LMG-26 BRICKLAYER) fits */ line-height: 1; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wpn-cls { display: flex; align-items: center; gap: 8px; font-size: var(--t13); color: var(--paper-2); font-weight: 700; }
 .wpn-icon { display: inline-flex; color: var(--teal); }
 .wpn-icon svg { width: 32px; height: 16px; }
@@ -269,7 +269,7 @@ body.touch-on .radar canvas { clip-path: polygon(12px 0, calc(100% - 12px) 0, 10
 body.touch-on .feed { display: none; }
 body.touch-on .hud-br { bottom: auto; top: calc(var(--sat) + var(--gap) + 58px); display: flex; flex-direction: column-reverse; align-items: flex-end; gap: 10px; }
 body.touch-on .weapon { width: 256px; padding: 7px 7px 7px 12px; gap: 10px; }
-body.touch-on .wpn-name { font-size: 15px; font-stretch: 112%; }
+body.touch-on .wpn-name { font-size: 15px; font-stretch: 75%; }
 body.touch-on .wpn-cls { display: none; }
 body.touch-on .mag-strip { height: 7px; margin-top: 4px; }
 body.touch-on .ammo { width: 84px; height: 46px; padding-top: 3px; --ch: 7px; }

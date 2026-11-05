@@ -191,6 +191,7 @@
       FX.chunk(x, y, z, 6, 5);
     }
     sfx('boom', x, z, 1);
+    if (IB.FX && IB.FX.word) IB.FX.word(['BLAM', 'KRUNCH', 'FWOOM'][(Math.random() * 3) | 0], x, y + 0.9, z, 1.7);
     // player: distance to the capsule surface, cover halves it
     if (p && p.alive) {
       var cy = Math.max(p.y + PLAYER_R, Math.min(p.y + PLAYER_H - PLAYER_R, y));
