@@ -10,9 +10,10 @@ const W = IB.WEAPONS;
 test('weapon table numbers (5.2)', () => {
   const rows = {
     // id: [damage, rpm, hip, aim, recoil, recoilH, reload, mag, reserve, slot, cls, fire]
-    pip: [18, 300, 0.8, 0.3, 1.2, 0.3, 1.1, 12, Infinity, 1, 'pistol', 'semi'],
-    handcannon: [55, 110, 0.5, 0.15, 4.0, 0.8, 2.2, 6, 36, 1, 'pistol', 'semi'],
-    twintap: [16, 220, 1.0, 0.4, 0.9, 0, 1.3, 16, 96, 1, 'pistol', 'burst'],
+    // pistol fire rates raised from the brief at the user's request (pip 300->450, handcannon 110->150, twintap 220->300 bursts)
+    pip: [18, 450, 0.8, 0.3, 1.2, 0.3, 1.1, 12, Infinity, 1, 'pistol', 'semi'],
+    handcannon: [55, 150, 0.5, 0.15, 4.0, 0.8, 2.2, 6, 36, 1, 'pistol', 'semi'],
+    twintap: [16, 300, 1.0, 0.4, 0.9, 0, 1.3, 16, 96, 1, 'pistol', 'burst'],
     buzz: [11, 900, 2.2, 1.2, 0.5, 0.4, 1.6, 30, 180, 2, 'smg', 'auto'],
     whisk: [8, 1100, 3.2, 2.0, 0.35, 0.6, 1.4, 40, 240, 2, 'smg', 'auto'],
     hornet: [14, 750, 1.4, 0.6, 0.6, 0.25, 1.8, 32, 192, 2, 'smg', 'auto'],
@@ -28,9 +29,9 @@ test('weapon table numbers (5.2)', () => {
     const w = W[id];
     assert.deepEqual([w.damage, w.rpm, w.spreadHip, w.spreadAim, w.recoil, w.recoilH, w.reload, w.mag, w.reserve, w.slot, w.cls, w.fire], r, id);
   }
-  assert.equal(W.twintap.burst, 2); assert.ok(Math.abs(W.twintap.cycle - 60 / 220) < 1e-12);
+  assert.equal(W.twintap.burst, 2); assert.ok(Math.abs(W.twintap.cycle - 60 / 300) < 1e-12);
   assert.equal(W.triplet.burst, 3); assert.equal(W.triplet.cycle, 0.32);
-  assert.ok(Math.abs(W.pip.cycle - 0.2) < 1e-12);
+  assert.ok(Math.abs(W.pip.cycle - 60 / 450) < 1e-12);
   assert.equal(W.longtom.aimZoom, 0.67); assert.equal(W.pip.aimZoom, 0.85); assert.equal(W.needle.scopeZoom, 3.5);
   assert.equal(W.brick.moveMul, 0.9); assert.equal(W.pip.moveMul, 1);
   assert.equal(W.needle.pierce, 2); assert.equal(W.pip.pierce, 0);

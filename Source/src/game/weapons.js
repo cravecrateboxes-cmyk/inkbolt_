@@ -286,7 +286,7 @@
     W.vmRoot.scale.setScalar(VM_SCALE);
     W.vmRoot.visible = !!g && !s.hidden;
     if (g) {
-      W.flash.visible = s.flashT > 0;
+      W.flash.visible = s.flashT > 0 && s.aim < 0.3;   // never over the sights when aiming
       W.flash.position.set(0, 0, -0.03);
       W.flash.rotation.z = Math.random() * 6.28;
       var fs = 0.8 + Math.random() * 0.5; W.flash.scale.set(fs, fs, fs);

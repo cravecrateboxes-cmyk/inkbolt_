@@ -68,3 +68,5 @@ def build_common(ao):
     export('common')
 
 
+FAMILY = 'common'
+BUILD = build_common

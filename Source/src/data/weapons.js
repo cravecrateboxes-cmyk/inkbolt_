@@ -22,20 +22,20 @@
 
   var WEAPONS = {
     pip: W({
-      id: 'pip', name: 'P-12 Warden', cls: 'pistol', slot: 1, fire: 'semi', damage: 18, rpm: 300,
+      id: 'pip', name: 'P-12 Warden', cls: 'pistol', slot: 1, fire: 'semi', damage: 18, rpm: 450,
       spreadHip: 0.8, spreadAim: 0.3, recoil: 1.2, recoilH: 0.3, reload: 1.1, mag: 12, reserve: Infinity,
       unlock: 1, sound: 'click transient, 2.4 kHz noise snap, short bright tail'
     }),
     handcannon: W({
       id: 'handcannon', name: 'R-50 Ironjaw', cls: 'pistol', slot: 1, fire: 'semi', action: 'revolver',
-      damage: 55, rpm: 110, spreadHip: 0.5, spreadAim: 0.15, recoil: 4.0, recoilH: 0.8, reload: 2.2,
+      damage: 55, rpm: 150, spreadHip: 0.5, spreadAim: 0.15, recoil: 4.0, recoilH: 0.8, reload: 2.2,
       mag: 6, reserve: 36, unlock: 8, sound: '120 to 50 Hz thump, noise crack, metal ring'
     }),
     twintap: W({
       // Brief gives 220 bursts/min only; rpm keeps that figure (bursts), cycle = 60/220.
       // burstGap (time between the 2 rounds of one burst) is not in the brief: 0.06 s chosen.
       id: 'twintap', name: 'P-16 Twinfire', cls: 'pistol', slot: 1, fire: 'burst', damage: 16, burst: 2,
-      rpm: 220, cycle: 60 / 220, burstGap: 0.06, spreadHip: 1.0, spreadAim: 0.4, recoil: 0.9, recoilH: 0,
+      rpm: 300, cycle: 60 / 300, burstGap: 0.06, spreadHip: 1.0, spreadAim: 0.4, recoil: 0.9, recoilH: 0,
       reload: 1.3, mag: 16, reserve: 96, unlock: 16, sound: 'double tick, tight snap, slide clack'
     }),
     buzz: W({

@@ -247,7 +247,7 @@
     R.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 420);   // near 0.1 for depth precision
     R.camera.rotation.order = 'YXZ';
     R.scene.add(R.camera);
-    var sun = new THREE.DirectionalLight(0xffffff, 1); sun.position.set(0.42, 0.82, 0.38); R.scene.add(sun);
+    var sun = R.sun = new THREE.DirectionalLight(0xffffff, 1); sun.position.set(0.42, 0.82, 0.38); R.scene.add(sun);
     R.vmScene = new THREE.Scene();
     R.vmCam = new THREE.PerspectiveCamera(58, 1, 0.01, 10);
     var vsun = new THREE.DirectionalLight(0xffffff, 1); vsun.position.set(0.3, 0.9, 0.5); R.vmScene.add(vsun);
@@ -272,6 +272,18 @@
     });
     R.sky = new THREE.Mesh(g, m); R.sky.renderOrder = -10; R.sky.frustumCulled = false;
     R.scene.add(R.sky);
+  };
+  // theme environment: sky dome (or none indoors), background colour, fog, light direction
+  R.applyEnv = function (env) {
+    var fog = env.fog || {};
+    R.sky.visible = !!env.sky;
+    if (env.sky) R.setSky(env.sky[0], env.sky[1]);
+    R.renderer.setClearColor(new THREE.Color(env.clear || fog.color || '#15121C'), 1);
+    R.scene.fog.color.set(fog.color || '#FFF0DC');
+    R.scene.fog.near = fog.near || 45;
+    R.envFogFar = fog.far || 120;
+    R.scene.fog.far = Math.min(R.envFogFar, R.tierFogFar || 999);
+    var s = env.sun || [0.42, 0.82, 0.38]; R.sun.position.set(s[0], s[1], s[2]);
   };
   R.setSky = function (top, horizon) { R.sky.material.uniforms.top.value.set(top); R.sky.material.uniforms.horizon.value.set(horizon); };
 

@@ -43,7 +43,10 @@
     if (Inp.touch) document.body.classList.add('touch-on');
     HUD.init(); M.init(); wireMenus();
     // Blender GLBs: common, weapons, bots and the title/level-1 kit (brief 4.2 boot order)
-    IB.Assets.load(['common', 'weapons', 'bots', 'kit-toytown'], function (f) { bootProgress(0.2 + f * 0.7); })
+    // Blender GLBs: common, weapons, bots and the first level's theme kit (brief 4.2 boot order); other kits load per level
+    var saved0 = G.store.newest();
+    G.plan = IB.LEVEL_PLANS[params.get('plan') || (saved0 && saved0.plan) || IB.CAMPAIGN[0]] || IB.LEVEL_PLANS[IB.CAMPAIGN[0]];
+    IB.Assets.load(['common', 'weapons', 'bots', Z.themeOf(G.plan).family], function (f) { bootProgress(0.2 + f * 0.7); })
       .then(bootAfterAssets)
       .catch(function (e) {
         G.errors.push(String(e && e.message || e));
@@ -52,8 +55,6 @@
   };
   function bootAfterAssets() {
     FX.init(R.scene); AI.init(R.scene); W.init(R.vmScene); IB.Projectiles.init(R.scene);
-    var saved0 = G.store.newest();
-    G.plan = IB.LEVEL_PLANS[params.get('plan') || (saved0 && saved0.plan) || IB.CAMPAIGN[0]] || IB.LEVEL_PLANS[IB.CAMPAIGN[0]];
     G.buildLevel();
     G.player = IB.Player.create();
     G.ws = W.create(['pip', 'buzz'], {});
@@ -89,7 +90,8 @@
   G.setTier = function (t) {
     R.tier = t; var T = TIERS[t];
     FX.decalLimit = T.decals; FX.particleScale = T.particles;
-    if (R.scene.fog) R.scene.fog.far = T.fog;
+    R.tierFogFar = T.fog;
+    if (R.scene.fog) R.scene.fog.far = Math.min(T.fog, R.envFogFar || 999);
     R.resize();
   };
   G.applySettings = function () {
@@ -116,12 +118,14 @@
   };
   G.buildLevel = function () {
     G.disposeLevel();
-    var theme = G.plan.theme;
-    if (IB.THEMES && IB.THEMES[G.plan.themeId]) theme = IB.THEMES[G.plan.themeId];
-    G.level = Z.buildLevel({ theme: theme, zones: G.plan.zones }, R.scene);
-    R.setSky(PAL.sky, PAL.cream);
-    R.scene.fog.color.set(0xFFF0DC);
+    G.level = Z.buildLevel(G.plan, R.scene);
+    R.applyEnv(G.level.theme.env || {});
     AI.setLevel(G.plan.level);
+  };
+  // a level's theme kit is loaded on demand (embedded in the single-file build, assets/*.glb otherwise)
+  G.ensureTheme = function (plan) { return IB.Assets.load([Z.themeOf(plan).family]); };
+  G.switchPlan = function (plan) {
+    return G.ensureTheme(plan).then(function () { G.plan = plan; G.buildLevel(); });
   };
 
   function resetLevelState() {
@@ -144,14 +148,14 @@
     (G.weaponStands || []).forEach(function (w) { R.scene.remove(w.group); });
     G.weaponStands = [];
     if (G.mode === 'title') return;
-    var z0 = G.level.zones[0], kit = G.level.kit, A = IB.Assets;
+    var z0 = G.level.zones[0], theme = G.level.theme, A = IB.Assets, standName = IB.themePiece(theme, theme.stand || 'Crate');
     if (!G.worldWpnMat) G.worldWpnMat = R.toonMaterial({ map: A.palette.weapons, baked: A.BAKED.weapons });
     ids = ids.filter(function (id) { return A.node['WPN_' + id.toUpperCase()] && IB.WEAPONS[id]; });
     ids.forEach(function (id, i) {
       var side = ids.length === 1 ? 0 : (i === 0 ? -1.6 : 1.6);
       var x = z0.entry.x + side, zc = z0.entry.z - 3.8;
       var grp = new THREE.Group(); grp.position.set(x, 0, zc);
-      var crate = new THREE.Mesh(A.get(kit.prefix + kit.crate), A.mat[kit.family]); grp.add(crate);
+      if (A.geo[standName]) grp.add(new THREE.Mesh(A.get(standName), A.mat[A.family[standName]]));
       var gun = new THREE.Mesh(A.get('WPN_' + id.toUpperCase()), G.worldWpnMat);
       gun.scale.setScalar(1.35);
       gun.rotation.set(70 * Math.PI / 180, 0.35 * (side > 0 ? -1 : 1), 0);   // standing on its stock, leaning back on the crate
@@ -308,7 +312,7 @@
     Z.setGate(z.exitGate, true);
     A.play('gate', { pos: z.exitGate });
     G.level.trails[i].litT = 0;
-    if (i + 1 < G.level.zones.length) Z.setVisible(G.level, i + 1);
+    Z.setVisible(G.level, i);   // keep this zone (the player stands in it) and the next one drawn
     HUD.pips(G.level.zones.length, i + 1, i + 1);
     HUD.toast(i + 1 < G.level.zones.length ? 'Zone clear. Follow the arrows.' : 'Level clear. Get to the hatch.', 2.4);
   }
@@ -358,15 +362,14 @@
     prog(0.1);
     // build the next level in steps so the loading screen animates
     setTimeout(function () {
-      G.plan = next; G.buildLevel(); prog(0.7);
-      setTimeout(function () {
+      G.switchPlan(next).then(function () { prog(0.7); setTimeout(function () {
         try { R.renderer.compile(R.scene, R.camera); } catch (e) { /* first frame compiles anyway */ }
         prog(1);
         setTimeout(function () {
           if (M.loadingHide) M.loadingHide();
           G.startLevel({ fadeIn: true });
         }, Math.max(0, (AUTOTEST ? 300 : 1700) - (performance.now() - t0)));
-      }, 60);
+      }, 60); });
     }, 120);
   }
 
@@ -383,11 +386,35 @@
   }
 
   // ---------------- pickups ----------------
+  // ---------------- health director ----------------
+  // Watches the player's health and keeps health cans on the map in the current zone: one when healthy, up to four
+  // when badly hurt. New cans land on open ground 7-22 m away (never on top of the player), and show on the radar.
+  var HEAL = 40;
+  function healthWanted(frac) { return frac >= 0.8 ? 1 : frac >= 0.55 ? 2 : frac >= 0.3 ? 3 : 4; }
+  function healthDirector(dt) {
+    G.hdT = (G.hdT || 0) - dt;
+    if (G.hdT > 0 || !G.run.started || G.dead || G.complete) return;
+    G.hdT = 2.5;
+    var p = G.player, zi = Z.zoneAt(G.level, p.x, p.z);
+    if (zi < 0) return;
+    var z = G.level.zones[zi], want = healthWanted(p.health / p.maxHp), have = 0;
+    G.pickups.forEach(function (pk) { if (pk.on && pk.kind === 'health' && pk.x > z.ox && pk.x < z.ox + z.w && pk.z > z.oz && pk.z < z.oz + z.h) have++; });
+    if (have >= want) return;
+    for (var tries = 0; tries < 60; tries++) {
+      var x = z.ox + 2 + Math.random() * (z.w - 4), zz = z.oz + 2 + Math.random() * (z.h - 4), d = Math.hypot(x - p.x, zz - p.z);
+      if (d < 7 || d > 22 || !Z.isOpen(z, x, zz) || !Z.isOpen(z, x + 0.6, zz) || !Z.isOpen(z, x - 0.6, zz) || !Z.isOpen(z, x, zz + 0.6) || !Z.isOpen(z, x, zz - 0.6)) continue;
+      var near = G.pickups.some(function (pk) { return pk.on && Math.hypot(pk.x - x, pk.z - zz) < 4; });
+      if (near) continue;
+      if (G.spawnPickup('health', x, zz)) { FX.puff(x, 0.4, zz, 4, PAL.green, 0.15, 0.45, 1.5); return; }
+    }
+  }
+  G.healthWanted = healthWanted;
+
   function initPickups() {
     G.pickups = [];
     var geo = { ammo: IB.Assets.get('PICKUP_Ammo'), health: IB.Assets.get('PICKUP_Health') };
-    for (var i = 0; i < 12; i++) {
-      var kind = i < 8 ? 'ammo' : 'health';
+    for (var i = 0; i < 28; i++) {
+      var kind = i < 10 ? 'ammo' : 'health';
       var m = new THREE.Mesh(geo[kind], IB.Assets.mat.weapons); m.visible = false; R.scene.add(m);
       G.pickups.push({ kind: kind, mesh: m, on: false, x: 0, z: 0 });
     }
@@ -407,7 +434,7 @@
       pk.mesh.position.y = 0.05 + Math.sin(t * 3 + i) * 0.04;
       FX.blob(pk.x, 0, pk.z, 0.35);
       if (Math.hypot(p.x - pk.x, p.z - pk.z) < 0.9 && p.y < 1) {
-        if (pk.kind === 'health') { if (p.health >= p.maxHp) return; p.health = Math.min(p.maxHp, p.health + 35); HUD.toast('+35 health', 1.2); }
+        if (pk.kind === 'health') { if (p.health >= p.maxHp) return; p.health = Math.min(p.maxHp, p.health + HEAL); HUD.toast('+' + HEAL + ' health', 1.2); }
         else { W.addAmmo(G.ws, 0.5); HUD.toast('Ammo', 1.0); }
         pk.on = false; pk.mesh.visible = false; A.play('pickup');
       }
@@ -454,6 +481,7 @@
     HUD.feed(G.lastKillCls || (w ? w.def.cls : 'pistol'), def ? def.name : r.type, drop.total);
     G.lastKillCls = null;
     if (Math.random() < 0.2) G.spawnPickup('ammo', r.x, r.z);
+    else if (G.player.health < G.player.maxHp * 0.4 && Math.random() < 0.25) G.spawnPickup('health', r.x, r.z);
     if (G.fx && G.fx.leech) G.player.health = Math.min(G.player.maxHp, G.player.health + G.fx.leech);
   }
   function collectGem(kind) {
@@ -547,7 +575,7 @@
   function wireMenus() {
     M.on('continue', function () {
       var pl = G.slot && IB.LEVEL_PLANS[G.slot.plan];
-      M.wipe(function () { if (pl && pl !== G.plan) { G.plan = pl; G.buildLevel(); } G.startLevel(); });
+      M.wipe(function () { if (pl && pl !== G.plan) G.switchPlan(pl).then(function () { G.startLevel(); }); else G.startLevel(); });
     });
     M.on('new', function () {
       var free = G.store.freeSlot();
@@ -555,7 +583,7 @@
       G.slot = G.store.newSlot(free, (Math.random() * 1e9) | 0);
       G.slot.plan = IB.CAMPAIGN[0]; G.slot.owned = (IB.LEVEL_PLANS[IB.CAMPAIGN[0]].start || ['pip']).slice();
       G.store.save(G.slot);
-      M.wipe(function () { if (G.plan.id !== IB.CAMPAIGN[0]) { G.plan = IB.LEVEL_PLANS[IB.CAMPAIGN[0]]; G.buildLevel(); } G.startLevel(); });
+      M.wipe(function () { if (G.plan.id !== IB.CAMPAIGN[0]) G.switchPlan(IB.LEVEL_PLANS[IB.CAMPAIGN[0]]).then(function () { G.startLevel(); }); else G.startLevel(); });
     });
     M.on('settings', function () { M.settings(G.settings, M.cur); });
     M.on('setting', function (d) {
@@ -624,6 +652,7 @@
       if (fk >= 1) G.fade = null;
     }
     updateWeaponStands(tAll);
+    if (G.run && p.alive) healthDirector(dtRaw);
     // intro hold
     if (!G.run.started) {
       G.run.introT -= dtRaw;
@@ -723,7 +752,8 @@
       var gates = []; G.level.zones.forEach(function (zz) { gates.push({ x: zz.exitGate.x, z: zz.exitGate.z, open: zz.exitGate.open > 0.5 }); });
       var last = G.level.zones[G.level.zones.length - 1];
       HUD.radar({ px: p.x, pz: p.z, yaw: p.yaw, range: 30, robots: rob, gates: gates,
-        pickups: (G.weaponStands || []).filter(function (w2) { return !w2.taken; }).map(function (w2) { return { x: w2.x, z: w2.z, kind: 'weapon' }; }),
+        pickups: (G.weaponStands || []).filter(function (w2) { return !w2.taken; }).map(function (w2) { return { x: w2.x, z: w2.z, kind: 'weapon' }; })
+          .concat(G.pickups.filter(function (pk) { return pk.on; }).map(function (pk) { return { x: pk.x, z: pk.z, kind: pk.kind }; })),
         exit: last.state === 'cleared' ? { x: G.level.hatch.x, z: G.level.hatch.z } : null });
     }
     if (HUD.objective) {

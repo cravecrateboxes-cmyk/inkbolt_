@@ -433,3 +433,7 @@ def build_bots(ao):
     build_bomber(pal)
     build_drone(pal)
     export('bots')
+
+
+FAMILY = 'bots'
+BUILD = build_bots

@@ -4,6 +4,9 @@ const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
 require('../../src/data/assets.js');
+require('../../src/data/assets.gen.js');
+require('../../src/data/themes.js');
+require('../../src/data/themes.gen.js');
 const IB = globalThis.IB;
 const ASSETS = path.join(__dirname, '../../assets');
 
@@ -27,8 +30,12 @@ test('every name the game asks for exists in its GLB', () => {
     const have = names(G[fam]);
     for (const n of list) assert.ok(have.has(n), fam + ' missing ' + n);
   }
-  const kitHave = names(G['kit-toytown']);
-  for (const n of IB.kitAssetNames('toytown')) assert.ok(kitHave.has(n), 'kit-toytown missing ' + n);
+  // every theme's pieces exist in its own kit (or fps-common)
+  for (const th of Object.values(IB.THEME_DEFS)) {
+    assert.ok(G[th.family], 'theme ' + th.id + ' has no GLB ' + th.family);
+    const have = names(G[th.family]), common = names(G.common);
+    for (const n of th.allPieces()) { const full = IB.themePiece(th, n); assert.ok(have.has(full) || common.has(full), th.family + ' missing ' + full); }
+  }
 });
 
 test('every modelled weapon has a mesh, mag, sockets and all arm actions', () => {
@@ -95,10 +102,14 @@ test('triangle budgets hold (including the outline hull)', () => {
     const t = Object.entries(r.parts).reduce((s, [n, k]) => s + tris(G.bots, n) * k, 0);
     assert.ok(t <= r.max, id + ' ' + t + ' > ' + r.max);
   }
-  let kit = 0;
-  for (const n of IB.kitAssetNames('toytown')) {
-    const t = tris(G['kit-toytown'], n); kit += t;
-    if (!/Landmark/.test(n)) assert.ok(t <= IB.TRI_BUDGET.kitPropMax, n + ' ' + t);
+  for (const th of Object.values(IB.THEME_DEFS)) {
+    const B = th.budget || {}, g = G[th.family];
+    let kit = 0;
+    for (const n of new Set(th.allPieces().map(x => IB.themePiece(th, x)))) {
+      if (!g.nodes.some(nd => nd.name === n && nd.mesh !== undefined)) continue;   // fps-common pieces are budgeted there
+      const t = tris(g, n); kit += t;
+      assert.ok(t <= (/Landmark|Backdrop/.test(n) ? (B.landmark || 4000) : (B.prop || 1200)), th.id + ' ' + n + ' ' + t);
+    }
+    assert.ok(kit <= (B.total || 40000), th.id + ' kit total ' + kit);
   }
-  assert.ok(kit <= IB.TRI_BUDGET.kitMax, 'kit total ' + kit);
 });

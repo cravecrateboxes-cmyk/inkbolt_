@@ -1266,9 +1266,9 @@ FPS = 30
 # style: reload choreography. charge: (point, pull) the support hand works after a reload (slide, handle, bolt).
 # carry: where the whole viewmodel sits (rig space) so long guns tuck their stocks off-screen.
 ANIM = {
-    'PIP': {'fire': 60 / 300, 'reload': 1.1, 'style': 'pistol', 'charge': ((0, -0.068, 0.044), (0, -0.030, 0))},
-    'HANDCANNON': {'fire': 60 / 110, 'reload': 2.2, 'style': 'revolver', 'heavy': 1.6},
-    'TWINTAP': {'fire': 60 / 220, 'reload': 1.3, 'burst': 2, 'gap': 0.06, 'style': 'pistol', 'charge': ((0, -0.066, 0.050), (0, -0.030, 0))},
+    'PIP': {'fire': 60 / 450, 'reload': 1.1, 'style': 'pistol', 'charge': ((0, -0.068, 0.044), (0, -0.030, 0))},
+    'HANDCANNON': {'fire': 60 / 150, 'reload': 2.2, 'style': 'revolver', 'heavy': 1.6},
+    'TWINTAP': {'fire': 60 / 300, 'reload': 1.3, 'burst': 2, 'gap': 0.06, 'style': 'pistol', 'charge': ((0, -0.066, 0.050), (0, -0.030, 0))},
     'BUZZ': {'fire': 60 / 900, 'reload': 1.6, 'style': 'smg', 'charge': ((-0.036, 0.150, 0.060), (0, -0.060, 0))},
     'WHISK': {'fire': 60 / 1100, 'reload': 1.4, 'style': 'smg', 'charge': ((0, -0.086, 0.050), (0, -0.035, 0))},
     'HORNET': {'fire': 60 / 750, 'reload': 1.8, 'style': 'smg', 'charge': ((-0.034, 0.206, 0.072), (0, -0.070, 0))},
@@ -1573,3 +1573,7 @@ def build_weapons(ao):
     rig, arms = build_arms(pal)
     build_actions(rig)
     export('weapons')
+
+
+FAMILY = 'weapons'
+BUILD = build_weapons

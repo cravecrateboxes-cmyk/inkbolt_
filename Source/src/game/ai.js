@@ -333,7 +333,7 @@
     world.query(r.x - rad, r.z - rad, r.x + rad, r.z + rad, _tmp);
     var lo = Math.max(0.3, ylo || 0);
     for (var i = 0; i < _tmp.length; i++) {
-      var b = _tmp[i]; if (b.y1 < lo) continue;
+      var b = _tmp[i]; if (b.y1 < lo || (!ylo && b.y0 > 1.2)) continue;   // ground robots pass under raised boxes
       var cx = Math.max(b.x0, Math.min(r.x, b.x1)), cz = Math.max(b.z0, Math.min(r.z, b.z1));
       var dx = r.x - cx, dz = r.z - cz, d2 = dx * dx + dz * dz;
       if (d2 >= rad * rad) continue;

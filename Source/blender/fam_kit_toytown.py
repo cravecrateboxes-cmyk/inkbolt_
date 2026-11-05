@@ -141,3 +141,5 @@ def build_kit_toytown(ao):
     export('kit-toytown')
 
 
+FAMILY = 'kit-toytown'
+BUILD = build_kit_toytown

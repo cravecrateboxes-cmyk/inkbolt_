@@ -22,14 +22,15 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import importlib  # noqa: E402
 import ib_lib  # noqa: E402
-import fam_bots  # noqa: E402
-import fam_common  # noqa: E402
-import fam_kit_toytown  # noqa: E402
-import fam_weapons  # noqa: E402
 
-BUILDERS = {'common': fam_common.build_common, 'bots': fam_bots.build_bots,
-            'kit-toytown': fam_kit_toytown.build_kit_toytown, 'weapons': fam_weapons.build_weapons}
+# every fam_*.py module in this folder is an asset family: it defines FAMILY ('kit-office') and BUILD(ao)
+BUILDERS = {}
+for _f in sorted(os.listdir(os.path.dirname(os.path.abspath(__file__)))):
+    if _f.startswith('fam_') and _f.endswith('.py'):
+        _m = importlib.import_module(_f[:-3])
+        BUILDERS[_m.FAMILY] = _m.BUILD
 
 
 def main(argv):
