@@ -221,31 +221,64 @@
   };
 
   /* place viewmodel: lookDX/DY for sway, player for bob/sprint */
+  // Viewmodel handling (modern-shooter feel): figure-8 walk bob, look-lag sway with rotation, strafe and jump
+  // inertia, landing dip, sprint/slide carry (rig actions), and aim-down-sights that puts the real sights on centre.
+  var DEFAULT_SIGHT = { pistol: [0, 0.055, -0.06], smg: [0, 0.075, -0.1], rifle: [0, 0.085, -0.1], sniper: [0, 0.1, -0.1] };
+  W.sightOf = function (id) {
+    var m = W.models[id]; if (!m) return null;
+    if (!m.sight) {
+      var sk = m.mesh.getObjectByName('WPN_' + m.key + '_SIGHT');
+      m.sight = sk ? sk.position.clone() : new THREE.Vector3().fromArray(DEFAULT_SIGHT[IB.WEAPONS[id].cls] || DEFAULT_SIGHT.rifle);
+    }
+    return m.sight;
+  };
+  var ADS_DIST = 0.36, VM_SCALE = 0.85;
   W.pose = function (s, dt, player, lookDX, lookDY, headBob, t) {
-    var g = W.current(s);
-    s.swayX += ((-lookDX * 0.0006) - s.swayX) * Math.min(1, dt * 10);
-    s.swayY += ((lookDY * 0.0006) - s.swayY) * Math.min(1, dt * 10);
-    s.swayX = Math.max(-0.05, Math.min(0.05, s.swayX)); s.swayY = Math.max(-0.05, Math.min(0.05, s.swayY));
-    var a = s.aim;
+    var g = W.current(s), k = Math.min(1, dt * 10);
+    // look sway lags the camera; clamp so fast flicks don't throw the gun off screen
+    s.swayX += ((-lookDX * 0.0007) - s.swayX) * k; s.swayY += ((lookDY * 0.0007) - s.swayY) * k;
+    s.swayX = Math.max(-0.06, Math.min(0.06, s.swayX)); s.swayY = Math.max(-0.05, Math.min(0.05, s.swayY));
+    // strafe + vertical inertia
+    var right = player.vx * Math.cos(player.yaw) - player.vz * Math.sin(player.yaw);
+    s.strafe = (s.strafe || 0) + ((right / 6) - (s.strafe || 0)) * Math.min(1, dt * 8);
+    s.vert = (s.vert || 0) + ((-player.vy * 0.004) - (s.vert || 0)) * Math.min(1, dt * 10);
+    s.vert = Math.max(-0.035, Math.min(0.035, s.vert));
+    var a = s.aim, hip = 1 - a;
     var portrait = IB.Render.vmCam.aspect < 1;
-    var x = (portrait ? 0.13 : 0.19) * (1 - a), y = -0.13 + 0.035 * a, z = -0.5 + 0.08 * a, rx = 0, ry = 0.06 * (1 - a), rz = 0;
-    // idle breathe + walk bob
-    var hs = Math.hypot(player.vx, player.vz);
-    var bobAmt = (headBob ? 1 : 0.5) * Math.min(1, hs / 6) * (1 - a * 0.8);
-    x += Math.sin(player.bobT) * 0.012 * bobAmt; y += Math.abs(Math.cos(player.bobT)) * 0.012 * bobAmt;
-    y += Math.sin(t * 1.6) * 0.003 * (1 - a);
-    // arm animation: once-clips (draw, fire, reload, holster) fall back to the Idle / Sprint loop
+    var x = (portrait ? 0.13 : 0.19), y = -0.13, z = -0.5, rx = 0, ry = 0.06, rz = 0;
+    // walk cycle: figure-8 with roll; bigger and faster at sprint
+    var hs = Math.hypot(player.vx, player.vz), moving = player.onGround && !player.sliding ? Math.min(1, hs / 6) : 0;
+    var amt = (headBob ? 1 : 0.6) * moving * (player.sprinting ? 1.7 : 1) * (1 - a * 0.85), ph = player.bobT;
+    x += Math.sin(ph) * 0.013 * amt; y -= Math.abs(Math.cos(ph)) * 0.011 * amt; rz += Math.sin(ph) * 0.03 * amt; ry += Math.cos(ph) * 0.012 * amt;
+    // idle breathing
+    y += Math.sin(t * 1.6) * 0.0028 * hip; rx += Math.sin(t * 1.6 + 1) * 0.004 * hip;
+    // inertia
+    x -= s.strafe * 0.012 * hip; rz -= s.strafe * 0.05; y += s.vert * hip;
+    y -= player.dip * 0.45 + (player.landKick || 0) * 0.03;
+    rx += s.swayY * 1.4; ry += s.swayX * 1.6;
+    // slide carry (procedural until a Slide action exists for the weapon)
+    var slideClip = g && W.clips[W.models[g.id].key + '_Slide'];
+    s.slideK = (s.slideK || 0) + ((player.sliding ? 1 : 0) - (s.slideK || 0)) * Math.min(1, dt * 12);
+    if (!slideClip) { rz += 0.5 * s.slideK; x -= 0.03 * s.slideK; y -= 0.035 * s.slideK; }
+    // aim down sights: blend toward the pose that puts the sight point on the screen centre
+    if (g && a > 0.001) {
+      var sp = W.sightOf(g.id);
+      var ax = -sp.x * VM_SCALE, ay = -sp.y * VM_SCALE, az = -ADS_DIST - sp.z * VM_SCALE;
+      x += (ax - x) * a; y += (ay - y) * a; z += (az - z) * a;
+      rx *= hip * 0.6 + 0.4 * (1 - a); ry *= hip; rz *= hip * 0.7 + 0.3;
+    }
+    // arm animation: once-clips (draw, fire, reload, holster) fall back to the Idle / Sprint / Slide loop
     if (g && W.mixer) {
-      var want = player.sprinting ? 'Sprint' : 'Idle';
+      var want = player.sliding && slideClip ? 'Slide' : (player.sprinting ? 'Sprint' : 'Idle');
       var busy = W.animOnce && W.action && W.action.isRunning();
-      if (!busy && W.animName !== want && s.state !== 'holster') W.anim(s, want, { fade: 0.12 });
+      if (!busy && W.animName !== want && s.state !== 'holster') W.anim(s, want, { fade: want === 'Slide' ? 0.08 : 0.14 });
       W.mixer.update(dt);
     }
-    y -= player.dip * 0.4;
-    z += s.kickZ * 0.02; rx += s.kickR * 0.03;
-    W.vmRoot.position.set(x + s.swayX, y + s.swayY, z);
+    // recoil kick (spring) on top
+    z += s.kickZ * 0.02 * (1 - a * 0.5); rx += s.kickR * 0.03 * (1 - a * 0.4);
+    W.vmRoot.position.set(x + s.swayX * hip, y + s.swayY * hip, z);
     W.vmRoot.rotation.set(rx, ry, rz);
-    W.vmRoot.scale.setScalar(0.85);
+    W.vmRoot.scale.setScalar(VM_SCALE);
     W.vmRoot.visible = !!g && !s.hidden;
     if (g) {
       W.flash.visible = s.flashT > 0;

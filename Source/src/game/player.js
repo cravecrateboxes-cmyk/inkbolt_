@@ -6,7 +6,10 @@
     accel: 60, friction: 10, airControl: 0.35, jumpVel: 6.2, gravity: 18,
     coyote: 0.10, jumpBuffer: 0.12, stepUp: 0.35, radius: 0.35, height: 1.7, eye: 1.55,
     dipPerM: 0.04, dipMax: 0.12, dipReturn: 0.2, bobWalk: 0.012, bobSprint: 0.020,
-    lookRad: 0.0022, pitchClamp: 88 * Math.PI / 180
+    lookRad: 0.0022, pitchClamp: 88 * Math.PI / 180,
+    // slide / crouch (added for a modern-shooter feel)
+    slideSpeed: 11.5, slideMinEntry: 6.2, slideTime: 0.85, slideDecel: 9.0, slideSteer: 0.18, slideCooldown: 0.35,
+    crouchSpeed: 3.4, eyeCrouch: 1.0, eyeSlide: 0.85
   };
 
   var P = IB.Player = {};
@@ -16,7 +19,8 @@
       onGround: true, coyote: 0, jumpBuf: 0, stamina: MOVE.stamina, staminaRest: 0, sprinting: false,
       health: 100, maxHp: 100, protect: 0, alive: true, dip: 0, dipV: 0, bobT: 0, bob: 0,
       moving: false, aiming: false, speedMul: 1, jumpMul: 1, doubleJump: false, usedDouble: false,
-      lastHurt: 99, knockX: 0, knockZ: 0, fallStartY: 0
+      lastHurt: 99, knockX: 0, knockZ: 0, fallStartY: 0,
+      sliding: false, slideT: 0, slideCd: 0, slideDX: 0, slideDZ: 0, crouching: false, low: 0, landKick: 0, vyLast: 0
     };
   };
 
@@ -97,7 +101,19 @@
       p.sprinting = false; p.staminaRest += dt;
       if (p.staminaRest >= MOVE.staminaRest) p.stamina = Math.min(p.staminaMax || MOVE.stamina, p.stamina + (p.staminaMax || MOVE.stamina) / MOVE.staminaRefill * dt);
     }
-    var speed = (p.sprinting ? MOVE.sprint : MOVE.walk) * p.speedMul * (p.aiming ? 0.7 : 1) * (p.weaponMoveMul || 1);
+    // slide: from a sprint (or any fast run) press slide; keeps going on momentum, low to the ground
+    p.slideCd = Math.max(0, p.slideCd - dt);
+    var hsp = Math.hypot(p.vx, p.vz);
+    if (input.slidePressed && p.onGround && !p.sliding && p.slideCd <= 0 && (p.sprinting || hsp > MOVE.slideMinEntry)) {
+      var dl = hsp > 0.5 ? hsp : 1;
+      p.slideDX = hsp > 0.5 ? p.vx / dl : -Math.sin(p.yaw); p.slideDZ = hsp > 0.5 ? p.vz / dl : -Math.cos(p.yaw);
+      var sp0 = Math.max(hsp + 1.5, MOVE.slideSpeed);
+      p.vx = p.slideDX * sp0; p.vz = p.slideDZ * sp0;
+      p.sliding = true; p.slideT = 0; p.sprinting = false;
+      if (fx && fx.slide) fx.slide(true);
+    }
+    p.crouching = !p.sliding && !!input.crouch && p.onGround;
+    var speed = (p.sprinting ? MOVE.sprint : (p.crouching ? MOVE.crouchSpeed : MOVE.walk)) * p.speedMul * (p.aiming ? 0.7 : 1) * (p.weaponMoveMul || 1);
     // wish dir in world space (camera forward is -Z at yaw 0)
     var sy = Math.sin(p.yaw), cy = Math.cos(p.yaw);
     var mx = input.mx, mz = input.mz, ml = Math.hypot(mx, mz);
@@ -105,7 +121,17 @@
     var wx = mx * cy + mz * sy, wz = -mx * sy + mz * cy;
     var tx = wx * speed, tz = wz * speed;
     var acc = MOVE.accel * (p.onGround ? 1 : MOVE.airControl);
-    if (p.onGround && ml < 0.05) {
+    if (p.sliding) {
+      p.slideT += dt;
+      var cur = Math.hypot(p.vx, p.vz), ns = Math.max(0, cur - MOVE.slideDecel * dt);
+      // light steering toward the stick direction
+      if (ml > 0.1) { p.slideDX += (wx / ml - p.slideDX) * MOVE.slideSteer * dt * 6; p.slideDZ += (wz / ml - p.slideDZ) * MOVE.slideSteer * dt * 6; var n2 = Math.hypot(p.slideDX, p.slideDZ) || 1; p.slideDX /= n2; p.slideDZ /= n2; }
+      p.vx = p.slideDX * ns; p.vz = p.slideDZ * ns;
+      if (p.slideT >= MOVE.slideTime || ns < 3.2 || !p.onGround && p.vy > 0) {
+        p.sliding = false; p.slideCd = MOVE.slideCooldown;
+        if (fx && fx.slide) fx.slide(false);
+      }
+    } else if (p.onGround && ml < 0.05) {
       var f = Math.max(0, 1 - MOVE.friction * dt); p.vx *= f; p.vz *= f;
     } else {
       var dvx = tx - p.vx, dvz = tz - p.vz, dl = Math.hypot(dvx, dvz), maxDv = acc * dt;
@@ -121,10 +147,12 @@
     p.coyote = p.onGround ? MOVE.coyote : Math.max(0, p.coyote - dt);
     if (p.jumpBuf > 0 && (p.onGround || p.coyote > 0)) {
       p.vy = MOVE.jumpVel * Math.sqrt(p.jumpMul); p.onGround = false; p.coyote = 0; p.jumpBuf = 0; p.usedDouble = false;
+      if (p.sliding) { p.sliding = false; p.slideCd = MOVE.slideCooldown; if (fx && fx.slide) fx.slide(false); }
       if (fx) fx.jump();
     } else if (input.jumpPressed && !p.onGround && p.doubleJump && !p.usedDouble) {
       p.vy = MOVE.jumpVel * 0.9; p.usedDouble = true; p.jumpBuf = 0;
     }
+    p.vyLast = p.vy;
     p.vy -= MOVE.gravity * dt;
     var prevY = p.y, wasGround = p.onGround;
     if (wasGround) p.fallStartY = p.y; else p.fallStartY = Math.max(p.fallStartY, p.y);
@@ -135,18 +163,23 @@
     if (p.onGround && !wasGround) {
       var fell = Math.max(0, p.fallStartY - p.y);
       p.dip = Math.min(MOVE.dipMax, fell * MOVE.dipPerM + 0.02);
+      p.landKick = Math.min(1, 0.25 + fell * 0.4);
       if (fx) fx.land(fell);
     }
     // landing dip springs back over ~0.2 s
     p.dip = Math.max(0, p.dip - dt * (MOVE.dipMax / MOVE.dipReturn));
     // head bob
     var hs = Math.hypot(p.vx, p.vz);
-    if (p.onGround && hs > 1) {
+    if (p.onGround && hs > 1 && !p.sliding) {
       p.bobT += dt * hs * 1.15;
       var amp = p.sprinting ? MOVE.bobSprint : MOVE.bobWalk;
       p.bob = Math.sin(p.bobT * 2) * amp;
       if (fx && Math.floor(p.bobT / Math.PI) !== p._step) { p._step = Math.floor(p.bobT / Math.PI); fx.step(p.sprinting); }
     } else p.bob *= Math.max(0, 1 - dt * 10);
+    // eye height eases between standing, crouched and sliding
+    var lowT = p.sliding ? 1 : (p.crouching ? 0.6 : 0);
+    p.low += (lowT - p.low) * Math.min(1, dt * (p.sliding ? 14 : 9));
+    p.landKick = Math.max(0, p.landKick - dt * 3.5);
     p.protect = Math.max(0, p.protect - dt);
     p.lastHurt += dt;
   };
@@ -156,5 +189,8 @@
     p.pitch -= dy * MOVE.lookRad * sens;
     p.pitch = Math.max(-MOVE.pitchClamp, Math.min(MOVE.pitchClamp, p.pitch));
   };
-  P.eyeY = function (p, headBob) { return p.y + MOVE.eye - p.dip + (headBob ? p.bob : 0); };
+  P.eyeY = function (p, headBob) {
+    var eye = MOVE.eye + (MOVE.eyeSlide - MOVE.eye) * p.low;
+    return p.y + eye - p.dip + (headBob && !p.sliding ? p.bob : 0);
+  };
 })(window.IB = window.IB || {});

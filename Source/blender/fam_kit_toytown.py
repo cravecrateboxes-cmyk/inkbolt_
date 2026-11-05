@@ -10,11 +10,11 @@ from mathutils import Euler, Matrix, Quaternion, Vector
 from ib_lib import *  # noqa: F401,F403
 import ib_lib
 
-ib_lib.PALETTES['kit-toytown'] = BASE + [('tangerine', '#FF8A3D'), ('bubblegum', '#FF7FB0'), ('purple', '#8A6CD8'), ('purple2', '#6A55B8'),
-                           ('sky', '#5BC0EB'), ('sand', '#F6D57A'), ('coral', '#F26B5B'), ('trim', '#F4EEE2'),
-                           ('window', '#8ED2FF'), ('door', '#3B3550'), ('crate2', '#C8642A'), ('lowwall', '#D8D2C4'),
-                           ('lowtop', '#EAE5D8'), ('tank', '#F4EEE2'), ('pad', '#E6DCC6'), ('ground', '#F6D57A'),
-                           ('canbody', '#8C93A0'), ('canlid', '#6E7480')]
+ib_lib.PALETTES['kit-toytown'] = BASE + [('tangerine', '#FF9E5C'), ('bubblegum', '#FF94BE'), ('purple', '#9C82E0'), ('purple2', '#7D69C4'),
+                           ('sky', '#74CDEF'), ('sand', '#F8DE91'), ('coral', '#F5826F'), ('trim', '#F4EEE2'),
+                           ('window', '#A6DCFF'), ('door', '#4D4566'), ('crate2', '#D9783F'), ('lowwall', '#E2DDD1'),
+                           ('lowtop', '#F0ECE2'), ('tank', '#F4EEE2'), ('pad', '#E6DCC6'), ('ground', '#F6D57A'),
+                           ('canbody', '#A0A7B3'), ('canlid', '#838995')]
 
 # ================================================================ KIT: TOY TOWN
 WALL_COLORS = ['tangerine', 'bubblegum', 'purple', 'sky', 'sand', 'coral']
@@ -28,7 +28,7 @@ def build_kit_toytown(ao):
         for kind in ('Plain', 'Window', 'Door'):
             m = Model(pal)
             m.box((0, 0, 1.5), (1.0, 1.0, 3.0), c, bevel=False)
-            m.box((0, 0, 3.08), (1.04, 1.04, 0.16), 'trim')
+            m.box((0, 0, 3.08), (1.0, 1.0, 0.16), 'trim')   # exactly one cell: neighbouring trims must not overlap
             for fy in (-1, 1):
                 if kind == 'Window':
                     m.box((0, fy * 0.515, 1.9), (0.62, 0.05, 0.62), 'window', bevel=False)
@@ -42,10 +42,11 @@ def build_kit_toytown(ao):
         m = Model(pal)
         m.box((0, 0, 0.5), (0.96, 0.96, 0.96), c)
         # straps: front/back and side straps differ in height and depth so no faces coincide
+        # everything stays inside the crate's 1 m cell so neighbouring crates never share a face
         for fy in (-1, 1):
-            m.box((0, fy * 0.49, 0.5), (0.98, 0.04, 0.12), 'crate2', bevel=False)
-            m.box((fy * 0.495, 0, 0.5), (0.04, 0.95, 0.13), 'crate2', bevel=False)
-            m.beam((-0.38, fy * 0.497, 0.14), (0.38, fy * 0.497, 0.86), 0.06, 'crate2')
+            m.box((0, fy * 0.475, 0.5), (0.97, 0.03, 0.12), 'crate2', bevel=False)
+            m.box((fy * 0.47, 0, 0.5), (0.04, 0.92, 0.135), 'crate2', bevel=False)
+            m.beam((-0.37, fy * 0.468, 0.14), (0.37, fy * 0.468, 0.86), 0.035, 'crate2')
         build_object('KIT_TOYTOWN_' + name, m, bw, ht, ao=ao)
     # container 2 x 2 x 2.5 with ribs
     for c in ('teal', 'tangerine', 'bubblegum', 'sky'):
@@ -100,7 +101,7 @@ def build_kit_toytown(ao):
     # gate frame (3 m opening) and roll-up shutter (theme main colour slats, teal/ink hazard band)
     m = Model(pal)
     for sx in (-1.75, 1.75):
-        m.box((sx, 0, 1.8), (0.5, 0.7, 3.6), 'gunmetal')
+        m.box((sx, 0, 1.8), (0.56, 0.7, 3.6), 'gunmetal')   # stands 3 cm proud of the neighbouring wall faces
     m.box((0, 0, 3.35), (4.08, 0.8, 0.6), 'gunmetal')   # header overhangs the posts by 4 cm
     for sx in (-1.2, 1.2):
         for fy in (-1, 1):
@@ -133,7 +134,7 @@ def build_kit_toytown(ao):
     # trail wall (1 m segment, 2.6 m tall, theme secondary with accent posts)
     m = Model(pal)
     m.box((0, 0, 1.3), (0.5, 1.0, 2.6), 'bubblegum', bevel=False)
-    m.box((0, 0, 2.68), (0.62, 1.02, 0.16), 'trim')
+    m.box((0, 0, 2.68), (0.62, 1.0, 0.16), 'trim')
     m.box((0, 0, 1.3), (0.56, 0.2, 2.55), 'purple', bevel=False)
     build_object('KIT_TOYTOWN_TrailWall', m, 0, ht, ao=ao)
     # spawn can lives in fps-common; ammo/health pickups in fps-weapons

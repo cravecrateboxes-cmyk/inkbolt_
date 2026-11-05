@@ -15,8 +15,9 @@
     var t = new THREE.Color(PAL.shadow);
     var m = Math.max(t.r, t.g, t.b);
     var tint = [t.r / m, t.g / m, t.b / m];
-    var band0 = tint.map(function (c) { return 0.62 * (0.45 + 0.55 * c); });
-    var px = [band0, [0.84, 0.84, 0.84], [1, 1, 1], [1, 1, 1]];
+    // lighter tones: shadow band 0.72 (tinted toward Shadow Tint), mid band 0.9
+    var band0 = tint.map(function (c) { return 0.72 * (0.6 + 0.4 * c); });
+    var px = [band0, [0.9, 0.9, 0.9], [1, 1, 1], [1, 1, 1]];
     var data = new Uint8Array(16);
     for (var i = 0; i < 4; i++) {
       data[i * 4] = Math.round(px[i][0] * 255); data[i * 4 + 1] = Math.round(px[i][1] * 255);
@@ -243,7 +244,7 @@
     R.worldOutline = outlineUniforms(0.012, 3.2);
     R.vmOutline = outlineUniforms(0.0035, 2.2);
     R.scene = new THREE.Scene();
-    R.camera = new THREE.PerspectiveCamera(60, 1, 0.05, 400);
+    R.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 420);   // near 0.1 for depth precision
     R.camera.rotation.order = 'YXZ';
     R.scene.add(R.camera);
     var sun = new THREE.DirectionalLight(0xffffff, 1); sun.position.set(0.42, 0.82, 0.38); R.scene.add(sun);

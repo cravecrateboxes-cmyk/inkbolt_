@@ -265,7 +265,7 @@ def bake_ao(obj):
     attr = obj.data.color_attributes['Col']
     for c in attr.data:
         v = sum(c.color[:3]) / 3.0
-        s = 1.0 if v > 0.72 else 0.82
+        s = 1.0 if v > 0.72 else 0.87   # softer baked shadow (lighter tones)
         c.color = (s, s, s, 1.0)
 
 

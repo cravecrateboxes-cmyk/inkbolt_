@@ -124,10 +124,60 @@
   var _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _up = new THREE.Vector3(0, 1, 0), _p = new THREE.Vector3(), _s1 = new THREE.Vector3(1, 1, 1);
   function M(x, y, z, yaw) { _q.setFromAxisAngle(_up, yaw || 0); _p.set(x, y, z); return _m.clone().compose(_p, _q, _s1); }
 
-  function Parts() { this.kit = []; this.common = []; }
+  function Parts() { this.kit = []; this.common = []; this.roof = []; }
+  var PID = 0;
+  Z.pidNames = {};
   Parts.prototype.add = function (name, x, y, z, yaw) {
     var list = IB.Assets.family[name] === 'common' ? this.common : this.kit;
-    list.push(IB.Assets.placed(name, M(x, y, z, yaw)));
+    var g = IB.Assets.placed(name, M(x, y, z, yaw));
+    if (Z.ZCHECK) {   // tag each placed piece so the cross-piece z-fighting check can tell pieces apart
+      var n = g.attributes.position.count, a = new Float32Array(n); a.fill(++PID);
+      g.setAttribute('pid', new THREE.BufferAttribute(a, 1)); Z.pidNames[PID] = name;
+    }
+    list.push(g);
+  };
+  // Cross-piece z-fighting check: coplanar (< 2.5 mm), same-facing, overlapping triangles from different
+  // placed pieces in a merged zone mesh. Returns a list of problems (empty = clean).
+  Z.zfight = function (mesh) {
+    var g = mesh.geometry, pos = g.attributes.position.array, pid = g.attributes.pid, idx = g.index.array;
+    if (!pid) return [];
+    var buckets = new Map(), out = [], va = new THREE.Vector3(), vb = new THREE.Vector3(), vc = new THREE.Vector3(), n = new THREE.Vector3(), e1 = new THREE.Vector3(), e2 = new THREE.Vector3();
+    var hull = g.attributes.aHull.array;
+    var tris = [];
+    for (var t = 0; t < idx.length; t += 3) {
+      var i0 = idx[t], i1 = idx[t + 1], i2 = idx[t + 2];
+      if (hull[i0 * 3] || hull[i0 * 3 + 1] || hull[i0 * 3 + 2]) continue;   // outline shell faces don't count
+      va.fromArray(pos, i0 * 3); vb.fromArray(pos, i1 * 3); vc.fromArray(pos, i2 * 3);
+      n.crossVectors(e1.subVectors(vb, va), e2.subVectors(vc, va));
+      var area = n.length() / 2; if (area < 1e-6) continue;
+      n.normalize();
+      if (n.y < -0.99 && Math.abs(va.y) < 0.01) continue;   // bottoms resting on the ground are never seen
+      var d = n.dot(va), key = Math.round(n.x * 50) + ',' + Math.round(n.y * 50) + ',' + Math.round(n.z * 50);
+      var tri = { p: pid.array[i0], d: d, n: n.clone(), a: va.clone(), b: vb.clone(), c: vc.clone() };
+      var lst = buckets.get(key); if (!lst) { lst = []; buckets.set(key, lst); } lst.push(tri);
+    }
+    function proj(tri) {
+      var u = Math.abs(tri.n.y) > 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0).cross(tri.n).normalize(), v = new THREE.Vector3().crossVectors(tri.n, u);
+      return [[tri.a.dot(u), tri.a.dot(v)], [tri.b.dot(u), tri.b.dot(v)], [tri.c.dot(u), tri.c.dot(v)]];
+    }
+    function ccw(P) { var s2 = 0; for (var i = 0; i < P.length; i++) { var q = P[(i + 1) % P.length]; s2 += P[i][0] * q[1] - q[0] * P[i][1]; } return s2 > 0 ? P : P.slice().reverse(); }
+    function clip(P, a, b) { var o = []; for (var i = 0; i < P.length; i++) { var p = P[i], q = P[(i + 1) % P.length]; var sp = (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]), sq = (b[0] - a[0]) * (q[1] - a[1]) - (b[1] - a[1]) * (q[0] - a[0]); if (sp >= 0) o.push(p); if ((sp >= 0) !== (sq >= 0)) { var tt = sp / (sp - sq); o.push([p[0] + (q[0] - p[0]) * tt, p[1] + (q[1] - p[1]) * tt]); } } return o; }
+    function areaOf(P) { var s2 = 0; for (var i = 0; i < P.length; i++) { var q = P[(i + 1) % P.length]; s2 += P[i][0] * q[1] - q[0] * P[i][1]; } return Math.abs(s2) / 2; }
+    buckets.forEach(function (lst) {
+      if (lst.length < 2) return;
+      lst.sort(function (x, y) { return x.d - y.d; });
+      for (var i = 0; i < lst.length && out.length < 20; i++) {
+        for (var j = i + 1; j < lst.length; j++) {
+          var A = lst[i], B = lst[j];
+          if (B.d - A.d > 0.0025) break;
+          if (A.p === B.p) continue;
+          var pa = A.pa || (A.pa = ccw(proj(A))), pb = B.pb || (B.pb = ccw(proj(B))), inter = pa;
+          for (var k = 0; k < 3 && inter.length >= 3; k++) inter = clip(inter, pb[k], pb[(k + 1) % 3]);
+          if (inter.length >= 3 && areaOf(inter) > 1e-5) { out.push(Z.pidNames[A.p] + ' / ' + Z.pidNames[B.p] + ' at ' + A.a.toArray().map(function (v) { return v.toFixed(2); }).join(',')); break; }
+        }
+      }
+    });
+    return out;
   };
   function cellIs(grid, c, r, set) { return set.indexOf(grid.at(c, r)) >= 0; }
 
@@ -136,7 +186,12 @@
       world.add(z.ox + R.c, 0, z.oz + R.r, z.ox + R.c + R.w, 3, z.oz + R.r + R.h, 'wall', z.idx);
     });
     var WALLISH = '#GE';
+    function solid(c, r) { return cellIs(grid, c, r, WALLISH); }
     find(grid, '#').forEach(function (p) {
+      // only cells with an open neighbour get a wall module; building interiors get a flat roof instead
+      var exposed = !solid(p.c - 1, p.r) || !solid(p.c + 1, p.r) || !solid(p.c, p.r - 1) || !solid(p.c, p.r + 1) ||
+        !solid(p.c - 1, p.r - 1) || !solid(p.c + 1, p.r - 1) || !solid(p.c - 1, p.r + 1) || !solid(p.c + 1, p.r + 1);
+      if (!exposed) { P.roof.push(p); return; }
       var horiz = cellIs(grid, p.c - 1, p.r, WALLISH) || cellIs(grid, p.c + 1, p.r, WALLISH);
       var vert = cellIs(grid, p.c, p.r - 1, WALLISH) || cellIs(grid, p.c, p.r + 1, WALLISH);
       var corner = horiz && vert;
@@ -159,7 +214,7 @@
       var x = z.ox + p.c + 0.5, zz = z.oz + p.r + 0.5, tall = hash(p.c * 5, p.r * 3) > 0.78;
       world.add(x - 0.5, 0, zz - 0.5, x + 0.5, tall ? 2 : 1, zz + 0.5, 'cover', z.idx);
       P.add(kit.prefix + kit.crate, x, 0, zz, Math.floor(hash(p.c, p.r * 9) * 4) * Math.PI / 2);
-      if (tall) P.add(kit.prefix + kit.crateTop, x, 1, zz, 0.3);
+      if (tall) P.add(kit.prefix + kit.crateTop, x, 1, zz, Math.floor(hash(p.c * 7, p.r) * 4) * Math.PI / 2);   // quarter turns only: stays inside its cell
     });
   }
   function buildContainers(P, z, grid, kit, world) {
@@ -329,6 +384,7 @@
 
   // ---------------- level assembly ----------------
   /* plan: {theme:{id,palette,...}, zones:[{map:'name', waves:[[['crawler',4]], ...]}]} */
+  Z.ZCHECK = /[?&]zcheck=1/.test(typeof location !== 'undefined' ? location.search : '');
   Z.buildLevel = function (plan, scene) {
     if (!Z.mat) Z.mat = IB.Render.toonMaterial({});
     var world = new World(), theme = plan.theme, kc = kitColors(theme), kit = kitFor(theme);
@@ -358,6 +414,12 @@
       buildLandmark(P, zone, grid, kit, world);
       buildDecor(P, zone, grid, kit);
       buildSpawnCans(P, zone, grid, world);
+      // flat roofs over building interiors (below the parapet trim of the edge modules)
+      var roofCol = new THREE.Color(0xD9D2E6);
+      P.roof.forEach(function (p) {
+        var x = ox + p.c, zz = oz + p.r;
+        g.flat([[x, zz], [x + 1, zz], [x + 1, zz + 1], [x, zz + 1]], 3.04, roofCol);
+      });
       if (E.length) zone.entryGate = makeGate(P, ox + ecx, oz + grid.h - 0.5, E.length, kit, idx, world, 'entry');
       var gcx = (G[0].c + G[G.length - 1].c + 1) / 2;
       zone.exitGate = makeGate(P, ox + gcx, oz + 0.5, G.length, kit, idx, world, 'exit');
@@ -382,22 +444,28 @@
     level.trails.push(last.trail); level.root.add(last.trail.group);
     level.hatch = last.hatch; level.root.add(last.hatch.group);
     Z.buildBackdrop(level, theme);
+    if (Z.ZCHECK) {
+      level.zfight = [];
+      level.root.traverse(function (o) { if (o.isMesh && o.geometry.attributes.pid) level.zfight = level.zfight.concat(Z.zfight(o)); });
+    }
     return level;
   };
 
   Z.buildHatch = function (level, exit, theme, kit, world) {
-    var tr = buildTrail(level, { x: exit.x, z: exit.z }, { x: exit.x, z: exit.z - 8 }, theme, kit, world, level.zones.length - 1);
-    var hz = exit.z - 9.5, g = new IB.Geo(), P = new Parts();
-    g.flat([[exit.x - 3, hz - 2.5], [exit.x + 3, hz - 2.5], [exit.x + 3, exit.z - 8], [exit.x - 3, exit.z - 8]], 0.006, 0xE6DCC6);
-    for (var k = 0; k < 6; k++) P.add(kit.prefix + kit.trailWall, exit.x - 2.5 + k, 0, hz - 2.8, Math.PI / 2);
+    // the exit waypath: a long walled path; the screen dims as the player walks it, then the next level loads
+    var WAY = 22;
+    var tr = buildTrail(level, { x: exit.x, z: exit.z }, { x: exit.x, z: exit.z - WAY }, theme, kit, world, level.zones.length - 1);
+    var hz = exit.z - WAY - 1.5, g = new IB.Geo(), P = new Parts();
+    g.flat([[exit.x - 3, hz - 2.5], [exit.x + 3, hz - 2.5], [exit.x + 3, exit.z - WAY], [exit.x - 3, exit.z - WAY]], 0.006, 0xE6DCC6);
+    for (var k = 0; k < 6; k++) P.add(kit.prefix + kit.trailWall, exit.x - 2.5 + k, 0, hz - 2.95, Math.PI / 2);
     for (k = 0; k < 5; k++) { P.add(kit.prefix + kit.trailWall, exit.x - 3.0, 0, hz - 2 + k, 0); P.add(kit.prefix + kit.trailWall, exit.x + 3.0, 0, hz - 2 + k, 0); }
-    world.add(exit.x - 3.25, 0, hz - 3.05, exit.x + 3.25, 3, hz - 2.55, 'wall', -1);
+    world.add(exit.x - 3.25, 0, hz - 3.2, exit.x + 3.25, 3, hz - 2.7, 'wall', -1);
     world.add(exit.x - 3.25, 0, hz - 2.75, exit.x - 2.75, 3, hz + 2.75, 'wall', -1);
     world.add(exit.x + 2.75, 0, hz - 2.75, exit.x + 3.25, 3, hz + 2.75, 'wall', -1);
     P.add(kit.prefix + kit.hatch, exit.x, 0, hz, 0);
     var grp = new THREE.Group(); grp.add(new THREE.Mesh(g.build(), Z.mat));
     meshesFor(P, grp);
-    return { trail: tr, hatch: { group: grp, x: exit.x, z: hz, r: 1.2 } };
+    return { trail: tr, hatch: { group: grp, x: exit.x, z: hz, r: 1.2, z0: exit.z } };
   };
 
   // distant rolling hills and pines beyond the playable area (printed backdrop, fogged), outlined puff clouds
@@ -427,7 +495,7 @@
       im.frustumCulled = false;
       for (var k = 0; k < N; k++) {
         var j = si * 4 + k;
-        level.clouds.push({ mesh: im, i: k, x: (hash(j, 11) - 0.5) * 160, y: 26 + hash(j, 12) * 14, z: cz + (hash(j, 13) - 0.5) * 160, s: 1 + hash(j, 14) * 1.2, yaw: hash(j, 15) * 6.28 });
+        level.clouds.push({ mesh: im, i: k, x: (hash(j, 11) - 0.5) * 260, y: 44 + hash(j, 12) * 22, z: cz + (hash(j, 13) - 0.5) * 260, s: 1.6 + hash(j, 14) * 1.4, yaw: hash(j, 15) * 6.28 });
       }
       level.cloudMeshes.push(im); level.root.add(im);
     });
@@ -437,7 +505,7 @@
   Z.updateClouds = function (level, dt) {
     if (!level.clouds) return;
     for (var k = 0; k < level.clouds.length; k++) {
-      var cl = level.clouds[k]; cl.x += dt * 0.6; if (cl.x > 90) cl.x = -90;
+      var cl = level.clouds[k]; cl.x += dt * 0.6; if (cl.x > 140) cl.x = -140;
       _cq.setFromAxisAngle(_up, cl.yaw); _cp.set(cl.x, cl.y, cl.z); _cs.set(cl.s, cl.s, cl.s);
       cl.mesh.setMatrixAt(cl.i, _cm.compose(_cp, _cq, _cs));
     }
@@ -445,9 +513,11 @@
   };
 
   // visibility: previous, current, next zone + trails around current
+  // brief 4.2: only the current zone, the next zone and the trail between them are drawn
   Z.setVisible = function (level, cur) {
-    level.zones.forEach(function (z, i) { z.group.visible = (i >= cur - 1 && i <= cur + 1); });
-    level.trails.forEach(function (t, i) { t.group.visible = (i >= cur - 1 && i <= cur + 1); });
+    level.zones.forEach(function (z, i) { z.group.visible = (i === cur || i === cur + 1); });
+    level.trails.forEach(function (t, i) { t.group.visible = (i === cur || i === cur - 1); });
+    if (level.hatch) level.hatch.group.visible = cur >= level.zones.length - 1;
   };
 
   Z.zoneAt = function (level, x, z) {

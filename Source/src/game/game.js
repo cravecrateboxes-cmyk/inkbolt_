@@ -52,7 +52,8 @@
   };
   function bootAfterAssets() {
     FX.init(R.scene); AI.init(R.scene); W.init(R.vmScene); IB.Projectiles.init(R.scene);
-    G.plan = IB.LEVEL_PLANS[params.get('plan') || 'greybox'];
+    var saved0 = G.store.newest();
+    G.plan = IB.LEVEL_PLANS[params.get('plan') || (saved0 && saved0.plan) || IB.CAMPAIGN[0]] || IB.LEVEL_PLANS[IB.CAMPAIGN[0]];
     G.buildLevel();
     G.player = IB.Player.create();
     G.ws = W.create(['pip', 'buzz'], {});
@@ -99,13 +100,27 @@
   };
 
   // ---------------- level ----------------
+  G.disposeLevel = function () {
+    if (!G.level) return;
+    var shared = new Set(Object.keys(IB.Assets.geo).map(function (k) { return IB.Assets.geo[k]; }));
+    G.level.root.traverse(function (o) {
+      if (o.isMesh || o.isInstancedMesh) {
+        if (o.geometry && !shared.has(o.geometry)) o.geometry.dispose();
+        if (o.material && o.material.isMeshBasicMaterial) o.material.dispose();
+      }
+    });
+    R.scene.remove(G.level.root);
+    (G.weaponStands || []).forEach(function (w) { R.scene.remove(w.group); });
+    G.weaponStands = [];
+    G.level = null;
+  };
   G.buildLevel = function () {
-    if (G.level) { R.scene.remove(G.level.root); }
+    G.disposeLevel();
     var theme = G.plan.theme;
     if (IB.THEMES && IB.THEMES[G.plan.themeId]) theme = IB.THEMES[G.plan.themeId];
     G.level = Z.buildLevel({ theme: theme, zones: G.plan.zones }, R.scene);
     R.setSky(PAL.sky, PAL.cream);
-    R.scene.fog.color.set(0xFFEBD0);
+    R.scene.fog.color.set(0xFFF0DC);
     AI.setLevel(G.plan.level);
   };
 
@@ -121,9 +136,57 @@
     G.zone = 0; Z.setVisible(L, 0);
     G.pickups.forEach(function (p) { p.mesh.visible = false; p.on = false; });
     L.zones.forEach(function (z) { z.pickups.forEach(function (pk) { G.spawnPickup(pk.kind, pk.x, pk.z, true); }); });
+    placeWeaponStands(G.plan.weapons || []);
   }
 
-  G.startLevel = function () {
+  // ---------------- new weapons waiting at the start of a level ----------------
+  function placeWeaponStands(ids) {
+    (G.weaponStands || []).forEach(function (w) { R.scene.remove(w.group); });
+    G.weaponStands = [];
+    if (G.mode === 'title') return;
+    var z0 = G.level.zones[0], kit = G.level.kit, A = IB.Assets;
+    if (!G.worldWpnMat) G.worldWpnMat = R.toonMaterial({ map: A.palette.weapons, baked: A.BAKED.weapons });
+    ids = ids.filter(function (id) { return A.node['WPN_' + id.toUpperCase()] && IB.WEAPONS[id]; });
+    ids.forEach(function (id, i) {
+      var side = ids.length === 1 ? 0 : (i === 0 ? -1.6 : 1.6);
+      var x = z0.entry.x + side, zc = z0.entry.z - 3.8;
+      var grp = new THREE.Group(); grp.position.set(x, 0, zc);
+      var crate = new THREE.Mesh(A.get(kit.prefix + kit.crate), A.mat[kit.family]); grp.add(crate);
+      var gun = new THREE.Mesh(A.get('WPN_' + id.toUpperCase()), G.worldWpnMat);
+      gun.scale.setScalar(1.35);
+      gun.rotation.set(70 * Math.PI / 180, 0.35 * (side > 0 ? -1 : 1), 0);   // standing on its stock, leaning back on the crate
+      gun.position.set(0, 0.32, 0.72);
+      grp.add(gun);
+      var ring = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.72, 28), new THREE.MeshBasicMaterial({ color: PAL.teal, transparent: true, opacity: 0.85 }));
+      ring.rotation.x = -Math.PI / 2; ring.position.set(0, 0.02, 0.85); grp.add(ring);
+      R.scene.add(grp);
+      G.level.world.add(x - 0.5, 0, zc - 0.5, x + 0.5, 1, zc + 0.5, 'cover', 0);
+      G.weaponStands.push({ id: id, group: grp, gun: gun, ring: ring, x: x, z: zc + 0.85, taken: false });
+    });
+  }
+  function updateWeaponStands(t) {
+    var p = G.player;
+    (G.weaponStands || []).forEach(function (w) {
+      if (w.taken) return;
+      var k = 1 + Math.sin(t * 4) * 0.08; w.ring.scale.set(k, k, k);
+      if (Math.hypot(p.x - w.x, p.z - w.z) < 1.5 && p.alive) takeWeapon(w);
+    });
+  }
+  function takeWeapon(w) {
+    var def = IB.WEAPONS[w.id], ws = G.ws;
+    // one weapon per class: the new one replaces the old one (brief 5.2 carrying rule)
+    Object.keys(ws.guns).forEach(function (k) { if (IB.WEAPONS[k].cls === def.cls && k !== w.id) { delete ws.guns[k]; if (ws.slots[def.slot] === k) delete ws.slots[def.slot]; } });
+    W.give(ws, w.id);
+    W.equip(ws, w.id);
+    w.taken = true; w.group.remove(w.gun); w.ring.visible = false;
+    ensureSlot();
+    G.slot.owned = Object.keys(ws.guns);
+    G.store.save(G.slot);
+    if (HUD.pickup) HUD.pickup(def.name, def.cls); else HUD.toast('New weapon: ' + def.name, 2.2);
+    A.play('pickup'); A.play('draw');
+  }
+
+  G.startLevel = function (opts) {
     M.hide();
     G.mode = 'play'; G.dead = false; G.paused = false; G.complete = false;
     if (!G.pickups) initPickups();
@@ -135,15 +198,20 @@
     p.maxHp = fx.maxHp || 100; p.health = p.maxHp; p.speedMul = fx.speedMul || 1; p.jumpMul = fx.jumpMul || 1; p.doubleJump = !!fx.doubleJump;
     p.staminaMax = 4 * (fx.staminaMul || 1); p.stamina = p.staminaMax;
     p.x = z0.entry.x; p.z = z0.entry.z; p.y = 0; p.yaw = 0; p.pitch = 0;
-    G.ws = W.create(['pip', 'buzz'], { reloadMul: fx.reloadMul, recoilMul: fx.recoilMul, spreadMul: fx.spreadMul, magLevel: (G.slot && G.slot.upgrades && G.slot.upgrades.mag) || 0 });
-    W.equip(G.ws, 'pip', true);
+    ensureSlot();
+    var owned = (G.slot.owned && G.slot.owned.length ? G.slot.owned : (G.plan.start || ['pip'])).filter(function (id) { return IB.WEAPONS[id]; });
+    G.ws = W.create(owned, { reloadMul: fx.reloadMul, recoilMul: fx.recoilMul, spreadMul: fx.spreadMul, magLevel: (G.slot && G.slot.upgrades && G.slot.upgrades.mag) || 0 });
+    var first = Object.keys(G.ws.guns).sort(function (a, b) { return IB.WEAPONS[b].slot - IB.WEAPONS[a].slot; })[0] || 'pip';
+    W.equip(G.ws, first, true);
     G.run = { time: 0, kills: 0, shots: 0, hits: 0, coreHits: 0, deaths: 0, gems: 0, retries: 3, started: false, introT: AUTOTEST ? 0.05 : 2.3 };
-    G.shake = 0; G.hitstop = 0; G.deathT = 0;
+    G.shake = 0; G.trauma = 0; G.hitstop = 0; G.deathT = 0;
+    G.fade = opts && opts.fadeIn ? { t: 0, dur: 1.4 } : null;
+    setDim(G.fade ? 1 : 0);
     HUD.reset(); HUD.show(true); document.getElementById('touch').hidden = !Inp.touch;
     HUD.pips(G.level.zones.length, 0, 0);
     if (!AUTOTEST) M.intro({ level: G.plan.level, name: G.plan.name, zones: G.level.zones.length, line: G.plan.intro }, 2.2);
     // save at level start
-    ensureSlot(); G.slot.level = G.plan.level; G.store.save(G.slot); G.saved = true;
+    ensureSlot(); G.slot.level = G.plan.level; G.slot.plan = G.plan.id; G.slot.owned = Object.keys(G.ws.guns); G.store.save(G.slot); G.saved = true;
     Inp.enabled = true; Inp.reset();
     if (!AUTOTEST) Inp.requestLock();
   };
@@ -173,7 +241,8 @@
     list.forEach(function (entry) {
       for (var n = 0; n < entry[1]; n++) {
         var s = spawns[(off + k) % spawns.length];
-        z.queue.push({ type: entry[0], x: s.x, z: s.z, t: 0.18 * k + (k >= spawns.length ? 0.5 : 0) });
+        var type = AI.types[entry[0]] ? entry[0] : 'crawler';   // robots without a model yet fall back to the Crawler
+        z.queue.push({ type: type, x: s.x, z: s.z, t: 0.18 * k + Math.floor(k / spawns.length) * 0.8 });
         k++;
       }
     });
@@ -200,7 +269,7 @@
           }
         }
         var alive = AI.alive(i) + z.queue.length;
-        if (z.wave >= 0 && z.wave < z.plan.waves.length - 1 && z.queue.length === 0 && (alive <= 2 || z.waveT > 25)) queueWave(z, z.wave + 1);
+        if (z.wave >= 0 && z.wave < z.plan.waves.length - 1 && z.queue.length === 0 && (alive <= 4 || z.waveT > 25)) queueWave(z, z.wave + 1);
         if (z.wave === z.plan.waves.length - 1 && alive === 0 && z.queue.length === 0) {
           if (z.clearT < 0) z.clearT = 0;
           z.clearT += dt;
@@ -226,8 +295,10 @@
     });
     // exit hatch
     if (L.zones[L.zones.length - 1].state === 'cleared' && !G.complete) {
-      var h = L.hatch;
-      if (Math.hypot(p.x - h.x, p.z - h.z) < h.r && p.y < 0.5) levelComplete();
+      // walking the exit waypath: the screen dims with distance, then the next level loads
+      var h = L.hatch, f = Math.max(0, Math.min(1, (h.z0 - p.z) / (h.z0 - h.z)));
+      if (p.z < h.z0 && Math.abs(p.x - h.x) < 3) setDim(Math.pow(f, 1.4) * 0.96);
+      if (f >= 0.95 || Math.hypot(p.x - h.x, p.z - h.z) < h.r) levelExit();
     }
   }
   function clearZone(i) {
@@ -242,16 +313,21 @@
     HUD.toast(i + 1 < G.level.zones.length ? 'Zone clear. Follow the arrows.' : 'Level clear. Get to the hatch.', 2.4);
   }
 
-  function levelComplete() {
-    G.complete = true; G.mode = 'results';
-    Inp.enabled = false; Inp.releaseLock(); IB.Plat.stop();
-    A.play('hatch');
+  // ---------------- level exit, loading screen, next level ----------------
+  function setDim(f) {
+    G.dimV = f;
+    if (HUD.dim) { HUD.dim(f); return; }
+    var el = document.getElementById('dimFallback');
+    if (!el) { el = document.createElement('div'); el.id = 'dimFallback'; el.style.cssText = 'position:fixed;inset:0;background:#15121C;pointer-events:none;opacity:0'; document.body.appendChild(el); }
+    el.style.opacity = f;
+  }
+  G.setDim = setDim;
+  function bankLevel() {
     var L = G.plan.level, robots = G.run.gems;
     var clear = IB.Gems ? IB.Gems.clearBonus(L) : 15 + 5 * L;
     var nd = G.run.deaths === 0 ? (IB.Gems ? IB.Gems.noDeathBonus(robots) : Math.floor(robots * 0.25)) : 0;
-    var total = robots + clear + nd;
     ensureSlot();
-    G.slot.gems = (G.slot.gems || 0) + clear + nd;   // robot gems were banked as collected
+    G.slot.gems = (G.slot.gems || 0) + clear + nd;
     G.slot.highest = Math.max(G.slot.highest || 0, L);
     G.slot.stats = G.slot.stats || {};
     G.slot.stats.kills = (G.slot.stats.kills || 0) + G.run.kills;
@@ -260,9 +336,48 @@
     G.slot.stats.coreHits = (G.slot.stats.coreHits || 0) + G.run.coreHits;
     G.slot.best = G.slot.best || {}; var key = String(L);
     if (!G.slot.best[key] || G.run.time < G.slot.best[key]) G.slot.best[key] = Math.round(G.run.time);
-    G.store.save(G.slot);
+    G.slot.owned = Object.keys(G.ws.guns);
     G.lastResults = { time: G.run.time, kills: G.run.kills, corePct: G.run.hits ? Math.round(G.run.coreHits / G.run.hits * 100) : 0, deaths: G.run.deaths,
-      gemsRobots: robots, gemsClear: clear, gemsNoDeath: nd, gemsTotal: total };
+      gemsRobots: robots, gemsClear: clear, gemsNoDeath: nd, gemsTotal: robots + clear + nd };
+  }
+  function levelExit() {
+    var next = G.plan.next && IB.LEVEL_PLANS[G.plan.next];
+    if (!next) { levelComplete(); return; }
+    G.complete = true; G.mode = 'loading';
+    Inp.enabled = false; Inp.releaseLock(); IB.Plat.stop();
+    bankLevel();
+    var r = G.lastResults;
+    G.slot.plan = next.id; G.slot.level = next.level;
+    G.store.save(G.slot);
+    setDim(1);
+    HUD.show(false); document.getElementById('touch').hidden = true;
+    var line = 'Level ' + G.plan.level + ' cleared · ' + r.kills + ' robots · ' + HUD.mmss(r.time) + ' · +' + r.gemsTotal + ' gems';
+    var t0 = performance.now();
+    if (M.loading) M.loading({ level: next.level, name: next.name, line: line }); else M.intro({ level: next.level, name: next.name, zones: next.zones.length, line: line }, 1.6);
+    var prog = function (f) { if (M.loadingProgress) M.loadingProgress(f); };
+    prog(0.1);
+    // build the next level in steps so the loading screen animates
+    setTimeout(function () {
+      G.plan = next; G.buildLevel(); prog(0.7);
+      setTimeout(function () {
+        try { R.renderer.compile(R.scene, R.camera); } catch (e) { /* first frame compiles anyway */ }
+        prog(1);
+        setTimeout(function () {
+          if (M.loadingHide) M.loadingHide();
+          G.startLevel({ fadeIn: true });
+        }, Math.max(0, (AUTOTEST ? 300 : 1700) - (performance.now() - t0)));
+      }, 60);
+    }, 120);
+  }
+
+  function levelComplete() {
+    G.complete = true; G.mode = 'results';
+    Inp.enabled = false; Inp.releaseLock(); IB.Plat.stop();
+    A.play('hatch');
+    bankLevel();
+    G.slot.plan = IB.CAMPAIGN[0];
+    G.store.save(G.slot);
+    setDim(0);
     HUD.show(false); document.getElementById('touch').hidden = true;
     M.results(G.lastResults);
   }
@@ -358,7 +473,8 @@
     var dx = robot.x - p.x, dz = robot.z - p.z;
     var fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw), rx = Math.cos(p.yaw), rz = -Math.sin(p.yaw);
     HUD.arc(Math.atan2(dx * rx + dz * rz, dx * fx + dz * fz)); // 0 = ahead, + = to the right
-    G.shake = Math.max(G.shake, 0.5);
+    G.shake = Math.max(G.shake, 0.5); G.addTrauma(Math.min(0.5, 0.12 + dmg * 0.012));
+    if (HUD.damageFlash) HUD.damageFlash(Math.min(1, dmg / 30));
     if (p.health <= 0) die(robot);
   };
   function die(robot) {
@@ -401,6 +517,7 @@
     IB.Plat.start();
   };
   G.toTitle = function () {
+    setDim(0);
     G.mode = 'title'; Inp.enabled = false; Inp.releaseLock(); IB.Plat.stop();
     HUD.show(false); document.getElementById('touch').hidden = true; document.body.classList.remove('dead');
     resetLevelStateForTitle();
@@ -428,13 +545,17 @@
   }
 
   function wireMenus() {
-    M.on('continue', function () { M.wipe(function () { G.startLevel(); }); });
+    M.on('continue', function () {
+      var pl = G.slot && IB.LEVEL_PLANS[G.slot.plan];
+      M.wipe(function () { if (pl && pl !== G.plan) { G.plan = pl; G.buildLevel(); } G.startLevel(); });
+    });
     M.on('new', function () {
       var free = G.store.freeSlot();
       if (!free) { var n = G.store.newest(); free = n ? n.id : 1; }
       G.slot = G.store.newSlot(free, (Math.random() * 1e9) | 0);
+      G.slot.plan = IB.CAMPAIGN[0]; G.slot.owned = (IB.LEVEL_PLANS[IB.CAMPAIGN[0]].start || ['pip']).slice();
       G.store.save(G.slot);
-      M.wipe(function () { G.startLevel(); });
+      M.wipe(function () { if (G.plan.id !== IB.CAMPAIGN[0]) { G.plan = IB.LEVEL_PLANS[IB.CAMPAIGN[0]]; G.buildLevel(); } G.startLevel(); });
     });
     M.on('settings', function () { M.settings(G.settings, M.cur); });
     M.on('setting', function (d) {
@@ -496,6 +617,13 @@
   function playFrame(dt, dtRaw) {
     var p = G.player, s = G.settings;
     if (Inp.pausePressed) { G.pause(); return; }
+    if (G.fade) {
+      G.fade.t += dtRaw;
+      var fk = Math.min(1, G.fade.t / G.fade.dur);
+      setDim(1 - fk * fk * (3 - 2 * fk));
+      if (fk >= 1) G.fade = null;
+    }
+    updateWeaponStands(tAll);
     // intro hold
     if (!G.run.started) {
       G.run.introT -= dtRaw;
@@ -525,11 +653,11 @@
     }
     // fixed-step simulation
     acc += dt; var steps = 0;
-    var jump = Inp.jumpPressed;
+    var jump = Inp.jumpPressed, slidePress = Inp.slidePressed;
     while (acc >= STEP && steps < 4) {
       acc -= STEP; steps++;
-      if (p.alive) IB.Player.step(p, { mx: G.complete ? 0 : Inp.mx, mz: G.complete ? 0 : Inp.mz, sprint: Inp.sprint, jumpPressed: jump }, G.level.world, STEP, footFx);
-      jump = false;
+      if (p.alive) IB.Player.step(p, { mx: G.complete ? 0 : Inp.mx, mz: G.complete ? 0 : Inp.mz, sprint: Inp.sprint, jumpPressed: jump, slidePressed: slidePress, crouch: Inp.crouch }, G.level.world, STEP, footFx);
+      jump = false; slidePress = false;
       if (G.run.started) {
         var actx = { player: p, world: G.level.world, level: G.level, activeZone: G.level.zones[G.zone].state === 'active' ? G.zone : -1, hurt: G.hurt, shake: G.addTrauma, onKill: onKill };
         AI.update(STEP, actx);
@@ -544,8 +672,10 @@
     // weapons
     W.update(G.ws, dt, { player: p, cam: R.camera, input: { fire: Inp.fire && p.alive && G.run.started, firePressed: Inp.firePressed && p.alive && G.run.started, aim: Inp.aim && p.alive }, shoot: shoot,
       onFire: function (d) { if (s.shake && (d.cls === 'smg' || d.cls === 'rifle')) G.shake = Math.max(G.shake, 0.15); } });
+    // FOV: aim zoom, plus a small widen at sprint and a kick while sliding
     var aimZoom = (W.current(G.ws) && W.current(G.ws).def.aimZoom) || 0.85;
-    var targetMul = 1 + (aimZoom - 1) * G.ws.aim;
+    G.fovKick = (G.fovKick || 0) + (((p.sliding ? 0.1 : p.sprinting ? 0.05 : 0)) - (G.fovKick || 0)) * Math.min(1, dtRaw * 8);
+    var targetMul = (1 + (aimZoom - 1) * G.ws.aim) * (1 + G.fovKick);
     if (Math.abs(targetMul - R.fovMul) > 0.002) { R.fovMul = targetMul; R.applyFov(); }
     // death sequence
     if (G.dead) {
@@ -558,9 +688,15 @@
     var eye = IB.Player.eyeY(p, s.headBob);
     var tip = G.dead ? Math.min(1, G.deathT / 0.5) : 0;
     G.shake = Math.max(0, G.shake - dtRaw / 0.25 * Math.max(G.shake, 0.3));
-    var sh = s.shake ? G.shake * Math.PI / 180 : 0;
+    G.trauma = Math.max(0, (G.trauma || 0) - dtRaw * 1.6);
+    var tr = s.shake ? G.trauma * G.trauma : 0, sh = s.shake ? G.shake * Math.PI / 180 : 0, tt = tAll * 31;
+    var nx = Math.sin(tt * 1.3) * Math.cos(tt * 0.7), ny = Math.sin(tt * 1.1 + 2) * Math.cos(tt * 0.9), nr = Math.sin(tt * 0.8 + 4);
+    // camera roll leans into slides and slightly into strafes
+    var rightV = p.vx * Math.cos(p.yaw) - p.vz * Math.sin(p.yaw);
+    G.roll = (G.roll || 0) + (((p.sliding ? -0.07 : 0) - rightV * 0.0035) - (G.roll || 0)) * Math.min(1, dtRaw * 8);
     R.camera.position.set(p.x, eye - tip * 1.1, p.z);
-    R.camera.rotation.set(p.pitch + G.ws.recoilP + (Math.random() - 0.5) * sh * 2 - tip * 0.2, p.yaw + G.ws.recoilY + (Math.random() - 0.5) * sh * 2, tip * 0.5);
+    R.camera.rotation.set(p.pitch + G.ws.recoilP + (Math.random() - 0.5) * sh * 2 + ny * tr * 0.05 - tip * 0.2 - (p.landKick || 0) * 0.025,
+      p.yaw + G.ws.recoilY + (Math.random() - 0.5) * sh * 2 + nx * tr * 0.05, tip * 0.5 + G.roll + nr * tr * 0.06);
     R.camera.updateMatrixWorld();
     A.listener = { x: p.x, z: p.z, yaw: p.yaw };
     // render-side updates
@@ -570,11 +706,32 @@
     FX.update(dtRaw, R.camera, p, magnet, collectGem);
     W.pose(G.ws, dtRaw, p, Inp.lookDX, Inp.lookDY, s.headBob, tAll);
     // HUD
+    var zn = G.level.zones[G.zone];
     var w = W.current(G.ws);
     HUD.health(p.health, p.maxHp);
-    if (w) HUD.ammo(w.mag, w.reserve);
-    HUD.slots(W.ownedSlots(G.ws).map(function (sl) { var id = G.ws.slots[sl]; return { slot: sl, cls: IB.WEAPONS[id].cls, on: id === G.ws.cur }; }));
-    var zn = G.level.zones[G.zone];
+    if (w) {
+      HUD.ammo(w.mag, w.reserve);
+      if (HUD.weapon) HUD.weapon({ id: w.id, name: w.def.name, cls: w.def.cls, mag: w.mag, magSize: W.magSize(G.ws, w.def), reserve: w.reserve,
+        reloading: G.ws.state === 'reload', reloadFrac: G.ws.state === 'reload' ? Math.min(1, G.ws.t / G.ws.reloadT) : 0 });
+    }
+    if (HUD.stamina) HUD.stamina(p.stamina / (p.staminaMax || 4), p.sliding);
+    G.radarT = (G.radarT || 0) - dtRaw;
+    if (HUD.radar && G.radarT <= 0) {
+      G.radarT = 0.1;
+      var rob = [];
+      AI.robots.forEach(function (r) { if (r.on && r.state !== 'pose') rob.push({ x: r.x, z: r.z, alert: r.state !== 'idle' && r.state !== 'spawn' }); });
+      var gates = []; G.level.zones.forEach(function (zz) { gates.push({ x: zz.exitGate.x, z: zz.exitGate.z, open: zz.exitGate.open > 0.5 }); });
+      var last = G.level.zones[G.level.zones.length - 1];
+      HUD.radar({ px: p.x, pz: p.z, yaw: p.yaw, range: 30, robots: rob, gates: gates,
+        pickups: (G.weaponStands || []).filter(function (w2) { return !w2.taken; }).map(function (w2) { return { x: w2.x, z: w2.z, kind: 'weapon' }; }),
+        exit: last.state === 'cleared' ? { x: G.level.hatch.x, z: G.level.hatch.z } : null });
+    }
+    if (HUD.objective) {
+      var obj = zn.state === 'active' ? 'Clear the block · ' + (AI.alive(G.zone) + zn.queue.length + remainingInWaves(zn)) + ' robots' :
+        (G.level.zones[G.level.zones.length - 1].state === 'cleared' ? 'Walk the exit path' : 'Follow the arrows to the next gate');
+      HUD.objective(obj);
+    }
+    HUD.slots(W.ownedSlots(G.ws).map(function (sl) { var id = G.ws.slots[sl]; return { slot: sl, cls: IB.WEAPONS[id].cls, name: IB.WEAPONS[id].name, on: id === G.ws.cur }; }));
     HUD.score(G.zone + 1, G.level.zones.length, G.run.time, zn.state === 'active' ? AI.alive(G.zone) + zn.queue.length + remainingInWaves(zn) : 0);
     HUD.gems(G.slot ? G.slot.gems : G.run.gems, false);
     HUD.crosshair(W.spread(G.ws, p), R.camera.fov, p.sprinting);
@@ -586,6 +743,7 @@
     return n;
   }
   var footFx = {
+    slide: function (on) { if (on) { A.play('shove', { pitch: 0.65, gain: 1.2 }); G.addTrauma(0.12); } },
     jump: function () { A.play('step', { gain: 1.4 }); },
     land: function (fell) { A.play('land', { gain: Math.min(1, 0.4 + fell * 0.3) }); },
     step: function (spr) { A.play('step', { gain: spr ? 1.2 : 0.9, pitch: 0.9 + Math.random() * 0.2 }); }

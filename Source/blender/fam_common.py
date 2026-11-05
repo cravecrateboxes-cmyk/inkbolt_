@@ -10,9 +10,9 @@ from mathutils import Euler, Matrix, Quaternion, Vector
 from ib_lib import *  # noqa: F401,F403
 import ib_lib
 
-ib_lib.PALETTES['common'] = BASE + [('cloud', '#FFFDF7'), ('cloudshade', '#EDE6F2'), ('hill', '#7FC47A'), ('hill2', '#9AD38A'),
-                      ('pine', '#3F8F6A'), ('trunk', '#8A5A3B'), ('canbody', '#8C93A0'), ('canlid', '#6E7480'),
-                      ('canband', '#5E6470'), ('dull', '#E9DFC8')]
+ib_lib.PALETTES['common'] = BASE + [('cloud', '#FFFDF7'), ('cloudshade', '#EDE6F2'), ('hill', '#93D08E'), ('hill2', '#A9DC9A'),
+                      ('pine', '#4FA27B'), ('trunk', '#8A5A3B'), ('canbody', '#A0A7B3'), ('canlid', '#838995'),
+                      ('canband', '#737986'), ('dull', '#E9DFC8')]
 
 # ================================================================ COMMON
 def build_common(ao):
