@@ -5,6 +5,8 @@
   var PAL = IB.PAL;
   var W = IB.Weapons = {};
   var D2R = Math.PI / 180;
+  var FIRE_SND = { pistol: ['pip', 1], smg: ['buzz', 1], rifle: ['gun', 1.05], sniper: ['gun', 0.62], handcannon: ['gun', 0.78], twintap: ['pip', 1.12],
+    whisk: ['buzz', 1.18], hornet: ['buzz', 0.9], longtom: ['gun', 0.82], brick: ['gun', 0.88], triplet: ['gun', 1.12] };
   var _dir = new THREE.Vector3(), _right = new THREE.Vector3(), _up = new THREE.Vector3(), _fwd = new THREE.Vector3();
 
   // ---------------- viewmodel: Blender arms rig (22 bones) + weapon meshes from fps-weapons.glb ----------------
@@ -203,7 +205,9 @@
     s.kickZv += 1.6 + rec * 0.5; s.kickRv += 2.0 + rec * 1.2;
     s.flashT = 0.045;
     W.anim(s, 'Fire', { once: true, fade: 0.02 });
-    IB.Audio && IB.Audio.play(d.id === 'buzz' ? 'buzz' : (d.id === 'pip' ? 'pip' : 'gun'), { pitch: 1 + (Math.random() * 0.08 - 0.04) });
+    // layered shot per class; heavier guns pitch down, light ones up (+/-4% random per shot)
+    var snd = FIRE_SND[d.id] || FIRE_SND[d.cls] || ['gun', 1];
+    IB.Audio && IB.Audio.play(snd[0], { pitch: snd[1] * (1 + (Math.random() * 0.08 - 0.04)) });
     if (ctx.onFire) ctx.onFire(d);
   }
 
@@ -227,12 +231,13 @@
   W.sightOf = function (id) {
     var m = W.models[id]; if (!m) return null;
     if (!m.sight) {
-      var sk = m.mesh.getObjectByName('WPN_' + m.key + '_SIGHT');
+      // scoped weapons aim through the eyepiece; everything else along the iron/red-dot sight line
+      var sk = m.mesh.getObjectByName('WPN_' + m.key + '_SCOPE') || m.mesh.getObjectByName('WPN_' + m.key + '_SIGHT');
       m.sight = sk ? sk.position.clone() : new THREE.Vector3().fromArray(DEFAULT_SIGHT[IB.WEAPONS[id].cls] || DEFAULT_SIGHT.rifle);
     }
     return m.sight;
   };
-  var ADS_DIST = 0.36, VM_SCALE = 0.85;
+  var ADS_DIST = { pistol: 0.34, smg: 0.22, rifle: 0.17, sniper: 0.13, shotgun: 0.2, rocket: 0.2 }, VM_SCALE = 0.85;
   W.pose = function (s, dt, player, lookDX, lookDY, headBob, t) {
     var g = W.current(s), k = Math.min(1, dt * 10);
     // look sway lags the camera; clamp so fast flicks don't throw the gun off screen
@@ -263,7 +268,7 @@
     // aim down sights: blend toward the pose that puts the sight point on the screen centre
     if (g && a > 0.001) {
       var sp = W.sightOf(g.id);
-      var ax = -sp.x * VM_SCALE, ay = -sp.y * VM_SCALE, az = -ADS_DIST - sp.z * VM_SCALE;
+      var ax = -sp.x * VM_SCALE, ay = -sp.y * VM_SCALE, az = -(ADS_DIST[g.def.cls] || 0.25) - sp.z * VM_SCALE;
       x += (ax - x) * a; y += (ay - y) * a; z += (az - z) * a;
       rx *= hip * 0.6 + 0.4 * (1 - a); ry *= hip; rz *= hip * 0.7 + 0.3;
     }

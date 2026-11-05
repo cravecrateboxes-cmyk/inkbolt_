@@ -673,7 +673,7 @@
     W.update(G.ws, dt, { player: p, cam: R.camera, input: { fire: Inp.fire && p.alive && G.run.started, firePressed: Inp.firePressed && p.alive && G.run.started, aim: Inp.aim && p.alive }, shoot: shoot,
       onFire: function (d) { if (s.shake && (d.cls === 'smg' || d.cls === 'rifle')) G.shake = Math.max(G.shake, 0.15); } });
     // FOV: aim zoom, plus a small widen at sprint and a kick while sliding
-    var aimZoom = (W.current(G.ws) && W.current(G.ws).def.aimZoom) || 0.85;
+    var cw = W.current(G.ws), aimZoom = cw ? (cw.def.scopeZoom ? 1 / cw.def.scopeZoom : (cw.def.aimZoom || 0.85)) : 0.85;
     G.fovKick = (G.fovKick || 0) + (((p.sliding ? 0.1 : p.sprinting ? 0.05 : 0)) - (G.fovKick || 0)) * Math.min(1, dtRaw * 8);
     var targetMul = (1 + (aimZoom - 1) * G.ws.aim) * (1 + G.fovKick);
     if (Math.abs(targetMul - R.fovMul) > 0.002) { R.fovMul = targetMul; R.applyFov(); }
