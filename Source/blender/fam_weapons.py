@@ -581,7 +581,7 @@ def build_rivet(pal):
     barrel(k, 0.350, 0.450, 0.0085, bz)
     muzzle(k, 0.448, 0.500, 0.0120, bz, rb=0.0055, ports=3)                       # birdcage
     sz = iron_rear(k, -0.090, 0.059)
-    iron_front(k, 0.330, 0.062)
+    iron_front(k, 0.330, 0.062, post=0.008)                                     # post top on the aperture line
     trigger_guard(k, rake, front=0.068, depth=-0.052, w=0.012, top=-0.012, hook=False)
     trigger(k, rake)
     grip(k, rake, 'ar', w=0.033, top=-0.008, ptop=-0.038, grooves=2)
@@ -793,7 +793,7 @@ def build_whisk(pal):
             bands=[None, None, None, 'amber', 'amber', 'amber', None, None, None, 'ink', 'ink'])
     for i in range(3):
         k.box((0, 0.230 + i * 0.012, bz + r - 0.0005), (0.010, 0.004, 0.007), 'ink', skip=('-z',))
-    k.box((0, 0.216, bz + r + 0.004), (0.005, 0.008, 0.012), 'ink', hull=True)       # front post on the can
+    k.box((0, 0.216, bz + r + 0.010), (0.005, 0.008, 0.024), 'ink', hull=True)       # front post on the can (on the sight line)
     # folding vertical foregrip, grip (mag well), guard
     vgrip(k, 0.088, -0.006, length=0.060, r=0.014)
     trigger_guard(k, rake, front=0.064, depth=-0.046, hook=False, top=-0.004)
@@ -988,7 +988,7 @@ def build_brick(pal):
     for i in range(4):
         a = D(45 + 90 * i)
         k.box((0.0185 * math.cos(a), 0.496, bz + 0.0185 * math.sin(a)), (0.006, 0.020, 0.006), 'ink', rot=(0, -math.degrees(a), 0), skip=('-x',))
-    k.box((0, 0.452, bz + 0.020), (0.006, 0.010, 0.020), 'ink', hull=True)
+    k.box((0, 0.452, bz + 0.040), (0.006, 0.010, 0.056), 'ink', hull=True)       # tall front post, level with the leaf
     bipod_folded(k, 0.290, 0.440, 0.008, x=0.016)
     k.ring('y', (0, 0, bz), 0.420, 0.432, 0.010, 0.0165, 'steel2', seg=10, hull=False)
     trigger_guard(k, rake, front=0.056, depth=-0.050, hook=False, top=-0.004)
