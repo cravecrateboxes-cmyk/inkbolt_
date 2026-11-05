@@ -80,10 +80,6 @@ def rrect(w, h, c=0.0, cx=0.0, cy=0.0, seg=1, ct=None, cb=None):
     return pts
 
 
-def ngon(r, n, cx=0.0, cy=0.0, a0=0.0, sx=1.0, sy=1.0):
-    return [(cx + sx * r * math.cos(D(a0) + 2 * math.pi * k / n), cy + sy * r * math.sin(D(a0) + 2 * math.pi * k / n)) for k in range(n)]
-
-
 AXES = {'x': (V((1, 0, 0)), V((0, 1, 0)), V((0, 0, 1))),
         'y': (V((0, 1, 0)), V((1, 0, 0)), V((0, 0, 1))),
         'z': (V((0, 0, 1)), V((1, 0, 0)), V((0, 1, 0)))}
@@ -540,6 +536,12 @@ def build_pip(pal):
     k.xbar(-0.0265, -0.0225, [(0.002, 0.000), (0.042, 0.000), (0.046, 0.006), (0.040, 0.009), (0.004, 0.006)], 'gun3', ch=0, hull=False)  # slide stop
     k.pin(-0.0235, 0.0235, 0.060, -0.004, 0.0028)
     k.pin(-0.0235, 0.0235, -0.050, 0.000, 0.0026)
+    for i in range(2):                                                         # lightening cuts on the slide top
+        k.box((0, 0.070 + i * 0.024, 0.052), (0.016, 0.016, 0.006), 'ink', skip=('-z',))
+    k.box((0, -0.0865, 0.028), (0.024, 0.005, 0.024), 'gun3')                  # slide rear plate
+    k.box((0.02375, 0.003, 0.030), (0.0055, 0.014, 0.006), 'steel')            # extractor
+    k.box((-0.0225, 0.012, -0.006), (0.006, 0.008, 0.008), 'gun3')             # mag release
+    k.box((-0.0235, 0.052, -0.0015), (0.004, 0.008, 0.009), 'gun3')            # takedown lever
     trigger_guard(k, rake, front=0.084, depth=-0.046)
     trigger(k, rake)
     grip(k, rake, 'pistol')
@@ -1276,15 +1278,20 @@ ANIM = {
     'BRICK': {'fire': 60 / 500, 'reload': 3.4, 'style': 'rifle', 'heavy': 0.5, 'charge': ((0.036, -0.010, 0.030), (0, -0.060, 0))},
     'NEEDLE': {'fire': 60 / 45, 'reload': 3.0, 'style': 'bolt', 'heavy': 1.4},
 }
-CARRY = {'pistol': (0.0, -0.01, 0.0), 'smg': (0.0, -0.09, -0.004), 'rifle': (0.0, -0.17, -0.010), 'sniper': (0.0, -0.17, -0.010)}
+CARRY = {'pistol': (0.0, -0.01, 0.0), 'smg': (0.0, -0.13, -0.006), 'rifle': (0.0, -0.17, -0.010), 'sniper': (0.0, -0.17, -0.010)}
 GUARD_ROT = (-90, -115, 0)        # support glove under a handguard (grip axis along the barrel)
+
+
+# two-hand pistol hold: support glove offset (m), extra rotation (deg), thumb swing forward, finger curl
+PISTOL_LEFT = (-0.018, 0.018, -0.016, 8, 0, 14, 95, -8)
 
 
 def left_hold(wid):
     """Support-hand frame in weapon space for the hold pose."""
     info = WEAPONS[wid]
     if info['cls'] == 'pistol':
-        return mat_trs((-0.012, 0.012, -0.022), (-info['rake'], 0, 6))
+        o = PISTOL_LEFT
+        return mat_trs(o[:3], (-info['rake'] + o[3], o[4], o[5]))
     if 'fore' in info:
         y, z = info['fore']
         return mat_trs((0, y, z - 0.004), (0, 0, 0))
@@ -1343,6 +1350,8 @@ class Poser:
 
     def __call__(self, wl=(0, 0, 0), wr=(0, 0, 0), trig=0.0, FL=None, FR=None, mag=None, curlL=0.0, curlR=0.0, idx=0.0, thumbL=0.0, thumbR=0.0):
         W = self.wm(wl, wr)
+        if FL is None and self.info['cls'] == 'pistol':      # two-hand pistol hold: support thumb forward
+            thumbL, curlL = thumbL + PISTOL_LEFT[6], curlL + PISTOL_LEFT[7]
         curl = {'INDEX_R': 14 * trig + idx, 'INDEX_L': curlL, 'THUMB1_L': thumbL, 'THUMB1_R': thumbR}
         for fn in ('MIDDLE', 'RING', 'PINKY'):
             curl[fn + '_R'] = curlR
@@ -1464,13 +1473,13 @@ def mag_reload(p, r):
             keys.append((fr(t), p(FR=knob_frame(p, W0, off, rot))))
         keys.append((r, p()))
         return keys
-    # slide / charging handle: support glove pinches the part and pulls it back
+    # slide / charging handle: the support glove closes on the part from the left side and pulls it back
     ch, pull = a['charge']
-    tl3, tr3 = (0.0, 0.0, -0.006), (6, -4, -10)
+    tl3, tr3 = (0.0, 0.0, -0.006), (6, -6, -10)
     Wc = p.wm(tl3, tr3)
-    pinch = Wc @ T(ch) @ mat_trs((0, 0, 0), (-90, 0, 90)) @ T((0.006, 0.0, 0.020))
-    keys.append((fr(0.80), p(tl3, tr3, FL=pinch, curlL=8)))
-    keys.append((fr(0.88), p(tl3, tr3, FL=T(Wc.to_3x3() @ V(pull)) @ pinch, curlL=8)))
+    side = Wc @ T((min(ch[0], -0.020) - 0.026, ch[1] + 0.020, ch[2] - 0.004)) @ mat_trs((0, 0, 0), (-35, 0, -10))
+    keys.append((fr(0.80), p(tl3, tr3, FL=side, curlL=6)))
+    keys.append((fr(0.88), p(tl3, tr3, FL=T(Wc.to_3x3() @ V(pull)) @ side, curlL=6)))
     keys.append((r, p()))
     return keys
 
