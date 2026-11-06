@@ -7,8 +7,9 @@ WHAT IS HERE
     src/data/         Tables: weapons, robots, bosses, upgrades, unlocks, levels 1-20, zone maps (ASCII .txt).
     src/core/         Pure logic (no browser needed): damage, gems, upgrades, saves, level generator, RNG.
     src/game/         Runtime: renderer + ink outlines, zones/gates/trail, player, weapons, robots/AI, effects, audio, input, platform hooks.
-    src/ui/           HUD, menus, field kit (Inventory / Skills / Character), stylesheet ("holo ink" look, ui.css).
-    vendor/           three.js r128, Archivo font (OFL licence), BufferGeometryUtils and GLTFLoader (for the Blender GLBs next round).
+    src/ui/           HUD (hud.js + hud.css), menus, between-levels loader (loader.js + loader.css), field kit
+                      (Inventory / Skills / Character), stylesheet ("holo ink" look, ui.css).
+    vendor/           three.js r128, Archivo and Barlow Condensed fonts (OFL licences), BufferGeometryUtils and GLTFLoader.
     tools/build.py    Builds Play Inkbolt.html, Source/dev.html and Source/dist/upload/.
     tests/unit/       node:test unit tests for src/core and src/data.
     tests/e2e/        Headless Chromium tests: smoke (plays the level), screens (screenshot matrix), perf.
@@ -46,6 +47,21 @@ LOOT AND GEAR
   cleared, the attachment slots of each carried gun, the shield) and the BACKPACK (weapons, attachments, shields);
   it equips, fits, moves and scraps them. Tables: src/data/loot.js; logic: src/core/loot.js; models: blender/fam_gear.py.
 
+HUD (src/ui/hud.js, hud.css)
+  Tactical look (Call of Duty / Titanfall 2 vein) over the comic world: translucent glass panels with cut corners in the
+  corners of the screen, hairline accents, Barlow Condensed tabular numerals. Top-left objective + gems, top-centre zone /
+  timer / robots-left strip, top-right radar + kill feed, bottom-left level tag + shield + segmented health bar (a red
+  chip trails the damage you just took) + stamina, bottom-right carried guns + weapon name (ink-brush underline) + big
+  ammo count with the reserve smaller. Comic touches stay: halftone at the screen edges when hurt or low on health,
+  ink-outlined damage numbers. Phones keep the same layout as before (clear of the stick and the button cluster).
+  Enemy health bars (src/game/hpbars.js): a slim slanted bar over a robot while it is hurt and within 30 m, under the
+  crosshair, or just hit; smooth drain with a delayed chip, a shield row when a robot has one, the type's colour on the
+  left tab, more segments for tougher robots. One instanced draw call for all of them (up to 24 at once), depth-tested
+  so cover hides them, sized in screen pixels with a legible minimum.
+  Loading (src/ui/loader.js): a black screen with a real-3D gear and pinion (own small WebGL canvas, toon-metal shading,
+  teal / amber / purple glowing rims and neon edges), the next level's name and a hairline progress bar. It lasts 3.5 s,
+  then the level fades in from dark.
+
 EXPLOSIONS AND HAZARDS (src/game/boom.js)
   Robots blow up as comic explosions (toon fireballs, ink smoke, flying parts, a word like KRAK! or KA-BOOM!);
   Drones drop out of the air and blow up where they land. Effects grow with the campaign level (IB.Boom.intensity:
@@ -61,4 +77,5 @@ BUILD AND TEST (from the Source folder)
   node tests/e2e/screens.spec.js            (screenshots in tests/e2e/screens/, layout checks)
   node tests/e2e/perf.spec.js               (draw calls, triangles, frame times, VFX stress)
   node tests/e2e/vfx-shots.js               (frame-stepped explosion screenshots -> tests/e2e/review/vfx-*.png)
+  node tests/e2e/hud-shots.js               (HUD, enemy health bars and loader at 3 sizes -> tests/e2e/review/hud-*.png, loader-*.png)
   Dev page: serve the repo folder over http and open Source/dev.html  (add ?autotest=1 to skip the title).

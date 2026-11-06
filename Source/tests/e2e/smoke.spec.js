@@ -416,6 +416,44 @@ async function slideRun(browser, base) {
   await pg.context().close();
 }
 
+async function hudRun(browser, base) {
+  console.log('\n# HUD: enemy health bars, damage chip, loader');
+  const pg = await newPage(browser, base + '?autotest=1&plan=greybox');
+  // one robot 8 m ahead (AI parked so it holds still), at full health and not under the crosshair: no bar
+  await pg.evaluate(() => {
+    const G = IB.Game, p = G.player, AI = IB.AI; p.protect = 999; AI.update = () => {};
+    AI.robots.forEach(r => { if (r.on) { r.on = false; r.state = 'off'; } });
+    const r = AI.spawn('crawler', p.x + 3, p.z - 8, G.zone || 0, p.x, p.z); r.state = 'chase'; r.y = 0; window.__hbR = r;
+    p.yaw = Math.PI;   // looking away
+  });
+  await pg.waitForTimeout(600);
+  check('robots at full health show no bar', (await pg.evaluate(() => IB.HPBars.stats().shown)) === 0, JSON.stringify(await pg.evaluate(() => IB.HPBars.stats())));
+  // hit it: its bar shows, drains, and keeps a chip of the damage for a moment
+  await pg.evaluate(() => { const r = window.__hbR; IB.AI.damage(r, r.maxHp * 0.4, {}); });
+  check('a hurt robot gets a health bar', await until(pg, () => IB.HPBars.stats().bars.some(b => b.hp < 0.9 && b.a > 0.5), null, 5000), JSON.stringify(await pg.evaluate(() => IB.HPBars.stats())));
+  check('the bar drains to the robot\'s health', await until(pg, () => { const r = window.__hbR, b = IB.HPBars.stats().bars[0]; return b && Math.abs(b.hp - r.hp / r.maxHp) < 0.03; }, null, 5000));
+  // one draw call for every bar, and it goes when the HUD hides (pause) and comes back
+  await pg.evaluate(() => __TEST__.pause());
+  check('bars hide while paused', await until(pg, () => IB.HPBars.stats().shown === 0 && !IB.Render.scene.getObjectByName('hpbars').visible, null, 5000));
+  await pg.evaluate(() => __TEST__.resume());
+  check('bars come back after resume', await until(pg, () => IB.HPBars.stats().shown > 0, null, 5000));
+  // a kill: the bar empties and fades out
+  await pg.evaluate(() => IB.AI.kill(window.__hbR, IB.Game.onKill));
+  check('a killed robot\'s bar fades out', await until(pg, () => !IB.HPBars.stats().bars.length, null, 5000));
+  // player health: the damage chip trails the fill, healing snaps it
+  await pg.evaluate(() => { const H = IB.HUD; H.health(100, 100); H.health(70, 100); H.realHealth = H.health; H.health = () => {}; });   // the widget itself (game calls parked)
+  await pg.waitForTimeout(120);
+  const chip = await pg.evaluate(() => ({ fill: parseFloat(document.getElementById('hpFill').style.width), chip: document.getElementById('hpChip').getBoundingClientRect().width / document.querySelector('.hp-bar').getBoundingClientRect().width * 100 }));
+  check('HUD health keeps a damage chip behind the fill for a moment', chip.chip > chip.fill + 5, JSON.stringify(chip));
+  // loader: black screen with the 3D gear canvas; hides on cue
+  const ld = await pg.evaluate(() => { IB.Menus.loading({ level: 2, name: 'Backyard' }); IB.Menus.loadingProgress(0.5); const el = document.getElementById('loading'); return { vis: IB.Menus.isLoading(), cv: !!el.querySelector('canvas.ldr-cv'), bg: getComputedStyle(el).backgroundColor, text: el.textContent }; });
+  check('loader shows a black screen with the gear canvas and the level name', ld.vis && ld.cv && ld.bg === 'rgb(0, 0, 0)' && /Backyard/i.test(ld.text), JSON.stringify(ld));
+  await pg.evaluate(() => new Promise(done => IB.Menus.loadingHide(done, 100)));
+  check('loader hides', await pg.evaluate(() => !IB.Menus.isLoading() && document.getElementById('loading').hidden));
+  check('no console errors or warnings', pg.logs.length === 0, pg.logs.join(' | '));
+  await pg.context().close();
+}
+
 async function lootRun(browser, base) {
   console.log('\n# loot: drops, pickup, attachments, shield, damage numbers, DoT');
   const pg = await newPage(browser, base + '?autotest=1&plan=greybox');
@@ -586,7 +624,7 @@ async function vfxRun(browser, base) {
   const browser = await chromium.launch({ args: ARGS });
   try {
     // ONLY=lootRun,tabMenuRun runs a subset
-    const runs = { hookRun, deathRun, inputRun, touchRun, tabMenuRun, skillsRun, slideRun, lootRun, campaignRun, vfxRun };
+    const runs = { hookRun, deathRun, inputRun, touchRun, tabMenuRun, skillsRun, slideRun, hudRun, lootRun, campaignRun, vfxRun };
     for (const [name, fn] of Object.entries(runs)) if (!process.env.ONLY || process.env.ONLY.split(',').includes(name)) await fn(browser, base);
   } catch (e) { console.log('FAIL exception ' + e.stack); failures++; }
   await browser.close(); server.close();
