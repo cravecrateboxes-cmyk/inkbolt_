@@ -7,7 +7,7 @@
   var SLOTS = 3;
   var SETTINGS_KEY = PREFIX + 'settings';
   var DEFAULT_SETTINGS = {
-    sfx: true, mouseSens: 1.0, touchSens: 1.0, fov: 85, invertY: false, graphics: 'auto',
+    sfx: true, mouseSens: 1.0, touchSens: 1.0, fov: 100, invertY: false, graphics: 'auto',
     shake: true, headBob: true, reduceFlash: false
   };
 
@@ -176,12 +176,16 @@
       var s = clone(DEFAULT_SETTINGS);
       var o = read(SETTINGS_KEY);
       if (o) for (var k in DEFAULT_SETTINGS) if (o[k] !== undefined && typeof o[k] === typeof DEFAULT_SETTINGS[k]) s[k] = o[k];
+      // settings v2: the old 85 default becomes the new 100 default (a field of view the player chose is kept)
+      if (o && !o.sv && o.fov === 85) s.fov = DEFAULT_SETTINGS.fov;
+      s.fov = Math.max(60, Math.min(130, s.fov));
       return s;
     }
 
     function saveSettings(s) {
       var out = clone(DEFAULT_SETTINGS);
       for (var k in DEFAULT_SETTINGS) if (s && s[k] !== undefined) out[k] = s[k];
+      out.sv = 2;
       write(SETTINGS_KEY, out);
       return out;
     }

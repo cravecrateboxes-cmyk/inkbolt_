@@ -106,7 +106,7 @@
       sw('sfx', 'Sound effects') +
       sl('mouseSens', 'Mouse sensitivity', 0.1, 3, 0.1, f1) +
       sl('touchSens', 'Touch look sensitivity', 0.1, 3, 0.1, f1) +
-      sl('fov', 'Field of view', 70, 100, 1, function (v) { return v + '°'; }) +
+      sl('fov', 'Field of view', 60, 130, 1, function (v) { return v + '°'; }) +
       sw('invertY', 'Invert Y') +
       seg('graphics', 'Graphics', [['auto', 'Auto'], ['high', 'High'], ['low', 'Low']]) +
       sw('shake', 'Screen shake') + sw('headBob', 'Head bob') + sw('reduceFlash', 'Reduce flash') +

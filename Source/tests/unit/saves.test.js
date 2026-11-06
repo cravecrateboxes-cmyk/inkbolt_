@@ -126,7 +126,7 @@ test('version migration from v:1', () => {
 
 test('settings defaults, save, backup', () => {
   const { be, store } = setup();
-  assert.deepEqual(store.loadSettings(), { sfx: true, mouseSens: 1.0, touchSens: 1.0, fov: 85, invertY: false,
+  assert.deepEqual(store.loadSettings(), { sfx: true, mouseSens: 1.0, touchSens: 1.0, fov: 100, invertY: false,
     graphics: 'auto', shake: true, headBob: true, reduceFlash: false });
   store.saveSettings({ fov: 100, sfx: false });
   assert.equal(store.loadSettings().fov, 100);
@@ -137,7 +137,7 @@ test('settings defaults, save, backup', () => {
   be.setItem('inkbolt.settings', '{bad');
   assert.equal(store.loadSettings().fov, 100, 'falls back to the backup');
   be.setItem('inkbolt.settings', JSON.stringify({ fov: 'wide' }));
-  assert.equal(store.loadSettings().fov, 85, 'wrong-typed value ignored');
+  assert.equal(store.loadSettings().fov, 100, 'wrong-typed value ignored');
 });
 
 test('reset clears all inkbolt keys only', () => {
@@ -150,7 +150,7 @@ test('reset clears all inkbolt keys only', () => {
   store.resetAll();
   assert.deepEqual(be.keys(), ['othergame.save']);
   assert.deepEqual(store.listSlots(), [null, null, null]);
-  assert.equal(store.loadSettings().fov, 85);
+  assert.equal(store.loadSettings().fov, 100);
 });
 
 test('backend that throws does not crash', () => {
@@ -158,7 +158,7 @@ test('backend that throws does not crash', () => {
   const store = S.create(bad, () => 1);
   assert.deepEqual(store.listSlots(), [null, null, null]);
   assert.doesNotThrow(() => store.save(store.newSlot(1, 1)));
-  assert.equal(store.loadSettings().fov, 85);
+  assert.equal(store.loadSettings().fov, 100);
   assert.doesNotThrow(() => store.resetAll());
 });
 
@@ -188,4 +188,16 @@ test('skills are validated against progress on load (spent <= earned, gates, one
   const both = { overboard: 3, fastfingers: 3, tinhide: 3, steadyink: 3, scrapmagnet: 1, lightningrod: 1, tintitan: 1 };
   be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 99, skills: both }));
   assert.deepEqual(store.load(1).skills, {});
+});
+
+test('settings v2: old 85 default becomes 100, a chosen field of view is kept, range 60-130', () => {
+  const be = IB.Saves.memoryBackend();
+  be.setItem('inkbolt.settings', JSON.stringify({ fov: 85 }));
+  assert.equal(IB.Saves.create(be).loadSettings().fov, 100);
+  be.setItem('inkbolt.settings', JSON.stringify({ fov: 92 }));
+  assert.equal(IB.Saves.create(be).loadSettings().fov, 92);
+  be.setItem('inkbolt.settings', JSON.stringify({ fov: 85, sv: 2 }));
+  assert.equal(IB.Saves.create(be).loadSettings().fov, 85, 'an 85 saved after v2 is a choice');
+  be.setItem('inkbolt.settings', JSON.stringify({ fov: 200, sv: 2 }));
+  assert.equal(IB.Saves.create(be).loadSettings().fov, 130);
 });

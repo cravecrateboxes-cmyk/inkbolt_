@@ -232,7 +232,7 @@
   // ---------- Renderer ----------
   var R = IB.Render = {
     renderer: null, scene: null, camera: null, vmScene: null, vmCam: null,
-    gradient: null, worldOutline: null, vmOutline: null, baseFov: 85, fovMul: 1, tier: 'high', pixelRatio: 1,
+    gradient: null, worldOutline: null, vmOutline: null, baseFov: 100, fovMul: 1, tier: 'high', pixelRatio: 1,
     width: 1, height: 1
   };
 
