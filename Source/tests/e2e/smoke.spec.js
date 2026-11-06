@@ -178,7 +178,7 @@ async function touchRun(browser, base) {
 }
 
 async function tabMenuRun(browser, base) {
-  console.log('\n# field kit (Tab): pause, spend a skill point, change the loadout, respec, resume');
+  console.log('\n# field kit (Tab): pause, inventory, spend a skill point, character, change the loadout, respec, resume');
   const pg = await newPage(browser, base + '?autotest=1&plan=greybox');
   await until(pg, () => IB.Game.run.started, null, 5000);
   // progress as if levels 1-3 were cleared (4 skill points) and a rifle was picked up earlier
@@ -193,11 +193,10 @@ async function tabMenuRun(browser, base) {
   const t0 = await pg.evaluate(() => IB.Game.run.time); await pg.waitForTimeout(500);
   check('game time is frozen while open', (await pg.evaluate(() => IB.Game.run.time)) === t0);
   check('HUD hidden behind the menu', await pg.evaluate(() => document.getElementById('hud').hidden));
-  // skills: E twice from Loadout -> Gear -> Skills (keyboard), then mouse
+  check('it opens on the Inventory tab (equipped column, backpack, item card)', await pg.evaluate(() => IB.TabMenu.tab === 'inventory' && !!document.querySelector('#tmGear .inv-eq') && !!document.querySelector('#tmGear .inv-bp') && !!document.querySelector('#tmGear .inv-card')));
+  // skills: E from Inventory -> Skills (keyboard), then mouse
   await pg.keyboard.press('KeyE');
-  check('E switches to the Gear tab (empty state without the loot system)', await pg.evaluate(() => IB.TabMenu.tab === 'gear' && !!document.querySelector('#tmGear')));
-  await pg.keyboard.press('KeyE');
-  check('E again switches to Skills', await pg.evaluate(() => IB.TabMenu.tab === 'skills' && !!document.querySelector('.sk-tree')));
+  check('E switches to Skills', await pg.evaluate(() => IB.TabMenu.tab === 'skills' && !!document.querySelector('.sk-tree')));
   await pg.click('[data-skill="overboard"]');
   await pg.click('[data-act="buy"]');
   let pr = await pg.evaluate(() => __TEST__.progress());
@@ -208,10 +207,14 @@ async function tabMenuRun(browser, base) {
   check('locked tier refuses (Heavy Ink needs 6 points above)', await pg.evaluate(() => { document.querySelector('[data-skill="heavyink"]').click(); return document.querySelector('[data-act="buy"]').disabled; }));
   const saved1 = await pg.evaluate(() => JSON.parse(localStorage.getItem('inkbolt.slot1')).skills);
   check('skills saved at once', saved1 && saved1.overboard === 2, JSON.stringify(saved1));
-  // loadout: slot 2, then the rifle
+  await pg.keyboard.press('KeyE');
+  check('E again switches to Character (level, stats, record)', await pg.evaluate(() => IB.TabMenu.tab === 'character' && /Max health/.test(document.getElementById('tmPanel').textContent)));
+  // inventory: slot 2, then the rifle from the backpack
   await pg.keyboard.press('KeyQ'); await pg.keyboard.press('KeyQ');
-  check('Q goes back to Loadout', await pg.evaluate(() => IB.TabMenu.tab === 'loadout'));
-  check('arsenal lists every owned gun, 2 slots + a locked third', await pg.evaluate(() => document.querySelectorAll('.lo-card').length === 3 && document.querySelectorAll('.lo-slot').length === 3 && !!document.querySelector('.lo-slot.locked')));
+  check('Q twice goes back to Inventory', await pg.evaluate(() => IB.TabMenu.tab === 'inventory'));
+  check('backpack lists the gun not carried, 2 weapon slots + a locked third', await pg.evaluate(() => document.querySelectorAll('.lo-card').length === 1 && document.querySelectorAll('.lo-slot').length === 3 && !!document.querySelector('.lo-slot.locked')));
+  await pg.hover('[data-gun="rivet"]');
+  check('pointing at a backpack gun shows its card, compared with the selected slot', await pg.evaluate(() => /AR-22 Rivet/i.test(document.querySelector('.inv-card').textContent) && /Compared with/.test(document.querySelector('.inv-card').textContent)));
   await pg.click('[data-slot="1"]'); await pg.click('[data-gun="rivet"]');
   pr = await pg.evaluate(() => __TEST__.progress());
   check('rifle goes into slot 2', JSON.stringify(pr.loadout) === '["pip","rivet"]', JSON.stringify(pr.loadout));
@@ -220,8 +223,9 @@ async function tabMenuRun(browser, base) {
   pr = await pg.evaluate(() => __TEST__.progress());
   check('carried guns follow the loadout', JSON.stringify(pr.carried) === '["pip","rivet"]', JSON.stringify(pr.carried));
   check('Overboard applies (+20% magazine: Warden 12 -> 15)', await pg.evaluate(() => IB.Weapons.magSize(IB.Game.ws, IB.WEAPONS.pip) === 15));
-  await pg.keyboard.press('Digit2'); await pg.waitForTimeout(700);
-  check('key 2 draws the rifle from slot 2', (await st(pg)).weapon === 'rivet', (await st(pg)).weapon);
+  await pg.keyboard.press('Digit2');
+  // holster + draw of a gun first drawn now (shader compile under software GL): wait for it rather than a fixed 0.7 s
+  check('key 2 draws the rifle from slot 2', await until(pg, () => __TEST__.state().weapon === 'rivet' && IB.Game.ws.state === 'idle', null, 8000), (await st(pg)).weapon);
   await pg.keyboard.press('Digit3'); await pg.waitForTimeout(300);
   check('key 3 does nothing with 2 guns', (await st(pg)).weapon === 'rivet');
   // respec costs gems and refunds everything
@@ -374,8 +378,10 @@ async function lootRun(browser, base) {
   check('IB.Status.apply shock ticks with blue numbers', shock && shocked);
   // gear panel: detach and scrap through the UI
   await pg.evaluate(() => __TEST__.gear());
-  const panel = await pg.evaluate(() => [IB.Game.mode, /Gear/i.test(document.getElementById('overlay').textContent), document.querySelectorAll('#gearRoot .gu-item').length]);
-  check('gear panel opens (paused, 4 items)', panel[0] === 'paused' && panel[1] && panel[2] === 4, JSON.stringify(panel));
+  const panel = await pg.evaluate(() => [IB.Game.mode, /Inventory/i.test(document.getElementById('overlay').textContent), new Set([...document.querySelectorAll('#gearRoot [data-item]')].map(e => e.dataset.item)).size]);
+  check('inventory panel opens (paused, 4 items: shield + 3 fitted to the SMG)', panel[0] === 'paused' && panel[1] && panel[2] === 4, JSON.stringify(panel));
+  await pg.click('#gearRoot .inv-chip.filled[data-w="buzz"] >> nth=0');
+  check('picking a fitted attachment shows its card with the guns it fits', await pg.evaluate(() => !!document.querySelector('#gearRoot .inv-card .gu-fit button[aria-pressed="true"][data-w="buzz"]')));
   await pg.click('#gearRoot .gu-fit button[aria-pressed="true"][data-w="buzz"] >> nth=0');
   s = await gs();
   check('detaching in the panel restores the stat', Object.keys(s.attach.buzz || {}).length === 2, JSON.stringify(s.attach));

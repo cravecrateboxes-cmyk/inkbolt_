@@ -131,8 +131,25 @@ const SCREENS = {
   },
   // field kit (Tab menu) with mid-campaign progress: skills half spent, a 3-gun loadout, a full arsenal
   'tabmenu-skills': async pg => { await fieldKit(pg, 'skills'); await pg.evaluate(() => { const b = document.querySelector('[data-skill="coredump"]'); if (b) b.click(); }); },
-  'tabmenu-loadout': async pg => { await fieldKit(pg, 'loadout'); },
-  'tabmenu-gear': async pg => { await fieldKit(pg, 'gear'); },
+  'tabmenu-inventory': async pg => { await fieldKit(pg, 'inventory'); },
+  // inventory with loot: a fitted grip + acid muzzle, a worn shield, spares in the backpack; a backpack gun selected (card + compare)
+  'tabmenu-gear': async pg => {
+    await fieldKit(pg, 'inventory');
+    await pg.evaluate(() => {
+      const G = IB.Game, L = IB.Loot, g = IB.Gear.gear(G);
+      const rng = (() => { let s = 7; return () => (s = (s * 16807) % 2147483647) / 2147483647; })();
+      [['shield', 'epic'], ['grip', 'rare'], ['acid', 'epic'], ['scope', 'common'], ['shield', 'common'], ['acid', 'rare']].forEach(([t, r], i) => {
+        const it = L.addItem(g, L.makeItem(t, r, 3 + i, rng));
+        if (i === 0) L.equipShield(g, it.id); if (i === 1) L.attach(g, 'rivet', IB.WEAPONS.rivet, it.id); if (i === 2) L.attach(g, 'rivet', IB.WEAPONS.rivet, it.id);
+      });
+      IB.Gear.refresh(G, true); IB.GearUI.state.sel = { k: 'gun', id: 'needle' }; IB.GearUI.render(document.getElementById('tmGear'), G);
+    });
+  },
+  'tabmenu-character': async pg => { await fieldKit(pg, 'character'); },
+  // settings on another category, the rotate hint and the level intro banner
+  'settings-controls': async pg => { await pg.evaluate(() => { __TEST__.title(); __TEST__.menu('settings'); IB.Menus.settingsCat(2); }); },
+  rotate: async pg => { await pg.evaluate(() => __TEST__.start()); await pg.waitForTimeout(300); await pg.evaluate(() => { IB.Game.pause(); IB.Menus.rotateHint(); }); },
+  intro: async pg => { await pg.evaluate(() => __TEST__.start()); await pg.waitForTimeout(300); await pg.evaluate(() => IB.Menus.intro({ level: 3, name: 'Rail Yard', zones: 3, line: 'The trains run on scrap now.' }, 60)); },
   fail: async pg => { await pg.evaluate(() => { __TEST__.start(); }); await pg.waitForTimeout(300); await pg.evaluate(() => { IB.Game.run.retries = 0; __TEST__.damagePlayer(500); }); await pg.waitForFunction(() => /Out of retries/.test(document.getElementById('overlay').textContent), null, { timeout: 60000 }); }
 };
 
