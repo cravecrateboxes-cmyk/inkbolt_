@@ -14,8 +14,10 @@
      C  parked car 2x4                      V  delivery van 2x5        B  city bus 3x9
      k  bus shelter 2x4 (on paving)         n  food cart 2x2 (on paving)
      T  clock tower 4x4 (landmark)          F  fountain 6x6 (landmark)
+     ]  building facade facing east         [  building facade facing west   (use these, not '#', on east / west faces)
    Buildings ('#') are 2-4 storeys: the chooser cuts every facade run into buildings 4-7 m wide, each with its own
-   brick, shop colour and height; pilasters mark building boundaries on the taller side, corners wrap the taller. */
+   brick, shop colour and height; pilasters mark building boundaries on the taller side, corners wrap the taller.
+   Any '#' cell whose only open sides are east or west must be ']' / '[' (tests/unit/theme_smallcity.test.js checks). */
 (function (IB) {
   'use strict';
   // must mirror STYLES in blender/fam_kit_smallcity.py: [material, storeys]
