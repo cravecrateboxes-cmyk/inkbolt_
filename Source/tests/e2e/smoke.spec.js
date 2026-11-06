@@ -220,8 +220,9 @@ async function tabMenuRun(browser, base) {
   pr = await pg.evaluate(() => __TEST__.progress());
   check('carried guns follow the loadout', JSON.stringify(pr.carried) === '["pip","rivet"]', JSON.stringify(pr.carried));
   check('Overboard applies (+20% magazine: Warden 12 -> 15)', await pg.evaluate(() => IB.Weapons.magSize(IB.Game.ws, IB.WEAPONS.pip) === 15));
-  await pg.keyboard.press('Digit2'); await pg.waitForTimeout(700);
-  check('key 2 draws the rifle from slot 2', (await st(pg)).weapon === 'rivet', (await st(pg)).weapon);
+  await pg.keyboard.press('Digit2');
+  // holster + draw run on game time (0.1 s per frame at most), so wait for the switch instead of a fixed delay
+  check('key 2 draws the rifle from slot 2', await until(pg, () => __TEST__.state().weapon === 'rivet', null, 6000), (await st(pg)).weapon);
   await pg.keyboard.press('Digit3'); await pg.waitForTimeout(300);
   check('key 3 does nothing with 2 guns', (await st(pg)).weapon === 'rivet');
   // respec costs gems and refunds everything
