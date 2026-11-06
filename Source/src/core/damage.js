@@ -25,6 +25,26 @@
   }
   function enemyDmgMul(L) { return Math.min(3, 1 + 0.04 * (L - 1)); }
 
+  /* Tempo per campaign level, on top of HP x enemyHpMul and damage x enemyDmgMul: robots fire a little more often,
+     aim a little tighter, lead a moving target a little more, telegraph a little faster and move a little quicker.
+     Every term reaches its cap by level 20 so the late game stays readable (tells never drop below 85%).
+       L        1     5    10    15    20
+       cool  1.00  0.94  0.87  0.79  0.75   (pause between volleys)
+       aim   1.00  0.90  0.78  0.65  0.60   (bolt spread)
+       lead  +0   +.06  +.14  +.22  +.30   (fraction of the player's velocity added to the aim lead)
+       tell  1.00  0.97  0.93  0.89  0.85   (windup time)
+       speed 1.00  1.03  1.07  1.11  1.15 */
+  function enemyTempo(L) {
+    var k = Math.max(0, (L || 1) - 1);
+    return {
+      coolMul: Math.max(0.75, 1 - 0.015 * k),
+      aimMul: Math.max(0.6, 1 - 0.025 * k),
+      leadAdd: Math.min(0.3, 0.016 * k),
+      tellMul: Math.max(0.85, 1 - 0.008 * k),
+      speedMul: Math.min(1.15, 1 + 0.008 * k)
+    };
+  }
+
   // 4.4: at most 3 + floor(L/5) robots in Windup or Attack.
   function attackTokens(L) { return 3 + Math.floor(L / 5); }
 
@@ -130,7 +150,7 @@
   function staggers(dmg, maxHp, charged) { return !!charged || dmg >= 0.25 * maxHp; }
 
   IB.Damage = {
-    enemyHpMul: enemyHpMul, enemyDmgMul: enemyDmgMul, attackTokens: attackTokens, falloff: falloff,
+    enemyHpMul: enemyHpMul, enemyDmgMul: enemyDmgMul, enemyTempo: enemyTempo, attackTokens: attackTokens, falloff: falloff,
     hit: hit, splash: splash, blastRadius: blastRadius, rocketSplash: rocketSplash, frag: frag,
     flashDamage: flashDamage, selfDamage: selfDamage, knockback: knockback, blindDuration: blindDuration,
     flashPlayer: flashPlayer, shield: shield, bossShell: bossShell, melee: melee, staggers: staggers

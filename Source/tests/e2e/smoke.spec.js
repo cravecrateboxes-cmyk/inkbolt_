@@ -71,7 +71,9 @@ async function hookRun(browser, base) {
   check('exit hatch ends the level', done);
   const resultsShown = await pg.evaluate(() => /Level cleared/i.test(document.getElementById('overlay').textContent));
   check('results screen shows', resultsShown);
-  const saved = await pg.evaluate(() => { const v = localStorage.getItem('inkbolt.slot1'); return v && JSON.parse(v).highest >= 1; });
+  const lvText = await pg.evaluate(() => document.getElementById('overlay').textContent);
+  check('results show the level-up (LV 2, +2 skill points)', /LV 2/.test(lvText) && /\+2 skill pts/.test(lvText), lvText.slice(-60));
+  const saved =await pg.evaluate(() => { const v = localStorage.getItem('inkbolt.slot1'); return v && JSON.parse(v).highest >= 1; });
   check('save written', !!saved);
   const plat = (await st(pg)).plat;
   check('Plat hooks in order', plat[0] === 'init' && plat.includes('loaded') && plat.includes('start') && plat[plat.length - 1] === 'stop', plat.join(','));
@@ -163,6 +165,74 @@ async function touchRun(browser, base) {
   await touch('touchStart', [{ x: fb.x, y: fb.y, id: 3 }]); await pg.waitForTimeout(120); await touch('touchEnd', []);
   await pg.waitForTimeout(300);
   check('fire button shoots', (await st(pg)).ammo < a0, a0 + ' -> ' + (await st(pg)).ammo);
+  // field kit on touch: the grid button next to pause opens it, the close button resumes
+  const mb = await pg.evaluate(() => { const r = document.getElementById('menuBtn').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2, w: r.width, h: r.height }; });
+  check('touch menu button is a 48 px target', mb.w >= 48 && mb.h >= 48, mb.w + 'x' + mb.h);
+  await touch('touchStart', [{ x: mb.x, y: mb.y, id: 4 }]); await touch('touchEnd', []);
+  check('menu button opens the field kit', await until(pg, () => IB.Game.mode === 'menu' && !document.getElementById('tabmenu').hidden, null, 3000));
+  check('touch controls hide while it is open', await pg.evaluate(() => document.getElementById('touch').hidden));
+  await pg.tap('.tm-close');
+  check('close button resumes play', await until(pg, () => IB.Game.mode === 'play' && document.getElementById('tabmenu').hidden && !document.getElementById('touch').hidden, null, 3000));
+  check('no console errors or warnings', pg.logs.length === 0, pg.logs.join(' | '));
+  await pg.context().close();
+}
+
+async function tabMenuRun(browser, base) {
+  console.log('\n# field kit (Tab): pause, spend a skill point, change the loadout, respec, resume');
+  const pg = await newPage(browser, base + '?autotest=1&plan=greybox');
+  await until(pg, () => IB.Game.run.started, null, 5000);
+  // progress as if levels 1-3 were cleared (4 skill points) and a rifle was picked up earlier
+  await pg.evaluate(() => { const G = IB.Game; G.slot.highest = 3; G.slot.gems = 100; G.slot.arsenal.push('rivet'); G.slot.owned = G.slot.arsenal.slice(); G.applyProgress(); });
+  const p0 = await pg.evaluate(() => __TEST__.progress());
+  check('progress derived from the save', p0.level === 4 && p0.points === 4 && p0.loadoutMax === 2, JSON.stringify(p0));
+  check('HUD shows the level tag', await pg.evaluate(() => /LV\s*4/.test(document.getElementById('lvTag').textContent) && !document.getElementById('lvPts').hidden));
+  await pg.mouse.move(640, 360);
+  await pg.keyboard.press('Tab');
+  check('Tab opens the field kit and pauses', await until(pg, () => IB.Game.mode === 'menu' && !document.getElementById('tabmenu').hidden, null, 3000));
+  check('focus stays inside the menu (Tab did not move browser focus)', await pg.evaluate(() => document.getElementById('tabmenu').contains(document.activeElement)));
+  const t0 = await pg.evaluate(() => IB.Game.run.time); await pg.waitForTimeout(500);
+  check('game time is frozen while open', (await pg.evaluate(() => IB.Game.run.time)) === t0);
+  check('HUD hidden behind the menu', await pg.evaluate(() => document.getElementById('hud').hidden));
+  // skills: E twice from Loadout -> Gear -> Skills (keyboard), then mouse
+  await pg.keyboard.press('KeyE');
+  check('E switches to the Gear tab (empty state without the loot system)', await pg.evaluate(() => IB.TabMenu.tab === 'gear' && !!document.querySelector('#tmGear')));
+  await pg.keyboard.press('KeyE');
+  check('E again switches to Skills', await pg.evaluate(() => IB.TabMenu.tab === 'skills' && !!document.querySelector('.sk-tree')));
+  await pg.click('[data-skill="overboard"]');
+  await pg.click('[data-act="buy"]');
+  let pr = await pg.evaluate(() => __TEST__.progress());
+  check('Spend buys Overboard rank 1', pr.skills.overboard === 1 && pr.points === 3, JSON.stringify(pr.skills) + ' points=' + pr.points);
+  await pg.focus('[data-skill="overboard"]'); await pg.keyboard.press('Enter');
+  pr = await pg.evaluate(() => __TEST__.progress());
+  check('Enter on the selected skill spends again', pr.skills.overboard === 2 && pr.points === 2, JSON.stringify(pr.skills));
+  check('locked tier refuses (Heavy Ink needs 6 points above)', await pg.evaluate(() => { document.querySelector('[data-skill="heavyink"]').click(); return document.querySelector('[data-act="buy"]').disabled; }));
+  const saved1 = await pg.evaluate(() => JSON.parse(localStorage.getItem('inkbolt.slot1')).skills);
+  check('skills saved at once', saved1 && saved1.overboard === 2, JSON.stringify(saved1));
+  // loadout: slot 2, then the rifle
+  await pg.keyboard.press('KeyQ'); await pg.keyboard.press('KeyQ');
+  check('Q goes back to Loadout', await pg.evaluate(() => IB.TabMenu.tab === 'loadout'));
+  check('arsenal lists every owned gun, 2 slots + a locked third', await pg.evaluate(() => document.querySelectorAll('.lo-card').length === 3 && document.querySelectorAll('.lo-slot').length === 3 && !!document.querySelector('.lo-slot.locked')));
+  await pg.click('[data-slot="1"]'); await pg.click('[data-gun="rivet"]');
+  pr = await pg.evaluate(() => __TEST__.progress());
+  check('rifle goes into slot 2', JSON.stringify(pr.loadout) === '["pip","rivet"]', JSON.stringify(pr.loadout));
+  await pg.keyboard.press('Tab');
+  check('Tab closes and resumes', await until(pg, () => IB.Game.mode === 'play' && document.getElementById('tabmenu').hidden && !document.getElementById('hud').hidden, null, 3000));
+  pr = await pg.evaluate(() => __TEST__.progress());
+  check('carried guns follow the loadout', JSON.stringify(pr.carried) === '["pip","rivet"]', JSON.stringify(pr.carried));
+  check('Overboard applies (+20% magazine: Warden 12 -> 15)', await pg.evaluate(() => IB.Weapons.magSize(IB.Game.ws, IB.WEAPONS.pip) === 15));
+  await pg.keyboard.press('Digit2'); await pg.waitForTimeout(700);
+  check('key 2 draws the rifle from slot 2', (await st(pg)).weapon === 'rivet', (await st(pg)).weapon);
+  await pg.keyboard.press('Digit3'); await pg.waitForTimeout(300);
+  check('key 3 does nothing with 2 guns', (await st(pg)).weapon === 'rivet');
+  // respec costs gems and refunds everything
+  await pg.evaluate(() => __TEST__.tabMenu('skills'));
+  await pg.click('[data-act="respec"]'); await pg.click('[data-act="respec"]');
+  pr = await pg.evaluate(() => __TEST__.progress());
+  const gems = await pg.evaluate(() => IB.Game.slot.gems);
+  check('respec resets the tree for ' + 40 + ' gems', Object.keys(pr.skills).length === 0 && pr.points === 4 && gems === 60, JSON.stringify(pr.skills) + ' gems=' + gems);
+  await pg.keyboard.press('Escape');
+  check('Esc closes it too', await until(pg, () => IB.Game.mode === 'play', null, 3000));
+  check('respec applied (magazine back to 12)', await pg.evaluate(() => IB.Weapons.magSize(IB.Game.ws, IB.WEAPONS.pip) === 12));
   check('no console errors or warnings', pg.logs.length === 0, pg.logs.join(' | '));
   await pg.context().close();
 }
@@ -226,13 +296,11 @@ async function slideRun(browser, base) {
   const base = 'http://localhost:' + server.address().port + '/' + encodeURI(TARGET);
   console.log('target', base);
   const browser = await chromium.launch({ args: ARGS });
+  // ONLY=tabMenu,touch runs a subset (names without the "Run" suffix)
+  const only = process.env.ONLY ? process.env.ONLY.split(',') : null;
+  const runs = { hook: hookRun, death: deathRun, input: inputRun, touch: touchRun, tabMenu: tabMenuRun, slide: slideRun, campaign: campaignRun };
   try {
-    await hookRun(browser, base);
-    await deathRun(browser, base);
-    await inputRun(browser, base);
-    await touchRun(browser, base);
-    await slideRun(browser, base);
-    await campaignRun(browser, base);
+    for (const k of Object.keys(runs)) if (!only || only.includes(k)) await runs[k](browser, base);
   } catch (e) { console.log('FAIL exception ' + e.stack); failures++; }
   await browser.close(); server.close();
   console.log('\n' + (failures ? failures + ' FAILED' : 'ALL PASSED'));

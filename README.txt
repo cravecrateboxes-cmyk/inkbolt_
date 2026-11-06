@@ -16,9 +16,18 @@ WHAT IS HERE
 
 CONTROLS
   Desktop: click to lock the mouse. WASD move, mouse look, left click fire, right click aim,
-           Space jump, Shift sprint, R reload, 1/2 or mouse wheel switch weapon, F shove, Esc pause.
+           Space jump, Shift sprint, R reload, 1-3 or mouse wheel switch carried guns, F shove, Esc pause.
+           Tab opens the field kit (pauses): Loadout, Gear, Skills. Q / E switch tabs, arrows move, Enter
+           selects (Enter again spends a skill point), Tab or Esc resumes.
   Phone:   left thumb moves (push far forward to sprint), right thumb looks, Fire / Aim / Reload /
-           Swap / Jump buttons on the right, pause button top right.
+           Swap / Jump buttons on the right, pause button top right, field kit (grid) button next to it.
+
+PROGRESSION
+  Player level: +1 for every campaign level cleared (LV 20 cap), shown above the health bar with a rank title.
+  Skill points: from clearing levels 1-17 only (22 in total, see src/data/skills.js); the tree holds 43, so pick.
+  Respec: resets the tree for gems (40% of a level's expected income at your progress).
+  Loadout: carry 2 guns from your arsenal (3 after clearing level 10); weapon stands add guns to the arsenal.
+  Robots get a little tougher every level (health, damage, fire rate, aim, speed; src/core/damage.js).
 
 BUILD AND TEST (from the Source folder)
   python3 tools/build.py

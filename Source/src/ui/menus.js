@@ -139,13 +139,13 @@
 
   // ---------- pause ----------
   M.controlsCard = function () {
-    if (IB.Input.touch) return '<div class="controls-card"><kbd>Left thumb</kbd><span>Move (push far to sprint)</span><kbd>Right thumb</kbd><span>Look</span><kbd>Fire</kbd><span>Hold to shoot, drag to aim</span></div>';
-    return '<div class="controls-card"><kbd>WASD</kbd><span>Move</span><kbd>Mouse</kbd><span>Look · left fire · right aim</span><kbd>Space</kbd><span>Jump</span><kbd>Shift</kbd><span>Sprint</span><kbd>R</kbd><span>Reload</span><kbd>1–9 / wheel</kbd><span>Weapons</span><kbd>F</kbd><span>Shove</span><kbd>Esc</kbd><span>Pause</span></div>';
+    if (IB.Input.touch) return '<div class="controls-card"><kbd>Left thumb</kbd><span>Move (push far to sprint)</span><kbd>Right thumb</kbd><span>Look</span><kbd>Fire</kbd><span>Hold to shoot, drag to aim</span><kbd>Grid button</kbd><span>Loadout · gear · skills</span></div>';
+    return '<div class="controls-card"><kbd>WASD</kbd><span>Move</span><kbd>Mouse</kbd><span>Look · left fire · right aim</span><kbd>Space</kbd><span>Jump</span><kbd>Shift</kbd><span>Sprint</span><kbd>R</kbd><span>Reload</span><kbd>1–3 / wheel</kbd><span>Carried guns</span><kbd>Tab</kbd><span>Loadout · gear · skills</span><kbd>F</kbd><span>Shove</span><kbd>Esc</kbd><span>Pause</span></div>';
   };
   M.pause = function (d) {
     var html = '<div class="screen center-screen"><section class="plate ink panel two-col" aria-label="Paused">' +
       '<h2>Paused</h2><div class="hazard"></div>' +
-      '<div class="menu">' + btn('resume', 'Resume', 'primary', null, ' data-esc="1"') + btn('restart', 'Restart level') + btn('settings', 'Settings') + btn('quit', 'Quit to title') + '</div>' +
+      '<div class="menu">' + btn('resume', 'Resume', 'primary', null, ' data-esc="1"') + btn('fieldkit', 'Loadout & skills', '', IB.Input.touch ? null : 'Tab') + btn('restart', 'Restart level') + btn('settings', 'Settings') + btn('quit', 'Quit to title') + '</div>' +
       '<div class="menu"><div class="kv"><span>' + d.levelName + '</span><b>Level ' + d.level + '</b><span>Zone</span><b>' + d.zone + '/' + d.zones + '</b><span>Gems</span><b>' + d.gems + '</b></div>' + M.controlsCard() + '</div>' +
       '</section></div>';
     show('pause', html, true);
@@ -157,7 +157,8 @@
       '<h2>Level cleared</h2><div class="hazard"></div>' +
       '<div class="kv"><span>Time</span><b>' + IB.HUD.mmss(d.time) + '</b><span>Robots crushed</span><b>' + d.kills + '</b><span>Core hits</span><b>' + d.corePct + '%</b><span>Deaths</span><b>' + d.deaths + '</b></div>' +
       '<div class="menu"><div class="kv"><span class="sub">Robots</span><b class="sub">' + d.gemsRobots + '</b><span class="sub">Clear bonus</span><b class="sub">' + d.gemsClear + '</b><span class="sub">No-death bonus</span><b class="sub">' + d.gemsNoDeath + '</b>' +
-      '<span class="total">Gems earned</span><b class="total">' + d.gemsTotal + '</b></div>' +
+      '<span class="total">Gems earned</span><b class="total">' + d.gemsTotal + '</b>' +
+      (d.levelUp ? '<span class="sub">Player level</span><b class="sub">LV ' + d.playerLevel + (d.pointsUp ? ' · +' + d.pointsUp + ' skill pt' + (d.pointsUp > 1 ? 's' : '') : '') + '</b>' : '') + '</div>' +
       btn('next', 'Continue', 'primary') + btn('replay', 'Replay level') + '</div>' +
       '</section></div>';
     show('results', html, true);

@@ -88,14 +88,34 @@
     owned.forEach(function (id) { W.give(s, id); });
     return s;
   };
-  W.give = function (s, id) {
-    var def = IB.WEAPONS[id]; if (!def || def.fire === 'throw' || def.fire === 'melee' || def.fire === 'projectile') return;
-    var mag = W.magSize(s, def);
-    if (!model(id)) return;   // only weapons with a Blender model are playable
-    s.guns[id] = { id: id, def: def, mag: mag, reserve: (def.reserve === null || def.reserve === undefined || def.reserve === Infinity) ? Infinity : def.reserve };
-    if (!s.slots[def.slot]) s.slots[def.slot] = id;
+  // hitscan guns with a Blender model are playable (grenades, melee and the launcher are not yet)
+  W.playable = function (id) {
+    var def = IB.WEAPONS[id]; if (!def || def.fire === 'throw' || def.fire === 'melee' || def.fire === 'projectile') return false;
+    return !!IB.Assets.node['WPN_' + id.toUpperCase()];
   };
-  W.magSize = function (s, def) { return IB.Upgrades ? IB.Upgrades.magSize(def.mag, s.fx.magLevel || 0) : def.mag; };
+  // slots are loadout positions: keys 1..n switch between the carried guns in loadout order
+  W.give = function (s, id) {
+    if (!W.playable(id) || !model(id)) return;
+    var def = IB.WEAPONS[id];
+    s.guns[id] = { id: id, def: def, mag: W.magSize(s, def), reserve: (def.reserve === null || def.reserve === undefined || def.reserve === Infinity) ? Infinity : def.reserve };
+    if (W.slotOf(s, id) < 0) { var n = 1; while (s.slots[n]) n++; s.slots[n] = id; }
+  };
+  W.slotOf = function (s, id) { for (var k in s.slots) if (s.slots[k] === id) return +k; return -1; };
+  /* carry exactly `ids` (in key order). Guns leaving the loadout park their ammo in `bank` and guns joining it take
+     theirs back from there, so swapping in the Tab menu never refills a magazine. */
+  W.setLoadout = function (s, ids, bank) {
+    bank = bank || {};
+    Object.keys(s.guns).forEach(function (k) { bank[k] = { mag: s.guns[k].mag, reserve: s.guns[k].reserve }; });
+    var cur = s.cur;
+    s.guns = {}; s.slots = {};
+    ids.forEach(function (id) { W.give(s, id); var b = bank[id], g = s.guns[id]; if (g && b) { g.mag = Math.min(b.mag, W.magSize(s, g.def)); g.reserve = b.reserve; } });
+    if (!s.guns[cur]) { var first = s.slots[1]; s.cur = null; if (first) W.equip(s, first, true); else Object.keys(W.models).forEach(function (k) { showModel(k, false); }); }
+    return bank;
+  };
+  W.magSize = function (s, def) {
+    var m = IB.Upgrades ? IB.Upgrades.magSize(def.mag, s.fx.magLevel || 0) : def.mag;
+    return s.fx.magMul && m !== Infinity ? Math.ceil(m * s.fx.magMul - 1e-9) : m;   // Overboard skill
+  };
   W.refill = function (s) { Object.keys(s.guns).forEach(function (k) { var g = s.guns[k]; g.mag = W.magSize(s, g.def); g.reserve = (g.def.reserve == null || g.def.reserve === Infinity) ? Infinity : g.def.reserve; }); };
   W.addAmmo = function (s, frac) { Object.keys(s.guns).forEach(function (k) { var g = s.guns[k]; if (g.reserve !== Infinity) g.reserve = Math.min(g.def.reserve * 1.5, g.reserve + Math.ceil(g.def.reserve * frac)); }); };
   W.current = function (s) { return s.cur ? s.guns[s.cur] : null; };
@@ -114,7 +134,7 @@
   W.slot = function (s, n) { if (s.slots[n]) W.equip(s, s.slots[n]); };
   W.cycle = function (s, dir) {
     var sl = W.ownedSlots(s); if (sl.length < 2) return;
-    var curSlot = s.guns[s.cur].def.slot, i = sl.indexOf(curSlot);
+    var curSlot = W.slotOf(s, s.cur), i = sl.indexOf(curSlot);
     W.slot(s, sl[(i + dir + sl.length) % sl.length]);
   };
   W.reload = function (s) {
@@ -176,11 +196,12 @@
     if (p.sprinting) { s.burst = 0; return; }
     var d = g.def;
     var trig = d.fire === 'auto' ? inp.fire : inp.firePressed;
-    if (s.burst > 0 && s.next <= 0) { fire(s, g, ctx); s.burst--; s.next = s.burst > 0 ? (d.burstGap || 60 / d.rpm) : Math.max(0, d.cycle - (d.burst - 1) * (d.burstGap || 60 / d.rpm)); return; }
+    var rm = s.fx.rateMul || 1;   // Overclock skill: shorter gaps between shots
+    if (s.burst > 0 && s.next <= 0) { fire(s, g, ctx); s.burst--; s.next = (s.burst > 0 ? (d.burstGap || 60 / d.rpm) : Math.max(0, d.cycle - (d.burst - 1) * (d.burstGap || 60 / d.rpm))) / rm; return; }
     if (trig && s.next <= 0 && s.burst === 0) {
       if (g.mag <= 0) { if (inp.firePressed) IB.Audio && IB.Audio.play('dry'); W.reload(s); return; }
-      if (d.burst > 1) { s.burst = d.burst; s.next = 0; fire(s, g, ctx); s.burst--; s.next = d.burstGap || 60 / d.rpm; }
-      else { fire(s, g, ctx); s.next = d.cycle || 60 / d.rpm; }
+      if (d.burst > 1) { s.burst = d.burst; s.next = 0; fire(s, g, ctx); s.burst--; s.next = (d.burstGap || 60 / d.rpm) / rm; }
+      else { fire(s, g, ctx); s.next = (d.cycle || 60 / d.rpm) / rm; }
     }
   };
 

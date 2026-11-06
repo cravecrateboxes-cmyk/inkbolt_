@@ -208,7 +208,11 @@
     AI.level = L; AI.tokenMax = 3 + Math.floor(L / 5);
     AI.hpMul = IB.Damage ? IB.Damage.enemyHpMul(L) : 1 + 0.06 * (L - 1);
     AI.dmgMul = IB.Damage ? IB.Damage.enemyDmgMul(L) : Math.min(3, 1 + 0.04 * (L - 1));
+    // per-level tempo: volley pauses, aim spread and lead, windup tells, move speed (core/damage.js enemyTempo)
+    AI.tempo = IB.Damage && IB.Damage.enemyTempo ? IB.Damage.enemyTempo(L) : TEMPO1;
   };
+  var TEMPO1 = { coolMul: 1, aimMul: 1, leadAdd: 0, tellMul: 1, speedMul: 1 };
+  function tempo() { return AI.tempo || TEMPO1; }
 
   /* spawn a robot hopping out of a spawn can at (x,z) toward (tx,tz) */
   AI.spawn = function (type, x, z, zone, tx, tz, opts) {
@@ -364,6 +368,7 @@
     var m = muzzleWorld(r, v, r.gunOut);
     var tx = p.x, ty = p.y + 1.15, tz = p.z;
     var dx = tx - m.x, dy = ty - m.y, dz = tz - m.z, d = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+    lead = (lead || 0) + tempo().leadAdd; spread = (spread || 0) * tempo().aimMul;
     if (lead) { var tt = d / speed; tx += (p.vx || 0) * tt * lead; tz += (p.vz || 0) * tt * lead; dx = tx - m.x; dz = tz - m.z; d = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1; }
     dx /= d; dy /= d; dz /= d;
     if (spread) { dx += (Math.random() - 0.5) * spread; dy += (Math.random() - 0.5) * spread * 0.6; dz += (Math.random() - 0.5) * spread; }
@@ -396,7 +401,7 @@
         break;
       }
       case 'windup': {
-        var wu = def.windup || 0.35;
+        var wu = (def.windup || 0.35) * tempo().tellMul;
         turnTo(r, Math.atan2(dx, dz), 10, dt);
         r.crouch = Math.min(1, r.st / wu);
         tell(r, r.st / wu);
@@ -516,7 +521,7 @@
   }
 
   function thinkGunner(r, dt, ctx, zone, dx, dz, dist) {
-    var p = ctx.player, def = r.def, v = VIS.gunner, speed = def.speed || 3, wu = def.windup || 0.5;
+    var p = ctx.player, def = r.def, v = VIS.gunner, speed = def.speed || 3, wu = (def.windup || 0.5) * tempo().tellMul;
     var up = r.state === 'windup' || r.state === 'attack';
     r.lid += ((up ? 0.55 : 0) - r.lid) * Math.min(1, dt * (up ? 14 : 6));
     r.gunOut += ((up ? 0.07 : 0) - r.gunOut) * Math.min(1, dt * 10);
@@ -549,13 +554,13 @@
       case 'recover':
         if (r.token) releaseToken(r);
         r.aim += (-0.45 - r.aim) * Math.min(1, dt * 3);
-        if (r.st >= (def.recover || 0.8)) { setState(r, 'keep'); r.cool = 1.0 + Math.random() * 1.4; r.thinkT = 0; }
+        if (r.st >= (def.recover || 0.8)) { setState(r, 'keep'); r.cool = (1.0 + Math.random() * 1.4) * tempo().coolMul; r.thinkT = 0; }
         break;
     }
   }
 
   function thinkDrone(r, dt, ctx, zone, dx, dz, dist) {
-    var p = ctx.player, def = r.def, v = VIS.drone, speed = def.speed || 4.5, wu = def.windup || 0.45;
+    var p = ctx.player, def = r.def, v = VIS.drone, speed = def.speed || 4.5, wu = (def.windup || 0.45) * tempo().tellMul;
     var up = r.state === 'windup' || r.state === 'attack';
     r.lid += ((up ? 1 : 0) - r.lid) * Math.min(1, dt * (up ? 12 : 5));
     var kd = def.keepDistance || [8, 16], mid = (kd[0] + kd[1]) / 2;
@@ -593,7 +598,7 @@
         if (r.token) releaseToken(r);
         move(ox, oz, speed * 0.8);
         r.aim += (-0.25 - r.aim) * Math.min(1, dt * 3);
-        if (r.st >= (def.recover || 0.8)) { setState(r, 'keep'); r.cool = 1.3 + Math.random() * 1.6; }
+        if (r.st >= (def.recover || 0.8)) { setState(r, 'keep'); r.cool = (1.3 + Math.random() * 1.6) * tempo().coolMul; }
         break;
     }
   }
@@ -680,7 +685,8 @@
       if (r.state === 'spawn' || r.state === 'pose') continue;
       if (B.tick) { B.tick(r, dt, ctx); if (!r.on) continue; }
       // movement: smooth velocity toward the wish, collide, face
-      var tvx = _mv.x * _mv.s, tvz = _mv.z * _mv.s, blend = Math.min(1, dt * (r.state === 'attack' && r.type === 'crawler' ? 30 : fly ? 4 : 10));
+      var sm = r.state === 'attack' ? 1 : tempo().speedMul;
+      var tvx = _mv.x * _mv.s * sm, tvz = _mv.z * _mv.s * sm, blend = Math.min(1, dt * (r.state === 'attack' && r.type === 'crawler' ? 30 : fly ? 4 : 10));
       r.vx += (tvx - r.vx) * blend; r.vz += (tvz - r.vz) * blend;
       var ox = r.x, oz = r.z;
       r.x += r.vx * dt; r.z += r.vz * dt;

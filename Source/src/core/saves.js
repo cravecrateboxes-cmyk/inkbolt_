@@ -19,7 +19,9 @@
   function defaultSlot(id, seed, savedAt) {
     return {
       v: 1, id: id, level: 1, highest: 0, gems: 0, upgrades: {},
-      loadout: { pistol: 'pip' },
+      // arsenal = every gun owned, loadout = the guns carried in key order, skills = {skillId: rank}
+      // (skill points are not stored: they are derived from `highest`, see core/skills.js)
+      arsenal: [], loadout: [], skills: {},   // empty arsenal: the level plan's start guns are handed out
       stats: { kills: 0, deaths: 0, time: 0, coreHits: 0 },
       best: {},
       seed: seed >>> 0, saved: savedAt
@@ -37,7 +39,7 @@
     for (k in d) out[k] = d[k];
     for (k in obj) out[k] = obj[k];
     out.v = 1;
-    ['upgrades', 'loadout', 'stats', 'best'].forEach(function (f) {
+    ['upgrades', 'stats', 'best'].forEach(function (f) {
       if (!isObj(obj[f])) out[f] = d[f];
       else if (f === 'stats') {
         var s = {};
@@ -51,6 +53,18 @@
     if (typeof out.gems !== 'number' || out.gems < 0) out.gems = 0;
     if (typeof out.seed !== 'number') out.seed = 0;
     if (typeof out.saved !== 'number') out.saved = 0;
+    // loadout: the brief's class map {pistol: 'pip', smg: 'buzz'} (older saves) becomes the ordered list
+    // (the game trims it to the 2- or 3-gun limit when a level starts)
+    var lo = Array.isArray(obj.loadout) ? obj.loadout : (Array.isArray(obj.owned) ? obj.owned : []).concat(
+      isObj(obj.loadout) ? Object.keys(obj.loadout).map(function (c) { return obj.loadout[c]; }) : []);
+    lo = lo.filter(function (id) { return typeof id === 'string'; });
+    var ars = (Array.isArray(obj.arsenal) ? obj.arsenal : []).concat(Array.isArray(obj.owned) ? obj.owned : [], lo);
+    out.arsenal = ars.filter(function (id, i) { return typeof id === 'string' && ars.indexOf(id) === i; });
+    out.loadout = lo.filter(function (id, i) { return lo.indexOf(id) === i && out.arsenal.indexOf(id) >= 0; });
+    if (!out.loadout.length && out.arsenal.length) out.loadout = [out.arsenal[0]];
+    // skills: spent must never exceed what the progress has earned; a broken tree is reset (points refunded)
+    if (!isObj(out.skills)) out.skills = {};
+    if (IB.Skills) out.skills = IB.Skills.sanitize(out.skills, out.highest).skills;
     return out;
   }
 

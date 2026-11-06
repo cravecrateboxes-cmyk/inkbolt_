@@ -55,6 +55,17 @@ async function combatHud(pg, o) {
   }, o);
 }
 
+async function fieldKit(pg, tab) {
+  await pg.evaluate(() => __TEST__.start());
+  await pg.waitForFunction(() => IB.Game.run && IB.Game.run.started, null, { timeout: 20000 });
+  await pg.evaluate((tab) => {
+    const G = IB.Game; G.slot.highest = 11; G.slot.gems = 640;
+    G.slot.arsenal = ['pip', 'buzz', 'rivet', 'handcannon', 'needle', 'longtom', 'whisk']; G.slot.loadout = ['rivet', 'pip'];
+    G.slot.skills = { overboard: 3, fastfingers: 2, tinhide: 1, steadyink: 2, heavyink: 1, electrify: 1 };
+    G.applyProgress(); __TEST__.tabMenu(tab);
+  }, tab);
+}
+
 // screen setup steps, run in the page
 const SCREENS = {
   title: async pg => { await pg.evaluate(() => __TEST__.title()); },
@@ -88,6 +99,10 @@ const SCREENS = {
     await pg.evaluate(() => { const G = IB.Game; G.slot.gems = 1234567; G.level.zones.forEach(z => { z.state = 'cleared'; }); __TEST__.teleport('hatch'); });
     await pg.waitForFunction(() => __TEST__.state().complete, null, { timeout: 10000 });
   },
+  // field kit (Tab menu) with mid-campaign progress: skills half spent, a 3-gun loadout, a full arsenal
+  'tabmenu-skills': async pg => { await fieldKit(pg, 'skills'); await pg.evaluate(() => { const b = document.querySelector('[data-skill="coredump"]'); if (b) b.click(); }); },
+  'tabmenu-loadout': async pg => { await fieldKit(pg, 'loadout'); },
+  'tabmenu-gear': async pg => { await fieldKit(pg, 'gear'); },
   fail: async pg => { await pg.evaluate(() => { __TEST__.start(); }); await pg.waitForTimeout(300); await pg.evaluate(() => { IB.Game.run.retries = 0; __TEST__.damagePlayer(500); }); await pg.waitForFunction(() => /Out of retries/.test(document.getElementById('overlay').textContent), null, { timeout: 10000 }); }
 };
 
@@ -95,8 +110,8 @@ async function autoChecks(pg, label, touch) {
   const r = await pg.evaluate((touch) => {
     const W = innerWidth, H = innerHeight, out = { overflow: document.documentElement.scrollWidth > W || document.body.scrollWidth > W, outside: [], small: [], hiddenOpen: [] };
     // an open overlay / loading screen must really be on screen (guards against class-name collisions hiding it)
-    ['overlay', 'loading'].forEach(id => { const el = document.getElementById(id); if (el && !el.hidden) { const cs = getComputedStyle(el); if (cs.visibility !== 'visible' || +cs.opacity < 0.5 || cs.display === 'none') out.hiddenOpen.push(id); } });
-    const sel = '#overlay .btn, #overlay .seg button, #overlay .switch, #overlay .range' + (touch ? ', #touch .tbtn:not([hidden]), #hud:not([hidden]) .pausebtn' : '');
+    ['overlay', 'loading', 'tabmenu'].forEach(id => { const el = document.getElementById(id); if (el && !el.hidden) { const cs = getComputedStyle(el); if (cs.visibility !== 'visible' || +cs.opacity < 0.5 || cs.display === 'none') out.hiddenOpen.push(id); } });
+    const sel = '#overlay .btn, #overlay .seg button, #overlay .switch, #overlay .range, #tabmenu:not([hidden]) button' + (touch ? ', #touch .tbtn:not([hidden]), #hud:not([hidden]) .pausebtn' : '');
     const ov = document.getElementById('overlay');
     document.querySelectorAll(sel).forEach(el => {
       if (el.closest('[hidden]')) return;
@@ -104,7 +119,10 @@ async function autoChecks(pg, label, touch) {
       const name = (el.textContent || el.id || el.className).trim().slice(0, 24);
       // overlay scrolls: judge vertical position against the scrollable content, horizontal against the viewport
       const top = b.top + (ov.contains(el) ? ov.scrollTop : 0), bottom = top + b.height, maxH = ov.contains(el) ? Math.max(H, ov.scrollHeight) : H;
-      if (b.left < -0.5 || b.right > W + 0.5 || top < -0.5 || bottom > maxH + 0.5) out.outside.push(name);
+      // field kit panes scroll on their own: judge those buttons against their pane horizontally only
+      const pane = el.closest('.tm-scroll');
+      if (pane) { const pr = pane.getBoundingClientRect(); if (b.left < pr.left - 0.5 || b.right > pr.right + 0.5 || b.right > W + 0.5) out.outside.push(name); }
+      else if (b.left < -0.5 || b.right > W + 0.5 || top < -0.5 || bottom > maxH + 0.5) out.outside.push(name);
       const min = el.classList.contains('switch') || el.classList.contains('range') ? 44 : 48;
       if (touch && (b.height < min - 0.5 || b.width < min - 0.5)) out.small.push(name + ' ' + Math.round(b.width) + 'x' + Math.round(b.height));
     });

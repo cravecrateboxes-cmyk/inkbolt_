@@ -130,7 +130,7 @@
 
   function resetLevelState() {
     var L = G.level;
-    AI.clear(); FX.clear(); IB.Projectiles.clear();
+    AI.clear(); FX.clear(); IB.Projectiles.clear(); if (IB.SkillFX) IB.SkillFX.clear();
     L.zones.forEach(function (z, i) {
       z.state = 'idle'; z.wave = -1; z.waveT = 0; z.queue = []; z.clearT = -1; z.spawnedTotal = 0;
       if (z.entryGate) Z.setGate(z.entryGate, i > 0, true);
@@ -178,17 +178,75 @@
   }
   function takeWeapon(w) {
     var def = IB.WEAPONS[w.id], ws = G.ws;
-    // one weapon per class: the new one replaces the old one (brief 5.2 carrying rule)
-    Object.keys(ws.guns).forEach(function (k) { if (IB.WEAPONS[k].cls === def.cls && k !== w.id) { delete ws.guns[k]; if (ws.slots[def.slot] === k) delete ws.slots[def.slot]; } });
-    W.give(ws, w.id);
+    ensureSlot();
+    // the gun joins the arsenal; it is carried at once (taking the place of the gun in hand when the loadout is full)
+    var r = IB.Loadout.pickup(G.slot.loadout || [], G.slot.arsenal || [], IB.Skills.loadoutMax(G.slot.highest), w.id, ws.cur);
+    G.slot.arsenal = r.arsenal; G.slot.owned = r.arsenal.slice(); G.slot.loadout = r.loadout;
+    if (G.bank) delete G.bank[w.id];   // a fresh gun off the stand comes fully loaded
+    W.setLoadout(ws, r.loadout, G.bank);
     W.equip(ws, w.id);
     w.taken = true; w.group.remove(w.gun); w.ring.visible = false;
-    ensureSlot();
-    G.slot.owned = Object.keys(ws.guns);
     G.store.save(G.slot);
-    if (HUD.pickup) HUD.pickup(def.name, def.cls); else HUD.toast('New weapon: ' + def.name, 2.2);
+    if (HUD.pickup) HUD.pickup(def.name, def.cls, r.slot + 1); else HUD.toast('New weapon: ' + def.name, 2.2);
     A.play('pickup'); A.play('draw');
   }
+
+  // ---------------- progression: arsenal, loadout, skills, player level ----------------
+  // arsenal / loadout come from the save (an empty arsenal gets the plan's start guns), trimmed to the 2/3-gun limit
+  function syncArmory() {
+    ensureSlot();
+    var s = G.slot, start = (G.plan.start || ['pip']);
+    var ars = IB.Loadout.fixArsenal(s.arsenal && s.arsenal.length ? s.arsenal : (s.owned && s.owned.length ? s.owned : start), W.playable);
+    if (!ars.length) ars = IB.Loadout.fixArsenal(start.concat(['pip']), W.playable);
+    s.arsenal = ars; s.owned = ars.slice();
+    s.loadout = IB.Loadout.fix(s.loadout, ars, IB.Skills.loadoutMax(s.highest));
+    return s.loadout;
+  }
+  G.syncArmory = syncArmory;
+  // stat skills on top of the Upgrade Bench effects; fresh = level start (full health), else keep the damage taken
+  function applySkillStats(fresh) {
+    var p = G.player, fx = G.fx || {}, sk = IB.SkillFX.fx;
+    var hpWas = p.maxHp || 100, hurt = Math.max(0, hpWas - p.health);
+    p.maxHp = (fx.maxHp || 100) + sk.maxHpAdd;
+    p.health = fresh ? p.maxHp : Math.max(1, Math.min(p.maxHp, p.maxHp - hurt));
+    var stWas = p.staminaMax || 4;
+    p.staminaMax = 4 * (fx.staminaMul || 1) * sk.staminaMul;
+    p.stamina = fresh ? p.staminaMax : Math.min(p.staminaMax, p.stamina * p.staminaMax / stWas);
+    if (G.ws) {
+      var wf = G.ws.fx;
+      wf.reloadMul = (fx.reloadMul || 1) * sk.reloadMul; wf.recoilMul = (fx.recoilMul || 1) * sk.recoilMul;
+      wf.spreadMul = (fx.spreadMul || 1) * sk.spreadMul; wf.magMul = sk.magMul; wf.rateMul = sk.rateMul;
+    }
+  }
+  G.progress = function () {
+    var h = G.slot ? G.slot.highest || 0 : 0, lv = IB.Skills.playerLevel(h);
+    return { highest: h, level: lv, title: IB.Skills.rankTitle(lv), points: G.slot ? IB.Skills.available(G.slot.skills || {}, h) : 0,
+      earned: IB.Skills.earned(h), loadoutMax: IB.Skills.loadoutMax(h) };
+  };
+  function hudLevel() { if (HUD.level) { var pr = G.progress(); HUD.level(pr.level, pr.title, pr.points); } }
+  // after the Tab menu: skills may have changed (stats, effects) and so may the loadout
+  G.applyProgress = function () {
+    ensureSlot();
+    IB.SkillFX.refresh(G.slot.skills);
+    applySkillStats(false);
+    W.setLoadout(G.ws, syncArmory(), G.bank);
+    hudLevel();
+  };
+  G.openMenu = function (tab) {
+    if (G.mode !== 'play' || G.dead || G.complete || !IB.TabMenu) return;
+    G.mode = 'menu'; Inp.enabled = false; Inp.reset(); Inp.releaseLock(); IB.Plat.stop();
+    HUD.show(false); document.getElementById('touch').hidden = true;
+    A.play('ui');
+    IB.TabMenu.open(G, tab);
+  };
+  G.closeMenu = function () {
+    if (G.mode !== 'menu') return;
+    IB.TabMenu.close();
+    G.applyProgress();
+    G.store.save(G.slot);
+    A.play('uiBack');
+    G.resume();
+  };
 
   G.startLevel = function (opts) {
     M.hide();
@@ -197,14 +255,16 @@
     resetLevelState();
     var p = G.player, z0 = G.level.zones[0];
     Object.assign(p, IB.Player.create());
+    ensureSlot();
     var fx = IB.Upgrades && G.slot ? IB.Upgrades.effects(G.slot.upgrades || {}) : {};
     G.fx = fx;
-    p.maxHp = fx.maxHp || 100; p.health = p.maxHp; p.speedMul = fx.speedMul || 1; p.jumpMul = fx.jumpMul || 1; p.doubleJump = !!fx.doubleJump;
-    p.staminaMax = 4 * (fx.staminaMul || 1); p.stamina = p.staminaMax;
+    IB.SkillFX.begin(G.slot.skills);
+    p.speedMul = fx.speedMul || 1; p.jumpMul = fx.jumpMul || 1; p.doubleJump = !!fx.doubleJump;
     p.x = z0.entry.x; p.z = z0.entry.z; p.y = 0; p.yaw = 0; p.pitch = 0;
-    ensureSlot();
-    var owned = (G.slot.owned && G.slot.owned.length ? G.slot.owned : (G.plan.start || ['pip'])).filter(function (id) { return IB.WEAPONS[id]; });
-    G.ws = W.create(owned, { reloadMul: fx.reloadMul, recoilMul: fx.recoilMul, spreadMul: fx.spreadMul, magLevel: (G.slot && G.slot.upgrades && G.slot.upgrades.mag) || 0 });
+    var owned = syncArmory();
+    G.bank = {};
+    G.ws = W.create(owned, { magLevel: (G.slot.upgrades && G.slot.upgrades.mag) || 0, magMul: IB.SkillFX.fx.magMul });
+    applySkillStats(true);
     var first = Object.keys(G.ws.guns).sort(function (a, b) { return IB.WEAPONS[b].slot - IB.WEAPONS[a].slot; })[0] || 'pip';
     W.equip(G.ws, first, true);
     G.run = { time: 0, kills: 0, shots: 0, hits: 0, coreHits: 0, deaths: 0, gems: 0, retries: 3, started: false, introT: AUTOTEST ? 0.05 : 2.3 };
@@ -215,7 +275,8 @@
     HUD.pips(G.level.zones.length, 0, 0);
     if (!AUTOTEST) M.intro({ level: G.plan.level, name: G.plan.name, zones: G.level.zones.length, line: G.plan.intro }, 2.2);
     // save at level start
-    ensureSlot(); G.slot.level = G.plan.level; G.slot.plan = G.plan.id; G.slot.owned = Object.keys(G.ws.guns); G.store.save(G.slot); G.saved = true;
+    ensureSlot(); G.slot.level = G.plan.level; G.slot.plan = G.plan.id; G.slot.owned = G.slot.arsenal.slice(); G.store.save(G.slot); G.saved = true;
+    hudLevel();
     Inp.enabled = true; Inp.reset();
     if (!AUTOTEST) Inp.requestLock();
   };
@@ -332,7 +393,9 @@
     var nd = G.run.deaths === 0 ? (IB.Gems ? IB.Gems.noDeathBonus(robots) : Math.floor(robots * 0.25)) : 0;
     ensureSlot();
     G.slot.gems = (G.slot.gems || 0) + clear + nd;
-    G.slot.highest = Math.max(G.slot.highest || 0, L);
+    var h0 = G.slot.highest || 0;
+    G.slot.highest = Math.max(h0, L);
+    var lvUp = IB.Skills.playerLevel(G.slot.highest) - IB.Skills.playerLevel(h0), ptsUp = IB.Skills.earned(G.slot.highest) - IB.Skills.earned(h0);
     G.slot.stats = G.slot.stats || {};
     G.slot.stats.kills = (G.slot.stats.kills || 0) + G.run.kills;
     G.slot.stats.deaths = (G.slot.stats.deaths || 0) + G.run.deaths;
@@ -340,9 +403,11 @@
     G.slot.stats.coreHits = (G.slot.stats.coreHits || 0) + G.run.coreHits;
     G.slot.best = G.slot.best || {}; var key = String(L);
     if (!G.slot.best[key] || G.run.time < G.slot.best[key]) G.slot.best[key] = Math.round(G.run.time);
-    G.slot.owned = Object.keys(G.ws.guns);
+    G.slot.owned = (G.slot.arsenal || []).slice();
     G.lastResults = { time: G.run.time, kills: G.run.kills, corePct: G.run.hits ? Math.round(G.run.coreHits / G.run.hits * 100) : 0, deaths: G.run.deaths,
-      gemsRobots: robots, gemsClear: clear, gemsNoDeath: nd, gemsTotal: robots + clear + nd };
+      gemsRobots: robots, gemsClear: clear, gemsNoDeath: nd, gemsTotal: robots + clear + nd,
+      playerLevel: IB.Skills.playerLevel(G.slot.highest), levelUp: lvUp, pointsUp: ptsUp,
+      slotUp: IB.Skills.loadoutMax(G.slot.highest) > IB.Skills.loadoutMax(h0) };
   }
   function levelExit() {
     var next = G.plan.next && IB.LEVEL_PLANS[G.plan.next];
@@ -355,7 +420,9 @@
     G.store.save(G.slot);
     setDim(1);
     HUD.show(false); document.getElementById('touch').hidden = true;
-    var line = 'Level ' + G.plan.level + ' cleared · ' + r.kills + ' robots · ' + HUD.mmss(r.time) + ' · +' + r.gemsTotal + ' gems';
+    var line = 'Level ' + G.plan.level + ' cleared · ' + r.kills + ' robots · ' + HUD.mmss(r.time) + ' · +' + r.gemsTotal + ' gems' +
+      (r.levelUp ? ' · LV ' + r.playerLevel + (r.pointsUp ? ' · +' + r.pointsUp + ' skill point' + (r.pointsUp > 1 ? 's' : '') : '') : '') +
+      (r.slotUp ? ' · third gun slot open' : '');
     var t0 = performance.now();
     if (M.loading) M.loading({ level: next.level, name: next.name, line: line }); else M.intro({ level: next.level, name: next.name, zones: next.zones.length, line: line }, 1.6);
     var prog = function (f) { if (M.loadingProgress) M.loadingProgress(f); };
@@ -458,7 +525,9 @@
       var r = rh.robot, zone = rh.zone;
       var res = IB.Damage.hit({ weapon: def, dist: endT, zone: zone, dmgLevel: up('dmg'), coreLevel: up('core'), critLevel: up('crit'), rng: Math.random, blinded: r.state === 'blinded' });
       G.run.hits++; if (zone === 'core') G.run.coreHits++;
-      var killed = AI.damage(r, res.damage, { kx: dx * 4, kz: dz * 4 }, onKill);
+      var dmg = res.damage * IB.SkillFX.hitMul(zone);   // Heavy Ink, Core Dump
+      var killed = AI.damage(r, dmg, { kx: dx * 4, kz: dz * 4 }, onKill);
+      IB.SkillFX.onHit(r, dmg, zone, killed, _end, onKill);   // Electrify, Lightning Rod
       FX.puff(_end.x, _end.y, _end.z, zone === 'core' ? 5 : 3, PAL.ink, 0.12, 0.38, 2.2);
       if (zone === 'core') FX.puff(_end.x, _end.y, _end.z, 2, PAL.amber, 0.08, 0.2, 3);
       if (!killed) { HUD.hit(zone === 'core' ? 'core' : 'hit'); A.play(zone === 'core' ? 'core' : 'hit'); }
@@ -483,6 +552,7 @@
     if (Math.random() < 0.2) G.spawnPickup('ammo', r.x, r.z);
     else if (G.player.health < G.player.maxHp * 0.4 && Math.random() < 0.25) G.spawnPickup('health', r.x, r.z);
     if (G.fx && G.fx.leech) G.player.health = Math.min(G.player.maxHp, G.player.health + G.fx.leech);
+    IB.SkillFX.onKill(r, G.player, onKill);   // Salvage Bolts, Chain Reaction
   }
   function collectGem(kind) {
     var v = IB.Gems ? IB.Gems.VALUES[kind] : 1;
@@ -495,6 +565,7 @@
   G.hurt = function (robot, dmg) {
     var p = G.player;
     if (!p.alive || p.protect > 0 || G.complete) return;
+    dmg *= IB.SkillFX.hurtMul();   // Tin Titan
     p.health -= dmg; p.lastHurt = 0;
     A.play(robot.proj ? (robot.type === 'bomber' ? 'boom' : 'boltHit') : 'bite', { pos: robot }); A.play('hurt', { gain: 0.8 });
     // arc pointing toward the attacker
@@ -503,7 +574,8 @@
     HUD.arc(Math.atan2(dx * rx + dz * rz, dx * fx + dz * fz)); // 0 = ahead, + = to the right
     G.shake = Math.max(G.shake, 0.5); G.addTrauma(Math.min(0.5, 0.12 + dmg * 0.012));
     if (HUD.damageFlash) HUD.damageFlash(Math.min(1, dmg / 30));
-    if (p.health <= 0) die(robot);
+    if (p.health <= 0 && IB.SkillFX.closeCall(p, G.zone)) { HUD.toast('Close call!', 1.4); A.play('pickup', { pitch: 0.7 }); }
+    else if (p.health <= 0) die(robot);
   };
   function die(robot) {
     var p = G.player;
@@ -582,6 +654,7 @@
       if (!free) { var n = G.store.newest(); free = n ? n.id : 1; }
       G.slot = G.store.newSlot(free, (Math.random() * 1e9) | 0);
       G.slot.plan = IB.CAMPAIGN[0]; G.slot.owned = (IB.LEVEL_PLANS[IB.CAMPAIGN[0]].start || ['pip']).slice();
+      G.slot.arsenal = G.slot.owned.slice(); G.slot.loadout = G.slot.owned.slice(0, IB.Skills.loadoutMax(0));
       G.store.save(G.slot);
       M.wipe(function () { if (G.plan.id !== IB.CAMPAIGN[0]) G.switchPlan(IB.LEVEL_PLANS[IB.CAMPAIGN[0]]).then(function () { G.startLevel(); }); else G.startLevel(); });
     });
@@ -596,6 +669,7 @@
     M.on('cancelReset', function () { M.settings(G.settings, M._settingsFrom); });
     M.on('doReset', function () { G.store.resetAll(); G.slot = null; G.settings = G.store.loadSettings(); G.applySettings(); G.toTitle(); });
     M.on('resume', function () { G.resume(); });
+    M.on('fieldkit', function () { if (G.mode !== 'paused') return; M.hide(); G.mode = 'play'; G.openMenu(); });
     M.on('restart', function () { M.wipe(function () { G.startLevel(); }); });
     M.on('quit', function () { M.wipe(function () { G.toTitle(); }); });
     M.on('next', function () { M.wipe(function () { G.toTitle(); }); });
@@ -645,6 +719,7 @@
   function playFrame(dt, dtRaw) {
     var p = G.player, s = G.settings;
     if (Inp.pausePressed) { G.pause(); return; }
+    if (Inp.menuPressed && !G.dead && G.run.started) { G.openMenu(); return; }
     if (G.fade) {
       G.fade.t += dtRaw;
       var fk = Math.min(1, G.fade.t / G.fade.dur);
@@ -698,6 +773,8 @@
     if (G.run.started && !G.complete && !G.dead) G.run.time += dt;
     // regen (Nanite Welders)
     if (G.fx && G.fx.regen && p.alive && p.lastHurt > 3) p.health = Math.min(p.maxHp, p.health + G.fx.regen * dt);
+    IB.SkillFX.regen(p, dt);   // Tin Titan
+    if (!IB.Status && G.run.started) IB.SkillFX.update(dt, onKill);   // Electrify ticks (until the loot system's IB.Status exists)
     // weapons
     W.update(G.ws, dt, { player: p, cam: R.camera, input: { fire: Inp.fire && p.alive && G.run.started, firePressed: Inp.firePressed && p.alive && G.run.started, aim: Inp.aim && p.alive }, shoot: shoot,
       onFire: function (d) { if (s.shake && (d.cls === 'smg' || d.cls === 'rifle')) G.shake = Math.max(G.shake, 0.15); } });
@@ -731,7 +808,7 @@
     // render-side updates
     AI.sync(); AI.updateCorpses(dtRaw);
     updatePickups(dtRaw, tAll);
-    var magnet = 2.5 * (1 + 0.5 * up('magnet'));
+    var magnet = 2.5 * (1 + 0.5 * up('magnet')) * IB.SkillFX.fx.magnetMul;   // Scrap Magnet
     FX.update(dtRaw, R.camera, p, magnet, collectGem);
     W.pose(G.ws, dtRaw, p, Inp.lookDX, Inp.lookDY, s.headBob, tAll);
     // HUD
@@ -836,6 +913,12 @@
     look: function (yaw, pitch) { G.player.yaw = yaw; G.player.pitch = pitch || 0; },
     pause: function () { G.pause(); }, resume: function () { G.resume(); }, title: function () { G.toTitle(); }, start: function () { G.startLevel(); },
     menu: function (act) { M.act(act); },
+    tabMenu: function (tab) { G.openMenu(tab); }, closeTabMenu: function () { G.closeMenu(); },
+    progress: function () {
+      var pr = G.progress(); pr.skills = G.slot ? Object.assign({}, G.slot.skills) : {};
+      pr.arsenal = G.slot ? G.slot.arsenal.slice() : []; pr.loadout = G.slot ? G.slot.loadout.slice() : [];
+      pr.carried = W.ownedSlots(G.ws).map(function (k) { return G.ws.slots[k]; }); return pr;
+    },
     setTier: function (t) { G.setTier(t); }
   };
 

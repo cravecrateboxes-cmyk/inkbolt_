@@ -1,8 +1,8 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-['core/rng', 'data/weapons', 'data/enemies', 'data/upgrades', 'data/unlocks', 'data/levels',
-  'core/damage', 'core/gems', 'core/upgrades', 'core/saves', 'core/levelgen']
+['core/rng', 'data/weapons', 'data/enemies', 'data/upgrades', 'data/skills', 'data/unlocks', 'data/levels',
+  'core/damage', 'core/gems', 'core/upgrades', 'core/skills', 'core/saves', 'core/levelgen']
   .forEach((f) => require('../../src/' + f + '.js'));
 const IB = globalThis.IB;
 const S = IB.Saves;
@@ -19,7 +19,7 @@ test('new slot matches the 5.14 schema defaults', () => {
   const { store, now } = setup();
   const s = store.newSlot(2, 918273);
   assert.deepEqual(s, {
-    v: 1, id: 2, level: 1, highest: 0, gems: 0, upgrades: {}, loadout: { pistol: 'pip' },
+    v: 1, id: 2, level: 1, highest: 0, gems: 0, upgrades: {}, arsenal: [], loadout: [], skills: {},
     stats: { kills: 0, deaths: 0, time: 0, coreHits: 0 }, best: {}, seed: 918273, saved: now()
   });
   assert.equal(typeof store.newSlot(1).seed, 'number');
@@ -91,14 +91,21 @@ test('version migration from v:1', () => {
   const s = store.load(2);
   assert.equal(s.v, 1); assert.equal(s.level, 7); assert.equal(s.gems, 182);
   assert.deepEqual(s.upgrades, { dmg: 2 });
-  assert.deepEqual(s.loadout, { pistol: 'pip' });
+  assert.deepEqual(s.loadout, []); assert.deepEqual(s.arsenal, []); assert.deepEqual(s.skills, {});
   assert.deepEqual(s.stats, { kills: 4, deaths: 0, time: 0, coreHits: 0 });
   assert.deepEqual(s.best, {});
-  // the full brief example passes through unchanged
+  // the full brief example keeps every field; its class-keyed loadout becomes the ordered list + arsenal
   const ex = { v: 1, id: 1, level: 7, highest: 6, gems: 182, upgrades: { dmg: 2, hp: 1 },
     loadout: { pistol: 'pip', smg: 'buzz', rifle: 'rivet', melee: 'katana', grenade: 'frag' },
     stats: { kills: 412, deaths: 3, time: 1835, coreHits: 120 }, seed: 918273, saved: 1730800000000, best: {} };
-  assert.deepEqual(S.migrate(JSON.parse(JSON.stringify(ex))), ex);
+  const list = ['pip', 'buzz', 'rivet', 'katana', 'frag'];
+  assert.deepEqual(S.migrate(JSON.parse(JSON.stringify(ex))), Object.assign({}, ex, { loadout: list, arsenal: list, skills: {} }));
+  // a current save passes through unchanged (other systems' fields such as gear included)
+  const cur = Object.assign({}, ex, { loadout: ['rivet', 'pip'], arsenal: ['pip', 'rivet', 'buzz'], skills: { overboard: 2, fastfingers: 1 }, gear: { shield: 'x' } });
+  assert.deepEqual(S.migrate(JSON.parse(JSON.stringify(cur))), cur);
+  // the old 'owned' list fills the arsenal and the loadout
+  const old = S.migrate({ v: 1, id: 1, highest: 2, owned: ['pip', 'rivet'] });
+  assert.deepEqual(old.arsenal, ['pip', 'rivet']); assert.deepEqual(old.loadout, ['pip', 'rivet']);
   // no version field -> treated as v1
   assert.equal(S.migrate({ id: 1, level: 3 }).v, 1);
   // unknown future version kept as-is
@@ -157,4 +164,22 @@ test('ago()', () => {
   assert.equal(S.ago(26 * 3600 * 1000), '1 day ago');
   assert.equal(S.ago(2 * 86400 * 1000), '2 days ago');
   assert.equal(S.ago(-5000), 'just now');
+});
+
+test('skills are validated against progress on load (spent <= earned, gates, one capstone)', () => {
+  const { be, store } = setup();
+  // highest 1 earns 2 points: 2 ranks are fine, 3 are not
+  be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 1, skills: { overboard: 2 } }));
+  assert.deepEqual(store.load(1).skills, { overboard: 2 });
+  be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 1, skills: { overboard: 3 } }));
+  assert.deepEqual(store.load(1).skills, {}, 'overspent tree is reset (points refunded)');
+  // a tier-III skill without the 6 points above it, unknown ids, bad ranks, non-objects: all reset
+  for (const bad of [{ heavyink: 1 }, { nope: 1 }, { overboard: 4 }, { overboard: -1 }, { overboard: 1.5 }, [1, 2], 'x']) {
+    be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 17, skills: bad }));
+    assert.deepEqual(store.load(1).skills, {}, JSON.stringify(bad));
+  }
+  // both capstones (even with a made-up huge 'highest')
+  const both = { overboard: 3, fastfingers: 3, tinhide: 3, steadyink: 3, scrapmagnet: 1, lightningrod: 1, tintitan: 1 };
+  be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 99, skills: both }));
+  assert.deepEqual(store.load(1).skills, {});
 });

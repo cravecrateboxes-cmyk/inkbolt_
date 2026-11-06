@@ -35,7 +35,8 @@
       prompt: $('prompt'), promptKey: $('promptKey'), promptText: $('promptText'), promptFill: $('promptFill'),
       stamina: $('stamina'), stFill: $('stFill'), dim: $('dim'), hurt: $('hurt'), hurtFlash: $('hurtFlash'),
       pickup: $('pickup'), pickupIcon: $('pickupIcon'), pickupName: $('pickupName'), pickupLine: $('pickupLine'),
-      confirm: $('confirm'), confirmNum: $('confirmNum'), pauseBtn: $('pauseBtn')
+      confirm: $('confirm'), confirmNum: $('confirmNum'), pauseBtn: $('pauseBtn'),
+      lvTag: $('lvTag'), lvNum: $('lvNum'), lvTitle: $('lvTitle'), lvPts: $('lvPts'), lvPtsN: $('lvPtsN'), lvKey: $('lvKey'), menuBtn: $('menuBtn'), menuDot: $('menuDot')
     };
     H.arcs = [];
     for (var i = 0; i < 6; i++) {
@@ -52,6 +53,12 @@
       H.el.pauseBtn.addEventListener('touchstart', press, { passive: false });
       H.el.pauseBtn.addEventListener('click', press);
     }
+    // touch menu button (loadout / gear / skills): same flag as the Tab key
+    if (H.el.menuBtn) {
+      var menu = function (e) { e.preventDefault(); e.stopPropagation(); if (IB.Input) IB.Input.menuPressed = true; };
+      H.el.menuBtn.addEventListener('touchstart', menu, { passive: false });
+      H.el.menuBtn.addEventListener('click', menu);
+    }
     if (H.el.radarCv) H.radarCtx = H.el.radarCv.getContext('2d');
   };
   H.show = function (on) { H.el.hud.hidden = !on; if (!on) { H.el.hurt.classList.remove('low'); H.damageFlash(0); } else if (H.lowHp) H.el.hurt.classList.add('low'); };
@@ -65,6 +72,17 @@
     pickT = 0; confirmT = 0; toastT = 0; hitT = 0;
   };
 
+  /* player level tag above the health plate: LV badge, rank title, unspent skill points (+ the Tab hint) */
+  H.level = function (lv, title, points) {
+    var el = H.el; if (!el.lvTag) return;
+    set('lv', lv + '|' + title + '|' + points, function () {
+      el.lvNum.textContent = lv; el.lvTitle.textContent = title;
+      el.lvPts.hidden = !(points > 0); el.lvPtsN.textContent = '+' + points;
+      el.lvKey.textContent = touch() ? 'pts' : 'Tab';
+      el.lvTag.setAttribute('aria-label', 'Level ' + lv + ', ' + title + (points > 0 ? ', ' + points + ' skill points to spend' : ''));
+      if (el.menuDot) el.menuDot.hidden = !(points > 0);
+    });
+  };
   H.gems = function (n, pulse) {
     set('gems', n, function (v) { H.el.gemCount.textContent = v; });
     if (pulse) { H.el.gems.classList.remove('pulse'); void H.el.gems.offsetWidth; H.el.gems.classList.add('pulse'); }

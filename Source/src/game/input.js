@@ -21,6 +21,7 @@
         case 'KeyF': I.meleePressed = true; break;
         case 'Escape': case 'KeyP': I.pausePressed = true; break;
         case 'KeyC': case 'ControlLeft': I.slidePressed = true; break;
+        case 'Tab': I.menuPressed = true; break;   // field kit (loadout, gear, skills); Tab never moves focus in play
         default: if (/^Digit[1-9]$/.test(e.code)) I.slotPressed = +e.code.slice(5);
       }
       if (gameKey(e.code)) e.preventDefault();
@@ -65,7 +66,7 @@
   };
   I.endFrame = function () {
     I.lookDX = 0; I.lookDY = 0; I.jumpPressed = false; I.firePressed = false; I.reloadPressed = false;
-    I.meleePressed = false; I.pausePressed = false; I.slotPressed = 0; I.wheel = 0; I.swapPressed = false; I.slidePressed = false;
+    I.meleePressed = false; I.pausePressed = false; I.slotPressed = 0; I.wheel = 0; I.swapPressed = false; I.slidePressed = false; I.menuPressed = false;
   };
   I.reset = function () { I.fire = I.aim = false; I.mx = I.mz = 0; I.keys = {}; I.endFrame(); if (I.stick) I.stick.id = null; };
 
