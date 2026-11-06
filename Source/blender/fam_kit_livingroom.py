@@ -871,8 +871,8 @@ def build_clutter(ao):
     m = K()
     m.colbox(-1.2, -1.2, 0, 1.2, 1.2, 2.4)
     m.sp(0, 0, 1.2, 1.2, 'red', seg=(12, 7))
-    m.sp(0, 0, 1.2, 1.2, 'white', seg=(12, 7), scale=(1.012, 0.36, 1.012), flat=True)      # bands
-    m.sp(0, 0, 1.2, 1.2, 'tblue', seg=(12, 7), scale=(0.36, 1.012, 1.012), rot=(0, 0, 45), flat=True)
+    m.sp(0, 0, 1.2, 1.2, 'white', seg=(12, 7), scale=(1.035, 0.42, 1.035), flat=True)      # bands
+    m.sp(0, 0, 1.2, 1.2, 'tblue', seg=(12, 7), scale=(0.3, 1.05, 1.05), rot=(0, 0, 45), flat=True)
     m.cy(0, 0, 2.38, 0.3, 0.3, 0.04, 'white', seg=10, flat=True)
     finish('Ball', m, ao=ao)
 

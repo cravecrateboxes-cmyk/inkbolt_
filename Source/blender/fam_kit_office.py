@@ -455,7 +455,7 @@ def trail_variant(k, kind):
     """Corridor drywall with something on its trail face (+X): a framed print, a whiteboard, a status screen or a
     fire cabinet (the drywall partition decor, turned onto the 0.5 m trail slab)."""
     trail_wall(k)
-    k.push(-0.2585, 0, 90, z=0.05)   # drywall frame: its -Y face (y -0.5) lands just proud of the stripe (x +0.2585)
+    k.push(-0.2415, 0, 90, z=0.05)   # drywall frame: its -Y face (y -0.5) lands just proud of the stripe (x +0.2585)
     dry_decor(k, kind)
     k.pop()
     return k

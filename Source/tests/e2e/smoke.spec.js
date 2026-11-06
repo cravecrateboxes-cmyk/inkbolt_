@@ -243,7 +243,7 @@ async function tabMenuRun(browser, base) {
 
 async function campaignRun(browser, base) {
   console.log('\n# campaign: big levels, no z-fighting, waypath -> loading -> next level');
-  for (const plan of ['tt1', 'mountains', 'smallcity', 'classroom', 'office', 'bedroom', 'tt2', 'tt3']) {
+  for (const plan of ['tt1', 'mountains', 'smallcity', 'classroom', 'office', 'bedroom', 'livingroom', 'tt2', 'tt3']) {
     const pg = await newPage(browser, base + '?autotest=1&zcheck=1&plan=' + plan);
     const z = await pg.evaluate(() => IB.Game.level.zfight);
     check(plan + ' has no coplanar overlapping pieces', z.length === 0, z.slice(0, 3).join(' | '));

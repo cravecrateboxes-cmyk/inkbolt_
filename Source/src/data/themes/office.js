@@ -86,7 +86,8 @@
     },
     gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.99, shutterHeight: 3.05 },
     // corridor drywall with framed prints, whiteboards, status screens and fire cabinets mixed in
-    trail: { wall: 'TrailWall', height: 4.0, variants: ['TrailWall', 'TrailWall_Art', 'TrailWall_Board', 'TrailWall_Screen', 'TrailWall_Ext'] },
+    trail: { wall: 'TrailWall', height: 4.0, variants: ['TrailWall', 'TrailWall_Art', 'TrailWall_Board', 'TrailWall_Screen', 'TrailWall_Ext'],
+      end: 'TrailWall' },   // the express elevator stands against the hatch room's back wall
     hatch: 'Hatch', stand: 'Stand',
     // the skyline: one long layered slice of Manhattan (cloud banks, pre-war rooftops with water tanks, mid towers,
     // deco spires and glass needles). Ring 0 with count 4 lands exactly due east, south, west and north of the level's

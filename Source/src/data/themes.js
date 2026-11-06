@@ -29,7 +29,8 @@
                                                                           // must close the trail end (|x| <= 2.5, full trail
                                                                           // wall height) and may carry _COL boxes
      trail: { wall: 'TrailWall', height: 2.6, variants: ['TrailWall_B', ...] },   // 1 m wall module along the trail;
-                                                                          // optional variants are mixed in per module
+                                                                          // optional variants are mixed in per module;
+                                                                          // end: module for the hatch room's back wall
      hatch: 'Hatch', stand: 'Crate',                                      // exit pad; what new weapons lean on
      backdrop: { ring: [{ piece, count, radius: [a, b], scale: [a, b], y: 0 }] } | null,
      allPieces: function () -> every piece name the theme can place (unit test checks they exist and fit budgets),
