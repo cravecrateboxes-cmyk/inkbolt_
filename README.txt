@@ -7,7 +7,7 @@ WHAT IS HERE
     src/data/         Tables: weapons, robots, bosses, upgrades, unlocks, levels 1-20, zone maps (ASCII .txt).
     src/core/         Pure logic (no browser needed): damage, gems, upgrades, saves, level generator, RNG.
     src/game/         Runtime: renderer + ink outlines, zones/gates/trail, player, weapons, robots/AI, effects, audio, input, platform hooks.
-    src/ui/           HUD, menus, stylesheet.
+    src/ui/           HUD, menus, field kit (Inventory / Skills / Character), stylesheet ("holo ink" look, ui.css).
     vendor/           three.js r128, Archivo font (OFL licence), BufferGeometryUtils and GLTFLoader (for the Blender GLBs next round).
     tools/build.py    Builds Play Inkbolt.html, Source/dev.html and Source/dist/upload/.
     tests/unit/       node:test unit tests for src/core and src/data.
@@ -17,8 +17,9 @@ WHAT IS HERE
 CONTROLS
   Desktop: click to lock the mouse. WASD move, mouse look, left click fire, right click aim,
            Space jump, Shift sprint, R reload, 1-3 or mouse wheel switch carried guns, F shove, Esc pause.
-           Tab opens the field kit (pauses): Loadout, Gear, Skills. Q / E switch tabs, arrows move, Enter
-           selects (Enter again spends a skill point), Tab or Esc resumes.
+           Tab opens the field kit (pauses): Inventory, Skills, Character. Q / E (or the yellow chevrons) switch
+           tabs, arrows move, Enter selects (Enter again spends a skill point; in the inventory Enter equips),
+           pointing at an item shows its card, Tab or Esc resumes.
   Phone:   left thumb moves (push far forward to sprint), right thumb looks, Fire / Aim / Reload /
            Swap / Jump buttons on the right, pause button top right, field kit (grid) button next to it.
 
@@ -34,8 +35,10 @@ LOOT AND GEAR
   also marked on the radar as a diamond. Walk over it to bag it; an empty slot is filled right away.
   Shield cells (after level 3 is cleared) soak damage before health and recharge after a short delay.
   Gun attachments: Grip (less recoil and spread), Scope (zoom and a tighter aim; aim to look through it),
-  Acid muzzle (silenced; part of each hit burns on as acid). The Gear tab of the in-game menu (IB.GearUI)
-  equips, fits, moves and scraps them. Tables: src/data/loot.js; logic: src/core/loot.js; models: blender/fam_gear.py.
+  Acid muzzle (silenced; part of each hit burns on as acid). The Inventory tab of the field kit (IB.GearUI, ui/gear.js)
+  shows the item card (stats, compare, flavour) + ammo, EQUIPPED (weapon slots 1-3, slot 3 locked until level 10 is
+  cleared, the attachment slots of each carried gun, the shield) and the BACKPACK (weapons, attachments, shields);
+  it equips, fits, moves and scraps them. Tables: src/data/loot.js; logic: src/core/loot.js; models: blender/fam_gear.py.
 
 BUILD AND TEST (from the Source folder)
   python3 tools/build.py
