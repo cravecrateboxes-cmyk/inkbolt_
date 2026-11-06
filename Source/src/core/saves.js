@@ -75,8 +75,9 @@
     out.loadout = lo.filter(function (id, i) { return lo.indexOf(id) === i && out.arsenal.indexOf(id) >= 0; });
     if (!out.loadout.length && out.arsenal.length) out.loadout = [out.arsenal[0]];
     // skills: spent must never exceed what the progress has earned; a broken tree is reset (points refunded)
+    // (a save from before the six-row tree holds old skill ids: the whole tree is refunded and the game says so once)
     if (!isObj(out.skills)) out.skills = {};
-    if (IB.Skills) out.skills = IB.Skills.sanitize(out.skills, out.highest).skills;
+    if (IB.Skills) { var san = IB.Skills.sanitize(out.skills, out.highest); out.skills = san.skills; if (san.reset) out.skillsRefunded = true; }
     return out;
   }
 

@@ -52,13 +52,18 @@
 
   function pct(x) { return Math.round(x * 100) + '%'; }
   /* display lines [{k, v}] for HUD toasts and the gear panel */
+  /* acid muzzles from saves made before the long burn (2 / 2.5 / 3 s) read as the new ones (5 / 6 / 7 s, +20% acid) */
+  function acidStats(st) {
+    if (st.dur < 4) return { acid: Math.round(st.acid * 1.2 * 100) / 100, dur: st.dur * 2 + 1 };
+    return { acid: st.acid, dur: st.dur };
+  }
   function statLines(item) {
     var s = item.stats;
     switch (item.type) {
       case 'shield': return [{ k: 'Capacity', v: String(s.capacity) }, { k: 'Recharge', v: s.rate + '/s' }, { k: 'Delay', v: s.delay.toFixed(1) + ' s' }];
       case 'grip': return [{ k: 'Recoil', v: '-' + pct(s.recoil) }, { k: 'Spread', v: '-' + pct(s.spread) }];
       case 'scope': return [{ k: 'Zoom', v: s.zoom.toFixed(1) + 'x' }, { k: 'Aim spread', v: '-' + pct(s.aimSpread) }];
-      case 'acid': return [{ k: 'Acid', v: '+' + pct(s.acid) + ' over ' + s.dur.toFixed(1) + ' s' }, { k: 'Noise', v: '-' + pct(1 - T().types.acid.quiet) }];
+      case 'acid': var ac = acidStats(s); return [{ k: 'Acid', v: '+' + pct(ac.acid) + ' over ' + ac.dur.toFixed(1) + ' s' }, { k: 'Noise', v: '-' + pct(1 - T().types.acid.quiet) }];
     }
     return [];
   }
@@ -102,7 +107,7 @@
       d.mods.scope = s;
     }
     if (m && m.type === 'acid') {
-      d.acid = m.stats.acid; d.acidDur = m.stats.dur; d.quiet = T().types.acid.quiet;
+      var as = acidStats(m.stats); d.acid = as.acid; d.acidDur = as.dur; d.quiet = T().types.acid.quiet;
       d.mods.muzzle = m;
     }
     return d;
@@ -198,7 +203,7 @@
 
   IB.Loot = {
     levelMul: levelMul, allowedTypes: allowedTypes, rollType: rollType, rollRarity: rollRarity, makeItem: makeItem, rollDrop: rollDrop,
-    statLines: statLines, summary: summary, slotOf: slotOf, isAttachment: isAttachment, compatible: compatible, slotsFor: slotsFor,
+    acidStats: acidStats, statLines: statLines, summary: summary, slotOf: slotOf, isAttachment: isAttachment, compatible: compatible, slotsFor: slotsFor,
     applyMods: applyMods, shieldState: shieldState, absorb: absorb, tickShield: tickShield,
     defaultGear: defaultGear, migrateGear: migrateGear, find: find, addItem: addItem, attachedTo: attachedTo, weaponItems: weaponItems,
     equipShield: equipShield, attach: attach, detach: detach, discard: discard, prune: prune, rarityRank: rarityRank, clamp: clamp

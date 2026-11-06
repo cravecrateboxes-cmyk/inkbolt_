@@ -103,7 +103,7 @@ test('version migration from v:1', () => {
   assert.deepEqual(S.migrate(JSON.parse(JSON.stringify(ex))), Object.assign({}, ex, { loadout: list, arsenal: list, skills: {}, gear: S.defaultGear() }));
   // a current save passes through unchanged (gear included)
   const curGear = { inv: [{ id: 'g1', type: 'grip' }], shield: null, attach: { rivet: ['g1'] }, next: 2, found: 1 };
-  const cur = Object.assign({}, ex, { loadout: ['rivet', 'pip'], arsenal: ['pip', 'rivet', 'buzz'], skills: { overboard: 2, fastfingers: 1 }, gear: curGear });
+  const cur = Object.assign({}, ex, { loadout: ['rivet', 'pip'], arsenal: ['pip', 'rivet', 'buzz'], skills: { overload: 2, heavyink: 1 }, gear: curGear });
   assert.deepEqual(S.migrate(JSON.parse(JSON.stringify(cur))), cur);
   // the old 'owned' list fills the arsenal and the loadout
   const old = S.migrate({ v: 1, id: 1, highest: 2, owned: ['pip', 'rivet'] });
@@ -175,17 +175,17 @@ test('ago()', () => {
 test('skills are validated against progress on load (spent <= earned, gates, one capstone)', () => {
   const { be, store } = setup();
   // highest 1 earns 2 points: 2 ranks are fine, 3 are not
-  be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 1, skills: { overboard: 2 } }));
-  assert.deepEqual(store.load(1).skills, { overboard: 2 });
-  be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 1, skills: { overboard: 3 } }));
+  be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 1, skills: { overload: 2 } }));
+  assert.deepEqual(store.load(1).skills, { overload: 2 });
+  be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 1, skills: { overload: 3 } }));
   assert.deepEqual(store.load(1).skills, {}, 'overspent tree is reset (points refunded)');
-  // a tier-III skill without the 6 points above it, unknown ids, bad ranks, non-objects: all reset
-  for (const bad of [{ heavyink: 1 }, { nope: 1 }, { overboard: 4 }, { overboard: -1 }, { overboard: 1.5 }, [1, 2], 'x']) {
+  // a row-3 skill without the 5 points below it, unknown (or retired) ids, bad ranks, non-objects: all reset
+  for (const bad of [{ hazard: 1 }, { nope: 1 }, { overboard: 2 }, { overload: 4 }, { overload: -1 }, { overload: 1.5 }, [1, 2], 'x']) {
     be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 17, skills: bad }));
     assert.deepEqual(store.load(1).skills, {}, JSON.stringify(bad));
   }
   // both capstones (even with a made-up huge 'highest')
-  const both = { overboard: 3, fastfingers: 3, tinhide: 3, steadyink: 3, scrapmagnet: 1, lightningrod: 1, tintitan: 1 };
+  const both = { overload: 3, heavyink: 3, rapid: 3, electrify: 1, healthy: 3, undercover: 1, handyhelpers: 1, chainreaction: 1 };
   be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 99, skills: both }));
   assert.deepEqual(store.load(1).skills, {});
 });

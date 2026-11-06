@@ -197,16 +197,16 @@ async function tabMenuRun(browser, base) {
   // skills: E from Inventory -> Skills (keyboard), then mouse
   await pg.keyboard.press('KeyE');
   check('E switches to Skills', await pg.evaluate(() => IB.TabMenu.tab === 'skills' && !!document.querySelector('.sk-tree')));
-  await pg.click('[data-skill="overboard"]');
+  await pg.click('[data-skill="overload"]');
   await pg.click('[data-act="buy"]');
   let pr = await pg.evaluate(() => __TEST__.progress());
-  check('Spend buys Overboard rank 1', pr.skills.overboard === 1 && pr.points === 3, JSON.stringify(pr.skills) + ' points=' + pr.points);
-  await pg.focus('[data-skill="overboard"]'); await pg.keyboard.press('Enter');
+  check('Spend buys Overload rank 1', pr.skills.overload === 1 && pr.points === 3, JSON.stringify(pr.skills) + ' points=' + pr.points);
+  await pg.focus('[data-skill="overload"]'); await pg.keyboard.press('Enter');
   pr = await pg.evaluate(() => __TEST__.progress());
-  check('Enter on the selected skill spends again', pr.skills.overboard === 2 && pr.points === 2, JSON.stringify(pr.skills));
-  check('locked tier refuses (Heavy Ink needs 6 points above)', await pg.evaluate(() => { document.querySelector('[data-skill="heavyink"]').click(); return document.querySelector('[data-act="buy"]').disabled; }));
+  check('Enter on the selected skill spends again', pr.skills.overload === 2 && pr.points === 2, JSON.stringify(pr.skills));
+  check('locked tier refuses (Hazard needs 5 points below)', await pg.evaluate(() => { document.querySelector('[data-skill="hazard"]').click(); return document.querySelector('[data-act="buy"]').disabled; }));
   const saved1 = await pg.evaluate(() => JSON.parse(localStorage.getItem('inkbolt.slot1')).skills);
-  check('skills saved at once', saved1 && saved1.overboard === 2, JSON.stringify(saved1));
+  check('skills saved at once', saved1 && saved1.overload === 2, JSON.stringify(saved1));
   await pg.keyboard.press('KeyE');
   check('E again switches to Character (level, stats, record)', await pg.evaluate(() => IB.TabMenu.tab === 'character' && /Max health/.test(document.getElementById('tmPanel').textContent)));
   // inventory: slot 2, then the rifle from the backpack
@@ -222,7 +222,7 @@ async function tabMenuRun(browser, base) {
   check('Tab closes and resumes', await until(pg, () => IB.Game.mode === 'play' && document.getElementById('tabmenu').hidden && !document.getElementById('hud').hidden, null, 3000));
   pr = await pg.evaluate(() => __TEST__.progress());
   check('carried guns follow the loadout', JSON.stringify(pr.carried) === '["pip","rivet"]', JSON.stringify(pr.carried));
-  check('Overboard applies (+20% magazine: Warden 12 -> 15)', await pg.evaluate(() => IB.Weapons.magSize(IB.Game.ws, IB.WEAPONS.pip) === 15));
+  check('Overload applies (+20% magazine: Warden 12 -> 15)', await pg.evaluate(() => IB.Weapons.magSize(IB.Game.ws, IB.WEAPONS.pip) === 15));
   await pg.keyboard.press('Digit2');
   // holster + draw of a gun first drawn now (shader compile under software GL): wait for it rather than a fixed 0.7 s
   check('key 2 draws the rifle from slot 2', await until(pg, () => __TEST__.state().weapon === 'rivet' && IB.Game.ws.state === 'idle', null, 8000), (await st(pg)).weapon);
@@ -230,6 +230,9 @@ async function tabMenuRun(browser, base) {
   check('key 3 does nothing with 2 guns', (await st(pg)).weapon === 'rivet');
   // respec costs gems and refunds everything
   await pg.evaluate(() => __TEST__.tabMenu('skills'));
+  // (select a short card first: at 1280x720 a long locked card, e.g. Hazard, pushes the respec panel under the footer;
+  // the field kit layout is being redone separately)
+  await pg.click('[data-skill="overload"]');
   await pg.click('[data-act="respec"]'); await pg.click('[data-act="respec"]');
   pr = await pg.evaluate(() => __TEST__.progress());
   const gems = await pg.evaluate(() => IB.Game.slot.gems);
@@ -237,6 +240,118 @@ async function tabMenuRun(browser, base) {
   await pg.keyboard.press('Escape');
   check('Esc closes it too', await until(pg, () => IB.Game.mode === 'play', null, 3000));
   check('respec applied (magazine back to 12)', await pg.evaluate(() => IB.Weapons.magSize(IB.Game.ws, IB.WEAPONS.pip) === 12));
+  check('no console errors or warnings', pg.logs.length === 0, pg.logs.join(' | '));
+  await pg.context().close();
+}
+
+async function skillsRun(browser, base) {
+  console.log('\n# skills: stat skills, Undercover (F) vs the AI, V shove, Stream, Ricochet, Hazard, Hydrate, Handy Helpers');
+  const pg = await newPage(browser, base + '?autotest=1&plan=greybox');
+  await until(pg, () => IB.Game.run.started, null, 5000);
+  // a made-up tree straight into the save (the test hook skips gates, the budget and pick-one)
+  await pg.evaluate(() => __TEST__.setSkills({ undercover: 1, stream: 3, ricochet: 3, hazard: 3, hydrate: 3, healthy: 3, stamina: 1, fastfingers: 3, tank: 3, electrify: 1, handyhelpers: 1, chainreaction: 1 }));
+  let ss = await pg.evaluate(() => __TEST__.skillState());
+  check('stat skills apply (Healthy 124 max health, Stamina 2x sprint / 10 s, Fast Fingers 1/1.3 reload + swap)',
+    ss.maxHp === 124 && ss.sprintMul === 2 && Math.abs(ss.staminaMax - 10) < 1e-6 && Math.abs(ss.swapMul - 1 / 1.3) < 1e-6 && Math.abs(ss.reloadMul - 1 / 1.3) < 1e-6, JSON.stringify(ss));
+  // Stamina: 2x sprint straight at the far wall for a while: fast, and never inside or through a wall
+  await pg.evaluate(() => { IB.Game.player.protect = 999; __TEST__.look(0, 0); });
+  await pg.mouse.move(640, 360);
+  await pg.keyboard.down('ShiftLeft'); await pg.keyboard.down('KeyW');
+  // (sampled over ~2 s of game time: on a loaded machine software GL can run far below real time)
+  let vmax = 0, inside = 0;
+  const gt0 = await pg.evaluate(() => IB.Game.run.time), rt0 = Date.now();
+  while (Date.now() - rt0 < 60000 && (await pg.evaluate(() => IB.Game.run.time)) - gt0 < 2) {
+    await pg.waitForTimeout(200);
+    const m = await pg.evaluate(() => {
+      const p = IB.Game.player, w = IB.Game.level.world, out = [];
+      w.query(p.x - 0.3, p.z - 0.3, p.x + 0.3, p.z + 0.3, out);
+      const hit = out.some((b) => b.y1 > p.y + 0.4 && b.y0 < p.y + 1.6 && p.x > b.x0 + 0.05 && p.x < b.x1 - 0.05 && p.z > b.z0 + 0.05 && p.z < b.z1 - 0.05);
+      return [Math.hypot(p.vx, p.vz), hit];
+    });
+    vmax = Math.max(vmax, m[0]); if (m[1]) inside++;
+  }
+  await pg.keyboard.up('KeyW'); await pg.keyboard.up('ShiftLeft');
+  check('Stamina: sprint reaches ~18 m/s, the player never ends up inside a wall', vmax > 15 && inside === 0, 'vmax=' + vmax.toFixed(1) + ' inside=' + inside);
+  // Undercover: robots must have noticed the player first
+  await pg.evaluate(() => { IB.Game.player.protect = 999; __TEST__.teleport(0); });
+  await until(pg, () => __TEST__.state().alive > 0, null, 10000);
+  check('robots see the player before the cloak', await until(pg, () => __TEST__.skillState().seeing > 0, null, 20000));
+  await pg.mouse.move(640, 360);
+  await pg.keyboard.press('KeyF');
+  check('F turns Undercover on', await until(pg, () => __TEST__.skillState().cloak.active, null, 3000));
+  ss = await pg.evaluate(() => __TEST__.skillState());
+  check('cloak: 5 s, then a 30 s cooldown; the AI is told', ss.cloaked && ss.cloak.t <= 5 && ss.cloak.t > 3 && ss.cloak.cd === 30, JSON.stringify(ss.cloak));
+  check('the world turns comic black / grey / white with a halftone screen', await until(pg, () => document.body.classList.contains('cloak-on') &&
+    /grayscale/.test(getComputedStyle(document.getElementById('c')).filter) && +getComputedStyle(document.getElementById('cloakFx')).opacity > 0.9, null, 3000));
+  check('HUD cooldown badge shows the cloak', await pg.evaluate(() => !document.getElementById('cloakHud').hidden && /HIDDEN/.test(document.getElementById('cloakHud').textContent)));
+  let worst = 0;
+  for (let i = 0; i < 8; i++) { await pg.waitForTimeout(150); const s = await pg.evaluate(() => __TEST__.skillState()); if (!s.cloak.active) break; worst = Math.max(worst, s.seeing + s.attacking); }
+  check('robots lose the player: nobody sees him or winds up an attack', worst === 0, 'seeing+attacking=' + worst);
+  check('the cloak wears off', await until(pg, () => !__TEST__.skillState().cloak.active && !__TEST__.skillState().cloaked, null, 40000));
+  check('screen back in colour, cooldown counting', await pg.evaluate(() => !document.body.classList.contains('cloak-on') && __TEST__.skillState().cloak.cd > 0 && /\d+s/.test(document.getElementById('cloakHud').textContent)));
+  await pg.keyboard.press('KeyF'); await pg.waitForTimeout(300);
+  check('F during the cooldown does nothing', !(await pg.evaluate(() => __TEST__.skillState().cloak.active)));
+  await pg.keyboard.press('KeyV');
+  check('V shoves (moved off F)', await until(pg, () => __TEST__.skillState().shoveT > 0, null, 5000));
+  // Stream / Ricochet / Hazard / Hydrate: two Gunners lined up in front of the zone entry, one bullet
+  const only = (k) => pg.evaluate((k) => { ['stream', 'ricochet', 'hazard', 'hydrate', 'chain', 'rogue'].forEach((id) => __TEST__.forceSkill(id, id === k ? 1 : 0)); }, k);
+  const lineShot = (gap, side) => pg.evaluate(([gap, side]) => {
+    const G = IB.Game, z = G.level.zones[G.zone], x = z.entry.x, zz = z.entry.z;
+    __TEST__.killZone();
+    const a = __TEST__.spawnRobot('gunner', x, zz - 4), b = __TEST__.spawnRobot('gunner', x + side, zz - 4 - gap);
+    const ra = IB.AI.types.gunner.slots[a], rb = IB.AI.types.gunner.slots[b], ha = ra.hp, hb = rb.hp;
+    __TEST__.fireRay(x, 0.55, zz - 1, 0, 0, -1);
+    return { a, b, da: ha - ra.hp, db: hb - rb.hp, wet: ra.wet, pools: IB.SkillFX.activePools(), coats: IB.SkillFX.activeCoats() };
+  }, [gap, side]);
+  await only('stream');
+  let r = await lineShot(2, 0);
+  check('Stream: the bullet punches through into the robot behind for x2', r.da > 0 && Math.abs(r.db - 2 * r.da) < 0.01, JSON.stringify(r));
+  await only('ricochet');
+  r = await lineShot(0.5, 3);
+  check('Ricochet: bounces into a robot 3 m away for 60%', r.da > 0 && Math.abs(r.db - 0.6 * r.da) < 0.01, JSON.stringify(r));
+  await only('hazard');
+  r = await lineShot(0.5, 6);
+  check('Hazard: a hit leaves an acid pool', r.pools >= 1, JSON.stringify(r));
+  check('a robot in the pool burns with acid', await until(pg, (slot) => IB.Status.has(IB.AI.types.gunner.slots[slot], 'acid'), r.a, 8000));
+  await only('hydrate');
+  r = await lineShot(1.5, 0.5);
+  check('Hydrate: the robot is coated (wet)', r.coats >= 1 && r.wet > 5, JSON.stringify(r));
+  check('the robot next to the coated one takes shock', await until(pg, (slot) => IB.Status.has(IB.AI.types.gunner.slots[slot], 'shock'), r.b, 8000));
+  check('the coated robot shows the wet tint', await until(pg, (slot) => IB.AI.types.gunner.parts.Body.fx.getZ(slot) === 2, r.a, 5000));
+  // Chain Reaction: a hit on a robot with two others within 4 m blows the group up for 40% of each one's max health
+  await only('chain');
+  const ch = await pg.evaluate(() => {
+    const G = IB.Game, z = G.level.zones[G.zone], x = z.entry.x, zz = z.entry.z;
+    __TEST__.killZone();
+    const sl = [[x, zz - 4], [x + 1.6, zz - 4.6], [x - 1.6, zz - 4.6]].map((q) => __TEST__.spawnRobot('gunner', q[0], q[1]));
+    const rs = sl.map((k) => IB.AI.types.gunner.slots[k]), hp0 = rs.map((r) => r.hp);
+    __TEST__.fireRay(x, 0.55, zz - 1, 0, 0, -1);
+    return { lost: rs.map((r, i) => +(hp0[i] - r.hp).toFixed(2)), max: rs[0].maxHp, on: rs.map((r) => r.on), chains: IB.SkillFX.stats.chains };
+  });
+  check('Chain Reaction: the group blows up for 40% of max health each, nobody wiped at once', ch.chains === 1 && ch.on.every(Boolean) &&
+    Math.abs(ch.lost[1] - 0.4 * ch.max) < 0.01 && Math.abs(ch.lost[2] - 0.4 * ch.max) < 0.01 && ch.lost[0] > 0.4 * ch.max, JSON.stringify(ch));
+  // Handy Helpers: a wreck turns rogue (forced chance), still counts as a kill, fights for the player
+  await only('rogue');
+  const h = await pg.evaluate(() => {
+    const G = IB.Game, z = G.level.zones[G.zone], k0 = G.run.kills, alive0 = IB.AI.alive(G.zone);
+    const slot = __TEST__.spawnRobot('gunner', z.entry.x + 4, z.entry.z - 6);
+    const alive1 = IB.AI.alive(G.zone);
+    const killed = __TEST__.wreck('gunner', slot);
+    return { slot, killed, kills: G.run.kills - k0, alive0, alive1, alive2: IB.AI.alive(G.zone), r: __TEST__.robot('gunner', slot) };
+  });
+  check('Handy Helpers: the wreck turns rogue instead (counts as a kill, not as a robot left)', h.killed && h.kills === 1 && h.r.on && h.r.rogue > 14 && h.alive2 === h.alive1 - 1, JSON.stringify(h));
+  check('rogue gets the teal tint', await until(pg, (slot) => IB.AI.types.gunner.parts.Body.fx.getZ(slot) === 1, h.slot, 3000));
+  check('player bullets pass through the rogue', await pg.evaluate((slot) => { const r = IB.AI.types.gunner.slots[slot]; return !IB.AI.raycast(r.x, 0.55, r.z + 3, 0, 0, -1, 6); }, h.slot));
+  const c = await pg.evaluate((slot) => { const r = IB.AI.types.gunner.slots[slot]; return __TEST__.spawnRobot('crawler', r.x + 1.5, r.z); }, h.slot);
+  check('robots go for the rogue', await until(pg, (c) => __TEST__.robot('crawler', c).tgtRogue || !__TEST__.robot('crawler', c).on, c, 8000));
+  // clear the zone, then let the rogue self-destruct next to the (unprotected) player: no damage to him
+  await pg.evaluate(() => __TEST__.killZone());
+  await until(pg, () => __TEST__.state().zones[0] === 'cleared', null, 8000);
+  const hp0 = await pg.evaluate((slot) => { const p = IB.Game.player, r = IB.AI.types.gunner.slots[slot]; p.protect = 0; if (r.on) { r.x = p.x + 1.2; r.z = p.z; } __TEST__.setRogueTime(0.2); return p.health; }, h.slot);
+  check('after 15 s (shortened) the rogue self-destructs', await until(pg, (slot) => !__TEST__.robot('gunner', slot).on, h.slot, 8000));
+  await pg.waitForTimeout(400);
+  const hp1 = await pg.evaluate(() => IB.Game.player.health);
+  check('its blast is harmless to the player', hp1 >= hp0, hp0 + ' -> ' + hp1);
   check('no console errors or warnings', pg.logs.length === 0, pg.logs.join(' | '));
   await pg.context().close();
 }
@@ -465,7 +580,7 @@ async function vfxRun(browser, base) {
   const browser = await chromium.launch({ args: ARGS });
   try {
     // ONLY=lootRun,tabMenuRun runs a subset
-    const runs = { hookRun, deathRun, inputRun, touchRun, tabMenuRun, slideRun, lootRun, campaignRun, vfxRun };
+    const runs = { hookRun, deathRun, inputRun, touchRun, tabMenuRun, skillsRun, slideRun, lootRun, campaignRun, vfxRun };
     for (const [name, fn] of Object.entries(runs)) if (!process.env.ONLY || process.env.ONLY.split(',').includes(name)) await fn(browser, base);
   } catch (e) { console.log('FAIL exception ' + e.stack); failures++; }
   await browser.close(); server.close();

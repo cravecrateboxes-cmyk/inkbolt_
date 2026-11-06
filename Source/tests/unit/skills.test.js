@@ -12,8 +12,9 @@ const S = IB.Skills;
 const buyAll = (sk, h, ids) => ids.reduce((acc, id) => { const n = S.buy(acc, h, id); assert.ok(n, 'buy ' + id + ' ' + JSON.stringify(S.canBuy(acc, h, id))); return n; }, sk || {});
 const treeCost = (filter) => IB.SKILLS.filter(filter || (() => true)).reduce((n, s) => n + s.max * s.cost, 0);
 
-test('data: 12-16 skills, valid tiers, 3-rank skills, 1-rank specials, exactly two capstones', () => {
-  assert.ok(IB.SKILLS.length >= 12 && IB.SKILLS.length <= 16, String(IB.SKILLS.length));
+test('data: 15 skills in 6 tiers (trunk at the bottom), 3-rank skills, 1-rank specials, two pick-one endgame skills', () => {
+  assert.equal(IB.SKILLS.length, 15);
+  assert.equal(IB.SKILL_TIERS.length, 6);
   const ids = new Set();
   IB.SKILLS.forEach((s) => {
     assert.ok(!ids.has(s.id), 'unique ' + s.id); ids.add(s.id);
@@ -22,12 +23,22 @@ test('data: 12-16 skills, valid tiers, 3-rank skills, 1-rank specials, exactly t
     if (s.kind === 'rank') assert.equal(s.max, 3, s.id + ' has 3 ranks');
     else assert.equal(s.max, 1, s.id + ' is a 1-rank skill');
     assert.ok(s.ranks.every((v, i) => i === 0 || v > s.ranks[i - 1]), s.ranks.join());
+    assert.ok(typeof s.text === 'string' && s.text.length > 10, 'text ' + s.id);
   });
+  // the layout of the player's sketch: row by row, top (endgame) to bottom (trunk)
+  const row = (t) => IB.SKILLS.filter((s) => s.tier === t).map((s) => s.id);
+  assert.deepEqual(row(6), ['handyhelpers', 'chainreaction']);
+  assert.deepEqual(row(5), ['tank', 'fastfingers']);
+  assert.deepEqual(row(4), ['stamina', 'hydrate', 'undercover']);
+  assert.deepEqual(row(3), ['hazard', 'ricochet', 'healthy']);
+  assert.deepEqual(row(2), ['stream', 'electrify', 'rapid']);
+  assert.deepEqual(row(1), ['overload', 'heavyink']);
   const caps = IB.SKILLS.filter((s) => s.kind === 'capstone');
   assert.equal(caps.length, 2);
-  assert.ok(caps.every((s) => s.tier === IB.SKILL_TIERS.length && s.group === 'capstone'));
-  assert.ok(IB.SKILLS.some((s) => s.kind === 'special'));
-  assert.deepEqual(IB.SKILL_TIERS.map((t) => t.gate), [0, 3, 6, 9, 13]);
+  assert.ok(caps.every((s) => s.tier === IB.SKILL_TIERS.length && s.group === 'capstone' && s.cost === 5));
+  assert.deepEqual(IB.SKILLS.filter((s) => s.kind === 'special').map((s) => s.id), ['electrify', 'stamina', 'undercover']);
+  assert.deepEqual(IB.SKILL_TIERS.map((t) => t.gate), [0, 2, 5, 8, 11, 14]);
+  assert.ok(IB.SKILL_TIERS[5].capstone && IB.SKILL_TIERS.slice(0, 5).every((t) => !t.capstone));
 });
 
 test('economy: 22 points from levels 1-17 only, the last one on level 17', () => {
@@ -47,17 +58,19 @@ test('economy: 22 points from levels 1-17 only, the last one on level 17', () =>
 test('available points are derived from progress, never stored; buying is the only way to spend them', () => {
   let sk = {};
   assert.equal(S.available(sk, 0), 0);
-  assert.equal(S.buy(sk, 0, 'overboard'), null, 'no points before the first clear');
-  sk = buyAll(sk, 1, ['overboard', 'overboard']);
+  assert.equal(S.buy(sk, 0, 'overload'), null, 'no points before the first clear');
+  sk = buyAll(sk, 1, ['overload', 'overload']);
   assert.equal(S.available(sk, 1), 0);
-  assert.equal(S.buy(sk, 1, 'overboard'), null);
-  assert.equal(S.canBuy(sk, 1, 'overboard').reason, 'points');
+  assert.equal(S.buy(sk, 1, 'overload'), null);
+  assert.equal(S.canBuy(sk, 1, 'overload').reason, 'points');
   assert.equal(S.available(sk, 2), 1, 'the next clear pays one more');
   // buy() never mutates its input
-  const before = JSON.stringify(sk); S.buy(sk, 5, 'overboard'); assert.equal(JSON.stringify(sk), before);
-  // ranks stop at max
-  sk = buyAll({}, 5, ['overboard', 'overboard', 'overboard']);
-  assert.equal(S.canBuy(sk, 5, 'overboard').reason, 'max');
+  const before = JSON.stringify(sk); S.buy(sk, 5, 'overload'); assert.equal(JSON.stringify(sk), before);
+  // ranks stop at max; specials have one rank
+  sk = buyAll({}, 5, ['overload', 'overload', 'overload']);
+  assert.equal(S.canBuy(sk, 5, 'overload').reason, 'max');
+  sk = buyAll(sk, 5, ['electrify']);
+  assert.equal(S.canBuy(sk, 5, 'electrify').reason, 'max');
 });
 
 test('random players can never spend more than they earned, and every reachable tree validates', () => {
@@ -71,50 +84,150 @@ test('random players can never spend more than they earned, and every reachable 
         const n = S.buy(sk, h, s.id); if (n) sk = n;
       }
       assert.ok(S.spent(sk) <= S.earned(h), 'run ' + run + ' level ' + h);
+      assert.ok(S.spent(sk) <= 22);
       assert.ok(S.validate(sk, h).ok, JSON.stringify(S.validate(sk, h)));
-      assert.ok(!(S.rank(sk, 'lightningrod') && S.rank(sk, 'tintitan')));
+      assert.ok(!(S.rank(sk, 'handyhelpers') && S.rank(sk, 'chainreaction')), 'pick one endgame skill');
     }
   }
 });
 
-test('tier gates: a tier opens once enough points are spent in the tiers above it', () => {
+test('tier gates: a row opens once enough points are spent in the rows below it (2 / 5 / 8 / 11 / 14)', () => {
   const h = 17;
-  let sk = buyAll({}, h, ['overboard', 'fastfingers']);
-  assert.equal(S.canBuy(sk, h, 'steadyink').reason, 'tier');
-  assert.equal(S.canBuy(sk, h, 'steadyink').need, 1);
-  sk = buyAll(sk, h, ['tinhide']);
+  let sk = buyAll({}, h, ['overload']);
+  assert.equal(S.canBuy(sk, h, 'stream').reason, 'tier');
+  assert.equal(S.canBuy(sk, h, 'stream').need, 1);
+  sk = buyAll(sk, h, ['heavyink']);
   assert.ok(S.tierUnlocked(sk, 2));
-  assert.ok(S.canBuy(sk, h, 'steadyink').ok);
-  assert.equal(S.canBuy(sk, h, 'heavyink').reason, 'tier', 'tier III needs 6');
-  sk = buyAll(sk, h, ['steadyink', 'scrapmagnet', 'secondwind']);
-  assert.ok(S.canBuy(sk, h, 'electrify').ok);
-  assert.equal(S.canBuy(sk, h, 'overclock').reason, 'tier', 'tier IV needs 9');
-  sk = buyAll(sk, h, ['heavyink', 'electrify', 'coredump']);
-  assert.ok(S.canBuy(sk, h, 'closecall').ok);
-  assert.equal(S.canBuy(sk, h, 'tintitan').reason, 'tier', 'capstones need 13');
-  assert.equal(S.spentAbove(sk, 5), 9);
+  assert.ok(S.canBuy(sk, h, 'stream').ok && S.canBuy(sk, h, 'electrify').ok && S.canBuy(sk, h, 'rapid').ok);
+  assert.equal(S.canBuy(sk, h, 'hazard').reason, 'tier', 'row 3 needs 5');
+  sk = buyAll(sk, h, ['electrify', 'stream', 'rapid']);
+  assert.ok(S.canBuy(sk, h, 'hazard').ok && S.canBuy(sk, h, 'ricochet').ok && S.canBuy(sk, h, 'healthy').ok);
+  assert.equal(S.canBuy(sk, h, 'undercover').reason, 'tier', 'row 4 needs 8');
+  sk = buyAll(sk, h, ['healthy', 'healthy', 'ricochet']);
+  assert.ok(S.canBuy(sk, h, 'stamina').ok && S.canBuy(sk, h, 'hydrate').ok && S.canBuy(sk, h, 'undercover').ok);
+  assert.equal(S.canBuy(sk, h, 'tank').reason, 'tier', 'row 5 needs 11');
+  sk = buyAll(sk, h, ['undercover', 'stamina', 'hydrate']);
+  assert.ok(S.canBuy(sk, h, 'tank').ok && S.canBuy(sk, h, 'fastfingers').ok);
+  assert.equal(S.canBuy(sk, h, 'handyhelpers').reason, 'tier', 'endgame needs 14');
+  assert.equal(S.spentAbove(sk, 6), 11);
+  // the gate counts the rows below only
+  sk = buyAll(sk, h, ['tank', 'tank', 'tank']);
+  assert.equal(S.spentAbove(sk, 6), 14);
+  assert.equal(S.spentAbove(sk, 5), 11);
+  assert.ok(S.canBuy(sk, h, 'handyhelpers').ok);
   // a hand-made tree that skips a gate is invalid
-  assert.ok(!S.validate({ heavyink: 1 }, 17).ok);
-  assert.ok(!S.validate({ overboard: 3, closecall: 1 }, 17).ok);
+  assert.ok(!S.validate({ stream: 1 }, 17).ok);
+  assert.ok(!S.validate({ overload: 3, heavyink: 3, undercover: 1 }, 17).ok);
+  assert.ok(S.validate({ overload: 3, heavyink: 3, undercover: 1, hazard: 2 }, 17).ok);
 });
 
-test('capstones: one only, by rule and by budget; first affordable after the level 15 boss', () => {
-  const route = ['overboard', 'overboard', 'overboard', 'fastfingers', 'fastfingers', 'fastfingers', 'tinhide', 'tinhide', 'tinhide',
-    'steadyink', 'steadyink', 'steadyink', 'scrapmagnet'];   // 13 points: every tier is open
+test('endgame: pick one, by rule and by budget; first affordable after the level 15 boss', () => {
+  const route = ['overload', 'overload', 'overload', 'heavyink', 'heavyink', 'heavyink', 'rapid', 'rapid', 'rapid',
+    'electrify', 'healthy', 'healthy', 'healthy', 'undercover'];   // 14 points: every row is open
   const sk = buyAll({}, 17, route);
-  assert.ok(S.tierUnlocked(sk, 5));
-  const rod = buyAll(sk, 17, ['lightningrod']);
-  assert.equal(S.canBuy(rod, 17, 'tintitan').reason, 'exclusive');
-  assert.equal(S.canBuy(rod, 99, 'tintitan').reason, 'exclusive', 'more points do not help');
+  assert.ok(S.tierUnlocked(sk, 6));
+  assert.equal(S.available(sk, 17), 8);
+  const hh = buyAll(sk, 17, ['handyhelpers']);
+  assert.equal(S.canBuy(hh, 17, 'chainreaction').reason, 'exclusive');
+  assert.equal(S.canBuy(hh, 99, 'chainreaction').reason, 'exclusive', 'more points do not help');
+  assert.equal(S.canBuy(hh, 17, 'chainreaction').owner, 'handyhelpers');
+  assert.equal(S.spent(hh), 19);
   // budget: the cheapest way to own both is gate + both costs, more than the whole campaign pays
   const caps = IB.SKILLS.filter((s) => s.kind === 'capstone');
-  const gate = IB.SKILL_TIERS[4].gate;
+  const gate = IB.SKILL_TIERS[5].gate;
   assert.ok(gate + caps[0].cost + caps[1].cost > S.totalPoints());
   assert.ok(gate + caps[0].cost <= S.totalPoints());
-  // the earliest clear that can afford one capstone is level 15
+  // the earliest clear that can afford one is level 15
   const first = [...Array(18).keys()].find((L) => S.earned(L) >= gate + caps[0].cost);
   assert.equal(first, 15);
-  assert.ok(!S.validate({ overboard: 3, fastfingers: 3, tinhide: 3, steadyink: 3, scrapmagnet: 1, lightningrod: 1, tintitan: 1 }, 99).ok);
+  assert.equal(S.canBuy(sk, 14, 'chainreaction').reason, 'points');
+  assert.ok(!S.validate(Object.assign({}, hh, { chainreaction: 1 }), 99).ok);
+});
+
+test('old saves: trees with the retired skill ids are refunded in full, never crash', () => {
+  const old = [
+    { overboard: 3, fastfingers: 3, tinhide: 3, steadyink: 3, scrapmagnet: 1, lightningrod: 1 },
+    { overboard: 2 }, { tintitan: 1, heavyink: 3 }, { closecall: 1 }, { heavyink: 3, fastfingers: 1, coredump: 2 }
+  ];
+  for (const sk of old) {
+    const r = S.sanitize(sk, 17);
+    assert.deepEqual(r.skills, {}, JSON.stringify(sk));
+    assert.equal(r.reset, true);
+    assert.equal(S.available(r.skills, 17), 22, 'every point back');
+    assert.doesNotThrow(() => S.effects(r.skills));
+  }
+  // effects() of a raw old tree (before sanitize) ignores what it does not know instead of throwing
+  assert.doesNotThrow(() => S.effects({ overboard: 3, heavyink: 2 }));
+  assert.equal(S.effects({ overboard: 3, heavyink: 2 }).dmgMul, 1.08);
+  // a valid new tree passes untouched
+  assert.deepEqual(S.sanitize({ overload: 2, heavyink: 1 }, 2), { skills: { overload: 2, heavyink: 1 }, reset: false });
+  // through the save loader: old ids -> empty tree, a one-time refund flag for the game's notice
+  const be = IB.Saves.memoryBackend(), store = IB.Saves.create(be);
+  be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 12, skills: { overboard: 3, coredump: 2, lightningrod: 1 } }));
+  const slot = store.load(1);
+  assert.deepEqual(slot.skills, {}); assert.equal(slot.skillsRefunded, true);
+  assert.equal(S.available(slot.skills, slot.highest), S.earned(12));
+  be.setItem('inkbolt.slot2', JSON.stringify({ v: 1, id: 2, highest: 12, skills: { overload: 3, heavyink: 1 } }));
+  assert.equal(store.load(2).skillsRefunded, undefined, 'a valid tree raises no flag');
+});
+
+test('effects: every skill changes the runtime numbers its text promises', () => {
+  const none = S.effects({});
+  assert.deepEqual([none.magMul, none.dmgMul, none.rateMul, none.reloadMul, none.swapMul, none.maxHpMul, none.dmgTakenMul, none.sprintMul,
+    none.staminaMul, none.staminaRechargeMul, none.pierce, none.ricochet, none.pool, none.coat, none.rogue, none.chain, none.regenPct, none.regenFlat],
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0]);
+  assert.ok(!none.shock && !none.cloak);
+  assert.equal(S.regenRate(none, 100), 0);
+  const near = (a, b, m) => assert.ok(Math.abs(a - b) < 1e-9, (m ? m + ': ' : '') + a + ' vs ' + b);
+  // trunk
+  near(S.effects({ overload: 1 }).magMul, 1.1); near(S.effects({ overload: 3 }).magMul, 1.3);
+  near(S.effects({ heavyink: 3 }).dmgMul, 1.12);
+  // row 2
+  const st = S.effects({ stream: 3 }); near(st.pierce, 0.18); assert.equal(st.pierceMul, 2);
+  const el = S.effects({ electrify: 1 }); assert.ok(el.shock); assert.equal(el.shockTime, 5);
+  near(S.shockDps(el, 20) * el.shockTime, 5, 'Electrify: 25% of the hit again'); near(S.shockDps(el, 160) * el.shockTime, 40);
+  near(S.effects({ rapid: 3 }).rateMul, 1.12);
+  // row 3
+  const hz = S.effects({ hazard: 2 }); near(hz.pool, 0.1); assert.equal(hz.poolTime, 5); assert.ok(hz.poolBurn >= 5 && hz.poolBurn <= 7);
+  assert.equal(S.poolDps(hz, 2), hz.poolMin); assert.equal(S.poolDps(hz, 999), hz.poolMax); near(S.poolDps(hz, 18), 9);
+  const rc = S.effects({ ricochet: 3 }); near(rc.ricochet, 0.24); assert.equal(rc.ricochetRange, 10); near(rc.ricochetFrac, 0.6);
+  const hl = S.effects({ healthy: 3 }); near(hl.maxHpMul, 1.24); near(hl.regenPct, 1.5); assert.equal(hl.regenDelay, 4);
+  near(S.regenRate(hl, 200), 3, '0.5% per rank per second');
+  // row 4
+  const sm = S.effects({ stamina: 1 }); assert.deepEqual([sm.sprintMul, sm.staminaMul, sm.staminaRechargeMul], [2, 2.5, 0.5]);
+  const hy = S.effects({ hydrate: 3 }); near(hy.coat, 0.18); assert.equal(hy.coatTime, 6); assert.equal(hy.coatRadius, 3); assert.ok(hy.coatBurn >= 5 && hy.coatBurn <= 7);
+  const uc = S.effects({ undercover: 1 }); assert.ok(uc.cloak); assert.equal(uc.cloakTime, 5); assert.equal(uc.cloakCooldown, 30);
+  // row 5
+  const tk = S.effects({ tank: 3 }); near(tk.dmgTakenMul, 0.85); assert.equal(tk.regenFlat, 3); near(S.regenRate(tk, 150), 3);
+  near(S.regenRate(S.effects({ tank: 2, healthy: 1 }), 100), 2.5);
+  const ff = S.effects({ fastfingers: 3 }); near(ff.reloadMul, 1 / 1.3); near(ff.swapMul, 1 / 1.3);
+  // endgame
+  const hh = S.effects({ handyhelpers: 1 }); near(hh.rogue, 0.08); assert.equal(hh.rogueTime, 15);
+  const cr = S.effects({ chainreaction: 1 }); near(cr.chain, 0.1); assert.equal(cr.chainMin, 2); assert.equal(cr.chainRadius, 4); near(cr.chainFrac, 0.4);
+  // every skill id is read by effects(): owning it changes at least one field
+  const base = JSON.stringify(none);
+  IB.SKILLS.forEach((s) => assert.notEqual(JSON.stringify(S.effects({ [s.id]: 1 })), base, s.id));
+  // the whole tree maxed (impossible in play: both endgames) still keeps robots dangerous
+  const max = {}; IB.SKILLS.forEach((s) => { max[s.id] = s.max; });
+  const m = S.effects(max);
+  assert.ok(m.dmgMul <= 1.15 && m.maxHpMul <= 1.25 && m.dmgTakenMul >= 0.85 && m.rateMul <= 1.15);
+  assert.ok(S.regenRate(m, 160) <= 6, 'repair stays slow next to robot fire');
+});
+
+test('Chain Reaction damage: 40% of each robot max health, and never wrecks the whole group at once', () => {
+  const f = S.effects({ chainreaction: 1 });
+  assert.deepEqual(S.chainDamage(f, [100, 100, 100], [100, 100, 100]), [40, 40, 40]);
+  // two are nearly dead, one is fresh: the weak ones go, the fresh one takes its 40%
+  assert.deepEqual(S.chainDamage(f, [10, 20, 100], [100, 100, 100]), [40, 40, 40]);
+  // all three would die: the toughest keeps 1 health
+  assert.deepEqual(S.chainDamage(f, [10, 30, 25], [100, 100, 100]), [40, 29, 40]);
+  for (let t = 0; t < 200; t++) {
+    const n = 3 + (t % 4), hp = [], mx = [];
+    for (let i = 0; i < n; i++) { mx.push(30 + ((t * 7 + i * 13) % 90)); hp.push(1 + ((t * 11 + i * 5) % mx[i])); }
+    const dm = S.chainDamage(f, hp, mx);
+    assert.ok(dm.some((x, i) => x < hp[i]), 'someone survives ' + JSON.stringify([hp, mx, dm]));
+    assert.ok(dm.every((x) => x >= 0) && dm.every((x, i) => x <= 0.4 * mx[i] + 1e-9));
+  }
 });
 
 test('respec: cost scales with progress (40% of EXPECTED_INCOME), never free, about half a real level of gems', () => {
@@ -128,51 +241,14 @@ test('respec: cost scales with progress (40% of EXPECTED_INCOME), never free, ab
     assert.equal(c % 5, 0);
     assert.ok(c / inc >= 0.3 && c / inc <= 0.7, 'level ' + L + ': ' + c + ' vs ' + inc);
   }
-  const slot = { highest: 8, gems: 200, skills: buyAll({}, 8, ['overboard', 'overboard', 'fastfingers']) };
+  const slot = { highest: 8, gems: 200, skills: buyAll({}, 8, ['overload', 'overload', 'heavyink']) };
   const r = S.respec(slot);
   assert.deepEqual(r, { ok: true, cost: 90 });
   assert.equal(slot.gems, 110); assert.deepEqual(slot.skills, {});
   assert.equal(S.available(slot.skills, 8), S.earned(8), 'every point refunded');
   assert.equal(S.respec(slot).reason, 'empty', 'nothing to reset');
-  const poor = { highest: 8, gems: 89, skills: { overboard: 1 } };
-  assert.equal(S.respec(poor).reason, 'gems'); assert.equal(poor.gems, 89); assert.deepEqual(poor.skills, { overboard: 1 });
-});
-
-test('effects: every skill changes the runtime numbers it promises', () => {
-  const none = S.effects({});
-  assert.deepEqual([none.magMul, none.reloadMul, none.maxHpAdd, none.recoilMul, none.spreadMul, none.magnetMul, none.staminaMul, none.dmgMul,
-    none.coreMul, none.rateMul, none.leech, none.dmgTakenMul, none.regen], [1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0]);
-  assert.ok(!none.shock && !none.chain && !none.closeCall && !none.arc);
-  const near = (a, b) => assert.ok(Math.abs(a - b) < 1e-9, a + ' vs ' + b);
-  near(S.effects({ overboard: 1 }).magMul, 1.1); near(S.effects({ overboard: 3 }).magMul, 1.3);
-  near(S.effects({ fastfingers: 3 }).reloadMul, 1 / 1.24);
-  assert.equal(S.effects({ tinhide: 2 }).maxHpAdd, 20);
-  near(S.effects({ steadyink: 3 }).recoilMul, 0.7); near(S.effects({ steadyink: 3 }).spreadMul, 0.85);
-  near(S.effects({ scrapmagnet: 2 }).magnetMul, 1.7);
-  near(S.effects({ secondwind: 3 }).staminaMul, 1.45);
-  near(S.effects({ heavyink: 3 }).dmgMul, 1.12);
-  near(S.effects({ coredump: 3 }).coreMul, 1.24);
-  near(S.effects({ overclock: 3 }).rateMul, 1.12);
-  assert.equal(S.effects({ salvagebolts: 3 }).leech, 6);
-  assert.ok(S.effects({ electrify: 1 }).shock);
-  assert.ok(S.effects({ chainreaction: 1 }).chain);
-  assert.ok(S.effects({ closecall: 1 }).closeCall);
-  const rod = S.effects({ lightningrod: 1 });
-  assert.ok(rod.shock && rod.arc); assert.equal(rod.shockMul, 1.5); assert.equal(rod.arcTargets, 2);
-  const titan = S.effects({ tintitan: 1, tinhide: 3 });
-  assert.equal(titan.maxHpAdd, 70); assert.equal(titan.dmgTakenMul, 0.8); assert.equal(titan.regen, 4);
-  // Electrify: each hit adds 20% of itself (2..16) as shock over 2 s (x1.5 with Lightning Rod) - a small extra
-  const e = S.effects({ electrify: 1 }), total = (fx, d) => S.shockDps(fx, d) * fx.shockTime;
-  near(total(e, 5), 2); near(total(e, 18), 3.6); near(total(e, 160), 16);
-  near(total(rod, 18), 5.4);
-  for (const id of ['pip', 'buzz', 'rivet', 'needle', 'whisk']) assert.ok(total(e, IB.WEAPONS[id].damage) <= 0.25 * IB.WEAPONS[id].damage, id);
-  // every skill id is read by effects(): owning it changes at least one field
-  const base = JSON.stringify(none);
-  IB.SKILLS.forEach((s) => assert.notEqual(JSON.stringify(S.effects({ [s.id]: 1 })), base, s.id));
-  // the whole tree maxed (impossible in play) still keeps robots dangerous: under +25% damage, under 2x health
-  const max = {}; IB.SKILLS.forEach((s) => { if (s.id !== 'lightningrod') max[s.id] = s.max; });
-  const m = S.effects(max);
-  assert.ok(m.dmgMul <= 1.15 && m.maxHpAdd <= 100);
+  const poor = { highest: 8, gems: 89, skills: { overload: 1 } };
+  assert.equal(S.respec(poor).reason, 'gems'); assert.equal(poor.gems, 89); assert.deepEqual(poor.skills, { overload: 1 });
 });
 
 test('player level: +1 per completed campaign level, capped at 20, with a rank title each', () => {
