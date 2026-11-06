@@ -31,9 +31,11 @@
     ] };
 
   // campaign order (user's beta plan: mountains, small city, classroom, office tower, big bedroom, ... up to 20)
-  var ORDER = ['mountains', 'smallcity', 'classroom', 'office', 'bedroom', 'tt1', 'tt2', 'tt3'];
+  // the Toy Town district levels (tt1-tt3) are retired from the campaign (kept registered for tests / ?plan=);
+  // levels whose theme is not built yet are skipped by the filter below
+  var ORDER = ['mountains', 'smallcity', 'classroom', 'office', 'bedroom', 'coalmine', 'castle', 'city2', 'factory', 'livingroom'];
   // new weapons waiting at the start of each campaign level (index = level - 1)
-  var WEAPONS = [['buzz'], ['rivet', 'handcannon'], ['triplet', 'whisk'], ['longtom', 'hornet'], ['brick', 'twintap'], ['needle'], [], []];
+  var WEAPONS = [['buzz'], ['rivet', 'handcannon'], ['triplet', 'whisk'], ['longtom', 'hornet'], ['brick', 'twintap'], ['needle'], [], [], [], []];
   IB.CAMPAIGN = ORDER.filter(function (id) { return P[id]; });
   IB.CAMPAIGN.forEach(function (id, i) {
     var p = P[id];

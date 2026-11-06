@@ -545,13 +545,18 @@
   //   * streets, avenues with lane marks, and a park block or two
   function buildCityBelow(level, theme, cz, rad, ring) {
     var C = theme.below, D = C.depth || 170;
-    var pos = [], colr = [], win = [], fac = [], idx = [];
+    var pos = [], colr = [], win = [], fac = [], edge = [], idx = [];
     // fac: (u along the face in m, floor height in m (0 = plain), light factor); win: window colour
+    // edge: (u, v, width, height) of the quad in metres, so the shader can ink every outer edge at a constant
+    // screen width (the comic outline the rest of the game has); width < 0 = no outline (streets, lane marks)
     var NOWIN = new THREE.Color(0, 0, 0);
-    function quad(a, b, c2, d, c, w, fh, k, ua, ub) {
+    function quad(a, b, c2, d, c, w, fh, k, ua, ub, noInk) {
       var n = pos.length / 3, U = [ua || 0, ub || 0, ub || 0, ua || 0];
+      var Lu = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]), Lv = Math.hypot(d[0] - a[0], d[1] - a[1], d[2] - a[2]);
+      var E = [[0, 0], [Lu, 0], [Lu, Lv], [0, Lv]];
       [a, b, c2, d].forEach(function (p, i) {
         pos.push(p[0], p[1], p[2]); colr.push(c.r, c.g, c.b); var ww = w || NOWIN; win.push(ww.r, ww.g, ww.b); fac.push(U[i], fh || 0, k);
+        edge.push(E[i][0], E[i][1], noInk ? -1 : Lu, Lv);
       });
       idx.push(n, n + 1, n + 2, n, n + 2, n + 3);
     }
@@ -567,10 +572,10 @@
       if (roof === false) return;
       var rc = roof || ROOF, r = Math.min(0.6, (x1 - x0) * 0.08), y = y1 + 0.03;
       quad([x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0], rc, null, 0, 1);
-      quad([x0, y, z1], [x1, y, z1], [x1, y, z1 - r], [x0, y, z1 - r], INK, null, 0, 1);
-      quad([x0, y, z0 + r], [x1, y, z0 + r], [x1, y, z0], [x0, y, z0], INK, null, 0, 1);
-      quad([x0, y, z1], [x0 + r, y, z1], [x0 + r, y, z0], [x0, y, z0], INK, null, 0, 1);
-      quad([x1 - r, y, z1], [x1, y, z1], [x1, y, z0], [x1 - r, y, z0], INK, null, 0, 1);
+      quad([x0, y, z1], [x1, y, z1], [x1, y, z1 - r], [x0, y, z1 - r], INK, null, 0, 1, 0, 0, true);
+      quad([x0, y, z0 + r], [x1, y, z0 + r], [x1, y, z0], [x0, y, z0], INK, null, 0, 1, 0, 0, true);
+      quad([x0, y, z1], [x0 + r, y, z1], [x0 + r, y, z0], [x0, y, z0], INK, null, 0, 1, 0, 0, true);
+      quad([x1 - r, y, z1], [x1, y, z1], [x1, y, z0], [x1 - r, y, z0], INK, null, 0, 1, 0, 0, true);
     }
     function tank(x, z, y, s) {                 // rooftop water tank: legs, barrel, cone roof (octagon)
       var seg = 8, r = 1.3 * s, h = 2.6 * s, yb = y + 1.6 * s, wood = col('#9A6B4A'), cone = col('#6E4B38');
@@ -580,17 +585,29 @@
         var p0 = [x + Math.cos(a0) * r, z + Math.sin(a0) * r], p1 = [x + Math.cos(a1) * r, z + Math.sin(a1) * r];
         quad([p1[0], yb, p1[1]], [p0[0], yb, p0[1]], [p0[0], yb + h, p0[1]], [p1[0], yb + h, p1[1]], wood, null, 0, k);
         var n = pos.length / 3; pos.push(p1[0], yb + h, p1[1], p0[0], yb + h, p0[1], x, yb + h + r * 0.8, z);
-        for (var j = 0; j < 3; j++) { colr.push(cone.r, cone.g, cone.b); win.push(0, 0, 0); fac.push(0, 0, k); }
+        for (var j = 0; j < 3; j++) { colr.push(cone.r, cone.g, cone.b); win.push(0, 0, 0); fac.push(0, 0, k); edge.push(0, 0, -1, 0); }
         idx.push(n, n + 1, n + 2);
       }
     }
-    function ground(x0, z0, x1, z1, y, c) { quad([x0, y, z1], [x1, y, z1], [x1, y, z0], [x0, y, z0], c, null, 0, 1); }
+    function ground(x0, z0, x1, z1, y, c, ink) { quad([x0, y, z1], [x1, y, z1], [x1, y, z0], [x0, y, z0], c, null, 0, 1, 0, 0, !ink); }
     // level footprint (our tower)
     var minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9;
     level.zones.forEach(function (z) { minX = Math.min(minX, z.ox); maxX = Math.max(maxX, z.ox + z.w); minZ = Math.min(minZ, z.oz); maxZ = Math.max(maxZ, z.oz + z.h); });
+    var hz = level.hatch ? level.hatch.z : minZ;
+    minZ = Math.min(minZ, hz - 6);
     minX -= 0.6; maxX += 0.6; minZ -= 4; maxZ += 4;
-    var Y0 = -D;
-    tower(minX, minZ, maxX, maxZ, Y0, -0.06, col('#7E93AA'), col(C.glass || '#5F7FA2'), 4, false);
+    var Y0 = -D, facade = col('#7E93AA'), glass = col(C.glass || '#5F7FA2'), setback = col('#6C7F95');
+    // the tower: each zone is a wing with its own curtain wall down to the street; between wings (where the trail
+    // corridors run) a lower set-back block with a roof 4 m down, so every floor plate stands on a building
+    var wings = level.zones.map(function (z) { return [z.ox - 0.6, z.oz - 0.3, z.ox + z.w + 0.6, z.oz + z.h + 0.3]; });
+    wings.forEach(function (w) { tower(w[0], w[1], w[2], w[3], Y0, -0.06, facade, glass, 4, false); });
+    for (var wi = 0; wi < wings.length; wi++) {
+      var lo = wings[wi], next = wings[wi + 1];
+      var gz0 = next ? next[3] : minZ, gz1 = lo[1];
+      if (gz1 - gz0 < 0.2) continue;
+      var gx0 = Math.max(lo[0], next ? next[0] : lo[0]) + 3, gx1 = Math.min(lo[2], next ? next[2] : lo[2]) - 3;
+      tower(gx0, gz0, gx1, gz1, Y0, -4, setback, glass, 4, col('#9AA3AE'));
+    }
     // skyline rows: shafts carry the printed skyline down to the street (its pieces stop at z = -25). They start
     // just behind the skyline's front blocks (6 m back) and run under its mid and far towers (to ~58 m back), stopping
     // under its base; the dark roofs only show in the gaps between skyline blocks.
@@ -624,8 +641,8 @@
       var bx0 = gx + ST / 2, bz0 = gz + ST / 2, bx1 = bx0 + BLK, bz1 = bz0 + BLK, hh = hash(Math.round(gx) + 999, Math.round(gz) + 999);
       ground(gx + ST / 2 - 0.14, gz, gx + ST / 2 + 0.14, gz + BLK + ST, Y0 + 0.05, lane);     // avenue centre line
       ground(gx, gz + ST / 2 - 0.14, gx + BLK + ST, gz + ST / 2 + 0.14, Y0 + 0.06, lane);     // street centre line
-      ground(bx0 - 0.8, bz0 - 0.8, bx1 + 0.8, bz1 + 0.8, Y0 + 0.15, walk);                    // sidewalk slab
-      if (hh < 0.06) { ground(bx0, bz0, bx1, bz1, Y0 + 0.3, park); continue; }
+      ground(bx0 - 0.8, bz0 - 0.8, bx1 + 0.8, bz1 + 0.8, Y0 + 0.15, walk, true);                    // sidewalk slab
+      if (hh < 0.06) { ground(bx0, bz0, bx1, bz1, Y0 + 0.3, park, true); continue; }
       var parts = hh < 0.38 ? 1 : hh < 0.74 ? 2 : 4, mx = (bx0 + bx1) / 2, mz = (bz0 + bz1) / 2;
       for (var q = 0; q < parts; q++) {
         var qx0 = bx0, qz0 = bz0, qx1 = bx1, qz1 = bz1;
@@ -646,18 +663,22 @@
     geo.setAttribute('color', new THREE.Float32BufferAttribute(colr, 3));
     geo.setAttribute('aWin', new THREE.Float32BufferAttribute(win, 3));
     geo.setAttribute('aFac', new THREE.Float32BufferAttribute(fac, 3));
+    geo.setAttribute('aEdge', new THREE.Float32BufferAttribute(edge, 4));
     geo.setIndex(pos.length / 3 > 65535 ? new THREE.Uint32BufferAttribute(idx, 1) : new THREE.Uint16BufferAttribute(idx, 1));
     geo.computeBoundingSphere();
     // window grid (floor bands + mullions) and the depth haze are drawn per pixel: one quad per facade
     var mat = new THREE.ShaderMaterial({
-      uniforms: { uHaze: { value: col(C.haze || '#CCDCE8') }, uDepth: { value: D }, uTop: { value: C.hazeTop || 0.18 }, uBot: { value: C.hazeBottom || 0.6 } },
-      vertexShader: 'attribute vec3 color; attribute vec3 aWin; attribute vec3 aFac; varying vec3 vC; varying vec3 vW; varying vec3 vF; varying float vY; varying float vDist;\n' +
-        'void main(){ vC = color; vW = aWin; vF = aFac; vY = position.y; vec4 mv = modelViewMatrix * vec4(position, 1.0); vDist = length(mv.xyz); gl_Position = projectionMatrix * mv; }',
-      fragmentShader: 'uniform vec3 uHaze; uniform float uDepth; uniform float uTop; uniform float uBot; varying vec3 vC; varying vec3 vW; varying vec3 vF; varying float vY; varying float vDist;\n' +
+      uniforms: { uInk: { value: col('#221E2C') }, uHaze: { value: col(C.haze || '#CCDCE8') }, uDepth: { value: D }, uTop: { value: C.hazeTop || 0.18 }, uBot: { value: C.hazeBottom || 0.6 } },
+      extensions: { derivatives: true },
+      vertexShader: 'attribute vec3 color; attribute vec3 aWin; attribute vec3 aFac; attribute vec4 aEdge; varying vec3 vC; varying vec3 vW; varying vec3 vF; varying vec4 vE; varying float vY; varying float vDist;\n' +
+        'void main(){ vC = color; vW = aWin; vF = aFac; vE = aEdge; vY = position.y; vec4 mv = modelViewMatrix * vec4(position, 1.0); vDist = length(mv.xyz); gl_Position = projectionMatrix * mv; }',
+      fragmentShader: 'uniform vec3 uHaze; uniform float uDepth; uniform float uTop; uniform float uBot; uniform vec3 uInk; varying vec3 vC; varying vec3 vW; varying vec3 vF; varying vec4 vE; varying float vY; varying float vDist;\n' +
         'void main(){ vec3 c = vC;\n' +
         '  if (vF.y > 0.0) { float fy = fract(vY / vF.y); float fu = fract(vF.x / 2.6);\n' +
         '    if (fy > 0.38 && fy < 0.9 && fu > 0.14) c = vW; }\n' +
         '  c *= vF.z;\n' +
+        '  if (vE.z > 0.0) { vec2 d = min(vE.xy, vE.zw - vE.xy); vec2 px = fwidth(vE.xy) * 1.7;\n' +
+        '    if (d.x < px.x || d.y < px.y) c = uInk; }\n' +
         '  float h = mix(uTop, uBot, clamp(-vY / uDepth, 0.0, 1.0)) + clamp((vDist - 120.0) / 260.0, 0.0, 0.3);\n' +
         '  gl_FragColor = vec4(mix(c, uHaze, clamp(h, 0.0, 0.92)), 1.0); }'
     });

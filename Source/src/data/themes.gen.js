@@ -152,6 +152,291 @@
   });
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
 
+/* ---- themes/castle.js ---- */
+/* Theme: Castle Courtyard (kit-castle). Three wide wards inside one sandstone curtain wall on a bright summer day:
+   battered walls with corbelled parapets and merlons, round drum towers, gatehouses with timber portcullises (the zone
+   gates), a market ward with striped stalls, carts, hay and barrels round a well, a training yard with fenced
+   sparring rings, dummies, weapon racks and archery butts, and the inner ward round the keep. Higher outer ramparts,
+   towers, green hills and a village beyond the walls. Built by blender/fam_kit_castle.py; zone layouts by
+   tools/castle_zones.py (src/data/zones/castle_*.txt).
+
+   Symbols (1 cell = 1 m; prefab sizes are [x, z] cells):
+     #  curtain wall (1 cell thick: the module backs are the castle's outer face, seen over the passage walls)
+     ,  cobbles      ;  flagstones      g  grass                 (no collision)
+     b  barrels      c  crates / grain sacks    y  hay bale      f  fence (runs)     r  weapon rack (runs)
+     d  training dummy      x  archery butt (faces south)        i  brazier          n  banner pole
+     Y  haystack [2,2]      M  market stall [3,2]                K  cart [2,3]       W  well [3,3] (landmark)
+     O  drum tower [5,5] (against the wall)    X / V  stair to the wall walk [2,7], rising north, parapet east / west
+     T  the keep [12,12] (landmark, door and forebuilding stair face south)    Q  trebuchet [4,8] (landmark)
+   The wall uses facing 'open': the engine turns each module's face to its single open side; the chooser below gives
+   a straight run its rhythm (merlon / crenel by position, buttresses, banners, torches, arrow slits, posterns),
+   corners, wall ends and gate jambs the four-way corner turret, and the modules beside an inner corner a flush
+   face (the perpendicular parapet crosses their front). */
+(function (IB) {
+  'use strict';
+  function wallish(ch) { return ch === '#' || ch === 'G' || ch === 'E'; }
+  var BIG = 'OTXVWMK';   // prefabs that stand in front of the wall: keep the module behind them plain
+  function chooseWall(c, r, horiz, corner, hash, grid, face) {
+    if (face === 'corner' || face === 'none' || !face) return 'Corner';
+    var ns = face === 'S' || face === 'N', p = ns ? c : r;
+    var fc = c + (face === 'E' ? 1 : face === 'W' ? -1 : 0), fr = r + (face === 'S' ? 1 : face === 'N' ? -1 : 0);
+    var merlon = p % 2 === 0, h = hash(c * 7 + 3, r * 13 + 1), dc = ns ? 1 : 0, dr = ns ? 0 : 1;
+    // beside an inner corner the perpendicular parapet crosses this module's front: nothing proud here
+    if (wallish(grid.at(fc - dc, fr - dr)) || wallish(grid.at(fc + dc, fr + dr))) return 'Curtain_Inner';
+    // beside a gatehouse or behind a big prefab: plain merlon / crenel
+    for (var d = -3; d <= 3; d++) { var q = ns ? grid.at(c + d, r) : grid.at(c, r + d); if (q === 'G' || q === 'E') return merlon ? 'Curtain_M' : 'Curtain_C'; }
+    if (BIG.indexOf(grid.at(fc, fr)) >= 0) return merlon ? 'Curtain_M' : 'Curtain_C';
+    var k = p % 12;
+    if (k === 0) return 'Curtain_Buttress';
+    if (k === 7) return Math.floor(p / 12) % 2 ? 'Curtain_BannerB' : 'Curtain_BannerR';
+    if (k === 3) return 'Curtain_Torch';
+    if (k === 10) return 'Curtain_Slit';
+    if (p % 24 === 16) return 'Curtain_Door';
+    return merlon ? (h < 0.5 ? 'Curtain_M' : 'Curtain_M2') : (h < 0.5 ? 'Curtain_C' : 'Curtain_C2');
+  }
+  var WALLS = ['Curtain_M', 'Curtain_M2', 'Curtain_C', 'Curtain_C2', 'Curtain_Slit', 'Curtain_BannerR', 'Curtain_BannerB',
+    'Curtain_Torch', 'Curtain_Buttress', 'Curtain_Door', 'Curtain_Inner', 'Corner'];
+  function flat(pieces) { return { pieces: pieces, alternate: true, collide: false }; }
+
+  IB.registerTheme({
+    id: 'castle', name: 'Castle Courtyard', family: 'kit-castle', prefix: 'KIT_CASTLE_',
+    palette: ['#D3C4A6', '#C33F38', '#3D5DA8', '#8FBF5C'],
+    // high summer: deep blue sky to a warm pale horizon, light warm haze, a high sun from the south-west
+    env: { sky: ['#6FB0EA', '#F6EDD5'], fog: { color: '#E9E4D2', near: 60, far: 165 }, sun: [-0.42, 0.78, 0.46], clouds: true, ceiling: null },
+    // packed-earth wards; the passages between wards are cobbled; meadow outside the walls
+    floor: { color: '#CDB48A', trail: '#BFB5A2', outside: '#9CC46C' },
+    wall: { height: 7.7, roof: '#E6DAC0', facing: 'open', choose: chooseWall },
+    symbols: {
+      ',': flat(['Cobble', 'CobbleB']),
+      ';': flat(['Flag', 'FlagB']),
+      'g': flat(['Grass', 'GrassB']),
+      'b': { pieces: ['Barrels', 'BarrelStack'], rotate: 'random90', kind: 'cover' },
+      'c': { pieces: ['Crates', 'Sacks'], rotate: 'random90', kind: 'cover' },
+      'y': { pieces: ['HayBale'], rotate: 'random90', kind: 'cover' },
+      'f': { pieces: ['Fence'], rotate: 'run', kind: 'cover' },
+      'r': { pieces: ['Rack'], rotate: 'run', kind: 'cover' },
+      'd': { pieces: ['Dummy'], rotate: 'random90', kind: 'cover' },
+      'x': { pieces: ['Target'], rotate: 0, kind: 'cover' },
+      'i': { pieces: ['Brazier'], kind: 'prop' },
+      'n': { pieces: ['BannerPoleR', 'BannerPoleB'], alternate: true, kind: 'prop' },
+      'Y': { size: [2, 2], pieces: ['HayStack'], flip: true, kind: 'cover' },
+      'M': { size: [3, 2], pieces: ['Stall_A', 'Stall_B', 'Stall_C'], sequence: true, flip: true, kind: 'cover' },
+      'K': { size: [2, 3], pieces: ['Cart_Hay', 'Cart_Barrels'], flip: true, kind: 'cover' },
+      'W': { size: [3, 3], pieces: ['Landmark_Well'], kind: 'wall' },
+      'O': { size: [5, 5], pieces: ['Tower_A', 'Tower_B'], flip: true, kind: 'wall' },
+      'X': { size: [2, 7], pieces: ['Stairs'], kind: 'wall' },
+      'V': { size: [2, 7], pieces: ['StairsL'], kind: 'wall' },
+      'T': { size: [12, 12], pieces: ['Landmark_Keep'], kind: 'wall' },
+      'Q': { size: [4, 8], pieces: ['Landmark_Trebuchet'], kind: 'wall' }
+    },
+    // the zone gates are gatehouses with a timber portcullis; the passages between wards are walled as high as the
+    // curtain (merlons on top), so nothing beyond them shows over the top
+    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
+    trail: { wall: 'TrailWall', height: 7.7 },
+    hatch: 'Hatch', stand: 'Crates',
+    backdrop: { ring: [
+      // the outer curtain: high ramparts with towers and stairs just outside the wards, seen over the walls
+      { piece: 'Backdrop_Rampart', count: 12, radius: [26, 34], scale: [0.95, 1.15], face: true, squeezeX: 0.7 },
+      { piece: 'Backdrop_Tower', count: 7, radius: [36, 44], scale: [0.9, 1.2], face: true, squeezeX: 0.72 },
+      { piece: 'Backdrop_Village', count: 6, radius: [58, 66], scale: [1.0, 1.2], face: true, squeezeX: 0.8 },
+      { piece: 'Backdrop_Hills', count: 9, radius: [76, 92], scale: [1.1, 1.5], face: true, squeezeX: 0.85 }
+    ] },
+    budget: { prop: 2500, landmark: 5000, total: 70000 },
+    allPieces: function () {
+      var out = WALLS.concat(['GateFrame', 'GateShutter', 'TrailWall', 'Hatch',
+        'Backdrop_Rampart', 'Backdrop_Tower', 'Backdrop_Village', 'Backdrop_Hills']);
+      var sym = this.symbols;
+      Object.keys(sym).forEach(function (ch) { sym[ch].pieces.forEach(function (n) { if (out.indexOf(n) < 0) out.push(n); }); });
+      return out;
+    },
+    levels: {
+      castle: {
+        name: 'Castle Courtyard',
+        intro: 'The robots have taken the castle. Clear the market, the training yard, then the keep.',
+        zones: [
+          // Market Ward: crawlers through the stalls, gunners behind the carts, a drone over the well
+          { map: 'castle_market', waves: [
+            [['crawler', 8], ['gunner', 2]],
+            [['crawler', 5], ['gunner', 3]],
+            [['crawler', 4], ['gunner', 2], ['drone', 1]],
+            [['crawler', 4], ['gunner', 2]]] },
+          // Training Yard: gunners on the drill ground, bombers across the open grass, a drone over the archery range
+          { map: 'castle_yard', waves: [
+            [['crawler', 6], ['gunner', 3]],
+            [['crawler', 4], ['bomber', 3]],
+            [['gunner', 3], ['drone', 1], ['crawler', 3]],
+            [['crawler', 4], ['bomber', 2], ['gunner', 2]]] },
+          // Inner Ward: everything round the keep
+          { map: 'castle_keep', waves: [
+            [['crawler', 6], ['gunner', 3]],
+            [['bomber', 3], ['crawler', 4], ['drone', 1]],
+            [['gunner', 3], ['crawler', 4]],
+            [['crawler', 4], ['bomber', 2], ['gunner', 2]]] }
+        ]
+      }
+    }
+  });
+})(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
+
+/* ---- themes/city2.js ---- */
+/* Theme: Downtown at Dusk (kit-city2). A dense downtown at sunset, built to look nothing like Small City's sunny main
+   street or the office skyline: 4-6 storey brownstones, red-brick tenements hung with fire escapes, cream cast-iron
+   lofts and lavender deco fronts, warm lit windows, neon sign bands and blade signs over dark shop glass, an elevated
+   railway on riveted green steel (one span with a stopped train), a subway entrance, a statue plaza, cabs, box
+   trucks, newsstands, hot-dog carts, steam stacks and billboards. Purple-to-tangerine sky, warm haze.
+   Built by blender/fam_kit_city2.py; zone layouts by tools/city2_zones.py (src/data/zones/city2_*.txt).
+
+   Symbols (1 cell = 1 m; prefab sizes are [x, z] cells):
+     #  facade (the zone edge is 1 cell thick; inner blocks are thicker and roofed)
+     ,  sidewalk     ;  plaza granite     -  |  white lane dash along X / Z     ~  !  double yellow along X / Z
+     z  Z  zebra bars along X / Z         o  manhole                          (all of these: no collision)
+     i  l  e  w  street light with its arm over the street to the S / N / E / W        I  twin-globe plaza lamp
+     t  street tree      m  hydrant / mailbox / news boxes / litter basket      c  trash bags / boxes / pallets
+     =  sawhorse (runs)  j  jersey barrier (runs)    s  steam stack     b  bench [2,1]     C  cab / sedan [2,4]
+     V  box truck [2,5]  k  newsstand [2,3]          n  hot-dog cart [2,2]               Y  billboard on legs [6,2]
+     L  elevated railway span [4,6]     R  span with a stopped train [4,12]   (open underneath: only the columns
+        collide; a run must reach the zone edge at both ends, where the facade becomes a dark El portal)
+     U  subway entrance [3,5] (opens south)      Q  statue on a granite plinth [4,4] (landmark)
+   The wall uses facing 'open'. The chooser cuts every facade run into buildings 4-7 m wide (each with its own style
+   and height), puts pilasters on the taller side of a boundary, corner piers where facades meet, a shop door with a
+   neon blade sign in each building, three bays of fire escape on brownstones and tenements, plain brick beside inner
+   corners and gates, and the El portal where the railway meets the wall. */
+(function (IB) {
+  'use strict';
+  // must mirror STYLES in blender/fam_kit_city2.py: [material, storeys]
+  var STY = [['B', 5], ['K', 6], ['I', 4], ['D', 6], ['K', 5], ['B', 4], ['I', 5], ['D', 5]];
+  var NSTY = STY.length, ESC = 'BK';
+  var WIDTHS = [5, 6, 4, 7, 5, 4, 6], WSUM = 37;
+  var CARS = ['Cab', 'Sedan_Plum', 'CabAd', 'Sedan_Teal', 'Cab'];
+  var FURNITURE = ['Hydrant', 'Mailbox', 'NewsBoxes', 'TrashCan'], JUNK = ['TrashBags', 'Boxes', 'Pallets'];
+
+  function segment(pos, line, hash) {
+    var p = pos + Math.floor(hash(line * 7 + 3, 11) * WSUM), cyc = Math.floor(p / WSUM), q = p - cyc * WSUM, k = 0;
+    while (q >= WIDTHS[k]) { q -= WIDTHS[k]; k++; }
+    return { b: cyc * WIDTHS.length + k, i: q, w: WIDTHS[k] };
+  }
+  // neighbouring buildings never share a style
+  function styleOf(b, line, hash) { var s = (Math.floor(hash(line * 5 + 1, 17) * NSTY) + b * 3 + Math.floor(hash(b + 50, line + 99) * 2)) % NSTY; return s < 0 ? s + NSTY : s; }
+  function wallish(ch) { return ch === '#' || ch === 'G' || ch === 'E'; }
+  // building run of a facade cell: position along the run and the run's line (rows for N/S faces, columns for E/W)
+  function runAt(c, r, ns, hash) { var line = ns ? r : c + 997, g = segment(ns ? c : r, line, hash); return { g: g, s: styleOf(g.b, line, hash), line: line }; }
+
+  function chooseWall(c, r, horiz, corner, hash, grid, face) {
+    if (face === 'corner' || face === 'none' || !face) {
+      var a = STY[runAt(c, r, true, hash).s], b = STY[runAt(c, r, false, hash).s], t = a[1] >= b[1] ? a : b;
+      return 'Corner_' + t[0] + t[1];
+    }
+    var ns = face === 'S' || face === 'N', dc = ns ? 1 : 0, dr = ns ? 0 : 1;
+    var fc = c + (face === 'E' ? 1 : face === 'W' ? -1 : 0), fr = r + (face === 'S' ? 1 : face === 'N' ? -1 : 0);
+    var R = runAt(c, r, ns, hash), g = R.g, s = R.s, st = STY[s], n = st[1];
+    var front = grid.at(fc, fr);
+    if (front === 'L' || front === 'R') return 'Portal_' + s;                      // the El runs into the facade
+    for (var d = -2; d <= 2; d++) { var q = grid.at(c + d * dc, r + d * dr); if (q === 'G' || q === 'E') return 'Pilaster_' + st[0] + n; }
+    if (wallish(grid.at(fc - dc, fr - dr)) || wallish(grid.at(fc + dc, fr + dr))) return 'Blank_' + st[0] + n;   // inner corner
+    var nPrev = STY[styleOf(g.b - 1, R.line, hash)][1], nNext = STY[styleOf(g.b + 1, R.line, hash)][1];
+    if ((g.i === 0 && n >= nPrev) || (g.i === g.w - 1 && n > nNext)) return 'Pilaster_' + st[0] + n;
+    var door = 1 + Math.floor(hash(g.b + 7, R.line) * (g.w - 2));
+    if (g.i === door) return 'Door_' + s;
+    if (ESC.indexOf(st[0]) >= 0 && g.w >= 6) {                                      // three bays of fire escape (wide buildings)
+      var e0 = door <= 2 ? door + 1 : door - 3, k = g.i - e0;
+      if (k >= 0 && k < 3) return ['EscB_', 'EscA_', 'EscC_'][k] + s;
+    }
+    return Math.abs(g.i - door) % 2 === 1 ? (hash(c * 3 + 1, r * 7 + 2) < 0.5 ? 'Win_' : 'Win2_') + s : 'Pier_' + s;
+  }
+
+  function wallPieces() {
+    var out = [], seen = {};
+    for (var s = 0; s < NSTY; s++) {
+      out.push('Win_' + s, 'Win2_' + s, 'Door_' + s, 'Pier_' + s, 'Portal_' + s);
+      if (ESC.indexOf(STY[s][0]) >= 0) out.push('EscA_' + s, 'EscB_' + s, 'EscC_' + s);
+    }
+    STY.forEach(function (t) { var k = t[0] + t[1]; if (!seen[k]) { seen[k] = 1; out.push('Pilaster_' + k, 'Corner_' + k, 'Blank_' + k); } });
+    return out;
+  }
+  function flat(pieces, rot, alt) { return { pieces: pieces, collide: false, rotate: rot || 0, alternate: !!alt }; }
+
+  IB.registerTheme({
+    id: 'city2', name: 'Downtown at Dusk', family: 'kit-city2', prefix: 'KIT_CITY2_',
+    palette: ['#8E5644', '#FF4FA8', '#45E6F2', '#F6C33B'],
+    // sunset: violet zenith to a tangerine horizon, warm rose haze, a low sun from the west
+    env: { sky: ['#4E4793', '#FF9F6E'], fog: { color: '#C98A8C', near: 48, far: 150 }, sun: [-0.78, 0.42, 0.3], clouds: true, ceiling: null },
+    floor: { color: '#4F4C5C', trail: '#625D6C', outside: '#3C3946' },
+    wall: { height: 8, roof: '#4C4656', facing: 'open', choose: chooseWall },
+    symbols: {
+      ',': flat(['Walk', 'WalkB'], 0, true),
+      ';': flat(['Plaza', 'PlazaB'], 0, true),
+      '-': flat(['LaneW'], 0), '|': flat(['LaneW'], Math.PI / 2),
+      '~': flat(['LaneY'], 0), '!': flat(['LaneY'], Math.PI / 2),
+      'z': flat(['Zebra'], 0), 'Z': flat(['Zebra'], Math.PI / 2),
+      'o': flat(['Manhole']),
+      'i': { pieces: ['Lamp'], rotate: 0, kind: 'prop' },
+      'l': { pieces: ['Lamp'], rotate: Math.PI, kind: 'prop' },
+      'e': { pieces: ['Lamp'], rotate: Math.PI / 2, kind: 'prop' },
+      'w': { pieces: ['Lamp'], rotate: -Math.PI / 2, kind: 'prop' },
+      'I': { pieces: ['LampP'], kind: 'prop' },
+      't': { pieces: ['StreetTree'], rotate: 'random90', kind: 'prop' },
+      'm': { pieces: FURNITURE, rotate: 'random90', kind: 'cover' },
+      'c': { pieces: JUNK, rotate: 'random90', kind: 'cover' },
+      '=': { pieces: ['Sawhorse'], rotate: 'run', kind: 'cover' },
+      'j': { pieces: ['Jersey'], rotate: 'run', kind: 'cover' },
+      's': { pieces: ['SteamStack'], rotate: 'random90', kind: 'prop' },
+      'b': { size: [2, 1], pieces: ['Bench'], flip: true, kind: 'cover' },
+      'C': { size: [2, 4], pieces: CARS, flip: true, kind: 'cover' },
+      'V': { size: [2, 5], pieces: ['Truck'], flip: true, kind: 'cover' },
+      'k': { size: [2, 3], pieces: ['Newsstand'], flip: true, kind: 'cover' },
+      'n': { size: [2, 2], pieces: ['HotDog'], kind: 'cover' },
+      'Y': { size: [6, 2], pieces: ['Billboard'], kind: 'wall' },
+      'L': { size: [4, 6], pieces: ['El_A', 'El_A', 'El_B'], kind: 'wall' },
+      'R': { size: [4, 12], pieces: ['Landmark_ElTrain'], kind: 'wall' },
+      'U': { size: [3, 5], pieces: ['Landmark_Subway'], kind: 'wall' },
+      'Q': { size: [4, 4], pieces: ['Landmark_Statue'], kind: 'wall' }
+    },
+    // the gates are bridge buildings over the street (closed to the rooflines); the passages between blocks are
+    // 16 m brick alleys, so nothing of the next block shows over them
+    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
+    trail: { wall: 'TrailWall', height: 16 },
+    hatch: 'Hatch', stand: 'Boxes',
+    backdrop: { ring: [
+      { piece: 'Backdrop_Block', count: 14, radius: [20, 30], scale: [0.95, 1.2], face: true, squeezeX: 0.75 },
+      { piece: 'Backdrop_Tower', count: 8, radius: [36, 48], scale: [0.9, 1.25], face: true, squeezeX: 0.8 },
+      { piece: 'Backdrop_Spire', count: 2, radius: [50, 56], scale: [1.0, 1.1], face: true, squeezeX: 0.85 }
+    ] },
+    budget: { prop: 2500, landmark: 5000, total: 70000 },
+    allPieces: function () {
+      var out = wallPieces().concat(['GateFrame', 'GateShutter', 'TrailWall', 'Hatch', 'Backdrop_Block', 'Backdrop_Tower', 'Backdrop_Spire']);
+      var sym = this.symbols;
+      Object.keys(sym).forEach(function (ch) { sym[ch].pieces.forEach(function (n) { if (out.indexOf(n) < 0) out.push(n); }); });
+      return out;
+    },
+    levels: {
+      city2: {
+        name: 'Downtown at Dusk',
+        intro: 'The lights are on and the robots own the avenue. Clear three blocks before nightfall.',
+        zones: [
+          // El Avenue: crawlers down the avenue, gunners behind the parked cabs, a drone under the El
+          { map: 'city2_avenue', waves: [
+            [['crawler', 7], ['gunner', 2]],
+            [['crawler', 5], ['gunner', 3]],
+            [['crawler', 4], ['gunner', 2], ['drone', 1]],
+            [['crawler', 4], ['gunner', 2]]] },
+          // Statue Plaza: bombers across the open granite, gunners on the ring road
+          { map: 'city2_plaza', waves: [
+            [['crawler', 6], ['gunner', 3]],
+            [['crawler', 4], ['bomber', 3]],
+            [['gunner', 3], ['drone', 1], ['crawler', 4]],
+            [['crawler', 4], ['bomber', 2], ['gunner', 2]]] },
+          // The Crossing: everything at once round the two blocks and under the train
+          { map: 'city2_crossing', waves: [
+            [['crawler', 6], ['gunner', 3]],
+            [['bomber', 3], ['crawler', 4], ['drone', 1]],
+            [['gunner', 3], ['crawler', 5]],
+            [['crawler', 4], ['bomber', 2], ['gunner', 2]]] }
+        ]
+      }
+    }
+  });
+})(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
+
 /* ---- themes/classroom.js ---- */
 /* Theme: Classroom (kit-classroom). Campaign level 3, a TINY theme: the player and the trash robots are toy-sized,
    so the furniture is giant (brief 5.12, about x6): desk tops at 4.45 m on steel legs you run under, 2.6 m chair
@@ -341,6 +626,309 @@
             [['drone', 3], ['bomber', 3], ['crawler', 4]],
             [['gunner', 4], ['crawler', 5]],
             [['crawler', 3], ['bomber', 2], ['drone', 2]]] }
+        ]
+      }
+    }
+  });
+})(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
+
+/* ---- themes/coalmine.js ---- */
+/* Theme: Deep Coal Mine (kit-coalmine). A big room-and-pillar coal mine far underground: dark faceted rock with
+   banded strata and glinting coal seams, coal pillars holding up a low dark roof, timbered drifts with plank
+   lagging, narrow-gauge rail with ore carts, belt conveyors, cribs and roof jacks, and warm pools of lantern light.
+   Built by blender/fam_kit_coalmine.py; zone layouts by tools/industrial_zones.py (src/data/zones/coalmine_*.txt).
+
+   Symbols (1 cell = 1 m; prefab sizes are [x, z] in cells):
+     #  rock: faceted strata walls (seams, lamps on brackets, prop timbers, signs, overlooks into the old workings on the
+        east / west edges); corners, notches and coal pillars' edges get all-round rock lumps
+     Y  timbered drift [6, 1] (posts, cap, lagging, plank bulkhead to the roof): runs of Y across a 6 m gap in the rock
+        make a closed tunnel          y  the same with the track (on the cell at local x + 0.5)
+     -  rail (1 m, turns with its run)        C  ore cart on its rails [1, 2]
+     c  powder / tool crates (stacked)       u  coal sacks         =  stacked timbers (runs)     b  oil drums
+     O  coal heap [2, 2]                     X  timber crib with a roof post [2, 2]             I  roof jack
+     k  belt conveyor (runs)                 l  lantern post        L  work light on a tripod
+     w  puddle [2, 2] (no collision)         d  coal dust spill [2, 2] (no collision)
+     T  drill rig at the coal face [8, 5] (booms point north)      H  main shaft headframe + cage [6, 6]
+     Z  loading hopper over the track [6, 4] (track along the block's second row)    Q  foreman's shack [5, 4]
+   Light pools are painted on the floor. Each kind has its own height, so wall lamps (one kind per facing), lantern
+   posts and work lights may overlap one another; the maps keep posts >= 5 m and work lights >= 6 m apart. */
+(function (IB) {
+  'use strict';
+  var SOLID = '#GE';
+  function solid(grid, c, r) { return SOLID.indexOf(grid.at(c, r)) >= 0; }
+  // same facing rule as zones.js buildWalls: the open side of a wall cell ('S','N','E','W', 'corner' or 'none')
+  function faceOf(grid, c, r) {
+    var oS = !solid(grid, c, r + 1), oN = !solid(grid, c, r - 1), oE = !solid(grid, c + 1, r), oW = !solid(grid, c - 1, r);
+    var n = oS + oN + oE + oW;
+    if (n === 0) return 'none';
+    if (n === 1) return oS ? 'S' : oN ? 'N' : oE ? 'E' : 'W';
+    return ((oS || oN) && (oE || oW)) ? 'corner' : (oS ? 'S' : 'E');
+  }
+  // cells u-k .. u+k along the run are all straight wall with the same facing
+  function runOK(grid, c, r, F, k0, k1) {
+    var along = F === 'S' || F === 'N';
+    for (var d = -k0; d <= k1; d++) {
+      var x = along ? c + d : c, y = along ? r : r + d;
+      if (grid.at(x, y) !== '#' || faceOf(grid, x, y) !== F) return false;
+    }
+    return true;
+  }
+  function hasRig(grid) {
+    if (grid._cmRig === undefined) { grid._cmRig = false; for (var c = 0; c < grid.w; c++) if (grid.at(c, 1) === 'T') grid._cmRig = true; }
+    return grid._cmRig;
+  }
+  var ROCK = ['Rock_A', 'Rock_B', 'Rock_C'];
+  function chooseWall(c, r, horiz, corner, hash, grid, face) {
+    var F = face || faceOf(grid, c, r);
+    if (F === 'none' || F === 'corner') return hash(c * 7 + 1, r * 5 + 3) < 0.5 ? 'Rock_Corner_A' : 'Rock_Corner_B';
+    var u = (F === 'S' || F === 'N') ? c : r;
+    // overlooks on the east / west edges: 4-cell openings every 18 m with solid rock either side
+    if ((c === 0 || c === grid.w - 1) && (F === 'E' || F === 'W')) {
+      var m = r % 18;
+      if (m >= 7 && m <= 10 && runOK(grid, c, r - (m - 7), F, 2, 5)) return 'Rock_Open';
+    }
+    // the coal face behind the drill rig: one long seam
+    if (r === 0 && F === 'S' && hasRig(grid)) return (c % 2) ? 'Seam_A' : 'Seam_B';
+    // wall lamps every 8 m on long straight runs (one pool kind per facing, so facing pools never fight)
+    if (u % 8 === 4 && runOK(grid, c, r, F, 4, 4)) return 'Rock_Lamp' + F;
+    if (u % 8 === 0 && runOK(grid, c, r, F, 1, 1) && hash(c * 3 + 5, r * 7 + 2) < 0.55) return 'Rock_Prop';
+    if (u % 8 === 2 && runOK(grid, c, r, F, 1, 1) && hash(c * 13 + 1, r * 3 + 9) < 0.12) return 'Rock_Sign';
+    // coal seams in stretches of 7 m
+    var line = (F === 'S' || F === 'N') ? r : c, reg = Math.floor((u + line * 3) / 7);
+    if (hash(reg * 13 + 5, line * 7 + 17) < 0.3) return (u % 2) ? 'Seam_A' : 'Seam_B';
+    return ROCK[Math.min(2, Math.floor(hash(c * 5 + 1, r * 11 + 7) * 3))];
+  }
+  var WALLS = ['Rock_A', 'Rock_B', 'Rock_C', 'Seam_A', 'Seam_B', 'Rock_LampS', 'Rock_LampN', 'Rock_LampE', 'Rock_LampW',
+    'Rock_Prop', 'Rock_Sign', 'Rock_Open', 'Rock_Corner_A', 'Rock_Corner_B'];
+
+  IB.registerTheme({
+    id: 'coalmine', name: 'Deep Coal Mine', family: 'kit-coalmine', prefix: 'KIT_COALMINE_',
+    palette: ['#25242B', '#A8743F', '#FFD66B', '#54493F'],
+    env: {
+      // no sky underground: the roof is a dark rock ceiling; warm-brown smoky fog swallows the far end of the halls
+      sky: null, clear: '#17120F', clouds: false,
+      fog: { color: '#231C18', near: 18, far: 82 },
+      // light from high and behind the player's usual heading: floors and robots lit, rock faces mostly in mid tone
+      sun: [0.3, 0.88, 0.37],
+      ceiling: { height: 9.0, color: '#2E2724', light: 'CeilRock', every: 12 }
+    },
+    // trodden coal-dust floor, a lighter packed-earth drift floor; the dark of the old workings outside the overlooks
+    floor: { color: '#4E433B', trail: '#5A4B3F', outside: '#0F0C0B' },
+    wall: { height: 9.4, roof: '#3B332E', facing: 'open', choose: chooseWall },
+    symbols: {
+      'Y': { size: [6, 1], pieces: ['Drift_Plain', 'Drift_Plain', 'Drift_Lamp'], kind: 'wall' },
+      'y': { size: [6, 1], pieces: ['Drift_Rail', 'Drift_Rail', 'Drift_RailLamp'], kind: 'wall' },
+      '-': { pieces: ['Rail'], rotate: 'run', collide: false },
+      'C': { size: [1, 2], pieces: ['OreCart_Full', 'OreCart_Full', 'OreCart_Empty'], kind: 'cover' },
+      'c': { pieces: ['Crate_Powder', 'Crate_Tools', 'Crate_Plain'], h: 0.9, rotate: 'random90', stack: { piece: 'Crate_Lid', chance: 0.3, h: 0.65 }, kind: 'cover' },
+      'u': { pieces: ['Sacks_A', 'Sacks_B'], rotate: 'random90', kind: 'cover' },
+      '=': { pieces: ['Timbers_A', 'Timbers_B'], rotate: 'run', alternate: true, kind: 'cover' },
+      'b': { pieces: ['Drums_A', 'Drums_B'], rotate: 'random90', kind: 'cover' },
+      'O': { size: [2, 2], pieces: ['CoalHeap_A', 'CoalHeap_B'], flip: true, kind: 'cover' },
+      'X': { size: [2, 2], pieces: ['Crib'], kind: 'wall' },
+      'I': { pieces: ['RoofJack'], rotate: 'random90', kind: 'wall' },
+      'k': { pieces: ['Conveyor_A', 'Conveyor_B'], rotate: 'run', alternate: true, kind: 'cover' },
+      'l': { pieces: ['LanternPost'], rotate: 'random90', kind: 'cover' },
+      'L': { pieces: ['WorkLight'], rotate: 'random90', kind: 'cover' },
+      'w': { size: [2, 2], pieces: ['Puddle_A', 'Puddle_B'], flip: true, collide: false },
+      'd': { size: [2, 2], pieces: ['Dust_A', 'Dust_B'], flip: true, collide: false },
+      'T': { size: [8, 5], pieces: ['Landmark_DrillRig'], kind: 'wall' },
+      'H': { size: [6, 6], pieces: ['Landmark_Headframe'], kind: 'wall' },
+      'Z': { size: [6, 4], pieces: ['Landmark_Hopper'], kind: 'wall' },
+      'Q': { size: [5, 4], pieces: ['Landmark_Shack'], kind: 'wall' }
+    },
+    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
+    trail: { wall: 'TrailWall', height: 9.4 },
+    hatch: 'Hatch', stand: 'Stand',
+    // the far side of the old workings (seen through the overlooks): one long slice due east, west, north and south
+    backdrop: { ring: [
+      { piece: 'Backdrop_Cavern', count: 4, radius: [58, 58], scale: [1, 1], squeezeX: 0.36, face: true }
+    ] },
+    budget: { prop: 2000, landmark: 4000, total: 70000 },
+    allPieces: function () {
+      var out = WALLS.concat(['CeilRock', 'GateFrame', 'GateShutter', 'TrailWall', 'Hatch', 'Stand', 'Backdrop_Cavern']);
+      var sym = this.symbols;
+      Object.keys(sym).forEach(function (ch) {
+        sym[ch].pieces.concat(sym[ch].stack ? [sym[ch].stack.piece] : []).forEach(function (n) { if (out.indexOf(n) < 0) out.push(n); });
+      });
+      return out;
+    },
+    levels: {
+      coalmine: {
+        name: 'Deep Seam',
+        intro: 'Down the shaft. Clear the haulage, the coal face, then ride the cage out.',
+        zones: [
+          // Haulage Way: 34 robots, drones come through the drifts from the third wave
+          { map: 'coalmine_haulage', waves: [
+            [['crawler', 7], ['gunner', 2]],
+            [['crawler', 6], ['bomber', 2], ['gunner', 1]],
+            [['crawler', 5], ['gunner', 2], ['drone', 2]],
+            [['crawler', 5], ['bomber', 2]]] },
+          // The Coal Face: 37 robots between conveyors and cribs
+          { map: 'coalmine_face', waves: [
+            [['crawler', 6], ['gunner', 3]],
+            [['drone', 2], ['crawler', 6], ['bomber', 2]],
+            [['gunner', 3], ['crawler', 6]],
+            [['crawler', 5], ['bomber', 2], ['drone', 2]]] },
+          // Main Shaft: 40 robots, the dense finale round the headframe
+          { map: 'coalmine_shaft', waves: [
+            [['crawler', 7], ['gunner', 2]],
+            [['drone', 2], ['bomber', 2], ['crawler', 6]],
+            [['gunner', 3], ['crawler', 6], ['drone', 1]],
+            [['crawler', 5], ['bomber', 2], ['gunner', 2], ['drone', 2]]] }
+        ]
+      }
+    }
+  });
+})(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
+
+/* ---- themes/factory.js ---- */
+/* Theme: Robot Works (kit-factory). The enemy's robot assembly plant: tall steel-framed halls with painted block
+   dados, blue corrugated siding and a clerestory window band (the dusk sky, smokestacks and sawtooth roofs of the
+   works show through), roof trusses with high-bay lamps throwing pools of light, assembly lines building half-done
+   Crawlers, Gunners, Bombers and Drones under robot arms, conveyors of parts, crates and pallets, overhead catwalks,
+   hazard stripes everywhere, a giant stamping press with its forge, and the supervisor's raised control booth.
+   Built by blender/fam_kit_factory.py; zone layouts by tools/industrial_zones.py (src/data/zones/factory_*.txt).
+
+   Symbols (1 cell = 1 m; prefab sizes are [x, z] in cells):
+     #  walls: on the zone edge, 6 m bays (red I-beam column, then window modules: plain, glints, electrical panel,
+        stencilled robot sign, exhaust fan, fire hose); solid siding near the gates; end modules (trims stop short,
+        no pipes) beside inside corners; interior '#' = painted block walls
+     A  assembly line section [8, 4] (Crawler, Gunner, Bomber, Drone in sequence; runs of them make long lines)
+     R  robot arm cell [2, 2]        =  belt conveyor with parts (runs)       c  parts crates (stacked)
+     p  pallet of parts [2, 2]       b  drums      g  gas cylinder rack      x  welding screen / tool chest
+     K  overhead catwalk [2, 8] (walk under it; runs join end to end)        M  machine tool [3, 2]
+     Q  rack of finished robots [6, 2]       W  robot test cage [4, 4]       z  hazard floor pad [2, 2] (no collision)
+     T  giant press + forge [10, 8] (landmark, front to the south)          B  raised control booth [8, 6] (landmark)
+   Floor decals (lamp pools from the roof trusses, hazard pads, cage floors, the booth's and the press's pools) each sit
+   at their own height, so overlapping decals never z-fight. */
+(function (IB) {
+  'use strict';
+  var SOLID = '#GE';
+  function solid(grid, c, r) { return SOLID.indexOf(grid.at(c, r)) >= 0; }
+  function faceOf(grid, c, r) {
+    var oS = !solid(grid, c, r + 1), oN = !solid(grid, c, r - 1), oE = !solid(grid, c + 1, r), oW = !solid(grid, c - 1, r);
+    var n = oS + oN + oE + oW;
+    if (n === 0) return 'none';
+    if (n === 1) return oS ? 'S' : oN ? 'N' : oE ? 'E' : 'W';
+    return ((oS || oN) && (oE || oW)) ? 'corner' : (oS ? 'S' : 'E');
+  }
+  function runOK(grid, c, r, F, k) {
+    var along = F === 'S' || F === 'N';
+    for (var d = -k; d <= k; d++) {
+      var x = along ? c + d : c, y = along ? r : r + d;
+      if (grid.at(x, y) !== '#' || faceOf(grid, x, y) !== F) return false;
+    }
+    return true;
+  }
+  function runOK1(grid, c, r, F) { return grid.at(c, r) === '#' && faceOf(grid, c, r) === F; }
+  // distance (cells) from a wall cell on the north / south edge to the centre of that edge's gate
+  function gateDist(grid, c, r) {
+    if (r !== 0 && r !== grid.h - 1) return 99;
+    var ch = r === 0 ? 'G' : 'E', a = -1, b = -1;
+    for (var x = 0; x < grid.w; x++) if (grid.at(x, r) === ch) { if (a < 0) a = x; b = x; }
+    return a < 0 ? 99 : Math.abs(c + 0.5 - (a + b + 1) / 2);
+  }
+  var WIN = ['Wall_Win_A', 'Wall_Win_A', 'Wall_Win_B', 'Wall_Win_A', 'Wall_Win_Panel', 'Wall_Win_A', 'Wall_Win_Vent', 'Wall_Win_B', 'Wall_Win_Hose'];
+  function pick(list, h) { return list[Math.min(list.length - 1, Math.floor(h * list.length))]; }
+  function chooseWall(c, r, horiz, corner, hash, grid, face) {
+    var F = face || faceOf(grid, c, r);
+    if (F === 'none' || F === 'corner') return 'Corner';
+    var edge = c === 0 || r === 0 || c === grid.w - 1 || r === grid.h - 1;
+    var u = (F === 'S' || F === 'N') ? c : r;
+    if (!edge) {   // interior block walls
+      var h = hash(c * 5 + 3, r * 7 + 1);
+      return h < 0.12 ? 'Block_Arrow' : h < 0.2 ? 'Block_Num' : 'Block_Plain';
+    }
+    var gd = gateDist(grid, c, r);
+    if (gd < 4) return gd > 2.6 ? 'Wall_Panel' : 'Wall_Plain';
+    if (u % 6 === 0 && runOK(grid, c, r, F, 1)) return 'Wall_Col';
+    if (!runOK(grid, c, r, F, 1)) {
+      // the run ends in a corner on one or both sides: an end module that keeps its trims and pipes out of the
+      // corner square (the module's local +X side is east for S, west for N, north for E, south for W)
+      var along = F === 'S' || F === 'N';
+      var lo = along ? runOK1(grid, c - 1, r, F) : runOK1(grid, c, r - 1, F), hi = along ? runOK1(grid, c + 1, r, F) : runOK1(grid, c, r + 1, F);
+      var plusIsHi = F === 'S' || F === 'W', R = plusIsHi ? !hi : !lo, L = plusIsHi ? !lo : !hi;
+      return 'Wall_End' + (L && R ? 'LR' : L ? 'L' : 'R');
+    }
+    if (u % 6 === 3 && hash(c * 11 + 2, r * 13 + 5) < 0.35) return 'Wall_Win_Sign';
+    return pick(WIN, hash(c * 7 + 3, r * 13 + 1));
+  }
+  var WALLS = ['Wall_Win_A', 'Wall_Win_B', 'Wall_Win_Panel', 'Wall_Win_Sign', 'Wall_Win_Vent', 'Wall_Win_Hose',
+    'Wall_Plain', 'Wall_Panel', 'Wall_Col', 'Wall_EndL', 'Wall_EndR', 'Wall_EndLR', 'Corner', 'Block_Plain', 'Block_Arrow', 'Block_Num'];
+
+  IB.registerTheme({
+    id: 'factory', name: 'Robot Works', family: 'kit-factory', prefix: 'KIT_FACTORY_',
+    palette: ['#5F80A0', '#F2C230', '#EC7A2E', '#B7B3AA'],
+    env: {
+      // dusk outside the clerestory; a warm industrial haze inside; lamps every 12 m on the roof trusses
+      sky: ['#6D8FC9', '#F6B98A'], clouds: true,
+      fog: { color: '#D9C6B2', near: 45, far: 150 },
+      sun: [0.35, 0.85, 0.4],
+      ceiling: { height: 10.0, color: '#8E9097', light: 'CeilTruss', every: 12 }
+    },
+    // power-floated concrete with saw-cut joints every 4 m; a lighter service-corridor floor
+    floor: {
+      color: '#ABA8A0', trail: '#B9B5AB', outside: '#7E7A76',
+      lines: [{ dir: 'x', every: 4, width: 0.04, color: '#97948C', y: 0.008 }, { dir: 'z', every: 4, width: 0.04, color: '#97948C', y: 0.0105 }]
+    },
+    wall: { height: 10.4, roof: '#8E9097', facing: 'open', choose: chooseWall },
+    symbols: {
+      'A': { size: [8, 4], pieces: ['Line_Crawler', 'Line_Gunner', 'Line_Bomber', 'Line_Drone'], sequence: true, kind: 'wall' },
+      'R': { size: [2, 2], pieces: ['Arm_A', 'Arm_B'], flip: true, kind: 'cover' },
+      '=': { pieces: ['Conveyor_Cans', 'Conveyor_Bottles', 'Conveyor_Drones', 'Conveyor_Wheels'], rotate: 'run', alternate: true, kind: 'cover' },
+      'c': { pieces: ['Crate_Cans', 'Crate_Wheels', 'Crate_Closed'], h: 0.86, rotate: 'random90', stack: { piece: 'Crate_Lid', chance: 0.3, h: 0.5 }, kind: 'cover' },
+      'p': { size: [2, 2], pieces: ['Pallet_Bins', 'Pallet_Cans', 'Pallet_Bottles'], flip: true, kind: 'cover' },
+      'b': { pieces: ['Drums_A', 'Drums_B'], rotate: 'random90', kind: 'cover' },
+      'g': { pieces: ['GasRack'], rotate: 'random90', kind: 'cover' },
+      'x': { pieces: ['WeldScreen', 'ToolChest'], rotate: 'random90', sequence: true, kind: 'cover' },
+      'K': { size: [2, 8], pieces: ['Catwalk'], kind: 'cover' },
+      'M': { size: [3, 2], pieces: ['Machine_Mill', 'Machine_Lathe'], flip: true, kind: 'cover' },
+      'Q': { size: [6, 2], pieces: ['Landmark_RobotRack'], flip: true, kind: 'wall' },
+      'W': { size: [4, 4], pieces: ['TestCage'], flip: true, kind: 'wall' },
+      'z': { size: [2, 2], pieces: ['Hazard_A', 'Hazard_B'], collide: false },
+      'T': { size: [10, 8], pieces: ['Landmark_Press'], kind: 'wall' },
+      'B': { size: [8, 6], pieces: ['Landmark_Booth'], kind: 'wall' }
+    },
+    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
+    trail: { wall: 'TrailWall', height: 10.4 },
+    hatch: 'Hatch', stand: 'Stand',
+    // the works outside the clerestory: one long slice due east, west, north and south of the level, facing it
+    backdrop: { ring: [
+      { piece: 'Backdrop_Works', count: 4, radius: [60, 60], scale: [1, 1], squeezeX: 0.36, face: true }
+    ] },
+    budget: { prop: 2000, landmark: 4000, total: 70000 },
+    allPieces: function () {
+      var out = WALLS.concat(['CeilTruss', 'GateFrame', 'GateShutter', 'TrailWall', 'Hatch', 'Stand', 'Backdrop_Works']);
+      var sym = this.symbols;
+      Object.keys(sym).forEach(function (ch) {
+        sym[ch].pieces.concat(sym[ch].stack ? [sym[ch].stack.piece] : []).forEach(function (n) { if (out.indexOf(n) < 0) out.push(n); });
+      });
+      return out;
+    },
+    levels: {
+      factory: {
+        name: 'Robot Works',
+        intro: 'This is where they come from. Shut down the lines, the press shop, then the dispatch floor.',
+        zones: [
+          // Assembly Hall: 36 robots between the lines
+          { map: 'factory_lines', waves: [
+            [['crawler', 7], ['gunner', 2]],
+            [['crawler', 6], ['bomber', 2], ['gunner', 1]],
+            [['crawler', 5], ['gunner', 2], ['drone', 2]],
+            [['crawler', 6], ['bomber', 3]]] },
+          // Press Shop: 37 robots, drones over the press
+          { map: 'factory_press', waves: [
+            [['crawler', 6], ['gunner', 3]],
+            [['drone', 3], ['crawler', 5], ['bomber', 2]],
+            [['gunner', 3], ['crawler', 6]],
+            [['crawler', 5], ['bomber', 2], ['drone', 2]]] },
+          // Control & Dispatch: 42 robots, the dense finale under the booth
+          { map: 'factory_dispatch', waves: [
+            [['crawler', 7], ['gunner', 2]],
+            [['drone', 2], ['bomber', 2], ['crawler', 6]],
+            [['gunner', 3], ['crawler', 6], ['drone', 1]],
+            [['crawler', 5], ['bomber', 2], ['gunner', 3], ['drone', 3]]] }
         ]
       }
     }

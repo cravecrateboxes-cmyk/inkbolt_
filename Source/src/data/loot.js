@@ -45,8 +45,10 @@
       id: 'acid', slot: 'muzzle', name: 'Acid muzzle', weight: 20, classes: ['pistol', 'smg', 'rifle', 'sniper'],
       names: { common: 'Fizz Can', rare: 'Etch Can', epic: 'Melt Can' },
       stats: {
-        acid: { common: [0.12, 0.18], rare: [0.18, 0.26], epic: [0.26, 0.35], scale: 'mod', max: 0.45, round: 0.01 },
-        dur: { common: [2.0, 2.0], rare: [2.5, 2.5], epic: [3.0, 3.0], round: 0.1 }
+        // share of each hit that burns on as acid over dur seconds (long burn: total +20% over the old 2-3 s, per second
+        // about half as much, so it reads as a lingering burn rather than a burst)
+        acid: { common: [0.14, 0.22], rare: [0.22, 0.31], epic: [0.31, 0.42], scale: 'mod', max: 0.54, round: 0.01 },
+        dur: { common: [5.0, 5.0], rare: [6.0, 6.0], epic: [7.0, 7.0], round: 0.1 }
       },
       quiet: 0.55    // robots hear a silenced shot at 55 % of the normal radius
     }

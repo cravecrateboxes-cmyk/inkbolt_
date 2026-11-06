@@ -144,7 +144,7 @@
   };
   W.magSize = function (s, def) {
     var m = IB.Upgrades ? IB.Upgrades.magSize(def.mag, s.fx.magLevel || 0) : def.mag;
-    return s.fx.magMul && m !== Infinity ? Math.ceil(m * s.fx.magMul - 1e-9) : m;   // Overboard skill
+    return s.fx.magMul && m !== Infinity ? Math.ceil(m * s.fx.magMul - 1e-9) : m;   // Overload skill
   };
   W.refill = function (s) { Object.keys(s.guns).forEach(function (k) { var g = s.guns[k]; g.mag = W.magSize(s, g.def); g.reserve = (g.def.reserve == null || g.def.reserve === Infinity) ? Infinity : g.def.reserve; }); };
   W.addAmmo = function (s, frac) { Object.keys(s.guns).forEach(function (k) { var g = s.guns[k]; if (g.reserve !== Infinity) g.reserve = Math.min(g.def.reserve * 1.5, g.reserve + Math.ceil(g.def.reserve * frac)); }); };
@@ -153,12 +153,13 @@
 
   W.equip = function (s, id, instant) {
     if (!s.guns[id] || (s.cur === id && s.state !== 'holster')) return;
-    if (s.cur && !instant) { s.pending = id; s.state = 'holster'; s.t = 0; W.anim(s, 'Holster', { once: true }); return; }
+    var sw = s.fx.swapMul || 1;   // Fast Fingers: quicker holster and draw
+    if (s.cur && !instant) { s.pending = id; s.state = 'holster'; s.t = 0; W.anim(s, 'Holster', { once: true, timeScale: 1 / sw }); return; }
     Object.keys(W.models).forEach(function (k) { showModel(k, false); });
     s.cur = id; s.state = 'draw'; s.t = 0; s.burst = 0; s.shotsInRow = 0; s.recoilP *= 0.5;
     showModel(id, true);
     if (instant) { s.state = 'idle'; W.anim(s, 'Idle', { fade: 0 }); }
-    else W.anim(s, 'Draw', { once: true, fade: 0 });
+    else W.anim(s, 'Draw', { once: true, fade: 0, timeScale: 1 / sw });
     IB.Audio && IB.Audio.play('draw');
   };
   W.slot = function (s, n) { if (s.slots[n]) W.equip(s, s.slots[n]); };
@@ -172,7 +173,7 @@
     if (g.mag >= W.magSize(s, g.def) || g.reserve <= 0) return;
     s.state = 'reload'; s.t = 0; s.reloadT = g.def.reload * (s.fx.reloadMul || 1); s.burst = 0;
     var rc = W.clips[W.models[s.cur].key + '_Reload'];
-    W.anim(s, 'Reload', { once: true, timeScale: rc ? rc.duration / s.reloadT : 1 });   // Quick Hands rescales the clip
+    W.anim(s, 'Reload', { once: true, timeScale: rc ? rc.duration / s.reloadT : 1 });   // Fast Fingers rescales the clip
     IB.Audio && IB.Audio.play('magOut');
   };
 
@@ -208,10 +209,10 @@
     p.weaponMoveMul = g.def.moveMul || 1;
     switch (s.state) {
       case 'holster':
-        if (s.t >= 0.2) { var nid = s.pending; s.pending = null; showModel(s.cur, false); s.cur = null; W.equip(s, nid, false); }
+        if (s.t >= 0.2 * (s.fx.swapMul || 1)) { var nid = s.pending; s.pending = null; showModel(s.cur, false); s.cur = null; W.equip(s, nid, false); }
         return;
       case 'draw':
-        if (s.t >= 0.3) s.state = 'idle';
+        if (s.t >= 0.3 * (s.fx.swapMul || 1)) s.state = 'idle';
         return;
       case 'reload':
         if (s.t >= s.reloadT * 0.55 && !s._magIn) { s._magIn = true; IB.Audio && IB.Audio.play('magIn'); }
@@ -226,7 +227,7 @@
     if (p.sprinting) { s.burst = 0; return; }
     var d = g.def;
     var trig = d.fire === 'auto' ? inp.fire : inp.firePressed;
-    var rm = s.fx.rateMul || 1;   // Overclock skill: shorter gaps between shots
+    var rm = s.fx.rateMul || 1;   // Rapid skill: shorter gaps between shots
     if (s.burst > 0 && s.next <= 0) { fire(s, g, ctx); s.burst--; s.next = (s.burst > 0 ? (d.burstGap || 60 / d.rpm) : Math.max(0, d.cycle - (d.burst - 1) * (d.burstGap || 60 / d.rpm))) / rm; return; }
     if (trig && s.next <= 0 && s.burst === 0) {
       if (g.mag <= 0) { if (inp.firePressed) IB.Audio && IB.Audio.play('dry'); W.reload(s); return; }
@@ -263,7 +264,7 @@
     if (ctx.onFire) ctx.onFire(d);
   }
 
-  // quick shove with F when no melee weapon is equipped (20 damage)
+  // quick shove with V when no melee weapon is equipped (20 damage)
   W.shove = function (s) {
     if (s.shoveT > 0) return false;
     s.shoveT = 0.5; s.kickZv -= 3; s.kickRv -= 2;

@@ -214,15 +214,16 @@
     var hpWas = p.maxHp || 100, hurt = Math.max(0, hpWas - p.health);
     // base health grows with the player level (IB.Damage.playerMaxHp); bench and skills add on top
     var lvHp = IB.Damage.playerMaxHp(IB.Skills.playerLevel(G.slot ? G.slot.highest : 0));
-    p.maxHp = (fx.maxHp || 100) - 100 + lvHp + sk.maxHpAdd;
+    p.maxHp = Math.round(((fx.maxHp || 100) - 100 + lvHp) * sk.maxHpMul);   // Healthy: +% max health
     p.health = fresh ? p.maxHp : Math.max(1, Math.min(p.maxHp, p.maxHp - hurt));
     var stWas = p.staminaMax || 4;
-    p.staminaMax = 4 * (fx.staminaMul || 1) * sk.staminaMul;
+    p.staminaMax = 4 * (fx.staminaMul || 1) * sk.staminaMul;   // Stamina: runs last 2.5x longer, 2x faster, half the recharge
     p.stamina = fresh ? p.staminaMax : Math.min(p.staminaMax, p.stamina * p.staminaMax / stWas);
+    p.sprintMul = sk.sprintMul; p.staminaRechargeMul = sk.staminaRechargeMul;
     if (G.ws) {
       var wf = G.ws.fx;
       wf.reloadMul = (fx.reloadMul || 1) * sk.reloadMul; wf.recoilMul = (fx.recoilMul || 1) * sk.recoilMul;
-      wf.spreadMul = (fx.spreadMul || 1) * sk.spreadMul; wf.magMul = sk.magMul; wf.rateMul = sk.rateMul;
+      wf.spreadMul = (fx.spreadMul || 1) * sk.spreadMul; wf.magMul = sk.magMul; wf.rateMul = sk.rateMul; wf.swapMul = sk.swapMul;
     }
   }
   // shields unlock with level 3: the first time a save has cleared it, a common cell is put in the bag and worn
@@ -296,6 +297,8 @@
     setDim(G.fade ? 1 : 0);
     HUD.reset(); HUD.show(true); document.getElementById('touch').hidden = !Inp.touch;
     if (G.starterShieldNote && IB.LootHUD) { IB.LootHUD.loot(G.starterShieldNote, 'Shields unlocked'); G.starterShieldNote = null; }
+    // a save from before the new skill tree: its points were refunded on load; say so once
+    if (G.slot.skillsRefunded) { delete G.slot.skillsRefunded; HUD.toast('New skill tree: your skill points were refunded (Tab)', 4); }
     HUD.pips(G.level.zones.length, 0, 0);
     if (!AUTOTEST) M.intro({ level: G.plan.level, name: G.plan.name, zones: G.level.zones.length, line: G.plan.intro }, 2.2);
     // save at level start
@@ -536,6 +539,7 @@
 
   // ---------------- combat glue ----------------
   var _org = new THREE.Vector3(), _end = new THREE.Vector3(), _mz = new THREE.Vector3();
+  var _shot = { ox: 0, oy: 0, oz: 0, dx: 0, dy: 0, dz: 0, t: 0, wt: 0, def: null };   // for Stream / Ricochet (skillfx.js)
   function shoot(origin, dir, def) {
     var ox = origin.x, oy = origin.y, oz = origin.z, dx = dir.x, dy = dir.y, dz = dir.z;
     G.run.shots++;
@@ -551,9 +555,11 @@
       var r = rh.robot, zone = rh.zone;
       var res = IB.Damage.hit({ weapon: def, dist: endT, zone: zone, dmgLevel: up('dmg'), coreLevel: up('core'), critLevel: up('crit'), rng: Math.random, blinded: r.state === 'blinded' });
       G.run.hits++; if (zone === 'core') G.run.coreHits++;
-      var dmg = res.damage *= IB.SkillFX.hitMul(zone);   // Heavy Ink, Core Dump (the damage number shows it too)
+      var dmg = res.damage *= IB.SkillFX.hitMul(zone);   // Heavy Ink (the damage number shows it too)
+      _shot.ox = ox; _shot.oy = oy; _shot.oz = oz; _shot.dx = dx; _shot.dy = dy; _shot.dz = dz; _shot.t = rh.t; _shot.wt = wt; _shot.def = def;
       var killed = AI.damage(r, dmg, { kx: dx * 4, kz: dz * 4 }, onKill);
-      IB.SkillFX.onHit(r, dmg, zone, killed, _end, onKill);   // Electrify, Lightning Rod
+      // Electrify, Stream, Ricochet, Hazard, Hydrate, Chain Reaction
+      IB.SkillFX.onHit(r, dmg, zone, killed, _end, onKill, _shot);
       FX.puff(_end.x, _end.y, _end.z, zone === 'core' ? 5 : 3, PAL.ink, 0.12, 0.38, 2.2);
       if (zone === 'core') FX.puff(_end.x, _end.y, _end.z, 2, PAL.amber, 0.08, 0.2, 3);
       if (IB.Boom) IB.Boom.robotHit(r, _end.x, _end.y, _end.z, dx, dy, dz, zone, killed);   // sparks, chips, core pop
@@ -582,7 +588,6 @@
     if (Math.random() < 0.2) G.spawnPickup('ammo', r.x, r.z);
     else if (G.player.health < G.player.maxHp * 0.4 && Math.random() < 0.25) G.spawnPickup('health', r.x, r.z);
     if (G.fx && G.fx.leech) G.player.health = Math.min(G.player.maxHp, G.player.health + G.fx.leech);
-    IB.SkillFX.onKill(r, G.player, onKill);   // Salvage Bolts, Chain Reaction
     if (IB.Drops) IB.Drops.onKill(r);   // ~5 % loot drop
   }
   G.onKill = onKill;
@@ -597,7 +602,7 @@
   G.hurt = function (robot, dmg) {
     var p = G.player;
     if (!p.alive || p.protect > 0 || G.complete) return;
-    dmg *= IB.SkillFX.hurtMul();   // Tin Titan
+    dmg *= IB.SkillFX.hurtMul();   // Tank
     var through = IB.Gear ? IB.Gear.absorb(G, dmg) : dmg;   // an equipped shield takes it first
     p.health -= through; p.lastHurt = 0;
     A.play(robot.proj ? (robot.type === 'bomber' ? 'boom' : 'boltHit') : 'bite', { pos: robot }); if (through > 0) A.play('hurt', { gain: 0.8 });
@@ -607,8 +612,7 @@
     HUD.arc(Math.atan2(dx * rx + dz * rz, dx * fx + dz * fz)); // 0 = ahead, + = to the right
     G.shake = Math.max(G.shake, 0.5); G.addTrauma(Math.min(0.5, 0.12 + dmg * 0.012));
     if (HUD.damageFlash) HUD.damageFlash(Math.min(1, through / 30));
-    if (p.health <= 0 && IB.SkillFX.closeCall(p, G.zone)) { HUD.toast('Close call!', 1.4); A.play('pickup', { pitch: 0.7 }); }
-    else if (p.health <= 0) die(robot);
+    if (p.health <= 0) die(robot);
   };
   function die(robot) {
     var p = G.player;
@@ -727,6 +731,7 @@
     else if (G.mode === 'title') titleFrame(dtRaw);
     else idleFrame(dtRaw);
     Z.updateClouds(G.level, dtRaw);
+    if (IB.SkillHUD) IB.SkillHUD.update(G, dtRaw);   // Undercover badge + cloak look
     R.render(G.mode === 'play' ? !G.dead && !G.ws.hidden : G.mode === 'title');
     Inp.endFrame();
   }
@@ -787,7 +792,8 @@
       if (Inp.slotPressed) W.slot(G.ws, Inp.slotPressed);
       if (Inp.wheel) W.cycle(G.ws, Inp.wheel > 0 ? 1 : -1);
       if (Inp.reloadPressed) W.reload(G.ws);
-      if (Inp.meleePressed && W.shove(G.ws)) doShove();
+      if (Inp.meleePressed && W.shove(G.ws)) doShove();   // V
+      if (Inp.cloakPressed) IB.SkillFX.tryCloak(p);       // F: Undercover
     }
     // fixed-step simulation
     acc += dt; var steps = 0;
@@ -811,8 +817,8 @@
     if (G.run.started && !G.complete && !G.dead) G.run.time += dt;
     // regen (Nanite Welders)
     if (G.fx && G.fx.regen && p.alive && p.lastHurt > 3) p.health = Math.min(p.maxHp, p.health + G.fx.regen * dt);
-    IB.SkillFX.regen(p, dt);   // Tin Titan
-    if (!IB.Status && G.run.started) IB.SkillFX.update(dt, onKill);   // Electrify ticks (until the loot system's IB.Status exists)
+    IB.SkillFX.regen(p, dt);   // Healthy + Tank repair
+    if (G.run.started) IB.SkillFX.update(dt, onKill, p);   // acid pools, wet coats, Undercover timer
     // weapons
     W.update(G.ws, dt, { player: p, cam: R.camera, input: { fire: Inp.fire && p.alive && G.run.started, firePressed: Inp.firePressed && p.alive && G.run.started, aim: Inp.aim && p.alive }, shoot: shoot,
       onFire: function (d) { if (s.shake && (d.cls === 'smg' || d.cls === 'rifle')) G.shake = Math.max(G.shake, 0.15); } });
@@ -845,6 +851,7 @@
     A.listener = { x: p.x, z: p.z, yaw: p.yaw };
     // render-side updates
     AI.sync(); AI.updateCorpses(dtRaw);
+    IB.SkillFX.syncMesh(tAll);   // acid pool decals
     updatePickups(dtRaw, tAll);
     if (IB.Drops) { IB.Drops.update(dtRaw, tAll, G); IB.Gear.update(dtRaw, G); }
     var magnet = 2.5 * (1 + 0.5 * up('magnet')) * IB.SkillFX.fx.magnetMul;   // Scrap Magnet
@@ -864,7 +871,7 @@
     if (HUD.radar && G.radarT <= 0) {
       G.radarT = 0.1;
       var rob = [];
-      AI.robots.forEach(function (r) { if (r.on && r.state !== 'pose') rob.push({ x: r.x, z: r.z, alert: r.state !== 'idle' && r.state !== 'spawn' }); });
+      AI.robots.forEach(function (r) { if (r.on && r.state !== 'pose') rob.push({ x: r.x, z: r.z, alert: !(r.rogue > 0) && r.state !== 'idle' && r.state !== 'spawn', rogue: r.rogue > 0 }); });
       var gates = []; G.level.zones.forEach(function (zz) { gates.push({ x: zz.exitGate.x, z: zz.exitGate.z, open: zz.exitGate.open > 0.5 }); });
       var last = G.level.zones[G.level.zones.length - 1];
       HUD.radar({ px: p.x, pz: p.z, yaw: p.yaw, range: 30, robots: rob, gates: gates,
@@ -959,7 +966,30 @@
       pr.arsenal = G.slot ? G.slot.arsenal.slice() : []; pr.loadout = G.slot ? G.slot.loadout.slice() : [];
       pr.carried = W.ownedSlots(G.ws).map(function (k) { return G.ws.slots[k]; }); return pr;
     },
-    setTier: function (t) { G.setTier(t); }
+    setTier: function (t) { G.setTier(t); },
+    // skills: set a tree directly (no gates or budget: tests only), force chance skills (id -> 0..1), state
+    setSkills: function (sk) { ensureSlot(); G.slot.skills = Object.assign({}, sk); G.applyProgress(); return IB.SkillFX.fx; },
+    forceSkill: function (id, p) { if (p === null) delete IB.SkillFX.force[id]; else IB.SkillFX.force[id] = p; IB.SkillFX.refresh(G.slot.skills); },
+    skillState: function () {
+      var SF = IB.SkillFX, c = SF.cloakState();
+      return { cloak: c, cloaked: AI.cloaked, rogues: AI.robots.filter(function (r) { return r.on && r.rogue > 0; }).length,
+        pools: SF.activePools(), coats: SF.activeCoats(), stats: Object.assign({}, SF.stats), maxHp: G.player.maxHp, staminaMax: G.player.staminaMax,
+        sprintMul: G.player.sprintMul, swapMul: G.ws.fx.swapMul, reloadMul: G.ws.fx.reloadMul, shoveT: G.ws.shoveT,
+        seeing: AI.robots.filter(function (r) { return r.on && !(r.rogue > 0) && r.seesPlayer; }).length,
+        attacking: AI.robots.filter(function (r) { return r.on && !(r.rogue > 0) && (r.state === 'windup' || r.state === 'attack'); }).length };
+    },
+    // spawn a robot type at (x, z) in the current zone, awake (returns its slot)
+    spawnRobot: function (type, x, z) {
+      var r = AI.spawn(type, x, z, G.zone, x, z); if (!r) return -1;
+      r.state = 'idle'; r.st = 0; r.x = x; r.z = z; r.y = AI.VIS[type].flying ? r.hy : 0; r.vx = r.vz = 0;
+      return r.slot;
+    },
+    // fire one bullet of the gun in hand from (ox, oy, oz) along (dx, dy, dz) through the normal hit path
+    fireRay: function (ox, oy, oz, dx, dy, dz) { var L = Math.hypot(dx, dy, dz) || 1; shoot({ x: ox, y: oy, z: oz }, { x: dx / L, y: dy / L, z: dz / L }, W.current(G.ws).def); },
+    // a lethal hit from the player on robot i of type (Handy Helpers can turn it rogue)
+    wreck: function (type, slot) { var r = AI.types[type].slots[slot]; return AI.damage(r, r.hp + 1, {}, onKill); },
+    robot: function (type, slot) { var r = AI.types[type].slots[slot]; return { on: r.on, hp: r.hp, maxHp: r.maxHp, rogue: r.rogue, state: r.state, x: r.x, z: r.z, wet: r.wet, tgtRogue: !!(r.tgt && r.tgt.rogue > 0) }; },
+    setRogueTime: function (t) { AI.robots.forEach(function (r) { if (r.on && r.rogue > 0) r.rogue = t; }); }
   };
   if (IB.GearTest) Object.keys(IB.GearTest).forEach(function (k) { window.__TEST__[k] = IB.GearTest[k]; });   // loot hooks (game/gear.js)
 
