@@ -13,7 +13,9 @@ Each family is one GLB in Source/assets/ (fps-common.glb, fps-weapons.glb, fps-b
     outlines with distance.
   * static kit props get a Cycles AO bake into the vertex colour, posterised to 2 steps
   * sockets are empties parented to their part (MUZZLE, MAG, EJECT, CORE, HIP0..3 ...)
-  * the arms are one skinned mesh on a 22-bone rig with per-weapon actions (<WEAPON>_Idle, _Draw, ...)
+  * the arms are one skinned mesh on a 22-bone rig with per-weapon actions (<WEAPON>_Idle, _Draw, ...),
+    generated from per-class HANDLING tables in fam_weapons.py; review them with review_arms.py (Blender
+    sheet) and Source/tests/e2e/viewmodel-shots.js (in-game screenshots)
 Blender is Z-up; the exporter converts to glTF Y-up. Game forward (-Z) is Blender +Y for the viewmodel,
 robots face game +Z (Blender -Y).
 """

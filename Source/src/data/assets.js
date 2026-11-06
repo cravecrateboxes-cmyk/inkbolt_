@@ -30,7 +30,7 @@
   IB.TRI_BUDGET = {
     meshes: { WPN_PIP: 1500, WPN_HANDCANNON: 1500, WPN_TWINTAP: 1500, WPN_BUZZ: 2000, WPN_WHISK: 2000, WPN_HORNET: 2000,
       WPN_RIVET: 2500, WPN_TRIPLET: 2500, WPN_LONGTOM: 2500, WPN_BRICK: 2500, WPN_NEEDLE: 3000,
-      ARMS: 3000, PICKUP_Gem: 60, PICKUP_Ammo: 300, PICKUP_Health: 300,
+      ARMS: 5500, PICKUP_Gem: 60, PICKUP_Ammo: 300, PICKUP_Health: 300,
       Cloud_A: 300, Cloud_B: 300, Cloud_C: 300, Hill: 300, Tree: 300, SpawnCan: 300, TrailArrow: 300,
       KIT_TOYTOWN_Landmark_WaterTower: 4000 },
     robots: {

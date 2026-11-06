@@ -237,9 +237,31 @@
     }
     return m.sight;
   };
-  var ADS_DIST = { pistol: 0.34, smg: 0.22, rifle: 0.17, sniper: 0.13, shotgun: 0.2, rocket: 0.2 }, VM_SCALE = 0.85;
+  // Procedural handling per weapon class, layered on top of the Blender rig actions (the authored poses come from
+  // HANDLING in Source/blender/fam_weapons.py: pistols sprint at high ready, muzzle up by the face; long guns at
+  // low ready across the chest). A class missing here (or a key missing in it) takes the 'rifle' value, so a new
+  // weapon gets sane handling from its cls alone.
+  //   ads        eye distance (m) behind the sight point when aiming
+  //   sprintBob  walk-bob scale while sprinting (eased in/out); the pistol's high-ready action carries its own
+  //              footfall bob near the face, so it takes less on top
+  //   sprintRoll share of the bob's roll kept while sprinting (a raised pistol rolling about the hip pivot swings wide)
+  //   fade       crossfade (s) into and out of the sprint loop (weight: heavier guns take longer to come up)
+  var VM_CLASS = {
+    pistol: { ads: 0.34, sprintBob: 1.15, sprintRoll: 0.45, fade: 0.18 },
+    smg: { ads: 0.27, sprintBob: 1.6, sprintRoll: 1, fade: 0.16 },
+    rifle: { ads: 0.29, sprintBob: 1.7, sprintRoll: 1, fade: 0.2 },
+    sniper: { ads: 0.13, fade: 0.22 },
+    shotgun: { ads: 0.2 }, rocket: { ads: 0.2 }
+  };
+  W.vmClass = function (cls) {
+    var c = VM_CLASS[cls] || {}, r = VM_CLASS.rifle, out = {};
+    Object.keys(r).forEach(function (k) { out[k] = c[k] !== undefined ? c[k] : r[k]; });
+    return out;
+  };
+  var VM_SCALE = 0.85;
   W.pose = function (s, dt, player, lookDX, lookDY, headBob, t) {
-    var g = W.current(s), k = Math.min(1, dt * 10);
+    var g = W.current(s), k = Math.min(1, dt * 10), vc = W.vmClass(g ? g.def.cls : 'rifle');
+    s.sprintK = (s.sprintK || 0) + ((player.sprinting ? 1 : 0) - (s.sprintK || 0)) * Math.min(1, dt * 8);
     // look sway lags the camera; clamp so fast flicks don't throw the gun off screen
     s.swayX += ((-lookDX * 0.0007) - s.swayX) * k; s.swayY += ((lookDY * 0.0007) - s.swayY) * k;
     s.swayX = Math.max(-0.06, Math.min(0.06, s.swayX)); s.swayY = Math.max(-0.05, Math.min(0.05, s.swayY));
@@ -253,8 +275,9 @@
     var x = (portrait ? 0.13 : 0.19), y = -0.13, z = -0.5, rx = 0, ry = 0.06, rz = 0;
     // walk cycle: figure-8 with roll; bigger and faster at sprint
     var hs = Math.hypot(player.vx, player.vz), moving = player.onGround && !player.sliding ? Math.min(1, hs / 6) : 0;
-    var amt = (headBob ? 1 : 0.6) * moving * (player.sprinting ? 1.7 : 1) * (1 - a * 0.85), ph = player.bobT;
-    x += Math.sin(ph) * 0.013 * amt; y -= Math.abs(Math.cos(ph)) * 0.011 * amt; rz += Math.sin(ph) * 0.03 * amt; ry += Math.cos(ph) * 0.012 * amt;
+    var amt = (headBob ? 1 : 0.6) * moving * (1 + (vc.sprintBob - 1) * s.sprintK) * (1 - a * 0.85), ph = player.bobT;
+    x += Math.sin(ph) * 0.013 * amt; y -= Math.abs(Math.cos(ph)) * 0.011 * amt; ry += Math.cos(ph) * 0.012 * amt;
+    rz += Math.sin(ph) * 0.03 * amt * (1 + (vc.sprintRoll - 1) * s.sprintK);
     // idle breathing
     y += Math.sin(t * 1.6) * 0.0028 * hip; rx += Math.sin(t * 1.6 + 1) * 0.004 * hip;
     // inertia
@@ -268,7 +291,7 @@
     // aim down sights: blend toward the pose that puts the sight point on the screen centre
     if (g && a > 0.001) {
       var sp = W.sightOf(g.id);
-      var ax = -sp.x * VM_SCALE, ay = -sp.y * VM_SCALE, az = -(g.def.adsDist || ADS_DIST[g.def.cls] || 0.25) - sp.z * VM_SCALE;   // adsDist: a mounted scope's eye relief
+      var ax = -sp.x * VM_SCALE, ay = -sp.y * VM_SCALE, az = -(g.def.adsDist || vc.ads) - sp.z * VM_SCALE;   // adsDist: a mounted scope's eye relief
       x += (ax - x) * a; y += (ay - y) * a; z += (az - z) * a;
       rx *= hip * 0.6 + 0.4 * (1 - a); ry *= hip; rz *= hip * 0.7 + 0.3;
     }
@@ -276,7 +299,7 @@
     if (g && W.mixer) {
       var want = player.sliding && slideClip ? 'Slide' : (player.sprinting ? 'Sprint' : 'Idle');
       var busy = W.animOnce && W.action && W.action.isRunning();
-      if (!busy && W.animName !== want && s.state !== 'holster') W.anim(s, want, { fade: want === 'Slide' ? 0.08 : 0.14 });
+      if (!busy && W.animName !== want && s.state !== 'holster') W.anim(s, want, { fade: want === 'Slide' ? 0.08 : (want === 'Sprint' || W.animName === 'Sprint' ? vc.fade : 0.14) });
       W.mixer.update(dt);
     }
     // recoil kick (spring) on top

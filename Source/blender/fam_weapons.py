@@ -32,7 +32,8 @@ ib_lib.PALETTES['weapons'] = [(n, _LIFT.get(n, h)) for n, h in BASE] + [
     ('glove', '#7C7894'), ('glove2', '#938FAD'), ('glove3', '#625F78'),
     ('sleeve', '#8273C4'), ('sleeve2', '#9B8EDB'),
     ('chip', '#FFFFFF'), ('chip2', '#DCDCE6'), ('ammo', '#2F7BEA'), ('ammo2', '#1E559F'), ('ammo3', '#5C98F0'),
-    ('health', '#5BCF4A'), ('health2', '#3E9C33'), ('health3', '#86E078')]
+    ('health', '#5BCF4A'), ('health2', '#3E9C33'), ('health3', '#86E078'),
+    ('glove4', '#4A465E')]   # moulded glove armour: knuckle / thumb pads, reinforced fingertips
 
 import os
 DEBUG = {} if os.environ.get('IB_DEBUG') else None
@@ -1096,14 +1097,21 @@ def build_weapon_meshes(pal):
 
 # ================================================================ arms: gloves, sleeves, 22-bone rig
 # Hand frame (right hand): origin = grip anchor (web of the hand), z = grip axis up, y = forward, x = right.
-# Each glove is ONE closed surface: anatomical primitives (a tapered capsule per phalanx, palm slab, thenar,
-# heel, knuckle guard strip, padded back panel, wrist) are unioned by a voxel remesh, relaxed and decimated
-# to budget. Accent patches (knuckle guard, back panel) are painted on the dense union as palette UVs, which
-# the decimator keeps as clean seams; shading normals come from the dense union; skin weights come from the
-# nearest source primitive (falling off smoothly only between a bone and its parent, never finger to finger).
-# The ink shell is built from that one surface: no inner shells, so no cracks. Gauntlet cuff + amber stripe + sleeve hem + sleeve is one lathed
-# shell on the forearm; the glove's rounded wrist turns inside its open mouth (ball and socket), so wrist
-# bends never stretch skin or cut through the cuff.
+# Tactical glove, two layers:
+#  * the palm is ONE closed surface: anatomical primitives (palm slab wrapped round the grip, padded back panel,
+#    thenar + thumb metacarpal, heel, wrist ball, a short stub at each finger root) unioned by a voxel remesh,
+#    relaxed and decimated to budget. The back panel is painted on the dense union as palette UVs (the decimator
+#    keeps UV seams, so its border stays clean); shading normals come from the dense union; skin weights come
+#    from the nearest source primitive (falling off smoothly only between a bone and its parent).
+#  * fingers and the thumb's phalanges are clean lofted digits (Body.digit), each rigid on its own bone (fingers
+#    are one bone each, so a digit never deforms) and outlined by its own ink shell, which draws the gaps between
+#    fingers. Colour bands segment them: padded first segment (glove2), dark stretch creases at the joints
+#    (glove3), reinforced fingertips (glove4). Hard moulded pads (glove4) sit over every knuckle and the thumb
+#    knuckle (Body.pad, own shells). Each digit's root sinks into its stub in the palm union.
+# Forearm (rigid on FOREARM): gauntlet with a raised wrist strap + amber tab, a rolled sleeve cuff, a sleeve
+# tapering out to the elbow with ink seams, and an armoured bracer plate (amber spine) on the side the game
+# camera sees. The palm's rounded wrist turns inside the gauntlet's open mouth (ball and socket), so wrist bends
+# never stretch or cut the cuff. Triangle split is printed by the build (ARMS: ... digits / pads / gloves ...).
 from mathutils.bvhtree import BVHTree
 
 FINGERS = ('INDEX', 'MIDDLE', 'RING', 'PINKY')
@@ -1142,9 +1150,16 @@ ANAT = {
           'thenar': (-50, -0.016, 0.017, (0.012, 0.018, 0.016)), 'heel': (-58, -0.068, 0.012, (0.012, 0.020, 0.018)),
           'panel': (4, -46)},
 }
-GLOVE_VOXEL = 0.0009
-GLOVE_TRIS = 480
-GLOVE_SMOOTH = 8
+GLOVE_VOXEL = 0.0008
+GLOVE_TRIS = 320         # palm / back / thenar union per glove before its ink shell (x2 with it)
+GLOVE_SMOOTH = 7
+DIGIT_SIDES = 7
+# finger rings: (joint, offset, radius factor, colour of the band that starts there): padded first segment,
+# dark stretch crease over the middle knuckle, plain middle segment, crease + reinforced tip from the last joint
+DIGIT_BANDS = [(0, -0.0030, 0.93, 'glove2'), (1, -0.0042, 0.97, 'glove3'), (1, 0.0040, 0.96, 'glove'),
+               (2, -0.0034, 0.95, 'glove4'), (3, -0.0040, 0.99, 'glove4')]
+THUMB_BANDS = [(0, -0.0030, 0.93, 'glove2'), (1, -0.0045, 0.97, 'glove3'), (1, 0.0042, 0.97, 'glove'),
+               (2, -0.0080, 0.99, 'glove4'), (2, -0.0030, 0.99, 'glove4')]
 
 
 def gpt(G, theta, gz, grow):
@@ -1225,6 +1240,56 @@ class Body:
     def __init__(self, X):
         self.X = X
         self.parts = []
+        self.hard = []        # rigid outlined shells: (rings in rig space, band colours, bone)
+
+    def pad(self, c, n, along, w, l, h, bone, color, ch=0.0018, sink=0.003):
+        """Hard moulded pad (rounded rectangle pillow) centred at c on a surface of normal n: its own ink shell."""
+        n, along = V(n).normalized(), V(along)
+        along = (along - n * along.dot(n)).normalized()
+        side = n.cross(along)
+        rect = [(w / 2, -l * 0.30), (w / 2, l * 0.30), (0, l / 2), (-w / 2, l * 0.30), (-w / 2, -l * 0.30), (0, -l / 2)]   # hex pillow
+        ring = lambda dz, ins: [V(c) + n * dz + side * q[0] + along * q[1] for q in (inset2d(rect, ins) if ins > 0 else rect)]
+        rings = [ring(-sink, 0.0), ring(h - ch, 0.0), ring(h, ch)]
+        Xm = self.X
+        self.hard.append(([[Xm @ p for p in r] for r in rings], [color, color, color], bone, False, (False, True)))   # base hidden
+
+    def digit(self, J, r, bone, bands, sides=DIGIT_SIDES, flat=FLAT, up=(0, 0, 1)):
+        """A finger (or the thumb's phalanges) as one clean lofted tube through its joints J, radii r at the
+        joints, rings from bands [(joint, offset m, radius factor, colour of the band that starts here)]:
+        a negative offset sits back along the segment that ends at that joint. Rings near a joint lie in the
+        joint's bisector plane so bends never fold; root and tip close with apexes (the tip rounded)."""
+        J = [V(p) for p in J]
+        dirs = [(J[i + 1] - J[i]).normalized() for i in range(len(J) - 1)]
+        Z = V(up)
+
+        def ring(c, n, rad):
+            u = Z - n * Z.dot(n)
+            u = u.normalized() if u.length > 1e-6 else n.orthogonal().normalized()
+            s = n.cross(u)
+            return [c + s * (rad * math.cos(2 * math.pi * (k + 0.5) / sides)) + u * (rad * flat * math.sin(2 * math.pi * (k + 0.5) / sides))
+                    for k in range(sides)]
+        rings, cols = [], []
+        d0 = dirs[0]
+        rings.append([J[0] - d0 * (r[0] * 0.80)])
+        cols.append(bands[0][3])
+        for i, off, rk, col in bands:
+            if off < 0:
+                d = dirs[max(0, i - 1)] if i > 0 else dirs[0]
+            else:
+                d = dirs[min(i, len(dirs) - 1)]
+            c = J[i] + d * off
+            n = d
+            if 0 < i < len(J) - 1 and abs(off) < 0.0075:
+                n = (dirs[i - 1] + dirs[i]).normalized()          # joint ring: bisector plane
+            rings.append(ring(c, n, r[i] * rk))
+            cols.append(col)
+        dl = dirs[-1]
+        rt = r[-1]
+        rings.append(ring(J[-1] + dl * (rt * 0.42), dl, rt * 0.74))
+        cols.append(cols[-1])
+        rings.append([J[-1] + dl * (rt * 0.86)])
+        Xm = self.X
+        self.hard.append(([[Xm @ p for p in rr] for rr in rings], cols, bone, True, (True, True)))
 
     def _part(self, bone, color, prio):
         bm = bmesh.new()
@@ -1352,35 +1417,32 @@ def glove_body(side, X):
     wa = gpt(G, -50, -0.050, 0.012)
     wd = (WRIST - wa).normalized()
     b.capsule(wa, WRIST + wd * 0.002, 0.021, 0.0190, hb, 'glove', up=(0, 0, 1), flat=1.08)
-    # fingers: tapered capsule per phalanx; a padded knuckle guard strip over the four knuckles
-    kn = []
+    # fingers: each one a clean lofted digit, rigid on its bone, outlined by its own ink shell (the outline reads
+    # the gaps between fingers); banded like a tactical glove: padded first segment (glove2), dark stretch
+    # creases at the joints, reinforced tip (glove3). Its root sinks into a stub in the palm union. A hard
+    # moulded knuckle pad covers each knuckle (own shell, rigid on the hand).
     for fn in FINGERS:
         z, r, L = FING[fn]
         J = finger_joints(side, fn)
         fb = fn + '_' + side
-        for i in range(3):
-            b.capsule(J[i], J[i + 1], r[i], r[i + 1], fb, 'glove', up=(0, 0, 1), flat=FLAT, seg=14, cap=4)
-        out = (V((J[0].x, J[0].y - G['cy'], 0))).normalized()
-        kn.append((J[0] + out * (r[0] * 0.62), out))
-    ka, kb = kn[0][0] + V((0, 0, 0.004)), kn[-1][0] - V((0, 0, 0.002))
-    kout = (kn[0][1] + kn[-1][1]).normalized()
-    b.capsule(ka, kb, 0.0068, 0.0060, hb, 'glove3', up=tuple(kout), flat=0.85, seg=12, prio=1)
-    kaw, kbw, ko = X[side] @ ka, X[side] @ kb, (X[side].to_3x3() @ kout).normalized()
-
-    def knuckle_paint(p):
-        d = kbw - kaw
-        t = max(0.0, min(1.0, (p - kaw).dot(d) / d.length_squared))
-        q = p - (kaw + d * t)
-        return (q - ko * q.dot(ko)).length < 0.0058 and q.dot(ko) > 0.0015 and 0.02 < t < 0.98
-    b.parts[-1]['paint'] = knuckle_paint
-    # thumb: metacarpal inside the thenar mass, two phalanges
+        d0 = (J[1] - J[0]).normalized()
+        b.capsule(J[0] - d0 * 0.004, J[0] + d0 * (L[0] * 0.40), r[0] * 0.92, r[0] * 0.86, fb, 'glove', up=(0, 0, 1), flat=FLAT, seg=12, cap=3)
+        b.digit(J, r, fb, DIGIT_BANDS)
+        n0 = (d0.cross(Z)).normalized()                         # back of the finger: outward, away from the grip
+        if fn == 'INDEX' and an['trigger']:
+            n0 = (n0 + Z * 0.35).normalized()
+        b.pad(J[0] + n0 * (r[0] * 0.82) - d0 * 0.0010, n0, d0, r[0] * 1.75, r[0] * 1.50, 0.0068, hb, 'glove4', sink=0.0040)
+    # thumb: metacarpal inside the thenar mass (union), the two phalanges one lofted digit, knuckle pad
     T = thumb_joints(side, X)
     b.capsule(T[0], T[1], THUMB_R[0] + 0.004, THUMB_R[1], 'THUMB1_' + side, 'glove', up=(0, 0, 1), flat=0.95)
-    b.capsule(T[1], T[2], THUMB_R[1], THUMB_R[2], 'THUMB2_' + side, 'glove', up=(0, 0, 1), flat=0.92, seg=14)
-    b.capsule(T[2], T[3], THUMB_R[2], THUMB_R[3], 'THUMB2_' + side, 'glove', up=(0, 0, 1), flat=0.92, seg=14)
     th, z, g, rad = an['thenar']
     n = nrm(th)
     b.ellipsoid(gpt(G, th, z, 0.0) + n * g, rad, (n, Z.cross(n), Z), 'THUMB1_' + side, 'glove')
+    b.digit(T[1:], THUMB_R[1:], 'THUMB2_' + side, THUMB_BANDS, flat=0.94)
+    ta = (T[2] - T[1]).normalized()
+    tn = T[1] - PALM_C
+    tn = (tn - ta * tn.dot(ta)).normalized()
+    b.pad(T[1] + tn * (THUMB_R[1] * 0.80), tn, T[2] - T[0], THUMB_R[1] * 1.45, THUMB_R[1] * 1.30, 0.0060, 'THUMB2_' + side, 'glove4', sink=0.0040)
     return b
 
 
@@ -1424,7 +1486,7 @@ def union_surface(body, pal, voxel=GLOVE_VOXEL, tris=GLOVE_TRIS):
     acc = sorted([p for p in body.parts if p['prio'] > 0], key=lambda p: -p['prio'])
     for f in hi.faces:
         c = f.calc_center_median()
-        col = next((p['color'] for p in acc if sdist(c, p) < 0.0012 and p['paint'](c)), 'glove')
+        col = next((p['color'] for p in acc if sdist(c, p) < p.get('reach', 0.0012) and p.get('paint', lambda q: True)(c)), 'glove')
         uv = pal.uv(pal.index(col))
         for lp in f.loops:
             lp[uvl].uv = uv
@@ -1541,7 +1603,130 @@ def lathe_shell(bm, prof, o, d, up, seg, pal, dl, gi, sl, sid):
     return faces
 
 
-def arms_hull(obj, pal, t):
+def rigid_loft(bm, rings, colors, pal, dl, gi, sl, sid, caps=(True, True), fcol=None):
+    """Closed loft of rings (rig-space points; a one-point ring is an apex) rigid on bone index gi.
+    colors: one per band (ring i -> i+1); fcol(i, j) may override a face's colour (band i, column j)."""
+    vr = [[bm.verts.new(V(p)) for p in r] for r in rings]
+    faces = []
+    for i in range(len(vr) - 1):
+        A, B = vr[i], vr[i + 1]
+        n = max(len(A), len(B))
+        for j in range(n):
+            j2 = (j + 1) % n
+            q = (A[0], B[j], B[j2]) if len(A) == 1 else (A[j], A[j2], B[0]) if len(B) == 1 else (A[j], A[j2], B[j2], B[j])
+            f = bm.faces.new(q)
+            f.material_index = pal.index((fcol and fcol(i, j)) or colors[i])
+            faces.append(f)
+    for k, (r, c) in enumerate(((vr[0], colors[0]), (vr[-1], colors[-1]))):
+        if caps[k] and len(r) >= 3:
+            f = bm.faces.new(r)
+            f.material_index = pal.index(c)
+            faces.append(f)
+    big = [f for f in faces if len(f.verts) > 4]
+    if big:
+        res = bmesh.ops.triangulate(bm, faces=big)
+        faces = list(dict.fromkeys([f for f in faces if f.is_valid] + list(res['faces'])))
+    bmesh.ops.recalc_face_normals(bm, faces=faces)
+    for f in faces:
+        f[sl] = sid
+    for r in vr:
+        for v in r:
+            v[dl][gi] = 1.0
+    return faces
+
+
+# ---------------------------------------------------------------- forearm shell (rigid on FOREARM)
+# Profile along the forearm from the wrist joint toward the elbow: (t, half width, half height, colour of the
+# band that starts at this ring). Gauntlet mouth (the wrist ball turns inside it) -> lip -> raised wrist strap
+# -> gauntlet edge -> rolled sleeve cuff -> sleeve tapering out to the elbow.
+CUFF = [(0.017, 0.0200, 0.0188, 'glove3'), (-0.002, 0.0226, 0.0212, 'glove3'), (-0.0045, 0.0262, 0.0247, 'glove2'),
+        (0.008, 0.0277, 0.0261, 'glove3'), (0.009, 0.0301, 0.0285, 'glove3'), (0.025, 0.0304, 0.0288, 'glove3'),
+        (0.026, 0.0282, 0.0266, 'glove2'), (0.042, 0.0290, 0.0273, 'sleeve2'), (0.045, 0.0326, 0.0306, 'sleeve2'),
+        (0.056, 0.0346, 0.0326, 'sleeve2'), (0.068, 0.0334, 0.0314, 'sleeve2'), (0.072, 0.0316, 0.0297, 'sleeve'),
+        (0.160, 0.0386, 0.0356, 'sleeve'), (0.290, 0.0440, 0.0405, 'sleeve'), (0.304, 0.0300, 0.0280, 'sleeve'),
+        (0.308, 0.0, 0.0, 'sleeve')]
+FORE_SEG = 10
+STRAP_TAB = (0.0175, 0.012, 0.0145, 0.0035)       # wrist strap tab: centre t, width, length (along the arm), height
+BRACER = {'t': (0.084, 0.212), 'arc': (-58, -34, -6, 6, 34, 58), 'lift': (0.0016, 0.0062), 'ch': 0.004, 'spine': 2}
+SEAMS = ((0.078, 0.286, 112), (0.078, 0.286, 248))     # ink seams (t0, t1, angle off the bracer centre)
+CAM_RIG = V((-0.224, -0.588, 0.153))                    # game viewmodel camera in rig space (weapons.js vmRoot)
+
+
+def cuff_radius(t):
+    """Sleeve half width / height at t (linear between CUFF rings, past the rolled cuff)."""
+    pts = [(p[0], p[1], p[2]) for p in CUFF if p[1] > 0 and p[0] >= 0.071]
+    for (t0, a0, b0), (t1, a1, b1) in zip(pts, pts[1:]):
+        if t0 <= t <= t1:
+            k = (t - t0) / (t1 - t0)
+            return a0 + (a1 - a0) * k, b0 + (b1 - b0) * k
+    return pts[-1][1], pts[-1][2]
+
+
+def forearm_shells(bm, pal, dl, gi, sl, sid, wr, fd, up, side):
+    """Gauntlet + sleeve lathe, strap tab, armoured bracer and ink seams on one forearm. Returns (next sid, nohull sids)."""
+    nohull = set()
+    sid += 1
+    lathe_shell(bm, CUFF, wr, fd, up, FORE_SEG, pal, dl, gi, sl, sid)
+    u = (up - fd * up.dot(fd)).normalized()
+    s = fd.cross(u)
+
+    def at(t, phi, lift, a_b=None):
+        a, b = a_b or cuff_radius(t)
+        ph = D(phi)
+        p = V((math.cos(ph) * a, math.sin(ph) * b))
+        n = V((math.cos(ph) * b, math.sin(ph) * a)).normalized()         # ellipse normal
+        return wr + fd * t + s * (p.x + n.x * lift) + u * (p.y + n.y * lift)
+    # the bracer faces the game camera (rest pose): angle of the camera seen from the forearm axis
+    c = wr + fd * 0.15
+    dc = CAM_RIG - c
+    dc -= fd * dc.dot(fd)
+    phc = math.degrees(math.atan2(dc.dot(u), dc.dot(s))) + (-22 if side == 'R' else 22)
+    # wrist strap tab (amber velcro tab) on the strap, toward the camera
+    tt, tw, tl, th = STRAP_TAB
+    ab = (0.0303, 0.0287)
+    sid += 1
+    tab = []
+    for lift in (-0.002, th - 0.0012, th):
+        ins = 0.0012 if lift == th else 0.0
+        r = []
+        for (x, y) in rrect(tw - 2 * ins, tl - 2 * ins):
+            r.append(at(tt + y, phc + math.degrees(x / ab[0]), lift, ab))
+        tab.append(r)
+    rigid_loft(bm, tab, ['amber', 'amber', 'amber'], pal, dl, gi, sl, sid)
+    # bracer: a curved plate (chamfered all round) with an amber spine, standing on the sleeve
+    B = BRACER
+    t0, t1 = B['t']
+    l0, l1 = B['lift']
+    ch = B['ch']
+    arc = [phc + a for a in B['arc']]
+
+    def section(t, ins):
+        """Closed plate section at t: outer arc (lift l1) then inner arc (lift l0); ins chamfers the end faces."""
+        a0, a1 = arc[0] + (3 if ins else 0), arc[-1] - (3 if ins else 0)
+        outer = [at(t, a, l1 - ins) for a in [a0] + arc[1:-1] + [a1]]
+        inner = [at(t, a, l0) for a in [a1] + list(reversed(arc[1:-1])) + [a0]]
+        return outer + inner
+    rings = [section(t0, ch * 0.6), section(t0 + ch, 0.0), section(t1 - ch, 0.0), section(t1, ch * 0.6)]
+    sp = B['spine']
+    sid += 1
+    rigid_loft(bm, rings, ['glove3', 'glove3', 'glove3'], pal, dl, gi, sl, sid, fcol=lambda i, j: 'amber' if i == 1 and j == sp else None)
+    # ink seams along the sleeve (no shell): a thin bar half sunk into the cloth, following its taper
+    for (a0, a1, off) in SEAMS:
+        sid += 1
+        nohull.add(sid)
+        n = 4
+        rings = []
+        for k in range(n + 1):
+            t = a0 + (a1 - a0) * k / n
+            p = at(t, phc + off, 0.0)
+            rad = (p - (wr + fd * t)).normalized()
+            w = fd.cross(rad).normalized()
+            rings.append([p + w * 0.0009 + rad * 0.0012, p - w * 0.0009 + rad * 0.0012, p - w * 0.0009 - rad * 0.0012, p + w * 0.0009 - rad * 0.0012])
+        rigid_loft(bm, rings, ['ink'] * n, pal, dl, gi, sl, sid)
+    return sid, nohull
+
+
+def arms_hull(obj, pal, t, nohull=()):
     """ib_lib.add_hull for the arms: glove vertices move out along their smooth shading normal (the
     even-thickness boost spikes in concave creases between fingers), shells along a capped even normal."""
     bm = bmesh.new()
@@ -1550,7 +1735,8 @@ def arms_hull(obj, pal, t):
     col = bm.loops.layers.float_color['Col']
     sn = bm.verts.layers.float_vector.get('snor')
     hull = bm.verts.layers.float_vector.new('_HULL')
-    faces = list(bm.faces)
+    sl = bm.faces.layers.int.get('shape_id')
+    faces = [f for f in bm.faces if f[sl] not in nohull]     # inner details (seams) carry no shell
     bvh = BVHTree.FromBMesh(bm)
     dup = bmesh.ops.duplicate(bm, geom=faces + list({e for f in faces for e in f.edges}) + list({v for f in faces for v in f.verts}))
     nf = [g for g in dup['geom'] if isinstance(g, bmesh.types.BMFace)]
@@ -1674,6 +1860,8 @@ def build_arms(pal):
     sl = bm.faces.layers.int.new('shape_id')
     snl = bm.verts.layers.float_vector.new('snor')
     sid = 0
+    soft, nohull = set(), set()      # glove surfaces (fully smooth) / inner details without an ink shell
+    group = {}                       # shape id -> part group (triangle report)
     for side in ('R', 'L'):
         body = glove_body(side, X)
         g = union_surface(body, pal)
@@ -1687,6 +1875,7 @@ def build_arms(pal):
                 nv[dl][gi[bn]] = x
             vm[v] = nv
         sid += 1
+        soft.add(sid)
         for f in g.faces:
             nf = bm.faces.new([vm[v] for v in f.verts])
             nf.material_index = f.material_index
@@ -1694,16 +1883,24 @@ def build_arms(pal):
         g.free()
         for p in body.parts:
             p['bm'].free()
+        for rings, cols, bn, smooth, caps in body.hard:     # digits and pads: own shells, rigid on their bone
+            sid += 1
+            group[sid] = 'digits' if smooth else 'pads'
+            if smooth:
+                soft.add(sid)
+            rigid_loft(bm, rings, cols, pal, dl, gi[bn], sl, sid, caps=caps)
         s, e, wr = RIG['S0'][side], RIG['E0'][side], RIG['W0'][side]
         fd = (e - wr).normalized()
         up = V((0, 0, 1))
-        sid += 1
-        lathe_shell(bm, CUFF, wr, fd, up, 10, pal, dl, gi['FOREARM_' + side], sl, sid)
+        s0 = sid
+        sid, nh = forearm_shells(bm, pal, dl, gi['FOREARM_' + side], sl, sid, wr, fd, up, side)
+        group.update({i: 'forearms' for i in range(s0 + 1, sid + 1)})
+        nohull |= nh
         ud = (s - e).normalized()
         sid += 1
         lathe_shell(bm, [(-0.034, 0.0, 0.0, 'sleeve'), (-0.026, 0.036, 0.034, 'sleeve'), (0.000, 0.0465, 0.0445, 'sleeve'),
                          ((s - e).length + 0.02, 0.050, 0.048, 'sleeve'), ((s - e).length + 0.03, 0.0, 0.0, 'sleeve')],
-                    e, ud, up, 8, pal, dl, gi['UPPERARM_' + side], sl, sid)
+                    e, ud, up, 7, pal, dl, gi['UPPERARM_' + side], sl, sid)
     check_zfight('ARMS', bm, sl)
     me = bpy.data.meshes.new('ARMS')
     obj = bpy.data.objects.new('ARMS', me)
@@ -1728,11 +1925,11 @@ def build_arms(pal):
     for e in b2.edges:
         if len(e.link_faces) != 2:
             e.smooth = False
-        elif e.link_faces[0][sl2] % 3 != 1 and e.calc_face_angle(0.0) > math.radians(40):
-            e.smooth = False        # forearm shells: crisp rim / hem steps (gloves stay fully smooth)
+        elif e.link_faces[0][sl2] not in soft and e.calc_face_angle(0.0) > math.radians(40):
+            e.smooth = False        # shells: crisp rims, steps and pad edges (gloves stay fully smooth)
     b2.to_mesh(obj.data)
     b2.free()
-    arms_hull(obj, pal, HULL_T)
+    arms_hull(obj, pal, HULL_T, nohull)
     me = obj.data
     sn = me.attributes['snor'].data
     hl = me.attributes['_HULL'].data
@@ -1743,7 +1940,12 @@ def build_arms(pal):
         ln.append(tuple(n) if n.length > 0.5 and hl[vi].vector.length == 0 else (0.0, 0.0, 0.0))
     me.normals_split_custom_set(ln)
     me.attributes.remove(me.attributes['snor'])
-    print('ARMS: %d triangles incl. outline shell' % sum(len(p.vertices) - 2 for p in me.polygons))
+    cnt = {}
+    sla = me.attributes['shape_id'].data
+    for p in me.polygons:
+        g = group.get(sla[p.index].value, 'gloves' if sla[p.index].value in soft else 'upper arms')
+        cnt[g] = cnt.get(g, 0) + len(p.vertices) - 2
+    print('ARMS: %d triangles incl. outline shell (%s)' % (sum(cnt.values()), ', '.join('%s %d' % kv for kv in sorted(cnt.items()))))
     for p in me.polygons:
         p.material_index = 0
     me.color_attributes.active_color = me.color_attributes['Col']
@@ -1771,7 +1973,78 @@ ANIM = {
     'BRICK': {'fire': 60 / 500, 'reload': 3.4, 'style': 'rifle', 'heavy': 0.5, 'charge': ((0.036, -0.010, 0.030), (0, -0.060, 0))},
     'NEEDLE': {'fire': 60 / 45, 'reload': 3.0, 'style': 'bolt', 'heavy': 1.4},
 }
-CARRY = {'pistol': (0.0, -0.01, 0.0), 'smg': (0.0, -0.13, -0.006), 'rifle': (0.0, -0.17, -0.010), 'sniper': (0.0, -0.17, -0.010)}
+
+# ---------------------------------------------------------------- handling: data-driven per weapon class
+# Every action of a weapon is generated from its class's HANDLING entry (cls from build_<weapon>'s info, the same
+# as src/data/weapons.js), so a NEW GUN GETS GOOD HANDLING BY DEFAULT: give it a cls ('pistol', 'smg', 'rifle',
+# 'sniper'; anything else falls back to HANDLING_FALLBACK) and an ANIM row with its timings. To tune one gun,
+# put a 'handling' dict in its ANIM row: keys there replace the class's keys (dicts are merged one level deep),
+# e.g. ANIM['BRICK']['handling'] = {'kick': {'loc': (0, -0.03, 0.006)}}.
+# A pose is (loc m, rot deg) of the whole weapon about the grip (rig space: +y forward, +z up; rot = pitch up,
+# roll right-side-down, yaw muzzle-left), on top of 'carry'. 'heavy' (ANIM) scales kick and slows the settle.
+#   carry     where the viewmodel sits (long guns tuck their stocks off-screen)
+#   idle      breathing loop (2 s): two extreme poses visited at 1/4 and 3/4 (a slow figure-8)
+#   draw      from -> over (overshoot past rest) -> settle (small counter-swing) -> rest, in 0.3 s
+#   holster   rest -> dip -> to, in 0.2 s
+#   kick      fire: loc/rot at the shot, then 'recover' (overshoot forward) before rest
+#   reload    tilt: weapon pose while the support hand works; seat: bump when the mag seats; low: where the
+#             support hand fetches a fresh mag (rig space)
+#   sprint    style 'high' (pistols: muzzle up near the face, support arm pumping) or 'low' (long guns: canted
+#             across the chest, both hands on); a / b: the two poses of the 0.6 s loop (footfalls);
+#             idx / lift: trigger finger off the trigger (curl about the grip axis / lift along the frame);
+#             pump: support-hand frames (rig space) for the 'high' style
+#   slide     the tucked pose while sliding (support hand out for balance)
+HANDLING_BASE = {
+    'carry': (0.0, -0.17, -0.010),
+    'idle': (((0.0005, 0.0015, 0.0035), (1.0, 0.4, -0.5)), ((-0.0005, 0.0010, 0.0020), (0.6, -0.4, 0.3))),
+    'draw': {'from': ((0.06, -0.08, -0.20), (-48, -26, 26)), 'over': ((0.0, 0.004, 0.006), (4.0, 1.5, -1.5)),
+             'settle': ((0.0, -0.001, -0.002), (-1.2, -0.5, 0.4))},
+    'holster': {'dip': ((0.004, -0.010, -0.012), (-6, -4, 3)), 'to': ((0.07, -0.08, -0.21), (-50, -28, 28))},
+    'kick': {'loc': (0.0, -0.016, 0.003), 'rot': (3.5, 0.6, 0.0), 'recover': ((0.0, 0.0025, -0.0008), (-0.8, 0.0, 0.0))},
+    'reload': {'tilt': ((-0.010, -0.020, 0.030), (10, 26, -16)), 'seat': ((-0.010, -0.017, 0.037), (14, 26, -18)),
+               'low': (-0.14, -0.08, -0.46)},
+    'sprint': {'style': 'low', 'a': ((-0.030, 0.000, 0.035), (-24, -34, 50)), 'b': ((-0.024, 0.002, 0.022), (-27, -31, 53)),
+               'idx': -6, 'lift': 13},
+    'slide': {'a': ((0.02, -0.05, -0.11), (-4, -30, 8)), 'b': ((0.02, -0.05, -0.117), (-5, -33, 9))},
+}
+HANDLING = {
+    'pistol': {
+        'carry': (0.0, -0.01, 0.0),
+        'idle': (((0.0006, 0.0018, 0.0040), (1.3, 0.5, -0.6)), ((-0.0006, 0.0012, 0.0022), (0.7, -0.5, 0.4))),
+        'draw': {'from': ((0.05, -0.10, -0.22), (-62, -18, 34)), 'over': ((0.0, 0.006, 0.009), (6.0, 1.0, -2.0)),
+                 'settle': ((0.0, -0.001, -0.002), (-1.6, -0.4, 0.5))},
+        'holster': {'dip': ((0.004, -0.008, -0.010), (-8, -3, 4)), 'to': ((0.06, -0.10, -0.22), (-62, -18, 34))},
+        'kick': {'loc': (0.0, -0.013, 0.004), 'rot': (6.5, 0.0, 0.0), 'recover': ((0.0, 0.002, -0.001), (-1.2, 0.0, 0.0))},
+        'reload': {'tilt': ((0.0, -0.030, 0.030), (14, 28, -18)), 'seat': ((0.0, -0.027, 0.036), (18, 28, -20)),
+                   'low': (-0.12, -0.10, -0.42)},
+        # high ready: pistol raised muzzle-up beside the face, slightly canted in; the free arm pumps low left
+        'sprint': {'style': 'high', 'a': ((0.014, -0.095, 0.045), (64, -16, 32)), 'b': ((0.018, -0.090, 0.033), (61, -18, 34)),
+                   'idx': -6, 'lift': 14,
+                   'pump': (((-0.27, 0.02, -0.17), (40, 10, -30)), ((-0.25, -0.12, -0.36), (10, 10, -40))), 'fist': 26},
+    },
+    'smg': {
+        'carry': (0.0, -0.13, -0.006),
+        'kick': {'loc': (0.0, -0.011, 0.0025), 'rot': (2.4, 0.5, 0.0), 'recover': ((0.0, 0.0015, -0.0005), (-0.5, 0.0, 0.0))},
+        'sprint': {'style': 'low', 'a': ((-0.030, 0.000, 0.030), (-22, -32, 48)), 'b': ((-0.024, 0.002, 0.018), (-25, -29, 51)),
+                   'idx': -6, 'lift': 13},
+    },
+    'rifle': {},
+    'sniper': {'carry': (0.0, -0.17, -0.010), 'kick': {'loc': (0.0, -0.022, 0.004), 'rot': (5.0, 0.8, 0.0), 'recover': ((0.0, 0.003, -0.001), (-1.0, 0.0, 0.0))}},
+}
+HANDLING_FALLBACK = 'rifle'
+
+
+def handling(wid):
+    """The handling table of one weapon: base <- its class <- its ANIM['handling'] overrides."""
+    cls = WEAPONS[wid]['cls']
+    h = {}
+    for layer in (HANDLING_BASE, HANDLING.get(cls, HANDLING[HANDLING_FALLBACK]), ANIM.get(wid, {}).get('handling', {})):
+        for k, v in layer.items():
+            h[k] = dict(h[k], **v) if isinstance(v, dict) and isinstance(h.get(k), dict) else v
+    return h
+
+
+CARRY = {c: HANDLING[c].get('carry', HANDLING_BASE['carry']) for c in HANDLING}
 
 
 # Support-hand holds. A hold is the support glove's grip axis (index end) and palm direction in weapon space
@@ -1867,11 +2140,13 @@ def solve(rig, P):
         M['UPPERARM_' + side] = seg_delta(RIG['S0'][side], RIG['E0'][side], s, e)
         M['FOREARM_' + side] = seg_delta(RIG['E0'][side], RIG['W0'][side], e, wr)
         ax = (F0.to_3x3() @ V((0, 0, 1))).normalized()
+        lx = (F0.to_3x3() @ V((1, 0, 0))).normalized()     # hand's lateral axis: lifts a finger along the frame
         sg = 1 if side == 'R' else -1
+        lift = P.get('lift', {})
         for fn in FINGERS + ('THUMB1', 'THUMB2'):
             bn = fn + '_' + side
             h = rig.data.bones[bn].head_local
-            C = T(h) @ Matrix.Rotation(D(sg * P['curl'].get(bn, 0.0)), 4, ax) @ T(-h)
+            C = T(h) @ Matrix.Rotation(D(sg * P['curl'].get(bn, 0.0)), 4, ax) @ Matrix.Rotation(D(lift.get(bn, 0.0)), 4, lx) @ T(-h)
             M[bn] = M['THUMB1_' + side if fn == 'THUMB2' else 'HAND_' + side] @ C
     out = {}
     for b in rig.data.bones:
@@ -1886,7 +2161,8 @@ class Poser:
 
     def __init__(self, wid):
         self.wid, self.info, self.a = wid, WEAPONS[wid], ANIM[wid]
-        self.carry = V(CARRY[self.info['cls']])
+        self.H = handling(wid)
+        self.carry = V(self.H['carry'])
         self.GR = mat_trs((0, 0, 0), (-self.info['rake'], 0, 0))
         self.GL = left_hold(wid)
         self.cl0 = self.info.get('curl_L', 0.0)
@@ -1896,18 +2172,29 @@ class Poser:
     def wm(self, wl=(0, 0, 0), wr=(0, 0, 0)):
         return T(self.carry) @ mat_trs(wl, wr)
 
-    def __call__(self, wl=(0, 0, 0), wr=(0, 0, 0), trig=0.0, FL=None, FR=None, mag=None, curlL=0.0, curlR=0.0, idx=0.0, thumbL=0.0, thumbR=0.0):
+    def __call__(self, wl=(0, 0, 0), wr=(0, 0, 0), trig=0.0, FL=None, FR=None, mag=None, curlL=0.0, curlR=0.0, idx=0.0, thumbL=0.0, thumbR=0.0,
+                 lift=0.0):
         W = self.wm(wl, wr)
         if FL is None and self.info['cls'] == 'pistol':      # two-hand pistol hold
             thumbL, curlL = thumbL + PISTOL_LEFT[6], curlL + PISTOL_LEFT[7]
         elif FL is None:                                     # foregrip / handguard: close on the part
             thumbL, curlL = thumbL + self.cl0, curlL + self.cl0
+        if self.offk and FR is None:          # trigger finger straight along the frame (sprint, slide, reload, draw)
+            idx += self.offk * self.H['sprint']['idx']
+            lift += self.offk * self.H['sprint']['lift']
         curl = {'INDEX_R': 14 * trig + idx, 'INDEX_L': curlL, 'THUMB1_L': thumbL, 'THUMB1_R': thumbR}
         for fn in ('MIDDLE', 'RING', 'PINKY'):
             curl[fn + '_R'] = curlR
             curl[fn + '_L'] = curlL
         return {'W': W, 'FR': FR if FR is not None else W @ self.GR, 'FL': FL if FL is not None else W @ self.GL,
-                'mag': mag if mag is not None else W @ T(self.magT), 'curl': curl}
+                'mag': mag if mag is not None else W @ T(self.magT), 'curl': curl, 'lift': {'INDEX_R': lift}}
+
+    offk = 0.0
+
+    def off(self, k=1.0):
+        """Following poses keep the trigger finger off the trigger (k = 1) or on it (k = 0)."""
+        self.offk = k
+        return self
 
     def mag_at(self, W, extra=Matrix.Identity(4)):
         """Mag bone delta for the magazine placed at its socket of weapon pose W (extra: motion in mag space)."""
@@ -1942,48 +2229,63 @@ def build_actions(rig):
 
     for wid in GUNS:
         p = Poser(wid)
-        info, a = p.info, p.a
+        info, a, H = p.info, p.a, p.H
         heavy = a.get('heavy', 0.0)
-        pistol = info['cls'] == 'pistol'
-        # Idle: 2 s breathing loop
-        action(wid + '_Idle', [(0, p()), (30, p((0, 0.002, 0.004), (1.2, 0, -0.4))), (60, p())])
-        # Draw 0.3 s (overshoot) / Holster 0.2 s
-        low = ((0.02, -0.06, -0.17), (-50, 0, 24))
-        action(wid + '_Draw', [(0, p(*low)), (6, p((0, 0.006, 0.006), (4, 0, -1))), (9, p())])
-        action(wid + '_Holster', [(0, p()), (6, p(*low))])
-        # Fire: one cycle; bursts kick once per round; bolt guns cycle the bolt with the right hand
+        # Idle: 2 s breathing loop, rest -> a -> rest -> b -> rest (a slow figure-8 under the game's own sway)
+        ia, ib = H['idle']
+        action(wid + '_Idle', [(0, p()), (15, p(*ia)), (30, p()), (45, p(*ib)), (60, p())])
+        # Draw 0.3 s: swing up from low, overshoot, small counter-swing, settle; finger finds the trigger last
+        Dr = H['draw']
+        action(wid + '_Draw', [(0, p.off()(*Dr['from'])), (5, p.off(0.5)(*Dr['over'])), (7, p.off(0)(*Dr['settle'])), (9, p())])
+        # Holster 0.2 s: a small dip (weight), then down and away
+        Ho = H['holster']
+        action(wid + '_Holster', [(0, p()), (2, p.off()(*Ho['dip'])), (6, p(*Ho['to']))])
+        p.off(0)
+        # Fire: one cycle (shot, recoil, forward overshoot, rest); bursts kick once per round; bolt guns cycle the bolt
         n = max(2, round(a['fire'] * FPS))
-        kick = ((0, -0.012 - 0.010 * heavy, 0.003 + 0.004 * heavy), (3 + 6 * heavy, 0, 0))
+        K = H['kick']
+        kick = (tuple(c * (1 + 0.8 * heavy) for c in K['loc']), tuple(c * (1 + 0.9 * heavy) for c in K['rot']))
+        rec = (tuple(c * (1 + 0.5 * heavy) for c in K['recover'][0]), tuple(c * (1 + 0.5 * heavy) for c in K['recover'][1]))
         if a.get('burst'):
             g = max(1, round(a['gap'] * FPS))
             keys = []
             for i in range(a['burst']):
                 keys += [(i * g, p(trig=1)), (i * g + 1, p(*kick, trig=1))]
+            if n - (a['burst'] - 1) * g - 1 >= 4:
+                keys.append(((a['burst'] - 1) * g + 1 + (n - (a['burst'] - 1) * g - 1) // 2, p(*rec)))
             keys.append((n, p()))
             action(wid + '_Fire', keys)
         elif a['style'] == 'bolt':
             action(wid + '_Fire', bolt_cycle(p, n, kick))
         else:
-            action(wid + '_Fire', [(0, p(trig=1)), (1, p(*kick, trig=1)), (min(n, max(3, n // 2)), p((0, -0.002, 0), (0.5, 0, 0))), (n, p())])
+            keys = [(0, p(trig=1)), (1, p(*kick, trig=1))]
+            if n >= 4:
+                keys.append((max(2, round(n * 0.5)), p(*rec)))
+            keys.append((n, p()))
+            action(wid + '_Fire', keys)
         # Reload (length = reload time)
         r = round(a['reload'] * FPS)
         if a['style'] == 'revolver':
             action(wid + '_Reload', revolver_reload(p, r))
         else:
             action(wid + '_Reload', mag_reload(p, r))
-        # Sprint loop 0.6 s: canted and lowered, trigger finger straight, bob
-        sp = ((0.04, -0.04, -0.07), (-18, -32, 26))
-        sp2 = ((0.045, -0.04, -0.086), (-21, -30, 29))
-        if pistol:
-            h1, h2 = mat_trs((-0.30, -0.12, -0.34), (40, 0, -40)), mat_trs((-0.28, -0.06, -0.30), (25, 0, -40))
-            action(wid + '_Sprint', [(0, p(*sp, idx=-35, FL=h1, curlL=-15)), (9, p(*sp2, idx=-35, FL=h2, curlL=-15)), (18, p(*sp, idx=-35, FL=h1, curlL=-15))])
+        p.off(0)
+        # Sprint loop 0.6 s (two footfalls): pistols at high ready with the free arm pumping, long guns at low
+        # ready across the chest; trigger finger straight along the frame
+        S = H['sprint']
+        p.off()
+        if S['style'] == 'high':
+            fa, fb = mat_trs(*S['pump'][0]), mat_trs(*S['pump'][1])
+            fist = dict(curlL=S['fist'], thumbL=-18)
+            action(wid + '_Sprint', [(0, p(*S['a'], FL=fa, **fist)), (9, p(*S['b'], FL=fb, **fist)), (18, p(*S['a'], FL=fa, **fist))])
         else:
-            action(wid + '_Sprint', [(0, p(*sp, idx=-35)), (9, p(*sp2, idx=-35)), (18, p(*sp, idx=-35))])
+            action(wid + '_Sprint', [(0, p(*S['a'])), (9, p(*S['b'])), (18, p(*S['a']))])
         # Slide loop 0.5 s: tucked low, canted ~30 deg, support hand out to the left for balance
-        sl, sl2 = ((0.02, -0.05, -0.11), (-4, -30, 8)), ((0.02, -0.05, -0.117), (-5, -33, 9))
+        sl, sl2 = H['slide']['a'], H['slide']['b']
         hb1, hb2 = mat_trs((-0.34, 0.12, -0.12), (-75, 0, -65)), mat_trs((-0.345, 0.135, -0.105), (-72, 0, -60))
-        action(wid + '_Slide', [(0, p(*sl, idx=-30, FL=hb1, curlL=-35, thumbL=-25)), (7, p(*sl2, idx=-30, FL=hb2, curlL=-35, thumbL=-25)),
-                                (15, p(*sl, idx=-30, FL=hb1, curlL=-35, thumbL=-25))])
+        action(wid + '_Slide', [(0, p(*sl, FL=hb1, curlL=-35, thumbL=-25)), (7, p(*sl2, FL=hb2, curlL=-35, thumbL=-25)),
+                                (15, p(*sl, FL=hb1, curlL=-35, thumbL=-25))])
+        p.off(0)
     rig.animation_data.action = bpy.data.actions['PIP_Idle']
     for act in bpy.data.actions:
         act.use_fake_user = True
@@ -1998,29 +2300,38 @@ def grab_frame(p):
 def mag_reload(p, r):
     """Tilt, mag drops out, support hand fetches a fresh one from below, seats it, slaps it, then works
     the slide / charging handle."""
-    info, a = p.info, p.a
+    info, a, R = p.info, p.a, p.H['reload']
     fr = lambda t: round(r * t)
-    tl, tr = (0.0, 0.0, -0.012), (8, 20, -12)
-    W = p.wm(tl, tr)
+    tl, tr = R['tilt']
+    tl1 = tuple(c * 1.08 for c in tl)
+    tr1 = tuple(c * 1.08 for c in tr)
+    W, W1 = p.wm(tl, tr), p.wm(tl1, tr1)
     G = grab_frame(p)
     at_mag = lambda Wm, d=0.0: Wm @ T(p.magS) @ T((0, 0, d)) @ G
     in_hand = lambda FL: FL @ G.inverted() @ T(-RIG['mag0'])
-    low = T((-0.14, -0.08, -0.46)) @ mat_trs((0, 0, 0), (-25, 0, 0)) @ T(p.magS) @ G
-    keys = [(0, p()), (fr(0.10), p(tl, tr))]
-    keys.append((fr(0.20), p(tl, tr, FL=at_mag(W, -0.05), mag=p.mag_at(W, T((0, 0, -0.03))))))
-    keys.append((fr(0.28), p(tl, tr, FL=low, mag=p.mag_at(W, T((0, -0.02, -0.60)) @ mat_trs((0, 0, 0), (-30, -20, 0))))))
-    keys.append((fr(0.36), p(tl, tr, FL=low, mag=in_hand(low))))
-    F1 = at_mag(W, -0.10)
-    keys.append((fr(0.52), p(tl, tr, FL=F1, mag=in_hand(F1))))
-    F2 = at_mag(W, -0.002)
-    keys.append((fr(0.62), p(tl, tr, FL=F2, mag=in_hand(F2))))
-    tl2, tr2 = (0.0, 0.003, -0.006), (12, 20, -14)
-    keys.append((fr(0.68), p(tl2, tr2, FL=at_mag(p.wm(tl2, tr2), 0.006))))
+    low = T(V(R['low'])) @ mat_trs((0, 0, 0), (-25, 0, 0)) @ T(p.magS) @ G
+    mid = T(V(R['low']) * 0.45 + V((-0.03, 0.02, 0.0))) @ mat_trs((0, 0, 0), (-12, 0, 6)) @ T(p.magS) @ G   # arc up from the pouch
+    keys = [(0, p())]
+    p.off()
+    keys.append((fr(0.08), p(tl, tr)))                                                              # tilt: show the well
+    keys.append((fr(0.17), p(tl1, tr1, FL=at_mag(W1, -0.05), mag=p.mag_at(W1, T((0, 0, -0.03))))))   # hand on the mag, pull
+    keys.append((fr(0.26), p(tl, tr, FL=low, mag=p.mag_at(W, T((0, -0.02, -0.60)) @ mat_trs((0, 0, 0), (-30, -20, 0))))))
+    keys.append((fr(0.36), p(tl1, tr1, FL=low, mag=in_hand(low))))                                    # fresh mag from the pouch
+    keys.append((fr(0.45), p(tl1, tr1, FL=mid, mag=in_hand(mid))))
+    F1 = at_mag(W, -0.085)
+    keys.append((fr(0.53), p(tl, tr, FL=F1, mag=in_hand(F1))))                                        # lined up under the well
+    Wd = p.wm(tuple(c + d for c, d in zip(tl, (0, 0, -0.004))), tr)                                    # weapon gives a little
+    F2 = at_mag(Wd, -0.002)
+    keys.append((fr(0.61), p(tuple(c + d for c, d in zip(tl, (0, 0, -0.004))), tr, FL=F2, mag=in_hand(F2))))
+    sl_, sr_ = R['seat']
+    keys.append((fr(0.67), p(sl_, sr_, FL=at_mag(p.wm(sl_, sr_), 0.006))))                              # palm slap: seats, bump up
+    keys.append((fr(0.72), p(tl, tr)))
     if a['style'] == 'bolt':      # right hand works the bolt to chamber
         W0 = p.wm()
-        for t, off, rot in ((0.74, (0, 0, 0), (0, 30, 0)), (0.80, (-0.010, 0, 0.020), (0, -20, 0)), (0.86, (-0.010, -0.065, 0.020), (0, -20, 0)),
+        for t, off, rot in ((0.76, (0, 0, 0), (0, 30, 0)), (0.81, (-0.010, 0, 0.020), (0, -20, 0)), (0.87, (-0.010, -0.065, 0.020), (0, -20, 0)),
                             (0.92, (-0.010, 0, 0.020), (0, -20, 0))):
             keys.append((fr(t), p(FR=knob_frame(p, W0, off, rot))))
+        p.off(0)
         keys.append((r, p()))
         return keys
     # slide / charging handle: the support glove closes on the part from the left side and pulls it back
@@ -2029,7 +2340,10 @@ def mag_reload(p, r):
     Wc = p.wm(tl3, tr3)
     side = Wc @ T((min(ch[0], -0.020) - 0.026, ch[1] + 0.020, ch[2] - 0.004)) @ mat_trs((0, 0, 0), (-35, 0, -10))
     keys.append((fr(0.80), p(tl3, tr3, FL=side, curlL=6)))
-    keys.append((fr(0.88), p(tl3, tr3, FL=T(Wc.to_3x3() @ V(pull)) @ side, curlL=6)))
+    tl4, tr4 = (0.0, -0.004, -0.004), (5, -7, -10)                                                    # slide snaps home: a jolt
+    keys.append((fr(0.88), p(tl4, tr4, FL=T(Wc.to_3x3() @ V(pull)) @ side, curlL=6)))
+    p.off(0)
+    keys.append((fr(0.95), p((0.0, 0.002, 0.002), (-1.0, 0.0, 0.5))))                                # small overshoot back to rest
     keys.append((r, p()))
     return keys
 
@@ -2043,6 +2357,7 @@ def revolver_reload(p, r):
     swing = lambda Wm, ang: Wm @ T(piv) @ mat_trs((0, 0, 0), (0, -ang, 0)) @ T(-piv) @ T(p.magT)
     side = lambda Wm: Wm @ T((-0.040, 0.030, 0.005)) @ mat_trs((0, 0, 0), (-90, 0, -90))
     keys = [(0, p())]
+    p.off()
     t1 = ((0.0, 0.0, -0.01), (10, -30, -8))
     W1 = p.wm(*t1)
     keys.append((fr(0.12), p(*t1, FL=side(W1))))
@@ -2056,6 +2371,8 @@ def revolver_reload(p, r):
     keys.append((fr(0.46), p(*t3, FL=low, mag=swing(W3, 85))))
     keys.append((fr(0.62), p(*t3, FL=W3 @ T((-0.040, 0.075, 0.010)) @ mat_trs((0, 0, 0), (-90, 0, -90)), mag=swing(W3, 85))))
     keys.append((fr(0.74), p(*t1, FL=side(W1), mag=swing(W1, 0))))
+    p.off(0)
+    keys.append((fr(0.88), p((0.0, 0.002, 0.003), (-2.0, 1.0, 0.5))))     # cylinder snapped home: settle with a little swing
     keys.append((r, p()))
     return keys
 
@@ -2116,7 +2433,8 @@ def build_pickups(pal):
     finish('PICKUP_Health', k, ht=0.018)
 
 
-def build_weapons(ao):
+def build_scene():
+    """Everything in the weapons GLB, in the current (fresh) scene; returns (palette, rig, arms)."""
     pal = Palette('weapons')
     build_weapon_meshes(pal)
     build_pickups(pal)
@@ -2126,6 +2444,11 @@ def build_weapons(ao):
         if 'curl_L' in info:
             print('support hold %-10s offset %s curl %+.0f' % (wid, tuple(round(c, 3) for c in info['hold_L'].translation), info['curl_L']))
     build_actions(rig)
+    return pal, rig, arms
+
+
+def build_weapons(ao):
+    build_scene()
     export('weapons')
 
 
