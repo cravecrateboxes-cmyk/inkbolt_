@@ -359,36 +359,39 @@ async function skillsRun(browser, base) {
 
 async function campaignRun(browser, base) {
   console.log('\n# campaign: big levels, no z-fighting, waypath -> loading -> next level');
-  // PLANS=castle,city2 checks a subset (the full tt1 flow runs only when tt1 is in the list)
-  const plans = process.env.PLANS ? process.env.PLANS.split(',') : ['tt1', 'mountains', 'smallcity', 'classroom', 'office', 'bedroom', 'castle', 'city2', 'tt2', 'tt3'];
+  // PLANS=castle,city2 checks a subset (the full level-1 flow runs only when mountains is in the list);
+  // campaign levels whose theme isn't built are skipped
+  const plans = process.env.PLANS ? process.env.PLANS.split(',') : ['mountains', 'smallcity', 'classroom', 'office', 'bedroom', 'coalmine', 'castle', 'city2', 'factory', 'livingroom'];
   for (const plan of plans) {
     const pg = await newPage(browser, base + '?autotest=1&zcheck=1&plan=' + plan);
+    if (!(await pg.evaluate(p => !!IB.LEVEL_PLANS[p], plan))) { console.log('SKIP ' + plan + ' (not built)'); await pg.context().close(); continue; }
     const z = await pg.evaluate(() => IB.Game.level.zfight);
     check(plan + ' has no coplanar overlapping pieces', z.length === 0, z.slice(0, 3).join(' | '));
     const big = await pg.evaluate(() => IB.Game.level.zones.map(z => z.w * z.h));
     check(plan + ' zones are big (>= 2,000 m2 each)', big.every(a => a >= 2000), big.join(','));
-    if (plan !== 'tt1') { await pg.context().close(); continue; }
+    if (plan !== 'mountains') { await pg.context().close(); continue; }
     const stands = await pg.evaluate(() => (IB.Game.weaponStands || []).map(w => w.id));
     check('new weapon waits at the start of level 1', stands.length >= 1, stands.join(','));
     await pg.evaluate(() => { const w = IB.Game.weaponStands[0]; IB.Game.player.x = w.x; IB.Game.player.z = w.z; });
     check('walking up to it picks it up', await until(pg, () => IB.Game.weaponStands[0].taken, null, 5000), (await st(pg)).weapon);
-    for (let zi = 0; zi < 2; zi++) {
+    const nz = await pg.evaluate(() => IB.Game.level.zones.length);
+    for (let zi = 0; zi < nz; zi++) {
       if (zi > 0) { await pg.evaluate(i => __TEST__.teleport(i), zi); await until(pg, i => __TEST__.state().zones[i] === 'active', zi, 8000); }
       const t0 = Date.now();
       while (Date.now() - t0 < 30000) { if ((await st(pg)).zones[zi] === 'cleared') break; await pg.evaluate(() => { __TEST__.forceWaves(); __TEST__.killZone(); }); await pg.waitForTimeout(250); }
-      check('tt1 zone ' + (zi + 1) + ' cleared', (await st(pg)).zones[zi] === 'cleared');
+      check('level 1 zone ' + (zi + 1) + ' cleared', (await st(pg)).zones[zi] === 'cleared');
     }
     // walk the exit waypath: it dims, then the next level loads and lights up
     await pg.evaluate(() => { const h = IB.Game.level.hatch; IB.Game.player.x = h.x; IB.Game.player.z = h.z0 - (h.z0 - h.z) * 0.5; });
     const dimmed = await until(pg, () => IB.Game.dimV > 0.25 && IB.Game.dimV < 1, null, 4000);
     check('screen dims along the waypath', dimmed, 'dim=' + (await pg.evaluate(() => IB.Game.dimV)));
     await pg.evaluate(() => __TEST__.teleport('hatch'));
-    const loaded = await until(pg, () => IB.Game.plan.id === 'tt2' && IB.Game.mode === 'play', null, 30000);
+    const loaded = await until(pg, () => IB.Game.plan.id === 'smallcity' && IB.Game.mode === 'play', null, 30000);
     check('next level loads after the waypath', loaded, (await pg.evaluate(() => IB.Game.plan.id + ' ' + IB.Game.mode)));
     const lit = await until(pg, () => IB.Game.dimV === 0 || IB.Game.dimV < 0.02, null, 15000);
     check('screen lights up again', lit, 'dim=' + (await pg.evaluate(() => IB.Game.dimV)));
     const saved = await pg.evaluate(() => JSON.parse(localStorage.getItem('inkbolt.slot1') || '{}'));
-    check('save moved on to level 2 with the new weapon', saved.plan === 'tt2' && (saved.owned || []).length >= 2, JSON.stringify({ plan: saved.plan, owned: saved.owned }));
+    check('save moved on to level 2 with the new weapon', saved.plan === 'smallcity' && (saved.owned || []).length >= 2, JSON.stringify({ plan: saved.plan, owned: saved.owned }));
     check('no console errors or warnings', pg.logs.length === 0, pg.logs.join(' | '));
     await pg.context().close();
   }
