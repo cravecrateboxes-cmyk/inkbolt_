@@ -287,6 +287,7 @@ async function skillsRun(browser, base) {
   let worst = 0;
   for (let i = 0; i < 8; i++) { await pg.waitForTimeout(150); const s = await pg.evaluate(() => __TEST__.skillState()); if (!s.cloak.active) break; worst = Math.max(worst, s.seeing + s.attacking); }
   check('robots lose the player: nobody sees him or winds up an attack', worst === 0, 'seeing+attacking=' + worst);
+  await pg.evaluate(() => { IB.SkillFX.cloakT = Math.min(IB.SkillFX.cloakT, 0.3); });   // skip to the end of the 5 s (slow software GL)
   check('the cloak wears off', await until(pg, () => !__TEST__.skillState().cloak.active && !__TEST__.skillState().cloaked, null, 40000));
   check('screen back in colour, cooldown counting', await pg.evaluate(() => !document.body.classList.contains('cloak-on') && __TEST__.skillState().cloak.cd > 0 && /\d+s/.test(document.getElementById('cloakHud').textContent)));
   await pg.keyboard.press('KeyF'); await pg.waitForTimeout(300);

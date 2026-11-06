@@ -16,7 +16,7 @@
     acid: { colors: [0x7BE34A, 0xC8FF8A, 0x3FAE2A], sound: 'sizzle' }
   };
   S.KINDS = KINDS;
-  for (var i = 0; i < S.CAP; i++) S.list.push({ on: false, r: null, kind: '', pool: 0, left: 0, acc: 0, tick: 0, fx: 0, total: 0 });
+  for (var i = 0; i < S.CAP; i++) S.list.push({ on: false, r: null, kind: '', pool: 0, left: 0, acc: 0, tick: 0, fx: 0, total: 0, wait: 0 });
 
   function entry(r, kind) {
     var free = null;
@@ -26,7 +26,7 @@
       if (!e.on && !free) free = e;
     }
     if (!free) return null;
-    free.on = true; free.r = r; free.kind = kind; free.pool = 0; free.left = 0; free.acc = 0; free.tick = S.TICK * 0.5; free.fx = 0; free.total = 0;
+    free.on = true; free.r = r; free.kind = kind; free.pool = 0; free.left = 0; free.acc = 0; free.tick = S.TICK * 0.5; free.fx = 0; free.total = 0; free.wait = 0;
     return free;
   }
   /* returns the status entry (or null when the robot cannot take it) */
@@ -90,7 +90,10 @@
       var take = e.left > dt ? e.pool * dt / e.left : e.pool;
       e.pool -= take; e.acc += take; e.left -= dt; e.tick -= dt;
       sparks(e, dt);
-      if (e.tick <= 0 || e.left <= 0) { e.tick = S.TICK; deal(e, onKill); }
+      // a long, thin burn lands once at least a whole point has built up, so the coloured numbers stay honest
+      // (or after 1.2 s at the latest)
+      e.wait += dt;
+      if (e.tick <= 0 || e.left <= 0) { e.tick = S.TICK; if (e.acc >= 1 || e.wait >= 1.2 || e.left <= 0) { e.wait = 0; deal(e, onKill); } }
       if (e.left <= 0 || e.pool <= 1e-6) { if (e.acc > 0) deal(e, onKill); e.on = false; e.r = null; }
     }
   };
