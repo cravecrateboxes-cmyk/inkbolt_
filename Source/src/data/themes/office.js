@@ -85,7 +85,8 @@
       'm': { size: [4, 4], pieces: ['FloorMarble'], collide: false }
     },
     gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.99, shutterHeight: 3.05 },
-    trail: { wall: 'TrailWall', height: 4.0 },
+    // corridor drywall with framed prints, whiteboards, status screens and fire cabinets mixed in
+    trail: { wall: 'TrailWall', height: 4.0, variants: ['TrailWall', 'TrailWall_Art', 'TrailWall_Board', 'TrailWall_Screen', 'TrailWall_Ext'] },
     hatch: 'Hatch', stand: 'Stand',
     // the skyline: one long layered slice of Manhattan (cloud banks, pre-war rooftops with water tanks, mid towers,
     // deco spires and glass needles). Ring 0 with count 4 lands exactly due east, south, west and north of the level's
@@ -132,7 +133,7 @@
       ['', '_W', '_E'].forEach(function (s) { out.push('WinCol' + s); });
       ['NW', 'NE', 'SE', 'SW'].forEach(function (s) { out.push('WinCorner_' + s); });
       DRY.forEach(function (n) { if (out.indexOf(n) < 0) out.push(n); });
-      out = out.concat(['Core', 'LobbyWood', 'LobbyWoodSconce', 'LobbyStone', 'CeilLight', 'GateFrame', 'GateShutter', 'TrailWall', 'Hatch', 'Stand',
+      out = out.concat(['Core', 'LobbyWood', 'LobbyWoodSconce', 'LobbyStone', 'CeilLight', 'GateFrame', 'GateShutter', 'TrailWall', 'TrailWall_Art', 'TrailWall_Board', 'TrailWall_Screen', 'TrailWall_Ext', 'Hatch', 'Stand',
         'Backdrop_Skyline']);
       var sym = this.symbols;
       Object.keys(sym).forEach(function (ch) { sym[ch].pieces.forEach(function (n) { if (out.indexOf(n) < 0) out.push(n); }); });

@@ -46,7 +46,7 @@
     'Crate', 'Bundle', 'Pine_A', 'Pine_B', 'Pine_C', 'SpruceCluster_A', 'SpruceCluster_B', 'Drift_A', 'Drift_B',
     'Meadow_A', 'Meadow_B', 'Pond', 'Creek', 'Signpost', 'LanternPost', 'Skis', 'Campfire',
     'Landmark_Cabin', 'Landmark_Chalet', 'Landmark_Lookout', 'Landmark_RopeBridge', 'Landmark_LiftStation', 'Landmark_LiftLine',
-    'GateFrame', 'GateShutter', 'TrailWall', 'Hatch',
+    'GateFrame', 'GateShutter', 'TrailWall', 'TrailWall_Wood', 'TrailWall_Lantern', 'TrailWall_Drift', 'Hatch',
     'Backdrop_PeakA', 'Backdrop_PeakB', 'Backdrop_PeakC', 'Backdrop_Forest'];
 
   IB.registerTheme({
@@ -83,7 +83,8 @@
       'k': { pieces: ['Skis'], rotate: 'random90', kind: 'deco' }
     },
     gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
-    trail: { wall: 'TrailWall', height: 2.6 },
+    // log palisade; firewood, a lantern and a snow drift with skis mixed in per module
+    trail: { wall: 'TrailWall', height: 2.6, variants: ['TrailWall', 'TrailWall_Wood', 'TrailWall_Lantern', 'TrailWall_Drift'] },
     hatch: 'Hatch', stand: 'Crate',
     backdrop: { ring: [
       // big snow-capped peaks, far enough out to read as misty silhouettes above the cliff line

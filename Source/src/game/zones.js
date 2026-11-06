@@ -227,6 +227,7 @@
       var oS = !solid(p.c, p.r + 1), oN = !solid(p.c, p.r - 1), oE = !solid(p.c + 1, p.r), oW = !solid(p.c - 1, p.r);
       var nOpen = oS + oN + oE + oW, face = nOpen === 0 ? 'none' : nOpen === 1 ? (oS ? 'S' : oN ? 'N' : oE ? 'E' : 'W') : ((oS || oN) && (oE || oW) ? 'corner' : (oS ? 'S' : 'E'));
       var name = W.choose ? W.choose(p.c, p.r, horiz, horiz && vert, hash, grid, face) : pick(W.pieces, hash(p.c * 13, p.r * 17));
+      if (!name) return;   // the chooser leaves cells a gate built-in covers empty (their collision stays)
       // wall modules face +/-Z; rotate for vertical runs. faceOpen: turn the module's +Z face (Blender -Y) to the open side
       var yaw = (!horiz && vert) ? Math.PI / 2 : 0;
       if (W.facing === 'open' && face !== 'none' && face !== 'corner') yaw = { S: 0, N: Math.PI, E: Math.PI / 2, W: -Math.PI / 2 }[face];
@@ -266,7 +267,7 @@
       if (R.w % tw || R.h % td) { tw = R.w / nx; td = R.h / nz; }   // block not a multiple: centre one prefab per cell group
       for (var i = 0; i < nx; i++) for (var k = 0; k < nz; k++) {
         var x = z.ox + R.c + (i + 0.5) * tw, zz = z.oz + R.r + (k + 0.5) * td, h = hash(R.c + i * 7, R.r + k * 11);
-        var y = yaw + (d.flip && hash(R.c * 3 + i, R.r * 5 + k) > 0.5 ? Math.PI : 0);
+        var y = yaw + (d.turn || 0) + (d.flip && hash(R.c * 3 + i, R.r * 5 + k) > 0.5 ? Math.PI : 0);
         var name = d.sequence ? d.pieces[(ri + i + k) % d.pieces.length] : pick(d.pieces, h);
         P.add(name, x, d.y || 0, zz, y);
         if (d.collide !== false) addCols(world, d.cols || colsOf(IB.themePiece(theme, name)) || boxCols(sw, sd, d.h || 1), x, zz, y, d.kind || 'cover', z.idx);
@@ -323,6 +324,10 @@
   function makeGate(P, cx, cz, width, theme, zoneIdx, world, kind) {
     var GT = theme.gate || {};
     P.add(GT.frame || 'GateFrame', cx, 0, cz, 0);
+    (GT.dress || []).forEach(function (n) { P.add(n, cx, 0, cz, 0); });   // extra pieces dressing the frame
+    // a frame that stands proud of the wall (a built-in, a portal) brings its own collision boxes
+    var fcols = colsOf(IB.themePiece(theme, GT.frame || 'GateFrame'));
+    if (fcols) addCols(world, fcols, cx, cz, 0, 'wall', zoneIdx);
     var sname = IB.themePiece(theme, GT.shutter || 'GateShutter');
     var shutter = new THREE.Mesh(IB.Assets.get(sname), IB.Assets.material(sname));
     shutter.scale.x = width / 3;
@@ -349,6 +354,11 @@
 
   // ---------------- trail ----------------
   var DULL = new THREE.Color(0xE9DFC8), TEAL = new THREE.Color(PAL.teal);
+  // trail.variants (optional): modules mixed in per slot with trail.wall, so a long run never repeats one slice
+  function trailPiece(T, k, side) {
+    var W = T.wall || 'TrailWall';
+    return T.variants && T.variants.length ? pick([W].concat(T.variants), hash(k * 7 + 3, side * 13 + 101)) : W;
+  }
   function buildTrail(level, from, to, theme, world, idx) {
     var g = new IB.Geo(), P = new Parts(theme), T = theme.trail || {};
     var x = from.x, z0 = from.z, z1 = to.z, w = 3, len = z0 - z1, wallH = T.height || 2.6;
@@ -356,7 +366,7 @@
     addCeiling(g, P, x - w / 2 - 1, z1, w + 2, len, theme);
     [-1, 1].forEach(function (sgn) {
       var wx = x + sgn * (w / 2 + 0.75);
-      for (var k = 0; k < len; k++) P.add(T.wall || 'TrailWall', wx, 0, z1 + k + 0.5, sgn > 0 ? Math.PI : 0);
+      for (var k = 0; k < len; k++) P.add(trailPiece(T, Math.round(z1 + k) * 3 + idx * 31, sgn), wx, 0, z1 + k + 0.5, sgn > 0 ? Math.PI : 0);
       world.add(wx - 0.25, 0, z1, wx + 0.25, wallH, z0, 'wall', idx);
     });
     var grp = new THREE.Group();
@@ -513,8 +523,10 @@
     var hz = exit.z - WAY - 1.5, g = new IB.Geo(), P = new Parts(theme);
     paintFloor(g, exit.x - 3, hz - 2.5, 6, exit.z - WAY - (hz - 2.5), theme, true);
     addCeiling(g, P, exit.x - 3.5, hz - 3.5, 7, exit.z - WAY - (hz - 3.5), theme);
-    for (var k = 0; k < 6; k++) P.add(T.wall || 'TrailWall', exit.x - 2.5 + k, 0, hz - 2.95, Math.PI / 2);
-    for (k = 0; k < 5; k++) { P.add(T.wall || 'TrailWall', exit.x - 3.0, 0, hz - 2 + k, 0); P.add(T.wall || 'TrailWall', exit.x + 3.0, 0, hz - 2 + k, Math.PI); }
+    // back wall: the module's trail face (+X) turned toward the hatch room (south), lifted 5 mm so its trims never
+    // share a plane with the side walls' where they cross in the corners
+    for (var k = 0; k < 6; k++) P.add(trailPiece(T, k * 5 + 900, 2), exit.x - 2.5 + k, 0.005, hz - 2.95, -Math.PI / 2);
+    for (k = 0; k < 5; k++) { P.add(trailPiece(T, k + 950, -1), exit.x - 3.0, 0, hz - 2 + k, 0); P.add(trailPiece(T, k + 950, 1), exit.x + 3.0, 0, hz - 2 + k, Math.PI); }
     world.add(exit.x - 3.25, 0, hz - 3.2, exit.x + 3.25, wallH, hz - 2.7, 'wall', -1);
     world.add(exit.x - 3.25, 0, hz - 2.75, exit.x - 2.75, wallH, hz + 2.75, 'wall', -1);
     world.add(exit.x + 2.75, 0, hz - 2.75, exit.x + 3.25, wallH, hz + 2.75, 'wall', -1);

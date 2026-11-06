@@ -353,6 +353,92 @@ def books_row(k, x0, x1, z0, y_front, depth, seed, maxh, colors=BOOK_COLORS, spi
     return n
 
 
+TRAIL_VARIANTS = (('TrailWall', 101), ('TrailWall_B', 212), ('TrailWall_C', 323), ('TrailWall_D', 434), ('TrailWall_E', 545))
+
+
+def shelf_mix(k, x0, x1, z0, zt, y_front, depth, rnd):
+    """One bookcase bay (local x0..x1 on a shelf at z0 under zt, front at y_front facing -Y, in k.m.parent space):
+    upright books of mixed width, height, depth and colour with spine bands or star stickers, a book leaning on its
+    neighbour, a lying stack with its page block, bookends, and a toy now and then (alphabet block, ball, little car).
+    Neighbours keep 1 cm gaps; marks sit 6 mm proud; no two shapes share a face."""
+    hmax = zt - z0 - 0.1
+    x, prev, toy, stack = x0 + rnd.uniform(0.0, 0.05), None, False, False
+    while x1 - x > 0.12:
+        room, r = x1 - x, rnd.random()
+        if not stack and room > 0.66 and r < 0.13:                       # a stack lying flat
+            w = min(room - 0.04, rnd.uniform(0.6, 0.86))
+            z = z0
+            for i in range(rnd.randint(2, 4)):
+                t = rnd.uniform(0.14, 0.24)
+                book(k, x + w / 2 + rnd.uniform(-0.02, 0.02), y_front + depth / 2, z + 0.004, w * rnd.uniform(0.86, 0.98), depth * 0.92, t,
+                     rnd.uniform(-4, 4), rnd.choice(BOOK_COLORS), parent=k.m.parent)
+                z += t + 0.004
+            if not toy and rnd.random() < 0.5 and z + 0.5 < z0 + hmax:
+                k.sphere((x + w / 2, y_front + depth / 2, z + 0.2), 0.2, rnd.choice(('red', 'tyellow', 'tblue')), seg=(8, 5))
+                toy = True
+            x += w + 0.06
+            stack, prev = True, None
+            continue
+        if not toy and room > 0.5 and r < 0.24:                           # a toy
+            kind = rnd.choice(('block', 'ball', 'car'))
+            cx = x + 0.24
+            if kind == 'block':
+                s = rnd.uniform(0.36, 0.44)
+                c, c2 = rnd.choice((('red', 'white'), ('tblue', 'butter'), ('tgreen', 'white'), ('tyellow', 'red')))
+                k.obox(cx - s / 2, cx + s / 2, y_front, y_front + s, z0, z0 + s, c, faces=('-y', '+z', '-x', '+x'))
+                k.obox(cx - s * 0.3, cx + s * 0.3, y_front - 0.006, y_front + 0.02, z0 + s * 0.2, z0 + s * 0.8, c2, faces=('-y', '+z', '-z', '-x', '+x'))
+            elif kind == 'ball':
+                k.sphere((cx, y_front + 0.1, z0 + 0.24), 0.24, rnd.choice(('red', 'tsky', 'tpink')), seg=(10, 6))
+            else:
+                c = rnd.choice(('red', 'tblue', 'tyellow'))
+                k.obox(cx - 0.22, cx + 0.22, y_front + 0.02, y_front + 0.18, z0 + 0.08, z0 + 0.24, c, faces=('-y', '+z', '-x', '+x'))
+                k.obox(cx - 0.12, cx + 0.1, y_front + 0.03, y_front + 0.17, z0 + 0.24, z0 + 0.38, 'glass', faces=('-y', '+z', '-x', '+x'))
+                for wx in (-0.13, 0.13):
+                    k.m.cyl((cx + wx, y_front + 0.012, z0 + 0.085), 0.085, 0.085, 0.04, 'rubber', seg=8, rot=(90, 0, 0), bevel=False)
+            x += 0.5
+            toy, prev = True, None
+            continue
+        if prev is None and room > 0.5 and r < 0.3:                        # a bookend
+            c = rnd.choice(('metal', 'tpink', 'tmint'))
+            k.obox(x, x + 0.2, y_front + 0.02, y_front + depth - 0.02, z0 + 0.006, z0 + 0.04, c, faces=('-y', '+z', '-x', '+x'))
+            k.obox(x + 0.2, x + 0.24, y_front + 0.02, y_front + depth - 0.02, z0 + 0.006, z0 + 0.95, c, faces=('-y', '+z', '-x', '+x'))
+            x += 0.252
+            prev = ('end', x, 0.95)
+            continue
+        if prev is not None and prev[0] == 'book' and r < 0.45:            # a book leaning on its neighbour
+            t = rnd.uniform(0.13, 0.2)
+            h = min(hmax, prev[2] * rnd.uniform(0.88, 1.08))
+            a = math.radians(rnd.uniform(12, 24))
+            if h * math.cos(a) < prev[2] - 0.05 and room > h * math.sin(a) + t + 0.06:
+                px = prev[1] + h * math.sin(a) + 0.014
+                cx = px + t / 2 * math.cos(a) - h / 2 * math.sin(a)
+                cz = z0 + t / 2 * math.sin(a) + h / 2 * math.cos(a) + 0.002
+                k.box((cx, y_front + depth * 0.46, cz), (t - 0.006, depth * 0.9, h), rnd.choice(BOOK_COLORS), rot=(0, -math.degrees(a), 0), bevel=False)
+                x = px + t * math.cos(a) + 0.04
+                prev = None
+                continue
+        w = rnd.choice((0.13, 0.16, 0.2, 0.24, 0.28, 0.32))
+        if w > room - 0.01:
+            w = room - 0.01
+            if w < 0.11:
+                break
+        h = hmax * rnd.uniform(0.6, 0.98)
+        d = depth * rnd.uniform(0.8, 1.0)
+        c = rnd.choice(BOOK_COLORS)
+        yo = y_front + rnd.uniform(0.0, depth - d)
+        k.obox(x, x + w - 0.01, yo, yo + d, z0, z0 + h, c)
+        mark = rnd.choice((0, 1, 1, 2, 3))
+        if w >= 0.16 and mark == 1:
+            k.obox(x - 0.004, x + w - 0.006, yo - 0.006, yo + 0.04, z0 + h - 0.34, z0 + h - 0.22, 'cream', faces=('-y', '+z', '-z', '-x', '+x'))
+        elif w >= 0.16 and mark == 2:
+            for (a0, a1) in ((0.1, 0.14), (0.84, 0.88)):
+                k.obox(x - 0.004, x + w - 0.006, yo - 0.006, yo + 0.04, z0 + h * a0, z0 + h * a1, 'navy' if c not in ('navy', 'tpurple') else 'butter', faces=('-y', '+z', '-z', '-x', '+x'))
+        elif w >= 0.2 and mark == 3:   # a square sticker
+            k.obox(x + w * 0.3, x + w * 0.7 - 0.01, yo - 0.006, yo + 0.04, z0 + h * 0.64, z0 + h * 0.64 + w * 0.4, 'butter' if c != 'tyellow' else 'white', faces=('-y', '+z', '-z', '-x', '+x'))
+        prev = ('book', x + w - 0.01, h)
+        x += w + rnd.choice((0.0, 0.0, 0.0, 0.012, 0.03))
+
+
 def build_gate(pal, ao):
     # GateFrame: a white built-in around a 3 m opening, decorated the same on both faces (the entry gate shows its
     # back to the room). Half width 3.55 / depth 0.70 so no face lands on a wall-cell boundary or wall-module plane.
@@ -415,23 +501,27 @@ def build_gate(pal, ao):
     hull_only(tmp)
     join_into(obj, tmp)
 
-    # TrailWall: 1 m of floor-to-ceiling bookcase, 0.5 m thick; books face +X (the trail), a plain wall behind (-X).
-    # Open profiles only: the run is continuous, so module ends and backs are never seen.
-    k = Kit(pal)
-    k.quad((0.04, -0.5, 0.0), (0.04, 0.5, 0.0), (0.04, 0.5, TRAIL_H), (0.04, -0.5, TRAIL_H), 'trim2')       # case back (+X)
-    k.quad((-0.25, 0.5, 0.0), (-0.25, -0.5, 0.0), (-0.25, -0.5, TRAIL_H), (-0.25, 0.5, TRAIL_H), 'wall1u')  # plain side (-X)
-    k.obox(-0.39, -0.24, -0.5, 0.5, 0.0, SKIRT_H, 'trim', faces=('-x', '+z'))
-    k.obox(-0.262, -0.249, 0.46, 0.54, SKIRT_H, TRAIL_H, 'trim', faces=('-x', '-y', '+y'))                   # batten over the seam
-    k.obox(0.04, 0.25, -0.5, 0.5, 0.0, 0.7, 'trim', faces=('+x', '+z'))                                       # plinth
-    shelves = [0.7, 3.6, 6.5, 9.4, 12.3, 15.2]
-    for zs in shelves[1:]:
-        k.obox(0.04, 0.25, -0.5, 0.5, zs - 0.16, zs, 'trim', faces=('+x', '+z', '-z'))
-    k.obox(0.04, 0.27, -0.5, 0.5, TRAIL_H - 0.6, TRAIL_H, 'trim', faces=('+x', '-z'))
-    k.m.parent = rz(90)   # rows authored along local x facing -Y, turned to run along Blender y facing +X
-    for si, zs in enumerate(shelves[:4]):
-        books_row(k, -0.48, 0.48, zs, -0.23, 0.2, 101 + si * 7, 2.5, spine=False)
-    k.m.parent = Matrix.Identity(4)
-    k.build('TrailWall', bw=0.0, ao=ao)
+    # TrailWall (+ _B.._E): 1 m of floor-to-ceiling bookcase, 0.5 m thick; books face +X (the trail), a plain wall
+    # behind (-X). Open profiles only: the run is continuous, so module ends and backs are never seen. Five fills
+    # (zones.js mixes them per module via theme.trail.variants) so the aisle never repeats one slice.
+    import random
+    for name, seed in TRAIL_VARIANTS:
+        rnd = random.Random(seed)
+        k = Kit(pal)
+        k.quad((0.04, -0.5, 0.0), (0.04, 0.5, 0.0), (0.04, 0.5, TRAIL_H), (0.04, -0.5, TRAIL_H), 'trim2')       # case back (+X)
+        k.quad((-0.25, 0.5, 0.0), (-0.25, -0.5, 0.0), (-0.25, -0.5, TRAIL_H), (-0.25, 0.5, TRAIL_H), 'wall1u')  # plain side (-X)
+        k.obox(-0.39, -0.24, -0.5, 0.5, 0.0, SKIRT_H, 'trim', faces=('-x', '+z'))
+        k.obox(-0.262, -0.249, 0.46, 0.54, SKIRT_H, TRAIL_H, 'trim', faces=('-x', '-y', '+y'))                   # batten over the seam
+        k.obox(0.04, 0.25, -0.5, 0.5, 0.0, 0.7, 'trim', faces=('+x', '+z'))                                       # plinth
+        shelves = [0.7, 3.6, 6.5, 9.4, 12.3, 15.2]
+        for zs in shelves[1:]:
+            k.obox(0.04, 0.25, -0.5, 0.5, zs - 0.16, zs, 'trim', faces=('+x', '+z', '-z'))
+        k.obox(0.04, 0.27, -0.5, 0.5, TRAIL_H - 0.6, TRAIL_H, 'trim', faces=('+x', '-z'))
+        k.m.parent = rz(90)   # rows authored along local x facing -Y, turned to run along Blender y facing +X
+        for si, zs in enumerate(shelves[:-1]):
+            shelf_mix(k, -0.48, 0.48, zs, shelves[si + 1] - 0.16, -0.23, 0.2, rnd)
+        k.m.parent = Matrix.Identity(4)
+        k.build(name, bw=0.0, ao=ao)
 
     # Hatch: a floor heating vent with a dark slot below the grille and teal corner lights
     k = Kit(pal)

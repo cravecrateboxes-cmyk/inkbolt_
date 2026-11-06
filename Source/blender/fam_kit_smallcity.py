@@ -446,15 +446,48 @@ def build_gate(pal, ao):
 
 
 def build_trail(pal, ao):
-    """Trail wall: 1 m of brick garden wall, 2.6 m, detailed on its +X face (the trail side)."""
+    """Trail walls: 1 m of brick garden wall, 2.6 m, detailed on its +X face (the trail side). TrailWall has the inset
+    panel; the variants (mixed in per module by zones.js through theme.trail.variants) carry pasted gig posters, a
+    blue garden door, a planter box with flowers and a creeper over the coping, so the alley never repeats."""
+    def base(m, band=True):
+        m.bx(-0.2, 0.2, -0.5, 0.5, 0, 2.5, 'brickO', hull='noend')
+        m.bx(-0.26, 0.26, -0.5, 0.5, 2.5, 2.64, 'stoneC', hull='noend')                 # coping
+        m.bx(0.2, 0.25, -0.5, 0.5, 0, 0.42, 'stoneS', hull='noend')                      # plinth (trail side)
+        if band:
+            m.bx(0.2, 0.23, -0.5, 0.5, 1.9, 2.0, 'stoneC', hull='noend')                 # band
     m = PM(pal)
-    m.bx(-0.2, 0.2, -0.5, 0.5, 0, 2.5, 'brickO', hull='noend')
-    m.bx(-0.26, 0.26, -0.5, 0.5, 2.5, 2.64, 'stoneC', hull='noend')                     # coping
-    m.bx(0.2, 0.25, -0.5, 0.5, 0, 0.42, 'stoneS', hull='noend')                          # plinth (trail side)
-    m.bx(0.2, 0.23, -0.5, 0.5, 1.9, 2.0, 'stoneC', hull='noend')                         # band
+    base(m)
     m.bx(0.2, 0.22, -0.32, 0.32, 0.9, 1.7, 'brickR', hull='none')                         # inset panel
-    obj = make('TrailWall', m, ao=ao)
-    return obj
+    make('TrailWall', m, ao=ao)
+    # posters pasted over the bricks (overlapping sheets, each 4 mm prouder), a torn corner
+    m = PM(pal)
+    base(m)
+    for i, (y0, y1, z0, z1, c, c2) in enumerate(((-0.42, 0.02, 0.62, 1.62, 'shopMustard', 'iron'), (-0.05, 0.4, 0.75, 1.82, 'shopTeal', 'paintW'),
+                                                  (-0.3, 0.12, 1.25, 1.84, 'awnCream', 'carRed'))):
+        x = 0.205 + i * 0.01
+        m.bx(x - 0.004, x, y0, y1, z0, z1, c, hull='none')
+        m.bx(x, x + 0.004, y0 + 0.06, y1 - 0.06, z1 - 0.3, z1 - 0.12, c2, hull='none')
+        m.bx(x, x + 0.004, y0 + 0.06, y0 + 0.06 + (y1 - y0) * 0.45, z0 + 0.1, z0 + 0.16, c2, hull='none')
+    make('TrailWall_Posters', m, ao=ao)
+    # a blue garden door with a brick arch and an iron ring
+    m = PM(pal)
+    base(m, band=False)
+    m.bx(0.2, 0.235, -0.44, 0.44, 0.42, 2.12, 'stoneC', hull='full')                     # surround
+    m.bx(0.235, 0.26, -0.36, 0.36, 0.42, 2.04, 'shopNavy', hull='full')                  # door
+    for z in (0.75, 1.35, 1.85):
+        m.bx(0.26, 0.265, -0.33, 0.33, z, z + 0.05, 'ironL', hull='none')                # planks / straps
+    m.cyl((0.27, 0.2, 1.2), 0.05, 0.05, 0.03, 'iron', seg=8, rot=(0, 90, 0), bevel=False)
+    make('TrailWall_Door', m, ao=ao)
+    # a planter box with flowers on a bracket, a creeper spilling over the coping
+    m = PM(pal)
+    base(m)
+    m.bx(0.25, 0.55, -0.4, 0.4, 0.9, 1.2, 'planter', hull='full')
+    m.bx(0.29, 0.51, -0.36, 0.36, 1.2, 1.22, 'soil', hull='none')
+    for j, (y, c) in enumerate(((-0.28, 'flowerP'), (-0.1, 'leaf2'), (0.08, 'flowerP'), (0.26, 'paintY'))):
+        m.sphere((0.4, y, 1.32 + 0.03 * (j % 2)), 0.11, c, seg=(6, 4))
+    for j, (y, z, r) in enumerate(((-0.3, 2.66, 0.2), (0.05, 2.7, 0.24), (0.32, 2.64, 0.18), (0.22, 2.38, 0.14))):
+        m.sphere((0.2, y, z), r, 'leaf' if j % 2 else 'leafD', seg=(7, 5), rot=(0, 0, j * 31))
+    make('TrailWall_Planter', m, ao=ao)
 
 
 def build_hatch(pal, ao):

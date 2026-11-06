@@ -118,6 +118,9 @@ test('wall chooser: every perimeter module exists, decor faces the room, windows
       // the flags zones.js buildWalls hands to choose()
       const horiz = solid(c - 1, r) || solid(c + 1, r), vert = solid(c, r - 1) || solid(c, r + 1);
       const n = TH.wall.choose(c, r, horiz, horiz && vert, hash, g);
+      // the two cells either side of a gate sit inside the door built-in (GateFrame): no module there
+      const byGate = [-2, -1, 1, 2].some(d => 'GE'.includes(g.at(c + d, r)));
+      if (byGate) { assert.equal(n, null, name + ' module inside the door built-in at ' + c + ',' + r); continue; }
       assert.ok(pieces.has(n), name + ' unknown wall piece ' + n + ' at ' + c + ',' + r);
       used[n] = (used[n] || 0) + 1;
       // perimeter west / east columns come out of the engine with yaw 0: they must use the turned modules

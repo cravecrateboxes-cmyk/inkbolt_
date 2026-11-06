@@ -1064,16 +1064,43 @@ def build_gate(pal, ao, bw, ht):
     hull_only(tmp)
     join_into(shutter, tmp)
     TRIS[PFX + 'GateShutter'] = sum(len(p.vertices) - 2 for p in shutter.data.polygons)
-    # trail wall: log palisade on a stone footing; 1 m run along Blender Y, 0.5 thick, inner face +X
+    # trail walls: log palisade on a stone footing; 1 m run along Blender Y, 0.5 thick, inner face +X. Variants
+    # (mixed in per module through theme.trail.variants): firewood stacked against it, a lantern on a bracket,
+    # a snow drift with a pair of skis leaning on the logs.
+    def palisade(m, heights=(2.28, 2.42, 2.34)):
+        m.box((0, 0, 0.2), (0.5, 1.0, 0.4), 'stone2', bevel=False)
+        m.box((0, 0, 0.42), (0.54, 1.0, 0.04), 'snow', bevel=False)
+        for k, (y, H, col) in enumerate(zip((-0.333, 0.0, 0.333), heights, ('log', 'log2', 'log'))):
+            m.cyl((0, y, 0.3), 0.163, 0.163, H - 0.3, col, seg=7, bevel=False, caps=False)
+            m.cyl((0, y, H), 0.163, 0.02, 0.26, 'log2', seg=7, bevel=False)
+        m.box((0.19, 0, 1.25), (0.08, 1.0, 0.12), 'log2', bevel=False)
+        m.box((-0.19, 0, 1.95), (0.08, 1.0, 0.12), 'log2', bevel=False)
     m = new(pal)
-    m.box((0, 0, 0.2), (0.5, 1.0, 0.4), 'stone2', bevel=False)
-    m.box((0, 0, 0.42), (0.54, 1.0, 0.04), 'snow', bevel=False)
-    for k, (y, H, col) in enumerate(((-0.333, 2.28, 'log'), (0.0, 2.42, 'log2'), (0.333, 2.34, 'log'))):
-        m.cyl((0, y, 0.3), 0.163, 0.163, H - 0.3, col, seg=7, bevel=False, caps=False)
-        m.cyl((0, y, H), 0.163, 0.02, 0.26, 'log2', seg=7, bevel=False)
-    m.box((0.19, 0, 1.25), (0.08, 1.0, 0.12), 'log2', bevel=False)
-    m.box((-0.19, 0, 1.95), (0.08, 1.0, 0.12), 'log2', bevel=False)
+    palisade(m)
     finish('TrailWall', m, ao)
+    m = new(pal)                                   # firewood stack under a snow cap
+    palisade(m, (2.36, 2.3, 2.44))
+    for r, (n, z) in enumerate(((3, 0.58), (3, 0.86), (2, 1.14))):
+        for i in range(n):
+            y = -0.32 + i * 0.32 + (0.16 if r == 2 else 0.0)
+            m.cyl((0.3, y, z), 0.13, 0.13, 0.32, 'log' if (i + r) % 2 else 'log2', seg=7, rot=(0, 90, 0), bevel=False)
+            m.cyl((0.62, y, z), 0.09, 0.09, 0.006, 'logend', seg=7, rot=(0, 90, 0), bevel=False)
+    m.box((0.46, 0.0, 1.31), (0.34, 0.7, 0.07), 'snow', bevel=False)
+    finish('TrailWall_Wood', m, ao)
+    m = new(pal)                                   # a lantern on an iron bracket
+    palisade(m, (2.4, 2.32, 2.3))
+    m.box((0.3, 0.0, 1.95), (0.2, 0.05, 0.05), 'gunmetal', bevel=False)
+    m.box((0.38, 0.0, 1.76), (0.02, 0.02, 0.17), 'gunmetal', bevel=False)
+    m.box((0.38, 0.0, 1.55), (0.22, 0.22, 0.26), 'glow', bevel=False)
+    m.cyl((0.38, 0.0, 1.68), 0.17, 0.02, 0.14, 'gunmetal', seg=4, bevel=False, rot=(0, 0, 45))
+    m.box((0.38, 0.0, 1.405), (0.24, 0.24, 0.03), 'gunmetal', bevel=False)
+    finish('TrailWall_Lantern', m, ao)
+    m = new(pal)                                   # a drift banked against the logs, skis leaning on them
+    palisade(m, (2.32, 2.38, 2.28))
+    m.sphere((0.3, 0.05, 0.38), 0.5, 'snow', seg=(8, 5), scale=(0.7, 1.05, 0.42))
+    for k, (y, c) in enumerate(((-0.12, 'red'), (0.06, 'amber'))):
+        m.box((0.38, y, 1.05), (0.05, 0.09, 1.9), c, rot=(0, -12 - 3 * k, 0), bevel=False)
+    finish('TrailWall_Drift', m, ao)
     # exit hatch: round timber pad with teal centre and amber lamps
     m = new(pal)
     m.cyl((0, 0, 0), 1.25, 1.2, 0.12, 'stone', seg=20)

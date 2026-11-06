@@ -39,7 +39,9 @@ ib_lib.PALETTES[FAM] = BASE + [
     # misc props
     ('rubber', '#3B3F4B'), ('terra', '#DA7A4B'), ('leaf', '#3E9C4E'), ('ocean', '#5DB4EE'), ('land', '#8FD068'),
     ('sand', '#F2D58C'), ('pencilWood', '#F6D3A1'), ('felt', '#8A8F9A'), ('ruler', '#F6D88E'), ('tbar', '#E8E3D8'),
-    ('lamp', '#FFFFFF'), ('cardboard', '#D6AC74'), ('teal2', '#5CCFC2'), ('paperDk', '#EDE6D6')]
+    ('lamp', '#FFFFFF'), ('cardboard', '#D6AC74'), ('teal2', '#5CCFC2'), ('paperDk', '#EDE6D6'),
+    # more book cloth for the library shelves
+    ('maroon', '#B4484E'), ('olive', '#97A651')]
 
 pal = None
 HT = 0.02          # baked outline shell (m)
@@ -570,44 +572,222 @@ def build_posters():
     finish('Wall_Poster_C', m)
 
 
+# ================================================================ shelf fill (trail bookcases, the door built-in)
+BOOKC = ['crayR', 'crayB', 'crayY', 'crayG', 'crayO', 'crayP', 'navy', 'teal2', 'pink', 'terra', 'wood3', 'boardDk',
+         'noteBl', 'noteGr', 'maroon', 'olive', 'crayR', 'crayY', 'crayO', 'maroon', 'terra', 'crayG']
+
+
+def book_marks(m, x0, x1, ya, yb, z0, h, col, kind):
+    """Spine marks on an upright book (x0..x1 along the run, depth ya..yb): boxes 5 mm proud of both spine faces."""
+    if x1 - x0 < 0.1:
+        return
+    dark = col in ('navy', 'boardDk', 'maroon', 'wood3', 'crayP', 'olive')
+    ink = 'white' if dark else 'ink'
+    marks = {1: [(0.68, 0.76, 'amber' if col not in ('crayY', 'noteGr', 'crayO') else 'ink')],
+             2: [(0.1, 0.13, ink), (0.85, 0.88, ink)],
+             3: [(0.56, 0.72, 'paper')],
+             4: [(0.86, 0.93, 'amber' if dark else 'navy'), (0.1, 0.15, 'amber' if dark else 'navy')]}.get(kind, [])
+    for (a, b, c) in marks:
+        w = 0.03 if c == 'paper' else 0.012
+        m.bx(x0 + w, ya - 0.005, z0 + h * a, x1 - w, yb + 0.005, z0 + h * b, c, flat=True)
+
+
+def fill_bay(m, x0, x1, z, zt, ya, yb, rnd, objects=True):
+    """Fill one shelf bay (in m.parent space: the run goes along x from x0 to x1, standing on z under zt; depth ya..yb,
+    front at ya) with a varied mix: upright books of mixed thickness, height, depth and colour with spine marks, a
+    book leaning on its neighbour, a stack lying flat (sometimes an apple on top), a bookend, and now and then a
+    pencil pot, a plant, a box file or a tiny globe. Items never share a face (1.2 cm gaps, 5 mm proud marks)."""
+    hmax = zt - z - 0.1
+    dfull = yb - ya
+    yc = ya + dfull / 2
+    x, prev, used_obj, used_stack = x0 + rnd.uniform(0.0, 0.06), None, not objects, False
+    while x1 - x > 0.12:
+        room = x1 - x
+        r = rnd.random()
+        if not used_stack and room > 0.62 and r < 0.12:          # a stack lying flat
+            L = min(room - 0.04, rnd.uniform(0.58, 0.92))
+            cx, zz = x + L / 2 + 0.01, z
+            for i in range(rnd.randint(2, 4)):
+                tk = rnd.uniform(0.13, 0.24)
+                ang = rnd.uniform(-3.0, 3.0) + (0.7 if i % 2 else -0.7)
+                m.box((cx + rnd.uniform(-0.025, 0.025), yc, zz + tk / 2 + 0.006), (L * rnd.uniform(0.84, 0.97), dfull * rnd.uniform(0.82, 0.95), tk - 0.004),
+                      rnd.choice(BOOKC), rot=(0, 0, ang), bevel=False)
+                m.flat()
+                zz += tk + 0.004
+                if zz > z + hmax * 0.5:
+                    break
+            if not used_obj and rnd.random() < 0.45 and zz + 0.5 < z + hmax:
+                m.sphere((cx, yc, zz + 0.13), 0.13, 'crayR' if rnd.random() < 0.6 else 'crayG', seg=(8, 5))
+                m.bx(cx - 0.016, yc - 0.016, zz + 0.24, cx + 0.016, yc + 0.016, zz + 0.33, "wood3", flat=True)
+                used_obj = True
+            x += L + 0.06
+            used_stack, prev = True, None
+            continue
+        if not used_obj and room > 0.46 and r < 0.22:            # a small object
+            kind = rnd.choice(['pot', 'plant', 'file', 'globe'])
+            cx = x + 0.22
+            if kind == 'pot':
+                m.cyl((cx, yc, z), 0.15, 0.17, 0.5, rnd.choice(['crayB', 'crayR', 'teal2']), seg=10, bevel=False)
+                for (dx, dy, c, hh, tilt) in ((-0.05, 0.02, 'crayY', 0.95, 8), (0.05, -0.03, 'crayR', 0.85, -10), (0.0, 0.06, 'crayG', 0.78, 4)):
+                    m.box((cx + dx, yc + dy, z + hh / 2 + 0.1), (0.05, 0.05, hh), c, rot=(tilt * 0.5, tilt, 0), bevel=False)
+            elif kind == 'plant':
+                m.cyl((cx, yc, z), 0.15, 0.19, 0.42, 'terra', seg=10, bevel=False)
+                for i, (dx, dy, dz, rr) in enumerate(((0.0, 0.0, 0.62, 0.2), (-0.12, 0.03, 0.52, 0.15), (0.12, -0.02, 0.55, 0.14), (0.04, 0.05, 0.8, 0.12))):
+                    m.sphere((cx + dx, yc + dy, z + dz), rr, 'leaf', seg=(7, 5), rot=(0, 0, i * 23))
+            elif kind == 'file':
+                hh = min(hmax, rnd.uniform(1.3, 1.7))
+                m.bx(x + 0.02, ya + 0.02, z, x + 0.4, yb - 0.02, z + hh, rnd.choice(['cardboard', 'crayB', 'navy']))
+                m.bx(x + 0.08, ya + 0.015, z + hh * 0.62, x + 0.34, yb - 0.015, z + hh * 0.8, 'paper', flat=True)
+            else:
+                m.cyl((cx, yc, z), 0.14, 0.1, 0.1, 'wood3', seg=8, bevel=False)
+                m.bx(cx - 0.02, yc - 0.02, z + 0.1, cx + 0.02, yc + 0.02, z + 0.3, 'steelDk', flat=True)
+                m.sphere((cx, yc, z + 0.52), 0.24, 'ocean', seg=(10, 6))
+                m.sphere((cx + 0.05, yc - 0.06, z + 0.6), 0.15, 'land', seg=(6, 4), scale=(1, 1, 0.8))
+            x += 0.46
+            used_obj, prev = True, None
+            continue
+        if prev is None and room > 0.5 and r < 0.3:              # a bookend starts a run
+            c = rnd.choice(['steel', 'crayR', 'navy'])
+            m.bx(x, ya + 0.04, z + 0.008, x + 0.2, yb - 0.04, z + 0.04, c, flat=True)     # foot (behind the plate)
+            m.bx(x + 0.2, ya + 0.04, z + 0.008, x + 0.24, yb - 0.04, z + 0.9, c)
+            x += 0.252
+            prev = ('end', x, 0.9)
+            continue
+        if prev is not None and prev[0] == 'book' and r < 0.45:   # a book leaning on the previous upright
+            t = rnd.uniform(0.12, 0.2)
+            h = min(hmax, prev[2] * rnd.uniform(0.88, 1.08))
+            a = math.radians(rnd.uniform(12, 24))
+            if h * math.cos(a) < prev[2] - 0.05 and room > h * math.sin(a) + t + 0.06:
+                px = prev[1] + h * math.sin(a) + 0.014       # the bottom corner it rests on
+                cx = px + t / 2 * math.cos(a) - h / 2 * math.sin(a)
+                cz = z + t / 2 * math.sin(a) + h / 2 * math.cos(a) + 0.002
+                m.box((cx, yc, cz), (t - 0.006, dfull * rnd.uniform(0.8, 0.95), h), rnd.choice(BOOKC), rot=(0, -math.degrees(a), 0), bevel=False)
+                m.flat()
+                x = px + t * math.cos(a) + 0.04
+                prev = None
+                continue
+        t = rnd.choice((0.12, 0.15, 0.18, 0.2, 0.24, 0.28, 0.32))    # an upright book
+        if t > room - 0.01:
+            t = room - 0.01
+            if t < 0.1:
+                break
+        h = hmax * rnd.uniform(0.6, 0.98)
+        d = dfull * rnd.uniform(0.78, 0.97)
+        c = rnd.choice(BOOKC)
+        yo = ya + rnd.uniform(0.0, dfull - d)
+        m.bx(x, yo, z, x + t - 0.012, yo + d, z + h, c, flat=True)
+        book_marks(m, x, x + t - 0.012, yo, yo + d, z, h, c, rnd.choice((0, 1, 1, 2, 3, 4)))
+        prev = ('book', x + t - 0.012, h)
+        x += t + rnd.choice((0.0, 0.0, 0.0, 0.012, 0.03))
+
+
 # ================================================================ gate, shutter, trail, hatch, stand, light
 def build_gate():
-    """Doorway in a 16.6 m wall: casing both faces (the room sees -Y on a north wall and +Y on a south wall),
-    wall above the door with the same rails on both faces, jamb liners covering the neighbours' reveals."""
+    """The doorway is a floor-to-ceiling library built-in with a toy-sized door through its foot. It is 6.9 m wide
+    and 1.24 m deep (0.12 m proud of the wall on both sides), so it covers the two wall cells either side of the 3 m
+    opening and closes the end of the trail right up to the ceiling: there are no wall backs left to see through.
+    Both faces alike (the room sees one, the trail the other): storage cupboards either side of the door with a plant
+    and a tiny globe on the counters, the casing with the gate lights and the exit plate, open bays of books above
+    (books run through a central divider, so one set of books serves both faces), a big globe in the top middle bay,
+    a cornice with letter cards. GateFrame is the carcass and trim; GateBooks (theme gate.dress) fills the bays."""
+    import random
+    HW, HD, OW, OH = 3.55, 0.62, 1.5, 3.1
+    TOP = WH + 0.02
+    TOWER = [6.6, 8.8, 11.0, 13.2, 15.3]          # tower bays (over the cupboard counter display at 4.4 .. 6.6)
+    MID = [5.45, 8.2, 11.0, 15.3]                 # middle bays over the door (the top one holds the big globe)
     m = K()
-    m.bx(-1.5, -0.42, 3.1, 1.5, 0.42, WH, 'cream', flat=True)
-    for s in (-1, 1):   # both faces
-        def Y(a, b):
-            return (min(s * a, s * b), max(s * a, s * b))
-        # stacked rails alternate their back plane (-0.42 / -0.425): touching coplanar faces on a 3 m piece
-        # would overlap by float error
-        for (z0, z1, fy, by, col) in ((5.12, 5.2, 0.47, 0.42, 'ink'), (5.2, 5.55, 0.5, 0.425, 'honeyDk'), (5.55, 5.63, 0.53, 0.42, 'honey'),
-                                      (15.45, 15.52, 0.45, 0.42, 'ink'), (15.52, 15.68, 0.5, 0.425, 'honeyDk'), (15.68, WH, 0.46, 0.42, 'trim')):
-            y0, y1 = Y(fy, by)
-            m.bx(-1.5, y0, z0, 1.5, y1, z1, col, flat=True)
-        # casing: jambs + head, chunky honey wood
-        y0, y1 = Y(0.6, 0.42)
+    # carcass: tower cores under the counters, the block over the door, central dividers behind the bays
+    for sx in (-1, 1):
+        x0, x1 = sorted((sx * (OW + 0.02), sx * (HW - 0.01)))
+        m.bx(x0, -0.3, 0, x1, 0.3, 4.4, 'wood3', flat=True)
+        x0, x1 = sorted((sx * 1.98, sx * 3.33))
+        m.bx(x0, -0.012, 4.404, x1, 0.012, 15.296, 'wood3', flat=True)
+    m.bx(-OW - 0.02, -0.3, OH + 0.02, OW + 0.02, 0.3, 5.45, 'wood3', flat=True)
+    m.bx(-OW - 0.05, -0.012, 5.454, OW + 0.05, 0.012, 15.296, 'wood3', flat=True)
+    # door reveal: honey liners in the opening and under the head
+    for sx in (-1, 1):
+        x0, x1 = sorted((sx * (OW - 0.012), sx * (OW + 0.05)))
+        m.bx(x0, -HD + 0.004, 0, x1, HD - 0.004, OH + 0.05, 'honey', flat=True)
+    m.bx(-OW - 0.04, -HD + 0.008, OH - 0.012, OW + 0.04, HD - 0.008, OH + 0.1, 'honey', flat=True)
+    # stiles run through the whole depth (outer ones full height, inner ones from the counter up)
+    for sx in (-1, 1):
+        x0, x1 = sorted((sx * 3.33, sx * HW))
+        m.bx(x0, -HD, 0, x1, HD, TOP - 0.02, 'honey')         # outer stiles: 0.22 m, so the built-in covers 3.55 m
+        x0, x1 = sorted((sx * (OW + 0.05), sx * 1.98))
+        m.bx(x0, -HD, 4.4, x1, HD, TOP - 0.02, 'honey')
+    # shelves through the whole depth
+    for (xa, xb, lv) in ((-3.33, -1.98, TOWER), (1.98, 3.33, TOWER), (-OW - 0.05, OW + 0.05, MID[1:])):
+        for z1 in lv:
+            m.bx(xa + 0.004, -HD + 0.01, z1 - 0.14, xb - 0.004, HD - 0.01, z1, 'honey', flat=True)
+    # the top middle bay: a big globe on a stand (seen from both faces)
+    m.cyl((-0.7, 0, 11.0), 0.42, 0.3, 0.16, 'wood3', seg=8, bevel=False)
+    m.bx(-0.74, -0.04, 11.16, -0.66, 0.04, 11.6, 'steelDk', flat=True)
+    m.sphere((-0.7, 0, 12.2), 0.62, 'ocean', seg=(10, 6))
+    m.flat()
+    for s in (-1, 1):
+        m.sphere((-0.58, s * 0.3, 12.42), 0.36, 'land', seg=(6, 4), scale=(1, 0.7, 0.8), rot=(0, 0, 30 * s))
+        m.flat()
+    for s in (-1, 1):
+        R = rotz(0 if s < 0 else 180)
+        m.parent = R
+        y = -HD
         for sx in (-1, 1):
-            m.bx(min(sx * 1.488, sx * 1.98), y0, 0, max(sx * 1.488, sx * 1.98), y1, 3.75, 'honeyDk')
-        y0, y1 = Y(0.6, 0.425)
-        m.bx(-2.06, y0, 3.75, 2.06, y1, 4.2, 'honeyDk')
-        # teal gate lights and a green exit plate with an arrow (no text)
-        y0, y1 = Y(0.64, 0.6)
+            # plinth, a cupboard door with a recessed panel and a knob, the counter slab
+            x0, x1 = sorted((sx * 1.98, sx * 3.33))
+            m.bx(x0, y + 0.03, 0, x1, -0.25, 0.45, 'honeyDk', flat=True)
+            a, b = sorted((sx * 1.992, sx * 3.318))
+            m.bx(a, y + 0.02, 0.45, b, -0.29, 4.15, 'honey')
+            m.bx(a + 0.12, y + 0.015, 0.85, b - 0.12, y + 0.03, 3.8, 'honeyDk', flat=True)
+            m.bx(sx * 2.2 - 0.06, y - 0.06, 2.0, sx * 2.2 + 0.06, y + 0.02, 2.6, 'steel', flat=True)   # bar handle
+            x0, x1 = sorted((sx * 1.93, sx * 3.4))
+            m.bx(x0, y - 0.06, 4.19, x1, -0.3, 4.4, 'honeyDk', flat=True)
+        # counter display: a potted plant on the left, a tiny globe and a box of crayons on the right
+        m.cyl((-2.65, y + 0.26, 4.4), 0.26, 0.3, 0.5, 'terra', seg=8, bevel=False)
+        for (dx, dz, rr, c) in ((-0.1, 0.95, 0.36, 'leaf'), (0.2, 0.74, 0.28, 'tree2')):
+            m.sphere((-2.65 + dx, y + 0.26, 4.4 + dz), rr, c, seg=(6, 4), rot=(0, 0, dz * 40))
+        for i, (c, tk, a) in enumerate((('crayR', 0.2, 4), ('navy', 0.16, -3), ('crayY', 0.18, 7))):
+            zz = 4.4 + 0.004 + sum((0.2, 0.16, 0.18)[:i]) + 0.004 * i
+            m.box((2.25, y + 0.3, zz + tk / 2), (0.62 - 0.05 * i, 0.5, tk - 0.004), c, rot=(0, 0, a), bevel=False)
+            m.flat()
+        m.bx(2.8, y + 0.12, 4.4, 3.22, -0.4, 5.25, 'crayB')
+        for i, c in enumerate(('crayR', 'crayY', 'crayG', 'crayO')):
+            m.bx(2.84 + i * 0.095, y + 0.25, 5.25, 2.9 + i * 0.095, y + 0.31, 5.55 + 0.05 * (i % 2), c, flat=True)
+        # door casing: chunky honey jambs and head, teal gate lights, a green exit plate with an arrow (no text)
         for sx in (-1, 1):
-            m.bx(sx * 1.25 - 0.22, y0, 3.86, sx * 1.25 + 0.22, y1, 4.1, 'teal', flat=True)
-        y0, y1 = Y(0.5, 0.42)
-        m.bx(-0.75, y0, 4.5, 0.75, y1, 5.05, 'crayG')
-        ya, yb = Y(0.504, 0.501)
-        m.bx(-0.06, ya, 4.56, 0.06, yb, 4.8, 'white', flat=True)
-        m.parent = T(0, s * 0.497, 4.86) @ (rotx(90) @ rotz(90) if s < 0 else rotx(-90) @ rotz(-90))
+            a, b = sorted((sx * 1.488, sx * 1.99))
+            m.bx(a, y - 0.1, 0, b, y + 0.004, 3.75, 'honeyDk')
+        m.bx(-2.06, y - 0.1, 3.75, 2.06, y + 0.008, 4.2, 'honeyDk')
+        for sx in (-1, 1):
+            m.bx(sx * 1.25 - 0.22, y - 0.14, 3.86, sx * 1.25 + 0.22, y - 0.1, 4.1, 'teal', flat=True)
+        m.bx(-OW - 0.05, y + 0.01, 4.2, OW + 0.05, -0.3, 5.45, 'honey', flat=True)        # panel over the door
+        m.bx(-0.75, y - 0.05, 4.5, 0.75, y + 0.012, 5.05, 'crayG')
+        m.bx(-0.06, y - 0.054, 4.56, 0.06, y - 0.05, 4.8, 'white', flat=True)
+        m.parent = R @ T(0, y - 0.053, 4.86) @ rotx(90) @ rotz(90)
         m.cyl((0, 0, 0), 0.17, 0.17, 0.011, 'white', seg=3, bevel=False)
         m.flat()
-        m.parent = Matrix.Identity(4)
-    # jamb liners and head soffit (cover the reveal faces of the neighbouring wall modules)
+        m.parent = R
+        # cornice with a row of letter cards
+        m.bx(-HW - 0.05, y - 0.08, 15.3, HW + 0.05, -0.27, 15.38, 'ink', flat=True)
+        m.bx(-HW - 0.08, y - 0.12, 15.38, HW + 0.08, -0.265, TOP, 'honeyDk')
+        for i in range(4):
+            cx = -2.1 + i * 1.4
+            m.bx(cx - 0.34, y - 0.16, 15.55 + 0.06 * (i % 2), cx + 0.34, y - 0.12, 16.3 + 0.06 * (i % 2), CARD[i % len(CARD)], flat=True)
+    m.parent = Matrix.Identity(4)
     for sx in (-1, 1):
-        m.bx(min(sx * 1.494, sx * 1.6), -0.495, 0, max(sx * 1.494, sx * 1.6), 0.495, 3.1, 'honey', flat=True)
-    m.bx(-1.58, -0.415, 3.044, 1.58, 0.415, 3.15, 'honey', flat=True)
+        x0, x1 = sorted((sx * OW, sx * (HW + 0.08)))
+        m.colbox(x0, -HD - 0.12, 0, x1, HD + 0.12, TOP)
     finish('GateFrame', m, bevel=0.0)
+    # GateBooks: the bays' contents, books through the divider (spines on both faces)
+    m = K()
+    rnd = random.Random(1234)
+    for (xa, xb, lv) in ((-3.33, -1.98, TOWER), (1.98, 3.33, TOWER), (-OW - 0.05, OW + 0.05, MID)):
+        for zi in range(len(lv) - 1):
+            z0, top = lv[zi], lv[zi + 1] - 0.14
+            if xa < 0 < xb and zi == len(lv) - 2:
+                fill_bay(m, -0.02, xb - 0.06, z0, top, -0.58, 0.58, rnd, objects=False)   # beside the big globe
+            else:
+                fill_bay(m, xa + 0.06, xb - 0.06, z0, top, -0.58, 0.58, rnd, objects=zi % 2 == 1)
+    finish('GateBooks', m, ao=False)
     # shutter: wooden rulers as slats (3 m wide, 3.05 m tall); ticks pass through so both faces show them
     m = K()
     H, n = 3.05, 6
@@ -632,36 +812,34 @@ def build_gate():
     STATS[PRE + 'GateShutter'] = tris_of(shutter)
 
 
+TRAIL_VARIANTS = (('TrailWall', 101), ('TrailWall_B', 202), ('TrailWall_C', 303), ('TrailWall_D', 404), ('TrailWall_E', 505))
+
+
 def build_trail():
-    """Trail wall: a 1 m slice of a double-sided library bookcase up to the ceiling, exactly the 0.5 m collision slab
-    deep (x -0.25..0.25), so it reads from both faces (the hatch room turns some modules round). Books run through
-    the thin central divider and show their spines on both sides; shelves are continuous (no outline)."""
-    m = K()
-    m.bx(-0.25, -0.5, 0, 0.25, 0.5, 0.45, 'honeyDk', flat=True)               # plinth
+    """Trail walls: 1 m slices of a double-sided library bookcase up to the ceiling, exactly the 0.5 m collision slab
+    deep (x -0.25..0.25), so they read from both faces (the hatch room turns some modules round). Five variants with
+    different fills (zones.js mixes them per module through theme.trail.variants): books of every size and colour run
+    through the thin central divider and show their spines on both sides, lean on each other, lie in stacks, stand
+    between bookends, share a bay with a plant, a pencil pot, a box file or a globe. Shelves are continuous (no
+    outline); the books carry no shell either (a long run of outlined spines reads as a dark tunnel)."""
+    import random
     levels = [0.45, 3.75, 7.05, 10.35, 13.65]
-    for z in levels[1:]:
-        m.bx(-0.25, -0.5, z - 0.2, 0.25, 0.5, z, 'honey', flat=True)
-        for sx in (-1, 1):
-            m.bx(min(sx * 0.2, sx * 0.255), -0.5, z - 0.26, max(sx * 0.2, sx * 0.255), 0.5, z - 0.2, 'ink', flat=True)
-    m.bx(-0.25, -0.5, 16.0, 0.25, 0.5, WH, 'honey', flat=True)
-    for z0, z1 in zip(levels, [l - 0.2 for l in levels[1:]] + [16.0]):    # central divider, one panel per shelf bay
-        m.bx(-0.012, -0.5, z0 + 0.004, 0.012, 0.5, z1 - 0.004, 'wood3', flat=True)
-    books = [  # per shelf: (thickness, height, colour, pull-out toward +X)
-        [(0.22, 2.3, 'crayR', 0.0), (0.18, 2.6, 'navy', 0.03), (0.26, 2.1, 'crayY', -0.02), (0.16, 2.45, 'crayG', 0.04)],
-        [(0.28, 2.0, 'crayB', 0.0), (0.2, 2.5, 'crayO', 0.03), (0.24, 2.2, 'crayP', -0.03), (0.18, 1.8, 'teal2', 0.0)],
-        [(0.18, 2.55, 'teal2', 0.02), (0.24, 2.3, 'crayR', 0.0), (0.2, 1.9, 'noteY', -0.03), (0.18, 2.4, 'navy', 0.0)],
-        [(0.26, 2.2, 'crayG', 0.0), (0.22, 2.6, 'pink', 0.03), (0.2, 2.0, 'crayB', -0.02), (0.2, 2.35, 'crayO', 0.0)],
-        [(0.24, 1.9, 'crayP', 0.0), (0.2, 2.1, 'crayY', 0.03), (0.26, 1.7, 'crayR', -0.02)],
-    ]
-    for li, row in enumerate(books):
-        z = levels[li]
-        y = -0.48
-        for (t, h, c, out) in row:
-            m.bx(-0.21 + out, y, z, 0.21 + out, y + t - 0.012, z + h, c, flat=True)   # no shell: a long run of outlined spines reads as a dark tunnel
-            if (li + int(y * 100)) % 2 == 0:
-                m.bx(-0.214 + out, y + 0.025, z + h * 0.64, 0.214 + out, y + t - 0.037, z + h * 0.72, 'amber' if c not in ('crayY', 'noteY') else 'ink', flat=True)
-            y += t
-    finish('TrailWall', m, ao=False)
+    for name, seed in TRAIL_VARIANTS:
+        rnd = random.Random(seed)
+        m = K()
+        m.bx(-0.25, -0.5, 0, 0.25, 0.5, 0.45, 'honeyDk', flat=True)               # plinth
+        for z in levels[1:]:
+            m.bx(-0.25, -0.5, z - 0.2, 0.25, 0.5, z, 'honey', flat=True)
+            for sx in (-1, 1):
+                m.bx(min(sx * 0.2, sx * 0.255), -0.5, z - 0.26, max(sx * 0.2, sx * 0.255), 0.5, z - 0.2, 'ink', flat=True)
+        m.bx(-0.25, -0.5, 16.0, 0.25, 0.5, WH, 'honey', flat=True)
+        for z0, z1 in zip(levels, [l - 0.2 for l in levels[1:]] + [16.0]):    # central divider, one panel per bay
+            m.bx(-0.012, -0.5, z0 + 0.004, 0.012, 0.5, z1 - 0.004, 'wood3', flat=True)
+        m.parent = rotz(90)    # fill_bay runs along local x: turned to run along Blender Y, depth across X
+        for z0, z1 in zip(levels, [l - 0.2 for l in levels[1:]] + [16.0]):
+            fill_bay(m, -0.49, 0.49, z0, z1, -0.215, 0.215, rnd)
+        m.parent = Matrix.Identity(4)
+        finish(name, m, ao=False)
 
 
 ROTATED = {90: ['Wall_Plain', 'Win_Open', 'Win_Bay_A', 'Win_Bay_B', 'Win_Bay_C'],

@@ -104,7 +104,7 @@
       'M': { pieces: ['Mobile'], y: CEIL, rotate: 'random90', collide: false }
     },
     gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
-    trail: { wall: 'TrailWall', height: 18.3 },
+    trail: { wall: 'TrailWall', height: 18.3, variants: ['TrailWall_B', 'TrailWall_C', 'TrailWall_D', 'TrailWall_E'] },
     hatch: 'Hatch', stand: 'Block_C',
     backdrop: null,
     budget: { prop: 2000, landmark: 4000, total: 70000 },
@@ -118,7 +118,7 @@
         var d = this.symbols[ch];
         d.pieces.concat(d.stack ? [d.stack.piece] : []).forEach(function (n) { seen[n] = 1; });
       }, this);
-      return out.concat(Object.keys(seen), ['GateFrame', 'GateShutter', 'TrailWall', 'Hatch', 'CeilingTile']);
+      return out.concat(Object.keys(seen), ['GateFrame', 'GateShutter', 'TrailWall', 'Hatch', 'CeilingTile'], this.trail.variants);
     },
     levels: {
       bedroom: {
