@@ -565,7 +565,7 @@ async function vfxRun(browser, base) {
   check('level 1 runs at intensity 1 with no canisters', v.s.intensity === 1 && v.cans === 0, JSON.stringify(v));
   await pg.context().close();
   // level 7: canisters placed safely, robots wreck into explosions, a shot canister chains, pools stay bounded
-  pg = await newPage(browser, base + '?autotest=1&plan=tt2');
+  pg = await newPage(browser, base + '?autotest=1&plan=castle');   // campaign level 7
   await pg.evaluate(() => { IB.Game.player.protect = 1e9; });
   v = await pg.evaluate(() => {
     const G = IB.Game, L = G.level, cans = IB.Boom.canisters(), bad = [];

@@ -900,7 +900,8 @@
       'B': { size: [8, 6], pieces: ['Landmark_Booth'], kind: 'wall' }
     },
     gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
-    trail: { wall: 'TrailWall', height: 10.4 },
+    // end-room back wall faces out (siding toward the lift): turned inward, its half-ceilings overlap the side walls'
+    trail: { wall: 'TrailWall', height: 10.4, end: 'TrailWall', endYaw: Math.PI / 2, endLift: 0 },
     hatch: 'Hatch', stand: 'Stand',
     // the works outside the clerestory: one long slice due east, west, north and south of the level, facing it
     backdrop: { ring: [

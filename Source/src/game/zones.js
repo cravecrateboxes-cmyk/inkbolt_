@@ -525,7 +525,7 @@
     addCeiling(g, P, exit.x - 3.5, hz - 3.5, 7, exit.z - WAY - (hz - 3.5), theme);
     // back wall: the module's trail face (+X) turned toward the hatch room (south), lifted 5 mm so its trims never
     // share a plane with the side walls' where they cross in the corners
-    for (var k = 0; k < 6; k++) P.add(T.end || trailPiece(T, k * 5 + 900, 2), exit.x - 2.5 + k, 0.005, hz - 2.95, -Math.PI / 2);
+    for (var k = 0; k < 6; k++) P.add(T.end || trailPiece(T, k * 5 + 900, 2), exit.x - 2.5 + k, T.endLift !== undefined ? T.endLift : 0.005, hz - 2.95, T.endYaw !== undefined ? T.endYaw : -Math.PI / 2);
     for (k = 0; k < 5; k++) { P.add(trailPiece(T, k + 950, -1), exit.x - 3.0, 0, hz - 2 + k, 0); P.add(trailPiece(T, k + 950, 1), exit.x + 3.0, 0, hz - 2 + k, Math.PI); }
     world.add(exit.x - 3.25, 0, hz - 3.2, exit.x + 3.25, wallH, hz - 2.7, 'wall', -1);
     world.add(exit.x - 3.25, 0, hz - 2.75, exit.x - 2.75, wallH, hz + 2.75, 'wall', -1);
