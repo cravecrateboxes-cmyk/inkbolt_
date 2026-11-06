@@ -1,4 +1,4 @@
-/* INKBOLT menus: title, settings (+ reset confirm), pause, results, fail, level intro, rotate hint, loading.
+/* INKBOLT menus: title, settings (+ reset confirm), pause, results, fail, level intro, rotate hint, loading (ui/loader.js).
    Look: "holo ink" — translucent teal panels with a bright bevelled rim and a 3 px ink outline, chamfered corners,
    scanlines + hex texture, condensed headline type (Archivo wdth axis), the selected entry in yellow with a bolt
    emblem. Lists are left-aligned so the live 3D scene stays visible on the right.
@@ -336,84 +336,12 @@
     setTimeout(function () { el.style.transition = 'opacity .3s'; el.style.opacity = 0; setTimeout(function () { el.remove(); }, 320); }, (secs || 2.2) * 1000);
   };
   // ---------- between-levels loading screen ----------
-  // Interlocking gears (meshing phase computed so teeth never overlap), a hex bolt hub with the bullet hole,
-  // and the ink splat behind them. Pure inline SVG + CSS animation.
-  function gearPath(n, rp) {
-    var ro = rp + 4.2, ri = rp - 4.2, step = Math.PI * 2 / n, d = '', f = function (v) { return v.toFixed(2); };
-    for (var i = 0; i < n; i++) {
-      var a = i * step, pts = [[ri, a - step * 0.5], [ri, a - step * 0.31], [ro, a - step * 0.2], [ro, a + step * 0.2], [ri, a + step * 0.31]];
-      for (var j = 0; j < pts.length; j++) d += (i === 0 && j === 0 ? 'M' : 'L') + f(Math.cos(pts[j][1]) * pts[j][0]) + ' ' + f(Math.sin(pts[j][1]) * pts[j][0]);
-    }
-    return d + 'Z';
-  }
-  function gear(n, x, y, phaseDeg, dir, cls, hub) {
-    var rp = n * 2.6, period = n * 0.16;   // same tooth module: angular speed ~ 1/n, so the train turns together
-    var spokes = '<circle class="g-groove" r="' + (rp * 0.74).toFixed(1) + '"/>';
-    if (rp > 40) for (var s = 0; s < 6; s++) spokes += '<circle class="g-hole" r="' + (rp * 0.085).toFixed(1) + '" cx="' + (Math.cos(s * 1.0472 + 0.5) * rp * 0.53).toFixed(1) + '" cy="' + (Math.sin(s * 1.0472 + 0.5) * rp * 0.53).toFixed(1) + '"/>';
-    return '<g transform="translate(' + x.toFixed(1) + ' ' + y.toFixed(1) + ') rotate(' + phaseDeg.toFixed(2) + ')">' +
-      '<g class="gear ' + cls + '" style="animation-duration:' + period.toFixed(2) + 's;animation-direction:' + (dir > 0 ? 'normal' : 'reverse') + '">' +
-      '<circle r="' + (rp + 8) + '" fill="none" stroke="none"/>' +
-      '<path class="g-body" d="' + gearPath(n, rp) + '"/>' + spokes +
-      '<circle class="g-rim" r="' + (rp * 0.3).toFixed(1) + '"/>' + (hub || '') + '</g></g>';
-  }
-  // place gear b (nb teeth) meshing with gear a at angle theta; returns {x, y, phase}
-  function mesh(a, nb, theta) {
-    var ra = a.n * 2.6, rb = nb * 2.6, dist = ra + rb;
-    var fa = ((theta - a.phase * Math.PI / 180) / (Math.PI * 2 / a.n)) % 1; if (fa < 0) fa += 1;
-    var phase = theta + Math.PI - (Math.PI * 2 / nb) * (0.5 - fa);
-    return { n: nb, x: a.x + Math.cos(theta) * dist, y: a.y + Math.sin(theta) * dist, phase: phase * 180 / Math.PI, dir: -a.dir };
-  }
-  function loadingArt() {
-    var A = { n: 22, x: 0, y: 0, phase: 0, dir: 1 };
-    var B = mesh(A, 12, -0.62), C = mesh(A, 9, 2.25), D = mesh(B, 8, -1.9);
-    var hub = '<polygon class="g-bolt" points="15,0 7.5,13 -7.5,13 -15,0 -7.5,-13 7.5,-13"/><circle class="g-shot" r="4.6"/>';
-    var smallHub = '<polygon class="g-bolt sm" points="7,0 3.5,6 -3.5,6 -7,0 -3.5,-6 3.5,-6"/>';
-    return '<svg class="ld-art" viewBox="-114 -134 232 232" aria-hidden="true">' +
-      '<path class="ld-splat" d="' + SPLAT + '" transform="translate(6 -10) scale(4.6) rotate(-12)"/>' +
-      gear(D.n, D.x, D.y, D.phase, D.dir, 'g-amber', smallHub) +
-      gear(B.n, B.x, B.y, B.phase, B.dir, 'g-teal', smallHub) +
-      gear(C.n, C.x, C.y, C.phase, C.dir, 'g-amber', smallHub) +
-      gear(A.n, A.x, A.y, A.phase, A.dir, 'g-paper', hub) +
-      '</svg>';
-  }
-  var ld = null, ldT = 0;
-  // d: {level, name, line, palette?: [4 hex]}
-  M.loading = function (d) {
-    d = d || {};
-    if (!ld) ld = document.getElementById('loading');
-    clearTimeout(ldT);
-    var strip = (d.palette || []).slice(0, 4).map(function (c) { return '<i style="background:' + c + '"></i>'; }).join('');
-    var tip = TIPS[(Math.random() * TIPS.length) | 0];
-    ld.innerHTML = '<div class="ld-inner">' +
-      '<div class="ld-stage">' + loadingArt() + '</div>' +
-      '<div class="ld-copy">' +
-        '<span class="ld-level"><span>Level <b>' + (d.level || 1) + '</b></span>' + (strip ? '<span class="ld-pal">' + strip + '</span>' : '') + '</span>' +
-        '<h2 class="ld-name">' + esc(d.name || '') + '</h2>' +
-        (d.line ? '<p class="ld-line">' + esc(d.line) + '</p>' : '') +
-        '<div class="ld-progress"><div class="ld-track"><i id="ldFill"></i></div><b id="ldPct">0%</b></div>' +
-        '<div class="tipbox ld-tip" role="note"><b>' + tip[0] + '</b><p>' + tip[1] + '</p></div>' +
-      '</div></div><div class="ld-logo">' + M.logo() + '</div><div class="ld-hazard" aria-hidden="true"></div>';
-    ld.className = 'loading';
-    ld.hidden = false;
-    ld.setAttribute('role', 'status'); ld.setAttribute('aria-label', 'Loading level ' + (d.level || 1));
-    M.loadingProgress(0);
-  };
-  M.loadingProgress = function (f) {
-    if (!ld || ld.hidden) return;
-    f = Math.max(0, Math.min(1, f || 0));
-    var fill = document.getElementById('ldFill'), pct = document.getElementById('ldPct');
-    if (fill) fill.style.width = (f * 100).toFixed(1) + '%';
-    if (pct) pct.textContent = Math.round(f * 100) + '%';
-  };
-  // fades the screen out (0.45 s); cb runs once it is gone
-  M.loadingHide = function (cb) {
-    if (!ld || ld.hidden) { if (cb) cb(); return; }
-    M.loadingProgress(1);
-    ld.classList.add('out');
-    clearTimeout(ldT);
-    ldT = setTimeout(function () { ld.hidden = true; ld.className = 'loading'; ld.innerHTML = ''; if (cb) cb(); }, 460);
-  };
-  M.isLoading = function () { return !!ld && !ld.hidden; };
+  // A black screen with a real-3D gear (ui/loader.js, IB.Loader). d: {level, name, line}
+  M.loading = function (d) { if (IB.Loader) IB.Loader.show(d); };
+  M.loadingProgress = function (f) { if (IB.Loader) IB.Loader.progress(f); };
+  // fades the screen out (ms, default 0.32 s); cb runs once it is gone
+  M.loadingHide = function (cb, ms) { if (IB.Loader) IB.Loader.hide(cb, ms); else if (cb) cb(); };
+  M.isLoading = function () { return !!IB.Loader && IB.Loader.visible(); };
 
   M.wipe = function (cb) {
     var w = document.createElement('div'); w.className = 'wipe in'; document.body.appendChild(w);

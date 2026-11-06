@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#15121C">
 <link rel="icon" href="data:,">
 <title>INKBOLT</title>
-<!--BUILD:CSS--><link rel="stylesheet" href="src/ui/ui.css"><!--/BUILD:CSS-->
+<!--BUILD:CSS--><link rel="stylesheet" href="src/ui/ui.css"><link rel="stylesheet" href="src/ui/hud.css"><link rel="stylesheet" href="src/ui/loader.css"><!--/BUILD:CSS-->
 </head>
 <body>
 <div id="boot" class="boot"><div class="boot-plate"><span class="boot-word">INKBOLT</span><div class="boot-bar"><i id="bootBar"></i></div></div></div>
@@ -41,7 +41,7 @@
     <div class="lvtag" id="lvTag"><b class="lv-badge"><small>LV</small><span id="lvNum">1</span></b><span class="lv-title" id="lvTitle">Tin Rookie</span><span class="lv-pts" id="lvPts" hidden><b id="lvPtsN">+1</b><span class="lv-key" id="lvKey">Tab</span></span></div>
     <div class="plate ink health" id="health">
       <svg class="hp-glyph" viewBox="-12 -12 24 24" aria-hidden="true"><polygon points="11,0 5.5,9.5 -5.5,9.5 -11,0 -5.5,-9.5 5.5,-9.5"/><circle r="3.6"/></svg>
-      <div class="hp-bar"><i id="hpFill"></i><i class="hp-ticks"></i></div><b id="hpNum">100</b>
+      <div class="hp-bar"><i class="hp-chip" id="hpChip"></i><i id="hpFill"></i><i class="hp-ticks"></i></div><b id="hpNum">100</b>
     </div>
     <div class="stamina" id="stamina"><i id="stFill"></i></div>
   </div>
@@ -73,7 +73,7 @@
 <div id="touch" class="touch" hidden></div>
 <div id="overlay" class="overlay" hidden></div>
 <div id="tabmenu" class="tabmenu" hidden></div>
-<div id="loading" class="loading" hidden></div>
+<div id="loading" class="ldr" hidden></div>
 <!--BUILD:JS-->
 <script src="vendor/three.min.js"></script>
 <script src="vendor/GLTFLoader.js"></script>
@@ -114,11 +114,13 @@
 <script src="src/game/skillfx.js"></script>
 <script src="src/game/status.js"></script>
 <script src="src/game/dmgnum.js"></script>
+<script src="src/game/hpbars.js"></script>
 <script src="src/game/boom.js"></script>
 <script src="src/game/gear.js"></script>
 <script src="src/game/drops.js"></script>
 <script src="src/ui/hud.js"></script>
 <script src="src/ui/menus.js"></script>
+<script src="src/ui/loader.js"></script>
 <script src="src/ui/loothud.js"></script>
 <script src="src/ui/gear.js"></script>
 <script src="src/ui/tabmenu.js"></script>

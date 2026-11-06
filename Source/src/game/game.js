@@ -292,7 +292,7 @@
     if (IB.Gear) IB.Gear.startLevel(G);   // attachments on the guns, shield full
     G.run = { time: 0, kills: 0, shots: 0, hits: 0, coreHits: 0, deaths: 0, gems: 0, retries: 3, started: false, introT: AUTOTEST ? 0.05 : 2.3 };
     G.shake = 0; G.trauma = 0; G.hitstop = 0; G.deathT = 0;
-    G.fade = opts && opts.fadeIn ? { t: 0, dur: 1.4 } : null;
+    G.fade = opts && opts.fadeIn ? { t: 0, dur: 1.3 } : null;
     setDim(G.fade ? 1 : 0);
     HUD.reset(); HUD.show(true); document.getElementById('touch').hidden = !Inp.touch;
     if (G.starterShieldNote && IB.LootHUD) { IB.LootHUD.loot(G.starterShieldNote, 'Shields unlocked'); G.starterShieldNote = null; }
@@ -452,15 +452,17 @@
     if (M.loading) M.loading({ level: next.level, name: next.name, line: line }); else M.intro({ level: next.level, name: next.name, zones: next.zones.length, line: line }, 1.6);
     var prog = function (f) { if (M.loadingProgress) M.loadingProgress(f); };
     prog(0.1);
-    // build the next level in steps so the loading screen animates
+    // build the next level in steps so the loading screen animates. The loader (black screen + 3D gear, ui/loader.js)
+    // stays 3.5 s in all (its last 0.32 s fading out), then the level fades in from dark (G.fade, 1.3 s), ready to fight.
+    var HOLD = AUTOTEST ? 300 : 3500, OUT = AUTOTEST ? 60 : 320;
     setTimeout(function () {
       G.switchPlan(next).then(function () { prog(0.7); setTimeout(function () {
         try { R.renderer.compile(R.scene, R.camera); } catch (e) { /* first frame compiles anyway */ }
         prog(1);
         setTimeout(function () {
-          if (M.loadingHide) M.loadingHide();
+          if (M.loadingHide) M.loadingHide(null, OUT);
           G.startLevel({ fadeIn: true });
-        }, Math.max(0, (AUTOTEST ? 300 : 1700) - (performance.now() - t0)));
+        }, Math.max(0, HOLD - OUT - (performance.now() - t0)));
       }, 60); });
     }, 120);
   }
