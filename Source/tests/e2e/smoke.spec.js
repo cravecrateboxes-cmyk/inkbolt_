@@ -531,6 +531,8 @@ async function lootRun(browser, base) {
     await pg.mouse.up();
   }
   check('bullet hits pop damage numbers', seen.has('hit') || seen.has('core'), [...seen].join(','));
+  // burns tick on their own cadence (longer DoT since the skills update): watch a few more seconds for the green ticks
+  for (let k = 0; k < 20 && !seen.has('acid'); k++) { await pg.waitForTimeout(200); (await gs()).numbers.forEach(n => seen.add(n.kind)); }
   check('acid ticks pop green numbers', seen.has('acid'), [...seen].join(',') + ' ' + JSON.stringify(await pg.evaluate(() => [IB.Status.active(), IB.Status.list.filter(e => e.on).map(e => [e.kind, e.pool, e.left, e.total]), IB.Weapons.current(IB.Game.ws).def.acid])));
   const shock = await pg.evaluate(() => __TEST__.status('shock', 12, 1.5));
   const shocked = await until(pg, () => __TEST__.gearState().numbers.some(n => n.kind === 'shock'), null, 5000);
