@@ -20,7 +20,8 @@ test('new slot matches the 5.14 schema defaults', () => {
   const s = store.newSlot(2, 918273);
   assert.deepEqual(s, {
     v: 1, id: 2, level: 1, highest: 0, gems: 0, upgrades: {}, loadout: { pistol: 'pip' },
-    stats: { kills: 0, deaths: 0, time: 0, coreHits: 0 }, best: {}, seed: 918273, saved: now()
+    stats: { kills: 0, deaths: 0, time: 0, coreHits: 0 }, best: {}, gear: { inv: [], shield: null, attach: {}, next: 1, found: 0 },
+    seed: 918273, saved: now()
   });
   assert.equal(typeof store.newSlot(1).seed, 'number');
 });
@@ -98,7 +99,11 @@ test('version migration from v:1', () => {
   const ex = { v: 1, id: 1, level: 7, highest: 6, gems: 182, upgrades: { dmg: 2, hp: 1 },
     loadout: { pistol: 'pip', smg: 'buzz', rifle: 'rivet', melee: 'katana', grenade: 'frag' },
     stats: { kills: 412, deaths: 3, time: 1835, coreHits: 120 }, seed: 918273, saved: 1730800000000, best: {} };
-  assert.deepEqual(S.migrate(JSON.parse(JSON.stringify(ex))), ex);
+  assert.deepEqual(S.migrate(JSON.parse(JSON.stringify(ex))), Object.assign({}, ex, { gear: S.defaultGear() }));
+  // gear (loot inventory) gets its default shape; stored items are kept
+  const withGear = S.migrate({ v: 1, id: 1, gear: { inv: [{ id: 'g1', type: 'grip' }], shield: 'g1' } });
+  assert.equal(withGear.gear.inv.length, 1); assert.equal(withGear.gear.shield, 'g1'); assert.deepEqual(withGear.gear.attach, {});
+  assert.deepEqual(S.migrate({ v: 1, id: 1, gear: 'junk' }).gear, S.defaultGear());
   // no version field -> treated as v1
   assert.equal(S.migrate({ id: 1, level: 3 }).v, 1);
   // unknown future version kept as-is

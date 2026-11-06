@@ -472,3 +472,136 @@ body.kbd .btn.primary:focus-visible { outline-color: var(--paper); }
 @media (prefers-reduced-motion: reduce) {
   .gear, .ld-track i { animation-play-state: paused; }
 }
+
+/* ---------- loot: damage numbers, shield bar, loot card (game/dmgnum.js, ui/loothud.js) ---------- */
+:root { --cell: #5FD0FF; --cell-d: #2F8FD8; --cell-hi: #BDF0FF; --acid: #8BEA4F; --shock: #6CC8FF; }
+.dmgnums { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.dmgn { position: absolute; left: 0; top: 0; display: block; padding: 2px 5px; white-space: nowrap; line-height: 1; opacity: 0; will-change: transform, opacity;
+  transform: translate3d(-999px, -999px, 0); transform-origin: 50% 60%; font-stretch: 125%; font-weight: 900; font-size: clamp(20px, .8vw + 12px, 28px); letter-spacing: .02em; color: var(--paper);
+  text-shadow: -2px -2px 0 var(--ink), 0 -2.5px 0 var(--ink), 2px -2px 0 var(--ink), 2.5px 0 0 var(--ink), 2px 2px 0 var(--ink), 0 2.5px 0 var(--ink), -2px 2px 0 var(--ink), -2.5px 0 0 var(--ink), 0 4.5px 0 var(--ink); }
+.dmgn.core { font-size: clamp(26px, 1.1vw + 15px, 36px); color: var(--amber); }
+.dmgn.crit { font-size: clamp(30px, 1.3vw + 17px, 42px); color: #FFD447;
+  text-shadow: -2.5px -2.5px 0 var(--ink), 0 -3px 0 var(--ink), 2.5px -2.5px 0 var(--ink), 3px 0 0 var(--ink), 2.5px 2.5px 0 var(--ink), 0 3px 0 var(--ink), -2.5px 2.5px 0 var(--ink), -3px 0 0 var(--ink), 0 5.5px 0 var(--red-d); }
+.dmgn.shock { font-size: clamp(17px, .6vw + 11px, 23px); color: var(--shock); }
+.dmgn.acid { font-size: clamp(17px, .6vw + 11px, 23px); color: var(--acid); }
+body.touch-on .dmgn { font-size: 19px; } body.touch-on .dmgn.core { font-size: 25px; } body.touch-on .dmgn.crit { font-size: 29px; }
+body.touch-on .dmgn.shock, body.touch-on .dmgn.acid { font-size: 15px; }
+
+.shieldbar { width: 100%; height: 30px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; padding: 0 12px 0 13px; --ch: 7px; }
+.sh-glyph { width: 17px; height: 17px; overflow: visible; }
+.sh-glyph polygon { fill: var(--cell); stroke: var(--ink); stroke-width: 2.5; stroke-linejoin: round; }
+.sh-glyph path { fill: var(--ink); }
+.sh-bar { position: relative; height: 10px; background: var(--lift-3); box-shadow: 0 0 0 2px var(--ink); }
+.sh-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: var(--cell); transition: width .1s; }
+.sh-ticks { position: absolute; inset: 0;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(100% / var(--ticks, 4) - 2px), var(--ink) calc(100% / var(--ticks, 4) - 2px) calc(100% / var(--ticks, 4))); }
+.shieldbar b { font-stretch: 125%; font-weight: 900; font-size: 20px; line-height: 1; min-width: 3ch; text-align: right; color: var(--cell-hi); }
+.shieldbar.charging .sh-fill { background: repeating-linear-gradient(-45deg, var(--cell) 0 6px, var(--cell-d) 6px 12px); background-size: 16.97px 16.97px; animation: shBelt .45s linear infinite; }
+@keyframes shBelt { to { background-position: 16.97px 0; } }
+.shieldbar.empty b { color: var(--paper-2); opacity: .7; }
+.shieldbar.empty .sh-glyph polygon { fill: var(--lift-3); }
+.shieldbar.hit { --face: #3B5B86; }
+.shieldbar.hit .sh-fill { background: var(--cell-hi); }
+.shieldbar.broke { animation: shBreak .45s ease-out; --under: var(--red); }
+@keyframes shBreak { 15% { transform: translateX(-5px); } 35% { transform: translateX(4px); } 55% { transform: translateX(-3px); } 75% { transform: translateX(2px); } }
+.shieldbar.full { animation: shFull .4s ease-out; }
+@keyframes shFull { 40% { transform: scale(1.04); } }
+.hurt::before { content: ''; position: absolute; inset: 0; opacity: 0; pointer-events: none;
+  background: repeating-linear-gradient(-45deg, var(--cell) 0 3px, transparent 3px 12px), radial-gradient(ellipse 80% 75% at 50% 50%, transparent 52%, rgba(95, 208, 255, .45) 100%);
+  -webkit-mask-image: radial-gradient(ellipse 78% 72% at 50% 50%, transparent 58%, #000 100%); mask-image: radial-gradient(ellipse 78% 72% at 50% 50%, transparent 58%, #000 100%); }
+.hurt.shielded::before { animation: shEdge .4s ease-out; }
+@keyframes shEdge { 0% { opacity: .7; } 100% { opacity: 0; } }
+body.touch-on .shieldbar { height: 24px; padding: 0 10px 0 10px; gap: 8px; --ch: 6px; }
+body.touch-on .shieldbar b { font-size: 16px; }
+body.touch-on .sh-glyph { width: 14px; height: 14px; }
+body.touch-on .sh-bar { height: 7px; }
+/* phones: the shield row pushes the left column down (sideways: radar; upright: objective + feed) */
+body.touch-on .hud.has-shield .hud-tr { top: calc(var(--sat) + var(--gap) + 88px); }
+@media (orientation: portrait) {
+  body.touch-on .hud.has-shield .hud-tr { top: calc(var(--sat) + var(--gap) + 66px); }
+  body.touch-on .hud.has-shield .objective { top: calc(var(--sat) + var(--gap) + 154px); }
+  body.touch-on .hud.has-shield .feed { top: calc(var(--sat) + var(--gap) + 212px); }
+}
+
+.lootcard { position: absolute; left: 0; right: 0; bottom: calc(var(--sab) + var(--gap) + 118px); display: grid; justify-items: center; }
+.loot-card { --rar: var(--paper); display: flex; align-items: center; gap: 14px; padding: 10px 24px 12px 10px; --ch: 12px; max-width: min(600px, 92vw); min-width: 0; }
+.loot-card::after { box-shadow: inset 0 5px 0 var(--rar); }
+.loot-icon { flex: none; display: grid; place-items: center; width: 66px; height: 66px; background: var(--lift-3); color: var(--rar);
+  clip-path: polygon(9px 0, calc(100% - 9px) 0, 100% 9px, 100% calc(100% - 9px), calc(100% - 9px) 100%, 9px 100%, 0 calc(100% - 9px), 0 9px); }
+.loot-icon svg { width: 46px; height: 46px; }
+.loot-txt { display: grid; gap: 3px; min-width: 0; }
+.loot-rar { font-size: var(--t13); font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--rar); }
+.loot-name { font-stretch: 125%; font-weight: 900; font-size: var(--t30); line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.loot-stats { display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: var(--t15); color: var(--paper-2); }
+.loot-stats i, .gu-stats i { font-style: normal; white-space: nowrap; }
+.loot-stats b { color: var(--paper); font-stretch: 112%; font-weight: 900; }
+.loot-note { font-size: var(--t13); font-weight: 800; color: var(--teal-hi); }
+.lootcard.on .loot-card { animation: pop2 .2s ease-out; }
+.lootcard.epic.on .loot-icon { animation: lootGlow .6s ease-in-out 3 alternate; }
+@keyframes lootGlow { to { background: var(--rar); color: var(--ink); } }
+.lootcard.out { opacity: 0; transition: opacity .3s; }
+body.touch-on .lootcard { bottom: auto; top: calc(var(--sat) + var(--gap)); left: calc(var(--sal) + var(--gap) + 276px); right: calc(var(--sar) + var(--gap) + 58px); }
+body.touch-on .hud.looting .hud-top { visibility: hidden; }
+body.touch-on .loot-card { padding: 6px 14px 7px 6px; gap: 10px; --ch: 9px; }
+body.touch-on .loot-txt { gap: 1px; }
+body.touch-on .loot-icon { width: 42px; height: 42px; } body.touch-on .loot-icon svg { width: 30px; height: 30px; }
+body.touch-on .loot-name { font-size: 17px; } body.touch-on .loot-stats { font-size: 12px; gap: 0 10px; } body.touch-on .loot-rar, body.touch-on .loot-note { font-size: 10.5px; }
+body.touch-on .loot-note { display: none; }
+@media (orientation: portrait) {
+  body.touch-on .lootcard { top: 36%; left: 0; right: 0; }
+  body.touch-on .loot-note { display: block; }
+  body.touch-on .hud.looting .hud-top { visibility: visible; }
+}
+
+/* ---------- Gear tab (ui/gear.js) ---------- */
+.gear-panel { width: min(1040px, 100%); }
+.gearui { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 14px 24px; align-items: start; }
+.gu-col { display: grid; gap: 10px; min-width: 0; }
+.gu-h { margin: 2px 0 0; display: flex; justify-content: space-between; align-items: baseline; font-stretch: 125%; font-weight: 900; font-size: var(--t18); text-transform: uppercase; color: var(--paper-2); }
+.gu-count { color: var(--teal); font-size: var(--t15); }
+.gu-weapons, .gu-bag { display: grid; gap: 10px; }
+.gu-item, .gu-shield { --rar: var(--paper); --ch: 10px; --face: var(--lift-2); display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 12px; padding: 10px 12px 12px 14px; align-items: center; }
+.gu-shield { grid-template-columns: auto minmax(0, 1fr) auto; }
+.gu-item::after, .gu-shield::after { box-shadow: inset 5px 0 0 var(--rar); }
+.gu-item.worn { --face: #3A3258; }
+.gu-icon { display: grid; place-items: center; width: 52px; height: 52px; background: var(--lift); color: var(--rar);
+  clip-path: polygon(7px 0, calc(100% - 7px) 0, 100% 7px, 100% calc(100% - 7px), calc(100% - 7px) 100%, 7px 100%, 0 calc(100% - 7px), 0 7px); }
+.gu-icon svg { width: 38px; height: 38px; }
+.gu-info { display: grid; gap: 3px; min-width: 0; }
+.gu-rar { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--rar); }
+.gu-name { font-stretch: 112%; font-weight: 900; font-size: var(--t18); line-height: 1.05; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gu-stats { display: flex; flex-wrap: wrap; gap: 1px 12px; font-size: 13px; color: var(--paper-2); }
+.gu-stats b { color: var(--paper); font-weight: 900; }
+.gu-where { font-size: 12px; font-weight: 800; color: var(--teal-hi); }
+.gu-acts { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.gu-fit { flex-wrap: wrap; }
+.gu-fit button { display: inline-flex; align-items: center; gap: 6px; min-width: 0; padding: 0 12px; font-size: 14px; }
+body:not(.touch-on) .gu-fit button { min-height: 40px; }
+.gu-wicon { display: inline-flex; color: var(--teal); }
+.gu-wicon svg { width: 28px; height: 14px; }
+.gu-fit button[aria-pressed="true"] .gu-wicon { color: var(--ink); }
+.gearui .btn.gu-btn { min-height: 40px; padding: 8px 16px; font-size: 15px; font-stretch: 100%; text-transform: none; }
+.gearui .btn.gu-btn:not(.primary):not(.danger) { --face: var(--lift-3); }
+.gearui .btn.gu-btn:not(.primary):not(.danger):hover { --face: #5A5078; }
+body.touch-on .gearui .btn.gu-btn { min-height: 48px; }
+.gu-discard { margin-left: auto; }
+.gu-discard.sure { --face: #FF5A50; }
+.gu-nofit { font-size: 13px; color: var(--paper-2); }
+.gu-wpn { --face: var(--lift-2); --ch: 10px; display: grid; gap: 8px; padding: 10px 12px 12px; }
+.gu-wpn-h { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.gu-wpn-h b { font-stretch: 112%; font-weight: 900; text-transform: uppercase; font-size: var(--t15); }
+.gu-mods { font-size: 12px; font-weight: 800; color: var(--teal-hi); }
+.gu-slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(78px, 1fr)); gap: 6px; }
+.gu-slot { --rar: var(--lift-3); display: grid; gap: 2px; min-width: 0; padding: 6px 9px; background: var(--lift); box-shadow: inset 3px 0 0 var(--rar); }
+.gu-slot.wide { padding: 10px 12px; }
+.gu-slot-k { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--paper-2); }
+.gu-slot-v { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gu-slot.empty .gu-slot-v { color: var(--paper-2); font-weight: 600; white-space: normal; }
+.gu-cap { font-stretch: 125%; font-weight: 900; font-size: var(--t30); line-height: 1; color: var(--cell); }
+.gu-cap span { font-size: var(--t15); color: var(--paper-2); }
+.gu-note { margin: 0; color: rgba(255, 253, 247, .82); font-size: var(--t15); line-height: 1.4; }
+
+/* mounted-scope view (ui/loothud.js): ink surround, gunmetal ring, duplex reticle, halftone edge */
+.scopeview { position: absolute; inset: 0; pointer-events: none; overflow: hidden; transform-origin: 50% 50%; }
+.scopeview svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.hud.scoped .xhair { opacity: 0; }

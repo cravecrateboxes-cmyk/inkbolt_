@@ -31,7 +31,7 @@ function serve() {
 // pinned for the screenshot (the page is thrown away after).
 async function combatHud(pg, o) {
   await pg.evaluate(() => { __TEST__.start(); __TEST__.forceWaves(); });
-  await pg.waitForFunction(() => __TEST__.state().alive >= 1, null, { timeout: 30000 });
+  await pg.waitForFunction(() => __TEST__.state().alive >= 1, null, { timeout: 60000 });
   await pg.evaluate((o) => {
     const G = IB.Game, H = IB.HUD, p = G.player; G.player.protect = 99;
     const live = IB.AI.robots.filter(r => r.on);
@@ -60,7 +60,7 @@ const SCREENS = {
   title: async pg => { await pg.evaluate(() => __TEST__.title()); },
   hud: async pg => {
     await pg.evaluate(() => __TEST__.start());
-    await pg.waitForFunction(() => __TEST__.state().alive >= 3, null, { timeout: 20000 });
+    await pg.waitForFunction(() => __TEST__.state().alive >= 3, null, { timeout: 60000 });
     await pg.evaluate(() => { const G = IB.Game; G.player.protect = 99; const r = IB.AI.robots.find(r => r.on); if (r) { r.x = G.player.x + 1.2; r.z = G.player.z - 6; } IB.HUD.feed('pistol', 'Crawler', 1); IB.HUD.feed('smg', 'Crawler', 1); IB.HUD.hit('core'); IB.HUD.arc(0.6); });
   },
   // the new HUD API driven with fake data (game.js may not call all of it yet): weapon plate, slots with names, objective,
@@ -78,6 +78,36 @@ const SCREENS = {
     await pg.evaluate(() => __TEST__.start()); await pg.waitForTimeout(300);
     await pg.evaluate(() => { IB.HUD.dim(1); IB.Menus.loading({ level: 2, name: 'Backyard', line: 'Bins have taken the lawn. Watch the fence line.', palette: ['#7FD36B', '#FFFFFF', '#FF8A3D', '#B98A5A'] }); IB.Menus.loadingProgress(0.62); });
   },
+  // loot HUD: shield bar above health (recharging), the loot card, damage numbers (hit, core, crit, acid, shock)
+  'hud-loot': async pg => {
+    await combatHud(pg, { mag: 18, late: false, objective: 'Clear the lot · 12 robots' });
+    await pg.evaluate(() => {
+      const G = IB.Game, L = IB.Loot, LH = IB.LootHUD, p = G.player, noop = () => {};
+      const rng = (() => { let s = 11; return () => (s = (s * 16807) % 2147483647) / 2147483647; })();
+      LH.shield({ cur: 23, max: 34, charging: true }); LH.shield = noop;
+      LH.loot(L.makeItem('acid', 'epic', 6, rng), 'Fitted to KV-9 Buzzsaw');
+      const fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw), rx = Math.cos(p.yaw), rz = -Math.sin(p.yaw);
+      // long-lived numbers caught just after their pop (swiftshader frame times would otherwise fade them out)
+      const at = (side, fwd, y, n, k) => { const d = IB.FX.damageNumber(p.x + fx * fwd + rx * side, y, p.z + fz * fwd + rz * side, n, k); d.life = 60; d.t = 0.3; return d; };
+      at(-1.6, 7, 1.6, 22, 'hit'); at(-0.4, 6.5, 2.0, 41, 'core'); at(1.1, 7.5, 1.7, 88, 'crit'); at(2.4, 8, 1.3, 4, 'acid'); at(-2.8, 8.5, 1.2, 6, 'shock');
+      at(9, 8, 1.2, 13, 'hit');   // off to the side: clamped inside the screen edge
+      LH.tick = noop;
+    });
+  },
+  // Gear tab content (IB.GearUI.render) in its standalone panel: shield, guns with slots, bag
+  gear: async pg => {
+    await pg.evaluate(() => __TEST__.start()); await pg.waitForTimeout(300);
+    await pg.evaluate(() => {
+      const G = IB.Game, L = IB.Loot, g = IB.Gear.gear(G); G.slot.highest = 4;
+      IB.Weapons.give(G.ws, 'rivet');
+      const rng = (() => { let s = 7; return () => (s = (s * 16807) % 2147483647) / 2147483647; })();
+      [['shield', 'epic'], ['grip', 'rare'], ['acid', 'epic'], ['scope', 'common'], ['shield', 'common'], ['acid', 'rare']].forEach(([t, r], i) => {
+        const it = L.addItem(g, L.makeItem(t, r, 3 + i, rng));
+        if (i === 0) L.equipShield(g, it.id); if (i === 1) L.attach(g, 'rivet', IB.WEAPONS.rivet, it.id); if (i === 2) L.attach(g, 'buzz', IB.WEAPONS.buzz, it.id);
+      });
+      IB.Gear.refresh(G, true); __TEST__.gear();
+    });
+  },
   eliminated: async pg => { await pg.evaluate(() => __TEST__.start()); await pg.waitForTimeout(300); await pg.evaluate(() => __TEST__.damagePlayer(500)); },
   pause: async pg => { await pg.evaluate(() => __TEST__.start()); await pg.waitForTimeout(300); await pg.evaluate(() => __TEST__.pause()); },
   settings: async pg => { await pg.evaluate(() => { __TEST__.title(); __TEST__.menu('settings'); }); },
@@ -86,9 +116,9 @@ const SCREENS = {
     await pg.evaluate(() => { __TEST__.start(); });
     await pg.waitForTimeout(300);
     await pg.evaluate(() => { const G = IB.Game; G.slot.gems = 1234567; G.level.zones.forEach(z => { z.state = 'cleared'; }); __TEST__.teleport('hatch'); });
-    await pg.waitForFunction(() => __TEST__.state().complete, null, { timeout: 10000 });
+    await pg.waitForFunction(() => __TEST__.state().complete, null, { timeout: 60000 });
   },
-  fail: async pg => { await pg.evaluate(() => { __TEST__.start(); }); await pg.waitForTimeout(300); await pg.evaluate(() => { IB.Game.run.retries = 0; __TEST__.damagePlayer(500); }); await pg.waitForFunction(() => /Out of retries/.test(document.getElementById('overlay').textContent), null, { timeout: 10000 }); }
+  fail: async pg => { await pg.evaluate(() => { __TEST__.start(); }); await pg.waitForTimeout(300); await pg.evaluate(() => { IB.Game.run.retries = 0; __TEST__.damagePlayer(500); }); await pg.waitForFunction(() => /Out of retries/.test(document.getElementById('overlay').textContent), null, { timeout: 60000 }); }
 };
 
 async function autoChecks(pg, label, touch) {
@@ -130,12 +160,12 @@ async function autoChecks(pg, label, touch) {
       await pg.waitForFunction(() => window.__TEST__ && IB.Game.mode === 'play', null, { timeout: 30000 });
       await SCREENS[name](pg);
       await pg.waitForTimeout(900);
-      await pg.screenshot({ path: path.join(dir, name + '.png') });
+      await pg.screenshot({ path: path.join(dir, name + '.png'), timeout: 120000 });
       await autoChecks(pg, v.name + '/' + name, v.touch);
       if (v.rot) {
         await pg.setViewportSize({ width: v.rot.w, height: v.rot.h });
         await pg.waitForTimeout(600);
-        await pg.screenshot({ path: path.join(dir, name + '-rotated.png') });
+        await pg.screenshot({ path: path.join(dir, name + '-rotated.png'), timeout: 120000 });
         await autoChecks(pg, v.name + '/' + name + ' rotated', v.touch);
       }
       check(v.name + '/' + name + ' no page errors', logs.length === 0, logs.join(' | '));

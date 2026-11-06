@@ -86,11 +86,11 @@ async function deathRun(browser, base) {
   await pg.evaluate(() => __TEST__.damagePlayer(500));
   const elim = await pg.evaluate(() => !document.getElementById('elim').hidden && document.getElementById('elimName').textContent);
   check('eliminated card shows', !!elim, elim);
-  const back = await until(pg, () => __TEST__.state().alivePlayer, null, 15000);
+  const back = await until(pg, () => __TEST__.state().alivePlayer, null, 45000);   // 3 s of game time: slow under software GL on a busy machine
   const s = await st(pg);
   check('respawn after countdown with full health', back && s.health === 100, 'health=' + s.health);
-  for (let i = 0; i < 3; i++) { await pg.evaluate(() => __TEST__.damagePlayer(500)); await until(pg, () => __TEST__.state().alivePlayer || __TEST__.state().mode === 'fail', null, 15000); }
-  const fail = await until(pg, () => /Out of retries/i.test(document.getElementById('overlay').textContent), null, 6000);
+  for (let i = 0; i < 3; i++) { await pg.evaluate(() => __TEST__.damagePlayer(500)); await until(pg, () => __TEST__.state().alivePlayer || __TEST__.state().mode === 'fail', null, 45000); }
+  const fail = await until(pg, () => /Out of retries/i.test(document.getElementById('overlay').textContent), null, 15000);
   check('fail screen after 3 retries are used', fail);
   check('no console errors or warnings', pg.logs.length === 0, pg.logs.join(' | '));
   await pg.context().close();
@@ -221,18 +221,114 @@ async function slideRun(browser, base) {
   await pg.context().close();
 }
 
+async function lootRun(browser, base) {
+  console.log('\n# loot: drops, pickup, attachments, shield, damage numbers, DoT');
+  const pg = await newPage(browser, base + '?autotest=1&plan=greybox');
+  const gs = () => pg.evaluate(() => __TEST__.gearState());
+  // robots cannot hurt the player in this run (G.hurt is parked); the test hurts through G.realHurt
+  await pg.evaluate(() => { const G = IB.Game; G.realHurt = G.hurt; G.hurt = function () { }; G.slot.highest = 4; IB.Weapons.equip(G.ws, 'buzz', true); });
+  const hurt = n => pg.evaluate(n => { const G = IB.Game, p = G.player; p.protect = 0; G.realHurt({ x: p.x, z: p.z - 1, type: 'crawler' }, n); }, n);
+  await until(pg, () => __TEST__.state().alive > 0, null, 10000);
+  // a kill can drop loot (forced to 100 % here): the drop shows in the world and on the radar
+  await pg.evaluate(() => { IB.LOOT.dropChance = 1; __TEST__.forceWaves(); });
+  await until(pg, () => IB.AI.robots.some(r => r.on && r.state !== 'spawn'), null, 10000);
+  await pg.evaluate(() => { const r = IB.AI.robots.find(r => r.on && r.state !== 'spawn'); IB.AI.kill(r, IB.Game.onKill); IB.LOOT.dropChance = 0.05; });
+  const d0 = await pg.evaluate(() => ({ n: __TEST__.drops().length, radar: IB.Drops.radar() }));
+  check('a kill rolls a loot drop', d0.n >= 1, JSON.stringify(d0));
+  check('the drop is on the radar with its rarity colour', d0.radar.length >= 1 && /^#[0-9A-F]{6}$/i.test(d0.radar[0].color), JSON.stringify(d0.radar[0]));
+  await pg.evaluate(() => IB.Drops.clear());
+  // forced drop -> walk over it -> bag + HUD card; a grip fits the SMG in hand automatically
+  await pg.evaluate(() => __TEST__.forceDrop('grip', 'epic', 3));
+  await pg.waitForTimeout(800);
+  await pg.evaluate(() => { const d = __TEST__.drops()[0]; IB.Game.player.x = d.x; IB.Game.player.z = d.z; });
+  check('walking over a drop collects it', await until(pg, () => __TEST__.gearState().inv.length === 1 && __TEST__.drops().length === 0, null, 5000));
+  const card = await pg.evaluate(() => { const c = document.getElementById('lootCard'); return c && !c.hidden ? c.textContent : ''; });
+  check('loot card shows name, rarity and stats', /ANCHOR GRIP/.test(card) && /Epic/i.test(card) && /Recoil/.test(card), card);
+  let s = await gs();
+  check('grip fitted: recoil and spread drop', s.attach.buzz && s.attach.buzz.grip && s.weapon.recoil < s.weapon.baseRecoil && s.weapon.spreadHip < 2.2, JSON.stringify(s.weapon));
+  check('grip shows on the viewmodel', s.vm.includes('grip'), s.vm.join(','));
+  // scope: zoom + aim through it
+  await pg.evaluate(() => { const d = __TEST__.forceDrop('scope', 'rare', 0.5); });
+  await until(pg, () => __TEST__.gearState().inv.length === 2, null, 5000);
+  s = await gs();
+  check('scope fitted: more zoom, tighter aim spread', s.weapon.aimZoom < s.weapon.baseAimZoom && s.vm.includes('scope'), JSON.stringify(s.weapon));
+  await pg.evaluate(() => { IB.Input.aim = true; });
+  const scoped = await until(pg, () => +document.getElementById('scopeView').style.opacity > 0.95 && IB.Game.ws.hidden, null, 5000);
+  const eye = await pg.evaluate(() => { const m = IB.Weapons.models.buzz; return m.sightScoped && m.sight.y > m.mesh.getObjectByName('WPN_BUZZ_SIGHT').position.y; });
+  check('ADS looks through the scope eye point (scope view on)', scoped && eye);
+  await pg.evaluate(() => { IB.Input.aim = false; });
+  check('scope view clears when not aiming', await until(pg, () => document.getElementById('scopeView').style.visibility === 'hidden' && !IB.Game.ws.hidden, null, 5000));
+  // shield: absorbs before health, then recharges
+  await pg.evaluate(() => __TEST__.forceDrop('shield', 'common', 0.5));
+  await until(pg, () => __TEST__.gearState().playerShield !== null, null, 5000);
+  await pg.evaluate(() => { IB.Game.player.health = IB.Game.player.maxHp; });
+  s = await gs();
+  const cap = s.playerShield.max;
+  check('shield cell auto-equips and starts full; HUD bar shows', s.playerShield.cur === cap && cap >= 15 && await pg.evaluate(() => !document.getElementById('shieldBar').hidden), JSON.stringify(s.playerShield));
+  await hurt(10);
+  s = await gs();
+  check('damage hits the shield first', s.health === 100 && Math.abs(s.playerShield.cur - (cap - 10)) < 0.01, JSON.stringify([s.health, s.playerShield]));
+  await hurt(cap);
+  s = await gs();
+  check('overflow goes through to health', s.playerShield.cur === 0 && Math.abs(s.health - (100 - 10)) < 0.01, JSON.stringify([s.health, s.playerShield]));
+  await pg.waitForTimeout(1500);
+  check('no recharge inside the delay', (await gs()).playerShield.cur === 0);
+  // fast-forward the delay (game time runs slow under software GL)
+  await pg.evaluate(() => { const st = IB.Game.player.shield; st.since = st.delay - 0.05; });
+  check('shield recharges after its delay', await until(pg, () => __TEST__.gearState().playerShield.cur > 0.5 && IB.Game.player.shield.charging, null, 15000));
+  // acid muzzle + real shots: hit numbers, then green acid ticks
+  await pg.evaluate(() => __TEST__.forceDrop('acid', 'epic', 0.5));
+  await until(pg, () => __TEST__.gearState().weapon.acid > 0, null, 5000);
+  check('acid muzzle fitted: acid stat and the silencer on the gun', (await gs()).vm.includes('muzzle'));
+  await pg.evaluate(() => { IB.Game.player.protect = 999; });
+  const seen = new Set(); const t0 = Date.now();
+  while (Date.now() - t0 < 25000 && !(seen.has('acid') && (seen.has('hit') || seen.has('core')))) {
+    await pg.evaluate(() => {
+      const G = IB.Game, p = G.player; let best = null, bd = 1e9;
+      IB.AI.robots.forEach(r => { if (!r.on || r.state === 'spawn' || r.state === 'pose') return; const d = Math.hypot(r.x - p.x, r.z - p.z); if (d < bd) { bd = d; best = r; } });
+      if (!best) { __TEST__.forceWaves(); return; }
+      best.hp = Math.max(best.hp, 500); best.maxHp = Math.max(best.maxHp, 500);   // keep it alive for the DoT
+      best.x = p.x + 0.4; best.z = p.z - 5;
+      const ey = p.y + 1.55, dx = best.x - p.x, dz = best.z - p.z, dy = (best.y + 0.45) - ey;
+      p.yaw = Math.atan2(-dx, -dz); p.pitch = Math.atan2(dy, Math.hypot(dx, dz));
+    });
+    // hold the trigger across a few frames (the SMG is automatic)
+    await pg.mouse.move(640, 360); await pg.mouse.down();
+    for (let k = 0; k < 4; k++) { await pg.waitForTimeout(150); (await gs()).numbers.forEach(n => seen.add(n.kind)); }
+    await pg.mouse.up();
+  }
+  check('bullet hits pop damage numbers', seen.has('hit') || seen.has('core'), [...seen].join(','));
+  check('acid ticks pop green numbers', seen.has('acid'), [...seen].join(',') + ' ' + JSON.stringify(await pg.evaluate(() => [IB.Status.active(), IB.Status.list.filter(e => e.on).map(e => [e.kind, e.pool, e.left, e.total]), IB.Weapons.current(IB.Game.ws).def.acid])));
+  const shock = await pg.evaluate(() => __TEST__.status('shock', 12, 1.5));
+  const shocked = await until(pg, () => __TEST__.gearState().numbers.some(n => n.kind === 'shock'), null, 5000);
+  check('IB.Status.apply shock ticks with blue numbers', shock && shocked);
+  // gear panel: detach and scrap through the UI
+  await pg.evaluate(() => __TEST__.gear());
+  const panel = await pg.evaluate(() => [IB.Game.mode, /Gear/i.test(document.getElementById('overlay').textContent), document.querySelectorAll('#gearRoot .gu-item').length]);
+  check('gear panel opens (paused, 4 items)', panel[0] === 'paused' && panel[1] && panel[2] === 4, JSON.stringify(panel));
+  await pg.click('#gearRoot .gu-fit button[aria-pressed="true"][data-w="buzz"] >> nth=0');
+  s = await gs();
+  check('detaching in the panel restores the stat', Object.keys(s.attach.buzz || {}).length === 2, JSON.stringify(s.attach));
+  const before = (await gs()).inv.length;
+  await pg.click('#gearRoot .gu-discard >> nth=-1'); await pg.click('#gearRoot .gu-discard.sure');
+  check('scrap needs a confirm tap, then removes the item', (await gs()).inv.length === before - 1);
+  await pg.click('#overlay [data-act="resume"]');
+  check('back to the fight', await until(pg, () => IB.Game.mode === 'play', null, 3000));
+  const saved = await pg.evaluate(() => JSON.parse(localStorage.getItem('inkbolt.slot' + IB.Game.slot.id)).gear);
+  check('gear is saved in the slot', saved && saved.inv.length === before - 1 && saved.shield, JSON.stringify(saved && { n: saved.inv.length, shield: saved.shield }));
+  check('no console errors or warnings', pg.logs.length === 0, pg.logs.join(' | '));
+  await pg.context().close();
+}
+
 (async () => {
   const server = await serve();
   const base = 'http://localhost:' + server.address().port + '/' + encodeURI(TARGET);
   console.log('target', base);
   const browser = await chromium.launch({ args: ARGS });
   try {
-    await hookRun(browser, base);
-    await deathRun(browser, base);
-    await inputRun(browser, base);
-    await touchRun(browser, base);
-    await slideRun(browser, base);
-    await campaignRun(browser, base);
+    // ONLY=lootRun,deathRun runs a subset
+    const runs = { hookRun, deathRun, inputRun, touchRun, slideRun, lootRun, campaignRun };
+    for (const [name, fn] of Object.entries(runs)) if (!process.env.ONLY || process.env.ONLY.split(',').includes(name)) await fn(browser, base);
   } catch (e) { console.log('FAIL exception ' + e.stack); failures++; }
   await browser.close(); server.close();
   console.log('\n' + (failures ? failures + ' FAILED' : 'ALL PASSED'));
