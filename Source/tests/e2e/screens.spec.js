@@ -61,7 +61,7 @@ async function fieldKit(pg, tab) {
   await pg.evaluate((tab) => {
     const G = IB.Game; G.slot.highest = 11; G.slot.gems = 640;
     G.slot.arsenal = ['pip', 'buzz', 'rivet', 'handcannon', 'needle', 'longtom', 'whisk']; G.slot.loadout = ['rivet', 'pip'];
-    G.slot.skills = { overboard: 3, fastfingers: 2, tinhide: 1, steadyink: 2, heavyink: 1, electrify: 1 };
+    G.slot.skills = { overload: 3, heavyink: 2, stream: 1, electrify: 1, rapid: 2, hazard: 1, healthy: 2 };
     G.applyProgress(); __TEST__.tabMenu(tab);
   }, tab);
 }
@@ -130,7 +130,7 @@ const SCREENS = {
     await pg.waitForFunction(() => __TEST__.state().complete, null, { timeout: 60000 });
   },
   // field kit (Tab menu) with mid-campaign progress: skills half spent, a 3-gun loadout, a full arsenal
-  'tabmenu-skills': async pg => { await fieldKit(pg, 'skills'); await pg.evaluate(() => { const b = document.querySelector('[data-skill="coredump"]'); if (b) b.click(); }); },
+  'tabmenu-skills': async pg => { await fieldKit(pg, 'skills'); await pg.evaluate(() => { const b = document.querySelector('[data-skill="ricochet"]'); if (b) b.click(); }); },
   'tabmenu-inventory': async pg => { await fieldKit(pg, 'inventory'); },
   // inventory with loot: a fitted grip + acid muzzle, a worn shield, spares in the backpack; a backpack gun selected (card + compare)
   'tabmenu-gear': async pg => {

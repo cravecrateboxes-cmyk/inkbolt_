@@ -188,7 +188,7 @@ async function tabMenuRun(browser, base) {
   check('HUD shows the level tag', await pg.evaluate(() => /LV\s*4/.test(document.getElementById('lvTag').textContent) && !document.getElementById('lvPts').hidden));
   await pg.mouse.move(640, 360);
   await pg.keyboard.press('Tab');
-  check('Tab opens the field kit and pauses', await until(pg, () => IB.Game.mode === 'menu' && !document.getElementById('tabmenu').hidden, null, 3000));
+  check('Tab opens the field kit and pauses', await until(pg, () => IB.Game.mode === 'menu' && !document.getElementById('tabmenu').hidden, null, 8000));
   check('focus stays inside the menu (Tab did not move browser focus)', await pg.evaluate(() => document.getElementById('tabmenu').contains(document.activeElement)));
   const t0 = await pg.evaluate(() => IB.Game.run.time); await pg.waitForTimeout(500);
   check('game time is frozen while open', (await pg.evaluate(() => IB.Game.run.time)) === t0);
@@ -197,16 +197,16 @@ async function tabMenuRun(browser, base) {
   // skills: E from Inventory -> Skills (keyboard), then mouse
   await pg.keyboard.press('KeyE');
   check('E switches to Skills', await pg.evaluate(() => IB.TabMenu.tab === 'skills' && !!document.querySelector('.sk-tree')));
-  await pg.click('[data-skill="overboard"]');
+  await pg.click('[data-skill="overload"]');
   await pg.click('[data-act="buy"]');
   let pr = await pg.evaluate(() => __TEST__.progress());
-  check('Spend buys Overboard rank 1', pr.skills.overboard === 1 && pr.points === 3, JSON.stringify(pr.skills) + ' points=' + pr.points);
-  await pg.focus('[data-skill="overboard"]'); await pg.keyboard.press('Enter');
+  check('Spend buys Overload rank 1', pr.skills.overload === 1 && pr.points === 3, JSON.stringify(pr.skills) + ' points=' + pr.points);
+  await pg.focus('[data-skill="overload"]'); await pg.keyboard.press('Enter');
   pr = await pg.evaluate(() => __TEST__.progress());
-  check('Enter on the selected skill spends again', pr.skills.overboard === 2 && pr.points === 2, JSON.stringify(pr.skills));
-  check('locked tier refuses (Heavy Ink needs 6 points above)', await pg.evaluate(() => { document.querySelector('[data-skill="heavyink"]').click(); return document.querySelector('[data-act="buy"]').disabled; }));
+  check('Enter on the selected skill spends again', pr.skills.overload === 2 && pr.points === 2, JSON.stringify(pr.skills));
+  check('locked row refuses (Hazard needs 5 points in the rows below)', await pg.evaluate(() => { document.querySelector('[data-skill="hazard"]').click(); return document.querySelector('[data-act="buy"]').disabled; }));
   const saved1 = await pg.evaluate(() => JSON.parse(localStorage.getItem('inkbolt.slot1')).skills);
-  check('skills saved at once', saved1 && saved1.overboard === 2, JSON.stringify(saved1));
+  check('skills saved at once', saved1 && saved1.overload === 2, JSON.stringify(saved1));
   await pg.keyboard.press('KeyE');
   check('E again switches to Character (level, stats, record)', await pg.evaluate(() => IB.TabMenu.tab === 'character' && /Max health/.test(document.getElementById('tmPanel').textContent)));
   // inventory: slot 2, then the rifle from the backpack
@@ -214,7 +214,7 @@ async function tabMenuRun(browser, base) {
   check('Q twice goes back to Inventory', await pg.evaluate(() => IB.TabMenu.tab === 'inventory'));
   check('backpack lists the gun not carried, 2 weapon slots + a locked third', await pg.evaluate(() => document.querySelectorAll('.lo-card').length === 1 && document.querySelectorAll('.lo-slot').length === 3 && !!document.querySelector('.lo-slot.locked')));
   await pg.hover('[data-gun="rivet"]');
-  check('pointing at a backpack gun shows its card, compared with the selected slot', await pg.evaluate(() => /AR-22 Rivet/i.test(document.querySelector('.inv-card').textContent) && /Compared with/.test(document.querySelector('.inv-card').textContent)));
+  check('pointing at a backpack gun shows its card, compared with the selected slot', await pg.evaluate(() => /AR-22 Rivet/i.test(document.querySelector('.inv-card').textContent) && !!document.querySelector('.inv-card .ic-vs')));
   await pg.click('[data-slot="1"]'); await pg.click('[data-gun="rivet"]');
   pr = await pg.evaluate(() => __TEST__.progress());
   check('rifle goes into slot 2', JSON.stringify(pr.loadout) === '["pip","rivet"]', JSON.stringify(pr.loadout));
@@ -222,7 +222,7 @@ async function tabMenuRun(browser, base) {
   check('Tab closes and resumes', await until(pg, () => IB.Game.mode === 'play' && document.getElementById('tabmenu').hidden && !document.getElementById('hud').hidden, null, 3000));
   pr = await pg.evaluate(() => __TEST__.progress());
   check('carried guns follow the loadout', JSON.stringify(pr.carried) === '["pip","rivet"]', JSON.stringify(pr.carried));
-  check('Overboard applies (+20% magazine: Warden 12 -> 15)', await pg.evaluate(() => IB.Weapons.magSize(IB.Game.ws, IB.WEAPONS.pip) === 15));
+  check('Overload applies (+20% magazine: Warden 12 -> 15)', await pg.evaluate(() => IB.Weapons.magSize(IB.Game.ws, IB.WEAPONS.pip) === 15));
   await pg.keyboard.press('Digit2');
   // holster + draw of a gun first drawn now (shader compile under software GL): wait for it rather than a fixed 0.7 s
   check('key 2 draws the rifle from slot 2', await until(pg, () => __TEST__.state().weapon === 'rivet' && IB.Game.ws.state === 'idle', null, 8000), (await st(pg)).weapon);

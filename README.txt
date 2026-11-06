@@ -7,8 +7,10 @@ WHAT IS HERE
     src/data/         Tables: weapons, robots, bosses, upgrades, unlocks, levels 1-20, zone maps (ASCII .txt).
     src/core/         Pure logic (no browser needed): damage, gems, upgrades, saves, level generator, RNG.
     src/game/         Runtime: renderer + ink outlines, zones/gates/trail, player, weapons, robots/AI, effects, audio, input, platform hooks.
-    src/ui/           HUD, menus, field kit (Inventory / Skills / Character), stylesheet ("holo ink" look, ui.css).
-    vendor/           three.js r128, Archivo font (OFL licence), BufferGeometryUtils and GLTFLoader (for the Blender GLBs next round).
+    src/ui/           HUD, menus, field kit (Inventory / Skills / Character), stylesheets (ui.css; fieldkit.css: the field kit's
+                      comic holo-device look, also used by the menus), item pictures rendered from the models (thumbs.js),
+                      hand-inked skill icons (skillicons.js).
+    vendor/           three.js r128, Archivo and Ranchers fonts (OFL licences in vendor/fonts), BufferGeometryUtils and GLTFLoader (for the Blender GLBs next round).
     tools/build.py    Builds Play Inkbolt.html, Source/dev.html and Source/dist/upload/.
     tests/unit/       node:test unit tests for src/core and src/data.
     tests/e2e/        Headless Chromium tests: smoke (plays the level), screens (screenshot matrix), perf.
@@ -36,8 +38,9 @@ LOOT AND GEAR
   Shield cells (after level 3 is cleared) soak damage before health and recharge after a short delay.
   Gun attachments: Grip (less recoil and spread), Scope (zoom and a tighter aim; aim to look through it),
   Acid muzzle (silenced; part of each hit burns on as acid). The Inventory tab of the field kit (IB.GearUI, ui/gear.js)
-  shows the item card (stats, compare, flavour) + ammo, EQUIPPED (weapon slots 1-3, slot 3 locked until level 10 is
-  cleared, the attachment slots of each carried gun, the shield) and the BACKPACK (weapons, attachments, shields);
+  shows the item card (rarity title bar, stats, compare, the item's picture) + ammo, EQUIPPED (weapon slots 1-3, slot 3
+  locked until level 10 is cleared, the attachment slots of each carried gun, the shield) and the BACKPACK (weapons,
+  attachments, shields), every item as its real model drawn into a framed picture;
   it equips, fits, moves and scraps them. Tables: src/data/loot.js; logic: src/core/loot.js; models: blender/fam_gear.py.
 
 EXPLOSIONS AND HAZARDS (src/game/boom.js)
