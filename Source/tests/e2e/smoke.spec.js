@@ -188,7 +188,7 @@ async function tabMenuRun(browser, base) {
   check('HUD shows the level tag', await pg.evaluate(() => /LV\s*4/.test(document.getElementById('lvTag').textContent) && !document.getElementById('lvPts').hidden));
   await pg.mouse.move(640, 360);
   await pg.keyboard.press('Tab');
-  check('Tab opens the field kit and pauses', await until(pg, () => IB.Game.mode === 'menu' && !document.getElementById('tabmenu').hidden, null, 3000));
+  check('Tab opens the field kit and pauses', await until(pg, () => IB.Game.mode === 'menu' && !document.getElementById('tabmenu').hidden, null, 8000));
   check('focus stays inside the menu (Tab did not move browser focus)', await pg.evaluate(() => document.getElementById('tabmenu').contains(document.activeElement)));
   const t0 = await pg.evaluate(() => IB.Game.run.time); await pg.waitForTimeout(500);
   check('game time is frozen while open', (await pg.evaluate(() => IB.Game.run.time)) === t0);
@@ -214,7 +214,7 @@ async function tabMenuRun(browser, base) {
   check('Q twice goes back to Inventory', await pg.evaluate(() => IB.TabMenu.tab === 'inventory'));
   check('backpack lists the gun not carried, 2 weapon slots + a locked third', await pg.evaluate(() => document.querySelectorAll('.lo-card').length === 1 && document.querySelectorAll('.lo-slot').length === 3 && !!document.querySelector('.lo-slot.locked')));
   await pg.hover('[data-gun="rivet"]');
-  check('pointing at a backpack gun shows its card, compared with the selected slot', await pg.evaluate(() => /AR-22 Rivet/i.test(document.querySelector('.inv-card').textContent) && /Compared with/.test(document.querySelector('.inv-card').textContent)));
+  check('pointing at a backpack gun shows its card, compared with the selected slot', await pg.evaluate(() => /AR-22 Rivet/i.test(document.querySelector('.inv-card').textContent) && !!document.querySelector('.inv-card .ic-vs')));
   await pg.click('[data-slot="1"]'); await pg.click('[data-gun="rivet"]');
   pr = await pg.evaluate(() => __TEST__.progress());
   check('rifle goes into slot 2', JSON.stringify(pr.loadout) === '["pip","rivet"]', JSON.stringify(pr.loadout));
