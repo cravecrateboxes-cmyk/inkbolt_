@@ -33,12 +33,13 @@ async function arena(pg, o) {
     AI.robots.forEach(r => { if (r.on && r.state !== 'pose') { r.on = false; r.state = 'off'; } });
     const fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw), rx = Math.cos(p.yaw), rz = -Math.sin(p.yaw);
     const spots = o.spots || [[-1.6, 5, 'crawler', 0.55], [1.4, 8, 'gunner', 0.3], [-3.5, 12, 'bomber', 1], [3.2, 15, 'drone', 0.7], [0.2, 21, 'gunner', 0.45], [-6, 26, 'crawler', 0.8]];
-    spots.forEach(([side, fwd, type, frac], i) => {
+    spots.forEach(([side, fwd, type, frac, rogue], i) => {
       const x = p.x + fx * fwd + rx * side, z = p.z + fz * fwd + rz * side;
       const r = AI.spawn(type, x, z, G.zone || 0, p.x, p.z); if (!r) return;
       r.state = 'chase'; r.st = 0; r.y = r.hy || 0; r.yaw = Math.atan2(p.x - x, p.z - z);
       if (frac < 1) { r.hp = r.maxHp * Math.min(1, frac + 0.25); }
       r._shot = { frac };
+      if (rogue && AI.makeRogue) { AI.makeRogue(r, 9); r.state = 'chase'; }   // Handy Helpers ally: teal bar
     });
     IB.AI.update = () => {}; IB.Projectiles.update = () => {};
     // let the bars register the robots, then hit them so the chip segment shows
@@ -71,7 +72,7 @@ const SHOTS = {
     await pg.evaluate(() => { IB.HUD.pickup('KV-9 Buzzsaw', 'smg'); IB.HUD.stamina(0.3, true); });
   },
   bars: async pg => {
-    await arena(pg, { spots: [[-1.1, 4.5, 'crawler', 0.35], [1.5, 7, 'gunner', 0.62], [-2.6, 10, 'bomber', 0.2], [2.6, 13, 'drone', 0.8], [0.4, 18, 'gunner', 0.5], [-4.5, 24, 'crawler', 0.9]] });
+    await arena(pg, { spots: [[-1.1, 4.5, 'crawler', 0.35], [1.5, 7, 'gunner', 0.62], [-2.6, 10, 'bomber', 0.2], [2.6, 13, 'drone', 0.8], [0.4, 18, 'gunner', 0.5], [-4.5, 24, 'crawler', 0.9], [4.6, 9, 'crawler', 0.75, true]] });
     await hudData(pg, { mag: 18, shield: true });
   },
   loader: async pg => {
@@ -92,13 +93,6 @@ const SHOTS = {
     for (const name of Object.keys(SHOTS).filter(n => !ONLY || ONLY.includes(n))) {
       const ctx = await browser.newContext({ viewport: { width: v.w, height: v.h }, hasTouch: v.touch, isMobile: v.touch, deviceScaleFactor: 1 });
       const pg = await ctx.newPage(); const logs = [];
-      // the branch's skill data and core/skills.js can be out of step while the skills runtime is reworked:
-      // for these shots an unknown skill id reads as a rank-0 skill instead of stopping the boot
-      await pg.addInitScript(() => {
-        const IB = window.IB = window.IB || {}; let tbl;
-        Object.defineProperty(IB, 'SKILL_BY_ID', { configurable: true, get: () => tbl,
-          set: v => { tbl = new Proxy(v, { get: (t, k) => (k in t || typeof k !== 'string') ? t[k] : { id: k, max: 1, ranks: [0] } }); } });
-      });
       pg.on('pageerror', e => logs.push(e.message)); pg.on('console', m => { if (m.type() === 'error') logs.push(m.text()); });
       await pg.goto(url);
       await pg.waitForFunction(() => window.__TEST__ && IB.Game.mode === 'play', null, { timeout: 30000 });

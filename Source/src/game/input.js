@@ -3,7 +3,7 @@
   'use strict';
   var I = IB.Input = {
     mx: 0, mz: 0, lookDX: 0, lookDY: 0, fire: false, aim: false, sprint: false,
-    jumpPressed: false, firePressed: false, reloadPressed: false, meleePressed: false, pausePressed: false,
+    jumpPressed: false, firePressed: false, reloadPressed: false, meleePressed: false, cloakPressed: false, pausePressed: false,
     slotPressed: 0, wheel: 0, keys: {}, locked: false, dragging: false, touch: false, enabled: false, lastLook: 0
   };
   var canvas;
@@ -18,7 +18,8 @@
       switch (e.code) {
         case 'Space': I.jumpPressed = true; break;
         case 'KeyR': I.reloadPressed = true; break;
-        case 'KeyF': I.meleePressed = true; break;
+        case 'KeyV': I.meleePressed = true; break;   // shove
+        case 'KeyF': I.cloakPressed = true; break;   // Undercover skill
         case 'Escape': case 'KeyP': I.pausePressed = true; break;
         case 'KeyC': case 'ControlLeft': I.slidePressed = true; break;
         case 'Tab': I.menuPressed = true; break;   // field kit (loadout, gear, skills); Tab never moves focus in play
@@ -49,7 +50,7 @@
     });
     if (I.touch) I.buildTouch();
   };
-  function gameKey(c) { return /^(Space|Key[WASDQRFPC]|Arrow|Digit|ShiftLeft|ShiftRight|ControlLeft|Tab)/.test(c); }
+  function gameKey(c) { return /^(Space|Key[WASDQRFPCV]|Arrow|Digit|ShiftLeft|ShiftRight|ControlLeft|Tab)/.test(c); }
   I.requestLock = function () {
     if (I.touch || !canvas.requestPointerLock) return;
     try { var p = canvas.requestPointerLock(); if (p && p.catch) p.catch(function () { /* drag-to-look fallback */ }); } catch (e) { /* fallback */ }
@@ -66,7 +67,7 @@
   };
   I.endFrame = function () {
     I.lookDX = 0; I.lookDY = 0; I.jumpPressed = false; I.firePressed = false; I.reloadPressed = false;
-    I.meleePressed = false; I.pausePressed = false; I.slotPressed = 0; I.wheel = 0; I.swapPressed = false; I.slidePressed = false; I.menuPressed = false;
+    I.meleePressed = false; I.cloakPressed = false; I.pausePressed = false; I.slotPressed = 0; I.wheel = 0; I.swapPressed = false; I.slidePressed = false; I.menuPressed = false;
   };
   I.reset = function () { I.fire = I.aim = false; I.mx = I.mz = 0; I.keys = {}; I.endFrame(); if (I.stick) I.stick.id = null; };
 
@@ -80,7 +81,9 @@
       '<button class="tbtn treload" id="tReload" aria-label="Reload">R</button>' +
       '<button class="tbtn tswap" id="tSwap" aria-label="Swap weapon">' + svgSwap() + '</button>' +
       '<button class="tbtn tjump" id="tJump" aria-label="Jump">' + svgJump() + '</button>' +
-      '<button class="tbtn tslide" id="tSlide" aria-label="Slide or crouch" style="width:56px;height:56px;right:calc(var(--sar) + 200px);bottom:calc(var(--sab) + 140px)">' + svgSlide() + '</button>';
+      '<button class="tbtn tslide" id="tSlide" aria-label="Slide or crouch" style="width:56px;height:56px;right:calc(var(--sar) + 200px);bottom:calc(var(--sab) + 140px)">' + svgSlide() + '</button>' +
+      // Undercover (skill): shown by ui/skillhud.js only while the skill is owned; the ring is its cooldown
+      '<button class="tbtn tcloak" id="tCloak" aria-label="Undercover" hidden style="width:52px;height:52px;right:calc(var(--sar) + 270px);bottom:calc(var(--sab) + 112px)">' + svgCloak() + '</button>';
     var stick = I.stick = { id: null, ox: 0, oy: 0, el: document.getElementById('stick'), knob: document.getElementById('stickKnob') };
     var look = { id: null, x: 0, y: 0 };
     function hold(id, down, up) {
@@ -101,6 +104,7 @@
     hold('tReload', function () { I.reloadPressed = true; });
     hold('tSwap', function () { I.swapPressed = true; I.wheel += 1; });
     hold('tJump', function () { I.jumpPressed = true; });
+    hold('tCloak', function () { I.cloakPressed = true; });
     hold('tSlide', function () { I.slidePressed = true; I.crouch = true; }, function () { I.crouch = false; });
     var layer = document.getElementById('touchLayer');
     layer.addEventListener('touchstart', function (e) {
@@ -143,5 +147,6 @@
   function svgAim() { return '<svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="14" fill="none" stroke="currentColor" stroke-width="4"/><circle cx="24" cy="24" r="3" fill="currentColor"/></svg>'; }
   function svgSwap() { return '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M10 18h26l-7-7M38 30H12l7 7" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/></svg>'; }
   function svgSlide() { return '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 34h26l8-6M14 26l8-8 8 4" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/><circle cx="30" cy="12" r="4" fill="currentColor"/></svg>'; }
+  function svgCloak() { return '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 26c5-9 27-9 32 0-5 9-27 9-32 0z" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/><circle cx="24" cy="26" r="5" fill="currentColor"/><path d="M10 40 38 12" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg>'; }
   function svgJump() { return '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 8 10 24h8v14h12V24h8z" fill="currentColor"/></svg>'; }
 })(window.IB = window.IB || {});

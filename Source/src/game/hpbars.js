@@ -2,7 +2,8 @@
      Shows while a robot is hurt and within range, while it is under the crosshair, and for a few seconds after a hit;
      a robot at full health that is not targeted stays clean. The fill drains smoothly with a delayed "chip" segment
      (the damage just taken) that follows after a short hold; a shield / armour row sits on top when a robot has one
-     (r.shield / r.maxShield); a white flash on every hit. The left tab carries the robot type's colour.
+     (r.shield / r.maxShield); a white flash on every hit. The left tab carries the robot type's colour. Rogue robots
+     (Handy Helpers, r.rogue > 0) fight for the player: their bar is teal ("ally"), the top row counts down their time.
    Rendering: ONE instanced quad mesh (one draw call for every bar), billboarded in the vertex shader, sized in screen
    pixels (world-sized up close, never smaller than a legible minimum far away), depth-tested so walls and crates
    cover it, drawn without depth writes and without fog. The fragment shader draws the frame, segments, chip and
@@ -16,7 +17,7 @@
   var mesh = null, geo = null, aPos, aVal, aMeta, aCol, uni = null, _v = null, _d = null, _c = null;
   var TYPE_COL = {};                // robot type -> THREE.Color of its tab
   var TOP = { crawler: 0.98, gunner: 1.12, bomber: 1.0, drone: 0.74 };   // model top above r.y (m); others: hit capsule top + 0.3
-  var list = [];                    // scratch: robots that want a bar this frame
+  var list = [], ALLY = null;                    // scratch: robots that want a bar this frame
 
   var VS = [
     'attribute vec3 iPos; attribute vec4 iVal; attribute vec4 iMeta; attribute vec3 iCol;',
@@ -69,7 +70,8 @@
     '  float segW = iw / segs;',
     '  float gap = step(segW - 1.0, mod(xs - x0, segW)) * step(0.5, segs - 1.0) * step(xs - x0, iw - 2.0);',
     '  float topHi = smoothstep(2.5, hy1, p.y);',
-    '  vec3 hpCol = mix(vec3(0.93, 0.20, 0.17), vec3(1.0, 0.45, 0.36), topHi);',
+    '  float ally = vMeta.w;',   // rogue robots (Handy Helpers) fight for the player: teal bar
+    '  vec3 hpCol = mix(mix(vec3(0.93, 0.20, 0.17), vec3(1.0, 0.45, 0.36), topHi), mix(vec3(0.07, 0.72, 0.66), vec3(0.36, 0.95, 0.88), topHi), ally);',
     '  hpCol = mix(hpCol, vec3(1.0), flash * 0.75);',
     '  vec3 chipCol = vec3(1.0, 0.93, 0.72);',
     '  vec3 empty = vec3(0.11, 0.10, 0.16);',
@@ -81,7 +83,7 @@
     '    float sy0 = hy1 + 1.0, sy1 = H - 2.5;',
     '    float sRow = para(p, x0 + (sy0 - 2.5) * sl, x1 + (sy0 - 2.5) * sl, sy0, sy1, sl);',
     '    float su = (p.x - (p.y - sy0) * sl - x0 - (sy0 - 2.5) * sl) / iw;',
-    '    vec3 sc = su < sh ? mix(vec3(0.27, 0.78, 1.0), vec3(0.80, 0.96, 1.0), flash * 0.6) : vec3(0.12, 0.17, 0.26);',
+    '    vec3 sc = su < sh ? mix(mix(vec3(0.27, 0.78, 1.0), vec3(0.92, 1.0, 0.98), ally), vec3(0.80, 0.96, 1.0), flash * 0.6) : vec3(0.12, 0.17, 0.26);',
     '    col = mix(col, sc, sRow);',
     '  }',
     // hairline highlight along the top edge (glassy)
@@ -108,7 +110,7 @@
     mesh = new THREE.Mesh(geo, mat);
     mesh.frustumCulled = false; mesh.renderOrder = 20; mesh.visible = false; mesh.name = 'hpbars';
     IB.Render.scene.add(mesh);
-    _v = new THREE.Vector3(); _d = new THREE.Vector3(); _c = new THREE.Color();
+    _v = new THREE.Vector3(); _d = new THREE.Vector3(); _c = new THREE.Color(); ALLY = new THREE.Color('#2EEAD8');
     return true;
   }
   function typeColor(r) {
@@ -161,8 +163,10 @@
       if (r.hp < h.hp - 1e-4) { h.dmgT = 0; h.flash = 1; h.hold = 0.55; h.chip = Math.max(h.chip, h.disp); }
       else if (r.hp > h.hp + 1e-4) { h.chip = h.disp = frac; }
       h.hp = r.hp;
-      var hasSh = r.maxShield > 0;
-      h.sh = hasSh ? Math.max(0, Math.min(1, (r.shield || 0) / r.maxShield)) : -1;
+      var hasSh = r.maxShield > 0, ally = r.rogue > 0;
+      // the top row: shield / armour, or for a rogue (ally) the seconds it has left
+      h.sh = ally ? Math.max(0, Math.min(1, r.rogue / (AI.rogueTime || 15))) : hasSh ? Math.max(0, Math.min(1, (r.shield || 0) / r.maxShield)) : -1;
+      h.ally = ally;
       h.dmgT += dt; h.tgtT = r === tgt ? 0 : h.tgtT + dt;
       h.disp += (frac - h.disp) * Math.min(1, dt * 16);
       if (h.hold > 0) h.hold -= dt; else h.chip = Math.max(h.disp, h.chip - dt * 0.9);
@@ -171,7 +175,7 @@
       h.x = r.x; h.y = by; h.z = r.z;
       var dx = r.x - cx, dz = r.z - cz, dist = Math.sqrt(dx * dx + dz * dz);
       var hurt = frac < 0.999 || (hasSh && h.sh < 0.999);
-      var want = r.state !== 'spawn' && (h.tgtT < 1.1 || h.dmgT < 3 || (hurt && dist < HB.range));
+      var want = r.state !== 'spawn' && (h.tgtT < 1.1 || h.dmgT < 3 || ((hurt || ally) && dist < HB.range));
       h.a = want ? Math.min(1, h.a + dt / 0.12) : Math.max(0, h.a - dt / 0.45);
       var far = Math.max(0, Math.min(1, (HB.range + 14 - dist) / 10));
       h.k = h.a * (h.tgtT < 1.1 || h.dmgT < 3 ? Math.max(far, 0.6) : far);
@@ -188,8 +192,8 @@
       var baseHp = def.hp || 30;
       M[k * 4] = Math.max(0.9, Math.min(1.7, 1 + 0.42 * Math.log(baseHp / 40) / Math.LN2));
       M[k * 4 + 1] = Math.max(2, Math.min(14, Math.round((rb.maxHp || baseHp) / 12)));
-      M[k * 4 + 2] = s.flash; M[k * 4 + 3] = 0;
-      var tc = typeColor(rb); C[k * 3] = tc.r; C[k * 3 + 1] = tc.g; C[k * 3 + 2] = tc.b;
+      M[k * 4 + 2] = s.flash; M[k * 4 + 3] = rb.on && s.ally ? 1 : 0;
+      var tc = rb.on && s.ally ? ALLY : typeColor(rb); C[k * 3] = tc.r; C[k * 3 + 1] = tc.g; C[k * 3 + 2] = tc.b;
     }
     geo.instanceCount = n; mesh.visible = n > 0; HB.shown = n;
     if (n) {

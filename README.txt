@@ -17,16 +17,22 @@ WHAT IS HERE
 
 CONTROLS
   Desktop: click to lock the mouse. WASD move, mouse look, left click fire, right click aim,
-           Space jump, Shift sprint, R reload, 1-3 or mouse wheel switch carried guns, F shove, Esc pause.
+           Space jump, Shift sprint, R reload, 1-3 or mouse wheel switch carried guns, V shove,
+           F Undercover (skill: 5 s invisible, 30 s cooldown; badge above the bottom edge), Esc pause.
            Tab opens the field kit (pauses): Inventory, Skills, Character. Q / E (or the yellow chevrons) switch
            tabs, arrows move, Enter selects (Enter again spends a skill point; in the inventory Enter equips),
            pointing at an item shows its card, Tab or Esc resumes.
   Phone:   left thumb moves (push far forward to sprint), right thumb looks, Fire / Aim / Reload /
-           Swap / Jump buttons on the right, pause button top right, field kit (grid) button next to it.
+           Swap / Jump buttons on the right (plus an eye button for Undercover once learned, its ring is the cooldown),
+           pause button top right, field kit (grid) button next to it.
 
 PROGRESSION
   Player level: +1 for every campaign level cleared (LV 20 cap), shown above the health bar with a rank title.
   Skill points: from clearing levels 1-17 only (22 in total, see src/data/skills.js); the tree holds 43, so pick.
+  Skill tree: six rows, trunk at the bottom (gates 2 / 5 / 8 / 11 / 14 points in the rows below), two pick-one endgame
+  skills on top. Runtime: src/game/skillfx.js (procs, acid pools, wet coats, Undercover), ai.js (cloak search, rogue
+  robots), ui/skillhud.js (Undercover badge + comic black-and-white look). Saves with the old tree are refunded on load.
+  Damage over time lasts: Electrify 5 s, Hazard / Hydrate burns 5 s, acid muzzles 5 / 6 / 7 s by rarity.
   Respec: resets the tree for gems (40% of a level's expected income at your progress).
   Loadout: carry 2 guns from your arsenal (3 after clearing level 10); weapon stands add guns to the arsenal.
   Robots get a little tougher every level (health, damage, fire rate, aim, speed; src/core/damage.js).

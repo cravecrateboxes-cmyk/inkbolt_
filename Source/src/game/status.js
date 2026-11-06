@@ -1,4 +1,5 @@
-/* INKBOLT status effects on robots: damage over time ('shock' blue sparks, 'acid' green drips).
+/* INKBOLT status effects on robots: damage over time ('shock' blue sparks, 'acid' green drips). Burns last 5-7 s:
+   Electrify 5 s, Hydrate / Hazard 5 s after the last exposure, acid muzzles 5 / 6 / 7 s by rarity.
      IB.Status.apply(robot, kind, dps, dur)   adds dps x dur damage to the robot's pool of that kind and keeps it
                                               burning for at least dur seconds (re-applying stacks the pool, so an
                                               SMG and a sniper get the same share of acid per point of damage)
@@ -15,7 +16,7 @@
     acid: { colors: [0x7BE34A, 0xC8FF8A, 0x3FAE2A], sound: 'sizzle' }
   };
   S.KINDS = KINDS;
-  for (var i = 0; i < S.CAP; i++) S.list.push({ on: false, r: null, kind: '', pool: 0, left: 0, acc: 0, tick: 0, fx: 0, total: 0 });
+  for (var i = 0; i < S.CAP; i++) S.list.push({ on: false, r: null, kind: '', pool: 0, left: 0, acc: 0, tick: 0, fx: 0, total: 0, wait: 0 });
 
   function entry(r, kind) {
     var free = null;
@@ -25,12 +26,12 @@
       if (!e.on && !free) free = e;
     }
     if (!free) return null;
-    free.on = true; free.r = r; free.kind = kind; free.pool = 0; free.left = 0; free.acc = 0; free.tick = S.TICK * 0.5; free.fx = 0; free.total = 0;
+    free.on = true; free.r = r; free.kind = kind; free.pool = 0; free.left = 0; free.acc = 0; free.tick = S.TICK * 0.5; free.fx = 0; free.total = 0; free.wait = 0;
     return free;
   }
   /* returns the status entry (or null when the robot cannot take it) */
   S.apply = function (r, kind, dps, dur) {
-    if (!r || !r.on || r.state === 'pose' || r.state === 'spawn' || !KINDS[kind] || !(dps > 0) || !(dur > 0)) return null;
+    if (!r || !r.on || r.rogue > 0 || r.state === 'pose' || r.state === 'spawn' || !KINDS[kind] || !(dps > 0) || !(dur > 0)) return null;
     var e = entry(r, kind); if (!e) return null;
     e.pool += dps * dur;
     e.left = Math.max(e.left, dur);
@@ -38,6 +39,8 @@
   };
   S.has = function (r, kind) { for (var i = 0; i < S.CAP; i++) { var e = S.list[i]; if (e.on && e.r === r && (!kind || e.kind === kind)) return true; } return false; };
   S.active = function () { var n = 0; for (var i = 0; i < S.CAP; i++) if (S.list[i].on) n++; return n; };
+  // drop every status on one robot (a wreck turned rogue by Handy Helpers fights on clean)
+  S.clearRobot = function (r) { for (var i = 0; i < S.CAP; i++) { var e = S.list[i]; if (e.on && e.r === r) { e.on = false; e.r = null; } } };
   S.clear = function () { for (var i = 0; i < S.CAP; i++) { S.list[i].on = false; S.list[i].r = null; } };
 
   function robotTop(r) { var v = IB.AI.VIS[r.type]; return r.y + (v ? v.y1 : 0.9); }
@@ -83,11 +86,14 @@
     for (var i = 0; i < S.CAP; i++) {
       var e = S.list[i]; if (!e.on) continue;
       var r = e.r;
-      if (!r || !r.on || r.state === 'pose') { e.on = false; e.r = null; continue; }
+      if (!r || !r.on || r.state === 'pose' || r.rogue > 0) { e.on = false; e.r = null; continue; }
       var take = e.left > dt ? e.pool * dt / e.left : e.pool;
       e.pool -= take; e.acc += take; e.left -= dt; e.tick -= dt;
       sparks(e, dt);
-      if (e.tick <= 0 || e.left <= 0) { e.tick = S.TICK; deal(e, onKill); }
+      // a long, thin burn lands once at least a whole point has built up, so the coloured numbers stay honest
+      // (or after 1.2 s at the latest)
+      e.wait += dt;
+      if (e.tick <= 0 || e.left <= 0) { e.tick = S.TICK; if (e.acc >= 1 || e.wait >= 1.2 || e.left <= 0) { e.wait = 0; deal(e, onKill); } }
       if (e.left <= 0 || e.pool <= 1e-6) { if (e.acc > 0) deal(e, onKill); e.on = false; e.r = null; }
     }
   };
