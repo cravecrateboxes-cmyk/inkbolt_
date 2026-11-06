@@ -632,6 +632,309 @@
   });
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
 
+/* ---- themes/coalmine.js ---- */
+/* Theme: Deep Coal Mine (kit-coalmine). A big room-and-pillar coal mine far underground: dark faceted rock with
+   banded strata and glinting coal seams, coal pillars holding up a low dark roof, timbered drifts with plank
+   lagging, narrow-gauge rail with ore carts, belt conveyors, cribs and roof jacks, and warm pools of lantern light.
+   Built by blender/fam_kit_coalmine.py; zone layouts by tools/industrial_zones.py (src/data/zones/coalmine_*.txt).
+
+   Symbols (1 cell = 1 m; prefab sizes are [x, z] in cells):
+     #  rock: faceted strata walls (seams, lamps on brackets, prop timbers, signs, overlooks into the old workings on the
+        east / west edges); corners, notches and coal pillars' edges get all-round rock lumps
+     Y  timbered drift [6, 1] (posts, cap, lagging, plank bulkhead to the roof): runs of Y across a 6 m gap in the rock
+        make a closed tunnel          y  the same with the track (on the cell at local x + 0.5)
+     -  rail (1 m, turns with its run)        C  ore cart on its rails [1, 2]
+     c  powder / tool crates (stacked)       u  coal sacks         =  stacked timbers (runs)     b  oil drums
+     O  coal heap [2, 2]                     X  timber crib with a roof post [2, 2]             I  roof jack
+     k  belt conveyor (runs)                 l  lantern post        L  work light on a tripod
+     w  puddle [2, 2] (no collision)         d  coal dust spill [2, 2] (no collision)
+     T  drill rig at the coal face [8, 5] (booms point north)      H  main shaft headframe + cage [6, 6]
+     Z  loading hopper over the track [6, 4] (track along the block's second row)    Q  foreman's shack [5, 4]
+   Light pools are painted on the floor. Each kind has its own height, so wall lamps (one kind per facing), lantern
+   posts and work lights may overlap one another; the maps keep posts >= 5 m and work lights >= 6 m apart. */
+(function (IB) {
+  'use strict';
+  var SOLID = '#GE';
+  function solid(grid, c, r) { return SOLID.indexOf(grid.at(c, r)) >= 0; }
+  // same facing rule as zones.js buildWalls: the open side of a wall cell ('S','N','E','W', 'corner' or 'none')
+  function faceOf(grid, c, r) {
+    var oS = !solid(grid, c, r + 1), oN = !solid(grid, c, r - 1), oE = !solid(grid, c + 1, r), oW = !solid(grid, c - 1, r);
+    var n = oS + oN + oE + oW;
+    if (n === 0) return 'none';
+    if (n === 1) return oS ? 'S' : oN ? 'N' : oE ? 'E' : 'W';
+    return ((oS || oN) && (oE || oW)) ? 'corner' : (oS ? 'S' : 'E');
+  }
+  // cells u-k .. u+k along the run are all straight wall with the same facing
+  function runOK(grid, c, r, F, k0, k1) {
+    var along = F === 'S' || F === 'N';
+    for (var d = -k0; d <= k1; d++) {
+      var x = along ? c + d : c, y = along ? r : r + d;
+      if (grid.at(x, y) !== '#' || faceOf(grid, x, y) !== F) return false;
+    }
+    return true;
+  }
+  function hasRig(grid) {
+    if (grid._cmRig === undefined) { grid._cmRig = false; for (var c = 0; c < grid.w; c++) if (grid.at(c, 1) === 'T') grid._cmRig = true; }
+    return grid._cmRig;
+  }
+  var ROCK = ['Rock_A', 'Rock_B', 'Rock_C'];
+  function chooseWall(c, r, horiz, corner, hash, grid, face) {
+    var F = face || faceOf(grid, c, r);
+    if (F === 'none' || F === 'corner') return hash(c * 7 + 1, r * 5 + 3) < 0.5 ? 'Rock_Corner_A' : 'Rock_Corner_B';
+    var u = (F === 'S' || F === 'N') ? c : r;
+    // overlooks on the east / west edges: 4-cell openings every 18 m with solid rock either side
+    if ((c === 0 || c === grid.w - 1) && (F === 'E' || F === 'W')) {
+      var m = r % 18;
+      if (m >= 7 && m <= 10 && runOK(grid, c, r - (m - 7), F, 2, 5)) return 'Rock_Open';
+    }
+    // the coal face behind the drill rig: one long seam
+    if (r === 0 && F === 'S' && hasRig(grid)) return (c % 2) ? 'Seam_A' : 'Seam_B';
+    // wall lamps every 8 m on long straight runs (one pool kind per facing, so facing pools never fight)
+    if (u % 8 === 4 && runOK(grid, c, r, F, 4, 4)) return 'Rock_Lamp' + F;
+    if (u % 8 === 0 && runOK(grid, c, r, F, 1, 1) && hash(c * 3 + 5, r * 7 + 2) < 0.55) return 'Rock_Prop';
+    if (u % 8 === 2 && runOK(grid, c, r, F, 1, 1) && hash(c * 13 + 1, r * 3 + 9) < 0.12) return 'Rock_Sign';
+    // coal seams in stretches of 7 m
+    var line = (F === 'S' || F === 'N') ? r : c, reg = Math.floor((u + line * 3) / 7);
+    if (hash(reg * 13 + 5, line * 7 + 17) < 0.3) return (u % 2) ? 'Seam_A' : 'Seam_B';
+    return ROCK[Math.min(2, Math.floor(hash(c * 5 + 1, r * 11 + 7) * 3))];
+  }
+  var WALLS = ['Rock_A', 'Rock_B', 'Rock_C', 'Seam_A', 'Seam_B', 'Rock_LampS', 'Rock_LampN', 'Rock_LampE', 'Rock_LampW',
+    'Rock_Prop', 'Rock_Sign', 'Rock_Open', 'Rock_Corner_A', 'Rock_Corner_B'];
+
+  IB.registerTheme({
+    id: 'coalmine', name: 'Deep Coal Mine', family: 'kit-coalmine', prefix: 'KIT_COALMINE_',
+    palette: ['#25242B', '#A8743F', '#FFD66B', '#54493F'],
+    env: {
+      // no sky underground: the roof is a dark rock ceiling; warm-brown smoky fog swallows the far end of the halls
+      sky: null, clear: '#17120F', clouds: false,
+      fog: { color: '#231C18', near: 18, far: 82 },
+      // light from high and behind the player's usual heading: floors and robots lit, rock faces mostly in mid tone
+      sun: [0.3, 0.88, 0.37],
+      ceiling: { height: 9.0, color: '#2E2724', light: 'CeilRock', every: 12 }
+    },
+    // trodden coal-dust floor, a lighter packed-earth drift floor; the dark of the old workings outside the overlooks
+    floor: { color: '#4E433B', trail: '#5A4B3F', outside: '#0F0C0B' },
+    wall: { height: 9.4, roof: '#3B332E', facing: 'open', choose: chooseWall },
+    symbols: {
+      'Y': { size: [6, 1], pieces: ['Drift_Plain', 'Drift_Plain', 'Drift_Lamp'], kind: 'wall' },
+      'y': { size: [6, 1], pieces: ['Drift_Rail', 'Drift_Rail', 'Drift_RailLamp'], kind: 'wall' },
+      '-': { pieces: ['Rail'], rotate: 'run', collide: false },
+      'C': { size: [1, 2], pieces: ['OreCart_Full', 'OreCart_Full', 'OreCart_Empty'], kind: 'cover' },
+      'c': { pieces: ['Crate_Powder', 'Crate_Tools', 'Crate_Plain'], h: 0.9, rotate: 'random90', stack: { piece: 'Crate_Lid', chance: 0.3, h: 0.65 }, kind: 'cover' },
+      'u': { pieces: ['Sacks_A', 'Sacks_B'], rotate: 'random90', kind: 'cover' },
+      '=': { pieces: ['Timbers_A', 'Timbers_B'], rotate: 'run', alternate: true, kind: 'cover' },
+      'b': { pieces: ['Drums_A', 'Drums_B'], rotate: 'random90', kind: 'cover' },
+      'O': { size: [2, 2], pieces: ['CoalHeap_A', 'CoalHeap_B'], flip: true, kind: 'cover' },
+      'X': { size: [2, 2], pieces: ['Crib'], kind: 'wall' },
+      'I': { pieces: ['RoofJack'], rotate: 'random90', kind: 'wall' },
+      'k': { pieces: ['Conveyor_A', 'Conveyor_B'], rotate: 'run', alternate: true, kind: 'cover' },
+      'l': { pieces: ['LanternPost'], rotate: 'random90', kind: 'cover' },
+      'L': { pieces: ['WorkLight'], rotate: 'random90', kind: 'cover' },
+      'w': { size: [2, 2], pieces: ['Puddle_A', 'Puddle_B'], flip: true, collide: false },
+      'd': { size: [2, 2], pieces: ['Dust_A', 'Dust_B'], flip: true, collide: false },
+      'T': { size: [8, 5], pieces: ['Landmark_DrillRig'], kind: 'wall' },
+      'H': { size: [6, 6], pieces: ['Landmark_Headframe'], kind: 'wall' },
+      'Z': { size: [6, 4], pieces: ['Landmark_Hopper'], kind: 'wall' },
+      'Q': { size: [5, 4], pieces: ['Landmark_Shack'], kind: 'wall' }
+    },
+    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
+    trail: { wall: 'TrailWall', height: 9.4 },
+    hatch: 'Hatch', stand: 'Stand',
+    // the far side of the old workings (seen through the overlooks): one long slice due east, west, north and south
+    backdrop: { ring: [
+      { piece: 'Backdrop_Cavern', count: 4, radius: [58, 58], scale: [1, 1], squeezeX: 0.36, face: true }
+    ] },
+    budget: { prop: 2000, landmark: 4000, total: 70000 },
+    allPieces: function () {
+      var out = WALLS.concat(['CeilRock', 'GateFrame', 'GateShutter', 'TrailWall', 'Hatch', 'Stand', 'Backdrop_Cavern']);
+      var sym = this.symbols;
+      Object.keys(sym).forEach(function (ch) {
+        sym[ch].pieces.concat(sym[ch].stack ? [sym[ch].stack.piece] : []).forEach(function (n) { if (out.indexOf(n) < 0) out.push(n); });
+      });
+      return out;
+    },
+    levels: {
+      coalmine: {
+        name: 'Deep Seam',
+        intro: 'Down the shaft. Clear the haulage, the coal face, then ride the cage out.',
+        zones: [
+          // Haulage Way: 34 robots, drones come through the drifts from the third wave
+          { map: 'coalmine_haulage', waves: [
+            [['crawler', 7], ['gunner', 2]],
+            [['crawler', 6], ['bomber', 2], ['gunner', 1]],
+            [['crawler', 5], ['gunner', 2], ['drone', 2]],
+            [['crawler', 5], ['bomber', 2]]] },
+          // The Coal Face: 37 robots between conveyors and cribs
+          { map: 'coalmine_face', waves: [
+            [['crawler', 6], ['gunner', 3]],
+            [['drone', 2], ['crawler', 6], ['bomber', 2]],
+            [['gunner', 3], ['crawler', 6]],
+            [['crawler', 5], ['bomber', 2], ['drone', 2]]] },
+          // Main Shaft: 40 robots, the dense finale round the headframe
+          { map: 'coalmine_shaft', waves: [
+            [['crawler', 7], ['gunner', 2]],
+            [['drone', 2], ['bomber', 2], ['crawler', 6]],
+            [['gunner', 3], ['crawler', 6], ['drone', 1]],
+            [['crawler', 5], ['bomber', 2], ['gunner', 2], ['drone', 2]]] }
+        ]
+      }
+    }
+  });
+})(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
+
+/* ---- themes/factory.js ---- */
+/* Theme: Robot Works (kit-factory). The enemy's robot assembly plant: tall steel-framed halls with painted block
+   dados, blue corrugated siding and a clerestory window band (the dusk sky, smokestacks and sawtooth roofs of the
+   works show through), roof trusses with high-bay lamps throwing pools of light, assembly lines building half-done
+   Crawlers, Gunners, Bombers and Drones under robot arms, conveyors of parts, crates and pallets, overhead catwalks,
+   hazard stripes everywhere, a giant stamping press with its forge, and the supervisor's raised control booth.
+   Built by blender/fam_kit_factory.py; zone layouts by tools/industrial_zones.py (src/data/zones/factory_*.txt).
+
+   Symbols (1 cell = 1 m; prefab sizes are [x, z] in cells):
+     #  walls: on the zone edge, 6 m bays (red I-beam column, then window modules: plain, glints, electrical panel,
+        stencilled robot sign, exhaust fan, fire hose); solid siding near the gates; end modules (trims stop short,
+        no pipes) beside inside corners; interior '#' = painted block walls
+     A  assembly line section [8, 4] (Crawler, Gunner, Bomber, Drone in sequence; runs of them make long lines)
+     R  robot arm cell [2, 2]        =  belt conveyor with parts (runs)       c  parts crates (stacked)
+     p  pallet of parts [2, 2]       b  drums      g  gas cylinder rack      x  welding screen / tool chest
+     K  overhead catwalk [2, 8] (walk under it; runs join end to end)        M  machine tool [3, 2]
+     Q  rack of finished robots [6, 2]       W  robot test cage [4, 4]       z  hazard floor pad [2, 2] (no collision)
+     T  giant press + forge [10, 8] (landmark, front to the south)          B  raised control booth [8, 6] (landmark)
+   Floor decals (lamp pools from the roof trusses, hazard pads, cage floors, the booth's and the press's pools) each sit
+   at their own height, so overlapping decals never z-fight. */
+(function (IB) {
+  'use strict';
+  var SOLID = '#GE';
+  function solid(grid, c, r) { return SOLID.indexOf(grid.at(c, r)) >= 0; }
+  function faceOf(grid, c, r) {
+    var oS = !solid(grid, c, r + 1), oN = !solid(grid, c, r - 1), oE = !solid(grid, c + 1, r), oW = !solid(grid, c - 1, r);
+    var n = oS + oN + oE + oW;
+    if (n === 0) return 'none';
+    if (n === 1) return oS ? 'S' : oN ? 'N' : oE ? 'E' : 'W';
+    return ((oS || oN) && (oE || oW)) ? 'corner' : (oS ? 'S' : 'E');
+  }
+  function runOK(grid, c, r, F, k) {
+    var along = F === 'S' || F === 'N';
+    for (var d = -k; d <= k; d++) {
+      var x = along ? c + d : c, y = along ? r : r + d;
+      if (grid.at(x, y) !== '#' || faceOf(grid, x, y) !== F) return false;
+    }
+    return true;
+  }
+  function runOK1(grid, c, r, F) { return grid.at(c, r) === '#' && faceOf(grid, c, r) === F; }
+  // distance (cells) from a wall cell on the north / south edge to the centre of that edge's gate
+  function gateDist(grid, c, r) {
+    if (r !== 0 && r !== grid.h - 1) return 99;
+    var ch = r === 0 ? 'G' : 'E', a = -1, b = -1;
+    for (var x = 0; x < grid.w; x++) if (grid.at(x, r) === ch) { if (a < 0) a = x; b = x; }
+    return a < 0 ? 99 : Math.abs(c + 0.5 - (a + b + 1) / 2);
+  }
+  var WIN = ['Wall_Win_A', 'Wall_Win_A', 'Wall_Win_B', 'Wall_Win_A', 'Wall_Win_Panel', 'Wall_Win_A', 'Wall_Win_Vent', 'Wall_Win_B', 'Wall_Win_Hose'];
+  function pick(list, h) { return list[Math.min(list.length - 1, Math.floor(h * list.length))]; }
+  function chooseWall(c, r, horiz, corner, hash, grid, face) {
+    var F = face || faceOf(grid, c, r);
+    if (F === 'none' || F === 'corner') return 'Corner';
+    var edge = c === 0 || r === 0 || c === grid.w - 1 || r === grid.h - 1;
+    var u = (F === 'S' || F === 'N') ? c : r;
+    if (!edge) {   // interior block walls
+      var h = hash(c * 5 + 3, r * 7 + 1);
+      return h < 0.12 ? 'Block_Arrow' : h < 0.2 ? 'Block_Num' : 'Block_Plain';
+    }
+    var gd = gateDist(grid, c, r);
+    if (gd < 4) return gd > 2.6 ? 'Wall_Panel' : 'Wall_Plain';
+    if (u % 6 === 0 && runOK(grid, c, r, F, 1)) return 'Wall_Col';
+    if (!runOK(grid, c, r, F, 1)) {
+      // the run ends in a corner on one or both sides: an end module that keeps its trims and pipes out of the
+      // corner square (the module's local +X side is east for S, west for N, north for E, south for W)
+      var along = F === 'S' || F === 'N';
+      var lo = along ? runOK1(grid, c - 1, r, F) : runOK1(grid, c, r - 1, F), hi = along ? runOK1(grid, c + 1, r, F) : runOK1(grid, c, r + 1, F);
+      var plusIsHi = F === 'S' || F === 'W', R = plusIsHi ? !hi : !lo, L = plusIsHi ? !lo : !hi;
+      return 'Wall_End' + (L && R ? 'LR' : L ? 'L' : 'R');
+    }
+    if (u % 6 === 3 && hash(c * 11 + 2, r * 13 + 5) < 0.35) return 'Wall_Win_Sign';
+    return pick(WIN, hash(c * 7 + 3, r * 13 + 1));
+  }
+  var WALLS = ['Wall_Win_A', 'Wall_Win_B', 'Wall_Win_Panel', 'Wall_Win_Sign', 'Wall_Win_Vent', 'Wall_Win_Hose',
+    'Wall_Plain', 'Wall_Panel', 'Wall_Col', 'Wall_EndL', 'Wall_EndR', 'Wall_EndLR', 'Corner', 'Block_Plain', 'Block_Arrow', 'Block_Num'];
+
+  IB.registerTheme({
+    id: 'factory', name: 'Robot Works', family: 'kit-factory', prefix: 'KIT_FACTORY_',
+    palette: ['#5F80A0', '#F2C230', '#EC7A2E', '#B7B3AA'],
+    env: {
+      // dusk outside the clerestory; a warm industrial haze inside; lamps every 12 m on the roof trusses
+      sky: ['#6D8FC9', '#F6B98A'], clouds: true,
+      fog: { color: '#D9C6B2', near: 45, far: 150 },
+      sun: [0.35, 0.85, 0.4],
+      ceiling: { height: 10.0, color: '#8E9097', light: 'CeilTruss', every: 12 }
+    },
+    // power-floated concrete with saw-cut joints every 4 m; a lighter service-corridor floor
+    floor: {
+      color: '#ABA8A0', trail: '#B9B5AB', outside: '#7E7A76',
+      lines: [{ dir: 'x', every: 4, width: 0.04, color: '#97948C', y: 0.008 }, { dir: 'z', every: 4, width: 0.04, color: '#97948C', y: 0.0105 }]
+    },
+    wall: { height: 10.4, roof: '#8E9097', facing: 'open', choose: chooseWall },
+    symbols: {
+      'A': { size: [8, 4], pieces: ['Line_Crawler', 'Line_Gunner', 'Line_Bomber', 'Line_Drone'], sequence: true, kind: 'wall' },
+      'R': { size: [2, 2], pieces: ['Arm_A', 'Arm_B'], flip: true, kind: 'cover' },
+      '=': { pieces: ['Conveyor_Cans', 'Conveyor_Bottles', 'Conveyor_Drones', 'Conveyor_Wheels'], rotate: 'run', alternate: true, kind: 'cover' },
+      'c': { pieces: ['Crate_Cans', 'Crate_Wheels', 'Crate_Closed'], h: 0.86, rotate: 'random90', stack: { piece: 'Crate_Lid', chance: 0.3, h: 0.5 }, kind: 'cover' },
+      'p': { size: [2, 2], pieces: ['Pallet_Bins', 'Pallet_Cans', 'Pallet_Bottles'], flip: true, kind: 'cover' },
+      'b': { pieces: ['Drums_A', 'Drums_B'], rotate: 'random90', kind: 'cover' },
+      'g': { pieces: ['GasRack'], rotate: 'random90', kind: 'cover' },
+      'x': { pieces: ['WeldScreen', 'ToolChest'], rotate: 'random90', sequence: true, kind: 'cover' },
+      'K': { size: [2, 8], pieces: ['Catwalk'], kind: 'cover' },
+      'M': { size: [3, 2], pieces: ['Machine_Mill', 'Machine_Lathe'], flip: true, kind: 'cover' },
+      'Q': { size: [6, 2], pieces: ['Landmark_RobotRack'], flip: true, kind: 'wall' },
+      'W': { size: [4, 4], pieces: ['TestCage'], flip: true, kind: 'wall' },
+      'z': { size: [2, 2], pieces: ['Hazard_A', 'Hazard_B'], collide: false },
+      'T': { size: [10, 8], pieces: ['Landmark_Press'], kind: 'wall' },
+      'B': { size: [8, 6], pieces: ['Landmark_Booth'], kind: 'wall' }
+    },
+    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
+    trail: { wall: 'TrailWall', height: 10.4 },
+    hatch: 'Hatch', stand: 'Stand',
+    // the works outside the clerestory: one long slice due east, west, north and south of the level, facing it
+    backdrop: { ring: [
+      { piece: 'Backdrop_Works', count: 4, radius: [60, 60], scale: [1, 1], squeezeX: 0.36, face: true }
+    ] },
+    budget: { prop: 2000, landmark: 4000, total: 70000 },
+    allPieces: function () {
+      var out = WALLS.concat(['CeilTruss', 'GateFrame', 'GateShutter', 'TrailWall', 'Hatch', 'Stand', 'Backdrop_Works']);
+      var sym = this.symbols;
+      Object.keys(sym).forEach(function (ch) {
+        sym[ch].pieces.concat(sym[ch].stack ? [sym[ch].stack.piece] : []).forEach(function (n) { if (out.indexOf(n) < 0) out.push(n); });
+      });
+      return out;
+    },
+    levels: {
+      factory: {
+        name: 'Robot Works',
+        intro: 'This is where they come from. Shut down the lines, the press shop, then the dispatch floor.',
+        zones: [
+          // Assembly Hall: 36 robots between the lines
+          { map: 'factory_lines', waves: [
+            [['crawler', 7], ['gunner', 2]],
+            [['crawler', 6], ['bomber', 2], ['gunner', 1]],
+            [['crawler', 5], ['gunner', 2], ['drone', 2]],
+            [['crawler', 6], ['bomber', 3]]] },
+          // Press Shop: 37 robots, drones over the press
+          { map: 'factory_press', waves: [
+            [['crawler', 6], ['gunner', 3]],
+            [['drone', 3], ['crawler', 5], ['bomber', 2]],
+            [['gunner', 3], ['crawler', 6]],
+            [['crawler', 5], ['bomber', 2], ['drone', 2]]] },
+          // Control & Dispatch: 42 robots, the dense finale under the booth
+          { map: 'factory_dispatch', waves: [
+            [['crawler', 7], ['gunner', 2]],
+            [['drone', 2], ['bomber', 2], ['crawler', 6]],
+            [['gunner', 3], ['crawler', 6], ['drone', 1]],
+            [['crawler', 5], ['bomber', 2], ['gunner', 3], ['drone', 3]]] }
+        ]
+      }
+    }
+  });
+})(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
+
 /* ---- themes/mountains.js ---- */
 /* Theme: Mountains (kit-mountains) -- campaign level 1, "Pine Ridge".
    An alpine valley chain: slate-blue cliff ridges with snow ledges, snowy pines and spruce stands, a log cabin,
