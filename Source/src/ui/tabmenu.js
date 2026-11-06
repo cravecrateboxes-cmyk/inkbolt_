@@ -235,12 +235,12 @@
     var sk = G.slot.skills || {}, fx = IB.Skills.effects(sk), gfx = G.fx || {}, g = IB.Gear && IB.Gear.gear(G);
     var cap = IB.PLAYER_LEVEL_CAP, next = pr.level < cap ? IB.Skills.rankTitle(pr.level + 1) : null;
     var lvPct = Math.round(Math.min(1, (pr.level - 1) / (cap - 1)) * 100), ptPct = Math.round(pr.earned / IB.Skills.totalPoints() * 100);
-    var hp = (gfx.maxHp || 100) + fx.maxHpAdd;
+    var hp = Math.round((gfx.maxHp || 100) * (fx.maxHpMul || 1)) + (fx.maxHpAdd || 0);
     var sh = g && g.shield ? IB.Loot.find(g, g.shield) : null;
     function pct(m) { var v = Math.round((m - 1) * 100); return (v >= 0 ? '+' : '') + v + '%'; }
     function row(ic, k, v, hl) { return '<li' + (hl ? ' class="hl"' : '') + '>' + (ICON[ic] ? icon(ic) : IB.Menus.glyph(ic)) + '<span>' + k + '</span><b>' + v + '</b></li>'; }
     var stats = '<ul class="ch-stats">' +
-      row('heart', 'Max health', hp, fx.maxHpAdd > 0) +
+      row('heart', 'Max health', hp, fx.maxHpMul > 1) +
       row('armor', 'Shield', sh ? sh.stats.capacity + ' · ' + sh.stats.rate + '/s' : 'None', !!sh) +
       row('drop', 'Gun damage', pct(fx.dmgMul), fx.dmgMul > 1) +
       row('core', 'Core-hit damage', pct(fx.coreMul), fx.coreMul > 1) +
@@ -253,10 +253,11 @@
       row('wrench', 'Repair per kill', fx.leech ? '+' + fx.leech : '—', fx.leech > 0) +
       '</ul>';
     var perks = [];
-    if (fx.shock) perks.push(['bolt', fx.arc ? 'Lightning Rod' : 'Shock rounds']);
+    if (fx.shock) perks.push(['bolt', 'Shock rounds']);
+    if (fx.cloak) perks.push(['cloak', 'Undercover (F)']);
+    if (fx.sprintMul > 1) perks.push(['run', 'Marathon']);
     if (fx.chain) perks.push(['burst', 'Chain Reaction']);
-    if (fx.closeCall) perks.push(['heart', 'Close Call']);
-    if (fx.regen) perks.push(['titan', 'Tin Titan']);
+    if (fx.rogue) perks.push(['helper', 'Handy Helpers']);
     var st = G.slot.stats || {}, run = G.run || {};
     var ars = (G.slot.arsenal || []).length, all = Object.keys(IB.WEAPONS).filter(function (w) { return !IB.Weapons.playable || IB.Weapons.playable(w); }).length;
     function rec(k, v) { return '<li><span>' + k + '</span><b>' + v + '</b></li>'; }

@@ -21,7 +21,7 @@
     return n;
   }
   function available(skills, highest) { return earned(highest) - spent(skills); }
-  // points spent in the tiers above `tier` (what its gate counts)
+  // points spent in the tiers below `tier` (what its gate counts; the name is from the old top-down layout)
   function spentAbove(skills, tier) {
     var n = 0;
     IB.SKILLS.forEach(function (s) { if (s.tier < tier) n += Math.min(rank(skills, s.id), s.max) * s.cost; });
@@ -108,43 +108,63 @@
   }
 
   function value(skills, id) { var s = def(id), r = Math.min(rank(skills, id), s.max); return r ? s.ranks[r - 1] : 0; }
-  /* runtime multipliers; multiply them onto the Upgrade Bench effects */
+  /* runtime numbers for the skill tree (game/skillfx.js, game.js applySkillStats, player.js, weapons.js, ai.js).
+     Every multiplier is 1 and every chance 0 with no skills. Damage over time goes through IB.Status pools. */
   function effects(skills) {
-    var v = function (id) { return value(skills || {}, id); }, has = function (id) { return v(id) > 0; };
-    var titan = has('tintitan'), rod = has('lightningrod');
+    skills = skills || {};
+    var v = function (id) { return value(skills, id); }, has = function (id) { return v(id) > 0; }, rk = function (id) { return Math.min(rank(skills, id), def(id).max); };
+    var stamina = has('stamina');
     return {
-      magMul: 1 + v('overboard') / 100,
-      reloadMul: 1 / (1 + v('fastfingers') / 100),    // multiply reload TIME by this
-      maxHpAdd: v('tinhide') + (titan ? 40 : 0),
-      recoilMul: 1 - v('steadyink') / 100,
-      spreadMul: 1 - v('steadyink') / 200,
-      magnetMul: 1 + v('scrapmagnet') / 100,
-      staminaMul: 1 + v('secondwind') / 100,
-      dmgMul: 1 + v('heavyink') / 100,
-      coreMul: 1 + v('coredump') / 100,
-      rateMul: 1 + v('overclock') / 100,              // divide the time between shots by this
-      leech: v('salvagebolts'),
-      shock: has('electrify') || rod,
-      shockMul: rod ? 1.5 : 1,
-      // each hit adds 20% of its damage (2 to 16) as shock over 2 s; IB.Status pools repeated hits
-      shockFrac: 0.2, shockMin: 2, shockMax: 16, shockTime: 2,
-      chain: has('chainreaction'), chainFrac: 0.35, chainRadius: 3,
-      closeCall: has('closecall'),
-      arc: rod, arcTargets: 2, arcRange: 8, arcFrac: 0.5,
-      dmgTakenMul: titan ? 0.8 : 1,
-      regen: titan ? 4 : 0, regenDelay: 2
+      // trunk
+      magMul: 1 + v('overload') / 100,                 // Overload: magazine size
+      dmgMul: 1 + v('heavyink') / 100,                 // Heavy Ink: bullet damage
+      // tier 2
+      pierce: v('stream') / 100, pierceMul: 2,         // Stream: chance to punch through into the robot behind for x2
+      shock: has('electrify'), shockFrac: 0.25, shockTime: 5,   // Electrify: 25% of each hit again as shock over 5 s
+      rateMul: 1 + v('rapid') / 100,                   // Rapid: divide the time between shots by this
+      // tier 3
+      pool: v('hazard') / 100, poolTime: 5, poolRadius: 1.3, poolFrac: 0.5, poolMin: 4, poolMax: 30, poolBurn: 5,   // Hazard
+      ricochet: v('ricochet') / 100, ricochetRange: 10, ricochetFrac: 0.6,   // Ricochet
+      maxHpMul: 1 + v('healthy') / 100,                // Healthy: max health
+      regenPct: 0.5 * rk('healthy'),                   // ... and 0.5% of max health per second per rank
+      // tier 4
+      sprintMul: stamina ? 2 : 1, staminaMul: stamina ? 2.5 : 1, staminaRechargeMul: stamina ? 0.5 : 1,   // Stamina
+      coat: v('hydrate') / 100, coatTime: 6, coatRadius: 3, coatFrac: 0.3, coatMin: 2, coatMax: 18, coatBurn: 5,   // Hydrate
+      cloak: has('undercover'), cloakTime: 5, cloakCooldown: 30,   // Undercover (F)
+      // tier 5
+      dmgTakenMul: 1 - v('tank') / 100,                // Tank: damage resistance
+      regenFlat: rk('tank'),                           // ... and 1 health per second per rank
+      regenDelay: 4,                                   // both repairs start after 4 s without damage
+      reloadMul: 1 / (1 + v('fastfingers') / 100),     // Fast Fingers: multiply reload TIME by this
+      swapMul: 1 / (1 + v('fastfingers') / 100),       // ... and holster / draw time
+      // tier 6 (pick one)
+      rogue: has('handyhelpers') ? 0.08 : 0, rogueTime: 15, rogueDmgMul: 2,   // Handy Helpers
+      chain: has('chainreaction') ? 0.1 : 0, chainMin: 2, chainRadius: 4, chainFrac: 0.4, chainCooldown: 1,   // Chain Reaction
+      // neutral fields older callers still read (Upgrade Bench stacking, field kit)
+      recoilMul: 1, spreadMul: 1, magnetMul: 1, coreMul: 1, leech: 0, maxHpAdd: 0, regen: rk('tank') + 0.5 * rk('healthy')
     };
   }
-  // shock damage per second added by one hit (total = dps x shockTime)
-  function shockDps(fx, hitDamage) {
-    return Math.max(fx.shockMin, Math.min(fx.shockMax, hitDamage * fx.shockFrac)) * fx.shockMul / fx.shockTime;
+  // shock damage per second added by one hit (total = dps x shockTime = shockFrac of the hit)
+  function shockDps(fx, hitDamage) { return Math.max(0, hitDamage) * fx.shockFrac / fx.shockTime; }
+  // acid pool / wet coat strength from the hit that made it (damage per second while a robot stands in it)
+  function poolDps(fx, hitDamage) { return Math.max(fx.poolMin, Math.min(fx.poolMax, hitDamage * fx.poolFrac)); }
+  function coatDps(fx, hitDamage) { return Math.max(fx.coatMin, Math.min(fx.coatMax, hitDamage * fx.coatFrac)); }
+  // health repaired per second after regenDelay s without damage (Healthy % + Tank flat)
+  function regenRate(fx, maxHp) { return (fx.regenPct || 0) / 100 * maxHp + (fx.regenFlat || 0); }
+  /* Chain Reaction: damage per robot of a group blast. hp = current health of each robot in the group, max = max health.
+     Each takes chainFrac of its own max health; if that would wreck every one of them, the toughest survives on 1 hp. */
+  function chainDamage(fx, hp, max) {
+    var out = hp.map(function (h, i) { return max[i] * fx.chainFrac; });
+    var all = hp.length > 0 && hp.every(function (h, i) { return out[i] >= h; });
+    if (all) { var k = 0; hp.forEach(function (h, i) { if (h > hp[k]) k = i; }); out[k] = Math.max(0, hp[k] - 1); }
+    return out;
   }
 
   function playerLevel(highest) { return Math.min(IB.PLAYER_LEVEL_CAP, 1 + clampLevel(highest)); }
   function rankTitle(level) { return IB.RANK_TITLES[Math.max(1, Math.min(IB.PLAYER_LEVEL_CAP, level | 0))]; }
   function loadoutMax(highest) { var R = IB.LOADOUT_RULES; return clampLevel(highest) >= R.extraAfter ? R.extra : R.base; }
 
-  /* UI line for a skill at a rank: {now, next, maxed} e.g. Overboard at 1 -> now 'Magazine size +10%', next '+20%' */
+  /* UI line for a skill at a rank: {now, next, maxed} e.g. Overload at 1 -> now 'Magazine size +10%', next '+20%' */
   function rankText(id, r) {
     var s = def(id), fmt = function (x) { return (s.kind === 'rank' ? '+' : '') + x + s.unit; };
     if (s.kind !== 'rank') return { now: r > 0 ? 'Owned' : 'Not owned', next: r > 0 ? null : 'Unlock', maxed: r > 0 };
@@ -155,7 +175,7 @@
     def: def, rank: rank, earned: earned, totalPoints: totalPoints, spent: spent, available: available,
     spentAbove: spentAbove, tierUnlocked: tierUnlocked, canBuy: canBuy, buy: buy, validate: validate,
     sanitize: sanitize, expectedIncome: expectedIncome, respecCost: respecCost, respec: respec, value: value,
-    effects: effects, shockDps: shockDps, playerLevel: playerLevel, rankTitle: rankTitle, loadoutMax: loadoutMax,
+    effects: effects, shockDps: shockDps, poolDps: poolDps, coatDps: coatDps, regenRate: regenRate, chainDamage: chainDamage, playerLevel: playerLevel, rankTitle: rankTitle, loadoutMax: loadoutMax,
     rankText: rankText, groupOwner: groupOwner
   };
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));

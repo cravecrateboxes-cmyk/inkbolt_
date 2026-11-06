@@ -19,6 +19,7 @@
       onGround: true, coyote: 0, jumpBuf: 0, stamina: MOVE.stamina, staminaRest: 0, sprinting: false,
       health: 100, maxHp: 100, protect: 0, alive: true, dip: 0, dipV: 0, bobT: 0, bob: 0,
       moving: false, aiming: false, speedMul: 1, jumpMul: 1, doubleJump: false, usedDouble: false,
+      sprintMul: 1, staminaRechargeMul: 1,   // Stamina skill: sprint speed, and the rest + refill times (x0.5 = half the time)
       lastHurt: 99, knockX: 0, knockZ: 0, fallStartY: 0,
       sliding: false, slideT: 0, slideCd: 0, slideDX: 0, slideDZ: 0, crouching: false, low: 0, landKick: 0, vyLast: 0
     };
@@ -99,7 +100,8 @@
     if (wantSprint && p.stamina > 0) { p.sprinting = true; p.stamina = Math.max(0, p.stamina - dt); p.staminaRest = 0; }
     else {
       p.sprinting = false; p.staminaRest += dt;
-      if (p.staminaRest >= MOVE.staminaRest) p.stamina = Math.min(p.staminaMax || MOVE.stamina, p.stamina + (p.staminaMax || MOVE.stamina) / MOVE.staminaRefill * dt);
+      var rk = p.staminaRechargeMul || 1;
+      if (p.staminaRest >= MOVE.staminaRest * rk) p.stamina = Math.min(p.staminaMax || MOVE.stamina, p.stamina + (p.staminaMax || MOVE.stamina) / (MOVE.staminaRefill * rk) * dt);
     }
     // slide: from a sprint (or any fast run) press slide; keeps going on momentum, low to the ground
     p.slideCd = Math.max(0, p.slideCd - dt);
@@ -113,7 +115,7 @@
       if (fx && fx.slide) fx.slide(true);
     }
     p.crouching = !p.sliding && !!input.crouch && p.onGround;
-    var speed = (p.sprinting ? MOVE.sprint : (p.crouching ? MOVE.crouchSpeed : MOVE.walk)) * p.speedMul * (p.aiming ? 0.7 : 1) * (p.weaponMoveMul || 1);
+    var speed = (p.sprinting ? MOVE.sprint * (p.sprintMul || 1) : (p.crouching ? MOVE.crouchSpeed : MOVE.walk)) * p.speedMul * (p.aiming ? 0.7 : 1) * (p.weaponMoveMul || 1);
     // wish dir in world space (camera forward is -Z at yaw 0)
     var sy = Math.sin(p.yaw), cy = Math.cos(p.yaw);
     var mx = input.mx, mz = input.mz, ml = Math.hypot(mx, mz);
@@ -156,8 +158,13 @@
     p.vy -= MOVE.gravity * dt;
     var prevY = p.y, wasGround = p.onGround;
     if (wasGround) p.fallStartY = p.y; else p.fallStartY = Math.max(p.fallStartY, p.y);
-    p.x += p.vx * dt; p.z += p.vz * dt;
-    resolveXZ(p, world, r, H);
+    // horizontal move in sub-steps of at most 0.15 m: a fast sprint (Stamina: 18 m/s, a slide out of it ~20 m/s) can
+    // never carry the capsule centre into or through a thin wall between two collision passes
+    var nSub = Math.min(6, Math.max(1, Math.ceil(Math.hypot(p.vx, p.vz) * dt / 0.15)));
+    for (var sub = 0; sub < nSub; sub++) {
+      p.x += p.vx * dt / nSub; p.z += p.vz * dt / nSub;
+      resolveXZ(p, world, r, H);
+    }
     p.y += p.vy * dt;
     p.onGround = resolveY(p, world, r, H, prevY);
     if (p.onGround && !wasGround) {
