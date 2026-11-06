@@ -522,16 +522,148 @@
     return { trail: tr, hatch: { group: grp, x: exit.x, z: hz, r: 1.2, z0: exit.z } };
   };
 
+  // A city far below a high-rise level (theme.below): the street grid sits `depth` metres down. Built in code as one
+  // vertex-coloured mesh; the haze is baked per vertex by depth (aerial perspective), so looking down out of the windows
+  // shows streets, rooftops and water tanks fading into the haze instead of a flat fog wall. Contents:
+  //   * this tower's own curtain wall running down from the floor slab
+  //   * tall shafts under the skyline rows (the printed skyline pieces stop at z = -25)
+  //   * a block grid of mid and low buildings with banded window floors, parapets, water tanks and roof boxes
+  //   * streets, avenues with lane marks, and a park block or two
+  function buildCityBelow(level, theme, cz, rad, ring) {
+    var C = theme.below, D = C.depth || 170;
+    var pos = [], colr = [], win = [], fac = [], idx = [];
+    // fac: (u along the face in m, floor height in m (0 = plain), light factor); win: window colour
+    var NOWIN = new THREE.Color(0, 0, 0);
+    function quad(a, b, c2, d, c, w, fh, k, ua, ub) {
+      var n = pos.length / 3, U = [ua || 0, ub || 0, ub || 0, ua || 0];
+      [a, b, c2, d].forEach(function (p, i) {
+        pos.push(p[0], p[1], p[2]); colr.push(c.r, c.g, c.b); var ww = w || NOWIN; win.push(ww.r, ww.g, ww.b); fac.push(U[i], fh || 0, k);
+      });
+      idx.push(n, n + 1, n + 2, n, n + 2, n + 3);
+    }
+    var LIGHT = [0.86, 0.72, 0.96, 0.64];       // +x, -x, +z, -z (low southern sun)
+    var INK = col('#2A2735'), ROOF = col(C.roof || '#8C8A93');
+    // box walls (no bottom) with an optional window grid drawn by the shader; roof cap + dark parapet rim
+    function tower(x0, z0, x1, z1, y0, y1, base, winC, fh, roof) {
+      var faces = [[[x1, z1], [x1, z0], 0], [[x0, z0], [x0, z1], 1], [[x0, z1], [x1, z1], 2], [[x1, z0], [x0, z0], 3]];
+      faces.forEach(function (F) {
+        var a = F[0], b = F[1], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        quad([a[0], y0, a[1]], [b[0], y0, b[1]], [b[0], y1, b[1]], [a[0], y1, a[1]], base, winC, fh, LIGHT[F[2]], 0, L);
+      });
+      if (roof === false) return;
+      var rc = roof || ROOF, r = Math.min(0.6, (x1 - x0) * 0.08), y = y1 + 0.03;
+      quad([x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0], rc, null, 0, 1);
+      quad([x0, y, z1], [x1, y, z1], [x1, y, z1 - r], [x0, y, z1 - r], INK, null, 0, 1);
+      quad([x0, y, z0 + r], [x1, y, z0 + r], [x1, y, z0], [x0, y, z0], INK, null, 0, 1);
+      quad([x0, y, z1], [x0 + r, y, z1], [x0 + r, y, z0], [x0, y, z0], INK, null, 0, 1);
+      quad([x1 - r, y, z1], [x1, y, z1], [x1, y, z0], [x1 - r, y, z0], INK, null, 0, 1);
+    }
+    function tank(x, z, y, s) {                 // rooftop water tank: legs, barrel, cone roof (octagon)
+      var seg = 8, r = 1.3 * s, h = 2.6 * s, yb = y + 1.6 * s, wood = col('#9A6B4A'), cone = col('#6E4B38');
+      tower(x - 0.9 * s, z - 0.9 * s, x + 0.9 * s, z + 0.9 * s, y, yb, col('#3B3545'), null, 0, false);
+      for (var i = 0; i < seg; i++) {
+        var a0 = i / seg * 6.283, a1 = (i + 1) / seg * 6.283, k = 0.72 + 0.28 * Math.cos(a0 - 0.8);
+        var p0 = [x + Math.cos(a0) * r, z + Math.sin(a0) * r], p1 = [x + Math.cos(a1) * r, z + Math.sin(a1) * r];
+        quad([p1[0], yb, p1[1]], [p0[0], yb, p0[1]], [p0[0], yb + h, p0[1]], [p1[0], yb + h, p1[1]], wood, null, 0, k);
+        var n = pos.length / 3; pos.push(p1[0], yb + h, p1[1], p0[0], yb + h, p0[1], x, yb + h + r * 0.8, z);
+        for (var j = 0; j < 3; j++) { colr.push(cone.r, cone.g, cone.b); win.push(0, 0, 0); fac.push(0, 0, k); }
+        idx.push(n, n + 1, n + 2);
+      }
+    }
+    function ground(x0, z0, x1, z1, y, c) { quad([x0, y, z1], [x1, y, z1], [x1, y, z0], [x0, y, z0], c, null, 0, 1); }
+    // level footprint (our tower)
+    var minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9;
+    level.zones.forEach(function (z) { minX = Math.min(minX, z.ox); maxX = Math.max(maxX, z.ox + z.w); minZ = Math.min(minZ, z.oz); maxZ = Math.max(maxZ, z.oz + z.h); });
+    minX -= 0.6; maxX += 0.6; minZ -= 4; maxZ += 4;
+    var Y0 = -D;
+    tower(minX, minZ, maxX, maxZ, Y0, -0.06, col('#7E93AA'), col(C.glass || '#5F7FA2'), 4, false);
+    // skyline rows: shafts carry the printed skyline down to the street (its pieces stop at z = -25). They start
+    // just behind the skyline's front blocks (6 m back) and run under its mid and far towers (to ~58 m back), stopping
+    // under its base; the dark roofs only show in the gaps between skyline blocks.
+    var RR = rad - 70 + (ring ? ring.radius[0] : 52), X = RR * (ring ? ring.squeezeX || 0.6 : 0.6);
+    var keep = [[minX - 7, minZ - 7, maxX + 7, maxZ + 7]];
+    function used(x0, z0, x1, z1) { for (var i = 0; i < keep.length; i++) { var k = keep[i]; if (x0 < k[2] && x1 > k[0] && z0 < k[3] && z1 > k[1]) return true; } return false; }
+    // one shaft under every skyline building (theme.below.skyline mirrors the blocks in fam_kit_office.py:
+    // [x, front depth, width, depth, colour]); the gaps between them look down into the streets
+    var SK = C.skyline || [], _c = new THREE.Vector3();
+    if (ring) for (var ri = 0; ri < ring.count; ri++) {
+      var an = ri / ring.count * Math.PI * 2, px = Math.cos(an) * RR * (ring.squeezeX || 0.6), pz = cz + Math.sin(an) * RR;
+      var pm = M(px, 0, pz, Math.atan2(-px, -(pz - cz)));
+      SK.forEach(function (bk, j) {
+        var lx0 = bk[0] - bk[2] / 2 + 0.4, lx1 = bk[0] + bk[2] / 2 - 0.4, ly0 = bk[1] + 0.4, ly1 = bk[1] + bk[3] - 0.4;
+        var ax0 = 1e9, ax1 = -1e9, az0 = 1e9, az1 = -1e9;
+        [[lx0, ly0], [lx1, ly0], [lx0, ly1], [lx1, ly1]].forEach(function (q) {
+          _c.set(q[0], 0, -q[1]).applyMatrix4(pm); ax0 = Math.min(ax0, _c.x); ax1 = Math.max(ax1, _c.x); az0 = Math.min(az0, _c.z); az1 = Math.max(az1, _c.z);
+        });
+        if (used(ax0 + 0.5, az0 + 0.5, ax1 - 0.5, az1 - 0.5)) return;   // corners where two rows cross: first one wins
+        keep.push([ax0, az0, ax1, az1]);
+        var pc = col(bk[4]), wc = col(bk[5] || '#64798E');
+        tower(ax0, az0, ax1, az1, Y0, -24, pc, wc, 3.4 + (j % 3) * 0.3, col('#4A4756'));
+      });
+    }
+    // street grid out to the haze; blocks of 1, 2 or 4 buildings
+    var ext = C.extent || 250, BLK = 26, ST = 9, street = col(C.street || '#5B616D'), walk = col('#A9A69D'), lane = col('#E8D47C'), park = col('#7FAA66');
+    ground(-ext, cz - ext, ext, cz + ext, Y0, street);
+    var BPAL = (C.blocks || ['#CDB89A', '#B39C86', '#9DB0C2', '#C9C3B6', '#AC8F78', '#8E9FB2', '#D2A58C']).map(function (h) { return col(h); });
+    var bc = 0;
+    for (var gx = -ext; gx < ext; gx += BLK + ST) for (var gz = cz - ext; gz < cz + ext; gz += BLK + ST) {
+      var bx0 = gx + ST / 2, bz0 = gz + ST / 2, bx1 = bx0 + BLK, bz1 = bz0 + BLK, hh = hash(Math.round(gx) + 999, Math.round(gz) + 999);
+      ground(gx + ST / 2 - 0.14, gz, gx + ST / 2 + 0.14, gz + BLK + ST, Y0 + 0.05, lane);     // avenue centre line
+      ground(gx, gz + ST / 2 - 0.14, gx + BLK + ST, gz + ST / 2 + 0.14, Y0 + 0.06, lane);     // street centre line
+      ground(bx0 - 0.8, bz0 - 0.8, bx1 + 0.8, bz1 + 0.8, Y0 + 0.15, walk);                    // sidewalk slab
+      if (hh < 0.06) { ground(bx0, bz0, bx1, bz1, Y0 + 0.3, park); continue; }
+      var parts = hh < 0.38 ? 1 : hh < 0.74 ? 2 : 4, mx = (bx0 + bx1) / 2, mz = (bz0 + bz1) / 2;
+      for (var q = 0; q < parts; q++) {
+        var qx0 = bx0, qz0 = bz0, qx1 = bx1, qz1 = bz1;
+        if (parts === 2) { if (q === 0) qz1 = mz - 0.8; else qz0 = mz + 0.8; }
+        if (parts === 4) { if (q & 1) qx0 = mx + 0.8; else qx1 = mx - 0.8; if (q & 2) qz0 = mz + 0.8; else qz1 = mz - 0.8; }
+        if (used(qx0, qz0, qx1, qz1)) continue;
+        var r2 = hash(bc, 51), dist = Math.hypot((qx0 + qx1) / 2, (qz0 + qz1) / 2 - cz);
+        // downtown towers near the centre, walk-ups toward the edges; every roof stays far below our floor
+        var top = Y0 + 16 + r2 * r2 * Math.max(24, 125 - dist * 0.38), tc = BPAL[bc % BPAL.length];
+        tower(qx0, qz0, qx1, qz1, Y0, top, tc, tc.clone().multiplyScalar(0.55), 3.4 + hash(bc, 55) * 0.8, ROOF.clone().lerp(tc, 0.3));
+        if (r2 > 0.42) tank(qx0 + 3 + hash(bc, 52) * Math.max(0, qx1 - qx0 - 6), qz0 + 3 + hash(bc, 53) * Math.max(0, qz1 - qz0 - 6), top, 1 + hash(bc, 54) * 0.4);
+        if (r2 < 0.75 && qx1 - qx0 > 8) tower(qx1 - 6, qz0 + 2, qx1 - 2, qz0 + 5, top, top + 1.6, col('#8A8794'), null, 0, col('#77747F'));   // roof bulkhead
+        bc++;
+      }
+    }
+    var geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(colr, 3));
+    geo.setAttribute('aWin', new THREE.Float32BufferAttribute(win, 3));
+    geo.setAttribute('aFac', new THREE.Float32BufferAttribute(fac, 3));
+    geo.setIndex(pos.length / 3 > 65535 ? new THREE.Uint32BufferAttribute(idx, 1) : new THREE.Uint16BufferAttribute(idx, 1));
+    geo.computeBoundingSphere();
+    // window grid (floor bands + mullions) and the depth haze are drawn per pixel: one quad per facade
+    var mat = new THREE.ShaderMaterial({
+      uniforms: { uHaze: { value: col(C.haze || '#CCDCE8') }, uDepth: { value: D }, uTop: { value: C.hazeTop || 0.18 }, uBot: { value: C.hazeBottom || 0.6 } },
+      vertexShader: 'attribute vec3 color; attribute vec3 aWin; attribute vec3 aFac; varying vec3 vC; varying vec3 vW; varying vec3 vF; varying float vY; varying float vDist;\n' +
+        'void main(){ vC = color; vW = aWin; vF = aFac; vY = position.y; vec4 mv = modelViewMatrix * vec4(position, 1.0); vDist = length(mv.xyz); gl_Position = projectionMatrix * mv; }',
+      fragmentShader: 'uniform vec3 uHaze; uniform float uDepth; uniform float uTop; uniform float uBot; varying vec3 vC; varying vec3 vW; varying vec3 vF; varying float vY; varying float vDist;\n' +
+        'void main(){ vec3 c = vC;\n' +
+        '  if (vF.y > 0.0) { float fy = fract(vY / vF.y); float fu = fract(vF.x / 2.6);\n' +
+        '    if (fy > 0.38 && fy < 0.9 && fu > 0.14) c = vW; }\n' +
+        '  c *= vF.z;\n' +
+        '  float h = mix(uTop, uBot, clamp(-vY / uDepth, 0.0, 1.0)) + clamp((vDist - 120.0) / 260.0, 0.0, 0.3);\n' +
+        '  gl_FragColor = vec4(mix(c, uHaze, clamp(h, 0.0, 0.92)), 1.0); }'
+    });
+    var mesh = new THREE.Mesh(geo, mat);
+    mesh.frustumCulled = false; mesh.name = 'CityBelow';
+    level.root.add(mesh);
+    level.cityTris = idx.length / 3;
+  }
+
   // backdrop beyond the playable area (printed, fogged): rings of theme/common pieces; outlined puff clouds outdoors
   Z.buildBackdrop = function (level, theme) {
     var g = new IB.Geo(), minZ = 0, maxZ = 0, F = theme.floor || {};
     level.zones.forEach(function (z) { minZ = Math.min(minZ, z.oz - 20); });
     var cz = (minZ + maxZ) / 2, rad = (maxZ - minZ) / 2 + 70;
-    if (theme.backdrop !== null) {
+    if (theme.backdrop !== null && !theme.below) {
       g.flat([[-rad - 60, cz - rad - 60], [rad + 60, cz - rad - 60], [rad + 60, cz + rad + 60], [-rad - 60, cz + rad + 60]], -0.02, col(F.outside || F.color, '#E6DCC6').multiplyScalar(F.outside ? 1 : 0.94));
       level.root.add(new THREE.Mesh(g.build(), Z.mat));
     }
     var B = theme.backdrop, P = new Parts(theme);
+    if (theme.below) buildCityBelow(level, theme, cz, rad, B && B.ring && B.ring[0]);
     if (B && B.ring) B.ring.forEach(function (ring, ri) {
       for (var i = 0; i < ring.count; i++) {
         var a = (i + ri * 0.37) / ring.count * Math.PI * 2, rr = rad - 70 + ring.radius[0] + (ring.radius[1] - ring.radius[0]) * hash(i, 3 + ri);

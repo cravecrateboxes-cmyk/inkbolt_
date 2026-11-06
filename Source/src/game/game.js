@@ -46,7 +46,7 @@
     // Blender GLBs: common, weapons, bots and the first level's theme kit (brief 4.2 boot order); other kits load per level
     var saved0 = G.store.newest();
     G.plan = IB.LEVEL_PLANS[params.get('plan') || (saved0 && saved0.plan) || IB.CAMPAIGN[0]] || IB.LEVEL_PLANS[IB.CAMPAIGN[0]];
-    IB.Assets.load(['common', 'weapons', 'bots', Z.themeOf(G.plan).family], function (f) { bootProgress(0.2 + f * 0.7); })
+    IB.Assets.load(['common', 'weapons', 'bots', 'gear', Z.themeOf(G.plan).family], function (f) { bootProgress(0.2 + f * 0.7); })
       .then(bootAfterAssets)
       .catch(function (e) {
         G.errors.push(String(e && e.message || e));
@@ -55,6 +55,7 @@
   };
   function bootAfterAssets() {
     FX.init(R.scene); AI.init(R.scene); W.init(R.vmScene); IB.Projectiles.init(R.scene);
+    if (IB.Gear) { IB.Gear.init(); IB.Drops.init(R.scene); }   // loot: fps-gear models, world drops
     G.buildLevel();
     G.player = IB.Player.create();
     G.ws = W.create(['pip', 'buzz'], {});
@@ -108,7 +109,7 @@
     G.level.root.traverse(function (o) {
       if (o.isMesh || o.isInstancedMesh) {
         if (o.geometry && !shared.has(o.geometry)) o.geometry.dispose();
-        if (o.material && o.material.isMeshBasicMaterial) o.material.dispose();
+        if (o.material && (o.material.isMeshBasicMaterial || o.material.isShaderMaterial)) o.material.dispose();
       }
     });
     R.scene.remove(G.level.root);
@@ -131,6 +132,8 @@
   function resetLevelState() {
     var L = G.level;
     AI.clear(); FX.clear(); IB.Projectiles.clear(); if (IB.SkillFX) IB.SkillFX.clear();
+    if (IB.Drops) IB.Drops.clear();
+    if (IB.Status) IB.Status.clear();
     L.zones.forEach(function (z, i) {
       z.state = 'idle'; z.wave = -1; z.waveT = 0; z.queue = []; z.clearT = -1; z.spawnedTotal = 0;
       if (z.entryGate) Z.setGate(z.entryGate, i > 0, true);
@@ -185,6 +188,7 @@
     if (G.bank) delete G.bank[w.id];   // a fresh gun off the stand comes fully loaded
     W.setLoadout(ws, r.loadout, G.bank);
     W.equip(ws, w.id);
+    if (IB.Gear) IB.Gear.refresh(G);   // the replaced gun's attachments go back to the bag
     w.taken = true; w.group.remove(w.gun); w.ring.visible = false;
     G.store.save(G.slot);
     if (HUD.pickup) HUD.pickup(def.name, def.cls, r.slot + 1); else HUD.toast('New weapon: ' + def.name, 2.2);
@@ -230,6 +234,7 @@
     IB.SkillFX.refresh(G.slot.skills);
     applySkillStats(false);
     W.setLoadout(G.ws, syncArmory(), G.bank);
+    if (IB.Gear) IB.Gear.refresh(G);   // guns joining the loadout get their attachments back
     hudLevel();
   };
   G.openMenu = function (tab) {
@@ -267,6 +272,7 @@
     applySkillStats(true);
     var first = Object.keys(G.ws.guns).sort(function (a, b) { return IB.WEAPONS[b].slot - IB.WEAPONS[a].slot; })[0] || 'pip';
     W.equip(G.ws, first, true);
+    if (IB.Gear) IB.Gear.startLevel(G);   // attachments on the guns, shield full
     G.run = { time: 0, kills: 0, shots: 0, hits: 0, coreHits: 0, deaths: 0, gems: 0, retries: 3, started: false, introT: AUTOTEST ? 0.05 : 2.3 };
     G.shake = 0; G.trauma = 0; G.hitstop = 0; G.deathT = 0;
     G.fade = opts && opts.fadeIn ? { t: 0, dur: 1.4 } : null;
@@ -520,17 +526,18 @@
     _end.set(ox + dx * endT, oy + dy * endT, oz + dz * endT);
     W.muzzleWorld(R.camera, _mz);
     if (def.fire !== 'auto' || G.run.shots % 2 === 0) FX.tracer(_mz.x, _mz.y, _mz.z, _end.x, _end.y, _end.z);
-    AI.hear(G.player.x, G.player.z, 20);
+    AI.hear(G.player.x, G.player.z, 20 * (def.quiet || 1));   // acid muzzles are silenced
     if (rh) {
       var r = rh.robot, zone = rh.zone;
       var res = IB.Damage.hit({ weapon: def, dist: endT, zone: zone, dmgLevel: up('dmg'), coreLevel: up('core'), critLevel: up('crit'), rng: Math.random, blinded: r.state === 'blinded' });
       G.run.hits++; if (zone === 'core') G.run.coreHits++;
-      var dmg = res.damage * IB.SkillFX.hitMul(zone);   // Heavy Ink, Core Dump
+      var dmg = res.damage *= IB.SkillFX.hitMul(zone);   // Heavy Ink, Core Dump (the damage number shows it too)
       var killed = AI.damage(r, dmg, { kx: dx * 4, kz: dz * 4 }, onKill);
       IB.SkillFX.onHit(r, dmg, zone, killed, _end, onKill);   // Electrify, Lightning Rod
       FX.puff(_end.x, _end.y, _end.z, zone === 'core' ? 5 : 3, PAL.ink, 0.12, 0.38, 2.2);
       if (zone === 'core') FX.puff(_end.x, _end.y, _end.z, 2, PAL.amber, 0.08, 0.2, 3);
       if (!killed) { HUD.hit(zone === 'core' ? 'core' : 'hit'); A.play(zone === 'core' ? 'core' : 'hit'); }
+      if (IB.Gear) IB.Gear.onHit(r, res, zone, def, killed);   // damage number, acid DoT
     } else if (whit) {
       if (whit.box && whit.box.kind === 'gate') FX.puff(_end.x, _end.y, _end.z, 3, PAL.ink, 0.1, 0.3, 1.5);
       else FX.impact(_end.x, _end.y, _end.z, whit.nx, whit.ny, whit.nz, Math.random() < 1 / 3);
@@ -553,7 +560,9 @@
     else if (G.player.health < G.player.maxHp * 0.4 && Math.random() < 0.25) G.spawnPickup('health', r.x, r.z);
     if (G.fx && G.fx.leech) G.player.health = Math.min(G.player.maxHp, G.player.health + G.fx.leech);
     IB.SkillFX.onKill(r, G.player, onKill);   // Salvage Bolts, Chain Reaction
+    if (IB.Drops) IB.Drops.onKill(r);   // ~5 % loot drop
   }
+  G.onKill = onKill;
   function collectGem(kind) {
     var v = IB.Gems ? IB.Gems.VALUES[kind] : 1;
     G.run.gems += v; if (G.slot) G.slot.gems = (G.slot.gems || 0) + v;
@@ -566,14 +575,15 @@
     var p = G.player;
     if (!p.alive || p.protect > 0 || G.complete) return;
     dmg *= IB.SkillFX.hurtMul();   // Tin Titan
-    p.health -= dmg; p.lastHurt = 0;
-    A.play(robot.proj ? (robot.type === 'bomber' ? 'boom' : 'boltHit') : 'bite', { pos: robot }); A.play('hurt', { gain: 0.8 });
+    var through = IB.Gear ? IB.Gear.absorb(G, dmg) : dmg;   // an equipped shield takes it first
+    p.health -= through; p.lastHurt = 0;
+    A.play(robot.proj ? (robot.type === 'bomber' ? 'boom' : 'boltHit') : 'bite', { pos: robot }); if (through > 0) A.play('hurt', { gain: 0.8 });
     // arc pointing toward the attacker
     var dx = robot.x - p.x, dz = robot.z - p.z;
     var fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw), rx = Math.cos(p.yaw), rz = -Math.sin(p.yaw);
     HUD.arc(Math.atan2(dx * rx + dz * rz, dx * fx + dz * fz)); // 0 = ahead, + = to the right
     G.shake = Math.max(G.shake, 0.5); G.addTrauma(Math.min(0.5, 0.12 + dmg * 0.012));
-    if (HUD.damageFlash) HUD.damageFlash(Math.min(1, dmg / 30));
+    if (HUD.damageFlash) HUD.damageFlash(Math.min(1, through / 30));
     if (p.health <= 0 && IB.SkillFX.closeCall(p, G.zone)) { HUD.toast('Close call!', 1.4); A.play('pickup', { pitch: 0.7 }); }
     else if (p.health <= 0) die(robot);
   };
@@ -600,6 +610,7 @@
     AI.despawn(G.zone);
     z.state = 'active'; z.wave = -1; z.waveT = 0; z.startT = 0; z.queue = []; z.clearT = -1;
     W.refill(G.ws);
+    if (IB.Gear) IB.Gear.fillShield(G);
     IB.Plat.start();
   }
 
@@ -757,11 +768,14 @@
     }
     // fixed-step simulation
     acc += dt; var steps = 0;
-    var jump = Inp.jumpPressed, slidePress = Inp.slidePressed;
+    // presses are held until a fixed step consumes them: on frames shorter than one step (120/144 Hz screens) no
+    // step runs, and a press seen only on that frame would otherwise be dropped
+    G.jumpLatch = G.jumpLatch || Inp.jumpPressed; G.slideLatch = G.slideLatch || Inp.slidePressed;
+    var jump = G.jumpLatch, slidePress = G.slideLatch;
     while (acc >= STEP && steps < 4) {
       acc -= STEP; steps++;
       if (p.alive) IB.Player.step(p, { mx: G.complete ? 0 : Inp.mx, mz: G.complete ? 0 : Inp.mz, sprint: Inp.sprint, jumpPressed: jump, slidePressed: slidePress, crouch: Inp.crouch }, G.level.world, STEP, footFx);
-      jump = false; slidePress = false;
+      jump = false; slidePress = false; G.jumpLatch = false; G.slideLatch = false;
       if (G.run.started) {
         var actx = { player: p, world: G.level.world, level: G.level, activeZone: G.level.zones[G.zone].state === 'active' ? G.zone : -1, hurt: G.hurt, shake: G.addTrauma, onKill: onKill };
         AI.update(STEP, actx);
@@ -769,6 +783,7 @@
       }
       if (G.run.started && !G.dead) updateZones(STEP);
     }
+    if (IB.Status && G.run.started) IB.Status.update(dt, onKill);   // shock / acid damage over time
     if (acc > STEP * 4) acc = 0;
     if (G.run.started && !G.complete && !G.dead) G.run.time += dt;
     // regen (Nanite Welders)
@@ -808,6 +823,7 @@
     // render-side updates
     AI.sync(); AI.updateCorpses(dtRaw);
     updatePickups(dtRaw, tAll);
+    if (IB.Drops) { IB.Drops.update(dtRaw, tAll, G); IB.Gear.update(dtRaw, G); }
     var magnet = 2.5 * (1 + 0.5 * up('magnet')) * IB.SkillFX.fx.magnetMul;   // Scrap Magnet
     FX.update(dtRaw, R.camera, p, magnet, collectGem);
     W.pose(G.ws, dtRaw, p, Inp.lookDX, Inp.lookDY, s.headBob, tAll);
@@ -830,7 +846,8 @@
       var last = G.level.zones[G.level.zones.length - 1];
       HUD.radar({ px: p.x, pz: p.z, yaw: p.yaw, range: 30, robots: rob, gates: gates,
         pickups: (G.weaponStands || []).filter(function (w2) { return !w2.taken; }).map(function (w2) { return { x: w2.x, z: w2.z, kind: 'weapon' }; })
-          .concat(G.pickups.filter(function (pk) { return pk.on; }).map(function (pk) { return { x: pk.x, z: pk.z, kind: pk.kind }; })),
+          .concat(G.pickups.filter(function (pk) { return pk.on; }).map(function (pk) { return { x: pk.x, z: pk.z, kind: pk.kind }; }))
+          .concat(IB.Drops ? IB.Drops.radar() : []),
         exit: last.state === 'cleared' ? { x: G.level.hatch.x, z: G.level.hatch.z } : null });
     }
     if (HUD.objective) {
@@ -921,6 +938,7 @@
     },
     setTier: function (t) { G.setTier(t); }
   };
+  if (IB.GearTest) Object.keys(IB.GearTest).forEach(function (k) { window.__TEST__[k] = IB.GearTest[k]; });   // loot hooks (game/gear.js)
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', G.boot); else G.boot();
 })(window.IB = window.IB || {});

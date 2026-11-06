@@ -29,6 +29,14 @@ PROGRESSION
   Loadout: carry 2 guns from your arsenal (3 after clearing level 10); weapon stands add guns to the arsenal.
   Robots get a little tougher every level (health, damage, fire rate, aim, speed; src/core/damage.js).
 
+LOOT AND GEAR
+  About one robot in twenty drops an item: a drop pod with a beam in its rarity colour (Common / Rare / Epic),
+  also marked on the radar as a diamond. Walk over it to bag it; an empty slot is filled right away.
+  Shield cells (after level 3 is cleared) soak damage before health and recharge after a short delay.
+  Gun attachments: Grip (less recoil and spread), Scope (zoom and a tighter aim; aim to look through it),
+  Acid muzzle (silenced; part of each hit burns on as acid). The Gear tab of the in-game menu (IB.GearUI)
+  equips, fits, moves and scraps them. Tables: src/data/loot.js; logic: src/core/loot.js; models: blender/fam_gear.py.
+
 BUILD AND TEST (from the Source folder)
   python3 tools/build.py
   npm test                                  (unit tests)

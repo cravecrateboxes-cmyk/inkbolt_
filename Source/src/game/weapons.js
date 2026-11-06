@@ -289,7 +289,7 @@
     // aim down sights: blend toward the pose that puts the sight point on the screen centre
     if (g && a > 0.001) {
       var sp = W.sightOf(g.id);
-      var ax = -sp.x * VM_SCALE, ay = -sp.y * VM_SCALE, az = -(ADS_DIST[g.def.cls] || 0.25) - sp.z * VM_SCALE;
+      var ax = -sp.x * VM_SCALE, ay = -sp.y * VM_SCALE, az = -(g.def.adsDist || ADS_DIST[g.def.cls] || 0.25) - sp.z * VM_SCALE;   // adsDist: a mounted scope's eye relief
       x += (ax - x) * a; y += (ay - y) * a; z += (az - z) * a;
       rx *= hip * 0.6 + 0.4 * (1 - a); ry *= hip; rz *= hip * 0.7 + 0.3;
     }

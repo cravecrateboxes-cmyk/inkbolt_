@@ -15,6 +15,8 @@
   function isObj(o) { return o !== null && typeof o === 'object' && !Array.isArray(o); }
 
   function slotKey(id) { return PREFIX + 'slot' + id; }
+  // loot inventory (core/loot.js repairs items deeply; this only guarantees the shape)
+  function defaultGear() { return { inv: [], shield: null, attach: {}, next: 1, found: 0 }; }
 
   function defaultSlot(id, seed, savedAt) {
     return {
@@ -24,6 +26,7 @@
       arsenal: [], loadout: [], skills: {},   // empty arsenal: the level plan's start guns are handed out
       stats: { kills: 0, deaths: 0, time: 0, coreHits: 0 },
       best: {},
+      gear: defaultGear(),
       seed: seed >>> 0, saved: savedAt
     };
   }
@@ -48,6 +51,15 @@
         out.stats = s;
       }
     });
+    if (!isObj(obj.gear)) out.gear = defaultGear();
+    else {
+      var g = defaultGear();
+      for (k in obj.gear) g[k] = obj.gear[k];
+      if (!Array.isArray(g.inv)) g.inv = [];
+      if (!isObj(g.attach)) g.attach = {};
+      if (typeof g.next !== 'number') g.next = 1;
+      out.gear = g;
+    }
     if (typeof out.level !== 'number' || out.level < 1) out.level = 1;
     if (typeof out.highest !== 'number' || out.highest < 0) out.highest = 0;
     if (typeof out.gems !== 'number' || out.gems < 0) out.gems = 0;
@@ -192,6 +204,6 @@
 
   IB.Saves = {
     create: create, memoryBackend: memoryBackend, ago: ago, migrate: migrate,
-    DEFAULT_SETTINGS: DEFAULT_SETTINGS, PREFIX: PREFIX, SLOTS: SLOTS, slotKey: slotKey
+    defaultGear: defaultGear, DEFAULT_SETTINGS: DEFAULT_SETTINGS, PREFIX: PREFIX, SLOTS: SLOTS, slotKey: slotKey
   };
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
