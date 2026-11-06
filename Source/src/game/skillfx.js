@@ -42,11 +42,13 @@
     list.sort(function (a, b) { return a.d - b.d; });
     list.slice(0, f.arcTargets).forEach(function (e) {
       var o = e.o, oy = o.y + 0.6;
-      if (IB.FX) { IB.FX.tracer(end.x, end.y, end.z, o.x, oy, o.z); IB.FX.puff(o.x, oy, o.z, 4, BLUE, 0.08, 0.22, 2.4); IB.FX.puff(o.x, oy, o.z, 2, PALE, 0.05, 0.14, 3); }
+      if (IB.Boom && IB.Boom.ready) IB.Boom.lightning(end.x, end.y, end.z, o.x, oy, o.z);   // fat flickering bolt + zap at the target
+      else if (IB.FX) IB.FX.tracer(end.x, end.y, end.z, o.x, oy, o.z);
+      if (IB.FX) { IB.FX.puff(o.x, oy, o.z, 4, BLUE, 0.08, 0.22, 2.4); IB.FX.puff(o.x, oy, o.z, 2, PALE, 0.05, 0.14, 3); }
       num(o.x, oy + 0.5, o.z, dmg, 'shock');
       if (!IB.AI.damage(o, dmg, {}, onKill) && o.on) shock(o, IB.Skills.shockDps(f, dmg), f.shockTime);
     });
-    if (list.length && IB.FX && IB.FX.word && Math.random() < 0.35) IB.FX.word('ZAP', end.x, end.y + 0.5, end.z, 1.2);
+    if (list.length && IB.FX && IB.FX.word && Math.random() < 0.5) IB.FX.word('ZAP', end.x, end.y + 0.5, end.z, 1.4);
     if (list.length && IB.Audio) IB.Audio.play('boltHit', { pos: src, gain: 0.5, pitch: 1.6 });
   }
 
@@ -56,8 +58,9 @@
     if (f.leech && player && player.alive) player.health = Math.min(player.maxHp, player.health + f.leech);
     if (f.chain && SF.chainDepth < 4) {
       var dmg = (r.maxHp || 30) * f.chainFrac, R = f.chainRadius;
-      if (IB.FX) { IB.FX.puff(r.x, 0.6, r.z, 8, 0x15121C, 0.2, 0.6, 4); IB.FX.puff(r.x, 0.6, r.z, 5, 0xFFB21E, 0.1, 0.3, 4.5); }
-      if (IB.FX && IB.FX.word && SF.chainDepth === 0 && Math.random() < 0.3) IB.FX.word('KRUNCH', r.x, 1.4, r.z, 1.3);
+      if (IB.Boom && IB.Boom.ready) IB.Boom.chainBurst(r.x, r.z, R);   // burst + a ring on the floor showing its reach
+      else if (IB.FX) { IB.FX.puff(r.x, 0.6, r.z, 8, 0x15121C, 0.2, 0.6, 4); IB.FX.puff(r.x, 0.6, r.z, 5, 0xFFB21E, 0.1, 0.3, 4.5); }
+      if (IB.FX && IB.FX.word && SF.chainDepth === 0 && Math.random() < 0.45) IB.FX.word(Math.random() < 0.5 ? 'KRUNCH' : 'KA-CHUNK', r.x, 1.5, r.z, 1.5);
       SF.chainDepth++;
       IB.AI.robots.forEach(function (o) {
         if (o === r || !o.on || o.state === 'pose' || o.state === 'spawn') return;

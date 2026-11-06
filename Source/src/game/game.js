@@ -144,6 +144,7 @@
     G.pickups.forEach(function (p) { p.mesh.visible = false; p.on = false; });
     L.zones.forEach(function (z) { z.pickups.forEach(function (pk) { G.spawnPickup(pk.kind, pk.x, pk.z, true); }); });
     placeWeaponStands(G.plan.weapons || []);
+    if (IB.Boom) IB.Boom.levelStart(L, G.plan.level);   // VFX intensity for this level, explosive canisters in later zones
   }
 
   // ---------------- new weapons waiting at the start of a level ----------------
@@ -382,6 +383,7 @@
     Z.setVisible(G.level, i);   // keep this zone (the player stands in it) and the next one drawn
     HUD.pips(G.level.zones.length, i + 1, i + 1);
     HUD.toast(i + 1 < G.level.zones.length ? 'Zone clear. Follow the arrows.' : 'Level clear. Get to the hatch.', 2.4);
+    if (IB.Boom) IB.Boom.zoneClear(G.level, i, i + 1 >= G.level.zones.length);   // confetti at the gate, fireworks on a level clear
   }
 
   // ---------------- level exit, loading screen, next level ----------------
@@ -525,7 +527,7 @@
     var endT = rh ? rh.t : wt;
     _end.set(ox + dx * endT, oy + dy * endT, oz + dz * endT);
     W.muzzleWorld(R.camera, _mz);
-    if (def.fire !== 'auto' || G.run.shots % 2 === 0) FX.tracer(_mz.x, _mz.y, _mz.z, _end.x, _end.y, _end.z);
+    if (def.fire !== 'auto' || G.run.shots % 2 === 0) { if (IB.Boom) IB.Boom.tracer(_mz.x, _mz.y, _mz.z, _end.x, _end.y, _end.z, def); else FX.tracer(_mz.x, _mz.y, _mz.z, _end.x, _end.y, _end.z); }
     AI.hear(G.player.x, G.player.z, 20 * (def.quiet || 1));   // acid muzzles are silenced
     if (rh) {
       var r = rh.robot, zone = rh.zone;
@@ -536,11 +538,14 @@
       IB.SkillFX.onHit(r, dmg, zone, killed, _end, onKill);   // Electrify, Lightning Rod
       FX.puff(_end.x, _end.y, _end.z, zone === 'core' ? 5 : 3, PAL.ink, 0.12, 0.38, 2.2);
       if (zone === 'core') FX.puff(_end.x, _end.y, _end.z, 2, PAL.amber, 0.08, 0.2, 3);
+      if (IB.Boom) IB.Boom.robotHit(r, _end.x, _end.y, _end.z, dx, dy, dz, zone, killed);   // sparks, chips, core pop
       if (!killed) { HUD.hit(zone === 'core' ? 'core' : 'hit'); A.play(zone === 'core' ? 'core' : 'hit'); }
       if (IB.Gear) IB.Gear.onHit(r, res, zone, def, killed);   // damage number, acid DoT
     } else if (whit) {
-      if (whit.box && whit.box.kind === 'gate') FX.puff(_end.x, _end.y, _end.z, 3, PAL.ink, 0.1, 0.3, 1.5);
+      if (whit.box && whit.box.kind === 'canister' && IB.Boom) IB.Boom.hitCan(whit.box, def.damage || 15);   // explosive canister
+      else if (whit.box && whit.box.kind === 'gate') FX.puff(_end.x, _end.y, _end.z, 3, PAL.ink, 0.1, 0.3, 1.5);
       else FX.impact(_end.x, _end.y, _end.z, whit.nx, whit.ny, whit.nz, Math.random() < 1 / 3);
+      if (IB.Boom) IB.Boom.impact(_end.x, _end.y, _end.z, whit.nx, whit.ny, whit.nz, whit.box);   // sparks / chips / dust by surface
     }
   }
   function up(id) { return (G.slot && G.slot.upgrades && G.slot.upgrades[id]) || 0; }
