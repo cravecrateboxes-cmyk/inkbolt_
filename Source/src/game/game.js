@@ -108,7 +108,7 @@
     G.level.root.traverse(function (o) {
       if (o.isMesh || o.isInstancedMesh) {
         if (o.geometry && !shared.has(o.geometry)) o.geometry.dispose();
-        if (o.material && o.material.isMeshBasicMaterial) o.material.dispose();
+        if (o.material && (o.material.isMeshBasicMaterial || o.material.isShaderMaterial)) o.material.dispose();
       }
     });
     R.scene.remove(G.level.root);

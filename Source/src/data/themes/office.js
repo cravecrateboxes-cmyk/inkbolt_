@@ -94,6 +94,37 @@
     backdrop: { ring: [
       { piece: 'Backdrop_Skyline', count: 4, radius: [52, 52], scale: [1, 1], squeezeX: 0.347, face: true }
     ] },
+    // the city 58 floors down (see Z.buildCityBelow): streets, rooftops and water tanks under the haze
+    below: { depth: 170, haze: '#CCDCE8', hazeTop: 0.18, hazeBottom: 0.6, glass: '#6F8FB0',
+      // footprints of the Backdrop_Skyline buildings (fam_kit_office.py backdrop_skyline: near blocks, mid towers,
+      // far towers): [x along the row, front depth, width, depth, colour, window colour]. Keep in sync with the kit.
+      skyline: [
+        [-109, 7, 16, 12, '#CB937A', '#64798E'],
+        [-88, 7, 18, 14, '#E8DECB', '#64798E'],
+        [-66, 6, 15, 11, '#C9A574', '#64798E'],
+        [-44, 8, 19, 13, '#CB937A', '#64798E'],
+        [-22, 7, 16, 12, '#D3C6AE', '#64798E'],
+        [0, 6, 18, 14, '#CB937A', '#64798E'],
+        [22, 7, 15, 12, '#E8DECB', '#64798E'],
+        [44, 8, 17, 13, '#C9A574', '#64798E'],
+        [66, 6, 16, 12, '#CB937A', '#64798E'],
+        [88, 7, 18, 14, '#D3C6AE', '#64798E'],
+        [110, 8, 14, 11, '#CB937A', '#64798E'],
+        [-100, 25, 16, 12, '#D3C6AE', '#64798E'],
+        [-70, 25, 14, 12, '#A9CDE2', '#87AFCB'],
+        [-40, 25, 15, 11, '#CB937A', '#64798E'],
+        [-8, 26, 18, 12, '#D3C6AE', '#64798E'],
+        [26, 26, 14, 12, '#A9CDE2', '#87AFCB'],
+        [58, 25, 16, 11, '#CB937A', '#64798E'],
+        [92, 26, 17, 12, '#D3C6AE', '#64798E'],
+        [-90, 40, 16, 16, '#A9CDE2', '#87AFCB'],
+        [-56, 42, 18, 16, '#E8DECB', '#64798E'],
+        [-22, 41, 9, 9, '#A4D0C6', '#87AFCB'],
+        [12, 40, 22, 16, '#E8DECB', '#64798E'],
+        [46, 41, 26, 12, '#D3C6AE', '#64798E'],
+        [80, 42, 18, 16, '#E8DECB', '#64798E'],
+        [110, 42, 9, 9, '#A4D0C6', '#87AFCB']
+      ] },
     budget: { prop: 2000, landmark: 4000, total: 70000 },
     allPieces: function () {
       var out = [];
