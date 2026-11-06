@@ -441,7 +441,7 @@ async function hudRun(browser, base) {
   await pg.evaluate(() => IB.AI.kill(window.__hbR, IB.Game.onKill));
   check('a killed robot\'s bar fades out', await until(pg, () => !IB.HPBars.stats().bars.length, null, 5000));
   // player health: the damage chip trails the fill, healing snaps it
-  await pg.evaluate(() => { IB.Game.player.protect = 0; __TEST__.damagePlayer(30); });
+  await pg.evaluate(() => { const H = IB.HUD; H.health(100, 100); H.health(70, 100); H.realHealth = H.health; H.health = () => {}; });   // the widget itself (game calls parked)
   await pg.waitForTimeout(120);
   const chip = await pg.evaluate(() => ({ fill: parseFloat(document.getElementById('hpFill').style.width), chip: document.getElementById('hpChip').getBoundingClientRect().width / document.querySelector('.hp-bar').getBoundingClientRect().width * 100 }));
   check('HUD health keeps a damage chip behind the fill for a moment', chip.chip > chip.fill + 5, JSON.stringify(chip));
