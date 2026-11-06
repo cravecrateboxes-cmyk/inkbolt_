@@ -682,11 +682,14 @@
     }
     // fixed-step simulation
     acc += dt; var steps = 0;
-    var jump = Inp.jumpPressed, slidePress = Inp.slidePressed;
+    // presses are held until a fixed step consumes them: on frames shorter than one step (120/144 Hz screens) no
+    // step runs, and a press seen only on that frame would otherwise be dropped
+    G.jumpLatch = G.jumpLatch || Inp.jumpPressed; G.slideLatch = G.slideLatch || Inp.slidePressed;
+    var jump = G.jumpLatch, slidePress = G.slideLatch;
     while (acc >= STEP && steps < 4) {
       acc -= STEP; steps++;
       if (p.alive) IB.Player.step(p, { mx: G.complete ? 0 : Inp.mx, mz: G.complete ? 0 : Inp.mz, sprint: Inp.sprint, jumpPressed: jump, slidePressed: slidePress, crouch: Inp.crouch }, G.level.world, STEP, footFx);
-      jump = false; slidePress = false;
+      jump = false; slidePress = false; G.jumpLatch = false; G.slideLatch = false;
       if (G.run.started) {
         var actx = { player: p, world: G.level.world, level: G.level, activeZone: G.level.zones[G.zone].state === 'active' ? G.zone : -1, hurt: G.hurt, shake: G.addTrauma, onKill: onKill };
         AI.update(STEP, actx);
