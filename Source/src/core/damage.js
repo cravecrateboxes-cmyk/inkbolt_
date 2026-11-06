@@ -45,6 +45,17 @@
     };
   }
 
+  /* Player health per player level (LV = 1 + highest level cleared, cap 20): 100 + 8k + 0.2k^2 (k = LV - 1), so
+     LV 20 has 324 base (+ Armor Plating, Tin Hide, Tin Titan and a shield on top). Tuned against the robots'
+     pressure at the campaign level he is playing (damage x enemyDmgMul, volleys / coolMul, hits / sqrt(aimMul)):
+       LV / L      1     5    10    15    20
+       health    100   135   188   251   324
+       pressure 1.00  1.30  1.79  2.45  3.03
+     Health keeps pace with pressure (ratio 1.00-1.07, unit tested); the shield (15-100 by level and rarity) and
+     skills supply the margin, so later levels ask for better gear and skills without becoming a wall. */
+  function playerMaxHp(lv) { var k = Math.max(1, Math.min(20, lv || 1)) - 1; return Math.round(100 + 8 * k + 0.2 * k * k); }
+  function enemyPressure(L) { var t = enemyTempo(L); return enemyDmgMul(L) / t.coolMul / Math.sqrt(t.aimMul); }
+
   // 4.4: at most 3 + floor(L/5) robots in Windup or Attack.
   function attackTokens(L) { return 3 + Math.floor(L / 5); }
 
@@ -150,7 +161,7 @@
   function staggers(dmg, maxHp, charged) { return !!charged || dmg >= 0.25 * maxHp; }
 
   IB.Damage = {
-    enemyHpMul: enemyHpMul, enemyDmgMul: enemyDmgMul, enemyTempo: enemyTempo, attackTokens: attackTokens, falloff: falloff,
+    enemyHpMul: enemyHpMul, enemyDmgMul: enemyDmgMul, enemyTempo: enemyTempo, playerMaxHp: playerMaxHp, enemyPressure: enemyPressure, attackTokens: attackTokens, falloff: falloff,
     hit: hit, splash: splash, blastRadius: blastRadius, rocketSplash: rocketSplash, frag: frag,
     flashDamage: flashDamage, selfDamage: selfDamage, knockback: knockback, blindDuration: blindDuration,
     flashPlayer: flashPlayer, shield: shield, bossShell: bossShell, melee: melee, staggers: staggers

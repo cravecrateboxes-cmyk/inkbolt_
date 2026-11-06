@@ -143,6 +143,7 @@
     var d = defaultGear();
     if (!isObj(g)) return d;
     var out = { inv: [], shield: null, attach: {}, next: typeof g.next === 'number' ? g.next : 1, found: typeof g.found === 'number' ? g.found : 0 };
+    if (g.starter === true) out.starter = true;   // the level-3 starter shield was handed out
     var ids = {};
     (Array.isArray(g.inv) ? g.inv : []).forEach(function (it) {
       if (!isObj(it) || !T().types[it.type] || !T().rarityById[it.rarity] || !isObj(it.stats) || ids[it.id]) return;

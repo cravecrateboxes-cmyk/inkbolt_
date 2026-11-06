@@ -180,3 +180,14 @@ test('level scaling of robot HP and damage (5.7)', () => {
   near(D.enemyDmgMul(1), 1); near(D.enemyDmgMul(26), 2); near(D.enemyDmgMul(51), 3); near(D.enemyDmgMul(90), 3);
   assert.equal(D.attackTokens(1), 3); assert.equal(D.attackTokens(5), 4); assert.equal(D.attackTokens(20), 7);
 });
+
+test('player health per level keeps pace with robot pressure (LV = L)', () => {
+  assert.equal(IB.Damage.playerMaxHp(1), 100);
+  assert.equal(IB.Damage.playerMaxHp(20), 324);
+  assert.equal(IB.Damage.playerMaxHp(40), 324, 'capped at LV 20');
+  for (let L = 1; L <= 20; L++) {
+    const r = IB.Damage.playerMaxHp(L) / 100 / IB.Damage.enemyPressure(L);
+    assert.ok(r > 0.98 && r < 1.1, 'L' + L + ' ratio ' + r.toFixed(3));
+    if (L > 1) assert.ok(IB.Damage.playerMaxHp(L) > IB.Damage.playerMaxHp(L - 1));
+  }
+});

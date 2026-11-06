@@ -211,7 +211,9 @@
   function applySkillStats(fresh) {
     var p = G.player, fx = G.fx || {}, sk = IB.SkillFX.fx;
     var hpWas = p.maxHp || 100, hurt = Math.max(0, hpWas - p.health);
-    p.maxHp = (fx.maxHp || 100) + sk.maxHpAdd;
+    // base health grows with the player level (IB.Damage.playerMaxHp); bench and skills add on top
+    var lvHp = IB.Damage.playerMaxHp(IB.Skills.playerLevel(G.slot ? G.slot.highest : 0));
+    p.maxHp = (fx.maxHp || 100) - 100 + lvHp + sk.maxHpAdd;
     p.health = fresh ? p.maxHp : Math.max(1, Math.min(p.maxHp, p.maxHp - hurt));
     var stWas = p.staminaMax || 4;
     p.staminaMax = 4 * (fx.staminaMul || 1) * sk.staminaMul;
@@ -222,6 +224,19 @@
       wf.spreadMul = (fx.spreadMul || 1) * sk.spreadMul; wf.magMul = sk.magMul; wf.rateMul = sk.rateMul;
     }
   }
+  // shields unlock with level 3: the first time a save has cleared it, a common cell is put in the bag and worn
+  // (shield drops start at the same point), so every player sees the shield bar from level 4 on
+  function grantStarterShield() {
+    if (!IB.Gear || !IB.Loot || !G.slot || (G.slot.highest || 0) < 3) return;
+    var g = IB.Gear.gear(G);
+    if (!g || g.starter) return;
+    g.starter = true;
+    var item = IB.Loot.makeItem('shield', 'common', 3, Math.random);
+    if (IB.Loot.addItem(g, item) && !g.shield) IB.Loot.equipShield(g, item.id);
+    G.store.save(G.slot);
+    G.starterShieldNote = item;
+  }
+  G.grantStarterShield = grantStarterShield;
   G.progress = function () {
     var h = G.slot ? G.slot.highest || 0 : 0, lv = IB.Skills.playerLevel(h);
     return { highest: h, level: lv, title: IB.Skills.rankTitle(lv), points: G.slot ? IB.Skills.available(G.slot.skills || {}, h) : 0,
@@ -272,12 +287,14 @@
     applySkillStats(true);
     var first = Object.keys(G.ws.guns).sort(function (a, b) { return IB.WEAPONS[b].slot - IB.WEAPONS[a].slot; })[0] || 'pip';
     W.equip(G.ws, first, true);
+    grantStarterShield();
     if (IB.Gear) IB.Gear.startLevel(G);   // attachments on the guns, shield full
     G.run = { time: 0, kills: 0, shots: 0, hits: 0, coreHits: 0, deaths: 0, gems: 0, retries: 3, started: false, introT: AUTOTEST ? 0.05 : 2.3 };
     G.shake = 0; G.trauma = 0; G.hitstop = 0; G.deathT = 0;
     G.fade = opts && opts.fadeIn ? { t: 0, dur: 1.4 } : null;
     setDim(G.fade ? 1 : 0);
     HUD.reset(); HUD.show(true); document.getElementById('touch').hidden = !Inp.touch;
+    if (G.starterShieldNote && IB.LootHUD) { IB.LootHUD.loot(G.starterShieldNote, 'Shields unlocked'); G.starterShieldNote = null; }
     HUD.pips(G.level.zones.length, 0, 0);
     if (!AUTOTEST) M.intro({ level: G.plan.level, name: G.plan.name, zones: G.level.zones.length, line: G.plan.intro }, 2.2);
     // save at level start
@@ -462,7 +479,8 @@
   // ---------------- health director ----------------
   // Watches the player's health and keeps health cans on the map in the current zone: one when healthy, up to four
   // when badly hurt. New cans land on open ground 7-22 m away (never on top of the player), and show on the radar.
-  var HEAL = 40;
+  // health cans restore 40% of max health (40 at LV 1), rounded to 5
+  function healAmount() { return Math.max(40, Math.round(G.player.maxHp * 0.4 / 5) * 5); }
   function healthWanted(frac) { return frac >= 0.8 ? 1 : frac >= 0.55 ? 2 : frac >= 0.3 ? 3 : 4; }
   function healthDirector(dt) {
     G.hdT = (G.hdT || 0) - dt;
@@ -507,7 +525,7 @@
       pk.mesh.position.y = 0.05 + Math.sin(t * 3 + i) * 0.04;
       FX.blob(pk.x, 0, pk.z, 0.35);
       if (Math.hypot(p.x - pk.x, p.z - pk.z) < 0.9 && p.y < 1) {
-        if (pk.kind === 'health') { if (p.health >= p.maxHp) return; p.health = Math.min(p.maxHp, p.health + HEAL); HUD.toast('+' + HEAL + ' health', 1.2); }
+        if (pk.kind === 'health') { if (p.health >= p.maxHp) return; var heal = healAmount(); p.health = Math.min(p.maxHp, p.health + heal); HUD.toast('+' + heal + ' health', 1.2); }
         else { W.addAmmo(G.ws, 0.5); HUD.toast('Ammo', 1.0); }
         pk.on = false; pk.mesh.visible = false; A.play('pickup');
       }
