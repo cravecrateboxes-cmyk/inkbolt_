@@ -38,6 +38,25 @@
     ctx.lineWidth = R * 0.16; ctx.strokeStyle = '#15121C'; ctx.beginPath(); ctx.arc(0, 0, R - ctx.lineWidth / 2, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
   }
+  function drawScorch(ctx, cx, cy, R, seed) {
+    var r = rngFrom(seed), k, a;
+    ctx.fillStyle = '#15121C';
+    // halftone fringe: dots shrinking outward
+    for (k = 0; k < 90; k++) {
+      a = r() * Math.PI * 2; var d = R * (0.55 + r() * 0.42), dr = R * 0.07 * (1.15 - d / R);
+      ctx.beginPath(); ctx.arc(cx + Math.cos(a) * d, cy + Math.sin(a) * d, Math.max(1.2, dr), 0, Math.PI * 2); ctx.fill();
+    }
+    // radial streaks
+    for (k = 0; k < 13; k++) {
+      a = k / 13 * Math.PI * 2 + r() * 0.3; var L = R * (0.7 + r() * 0.3), w = 0.09 + r() * 0.07;
+      ctx.beginPath(); ctx.moveTo(cx + Math.cos(a - w) * R * 0.3, cy + Math.sin(a - w) * R * 0.3);
+      ctx.lineTo(cx + Math.cos(a) * L, cy + Math.sin(a) * L); ctx.lineTo(cx + Math.cos(a + w) * R * 0.3, cy + Math.sin(a + w) * R * 0.3); ctx.fill();
+    }
+    // the burn itself: a ragged blob
+    ctx.beginPath();
+    for (k = 0; k <= 16; k++) { a = k / 16 * Math.PI * 2; var rr = R * (0.36 + r() * 0.14); if (k === 0) ctx.moveTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); else ctx.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); }
+    ctx.fill();
+  }
   FX.makeAtlas = function () {
     return IB.Render.canvasTex(512, 512, function (ctx) {
       ctx.clearRect(0, 0, 512, 512);
@@ -46,9 +65,11 @@
       // white puff blob (tinted per particle) and soft blob shadow
       drawSplat(ctx, 320, 192, 40, 77, '#FFFFFF');
       ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.arc(448, 192, 52, 0, Math.PI * 2); ctx.fill();
+      // blast scorch marks (third row): an ink burn with radial streaks and a halftone fringe
+      drawScorch(ctx, 64, 320, 58, 211); drawScorch(ctx, 192, 320, 58, 977);
     });
   };
-  var CELL = { splat: [[0, 0], [1, 0], [2, 0], [3, 0]], hole: [[0, 1], [1, 1]], puff: [2, 1], disc: [3, 1] };
+  var CELL = { splat: [[0, 0], [1, 0], [2, 0], [3, 0]], hole: [[0, 1], [1, 1]], puff: [2, 1], disc: [3, 1], scorch: [[0, 2], [1, 2]] };
 
   function atlasMaterial(tex, opts) {
     var m = new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5, transparent: !!opts.transparent, depthWrite: !opts.transparent, fog: true,
@@ -90,7 +111,7 @@
     FX.parts.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(FX.pCap * 3), 3);
     FX.pool = []; for (var i = 0; i < FX.pCap; i++) { FX.pool.push({ on: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, t: 0, life: 1, s0: 0.2, s1: 0.5, rot: 0, g: 0 }); setUv(FX.parts, i, CELL.puff); }
     scene.add(FX.parts);
-    FX.particleScale = 1;
+    if (!(FX.particleScale > 0)) FX.particleScale = 1;   // the quality tier (game.setTier) may have set it before init
     // chunks
     FX.cCap = 96;
     // scrap chunks: the fps-common ink chunk (a crushed can), unlit ink
@@ -190,7 +211,7 @@
     _s.set(size, size, size);
     _m.compose(_v, _q, _s);
     FX.decals.setMatrixAt(i, _m);
-    var cell = kind === 'hole' ? CELL.hole[(Math.random() * 2) | 0] : CELL.splat[(Math.random() * 4) | 0];
+    var cell = kind === 'hole' ? CELL.hole[(Math.random() * 2) | 0] : kind === 'scorch' ? CELL.scorch[(Math.random() * 2) | 0] : CELL.splat[(Math.random() * 4) | 0];
     setUv(FX.decals, i, cell);
     FX.decals.instanceMatrix.needsUpdate = true;
     FX.decalCount = Math.min(cap, FX.decalCount + 1);

@@ -54,6 +54,14 @@
     e.fx -= dt; if (e.fx > 0) return;
     var rad = v.radius, y0 = r.y + v.y0, y1 = r.y + v.y1, a = Math.random() * Math.PI * 2;
     var x = r.x + Math.cos(a) * rad * 0.9, z = r.z + Math.sin(a) * rad * 0.9, y = y0 + (y1 - y0) * (0.2 + Math.random() * 0.8);
+    if (IB.Boom && IB.Boom.ready) {
+      // comic arcs crawling over the body + sparks (shock); drips, popping bubbles and sizzle steam (acid)
+      e.fx = e.kind === 'shock' ? 0.07 : 0.08;
+      IB.Boom.statusFx(e.kind, r, x, y, z, rad, y0, y1);
+      FX.puff(x, y, z, 1, K.colors[(Math.random() * 2) | 0], 0.07, 0.16, e.kind === 'shock' ? 3 : 0.5, e.kind === 'shock' ? 0 : 6);
+      if (e.kind === 'acid' && Math.random() < 0.15 && IB.Audio) IB.Audio.play('sizzle', { pos: r, gain: 0.25 });
+      return;
+    }
     if (e.kind === 'shock') {
       e.fx = 0.06;
       FX.puff(x, y, z, 2, K.colors[(Math.random() * 2) | 0], 0.09, 0.2, 4.5);

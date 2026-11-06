@@ -396,6 +396,68 @@ async function lootRun(browser, base) {
   await pg.context().close();
 }
 
+async function vfxRun(browser, base) {
+  console.log('\n# vfx: comic explosions, canisters, escalation, pools');
+  // level 1: no canisters, intensity 1
+  let pg = await newPage(browser, base + '?autotest=1&plan=mountains');
+  let v = await pg.evaluate(() => ({ s: IB.Boom.stats(), cans: IB.Boom.canisters().length }));
+  check('level 1 runs at intensity 1 with no canisters', v.s.intensity === 1 && v.cans === 0, JSON.stringify(v));
+  await pg.context().close();
+  // level 7: canisters placed safely, robots wreck into explosions, a shot canister chains, pools stay bounded
+  pg = await newPage(browser, base + '?autotest=1&plan=tt2');
+  await pg.evaluate(() => { IB.Game.player.protect = 1e9; });
+  v = await pg.evaluate(() => {
+    const G = IB.Game, L = G.level, cans = IB.Boom.canisters(), bad = [];
+    cans.forEach(c => {
+      const z = L.zones[c.zone];
+      if (Math.hypot(c.x - z.entry.x, c.z - z.entry.z) < IB.Boom.CAN.fromEntry) bad.push('near entry');
+      z.spawns.forEach(s => { if (Math.hypot(c.x - s.x, c.z - s.z) < IB.Boom.CAN.fromSpawn) bad.push('near spawn'); });
+    });
+    // with every canister's cells blocked, the exit gate is still reachable from the entry in every zone
+    const reach = L.zones.map(z => { IB.Zones.flowField(z, z.exitGate.x, z.exitGate.z + 1.2); const c = IB.Zones.navCell(z, z.entry.x, z.entry.z); return c >= 0 && z.nav.dist[c] < 32767; });
+    IB.Zones.flowField(L.zones[G.zone], G.player.x, G.player.z);
+    return { n: cans.length, zones: L.zones.length, per: IB.Boom.canistersPerZone(G.plan.level), bad, reach, I: IB.Boom.stats().intensity };
+  });
+  check('level 7 places canisters (' + v.n + ' in ' + v.zones + ' zones), intensity ' + v.I, v.n > 0 && v.n <= v.per * v.zones && v.I > 1.8, JSON.stringify(v));
+  check('canisters keep clear of the entry and the spawn cans', v.bad.length === 0, v.bad.join(','));
+  check('canisters never block the way to the exit gate', v.reach.every(Boolean), JSON.stringify(v.reach));
+  await until(pg, () => IB.AI.robots.filter(r => r.on && r.state !== 'spawn' && r.state !== 'pose').length >= 3, null, 30000);
+  const kill = await pg.evaluate(() => new Promise(done => {
+    const G = IB.Game, rs = IB.AI.robots.filter(r => r.on && r.state !== 'spawn' && r.state !== 'pose');
+    rs.slice(0, 4).forEach(r => IB.AI.damage(r, 1e6, {}, G.onKill));
+    const s0 = IB.Boom.stats();
+    setTimeout(() => done({ s0, s1: IB.Boom.stats(), kills: G.run.kills }), 400);
+  }));
+  check('robot wrecks throw fire, smoke, cards and debris', kill.s0.puffs > 0 && kill.s0.cards > 0 && kill.s0.debris > 0, JSON.stringify(kill.s0));
+  const chain = await pg.evaluate(() => new Promise(done => {
+    const G = IB.Game, cans = IB.Boom.canisters().filter(c => c.zone === G.zone && c.state === 'intact');
+    if (!cans.length) return done({ skip: true });
+    const c = cans[0], q = []; G.level.world.query(c.x - 0.1, c.z - 0.1, c.x + 0.1, c.z + 0.1, q);
+    const box = q.find(b => b.kind === 'canister');
+    IB.Boom.hitCan(box, 10); const after1 = IB.Boom.canisters().find(k => k.x === c.x && k.z === c.z).state;
+    IB.Boom.hitCan(box, 99);
+    const t0 = performance.now();
+    (function wait() {
+      const st = IB.Boom.canisters().find(k => k.x === c.x && k.z === c.z).state;
+      if (st === 'gone' && performance.now() - t0 > 300) return done({ after1, st, box: box.on, nav: IB.Zones.isOpen(G.level.zones[c.zone], c.x, c.z) });
+      if (performance.now() - t0 > 20000) return done({ after1, st, timeout: true });
+      setTimeout(wait, 50);
+    })();
+  }));
+  check('a canister survives one light hit, a heavy one lights it, it blows (box and nav cell freed)', chain.skip || (chain.after1 === 'intact' && chain.st === 'gone' && chain.box === false && chain.nav === true), JSON.stringify(chain));
+  const pools = await pg.evaluate(() => new Promise(done => {
+    const G = IB.Game, z = G.level.zones[G.zone]; let calls = 0;
+    for (let k = 0; k < 30; k++) { IB.AI.spawn(k % 3 ? 'crawler' : 'gunner', z.entry.x - 6 + (k % 6) * 2.2, z.entry.z - 8 - Math.floor(k / 6) * 2, G.zone, z.entry.x, z.entry.z, { pose: true }); }
+    IB.AI.robots.forEach(r => { if (r.on) IB.AI.kill(r, G.onKill); });
+    for (let k = 0; k < 6; k++) IB.Projectiles.explode(z.entry.x - 4 + k * 1.6, 0.5, z.entry.z - 10, 3, 0, 40, { type: 'bomber' });
+    G.player.yaw = 0; G.player.pitch = -0.1;
+    let n = 0; (function tick() { calls = Math.max(calls, IB.Render.renderer.info.render.calls); if (++n < 25) requestAnimationFrame(tick); else done({ calls, s: IB.Boom.stats() }); })();
+  }));
+  check('30 wrecks + 6 blasts at once: pools capped, draw calls within 200', pools.s.cards <= 480 && pools.s.puffs <= 200 && pools.calls <= 200, JSON.stringify(pools));
+  check('no console errors or warnings', pg.logs.length === 0, pg.logs.join(' | '));
+  await pg.context().close();
+}
+
 (async () => {
   const server = await serve();
   const base = 'http://localhost:' + server.address().port + '/' + encodeURI(TARGET);
@@ -403,7 +465,7 @@ async function lootRun(browser, base) {
   const browser = await chromium.launch({ args: ARGS });
   try {
     // ONLY=lootRun,tabMenuRun runs a subset
-    const runs = { hookRun, deathRun, inputRun, touchRun, tabMenuRun, slideRun, lootRun, campaignRun };
+    const runs = { hookRun, deathRun, inputRun, touchRun, tabMenuRun, slideRun, lootRun, campaignRun, vfxRun };
     for (const [name, fn] of Object.entries(runs)) if (!process.env.ONLY || process.env.ONLY.split(',').includes(name)) await fn(browser, base);
   } catch (e) { console.log('FAIL exception ' + e.stack); failures++; }
   await browser.close(); server.close();

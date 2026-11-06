@@ -36,14 +36,44 @@
     W.clips = {};
     A.gltf.weapons.animations.forEach(function (c) { W.clips[c.name] = c; });
     W.models = {};
-    // muzzle flash: flat comic star, unlit, parented to the active weapon's MUZZLE socket
-    var star = new THREE.Shape(), pts = 10;
-    for (var i = 0; i <= pts; i++) { var a = i / pts * Math.PI * 2, r = i % 2 ? 0.035 : 0.09; if (i === 0) star.moveTo(Math.cos(a) * r, Math.sin(a) * r); else star.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
-    W.flash = new THREE.Mesh(new THREE.ShapeGeometry(star), new THREE.MeshBasicMaterial({ color: PAL.amber, depthTest: false }));
-    var inner = new THREE.Mesh(new THREE.CircleGeometry(0.03, 8), new THREE.MeshBasicMaterial({ color: PAL.paper, depthTest: false }));
-    inner.position.z = 0.001; W.flash.add(inner);
-    W.flash.renderOrder = 10; inner.renderOrder = 11; W.flash.visible = false;
+    // muzzle flash: layered flat comic star (ink rim, amber star, paper core) with side flares and a forward
+    // cone, unlit, parented to the active weapon's MUZZLE socket; scaled per class, two frames (full, then smaller)
+    function starGeo(n, r0, r1, jit) {
+      var sh = new THREE.Shape();
+      for (var i = 0; i <= n * 2; i++) { var a = i / (n * 2) * Math.PI * 2, r = (i % 2 ? r1 : r0) * (1 + (i % 4 === 0 ? jit : 0)); if (i === 0) sh.moveTo(Math.cos(a) * r, Math.sin(a) * r); else sh.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+      return new THREE.ShapeGeometry(sh);
+    }
+    // layers are merged into one geometry each (vertex colours, drawn in order with no depth test): 3 draw calls
+    var _lm = new THREE.Matrix4(), _lc = new THREE.Color();
+    function layers(list) {
+      var geos = list.map(function (L) {
+        var g = L[0].clone(); g.applyMatrix4(_lm.compose(new THREE.Vector3(0, 0, L[3] || 0), new THREE.Quaternion().setFromEuler(new THREE.Euler(L[4] || 0, L[5] || 0, L[6] || 0)), new THREE.Vector3(L[2][0], L[2][1], 1)));
+        var n = g.attributes.position.count, c = new Float32Array(n * 3); _lc.set(L[1]);
+        for (var i = 0; i < n; i++) { c[i * 3] = _lc.r; c[i * 3 + 1] = _lc.g; c[i * 3 + 2] = _lc.b; }
+        g.setAttribute('color', new THREE.BufferAttribute(c, 3)); g.deleteAttribute('uv'); g.deleteAttribute('normal');
+        return g;
+      });
+      var m = new THREE.Mesh(THREE.BufferGeometryUtils.mergeBufferGeometries(geos), new THREE.MeshBasicMaterial({ vertexColors: true, depthTest: false, depthWrite: false, side: THREE.DoubleSide }));
+      m.renderOrder = 10; m.frustumCulled = false;
+      return m;
+    }
+    var petal = new THREE.Shape(); petal.moveTo(0, 0); petal.quadraticCurveTo(0.07, 0.03, 0.16, 0); petal.quadraticCurveTo(0.07, -0.03, 0, 0);
+    var pg = new THREE.ShapeGeometry(petal), ONE = [1, 1];
+    W.flash = new THREE.Group();
+    W.flashStar = layers([[starGeo(6, 0.12, 0.058, 0.18), PAL.ink, ONE], [starGeo(6, 0.095, 0.04, 0.18), PAL.amber, ONE], [starGeo(5, 0.05, 0.028, 0), PAL.paper, ONE]]);
+    W.flash.add(W.flashStar);
+    // side flares (rifles, SMGs, snipers, shotguns): two petals out to the sides
+    W.flashSide = layers([[pg, PAL.ink, [1.12, 1.7]], [pg, PAL.ink, [1.12, 1.7], 0, 0, 0, Math.PI], [pg, PAL.amber, ONE], [pg, PAL.amber, ONE, 0, 0, 0, Math.PI]]);
+    W.flashSide.renderOrder = 9; W.flash.add(W.flashSide);
+    // a cone of fire forward along -z (seen edge-on from behind: a short spike)
+    W.flashCone = layers([[pg, PAL.ink, [1.5, 2.2], 0.002, 0, Math.PI / 2, 0], [pg, PAL.amber, [1.4, 1.5], 0, 0, Math.PI / 2, 0]]);
+    W.flashCone.renderOrder = 9; W.flash.add(W.flashCone);
+    W.flashCore = W.flashStar;
+    W.flash.visible = false;
   };
+  // flash size per class (pistol 1); and which classes get side flares
+  var FLASH_SCALE = { pistol: 0.95, smg: 1.0, rifle: 1.2, sniper: 1.55, shotgun: 1.7, rocket: 1.4, handcannon: 1.45 };
+  var FLASH_SIDE = { smg: true, rifle: true, sniper: true, shotgun: true };
   function model(id) {
     if (W.models[id]) return W.models[id];
     var A = IB.Assets, key = 'WPN_' + id.toUpperCase();
@@ -224,8 +254,9 @@
     s.recoilP += rec * D2R;
     s.recoilY += (Math.random() * 2 - 1) * (d.recoilH || 0) * (s.fx.recoilMul || 1) * D2R;
     s.kickZv += 1.6 + rec * 0.5; s.kickRv += 2.0 + rec * 1.2;
-    s.flashT = 0.045;
+    s.flashT = 0.055; s.flashCls = d.id === 'handcannon' ? 'handcannon' : d.cls;
     W.anim(s, 'Fire', { once: true, fade: 0.02 });
+    if (IB.Boom) IB.Boom.onFire(s, d);   // shell casing from the EJECT socket, muzzle smoke
     // layered shot per class; heavier guns pitch down, light ones up (+/-4% random per shot)
     var snd = FIRE_SND[d.id] || FIRE_SND[d.cls] || ['gun', 1];
     IB.Audio && IB.Audio.play(snd[0], { pitch: snd[1] * (1 + (Math.random() * 0.08 - 0.04)) });
@@ -331,9 +362,14 @@
     W.vmRoot.visible = !!g && !s.hidden;
     if (g) {
       W.flash.visible = s.flashT > 0 && s.aim < 0.3;   // never over the sights when aiming
-      W.flash.position.set(0, 0, -0.03);
-      W.flash.rotation.z = Math.random() * 6.28;
-      var fs = 0.8 + Math.random() * 0.5; W.flash.scale.set(fs, fs, fs);
+      if (W.flash.visible) {
+        var cls = s.flashCls || g.def.cls, big = s.flashT > 0.028 ? 1 : 0.62;   // frame 1 full, frame 2 smaller
+        W.flash.position.set(0, 0, -0.03);
+        W.flash.rotation.z = Math.random() * 6.28;
+        var fs = (FLASH_SCALE[cls] || 1) * (0.85 + Math.random() * 0.4) * big; W.flash.scale.set(fs, fs, fs);
+        W.flashSide.visible = !!FLASH_SIDE[cls]; W.flashSide.rotation.z = -W.flash.rotation.z + (Math.random() - 0.5) * 0.3;   // flares stay level
+        W.flashCone.visible = big === 1;
+      }
     }
   };
 })(window.IB = window.IB || {});

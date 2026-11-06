@@ -334,11 +334,13 @@
   Z.setGate = function (gate, open, instant) {
     gate.target = open ? 1 : 0;
     gate.speed = open ? 1 / 1.2 : 1 / 0.6;
-    if (instant) gate.open = gate.target;
+    if (instant) { gate.open = gate.target; gate.was = gate.open; }
     Z.applyGate(gate);
   };
   Z.applyGate = function (gate) {
     var o = gate.open;
+    if (o <= 0 && gate.target === 0 && gate.was > 0 && IB.Boom) IB.Boom.gateSlam(gate);   // shutter hits the floor: dust, chips, CLANG!
+    gate.was = o;
     gate.shutter.scale.y = Math.max(0.02, 1 - o);
     gate.shutter.position.y = o * (gate.h || 3.05);
     gate.shutter.visible = o < 0.98;

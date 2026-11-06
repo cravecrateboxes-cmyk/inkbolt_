@@ -283,7 +283,8 @@
     if (!c) { var oldest = 0; for (i = 1; i < CORPSE_CAP; i++) if (T.corpses[i].t > T.corpses[oldest].t) oldest = i; c = T.corpses[oldest]; c.idx = oldest; }
     c.on = true; c.t = 0; c.x = r.x; c.y = r.y; c.vy = 0; c.z = r.z; c.yaw = r.yaw; c.tip = Math.random() < 0.5 ? 1 : -1;
     var my = r.y + 0.5;
-    if (IB.FX) { IB.FX.chunk(r.x, my, r.z, 3 + ((Math.random() * 4) | 0), 3); IB.FX.puff(r.x, my, r.z, 6, PAL.ink, 0.25, 0.7, 3); }
+    if (IB.Boom && IB.Boom.ready) IB.Boom.robotDeath(r, quiet);   // comic explosion per type (Drones drop and blow up on impact)
+    else if (IB.FX) { IB.FX.chunk(r.x, my, r.z, 3 + ((Math.random() * 4) | 0), 3); IB.FX.puff(r.x, my, r.z, 6, PAL.ink, 0.25, 0.7, 3); }
     r.fuse = 0;
     if (v.onDeath) v.onDeath(r, quiet);
     if (onKill) onKill(r);
@@ -374,6 +375,7 @@
     if (spread) { dx += (Math.random() - 0.5) * spread; dy += (Math.random() - 0.5) * spread * 0.6; dz += (Math.random() - 0.5) * spread; }
     if (IB.Projectiles && IB.Projectiles.fire) IB.Projectiles.fire(m.x, m.y, m.z, dx, dy, dz, speed, dmg, r);
     if (IB.FX) { IB.FX.puff(m.x, m.y, m.z, 2, PAL.amber, 0.1, 0.22, 1.2); IB.FX.puff(m.x, m.y, m.z, 1, PAL.ink, 0.1, 0.3, 0.8); }
+    if (IB.Boom) IB.Boom.muzzle(m.x, m.y, m.z, r.type === 'drone' ? 0.32 : 0.42);
     play('bolt', r, 0.8);
     r.kick = 1;
   }

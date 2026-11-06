@@ -40,10 +40,19 @@ LOOT AND GEAR
   cleared, the attachment slots of each carried gun, the shield) and the BACKPACK (weapons, attachments, shields);
   it equips, fits, moves and scraps them. Tables: src/data/loot.js; logic: src/core/loot.js; models: blender/fam_gear.py.
 
+EXPLOSIONS AND HAZARDS (src/game/boom.js)
+  Robots blow up as comic explosions (toon fireballs, ink smoke, flying parts, a word like KRAK! or KA-BOOM!);
+  Drones drop out of the air and blow up where they land. Effects grow with the campaign level (IB.Boom.intensity:
+  1.0 on level 1, +0.15 a level, 2.2 from level 9): bigger blasts, more debris and words, chains of scrap pops.
+  Explosive canisters (red, from level 3: 1 per zone, up to 4) go off after a couple of shots, robot bolts or being caught
+  in a blast; a red ring on the floor shows the blast reach during the fuse. They hurt robots and the player alike.
+  Screen shake and Reduce flash (settings) are respected; counts scale with the graphics tier.
+
 BUILD AND TEST (from the Source folder)
   python3 tools/build.py
   npm test                                  (unit tests)
   node tests/e2e/smoke.spec.js              (plays level 1 headless: zones, gates, trail, hatch, death, input, touch)
   node tests/e2e/screens.spec.js            (screenshots in tests/e2e/screens/, layout checks)
-  node tests/e2e/perf.spec.js               (draw calls, triangles, frame times)
+  node tests/e2e/perf.spec.js               (draw calls, triangles, frame times, VFX stress)
+  node tests/e2e/vfx-shots.js               (frame-stepped explosion screenshots -> tests/e2e/review/vfx-*.png)
   Dev page: serve the repo folder over http and open Source/dev.html  (add ?autotest=1 to skip the title).
