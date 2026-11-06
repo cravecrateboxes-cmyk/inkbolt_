@@ -305,9 +305,10 @@
     // pickups
     var pk = d.pickups || [];
     for (i = 0; i < pk.length; i++) {
-      p = map(pk[i].x, pk[i].z, false); if (!p) continue;
+      p = map(pk[i].x, pk[i].z, pk[i].kind === 'loot'); if (!p) continue;   // loot stays pinned to the edge
+      if (pk[i].kind === 'loot') { diamond(ctx, p.x, p.y, 7.5 * dpr, '#15121C'); diamond(ctx, p.x, p.y, 5 * dpr, pk[i].color || '#FFFDF7'); continue; }
       ctx.fillStyle = '#15121C'; ctx.fillRect(p.x - 4.5 * dpr, p.y - 4.5 * dpr, 9 * dpr, 9 * dpr);
-      ctx.fillStyle = PICK[pk[i].kind] || '#FFFDF7'; ctx.fillRect(p.x - 3 * dpr, p.y - 3 * dpr, 6 * dpr, 6 * dpr);
+      ctx.fillStyle = pk[i].color || PICK[pk[i].kind] || '#FFFDF7'; ctx.fillRect(p.x - 3 * dpr, p.y - 3 * dpr, 6 * dpr, 6 * dpr);
     }
     // exit: teal hex bolt, clamped to the edge
     if (d.exit) {
@@ -330,6 +331,7 @@
     ctx.fillStyle = '#FFFDF7'; ctx.fill();
     ctx.restore();
   };
+  function diamond(ctx, x, y, r, col) { ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath(); ctx.fill(); }
   function hex(ctx, x, y, r, col) {
     ctx.fillStyle = col; ctx.beginPath();
     for (var i = 0; i < 6; i++) { var a = i * Math.PI / 3; ctx[i ? 'lineTo' : 'moveTo'](x + Math.cos(a) * r, y + Math.sin(a) * r); }
