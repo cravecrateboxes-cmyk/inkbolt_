@@ -14,7 +14,13 @@
     return u.buffer;
   }
   function fetchBuffer(fam) {
-    if (IB.GLB_DATA && IB.GLB_DATA[fam]) return Promise.resolve(b64ToBuffer(IB.GLB_DATA[fam]));
+    if (IB.GLB_DATA && IB.GLB_DATA[fam]) {
+      var buf = b64ToBuffer(IB.GLB_DATA[fam]);
+      if (!IB.GLB_GZ) return Promise.resolve(buf);
+      // the single-file build embeds gzip-compressed GLBs; inflate with the browser's DecompressionStream
+      if (typeof DecompressionStream === 'undefined') return Promise.reject(new Error('This browser is too old to unpack the game files (needs DecompressionStream).'));
+      return new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+    }
     return fetch((IB.ASSET_BASE || 'assets/') + A.FILES[fam]).then(function (r) {
       if (!r.ok) throw new Error('missing asset ' + A.FILES[fam]);
       return r.arrayBuffer();

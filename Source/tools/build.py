@@ -9,7 +9,7 @@ Outputs
   Source/dist/upload/               index.html + three.min.js + three-LICENSE.txt (plain build, no SDK)
   <repo>/Play Inkbolt.html          single file: three.js, code, CSS and font inlined; runs offline from disk
 """
-import base64, json, os, re, shutil, sys
+import base64, gzip, json, os, re, shutil, sys
 
 SRC = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROOT = os.path.dirname(SRC)
@@ -78,8 +78,9 @@ def bundle(platform='plain', standalone=False):
     if standalone:   # every GLB embedded as base64 (brief 4.2); decoded with GLTFLoader.parse
         data = {}
         for fam, fn in ASSETS.items():
-            data[fam] = base64.b64encode(open(os.path.join(SRC, 'assets', fn), 'rb').read()).decode()
-        game.append('window.IB = window.IB || {}; IB.GLB_DATA = ' + json.dumps(data) + ';')
+            # gzip before base64: GLBs shrink 4-7x; the game inflates them with the browser's DecompressionStream
+            data[fam] = base64.b64encode(gzip.compress(open(os.path.join(SRC, 'assets', fn), 'rb').read(), 9, mtime=0)).decode()
+        game.append('window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = ' + json.dumps(data) + ';')
     vendor_tags = []
     for s in scripts:
         if s.startswith('vendor/'):
