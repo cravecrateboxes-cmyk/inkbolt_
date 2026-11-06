@@ -38,6 +38,7 @@
   <div class="confirm" id="confirm" hidden><span class="gem-glyph sm" aria-hidden="true"></span><b id="confirmNum">+1</b></div>
   <div class="prompt" id="prompt" hidden><span class="key" id="promptKey">R</span><span id="promptText">Reload</span><i class="prompt-bar"><i id="promptFill"></i></i></div>
   <div class="hud-bl">
+    <div class="lvtag" id="lvTag"><b class="lv-badge"><small>LV</small><span id="lvNum">1</span></b><span class="lv-title" id="lvTitle">Tin Rookie</span><span class="lv-pts" id="lvPts" hidden><b id="lvPtsN">+1</b><span class="lv-key" id="lvKey">Tab</span></span></div>
     <div class="plate ink health" id="health">
       <svg class="hp-glyph" viewBox="-12 -12 24 24" aria-hidden="true"><polygon points="11,0 5.5,9.5 -5.5,9.5 -11,0 -5.5,-9.5 5.5,-9.5"/><circle r="3.6"/></svg>
       <div class="hp-bar"><i id="hpFill"></i><i class="hp-ticks"></i></div><b id="hpNum">100</b>
@@ -66,10 +67,12 @@
       <span class="elim-row"><span id="elimCount">Back in 3</span><span id="elimRetries">Retries left 2</span></span>
     </div>
   </div>
+  <button class="plate ink pausebtn menubtn" id="menuBtn" aria-label="Loadout, gear and skills"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h7v6H4zM13 5h7v6h-7zM4 13h7v6H4zM13 13h7v6h-7z" fill="currentColor"/></svg><i class="menubtn-dot" id="menuDot" hidden></i></button>
   <button class="plate ink pausebtn" id="pauseBtn" aria-label="Pause"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3v14H7zM14 5h3v14h-3z" fill="currentColor"/></svg></button>
 </div>
 <div id="touch" class="touch" hidden></div>
 <div id="overlay" class="overlay" hidden></div>
+<div id="tabmenu" class="tabmenu" hidden></div>
 <div id="loading" class="loading" hidden></div>
 <!--BUILD:JS-->
 <script src="vendor/three.min.js"></script>
@@ -79,6 +82,7 @@
 <script src="src/data/weapons.js"></script>
 <script src="src/data/enemies.js"></script>
 <script src="src/data/upgrades.js"></script>
+<script src="src/data/skills.js"></script>
 <script src="src/data/unlocks.js"></script>
 <script src="src/data/levels.js"></script>
 <script src="src/data/themes.js"></script>
@@ -91,6 +95,8 @@
 <script src="src/core/damage.js"></script>
 <script src="src/core/gems.js"></script>
 <script src="src/core/upgrades.js"></script>
+<script src="src/core/skills.js"></script>
+<script src="src/core/loadout.js"></script>
 <script src="src/core/saves.js"></script>
 <script src="src/core/levelgen.js"></script>
 <script src="src/core/loot.js"></script>
@@ -105,6 +111,7 @@
 <script src="src/game/ai.js"></script>
 <script src="src/game/projectiles.js"></script>
 <script src="src/game/weapons.js"></script>
+<script src="src/game/skillfx.js"></script>
 <script src="src/game/status.js"></script>
 <script src="src/game/dmgnum.js"></script>
 <script src="src/game/gear.js"></script>
@@ -113,6 +120,7 @@
 <script src="src/ui/menus.js"></script>
 <script src="src/ui/loothud.js"></script>
 <script src="src/ui/gear.js"></script>
+<script src="src/ui/tabmenu.js"></script>
 <script src="src/game/game.js"></script>
 <!--/BUILD:JS-->
 </body>

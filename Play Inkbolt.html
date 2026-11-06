@@ -482,6 +482,384 @@ body.kbd .btn.primary:focus-visible { outline-color: var(--paper); }
   .gear, .ld-track i { animation-play-state: paused; }
 }
 
+/* ---------- player level tag (HUD, above the health plate; phones: under it) ---------- */
+.lvtag { display: flex; align-items: stretch; height: 32px; justify-self: start; max-width: 100%; min-width: 0; filter: drop-shadow(0 3px 0 rgba(21, 18, 28, .45)); }
+.lv-badge { flex: none; display: flex; align-items: baseline; gap: 3px; padding: 4px 9px 0 8px; background: var(--teal); color: var(--ink); box-shadow: inset 0 0 0 3px var(--ink);
+  font-stretch: 125%; font-weight: 900; line-height: 1; clip-path: polygon(8px 0, 100% 0, 100% 100%, 0 100%, 0 8px); }
+.lv-badge small { font-size: 11px; font-weight: 900; }
+.lv-badge span { font-size: 23px; }
+.lv-title { min-width: 0; display: flex; align-items: center; padding: 0 24px 0 10px; margin-left: -3px; background: var(--ink); color: var(--paper);
+  font-stretch: 88%; font-weight: 900; font-size: var(--t15); text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 100%, 0 100%); }
+.lv-pts { flex: none; display: flex; align-items: center; gap: 6px; margin-left: 4px; padding: 0 6px 0 9px; background: var(--amber); color: var(--ink); box-shadow: inset 0 0 0 3px var(--ink);
+  font-stretch: 125%; font-weight: 900; font-size: var(--t15); clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 0 100%); animation: ptsPulse 1.6s ease-in-out infinite; }
+.lv-key { font-size: 11px; font-stretch: 100%; font-weight: 800; background: var(--ink); color: var(--amber); padding: 3px 5px 2px; text-transform: uppercase; letter-spacing: .04em; }
+@keyframes ptsPulse { 50% { background: #FFD27A; } }
+.menubtn { right: calc(var(--sar) + var(--gap) + 58px); }
+.menubtn-dot { position: absolute; top: 5px; right: 5px; width: 11px; height: 11px; background: var(--amber); box-shadow: 0 0 0 2px var(--ink); }
+body.touch-on .lvtag { order: 3; height: 26px; max-width: none; width: max-content; }
+body.touch-on .lv-pts { display: none; }   /* phones: the amber dot on the menu button shows unspent points */
+body.touch-on .lv-badge span { font-size: 18px; }
+body.touch-on .lv-title { font-size: 12px; padding-right: 16px; }
+body.touch-on .lv-pts { font-size: 13px; padding: 0 6px 0 7px; }
+body.touch-on .hud-tr { top: calc(var(--sat) + var(--gap) + 90px); }
+@media (orientation: portrait) {
+  body.touch-on .hud-top { right: calc(var(--sar) + var(--gap) + 114px); }
+  body.touch-on .hud-tr { top: calc(var(--sat) + var(--gap) + 66px); }
+  body.touch-on .objective { top: calc(var(--sat) + var(--gap) + 152px); }
+  body.touch-on .feed { top: calc(var(--sat) + var(--gap) + 208px); }
+}
+
+/* ---------- field kit: the Tab menu (Loadout / Gear / Skills) ---------- */
+.tabmenu { position: fixed; inset: 0; z-index: 30; display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); overflow: hidden;
+  padding: calc(var(--sat) + 20px) calc(var(--sar) + 20px) calc(var(--sab) + 20px) calc(var(--sal) + 20px); }
+.tm-scrim { position: absolute; inset: 0; background-color: rgba(21, 18, 28, .74);
+  background-image: radial-gradient(circle, rgba(13, 10, 18, .55) 1.5px, transparent 2px); background-size: 7px 7px; animation: ldIn .16s ease-out; }
+.tm-frame { --ch: 18px; justify-self: center; align-self: center; width: min(1280px, 100%); height: min(1000px, 100%); display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 12px;
+  padding: 18px 22px 14px; min-width: 0; animation: scr .16s ease-out; }
+.tm-head { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 16px; min-width: 0; }
+.tm-id { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.tm-lv { flex: none; width: 60px; height: 60px; display: grid; place-content: center; justify-items: center; background: var(--teal); color: var(--ink); line-height: .9;
+  box-shadow: inset 0 0 0 3px var(--ink); clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); }
+.tm-lv small { font-size: 12px; font-weight: 900; font-stretch: 125%; }
+.tm-lv b { font-size: 30px; font-weight: 900; font-stretch: 125%; }
+.tm-idtxt { display: grid; gap: 4px; min-width: 0; }
+.tm-title { font-stretch: 125%; font-weight: 900; font-size: var(--t22); text-transform: uppercase; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tm-sub { font-size: var(--t13); color: var(--paper-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tm-tabs { display: flex; gap: 8px; justify-self: center; }
+.tm-tab { position: relative; appearance: none; border: 0; cursor: pointer; display: inline-flex; align-items: center; gap: 10px; height: 54px; padding: 0 22px 0 18px;
+  background: var(--lift-2); color: var(--paper); font: inherit; font-stretch: 112%; font-weight: 900; font-size: var(--t18); text-transform: uppercase;
+  clip-path: polygon(9px 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%, 0 9px); transition: background .1s; }
+.tm-tab svg { width: 20px; height: 20px; color: var(--teal); }
+.tm-tab:hover { background: var(--lift-3); }
+.tm-tab[aria-selected="true"] { background: var(--teal); color: var(--ink); }
+.tm-tab[aria-selected="true"] svg { color: var(--ink); }
+.tm-tab::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: var(--ink); opacity: 0; }
+.tm-tab[aria-selected="true"]::after { opacity: 1; }
+.tm-badge { min-width: 24px; height: 24px; padding: 0 6px; display: grid; place-items: center; background: var(--amber); color: var(--ink); font-size: 14px; font-stretch: 125%;
+  box-shadow: 0 0 0 2px var(--ink); }
+.tm-meta { justify-self: end; display: flex; align-items: center; gap: 14px; }
+.tm-gems { display: inline-flex; align-items: center; gap: 8px; font-stretch: 125%; font-weight: 900; font-size: var(--t22); }
+.tm-close { appearance: none; border: 0; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 52px; min-width: 52px; padding: 0 12px 0 14px; background: var(--lift-2); color: var(--paper);
+  font: inherit; font-weight: 800; clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }
+.tm-close:hover { background: var(--red); }
+.tm-close svg { width: 18px; height: 18px; }
+.tm-close kbd, .tm-foot kbd { font: inherit; font-size: 12px; font-weight: 800; padding: 3px 6px 2px; background: var(--ink); color: var(--teal); text-transform: uppercase; }
+.tm-hazard { height: 8px; }
+.tm-body { min-height: 0; min-width: 0; display: grid; gap: 18px; }
+.tm-scroll { overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; min-height: 0; touch-action: pan-y; -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin; scrollbar-color: var(--lift-3) transparent; }
+/* scroll panes fade out at the bottom edge so it reads as "more below" */
+.sk-tree, .lo-ars, .gear-host { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent); padding-bottom: 24px !important; }
+.tm-foot { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: center; font-size: var(--t13); color: var(--paper-2); }
+.tm-foot span { display: inline-flex; align-items: center; gap: 5px; }
+.tabmenu button:focus { outline: none; }
+body.kbd .tabmenu button:focus-visible { outline: 3px solid var(--paper); outline-offset: 3px; }
+.tm-h { display: flex; align-items: baseline; gap: 12px; margin: 0 0 10px; min-width: 0; }
+.tm-h b { font-stretch: 125%; font-weight: 900; font-size: var(--t18); text-transform: uppercase; }
+.tm-h span { font-size: var(--t13); color: var(--paper-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* skills: the tree (tiers as rows, a gate bolt + pipe on the left) and the detail card */
+.tm-skills { grid-template-columns: minmax(0, 1fr) minmax(300px, 390px); }
+.sk-tree { display: grid; gap: 12px; align-content: start; padding: 2px 8px 10px 2px; }
+.sk-tier { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 12px; }
+.sk-rail { position: relative; display: grid; justify-items: center; align-content: start; padding-top: 22px; }
+.sk-gate { position: relative; z-index: 1; width: 46px; height: 40px; display: grid; place-items: center; background: var(--ink); color: var(--paper-2);
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); }
+.sk-gate::after { content: ''; position: absolute; inset: 3px; z-index: -1; background: var(--lift-3); clip-path: inherit; }
+.sk-gate b { font-stretch: 125%; font-weight: 900; font-size: 17px; }
+.sk-tier.open .sk-gate { color: var(--ink); }
+.sk-tier.open .sk-gate::after { background: var(--teal); }
+.sk-pipe { position: absolute; top: 58px; bottom: -16px; left: 50%; width: 10px; margin-left: -5px; background: var(--ink); }
+.sk-pipe i { position: absolute; left: 2px; right: 2px; top: 0; height: calc(var(--seg, 0) * 100%); background: repeating-linear-gradient(-45deg, var(--teal) 0 5px, var(--teal-d) 5px 10px); }
+.sk-tierbody { min-width: 0; }
+.sk-tierhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 22px; margin-bottom: 6px; font-size: var(--t13); color: var(--paper-2); }
+.sk-tierhead b { font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.sk-tier.cap .sk-tierhead b { color: var(--amber); }
+.sk-need { display: inline-flex; align-items: center; gap: 6px; color: var(--amber); font-weight: 700; white-space: nowrap; }
+.sk-need svg { width: 13px; height: 13px; }
+.sk-row { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 10px; }
+.sk-row > * { grid-column: span 2; }
+.sk-row.n3 > :first-child { grid-column: 2 / span 2; }
+.sk-row.n2 > :first-child { grid-column: 1 / span 3; }
+.sk-row.n2 > .sk-or { grid-column: 4 / span 2; }
+.sk-row.n2 > :last-child { grid-column: 6 / span 3; }
+.sk-node { --ch: 10px; --face: var(--lift-2); appearance: none; border: 0; background: none; cursor: pointer; font: inherit; color: var(--paper);
+  min-height: 112px; min-width: 0; padding: 12px 8px 11px; display: grid; justify-items: center; align-content: center; gap: 7px; text-align: center; transition: transform .08s; }
+.sk-node:hover { --face: var(--lift-3); }
+.sk-node:active { transform: translateY(2px) scale(.985); }
+.sk-node.sel::before { background: var(--paper); }
+.sk-node.sel { --face: var(--lift-3); }
+.sk-ic { width: 46px; height: 46px; display: grid; place-items: center; background: var(--ink); color: var(--paper-2);
+  clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px); }
+.sk-ic svg { width: 26px; height: 26px; }
+.sk-node.owned .sk-ic { background: var(--teal); color: var(--ink); }
+.sk-node.owned .sk-ic svg [stroke="var(--ink)"] { stroke: var(--teal); }
+.sk-node.maxed { --face: #1F4F55; }
+.sk-node.maxed.sel { --face: #276068; }
+.sk-name { font-weight: 800; font-size: var(--t15); line-height: 1.1; min-width: 0; overflow-wrap: anywhere; }
+.sk-pips { display: flex; gap: 4px; }
+.sk-pips i { width: 16px; height: 7px; background: var(--ink); box-shadow: inset 0 0 0 1.5px var(--lift-3); }
+.sk-pips i.on { background: var(--teal); box-shadow: none; }
+.sk-pips.one i { width: 34px; }
+.sk-pips.one i.on { background: var(--amber); }
+.sk-star { position: absolute; left: 7px; top: 7px; width: 17px; height: 17px; color: var(--amber); }
+.sk-star svg { width: 100%; height: 100%; display: block; }
+.sk-plus { position: absolute; right: 6px; top: 6px; width: 20px; height: 20px; display: grid; place-items: center; background: var(--amber); color: var(--ink);
+  font-weight: 900; font-size: 17px; line-height: 1; box-shadow: 0 0 0 2px var(--ink); }
+.sk-node.dim { opacity: .42; filter: saturate(.3); }
+.sk-node.dim.sel { opacity: .7; }
+.sk-node.pop { animation: skPop .28s ease-out; }
+@keyframes skPop { 0% { transform: scale(1.12); } 50% { transform: scale(.97); } 100% { transform: scale(1); } }
+.sk-node.k-capstone { min-height: 128px; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto auto; justify-items: start; align-items: center; text-align: left;
+  column-gap: 14px; row-gap: 6px; padding: 14px 16px; --face: #3A2A48; }
+.sk-node.k-capstone .sk-ic { grid-row: 1 / 4; width: 64px; height: 64px; background: var(--amber); color: var(--ink); }
+.sk-node.k-capstone .sk-ic svg { width: 38px; height: 38px; }
+.sk-node.k-capstone .sk-name { font-stretch: 125%; font-weight: 900; font-size: var(--t22); text-transform: uppercase; }
+.sk-cap { font-size: var(--t13); color: var(--amber); font-weight: 700; }
+.sk-node.k-capstone.owned { --face: #5A3A2A; }
+.sk-or { align-self: center; justify-self: center; display: grid; place-items: center; width: 54px; height: 54px; background: var(--paper); color: var(--ink);
+  font-stretch: 125%; font-weight: 900; font-size: 17px; clip-path: polygon(50% 0, 64% 18%, 88% 10%, 84% 34%, 100% 50%, 84% 66%, 88% 90%, 64% 82%, 50% 100%, 36% 82%, 12% 90%, 16% 66%, 0 50%, 16% 34%, 12% 10%, 36% 18%); }
+.sk-detail { display: grid; gap: 12px; align-content: start; padding: 2px 4px 6px 2px; }
+.sk-points { display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; align-items: center; column-gap: 12px; padding: 12px 16px; background: var(--ink); }
+.sk-points span { font-weight: 800; text-transform: uppercase; letter-spacing: .06em; font-size: var(--t13); color: var(--paper-2); }
+.sk-points b { grid-row: 1 / 3; grid-column: 2; font-stretch: 125%; font-weight: 900; font-size: var(--t44); line-height: 1; color: var(--paper-2); }
+.sk-points b.has { color: var(--amber); }
+.sk-points small { font-size: var(--t13); color: var(--paper-2); }
+.sk-card { display: grid; gap: 12px; padding: 16px; background: var(--lift-2); box-shadow: inset 0 4px 0 var(--teal); }
+.sk-card.k-capstone { box-shadow: inset 0 4px 0 var(--amber); }
+.sk-dhead { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.sk-dhead > span:last-child { display: grid; gap: 4px; min-width: 0; }
+.sk-dhead b { font-stretch: 125%; font-weight: 900; font-size: var(--t30); text-transform: uppercase; line-height: 1; overflow-wrap: anywhere; }
+.sk-dhead small { font-size: var(--t13); color: var(--paper-2); font-weight: 700; }
+.sk-dic { flex: none; width: 54px; height: 54px; display: grid; place-items: center; background: var(--teal); color: var(--ink);
+  clip-path: polygon(9px 0, calc(100% - 9px) 0, 100% 9px, 100% calc(100% - 9px), calc(100% - 9px) 100%, 9px 100%, 0 calc(100% - 9px), 0 9px); }
+.sk-card.k-capstone .sk-dic { background: var(--amber); }
+.sk-dic svg { width: 32px; height: 32px; }
+.sk-dic svg [stroke="var(--ink)"] { stroke: var(--teal); }
+.sk-card.k-capstone .sk-dic svg [stroke="var(--ink)"] { stroke: var(--amber); }
+.sk-card p { margin: 0; font-size: var(--t15); line-height: 1.4; color: rgba(255, 253, 247, .86); }
+.sk-ranks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.sk-ranks span { display: grid; justify-items: center; gap: 2px; padding: 8px 4px 7px; background: var(--ink); }
+.sk-ranks b { font-stretch: 125%; font-weight: 900; font-size: var(--t18); }
+.sk-ranks small { font-size: 11px; color: var(--paper-2); text-transform: uppercase; letter-spacing: .05em; }
+.sk-ranks span.on { background: var(--teal); color: var(--ink); }
+.sk-ranks span.on small { color: var(--ink); }
+.sk-ranks span.next { box-shadow: inset 0 0 0 3px var(--amber); }
+.sk-now { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: var(--t15); font-weight: 700; }
+.sk-now .nx { color: var(--amber); }
+.sk-why { padding: 7px 10px; background: var(--ink); border-left: 4px solid var(--amber); font-size: var(--t13); color: var(--paper-2); font-weight: 700; }
+.btn[disabled] { --face: var(--lift-3) !important; --under: rgba(21, 18, 28, .45) !important; color: var(--paper-2) !important; cursor: default; }
+.btn[disabled]:active { transform: none; }
+.sk-buy { justify-content: center; text-align: center; }
+.sk-respec { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; padding-top: 12px; border-top: 3px dashed var(--lift-3); }
+.sk-respec > span { display: grid; gap: 3px; min-width: 0; }
+.sk-respec b { font-weight: 800; font-size: var(--t15); }
+.sk-respec small { font-size: var(--t13); color: var(--paper-2); }
+.sk-rbtn { font-size: var(--t15); min-height: 48px; padding: 8px 14px; gap: 10px; }
+.sk-rbtn .hint { display: inline-flex; align-items: center; gap: 4px; opacity: 1; font-stretch: 125%; font-weight: 900; }
+.sk-rbtn.confirm { animation: blink .5s steps(1) infinite; }
+
+/* loadout: carried slots (key order) and the arsenal */
+.tm-loadout { grid-template-rows: auto minmax(0, 1fr); }
+.lo-slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.lo-slot { --ch: 10px; --face: var(--lift-2); appearance: none; border: 0; background: none; cursor: pointer; font: inherit; color: var(--paper); text-align: left; min-width: 0;
+  min-height: 86px; padding: 12px 16px; display: grid; grid-template-columns: auto auto minmax(0, 1fr); grid-template-rows: auto auto; align-items: center; column-gap: 14px; row-gap: 2px; }
+.lo-slot:hover { --face: var(--lift-3); }
+.lo-slot .lo-key { grid-row: 1 / 3; width: 38px; height: 38px; display: grid; place-items: center; background: var(--ink); color: var(--teal); font-stretch: 125%; font-weight: 900; font-size: 20px; }
+.lo-slot .lo-ic { grid-row: 1 / 3; display: grid; place-items: center; width: 64px; color: var(--teal); }
+.lo-slot .lo-ic svg { width: 60px; height: 30px; }
+.lo-slot b { align-self: end; font-stretch: 85%; font-weight: 900; font-size: var(--t18); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.lo-slot small { align-self: start; font-size: var(--t13); color: var(--paper-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lo-slot.sel::before { background: var(--amber); }
+.lo-slot.sel { --face: var(--lift-3); }
+.lo-slot.sel .lo-key { background: var(--amber); color: var(--ink); }
+.lo-slot.empty b { color: var(--paper-2); }
+.lo-slot.locked { cursor: default; --face: var(--lift); opacity: .6; }
+.lo-slot.locked::after { background: repeating-linear-gradient(-45deg, var(--lift) 0 10px, var(--lift-2) 10px 20px); }
+.lo-slot.locked .lo-ic svg { width: 24px; height: 24px; color: var(--paper-2); }
+.lo-hint { margin: 10px 0 0; font-size: var(--t13); color: var(--paper-2); }
+.lo-ars { padding: 2px 4px 8px 2px; }
+.lo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.lo-card { --ch: 10px; --face: var(--lift-2); appearance: none; border: 0; background: none; cursor: pointer; font: inherit; color: var(--paper); text-align: left; min-width: 0;
+  padding: 14px 16px 14px; display: grid; gap: 12px; align-content: start; }
+.lo-card:hover { --face: var(--lift-3); }
+.lo-card:active { transform: translateY(2px) scale(.99); }
+.lo-card.on::after { box-shadow: inset 0 5px 0 var(--teal); }
+.lo-card.on { --face: #303A52; }
+.lo-cardhead { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; min-width: 0; }
+.lo-cardhead .lo-ic { color: var(--teal); display: grid; }
+.lo-cardhead .lo-ic svg { width: 54px; height: 27px; }
+.lo-nm { display: grid; gap: 2px; min-width: 0; }
+.lo-nm b { font-stretch: 85%; font-weight: 900; font-size: var(--t18); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lo-nm small { font-size: var(--t13); color: var(--paper-2); }
+.lo-badge { width: 32px; height: 32px; display: grid; place-items: center; background: var(--teal); color: var(--ink); font-stretch: 125%; font-weight: 900; font-size: 18px; box-shadow: 0 0 0 2px var(--ink); }
+.lo-stats { display: grid; gap: 5px; }
+.lo-st { display: grid; grid-template-columns: 58px minmax(0, 1fr) 40px; align-items: center; gap: 10px; font-size: var(--t13); }
+.lo-st small { color: var(--paper-2); font-weight: 700; }
+.lo-st i { position: relative; height: 7px; background: var(--ink); }
+.lo-st i::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--v) * 100%); background: var(--paper); }
+.lo-card.on .lo-st i::after { background: var(--teal); }
+.lo-st b { text-align: right; font-stretch: 112%; font-weight: 900; }
+
+/* gear: drawn by IB.GearUI; empty state otherwise */
+.tm-gear { grid-template-rows: minmax(0, 1fr); }
+.gear-host { min-width: 0; }
+.tm-empty { display: grid; justify-items: center; text-align: center; gap: 10px; max-width: 460px; margin: 6vh auto 0; padding: 20px; }
+.tm-empty-ic { width: 76px; height: 76px; display: grid; place-items: center; background: var(--ink); color: var(--lift-3);
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); }
+.tm-empty-ic svg { width: 36px; height: 36px; }
+.tm-empty b { font-stretch: 125%; font-weight: 900; font-size: var(--t22); text-transform: uppercase; }
+.tm-empty p { margin: 0; color: var(--paper-2); font-size: var(--t15); line-height: 1.4; }
+
+/* short desktop windows */
+@media (max-height: 820px) and (min-height: 521px) {
+  .sk-node { min-height: 92px; padding: 9px 6px 8px; gap: 5px; }
+  .sk-ic { width: 40px; height: 40px; }
+  .sk-node.k-capstone { min-height: 104px; }
+  .sk-tree { gap: 8px; }
+}
+/* phone upright */
+@media (orientation: portrait) and (max-width: 760px) {
+  .tabmenu { padding: calc(var(--sat) + 8px) calc(var(--sar) + 8px) calc(var(--sab) + 8px) calc(var(--sal) + 8px); }
+  .tm-frame { --ch: 12px; height: 100%; padding: 12px; gap: 10px; grid-template-rows: auto auto minmax(0, 1fr); }
+  .tm-foot { display: none; }
+  .tm-head { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
+  .tm-tabs { grid-column: 1 / -1; grid-row: 2; justify-self: stretch; gap: 6px; }
+  .tm-tab { flex: 1 1 0; justify-content: center; height: 48px; padding: 0 6px; gap: 6px; font-size: 15px; }
+  .tm-tab svg { width: 16px; height: 16px; }
+  .tm-lv { width: 48px; height: 48px; }
+  .tm-lv b { font-size: 24px; }
+  .tm-title { font-size: 17px; white-space: normal; }
+  .tm-sub { font-size: 12px; white-space: normal; }
+  .tm-gems { font-size: 18px; }
+  .tm-close { height: 48px; padding: 0 12px; }
+  .tm-close kbd { display: none; }
+  .tm-hazard { height: 6px; }
+  .tm-skills { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; gap: 10px; }
+  .sk-tier { grid-template-columns: 30px minmax(0, 1fr); gap: 6px; }
+  .sk-rail { padding-top: 24px; }
+  .sk-gate { width: 30px; height: 26px; }
+  .sk-gate b { font-size: 13px; }
+  .sk-pipe { top: 50px; width: 8px; margin-left: -4px; }
+  .sk-row { gap: 6px; }
+  .sk-tierhead { font-size: 11px; }
+  .sk-node { min-height: 88px; padding: 8px 3px 7px; gap: 5px; }
+  .sk-ic { width: 34px; height: 34px; }
+  .sk-ic svg { width: 20px; height: 20px; }
+  .sk-name { font-size: 12px; }
+  .sk-pips i { width: 11px; height: 6px; }
+  .sk-pips.one i { width: 24px; }
+  .sk-star { left: 4px; top: 4px; width: 13px; height: 13px; }
+  .sk-plus { right: 3px; top: 3px; width: 16px; height: 16px; font-size: 14px; }
+  .sk-node.k-capstone { grid-template-columns: minmax(0, 1fr); justify-items: center; text-align: center; padding: 10px 6px; min-height: 120px; row-gap: 5px; }
+  .sk-node.k-capstone .sk-ic { grid-row: auto; width: 44px; height: 44px; }
+  .sk-node.k-capstone .sk-ic svg { width: 28px; height: 28px; }
+  .sk-node.k-capstone .sk-name { font-size: 13px; overflow-wrap: normal; }
+  .sk-cap { font-size: 11px; }
+  .sk-or { width: 40px; height: 40px; font-size: 13px; }
+  .sk-detail { max-height: 36vh; gap: 8px; padding: 8px 0 0; border-top: 3px solid var(--ink); }
+  .sk-points { grid-template-columns: auto auto minmax(0, 1fr); grid-template-rows: auto; column-gap: 10px; padding: 6px 12px; }
+  .sk-points b { grid-row: auto; grid-column: 2; font-size: 24px; }
+  .sk-points small { text-align: right; }
+  .sk-ranks { display: none; }
+  .sk-respec { padding-top: 8px; }
+  .sk-respec small { font-size: 11px; }
+  .sk-card { padding: 10px 12px; gap: 8px; }
+  .sk-dic { width: 40px; height: 40px; }
+  .sk-dic svg { width: 24px; height: 24px; }
+  .sk-dhead b { font-size: 20px; }
+  .sk-card p { font-size: 13px; }
+  .sk-ranks b { font-size: 15px; }
+  .sk-ranks span { padding: 5px 4px; }
+  .sk-buy { min-height: 52px; }
+  .lo-slots { gap: 6px; }
+  .lo-slot { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto auto; justify-items: center; text-align: center; padding: 10px 6px; row-gap: 4px; min-height: 120px; }
+  .lo-slot .lo-key, .lo-slot .lo-ic { grid-row: auto; }
+  .lo-slot .lo-key { width: 30px; height: 30px; font-size: 16px; }
+  .lo-slot .lo-ic { width: auto; }
+  .lo-slot .lo-ic svg { width: 48px; height: 24px; }
+  .lo-slot b { font-size: 13px; max-width: 100%; }
+  .lo-slot small { font-size: 11px; max-width: 100%; }
+  .lo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .lo-card { padding: 10px 10px; gap: 8px; }
+  .lo-cardhead { grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
+  .lo-cardhead .lo-ic { display: none; }
+  .lo-nm b { font-size: 13px; }
+  .lo-nm small { font-size: 11px; }
+  .lo-badge { width: 26px; height: 26px; font-size: 15px; }
+  .lo-st { grid-template-columns: 40px minmax(0, 1fr) 30px; gap: 6px; font-size: 11px; }
+  .lo-st i { height: 5px; }
+}
+/* phone sideways */
+@media (orientation: landscape) and (max-height: 520px) {
+  .tabmenu { padding: calc(var(--sat) + 6px) calc(var(--sar) + 8px) calc(var(--sab) + 6px) calc(var(--sal) + 8px); }
+  .tm-frame { --ch: 12px; height: 100%; padding: 8px 12px 10px; gap: 6px; grid-template-rows: auto auto minmax(0, 1fr); }
+  .tm-foot { display: none; }
+  .tm-head { gap: 10px; grid-template-columns: minmax(0, 1fr) auto auto; }
+  .tm-lv { width: 44px; height: 44px; }
+  .tm-lv b { font-size: 22px; }
+  .tm-lv small { font-size: 10px; }
+  .tm-title { font-size: 15px; }
+  .tm-sub { font-size: 11px; }
+  .tm-id { gap: 8px; }
+  .tm-tab { height: 48px; padding: 0 12px; gap: 7px; font-size: 14px; }
+  .tm-tab svg { width: 16px; height: 16px; }
+  .tm-gems { font-size: 17px; }
+  .tm-close { height: 48px; padding: 0 12px; }
+  .tm-close kbd { display: none; }
+  .tm-hazard { height: 5px; }
+  .tm-body { gap: 12px; }
+  .tm-skills { grid-template-columns: minmax(0, 1fr) minmax(250px, 300px); }
+  .sk-tier { grid-template-columns: 32px minmax(0, 1fr); gap: 8px; }
+  .sk-gate { width: 32px; height: 28px; }
+  .sk-gate b { font-size: 13px; }
+  .sk-rail { padding-top: 22px; }
+  .sk-pipe { top: 50px; width: 8px; margin-left: -4px; }
+  .sk-tree { gap: 6px; }
+  .sk-row { gap: 6px; }
+  .sk-tierhead { font-size: 11px; min-height: 18px; margin-bottom: 4px; }
+  .sk-node { min-height: 74px; padding: 7px 4px 6px; gap: 4px; }
+  .sk-ic { width: 30px; height: 30px; }
+  .sk-ic svg { width: 19px; height: 19px; }
+  .sk-name { font-size: 12px; }
+  .sk-pips i { width: 11px; height: 5px; }
+  .sk-pips.one i { width: 24px; }
+  .sk-star { left: 4px; top: 4px; width: 12px; height: 12px; }
+  .sk-plus { right: 3px; top: 3px; width: 15px; height: 15px; font-size: 13px; }
+  .sk-node.k-capstone { min-height: 80px; column-gap: 10px; padding: 8px 10px; }
+  .sk-node.k-capstone .sk-ic { width: 44px; height: 44px; }
+  .sk-node.k-capstone .sk-ic svg { width: 26px; height: 26px; }
+  .sk-node.k-capstone .sk-name { font-size: 15px; }
+  .sk-cap { font-size: 11px; }
+  .sk-or { width: 38px; height: 38px; font-size: 12px; }
+  .sk-detail { gap: 8px; }
+  .sk-points { padding: 5px 12px; }
+  .sk-points b { font-size: 26px; }
+  .sk-card { padding: 10px 12px; gap: 8px; }
+  .sk-dic { width: 38px; height: 38px; }
+  .sk-dic svg { width: 22px; height: 22px; }
+  .sk-dhead b { font-size: 18px; }
+  .sk-card p { font-size: 13px; }
+  .sk-ranks span { padding: 4px; }
+  .sk-ranks b { font-size: 14px; }
+  .sk-buy { min-height: 50px; font-size: 18px; }
+  .tm-loadout { grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+  .lo-carry { min-height: 0; overflow-y: auto; }
+  .lo-slots { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .lo-slot { min-height: 58px; padding: 6px 12px; column-gap: 10px; }
+  .lo-slot .lo-key { width: 30px; height: 30px; font-size: 16px; }
+  .lo-slot .lo-ic { width: 46px; }
+  .lo-slot .lo-ic svg { width: 44px; height: 22px; }
+  .lo-slot b { font-size: 14px; }
+  .lo-slot small { font-size: 11px; }
+  .lo-hint { display: none; }
+  .tm-h { margin-bottom: 6px; }
+  .lo-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+  .lo-card { padding: 9px 12px; gap: 7px; }
+  .lo-cardhead .lo-ic svg { width: 44px; height: 22px; }
+  .lo-nm b { font-size: 14px; }
+}
 /* ---------- loot: damage numbers, shield bar, loot card (game/dmgnum.js, ui/loothud.js) ---------- */
 :root { --cell: #5FD0FF; --cell-d: #2F8FD8; --cell-hi: #BDF0FF; --acid: #8BEA4F; --shock: #6CC8FF; }
 .dmgnums { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
@@ -615,6 +993,18 @@ body.touch-on .gearui .btn.gu-btn { min-height: 48px; }
 .scopeview svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .hud.scoped .xhair { opacity: 0; }
 
+/* phones: level tag + shield row together (the tag never widens the health column) */
+.hud-bl { grid-template-columns: minmax(0, 1fr); }
+.lvtag { width: max-content; max-width: none; }
+body.touch-on .hud.has-shield .hud-tr { top: calc(var(--sat) + var(--gap) + 120px); }
+@media (orientation: portrait) {
+  body.touch-on .objective { top: calc(var(--sat) + var(--gap) + 160px); }
+  body.touch-on .feed { top: calc(var(--sat) + var(--gap) + 216px); }
+  body.touch-on .hud.has-shield .hud-tr { top: calc(var(--sat) + var(--gap) + 66px); }
+  body.touch-on .hud.has-shield .objective { top: calc(var(--sat) + var(--gap) + 190px); }
+  body.touch-on .hud.has-shield .feed { top: calc(var(--sat) + var(--gap) + 246px); }
+}
+
 </style>
 </head>
 <body>
@@ -647,6 +1037,7 @@ body.touch-on .gearui .btn.gu-btn { min-height: 48px; }
   <div class="confirm" id="confirm" hidden><span class="gem-glyph sm" aria-hidden="true"></span><b id="confirmNum">+1</b></div>
   <div class="prompt" id="prompt" hidden><span class="key" id="promptKey">R</span><span id="promptText">Reload</span><i class="prompt-bar"><i id="promptFill"></i></i></div>
   <div class="hud-bl">
+    <div class="lvtag" id="lvTag"><b class="lv-badge"><small>LV</small><span id="lvNum">1</span></b><span class="lv-title" id="lvTitle">Tin Rookie</span><span class="lv-pts" id="lvPts" hidden><b id="lvPtsN">+1</b><span class="lv-key" id="lvKey">Tab</span></span></div>
     <div class="plate ink health" id="health">
       <svg class="hp-glyph" viewBox="-12 -12 24 24" aria-hidden="true"><polygon points="11,0 5.5,9.5 -5.5,9.5 -11,0 -5.5,-9.5 5.5,-9.5"/><circle r="3.6"/></svg>
       <div class="hp-bar"><i id="hpFill"></i><i class="hp-ticks"></i></div><b id="hpNum">100</b>
@@ -675,10 +1066,12 @@ body.touch-on .gearui .btn.gu-btn { min-height: 48px; }
       <span class="elim-row"><span id="elimCount">Back in 3</span><span id="elimRetries">Retries left 2</span></span>
     </div>
   </div>
+  <button class="plate ink pausebtn menubtn" id="menuBtn" aria-label="Loadout, gear and skills"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h7v6H4zM13 5h7v6h-7zM4 13h7v6H4zM13 13h7v6h-7z" fill="currentColor"/></svg><i class="menubtn-dot" id="menuDot" hidden></i></button>
   <button class="plate ink pausebtn" id="pauseBtn" aria-label="Pause"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3v14H7zM14 5h3v14h-3z" fill="currentColor"/></svg></button>
 </div>
 <div id="touch" class="touch" hidden></div>
 <div id="overlay" class="overlay" hidden></div>
+<div id="tabmenu" class="tabmenu" hidden></div>
 <div id="loading" class="loading" hidden></div>
 <script>/**
  * @license
@@ -5527,6 +5920,85 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   IB.BENCH_RULES = { offer: 3, maxBuys: 3, rerollBase: 10, rerollStep: 10, costGrowth: 1.5 };
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
 
+/* ---- src/data/skills.js ---- */
+/* INKBOLT - skill tree, player level and rank titles. Pure data, no DOM. Logic: src/core/skills.js.
+
+   ECONOMY (see tests/unit/skills.test.js)
+   Skill points come from campaign progress only: completing level L for the first time pays POINTS_AT[L]
+   (1 point, 2 on levels 1, 5, 10, 15 and 17). Level 17 pays the last point; nothing after it.
+     after level   1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17
+     points        2  3  4  5  7  8  9 10 11 13 14 15 16 17 19 20 22   -> 22 in total
+   The tree holds 33 points of normal skills plus two 5-point capstones (43): 22 buys about half of it.
+   Tier gates count the points spent in the tiers above: II 3, III 6, IV 9, capstones 13. One capstone costs
+   13 + 5 = 18 (first affordable after the level 15 boss, 19 points); both would cost 13 + 10 = 23 > 22, so
+   the budget enforces "one capstone" on top of the explicit rule.
+
+   PLAYER LEVEL = 1 + highest campaign level completed, capped at 20 (LEVEL_CAP): level 19 makes you LV 20 and
+   the level 20 finale (Compactor Prime) is fought at max level, so every completion that leads somewhere
+   raises the level by one. */
+(function (IB) {
+  'use strict';
+
+  // ranks: the effect value per rank (index 0 = rank 1); unit is appended in the UI
+  function S(id, tier, col, name, kind, ranks, unit, stat, text, icon) {
+    return { id: id, tier: tier, col: col, name: name, kind: kind, ranks: ranks, max: ranks.length, unit: unit,
+      stat: stat, text: text, icon: icon, cost: kind === 'capstone' ? 5 : 1, group: kind === 'capstone' ? 'capstone' : null };
+  }
+
+  IB.SKILL_TIERS = [
+    { tier: 1, name: 'Tin', gate: 0 },
+    { tier: 2, name: 'Bolt', gate: 3 },
+    { tier: 3, name: 'Gear', gate: 6 },
+    { tier: 4, name: 'Piston', gate: 9 },
+    { tier: 5, name: 'Capstone', gate: 13, capstone: true }
+  ];
+
+  IB.SKILLS = [
+    // tier I: the basics
+    S('overboard', 1, 0, 'Overboard', 'rank', [10, 20, 30], '%', 'Magazine size', 'Bigger magazines on every gun.', 'mag'),
+    S('fastfingers', 1, 1, 'Fast Fingers', 'rank', [8, 16, 24], '%', 'Reload speed', 'Swap mags quicker.', 'reload'),
+    S('tinhide', 1, 2, 'Tin Hide', 'rank', [10, 20, 30], '', 'Max health', 'Extra plating riveted on.', 'armor'),
+    // tier II
+    S('steadyink', 2, 0, 'Steady Ink', 'rank', [10, 20, 30], '%', 'Less recoil', 'Less kick, and 5% tighter spread per rank.', 'steady'),
+    S('scrapmagnet', 2, 1, 'Scrap Magnet', 'rank', [35, 70, 105], '%', 'Gem pickup range', 'Gems jump to you from further away.', 'magnet'),
+    S('secondwind', 2, 2, 'Second Wind', 'rank', [15, 30, 45], '%', 'Sprint stamina', 'Sprint and slide for longer.', 'wind'),
+    // tier III
+    S('heavyink', 3, 0, 'Heavy Ink', 'rank', [4, 8, 12], '%', 'Gun damage', 'Every bullet hits harder.', 'drop'),
+    S('electrify', 3, 1, 'Electrify', 'special', [1], '', 'Shock rounds',
+      'Hits electrify the robot: 20% of each hit (2 to 16) lands again as shock damage over 2 s.', 'bolt'),
+    S('coredump', 3, 2, 'Core Dump', 'rank', [8, 16, 24], '%', 'Core-hit damage', 'Punish robots in the glowing core.', 'core'),
+    // tier IV
+    S('overclock', 4, 0, 'Overclock', 'rank', [4, 8, 12], '%', 'Fire rate', 'Triggers cycle faster.', 'gauge'),
+    S('chainreaction', 4, 1, 'Chain Reaction', 'special', [1], '', 'Junk burst',
+      'Wrecked robots burst: 35% of their max health as damage to robots within 3 m. Bursts can chain.', 'burst'),
+    S('closecall', 4, 2, 'Close Call', 'special', [1], '', 'Cheat the scrapheap',
+      'Once per zone, a hit that would wreck you leaves you on 1 health with 2 s of protection.', 'heart'),
+    S('salvagebolts', 4, 3, 'Salvage Bolts', 'rank', [2, 4, 6], '', 'Repair per kill', 'Each wrecked robot repairs you.', 'wrench'),
+    // capstones: pick one (5 points, needs 13 spent in tiers I-IV)
+    S('lightningrod', 5, 0, 'Lightning Rod', 'capstone', [1], '', 'Storm build',
+      'Every hit shocks like Electrify (x1.5). Core hits arc a bolt into the 2 nearest robots within 8 m for 50% of the hit.', 'rod'),
+    S('tintitan', 5, 1, 'Tin Titan', 'capstone', [1], '', 'Tank build',
+      '+40 max health, 20% less damage taken, and repair 4 health per second after 2 s without being hit.', 'titan')
+  ];
+
+  IB.SKILL_BY_ID = {};
+  IB.SKILLS.forEach(function (s) { IB.SKILL_BY_ID[s.id] = s; });
+
+  // points paid the first time a campaign level is completed; levels past 17 pay nothing
+  IB.SKILL_POINTS_AT = { 1: 2, 2: 1, 3: 1, 4: 1, 5: 2, 6: 1, 7: 1, 8: 1, 9: 1, 10: 2, 11: 1, 12: 1, 13: 1, 14: 1, 15: 2, 16: 1, 17: 2 };
+  IB.SKILL_LAST_LEVEL = 17;
+  IB.PLAYER_LEVEL_CAP = 20;
+  // loadout size: 2 guns, 3 once level 10 (the Dumpster Tank) is beaten
+  IB.LOADOUT_RULES = { base: 2, extra: 3, extraAfter: 10 };
+
+  // rank title per player level (HUD "LV 7  GEAR GRINDER")
+  IB.RANK_TITLES = [null,
+    'Tin Rookie', 'Can Kicker', 'Bolt Botherer', 'Scrap Rat', 'Junk Jockey',
+    'Rivet Rattler', 'Gear Grinder', 'Spring Snapper', 'Cog Crusher', 'Bin Breaker',
+    'Ink Slinger', 'Wire Wrangler', 'Dent Dealer', 'Piston Puncher', 'Chrome Cracker',
+    'Circuit Smasher', 'Scrapyard Sheriff', 'Tin Terror', 'Robot Wrecker', 'Inkbolt Legend'];
+})(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
+
 /* ---- src/data/unlocks.js ---- */
 /* INKBOLT - weapon unlock-by-level table (brief section 5.2). Pure data + helpers, no DOM. */
 (function (IB) {
@@ -6782,6 +7254,26 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   }
   function enemyDmgMul(L) { return Math.min(3, 1 + 0.04 * (L - 1)); }
 
+  /* Tempo per campaign level, on top of HP x enemyHpMul and damage x enemyDmgMul: robots fire a little more often,
+     aim a little tighter, lead a moving target a little more, telegraph a little faster and move a little quicker.
+     Every term reaches its cap by level 20 so the late game stays readable (tells never drop below 85%).
+       L        1     5    10    15    20
+       cool  1.00  0.94  0.87  0.79  0.75   (pause between volleys)
+       aim   1.00  0.90  0.78  0.65  0.60   (bolt spread)
+       lead  +0   +.06  +.14  +.22  +.30   (fraction of the player's velocity added to the aim lead)
+       tell  1.00  0.97  0.93  0.89  0.85   (windup time)
+       speed 1.00  1.03  1.07  1.11  1.15 */
+  function enemyTempo(L) {
+    var k = Math.max(0, (L || 1) - 1);
+    return {
+      coolMul: Math.max(0.75, 1 - 0.015 * k),
+      aimMul: Math.max(0.6, 1 - 0.025 * k),
+      leadAdd: Math.min(0.3, 0.016 * k),
+      tellMul: Math.max(0.85, 1 - 0.008 * k),
+      speedMul: Math.min(1.15, 1 + 0.008 * k)
+    };
+  }
+
   // 4.4: at most 3 + floor(L/5) robots in Windup or Attack.
   function attackTokens(L) { return 3 + Math.floor(L / 5); }
 
@@ -6887,7 +7379,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   function staggers(dmg, maxHp, charged) { return !!charged || dmg >= 0.25 * maxHp; }
 
   IB.Damage = {
-    enemyHpMul: enemyHpMul, enemyDmgMul: enemyDmgMul, attackTokens: attackTokens, falloff: falloff,
+    enemyHpMul: enemyHpMul, enemyDmgMul: enemyDmgMul, enemyTempo: enemyTempo, attackTokens: attackTokens, falloff: falloff,
     hit: hit, splash: splash, blastRadius: blastRadius, rocketSplash: rocketSplash, frag: frag,
     flashDamage: flashDamage, selfDamage: selfDamage, knockback: knockback, blindDuration: blindDuration,
     flashPlayer: flashPlayer, shield: shield, bossShell: bossShell, melee: melee, staggers: staggers
@@ -7075,6 +7567,217 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   };
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
 
+/* ---- src/core/skills.js ---- */
+/* INKBOLT - skill tree logic, player level, respec, loadout size. Pure, no DOM. Data: src/data/skills.js.
+   skills: {id: rank}. Available points are always derived from progress (highest campaign level completed):
+   there is no stored point counter, so points cannot drift or be duplicated. */
+(function (IB) {
+  'use strict';
+
+  function def(id) { var s = IB.SKILL_BY_ID[id]; if (!s) throw new Error('unknown skill ' + id); return s; }
+  function rank(skills, id) { var r = skills && skills[id]; return typeof r === 'number' && r > 0 ? Math.floor(r) : 0; }
+  function clampLevel(h) { return typeof h === 'number' && h > 0 ? Math.floor(h) : 0; }
+
+  // total points earned once levels 1..highest have been completed
+  function earned(highest) {
+    var n = 0, top = Math.min(clampLevel(highest), IB.SKILL_LAST_LEVEL);
+    for (var L = 1; L <= top; L++) n += IB.SKILL_POINTS_AT[L] || 0;
+    return n;
+  }
+  function totalPoints() { return earned(IB.SKILL_LAST_LEVEL); }
+  function spent(skills) {
+    var n = 0;
+    IB.SKILLS.forEach(function (s) { n += Math.min(rank(skills, s.id), s.max) * s.cost; });
+    return n;
+  }
+  function available(skills, highest) { return earned(highest) - spent(skills); }
+  // points spent in the tiers above `tier` (what its gate counts)
+  function spentAbove(skills, tier) {
+    var n = 0;
+    IB.SKILLS.forEach(function (s) { if (s.tier < tier) n += Math.min(rank(skills, s.id), s.max) * s.cost; });
+    return n;
+  }
+  function tierInfo(tier) { return IB.SKILL_TIERS[tier - 1]; }
+  function tierUnlocked(skills, tier) { return spentAbove(skills, tier) >= tierInfo(tier).gate; }
+  function groupOwner(skills, group) {
+    if (!group) return null;
+    for (var i = 0; i < IB.SKILLS.length; i++) { var s = IB.SKILLS[i]; if (s.group === group && rank(skills, s.id) > 0) return s.id; }
+    return null;
+  }
+
+  /* {ok, reason} reason: 'max' | 'tier' | 'exclusive' | 'points' */
+  function canBuy(skills, highest, id) {
+    var s = def(id), r = rank(skills, id);
+    if (r >= s.max) return { ok: false, reason: 'max' };
+    if (!tierUnlocked(skills, s.tier)) return { ok: false, reason: 'tier', need: tierInfo(s.tier).gate - spentAbove(skills, s.tier) };
+    var owner = groupOwner(skills, s.group);
+    if (owner && owner !== id) return { ok: false, reason: 'exclusive', owner: owner };
+    if (available(skills, highest) < s.cost) return { ok: false, reason: 'points', need: s.cost - available(skills, highest) };
+    return { ok: true };
+  }
+  // returns a new skills object with one more rank, or null when the purchase is not allowed
+  function buy(skills, highest, id) {
+    if (!canBuy(skills, highest, id).ok) return null;
+    var out = {}; for (var k in skills) if (rank(skills, k) > 0 && IB.SKILL_BY_ID[k]) out[k] = rank(skills, k);
+    out[id] = rank(skills, id) + 1;
+    return out;
+  }
+
+  /* a skills object is valid when every id exists, ranks are within max, every owned skill's tier gate is met,
+     at most one skill per exclusive group is owned and spent <= earned */
+  function validate(skills, highest) {
+    var errors = [];
+    if (skills === null || typeof skills !== 'object' || Array.isArray(skills)) return { ok: false, errors: ['not an object'] };
+    Object.keys(skills).forEach(function (k) {
+      var v = skills[k], s = IB.SKILL_BY_ID[k];
+      if (!s) { errors.push('unknown ' + k); return; }
+      if (typeof v !== 'number' || v !== Math.floor(v) || v < 0) { errors.push('bad rank ' + k); return; }
+      if (v > s.max) errors.push('over max ' + k);
+      if (v > 0 && spentAbove(skills, s.tier) < tierInfo(s.tier).gate) errors.push('tier gate ' + k);
+    });
+    var groups = {};
+    IB.SKILLS.forEach(function (s) { if (s.group && rank(skills, s.id) > 0) groups[s.group] = (groups[s.group] || 0) + 1; });
+    for (var g in groups) if (groups[g] > 1) errors.push('exclusive ' + g);
+    if (spent(skills) > earned(highest)) errors.push('overspent');
+    return { ok: errors.length === 0, errors: errors };
+  }
+  // load-time guard: an invalid tree (hand-edited save, old data) is reset, refunding every point
+  function sanitize(skills, highest) {
+    var v = validate(skills || {}, highest);
+    if (v.ok) { var out = {}; for (var k in skills) if (skills[k] > 0) out[k] = skills[k]; return { skills: out, reset: false }; }
+    return { skills: {}, reset: !!skills && Object.keys(skills).length > 0, errors: v.errors };
+  }
+
+  /* RESPEC: 40% of the expected gem income per level at the player's progress (IB.Gems.EXPECTED_INCOME,
+     interpolated: 45 at L1, 150 at L5, 280 at L10, 600 at L20), rounded to 5, at least 25.
+     Against what a no-death clear really pays (IB.Gems.levelIncome) that is 35-65% of one level, about half on
+     average: a rethink is affordable but never free, and it grows with the player instead of becoming trivial.
+       highest  1   2   5   8   10   15   17   20
+       cost     25  30  60  90  110  175  200  240 */
+  function expectedIncome(L) {
+    var t = (IB.Gems && IB.Gems.EXPECTED_INCOME) || { 1: 45, 5: 150, 10: 280, 20: 600 };
+    var ks = Object.keys(t).map(Number).sort(function (a, b) { return a - b; });
+    if (L <= ks[0]) return t[ks[0]];
+    for (var i = 1; i < ks.length; i++) {
+      if (L <= ks[i]) { var a = ks[i - 1], b = ks[i]; return t[a] + (t[b] - t[a]) * (L - a) / (b - a); }
+    }
+    var p = ks[ks.length - 2], q = ks[ks.length - 1];
+    return t[q] + (t[q] - t[p]) / (q - p) * (L - q);
+  }
+  function respecCost(highest) {
+    var L = Math.max(1, clampLevel(highest));
+    return Math.max(25, Math.round(0.4 * expectedIncome(L) / 5) * 5);
+  }
+  /* slot: {skills, gems, highest}. Mutates on success. {ok, cost, reason: 'empty' | 'gems'} */
+  function respec(slot) {
+    var cost = respecCost(slot.highest);
+    if (spent(slot.skills || {}) === 0) return { ok: false, reason: 'empty', cost: cost };
+    if ((slot.gems || 0) < cost) return { ok: false, reason: 'gems', cost: cost };
+    slot.gems -= cost; slot.skills = {};
+    return { ok: true, cost: cost };
+  }
+
+  function value(skills, id) { var s = def(id), r = Math.min(rank(skills, id), s.max); return r ? s.ranks[r - 1] : 0; }
+  /* runtime multipliers; multiply them onto the Upgrade Bench effects */
+  function effects(skills) {
+    var v = function (id) { return value(skills || {}, id); }, has = function (id) { return v(id) > 0; };
+    var titan = has('tintitan'), rod = has('lightningrod');
+    return {
+      magMul: 1 + v('overboard') / 100,
+      reloadMul: 1 / (1 + v('fastfingers') / 100),    // multiply reload TIME by this
+      maxHpAdd: v('tinhide') + (titan ? 40 : 0),
+      recoilMul: 1 - v('steadyink') / 100,
+      spreadMul: 1 - v('steadyink') / 200,
+      magnetMul: 1 + v('scrapmagnet') / 100,
+      staminaMul: 1 + v('secondwind') / 100,
+      dmgMul: 1 + v('heavyink') / 100,
+      coreMul: 1 + v('coredump') / 100,
+      rateMul: 1 + v('overclock') / 100,              // divide the time between shots by this
+      leech: v('salvagebolts'),
+      shock: has('electrify') || rod,
+      shockMul: rod ? 1.5 : 1,
+      // each hit adds 20% of its damage (2 to 16) as shock over 2 s; IB.Status pools repeated hits
+      shockFrac: 0.2, shockMin: 2, shockMax: 16, shockTime: 2,
+      chain: has('chainreaction'), chainFrac: 0.35, chainRadius: 3,
+      closeCall: has('closecall'),
+      arc: rod, arcTargets: 2, arcRange: 8, arcFrac: 0.5,
+      dmgTakenMul: titan ? 0.8 : 1,
+      regen: titan ? 4 : 0, regenDelay: 2
+    };
+  }
+  // shock damage per second added by one hit (total = dps x shockTime)
+  function shockDps(fx, hitDamage) {
+    return Math.max(fx.shockMin, Math.min(fx.shockMax, hitDamage * fx.shockFrac)) * fx.shockMul / fx.shockTime;
+  }
+
+  function playerLevel(highest) { return Math.min(IB.PLAYER_LEVEL_CAP, 1 + clampLevel(highest)); }
+  function rankTitle(level) { return IB.RANK_TITLES[Math.max(1, Math.min(IB.PLAYER_LEVEL_CAP, level | 0))]; }
+  function loadoutMax(highest) { var R = IB.LOADOUT_RULES; return clampLevel(highest) >= R.extraAfter ? R.extra : R.base; }
+
+  /* UI line for a skill at a rank: {now, next, maxed} e.g. Overboard at 1 -> now 'Magazine size +10%', next '+20%' */
+  function rankText(id, r) {
+    var s = def(id), fmt = function (x) { return (s.kind === 'rank' ? '+' : '') + x + s.unit; };
+    if (s.kind !== 'rank') return { now: r > 0 ? 'Owned' : 'Not owned', next: r > 0 ? null : 'Unlock', maxed: r > 0 };
+    return { now: r > 0 ? s.stat + ' ' + fmt(s.ranks[r - 1]) : 'Not learned yet', next: r < s.max ? s.stat + ' ' + fmt(s.ranks[r]) : null, maxed: r >= s.max };
+  }
+
+  IB.Skills = {
+    def: def, rank: rank, earned: earned, totalPoints: totalPoints, spent: spent, available: available,
+    spentAbove: spentAbove, tierUnlocked: tierUnlocked, canBuy: canBuy, buy: buy, validate: validate,
+    sanitize: sanitize, expectedIncome: expectedIncome, respecCost: respecCost, respec: respec, value: value,
+    effects: effects, shockDps: shockDps, playerLevel: playerLevel, rankTitle: rankTitle, loadoutMax: loadoutMax,
+    rankText: rankText, groupOwner: groupOwner
+  };
+})(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
+
+/* ---- src/core/loadout.js ---- */
+/* INKBOLT - arsenal and loadout rules. Pure, no DOM.
+   arsenal: every gun the player owns (weapon stands add to it). loadout: the guns carried into a level, in key order
+   (loadout[0] is key 1). Size: IB.Skills.loadoutMax(highest) = 2, or 3 after level 10. */
+(function (IB) {
+  'use strict';
+
+  function uniq(a) { var out = []; (a || []).forEach(function (id) { if (typeof id === 'string' && out.indexOf(id) < 0) out.push(id); }); return out; }
+
+  // arsenal: unique known weapon ids; ok(id) optionally filters (e.g. weapons without a model)
+  function fixArsenal(arsenal, ok) {
+    return uniq(arsenal).filter(function (id) { return IB.WEAPONS[id] && (!ok || ok(id)); });
+  }
+  // loadout: unique, owned, at most max; an empty one is filled with the first guns of the arsenal
+  function fix(loadout, arsenal, max) {
+    var out = uniq(loadout).filter(function (id) { return arsenal.indexOf(id) >= 0; }).slice(0, Math.max(1, max));
+    if (!out.length) out = arsenal.slice(0, Math.max(1, max));
+    return out;
+  }
+  /* put `id` into slot index `si` (0-based). Equipped elsewhere -> the two slots swap; already in that slot ->
+     it is taken out (unless it is the last gun); beyond the filled slots -> appended. Returns a new array. */
+  function assign(loadout, max, si, id) {
+    var L = loadout.slice(), j = L.indexOf(id);
+    si = Math.max(0, Math.min(max - 1, si | 0));
+    if (si >= L.length) {
+      if (j >= 0) L.splice(j, 1);
+      if (L.length < max) L.push(id);
+      return L;
+    }
+    if (j === si) { if (L.length > 1) L.splice(si, 1); return L; }
+    if (j >= 0) { L[j] = L[si]; L[si] = id; return L; }
+    L[si] = id;
+    return L;
+  }
+  /* a gun picked up from a weapon stand: joins the arsenal; carried at once if there is room, otherwise it takes
+     the place of the gun in hand (that one stays in the arsenal). {arsenal, loadout, slot (0-based)} */
+  function pickup(loadout, arsenal, max, id, curId) {
+    var A = uniq(arsenal.concat([id])), L = loadout.slice(), at = L.indexOf(id);
+    if (at < 0) {
+      if (L.length < max) { L.push(id); at = L.length - 1; }
+      else { at = Math.max(0, L.indexOf(curId)); if (L.indexOf(curId) < 0) at = L.length - 1; L[at] = id; }
+    }
+    return { arsenal: A, loadout: L, slot: at };
+  }
+
+  IB.Loadout = { uniq: uniq, fixArsenal: fixArsenal, fix: fix, assign: assign, pickup: pickup };
+})(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
+
 /* ---- src/core/saves.js ---- */
 /* INKBOLT - save slots and settings (brief section 5.14). Pure, no DOM.
    backend: localStorage-like {getItem(k), setItem(k, v), removeItem(k), keys()}. */
@@ -7099,7 +7802,9 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   function defaultSlot(id, seed, savedAt) {
     return {
       v: 1, id: id, level: 1, highest: 0, gems: 0, upgrades: {},
-      loadout: { pistol: 'pip' },
+      // arsenal = every gun owned, loadout = the guns carried in key order, skills = {skillId: rank}
+      // (skill points are not stored: they are derived from `highest`, see core/skills.js)
+      arsenal: [], loadout: [], skills: {},   // empty arsenal: the level plan's start guns are handed out
       stats: { kills: 0, deaths: 0, time: 0, coreHits: 0 },
       best: {},
       gear: defaultGear(),
@@ -7118,7 +7823,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     for (k in d) out[k] = d[k];
     for (k in obj) out[k] = obj[k];
     out.v = 1;
-    ['upgrades', 'loadout', 'stats', 'best'].forEach(function (f) {
+    ['upgrades', 'stats', 'best'].forEach(function (f) {
       if (!isObj(obj[f])) out[f] = d[f];
       else if (f === 'stats') {
         var s = {};
@@ -7141,6 +7846,18 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     if (typeof out.gems !== 'number' || out.gems < 0) out.gems = 0;
     if (typeof out.seed !== 'number') out.seed = 0;
     if (typeof out.saved !== 'number') out.saved = 0;
+    // loadout: the brief's class map {pistol: 'pip', smg: 'buzz'} (older saves) becomes the ordered list
+    // (the game trims it to the 2- or 3-gun limit when a level starts)
+    var lo = Array.isArray(obj.loadout) ? obj.loadout : (Array.isArray(obj.owned) ? obj.owned : []).concat(
+      isObj(obj.loadout) ? Object.keys(obj.loadout).map(function (c) { return obj.loadout[c]; }) : []);
+    lo = lo.filter(function (id) { return typeof id === 'string'; });
+    var ars = (Array.isArray(obj.arsenal) ? obj.arsenal : []).concat(Array.isArray(obj.owned) ? obj.owned : [], lo);
+    out.arsenal = ars.filter(function (id, i) { return typeof id === 'string' && ars.indexOf(id) === i; });
+    out.loadout = lo.filter(function (id, i) { return lo.indexOf(id) === i && out.arsenal.indexOf(id) >= 0; });
+    if (!out.loadout.length && out.arsenal.length) out.loadout = [out.arsenal[0]];
+    // skills: spent must never exceed what the progress has earned; a broken tree is reset (points refunded)
+    if (!isObj(out.skills)) out.skills = {};
+    if (IB.Skills) out.skills = IB.Skills.sanitize(out.skills, out.highest).skills;
     return out;
   }
 
@@ -8382,6 +9099,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
         case 'KeyF': I.meleePressed = true; break;
         case 'Escape': case 'KeyP': I.pausePressed = true; break;
         case 'KeyC': case 'ControlLeft': I.slidePressed = true; break;
+        case 'Tab': I.menuPressed = true; break;   // field kit (loadout, gear, skills); Tab never moves focus in play
         default: if (/^Digit[1-9]$/.test(e.code)) I.slotPressed = +e.code.slice(5);
       }
       if (gameKey(e.code)) e.preventDefault();
@@ -8426,7 +9144,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   };
   I.endFrame = function () {
     I.lookDX = 0; I.lookDY = 0; I.jumpPressed = false; I.firePressed = false; I.reloadPressed = false;
-    I.meleePressed = false; I.pausePressed = false; I.slotPressed = 0; I.wheel = 0; I.swapPressed = false; I.slidePressed = false;
+    I.meleePressed = false; I.pausePressed = false; I.slotPressed = 0; I.wheel = 0; I.swapPressed = false; I.slidePressed = false; I.menuPressed = false;
   };
   I.reset = function () { I.fire = I.aim = false; I.mx = I.mz = 0; I.keys = {}; I.endFrame(); if (I.stick) I.stick.id = null; };
 
@@ -9992,7 +10710,11 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     AI.level = L; AI.tokenMax = 3 + Math.floor(L / 5);
     AI.hpMul = IB.Damage ? IB.Damage.enemyHpMul(L) : 1 + 0.06 * (L - 1);
     AI.dmgMul = IB.Damage ? IB.Damage.enemyDmgMul(L) : Math.min(3, 1 + 0.04 * (L - 1));
+    // per-level tempo: volley pauses, aim spread and lead, windup tells, move speed (core/damage.js enemyTempo)
+    AI.tempo = IB.Damage && IB.Damage.enemyTempo ? IB.Damage.enemyTempo(L) : TEMPO1;
   };
+  var TEMPO1 = { coolMul: 1, aimMul: 1, leadAdd: 0, tellMul: 1, speedMul: 1 };
+  function tempo() { return AI.tempo || TEMPO1; }
 
   /* spawn a robot hopping out of a spawn can at (x,z) toward (tx,tz) */
   AI.spawn = function (type, x, z, zone, tx, tz, opts) {
@@ -10148,6 +10870,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     var m = muzzleWorld(r, v, r.gunOut);
     var tx = p.x, ty = p.y + 1.15, tz = p.z;
     var dx = tx - m.x, dy = ty - m.y, dz = tz - m.z, d = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+    lead = (lead || 0) + tempo().leadAdd; spread = (spread || 0) * tempo().aimMul;
     if (lead) { var tt = d / speed; tx += (p.vx || 0) * tt * lead; tz += (p.vz || 0) * tt * lead; dx = tx - m.x; dz = tz - m.z; d = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1; }
     dx /= d; dy /= d; dz /= d;
     if (spread) { dx += (Math.random() - 0.5) * spread; dy += (Math.random() - 0.5) * spread * 0.6; dz += (Math.random() - 0.5) * spread; }
@@ -10180,7 +10903,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
         break;
       }
       case 'windup': {
-        var wu = def.windup || 0.35;
+        var wu = (def.windup || 0.35) * tempo().tellMul;
         turnTo(r, Math.atan2(dx, dz), 10, dt);
         r.crouch = Math.min(1, r.st / wu);
         tell(r, r.st / wu);
@@ -10300,7 +11023,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   }
 
   function thinkGunner(r, dt, ctx, zone, dx, dz, dist) {
-    var p = ctx.player, def = r.def, v = VIS.gunner, speed = def.speed || 3, wu = def.windup || 0.5;
+    var p = ctx.player, def = r.def, v = VIS.gunner, speed = def.speed || 3, wu = (def.windup || 0.5) * tempo().tellMul;
     var up = r.state === 'windup' || r.state === 'attack';
     r.lid += ((up ? 0.55 : 0) - r.lid) * Math.min(1, dt * (up ? 14 : 6));
     r.gunOut += ((up ? 0.07 : 0) - r.gunOut) * Math.min(1, dt * 10);
@@ -10333,13 +11056,13 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       case 'recover':
         if (r.token) releaseToken(r);
         r.aim += (-0.45 - r.aim) * Math.min(1, dt * 3);
-        if (r.st >= (def.recover || 0.8)) { setState(r, 'keep'); r.cool = 1.0 + Math.random() * 1.4; r.thinkT = 0; }
+        if (r.st >= (def.recover || 0.8)) { setState(r, 'keep'); r.cool = (1.0 + Math.random() * 1.4) * tempo().coolMul; r.thinkT = 0; }
         break;
     }
   }
 
   function thinkDrone(r, dt, ctx, zone, dx, dz, dist) {
-    var p = ctx.player, def = r.def, v = VIS.drone, speed = def.speed || 4.5, wu = def.windup || 0.45;
+    var p = ctx.player, def = r.def, v = VIS.drone, speed = def.speed || 4.5, wu = (def.windup || 0.45) * tempo().tellMul;
     var up = r.state === 'windup' || r.state === 'attack';
     r.lid += ((up ? 1 : 0) - r.lid) * Math.min(1, dt * (up ? 12 : 5));
     var kd = def.keepDistance || [8, 16], mid = (kd[0] + kd[1]) / 2;
@@ -10377,7 +11100,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
         if (r.token) releaseToken(r);
         move(ox, oz, speed * 0.8);
         r.aim += (-0.25 - r.aim) * Math.min(1, dt * 3);
-        if (r.st >= (def.recover || 0.8)) { setState(r, 'keep'); r.cool = 1.3 + Math.random() * 1.6; }
+        if (r.st >= (def.recover || 0.8)) { setState(r, 'keep'); r.cool = (1.3 + Math.random() * 1.6) * tempo().coolMul; }
         break;
     }
   }
@@ -10464,7 +11187,8 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       if (r.state === 'spawn' || r.state === 'pose') continue;
       if (B.tick) { B.tick(r, dt, ctx); if (!r.on) continue; }
       // movement: smooth velocity toward the wish, collide, face
-      var tvx = _mv.x * _mv.s, tvz = _mv.z * _mv.s, blend = Math.min(1, dt * (r.state === 'attack' && r.type === 'crawler' ? 30 : fly ? 4 : 10));
+      var sm = r.state === 'attack' ? 1 : tempo().speedMul;
+      var tvx = _mv.x * _mv.s * sm, tvz = _mv.z * _mv.s * sm, blend = Math.min(1, dt * (r.state === 'attack' && r.type === 'crawler' ? 30 : fly ? 4 : 10));
       r.vx += (tvx - r.vx) * blend; r.vz += (tvz - r.vz) * blend;
       var ox = r.x, oz = r.z;
       r.x += r.vx * dt; r.z += r.vz * dt;
@@ -10984,14 +11708,34 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     owned.forEach(function (id) { W.give(s, id); });
     return s;
   };
-  W.give = function (s, id) {
-    var def = IB.WEAPONS[id]; if (!def || def.fire === 'throw' || def.fire === 'melee' || def.fire === 'projectile') return;
-    var mag = W.magSize(s, def);
-    if (!model(id)) return;   // only weapons with a Blender model are playable
-    s.guns[id] = { id: id, def: def, mag: mag, reserve: (def.reserve === null || def.reserve === undefined || def.reserve === Infinity) ? Infinity : def.reserve };
-    if (!s.slots[def.slot]) s.slots[def.slot] = id;
+  // hitscan guns with a Blender model are playable (grenades, melee and the launcher are not yet)
+  W.playable = function (id) {
+    var def = IB.WEAPONS[id]; if (!def || def.fire === 'throw' || def.fire === 'melee' || def.fire === 'projectile') return false;
+    return !!IB.Assets.node['WPN_' + id.toUpperCase()];
   };
-  W.magSize = function (s, def) { return IB.Upgrades ? IB.Upgrades.magSize(def.mag, s.fx.magLevel || 0) : def.mag; };
+  // slots are loadout positions: keys 1..n switch between the carried guns in loadout order
+  W.give = function (s, id) {
+    if (!W.playable(id) || !model(id)) return;
+    var def = IB.WEAPONS[id];
+    s.guns[id] = { id: id, def: def, mag: W.magSize(s, def), reserve: (def.reserve === null || def.reserve === undefined || def.reserve === Infinity) ? Infinity : def.reserve };
+    if (W.slotOf(s, id) < 0) { var n = 1; while (s.slots[n]) n++; s.slots[n] = id; }
+  };
+  W.slotOf = function (s, id) { for (var k in s.slots) if (s.slots[k] === id) return +k; return -1; };
+  /* carry exactly `ids` (in key order). Guns leaving the loadout park their ammo in `bank` and guns joining it take
+     theirs back from there, so swapping in the Tab menu never refills a magazine. */
+  W.setLoadout = function (s, ids, bank) {
+    bank = bank || {};
+    Object.keys(s.guns).forEach(function (k) { bank[k] = { mag: s.guns[k].mag, reserve: s.guns[k].reserve }; });
+    var cur = s.cur;
+    s.guns = {}; s.slots = {};
+    ids.forEach(function (id) { W.give(s, id); var b = bank[id], g = s.guns[id]; if (g && b) { g.mag = Math.min(b.mag, W.magSize(s, g.def)); g.reserve = b.reserve; } });
+    if (!s.guns[cur]) { var first = s.slots[1]; s.cur = null; if (first) W.equip(s, first, true); else Object.keys(W.models).forEach(function (k) { showModel(k, false); }); }
+    return bank;
+  };
+  W.magSize = function (s, def) {
+    var m = IB.Upgrades ? IB.Upgrades.magSize(def.mag, s.fx.magLevel || 0) : def.mag;
+    return s.fx.magMul && m !== Infinity ? Math.ceil(m * s.fx.magMul - 1e-9) : m;   // Overboard skill
+  };
   W.refill = function (s) { Object.keys(s.guns).forEach(function (k) { var g = s.guns[k]; g.mag = W.magSize(s, g.def); g.reserve = (g.def.reserve == null || g.def.reserve === Infinity) ? Infinity : g.def.reserve; }); };
   W.addAmmo = function (s, frac) { Object.keys(s.guns).forEach(function (k) { var g = s.guns[k]; if (g.reserve !== Infinity) g.reserve = Math.min(g.def.reserve * 1.5, g.reserve + Math.ceil(g.def.reserve * frac)); }); };
   W.current = function (s) { return s.cur ? s.guns[s.cur] : null; };
@@ -11010,7 +11754,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   W.slot = function (s, n) { if (s.slots[n]) W.equip(s, s.slots[n]); };
   W.cycle = function (s, dir) {
     var sl = W.ownedSlots(s); if (sl.length < 2) return;
-    var curSlot = s.guns[s.cur].def.slot, i = sl.indexOf(curSlot);
+    var curSlot = W.slotOf(s, s.cur), i = sl.indexOf(curSlot);
     W.slot(s, sl[(i + dir + sl.length) % sl.length]);
   };
   W.reload = function (s) {
@@ -11072,11 +11816,12 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     if (p.sprinting) { s.burst = 0; return; }
     var d = g.def;
     var trig = d.fire === 'auto' ? inp.fire : inp.firePressed;
-    if (s.burst > 0 && s.next <= 0) { fire(s, g, ctx); s.burst--; s.next = s.burst > 0 ? (d.burstGap || 60 / d.rpm) : Math.max(0, d.cycle - (d.burst - 1) * (d.burstGap || 60 / d.rpm)); return; }
+    var rm = s.fx.rateMul || 1;   // Overclock skill: shorter gaps between shots
+    if (s.burst > 0 && s.next <= 0) { fire(s, g, ctx); s.burst--; s.next = (s.burst > 0 ? (d.burstGap || 60 / d.rpm) : Math.max(0, d.cycle - (d.burst - 1) * (d.burstGap || 60 / d.rpm))) / rm; return; }
     if (trig && s.next <= 0 && s.burst === 0) {
       if (g.mag <= 0) { if (inp.firePressed) IB.Audio && IB.Audio.play('dry'); W.reload(s); return; }
-      if (d.burst > 1) { s.burst = d.burst; s.next = 0; fire(s, g, ctx); s.burst--; s.next = d.burstGap || 60 / d.rpm; }
-      else { fire(s, g, ctx); s.next = d.cycle || 60 / d.rpm; }
+      if (d.burst > 1) { s.burst = d.burst; s.next = 0; fire(s, g, ctx); s.burst--; s.next = (d.burstGap || 60 / d.rpm) / rm; }
+      else { fire(s, g, ctx); s.next = (d.cycle || 60 / d.rpm) / rm; }
     }
   };
 
@@ -11211,6 +11956,111 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       var fs = 0.8 + Math.random() * 0.5; W.flash.scale.set(fs, fs, fs);
     }
   };
+})(window.IB = window.IB || {});
+
+/* ---- src/game/skillfx.js ---- */
+/* INKBOLT skill runtime: the combat side of the skill tree (core/skills.js effects()). game.js calls these hooks from
+   startLevel (begin), shoot (hitMul, onHit), onKill, hurt (hurtMul, closeCall), playFrame (update).
+   Stat skills (magazine, reload, recoil, health, stamina, magnet, fire rate) are applied in game.startLevel. */
+(function (IB) {
+  'use strict';
+  var SF = IB.SkillFX = { fx: null, shocked: [], chainDepth: 0, closeUsed: {} };
+  var BLUE = 0x2F7BEA, PALE = 0x8ED2FF;
+
+  SF.begin = function (skills) {
+    SF.fx = IB.Skills.effects(skills || {});
+    SF.shocked.length = 0; SF.chainDepth = 0; SF.closeUsed = {};
+    return SF.fx;
+  };
+  // skills changed mid-level (Tab menu): new effects, but Close Call stays spent for the zones it was used in
+  SF.refresh = function (skills) { SF.fx = IB.Skills.effects(skills || {}); return SF.fx; };
+  // multiplier on one bullet's damage (Heavy Ink, Core Dump)
+  SF.hitMul = function (zone) { var f = SF.fx; if (!f) return 1; return f.dmgMul * (zone === 'core' ? f.coreMul : 1); };
+
+  // shock damage-over-time: the loot system's IB.Status when it is there, a small local tick otherwise
+  function shock(r, dps, dur) {
+    if (IB.Status && IB.Status.apply) { IB.Status.apply(r, 'shock', dps, dur); return; }
+    // same rule as IB.Status: every hit adds dps x dur to the robot's pool, which drains over the duration
+    for (var i = 0; i < SF.shocked.length; i++) if (SF.shocked[i].r === r) { var e = SF.shocked[i]; e.pool += dps * dur; e.t = Math.max(e.t, dur); return; }
+    SF.shocked.push({ r: r, pool: dps * dur, t: dur, acc: 0, tick: 0.25, puff: 0 });
+  }
+  SF.shock = shock;
+  function num(x, y, z, n, kind) { if (IB.FX && IB.FX.damageNumber) IB.FX.damageNumber(x, y, z, n, kind); }
+
+  /* after a bullet landed: r robot, dmg final damage, killed, end hit point, onKill callback */
+  SF.onHit = function (r, dmg, zone, killed, end, onKill) {
+    var f = SF.fx; if (!f) return;
+    if (f.shock && !killed && r.on) shock(r, IB.Skills.shockDps(f, dmg), f.shockTime);
+    if (f.arc && zone === 'core') arc(r, end, dmg * f.arcFrac, onKill);
+  };
+  // Lightning Rod: a bolt from the hit robot into the nearest others
+  function arc(src, end, dmg, onKill) {
+    var f = SF.fx, list = [];
+    IB.AI.robots.forEach(function (o) {
+      if (o === src || !o.on || o.state === 'pose' || o.state === 'spawn') return;
+      var d = Math.hypot(o.x - src.x, o.z - src.z); if (d <= f.arcRange) list.push({ o: o, d: d });
+    });
+    list.sort(function (a, b) { return a.d - b.d; });
+    list.slice(0, f.arcTargets).forEach(function (e) {
+      var o = e.o, oy = o.y + 0.6;
+      if (IB.FX) { IB.FX.tracer(end.x, end.y, end.z, o.x, oy, o.z); IB.FX.puff(o.x, oy, o.z, 4, BLUE, 0.08, 0.22, 2.4); IB.FX.puff(o.x, oy, o.z, 2, PALE, 0.05, 0.14, 3); }
+      num(o.x, oy + 0.5, o.z, dmg, 'shock');
+      if (!IB.AI.damage(o, dmg, {}, onKill) && o.on) shock(o, IB.Skills.shockDps(f, dmg), f.shockTime);
+    });
+    if (list.length && IB.FX && IB.FX.word && Math.random() < 0.35) IB.FX.word('ZAP', end.x, end.y + 0.5, end.z, 1.2);
+    if (list.length && IB.Audio) IB.Audio.play('boltHit', { pos: src, gain: 0.5, pitch: 1.6 });
+  }
+
+  /* a robot the player wrecked: Salvage Bolts repair, Chain Reaction burst (bursts may chain, 4 deep at most) */
+  SF.onKill = function (r, player, onKill) {
+    var f = SF.fx; if (!f) return;
+    if (f.leech && player && player.alive) player.health = Math.min(player.maxHp, player.health + f.leech);
+    if (f.chain && SF.chainDepth < 4) {
+      var dmg = (r.maxHp || 30) * f.chainFrac, R = f.chainRadius;
+      if (IB.FX) { IB.FX.puff(r.x, 0.6, r.z, 8, 0x15121C, 0.2, 0.6, 4); IB.FX.puff(r.x, 0.6, r.z, 5, 0xFFB21E, 0.1, 0.3, 4.5); }
+      if (IB.FX && IB.FX.word && SF.chainDepth === 0 && Math.random() < 0.3) IB.FX.word('KRUNCH', r.x, 1.4, r.z, 1.3);
+      SF.chainDepth++;
+      IB.AI.robots.forEach(function (o) {
+        if (o === r || !o.on || o.state === 'pose' || o.state === 'spawn') return;
+        var dx = o.x - r.x, dz = o.z - r.z, d = Math.hypot(dx, dz); if (d > R) return;
+        num(o.x, o.y + 1, o.z, dmg, 'hit');
+        IB.AI.damage(o, dmg, { kx: dx / (d || 1) * 4, kz: dz / (d || 1) * 4 }, onKill);
+      });
+      SF.chainDepth--;
+    }
+  };
+
+  // damage the player takes is scaled by this (Tin Titan)
+  SF.hurtMul = function () { return SF.fx ? SF.fx.dmgTakenMul : 1; };
+  // Close Call: true when the skill saves the player this time (once per zone)
+  SF.closeCall = function (p, zone) {
+    var f = SF.fx; if (!f || !f.closeCall || SF.closeUsed[zone]) return false;
+    SF.closeUsed[zone] = true; p.health = 1; p.protect = 2;
+    return true;
+  };
+  // Tin Titan repair after regenDelay seconds without damage
+  SF.regen = function (p, dt) {
+    var f = SF.fx; if (!f || !f.regen || !p.alive || p.lastHurt <= f.regenDelay) return;
+    p.health = Math.min(p.maxHp, p.health + f.regen * dt);
+  };
+
+  // local shock tick (only while IB.Status is missing)
+  SF.update = function (dt, onKill) {
+    for (var i = SF.shocked.length - 1; i >= 0; i--) {
+      var e = SF.shocked[i], r = e.r;
+      if (!r.on) { SF.shocked.splice(i, 1); continue; }
+      var drain = e.t > dt ? e.pool * dt / e.t : e.pool;
+      e.pool -= drain; e.acc += drain; e.t -= dt; e.tick -= dt; e.puff -= dt;
+      if (e.puff <= 0 && IB.FX) { e.puff = 0.18; IB.FX.puff(r.x + (Math.random() - 0.5) * 0.5, r.y + 0.4 + Math.random() * 0.6, r.z + (Math.random() - 0.5) * 0.5, 1, Math.random() < 0.5 ? BLUE : PALE, 0.04, 0.12, 2); }
+      // damage lands in 0.25 s ticks so numbers read as a rhythm, not a blur
+      if (e.tick <= 0 || e.t <= 0) {
+        var n = e.acc; e.acc = 0; e.tick = 0.25;
+        if (n > 0) { num(r.x, r.y + 1.1, r.z, n, 'shock'); IB.AI.damage(r, n, {}, onKill); }
+      }
+      if (e.t <= 0 || !r.on) SF.shocked.splice(i, 1);
+    }
+  };
+  SF.clear = function () { SF.shocked.length = 0; };
 })(window.IB = window.IB || {});
 
 /* ---- src/game/status.js ---- */
@@ -11541,7 +12391,8 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   Gear.refresh = function (G, fill) {
     var g = Gear.gear(G); if (!g || !G.ws) return;
     var owned = Object.keys(G.ws.guns);
-    L().prune(g, owned);
+    // attachments stay on every gun in the arsenal (a gun parked by the Tab loadout keeps its mods)
+    L().prune(g, owned.concat((G.slot && G.slot.arsenal) || []));
     owned.forEach(function (id) {
       var gun = G.ws.guns[id], items = L().weaponItems(g, id);
       gun.def = L().applyMods(IB.WEAPONS[id], items);
@@ -11813,7 +12664,8 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       prompt: $('prompt'), promptKey: $('promptKey'), promptText: $('promptText'), promptFill: $('promptFill'),
       stamina: $('stamina'), stFill: $('stFill'), dim: $('dim'), hurt: $('hurt'), hurtFlash: $('hurtFlash'),
       pickup: $('pickup'), pickupIcon: $('pickupIcon'), pickupName: $('pickupName'), pickupLine: $('pickupLine'),
-      confirm: $('confirm'), confirmNum: $('confirmNum'), pauseBtn: $('pauseBtn')
+      confirm: $('confirm'), confirmNum: $('confirmNum'), pauseBtn: $('pauseBtn'),
+      lvTag: $('lvTag'), lvNum: $('lvNum'), lvTitle: $('lvTitle'), lvPts: $('lvPts'), lvPtsN: $('lvPtsN'), lvKey: $('lvKey'), menuBtn: $('menuBtn'), menuDot: $('menuDot')
     };
     H.arcs = [];
     for (var i = 0; i < 6; i++) {
@@ -11830,6 +12682,12 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       H.el.pauseBtn.addEventListener('touchstart', press, { passive: false });
       H.el.pauseBtn.addEventListener('click', press);
     }
+    // touch menu button (loadout / gear / skills): same flag as the Tab key
+    if (H.el.menuBtn) {
+      var menu = function (e) { e.preventDefault(); e.stopPropagation(); if (IB.Input) IB.Input.menuPressed = true; };
+      H.el.menuBtn.addEventListener('touchstart', menu, { passive: false });
+      H.el.menuBtn.addEventListener('click', menu);
+    }
     if (H.el.radarCv) H.radarCtx = H.el.radarCv.getContext('2d');
   };
   H.show = function (on) { H.el.hud.hidden = !on; if (!on) { H.el.hurt.classList.remove('low'); H.damageFlash(0); } else if (H.lowHp) H.el.hurt.classList.add('low'); };
@@ -11843,6 +12701,17 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     pickT = 0; confirmT = 0; toastT = 0; hitT = 0;
   };
 
+  /* player level tag above the health plate: LV badge, rank title, unspent skill points (+ the Tab hint) */
+  H.level = function (lv, title, points) {
+    var el = H.el; if (!el.lvTag) return;
+    set('lv', lv + '|' + title + '|' + points, function () {
+      el.lvNum.textContent = lv; el.lvTitle.textContent = title;
+      el.lvPts.hidden = !(points > 0); el.lvPtsN.textContent = '+' + points;
+      el.lvKey.textContent = touch() ? 'pts' : 'Tab';
+      el.lvTag.setAttribute('aria-label', 'Level ' + lv + ', ' + title + (points > 0 ? ', ' + points + ' skill points to spend' : ''));
+      if (el.menuDot) el.menuDot.hidden = !(points > 0);
+    });
+  };
   H.gems = function (n, pulse) {
     set('gems', n, function (v) { H.el.gemCount.textContent = v; });
     if (pulse) { H.el.gems.classList.remove('pulse'); void H.el.gems.offsetWidth; H.el.gems.classList.add('pulse'); }
@@ -12279,13 +13148,13 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
 
   // ---------- pause ----------
   M.controlsCard = function () {
-    if (IB.Input.touch) return '<div class="controls-card"><kbd>Left thumb</kbd><span>Move (push far to sprint)</span><kbd>Right thumb</kbd><span>Look</span><kbd>Fire</kbd><span>Hold to shoot, drag to aim</span></div>';
-    return '<div class="controls-card"><kbd>WASD</kbd><span>Move</span><kbd>Mouse</kbd><span>Look · left fire · right aim</span><kbd>Space</kbd><span>Jump</span><kbd>Shift</kbd><span>Sprint</span><kbd>R</kbd><span>Reload</span><kbd>1–9 / wheel</kbd><span>Weapons</span><kbd>F</kbd><span>Shove</span><kbd>Esc</kbd><span>Pause</span></div>';
+    if (IB.Input.touch) return '<div class="controls-card"><kbd>Left thumb</kbd><span>Move (push far to sprint)</span><kbd>Right thumb</kbd><span>Look</span><kbd>Fire</kbd><span>Hold to shoot, drag to aim</span><kbd>Grid button</kbd><span>Loadout · gear · skills</span></div>';
+    return '<div class="controls-card"><kbd>WASD</kbd><span>Move</span><kbd>Mouse</kbd><span>Look · left fire · right aim</span><kbd>Space</kbd><span>Jump</span><kbd>Shift</kbd><span>Sprint</span><kbd>R</kbd><span>Reload</span><kbd>1–3 / wheel</kbd><span>Carried guns</span><kbd>Tab</kbd><span>Loadout · gear · skills</span><kbd>F</kbd><span>Shove</span><kbd>Esc</kbd><span>Pause</span></div>';
   };
   M.pause = function (d) {
     var html = '<div class="screen center-screen"><section class="plate ink panel two-col" aria-label="Paused">' +
       '<h2>Paused</h2><div class="hazard"></div>' +
-      '<div class="menu">' + btn('resume', 'Resume', 'primary', null, ' data-esc="1"') + btn('restart', 'Restart level') + btn('settings', 'Settings') + btn('quit', 'Quit to title') + '</div>' +
+      '<div class="menu">' + btn('resume', 'Resume', 'primary', null, ' data-esc="1"') + btn('fieldkit', 'Loadout & skills', '', IB.Input.touch ? null : 'Tab') + btn('restart', 'Restart level') + btn('settings', 'Settings') + btn('quit', 'Quit to title') + '</div>' +
       '<div class="menu"><div class="kv"><span>' + d.levelName + '</span><b>Level ' + d.level + '</b><span>Zone</span><b>' + d.zone + '/' + d.zones + '</b><span>Gems</span><b>' + d.gems + '</b></div>' + M.controlsCard() + '</div>' +
       '</section></div>';
     show('pause', html, true);
@@ -12297,7 +13166,8 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       '<h2>Level cleared</h2><div class="hazard"></div>' +
       '<div class="kv"><span>Time</span><b>' + IB.HUD.mmss(d.time) + '</b><span>Robots crushed</span><b>' + d.kills + '</b><span>Core hits</span><b>' + d.corePct + '%</b><span>Deaths</span><b>' + d.deaths + '</b></div>' +
       '<div class="menu"><div class="kv"><span class="sub">Robots</span><b class="sub">' + d.gemsRobots + '</b><span class="sub">Clear bonus</span><b class="sub">' + d.gemsClear + '</b><span class="sub">No-death bonus</span><b class="sub">' + d.gemsNoDeath + '</b>' +
-      '<span class="total">Gems earned</span><b class="total">' + d.gemsTotal + '</b></div>' +
+      '<span class="total">Gems earned</span><b class="total">' + d.gemsTotal + '</b>' +
+      (d.levelUp ? '<span class="sub">Player level</span><b class="sub">LV ' + d.playerLevel + (d.pointsUp ? ' · +' + d.pointsUp + ' skill pt' + (d.pointsUp > 1 ? 's' : '') : '') + '</b>' : '') + '</div>' +
       btn('next', 'Continue', 'primary') + btn('replay', 'Replay level') + '</div>' +
       '</section></div>';
     show('results', html, true);
@@ -12680,6 +13550,303 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   };
 })(window.IB = window.IB || {});
 
+/* ---- src/ui/tabmenu.js ---- */
+/* INKBOLT field kit: the in-game Tab menu (Loadout, Gear, Skills). Opened by game.js (G.openMenu) which pauses the
+   game and releases the pointer; Tab / Esc / the close button resume (G.closeMenu).
+   Keyboard: Q / E switch tabs, arrows move between buttons, Enter selects (Enter on the selected skill spends a point).
+   Gear is drawn by the loot system (IB.GearUI.render(container, G)); without it the tab shows an empty state. */
+(function (IB) {
+  'use strict';
+  var T = IB.TabMenu = { tab: 'loadout', sel: null, slotSel: 0, confirmRespec: false };
+  var el = null, G = null;
+  var TABS = [['loadout', 'Loadout'], ['gear', 'Gear'], ['skills', 'Skills']];
+  var ROMAN = ['', 'I', 'II', 'III', 'IV', 'V'];
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function touch() { return !!(IB.Input && IB.Input.touch); }
+  function svg(d, vb) { return '<svg viewBox="' + (vb || '0 0 24 24') + '" aria-hidden="true">' + d + '</svg>'; }
+
+  // ---------- skill glyphs (24 x 24, currentColor) ----------
+  var ICON = {
+    mag: '<path d="M8 2h8l-1.2 20H9.2z" fill="currentColor"/><path d="M10 6h4M10 10h4M10 14h4" stroke="var(--ink)" stroke-width="2"/>',
+    reload: '<path d="M19 12a7 7 0 1 1-2.05-4.95" fill="none" stroke="currentColor" stroke-width="3.2"/><path d="M21 3v7h-7z" fill="currentColor"/>',
+    armor: '<path d="M12 2 21 6v6c0 5-4 8.5-9 10-5-1.5-9-5-9-10V6z" fill="currentColor"/><path d="M8 9h8M8 13h8" stroke="var(--ink)" stroke-width="2"/>',
+    steady: '<circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="3"/><path d="M12 1v6M12 17v6M1 12h6M17 12h6" stroke="currentColor" stroke-width="3"/>',
+    magnet: '<path d="M4 3h5v9a3 3 0 0 0 6 0V3h5v9a8 8 0 0 1-16 0z" fill="currentColor"/><path d="M4 7h5M15 7h5" stroke="var(--ink)" stroke-width="2"/>',
+    wind: '<path d="M2 7h12a3 3 0 1 0-3-3M2 12h18a3 3 0 1 1-3 3M2 17h9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"/>',
+    drop: '<path d="M12 2c4 6 7 9.5 7 13a7 7 0 0 1-14 0c0-3.5 3-7 7-13z" fill="currentColor"/><path d="M9 15a3 3 0 0 0 3 3" fill="none" stroke="var(--ink)" stroke-width="2"/>',
+    bolt: '<path d="M14 1 4 14h6l-2 9 11-14h-6z" fill="currentColor"/>',
+    core: '<circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="12" cy="12" r="4.5" fill="currentColor"/>',
+    gauge: '<path d="M2 17a10 10 0 0 1 20 0z" fill="currentColor"/><path d="M12 17l5-7" stroke="var(--ink)" stroke-width="2.6"/><circle cx="12" cy="17" r="2" fill="var(--ink)"/>',
+    burst: '<path d="M12 1l2.4 6.2 6.6-2.4-3.4 6.1L23 14l-6.6.9 1.4 6.6L12 18l-5.8 3.5 1.4-6.6L1 14l5.4-3.1L3 4.8l6.6 2.4z" fill="currentColor"/>',
+    heart: '<path d="M12 21 3 12a5 5 0 0 1 9-6 5 5 0 0 1 9 6z" fill="currentColor"/><path d="M12 7l-2 4 3 2-2 4" fill="none" stroke="var(--ink)" stroke-width="2"/>',
+    wrench: '<path d="M21 6.5a5 5 0 0 1-7.1 4.6L5 20a2.1 2.1 0 0 1-3-3l8.9-8.9A5 5 0 0 1 17.5 1L14 4.5l1 3.5 3.5 1z" fill="currentColor"/>',
+    rod: '<path d="M11 1h2v22h-2z" fill="currentColor"/><path d="M5 4h14M7 8h10" stroke="currentColor" stroke-width="2.4"/><path d="M19 11l-4 5h3l-2 5 5-6h-3z" fill="currentColor"/><path d="M5 11l-3 4h2.5l-1.5 4" fill="none" stroke="currentColor" stroke-width="1.8"/>',
+    titan: '<path d="M12 1 22 6.5v11L12 23 2 17.5v-11z" fill="currentColor"/><path d="M7 9h10v3a5 5 0 0 1-10 0z" fill="var(--ink)"/><path d="M9 11h6" stroke="currentColor" stroke-width="1.6"/>',
+    lock: '<path d="M7 10V7a5 5 0 0 1 10 0v3" fill="none" stroke="currentColor" stroke-width="2.6"/><rect x="5" y="10" width="14" height="11" fill="currentColor"/>'
+  };
+  var TAB_ICON = {
+    loadout: '<path d="M2 8h16v4h4v3H13v6H9l-1-6H5l-2 4H1l1-5H2z" fill="currentColor"/>',
+    gear: '<path d="M12 2 21 6v6c0 5-4 8.5-9 10-5-1.5-9-5-9-10V6z" fill="currentColor"/>',
+    skills: '<path d="M12 1l3 7h7l-5.6 4.4 2.1 7.6L12 15.6 5.5 20l2.1-7.6L2 8h7z" fill="currentColor"/>'
+  };
+  function icon(k) { return svg(ICON[k] || ICON.core); }
+
+  // ---------- open / close ----------
+  T.open = function (game, tab) {
+    G = game; el = document.getElementById('tabmenu');
+    if (tab) T.tab = tab;
+    T.confirmRespec = false;
+    var lo = G.slot.loadout || [];
+    T.slotSel = Math.min(lo.length, G.progress().loadoutMax - 1);
+    if (!T.sel || !IB.SKILL_BY_ID[T.sel]) T.sel = firstSuggested();
+    el.hidden = false;
+    render(true);
+  };
+  T.close = function () { if (!el) return; el.hidden = true; el.innerHTML = ''; };
+  T.isOpen = function () { return !!el && !el.hidden; };
+  T.setTab = function (t) { T.tab = t; T.confirmRespec = false; render(true); };
+
+  function firstSuggested() {
+    var sk = G.slot.skills || {}, h = G.slot.highest || 0;
+    for (var i = 0; i < IB.SKILLS.length; i++) if (IB.Skills.canBuy(sk, h, IB.SKILLS[i].id).ok) return IB.SKILLS[i].id;
+    return IB.SKILLS[0].id;
+  }
+
+  // ---------- render ----------
+  function render(focusFirst) {
+    var pr = G.progress(), keepFocus = document.activeElement && el.contains(document.activeElement) ? navKey(document.activeElement) : null;
+    var scroll = {}; el.querySelectorAll('.tm-scroll').forEach(function (s) { scroll[s.dataset.pane] = s.scrollTop; });
+    var tabs = TABS.map(function (t, i) {
+      var badge = t[0] === 'skills' && pr.points > 0 ? '<span class="tm-badge">' + pr.points + '</span>' : '';
+      return '<button class="tm-tab" role="tab" data-tab="' + t[0] + '" data-nav id="tmTab_' + t[0] + '" aria-selected="' + (T.tab === t[0]) + '" aria-controls="tmPanel">' +
+        svg(TAB_ICON[t[0]]) + '<span>' + t[1] + '</span>' + badge + '</button>';
+    }).join('');
+    var body = T.tab === 'skills' ? skillsPanel(pr) : T.tab === 'gear' ? gearPanel() : loadoutPanel(pr);
+    el.innerHTML = '<div class="tm-scrim" data-act="close"></div>' +
+      '<section class="plate ink tm-frame" role="dialog" aria-modal="true" aria-label="Field kit">' +
+        '<header class="tm-head">' +
+          '<div class="tm-id"><span class="tm-lv"><small>LV</small><b>' + pr.level + '</b></span>' +
+            '<span class="tm-idtxt"><b class="tm-title">' + esc(pr.title) + '</b><span class="tm-sub">' + subline(pr) + '</span></span></div>' +
+          '<nav class="tm-tabs" role="tablist" aria-label="Field kit">' + tabs + '</nav>' +
+          '<div class="tm-meta"><span class="tm-gems" aria-label="Gems"><i class="gem-glyph" aria-hidden="true"></i><b>' + (G.slot.gems || 0) + '</b></span>' +
+            '<button class="tm-close" data-act="close" data-nav aria-label="Close and resume">' + svg('<path d="M5 5l14 14M19 5 5 19" stroke="currentColor" stroke-width="3.4"/>') + '<kbd>' + (touch() ? 'Back' : 'Tab') + '</kbd></button></div>' +
+        '</header>' +
+        '<div class="hazard tm-hazard"></div>' +
+        '<div class="tm-body tm-' + T.tab + '" id="tmPanel" role="tabpanel" aria-labelledby="tmTab_' + T.tab + '">' + body + '</div>' +
+        '<footer class="tm-foot">' + footer() + '</footer>' +
+      '</section>';
+    if (T.tab === 'gear') mountGear();
+    el.querySelectorAll('.tm-scroll').forEach(function (s) { if (scroll[s.dataset.pane]) s.scrollTop = scroll[s.dataset.pane]; });
+    if (focusFirst) { var seln = el.querySelector('.sk-node.sel'); if (seln) seln.scrollIntoView({ block: 'center' }); }
+    if (touch()) return;
+    var f = keepFocus ? el.querySelector(keepFocus) : null;
+    if (!f && focusFirst) f = el.querySelector('.sk-node.sel') || el.querySelector('.lo-slot.sel') || el.querySelector('.tm-body [data-nav]') || el.querySelector('.tm-tab[aria-selected="true"]');
+    if (f) f.focus({ preventScroll: !keepFocus });
+  }
+  function subline(pr) {
+    var cleared = pr.highest > 0 ? 'Level ' + pr.highest + ' cleared' : 'No level cleared yet';
+    return cleared + ' · ' + pr.earned + ' of ' + IB.Skills.totalPoints() + ' skill points';
+  }
+  function navKey(a) {
+    if (a.dataset.skill) return '[data-skill="' + a.dataset.skill + '"]';
+    if (a.dataset.gun) return '[data-gun="' + a.dataset.gun + '"]';
+    if (a.dataset.slot) return '[data-slot="' + a.dataset.slot + '"]';
+    if (a.dataset.tab) return '[data-tab="' + a.dataset.tab + '"]';
+    if (a.dataset.act) return '[data-act="' + a.dataset.act + '"][data-nav]';
+    return null;
+  }
+  function footer() {
+    if (touch()) return '<span>Tap a skill, then spend</span><span>Pick a slot, then a gun</span>';
+    var mid = T.tab === 'skills' ? '<span><kbd>Enter</kbd> select · again to spend</span>' : T.tab === 'loadout' ? '<span><kbd>Enter</kbd> pick slot, then gun</span>' : '';
+    return '<span><kbd>Q</kbd><kbd>E</kbd> tabs</span><span><kbd>Arrows</kbd> move</span>' + mid + '<span><kbd>Tab</kbd><kbd>Esc</kbd> resume</span>';
+  }
+
+  // ---------- skills ----------
+  function skillsPanel(pr) {
+    var sk = G.slot.skills || {}, h = pr.highest;
+    var tiers = IB.SKILL_TIERS.map(function (t) {
+      var open = IB.Skills.tierUnlocked(sk, t.tier), above = IB.Skills.spentAbove(sk, t.tier);
+      var list = IB.SKILLS.filter(function (s) { return s.tier === t.tier; });
+      var nodes = list.map(function (s, i) {
+        var n = node(s, sk, h, open);
+        return t.capstone && i > 0 ? '<span class="sk-or" aria-hidden="true">OR</span>' + n : n;
+      }).join('');
+      var gate = t.gate ? '<span class="sk-gate"><b>' + t.gate + '</b></span>' : '<span class="sk-gate start"><b>' + ROMAN[t.tier] + '</b></span>';
+      // the pipe down to the next gate fills with the points spent toward it
+      var nx = IB.SKILL_TIERS[t.tier], seg = nx ? Math.max(0, Math.min(1, (IB.Skills.spentAbove(sk, nx.tier) - t.gate) / (nx.gate - t.gate))) : 0;
+      if (nx) gate += '<span class="sk-pipe" style="--seg:' + seg.toFixed(3) + '"><i></i></span>';
+      var need = open ? '' : '<span class="sk-need">' + svg(ICON.lock) + 'Spend ' + (t.gate - above) + ' more above</span>';
+      return '<div class="sk-tier' + (open ? ' open' : ' locked') + (t.capstone ? ' cap' : '') + '">' +
+        '<div class="sk-rail">' + gate + '</div>' +
+        '<div class="sk-tierbody"><div class="sk-tierhead"><b>' + (t.capstone ? 'Capstone · pick one' : 'Tier ' + ROMAN[t.tier] + ' · ' + t.name) + '</b>' + need + '</div>' +
+        '<div class="sk-row n' + list.length + '">' + nodes + '</div></div></div>';
+    }).join('');
+    return '<div class="sk-tree tm-scroll" data-pane="tree">' + tiers + '</div>' +
+      detail(pr, sk, h);
+  }
+  function node(s, sk, h, open) {
+    var r = IB.Skills.rank(sk, s.id), cb = IB.Skills.canBuy(sk, h, s.id);
+    var owner = IB.Skills.groupOwner(sk, s.group), shut = owner && owner !== s.id;
+    var pips = '';
+    for (var i = 0; i < s.max; i++) pips += '<i' + (i < r ? ' class="on"' : '') + '></i>';
+    var cls = 'plate sk-node k-' + s.kind + (r > 0 ? ' owned' : '') + (r >= s.max ? ' maxed' : '') + (!open || shut ? ' dim' : '') + (cb.ok ? ' buyable' : '') + (T.sel === s.id ? ' sel' : '');
+    var label = s.name + ', ' + (s.kind === 'rank' ? 'rank ' + r + ' of ' + s.max : r ? 'owned' : 'not owned') + (cb.ok ? ', can spend' : '');
+    return '<button class="' + cls + '" data-skill="' + s.id + '" data-nav aria-pressed="' + (T.sel === s.id) + '" aria-label="' + esc(label) + '">' +
+      '<span class="sk-ic">' + icon(s.icon) + '</span>' +
+      '<span class="sk-name">' + esc(s.name) + '</span>' +
+      (s.kind === 'capstone' ? '<span class="sk-cap">' + esc(s.stat) + ' · ' + s.cost + ' pts</span>' : '') +
+      '<span class="sk-pips' + (s.max === 1 ? ' one' : '') + '">' + pips + '</span>' +
+      (s.kind === 'special' ? '<span class="sk-star" aria-hidden="true">' + svg(ICON.burst) + '</span>' : '') +
+      (cb.ok ? '<span class="sk-plus" aria-hidden="true">+</span>' : '') +
+      '</button>';
+  }
+  function detail(pr, sk, h) {
+    var s = IB.SKILL_BY_ID[T.sel], r = IB.Skills.rank(sk, s.id), cb = IB.Skills.canBuy(sk, h, s.id), tx = IB.Skills.rankText(s.id, r);
+    var kind = s.kind === 'capstone' ? 'Capstone · ' + s.cost + ' points · only one' : s.kind === 'special' ? 'Tier ' + ROMAN[s.tier] + ' · special ability' : 'Tier ' + ROMAN[s.tier] + ' · rank ' + r + ' of ' + s.max;
+    var rows = s.kind === 'rank' ? '<div class="sk-ranks">' + s.ranks.map(function (v, i) {
+      return '<span class="' + (i < r ? 'on' : i === r ? 'next' : '') + '"><b>+' + v + s.unit + '</b><small>Rank ' + (i + 1) + '</small></span>';
+    }).join('') + '</div>' : '';
+    var why = { max: r ? 'Fully ranked' : '', tier: 'Spend ' + (cb.need || 0) + ' more point' + (cb.need === 1 ? '' : 's') + ' in the tiers above', exclusive: 'You chose ' + (cb.owner ? IB.SKILL_BY_ID[cb.owner].name : '') + '. Respec to switch.',
+      points: pr.points > 0 ? 'Needs ' + s.cost + ' points' : (pr.earned >= IB.Skills.totalPoints() ? 'Every point is spent' : 'Clear the next level for more points') }[cb.reason] || '';
+    var buyLabel = cb.ok ? 'Spend ' + s.cost + ' point' + (s.cost > 1 ? 's' : '') : (cb.reason === 'max' ? (s.kind === 'rank' ? 'Maxed' : 'Owned') : 'Locked');
+    var cost = IB.Skills.respecCost(h), spent = IB.Skills.spent(sk), canRespec = spent > 0 && (G.slot.gems || 0) >= cost;
+    var respecLbl = T.confirmRespec ? 'Confirm reset' : 'Respec tree';
+    return '<aside class="sk-detail tm-scroll" data-pane="detail" aria-live="polite">' +
+      '<div class="sk-points"><span>Skill points</span><b class="' + (pr.points > 0 ? 'has' : '') + '">' + pr.points + '</b><small>' + spent + ' spent · ' + pr.earned + ' earned</small></div>' +
+      '<div class="sk-card k-' + s.kind + '">' +
+        '<div class="sk-dhead"><span class="sk-dic">' + icon(s.icon) + '</span><span><b>' + esc(s.name) + '</b><small>' + kind + '</small></span></div>' +
+        '<p>' + esc(s.text) + '</p>' + rows +
+        (s.kind === 'rank' ? '<div class="sk-now"><span>' + esc(tx.now) + '</span>' + (tx.next ? '<span class="nx">Next: ' + esc(tx.next) + '</span>' : '') + '</div>' : '') +
+        (why ? '<div class="sk-why">' + esc(why) + '</div>' : '') +
+        '<button class="plate btn primary sk-buy" data-act="buy" data-nav' + (cb.ok ? '' : ' disabled aria-disabled="true"') + '><span>' + buyLabel + '</span></button>' +
+      '</div>' +
+      '<div class="sk-respec"><span><b>Reset the tree</b><small>All points back · costs gems</small></span>' +
+        '<button class="plate btn danger sk-rbtn' + (T.confirmRespec ? ' confirm' : '') + '" data-act="respec" data-nav' + (canRespec ? '' : ' disabled aria-disabled="true"') + '><span>' + respecLbl + '</span><span class="hint"><i class="gem-glyph sm" aria-hidden="true"></i>' + cost + '</span></button></div>' +
+      '</aside>';
+  }
+  function buy(id) {
+    var next = IB.Skills.buy(G.slot.skills || {}, G.slot.highest || 0, id);
+    if (!next) { IB.Audio && IB.Audio.play('dry'); return; }
+    G.slot.skills = next; G.store.save(G.slot);
+    IB.Audio && IB.Audio.play('pickup', { pitch: 1.2 });
+    T.sel = id; T.confirmRespec = false;
+    render();
+    var n = el.querySelector('[data-skill="' + id + '"]');
+    if (n) { n.classList.add('pop'); }
+  }
+  function respec() {
+    if (!T.confirmRespec) { T.confirmRespec = true; render(); var b = el.querySelector('[data-act="respec"]'); if (b && !touch()) b.focus(); return; }
+    var res = IB.Skills.respec(G.slot);
+    T.confirmRespec = false;
+    if (res.ok) { G.store.save(G.slot); IB.Audio && IB.Audio.play('crunch'); T.sel = firstSuggested(); }
+    render();
+  }
+
+  // ---------- loadout ----------
+  function gunStats(def) {
+    var dmg = def.damage * (def.pellets || 1), rpm = def.burst > 1 ? Math.round(60 / def.cycle * def.burst) : Math.round(def.rpm);
+    var fx = (G.ws && G.ws.fx) || {}, mag = IB.Weapons.magSize({ fx: fx }, def);
+    return [['Damage', dmg, Math.min(1, Math.sqrt(dmg / 160))], ['Rate', rpm, Math.min(1, rpm / 1100)], ['Mag', mag, Math.min(1, mag / 60)]];
+  }
+  function gunCls(def) { return IB.HUD.clsName(def.cls); }
+  function loadoutPanel(pr) {
+    var lo = G.slot.loadout || [], ars = G.slot.arsenal || [], max = pr.loadoutMax, slots = '';
+    for (var i = 0; i < IB.LOADOUT_RULES.extra; i++) {
+      var id = lo[i], def = id && IB.WEAPONS[id];
+      if (i >= max) {
+        slots += '<div class="plate lo-slot locked"><span class="lo-key">' + (i + 1) + '</span><span class="lo-ic">' + svg(ICON.lock) + '</span><b>Third slot</b><small>Clear level ' + IB.LOADOUT_RULES.extraAfter + '</small></div>';
+        continue;
+      }
+      slots += '<button class="plate lo-slot' + (def ? '' : ' empty') + (T.slotSel === i ? ' sel' : '') + '" data-slot="' + i + '" data-nav aria-pressed="' + (T.slotSel === i) + '" aria-label="Slot ' + (i + 1) + ': ' + (def ? esc(def.name) : 'empty') + '">' +
+        '<span class="lo-key">' + (i + 1) + '</span><span class="lo-ic">' + (def ? IB.HUD.icon(def.cls) : '') + '</span>' +
+        '<b>' + (def ? esc(def.name) : 'Empty') + '</b><small>' + (def ? gunCls(def) : 'Pick a gun below') + '</small></button>';
+    }
+    var cards = ars.map(function (id) {
+      var def = IB.WEAPONS[id]; if (!def) return '';
+      var at = lo.indexOf(id), st = gunStats(def);
+      var bars = st.map(function (x) { return '<span class="lo-st"><small>' + x[0] + '</small><i style="--v:' + x[2].toFixed(2) + '"></i><b>' + x[1] + '</b></span>'; }).join('');
+      return '<button class="plate lo-card' + (at >= 0 ? ' on' : '') + '" data-gun="' + id + '" data-nav aria-pressed="' + (at >= 0) + '" aria-label="' + esc(def.name) + (at >= 0 ? ', carried in slot ' + (at + 1) : '') + '">' +
+        '<span class="lo-cardhead"><span class="lo-ic">' + IB.HUD.icon(def.cls) + '</span><span class="lo-nm"><b>' + esc(def.name) + '</b><small>' + gunCls(def) + '</small></span>' +
+        (at >= 0 ? '<span class="lo-badge">' + (at + 1) + '</span>' : '') + '</span>' +
+        '<span class="lo-stats">' + bars + '</span></button>';
+    }).join('');
+    var hint = touch() ? 'Tap a slot, then the gun to carry in it.' : 'Pick a slot, then the gun for it. Keys ' + (max === 3 ? '1 2 3' : '1 2') + ' and the wheel switch between carried guns.';
+    return '<div class="lo-carry"><div class="tm-h"><b>Carried</b><span>' + lo.length + ' of ' + max + '</span></div>' +
+      '<div class="lo-slots n' + IB.LOADOUT_RULES.extra + '">' + slots + '</div><p class="lo-hint">' + hint + '</p></div>' +
+      '<div class="lo-ars tm-scroll" data-pane="ars"><div class="tm-h"><b>Arsenal</b><span>' + ars.length + ' gun' + (ars.length === 1 ? '' : 's') + ' · weapon stands add more</span></div>' +
+      '<div class="lo-grid">' + cards + '</div></div>';
+  }
+  function pickGun(id) {
+    var max = G.progress().loadoutMax, lo = G.slot.loadout || [];
+    var next = IB.Loadout.assign(lo, max, T.slotSel, id);
+    G.slot.loadout = next; G.store.save(G.slot);
+    IB.Audio && IB.Audio.play('draw');
+    // move the cursor to the next empty slot, if any
+    if (next.length < max && next.indexOf(id) >= 0) T.slotSel = next.length;
+    else T.slotSel = Math.min(T.slotSel, Math.max(0, next.length - (next.length < max ? 0 : 1)));
+    render();
+  }
+
+  // ---------- gear (loot system) ----------
+  function gearPanel() {
+    return '<div class="gear-host tm-scroll" data-pane="gear" id="tmGear"></div>';
+  }
+  function mountGear() {
+    var host = el.querySelector('#tmGear');
+    if (IB.GearUI && IB.GearUI.render) {
+      try { IB.GearUI.render(host, G); return; } catch (e) { if (G.errors) G.errors.push('GearUI: ' + e.message); }
+    }
+    host.innerHTML = '<div class="tm-empty"><span class="tm-empty-ic">' + svg(TAB_ICON.gear) + '</span>' +
+      '<b>No gear yet</b><p>Shields and gun attachments drop from tough robots. Anything you find shows up here.</p></div>';
+  }
+
+  // ---------- input ----------
+  function onClick(e) {
+    var b = e.target.closest('[data-tab],[data-skill],[data-slot],[data-gun],[data-act]');
+    if (!b || !el.contains(b) || b.disabled) return;
+    if (b.dataset.tab) { if (T.tab !== b.dataset.tab) { IB.Audio && IB.Audio.play('ui'); T.setTab(b.dataset.tab); } return; }
+    if (b.dataset.skill) { if (T.sel !== b.dataset.skill) IB.Audio && IB.Audio.play('ui'); T.sel = b.dataset.skill; T.confirmRespec = false; render(); return; }
+    if (b.dataset.slot) { T.slotSel = +b.dataset.slot; IB.Audio && IB.Audio.play('ui'); render(); return; }
+    if (b.dataset.gun) { pickGun(b.dataset.gun); return; }
+    var a = b.dataset.act;
+    if (a === 'close') G.closeMenu();
+    else if (a === 'buy') buy(T.sel);
+    else if (a === 'respec') respec();
+  }
+  function move(dir) {
+    // every visible button in the frame (the Gear tab's own buttons from IB.GearUI included)
+    var list = Array.prototype.slice.call(el.querySelectorAll('.tm-frame button, .tm-frame [data-nav]')).filter(function (b) { return !b.disabled && b.offsetParent !== null; });
+    var a = document.activeElement;
+    if (!a || list.indexOf(a) < 0) { var f = el.querySelector('.sel[data-nav]') || list[0]; if (f) f.focus(); return; }
+    var ra = a.getBoundingClientRect(), ax = ra.left + ra.width / 2, ay = ra.top + ra.height / 2, best = null, bs = Infinity;
+    list.forEach(function (b) {
+      if (b === a) return;
+      var rb = b.getBoundingClientRect(), bx = rb.left + rb.width / 2, by = rb.top + rb.height / 2, dx = bx - ax, dy = by - ay;
+      var main = dir === 'right' ? dx : dir === 'left' ? -dx : dir === 'down' ? dy : -dy, side = dir === 'left' || dir === 'right' ? Math.abs(dy) : Math.abs(dx);
+      if (main <= 4) return;
+      var sc = main + side * 2.2;
+      if (sc < bs) { bs = sc; best = b; }
+    });
+    if (best) { best.focus(); best.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+  }
+  function onKey(e) {
+    if (!T.isOpen()) return;
+    var k = e.key;
+    if (k === 'Tab' || k === 'Escape') { e.preventDefault(); e.stopPropagation(); if (!e.repeat) G.closeMenu(); return; }
+    if (k === 'q' || k === 'Q' || k === 'e' || k === 'E') {
+      e.preventDefault();
+      var i = TABS.map(function (t) { return t[0]; }).indexOf(T.tab), d = (k === 'e' || k === 'E') ? 1 : -1;
+      IB.Audio && IB.Audio.play('ui'); T.setTab(TABS[(i + d + TABS.length) % TABS.length][0]); return;
+    }
+    var dirs = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
+    if (dirs[k]) { e.preventDefault(); move(dirs[k]); return; }
+    if (k === 'Enter' && document.activeElement && document.activeElement.dataset.skill === T.sel && T.tab === 'skills') { e.preventDefault(); buy(T.sel); }
+  }
+  window.addEventListener('keydown', onKey, true);
+  document.addEventListener('click', function (e) { if (T.isOpen() && el.contains(e.target)) onClick(e); });
+})(window.IB = window.IB || {});
+
 /* ---- src/game/game.js ---- */
 /* INKBOLT game: boot, title scene, level flow (zones, waves, gates, trail, hatch), combat glue,
    death/respawn, pause, results + save, performance guard, test hooks. */
@@ -12814,7 +13981,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
 
   function resetLevelState() {
     var L = G.level;
-    AI.clear(); FX.clear(); IB.Projectiles.clear();
+    AI.clear(); FX.clear(); IB.Projectiles.clear(); if (IB.SkillFX) IB.SkillFX.clear();
     if (IB.Drops) IB.Drops.clear();
     if (IB.Status) IB.Status.clear();
     L.zones.forEach(function (z, i) {
@@ -12864,18 +14031,77 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   }
   function takeWeapon(w) {
     var def = IB.WEAPONS[w.id], ws = G.ws;
-    // one weapon per class: the new one replaces the old one (brief 5.2 carrying rule)
-    Object.keys(ws.guns).forEach(function (k) { if (IB.WEAPONS[k].cls === def.cls && k !== w.id) { delete ws.guns[k]; if (ws.slots[def.slot] === k) delete ws.slots[def.slot]; } });
-    W.give(ws, w.id);
+    ensureSlot();
+    // the gun joins the arsenal; it is carried at once (taking the place of the gun in hand when the loadout is full)
+    var r = IB.Loadout.pickup(G.slot.loadout || [], G.slot.arsenal || [], IB.Skills.loadoutMax(G.slot.highest), w.id, ws.cur);
+    G.slot.arsenal = r.arsenal; G.slot.owned = r.arsenal.slice(); G.slot.loadout = r.loadout;
+    if (G.bank) delete G.bank[w.id];   // a fresh gun off the stand comes fully loaded
+    W.setLoadout(ws, r.loadout, G.bank);
     W.equip(ws, w.id);
     if (IB.Gear) IB.Gear.refresh(G);   // the replaced gun's attachments go back to the bag
     w.taken = true; w.group.remove(w.gun); w.ring.visible = false;
-    ensureSlot();
-    G.slot.owned = Object.keys(ws.guns);
     G.store.save(G.slot);
-    if (HUD.pickup) HUD.pickup(def.name, def.cls); else HUD.toast('New weapon: ' + def.name, 2.2);
+    if (HUD.pickup) HUD.pickup(def.name, def.cls, r.slot + 1); else HUD.toast('New weapon: ' + def.name, 2.2);
     A.play('pickup'); A.play('draw');
   }
+
+  // ---------------- progression: arsenal, loadout, skills, player level ----------------
+  // arsenal / loadout come from the save (an empty arsenal gets the plan's start guns), trimmed to the 2/3-gun limit
+  function syncArmory() {
+    ensureSlot();
+    var s = G.slot, start = (G.plan.start || ['pip']);
+    var ars = IB.Loadout.fixArsenal(s.arsenal && s.arsenal.length ? s.arsenal : (s.owned && s.owned.length ? s.owned : start), W.playable);
+    if (!ars.length) ars = IB.Loadout.fixArsenal(start.concat(['pip']), W.playable);
+    s.arsenal = ars; s.owned = ars.slice();
+    s.loadout = IB.Loadout.fix(s.loadout, ars, IB.Skills.loadoutMax(s.highest));
+    return s.loadout;
+  }
+  G.syncArmory = syncArmory;
+  // stat skills on top of the Upgrade Bench effects; fresh = level start (full health), else keep the damage taken
+  function applySkillStats(fresh) {
+    var p = G.player, fx = G.fx || {}, sk = IB.SkillFX.fx;
+    var hpWas = p.maxHp || 100, hurt = Math.max(0, hpWas - p.health);
+    p.maxHp = (fx.maxHp || 100) + sk.maxHpAdd;
+    p.health = fresh ? p.maxHp : Math.max(1, Math.min(p.maxHp, p.maxHp - hurt));
+    var stWas = p.staminaMax || 4;
+    p.staminaMax = 4 * (fx.staminaMul || 1) * sk.staminaMul;
+    p.stamina = fresh ? p.staminaMax : Math.min(p.staminaMax, p.stamina * p.staminaMax / stWas);
+    if (G.ws) {
+      var wf = G.ws.fx;
+      wf.reloadMul = (fx.reloadMul || 1) * sk.reloadMul; wf.recoilMul = (fx.recoilMul || 1) * sk.recoilMul;
+      wf.spreadMul = (fx.spreadMul || 1) * sk.spreadMul; wf.magMul = sk.magMul; wf.rateMul = sk.rateMul;
+    }
+  }
+  G.progress = function () {
+    var h = G.slot ? G.slot.highest || 0 : 0, lv = IB.Skills.playerLevel(h);
+    return { highest: h, level: lv, title: IB.Skills.rankTitle(lv), points: G.slot ? IB.Skills.available(G.slot.skills || {}, h) : 0,
+      earned: IB.Skills.earned(h), loadoutMax: IB.Skills.loadoutMax(h) };
+  };
+  function hudLevel() { if (HUD.level) { var pr = G.progress(); HUD.level(pr.level, pr.title, pr.points); } }
+  // after the Tab menu: skills may have changed (stats, effects) and so may the loadout
+  G.applyProgress = function () {
+    ensureSlot();
+    IB.SkillFX.refresh(G.slot.skills);
+    applySkillStats(false);
+    W.setLoadout(G.ws, syncArmory(), G.bank);
+    if (IB.Gear) IB.Gear.refresh(G);   // guns joining the loadout get their attachments back
+    hudLevel();
+  };
+  G.openMenu = function (tab) {
+    if (G.mode !== 'play' || G.dead || G.complete || !IB.TabMenu) return;
+    G.mode = 'menu'; Inp.enabled = false; Inp.reset(); Inp.releaseLock(); IB.Plat.stop();
+    HUD.show(false); document.getElementById('touch').hidden = true;
+    A.play('ui');
+    IB.TabMenu.open(G, tab);
+  };
+  G.closeMenu = function () {
+    if (G.mode !== 'menu') return;
+    IB.TabMenu.close();
+    G.applyProgress();
+    G.store.save(G.slot);
+    A.play('uiBack');
+    G.resume();
+  };
 
   G.startLevel = function (opts) {
     M.hide();
@@ -12884,14 +14110,16 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     resetLevelState();
     var p = G.player, z0 = G.level.zones[0];
     Object.assign(p, IB.Player.create());
+    ensureSlot();
     var fx = IB.Upgrades && G.slot ? IB.Upgrades.effects(G.slot.upgrades || {}) : {};
     G.fx = fx;
-    p.maxHp = fx.maxHp || 100; p.health = p.maxHp; p.speedMul = fx.speedMul || 1; p.jumpMul = fx.jumpMul || 1; p.doubleJump = !!fx.doubleJump;
-    p.staminaMax = 4 * (fx.staminaMul || 1); p.stamina = p.staminaMax;
+    IB.SkillFX.begin(G.slot.skills);
+    p.speedMul = fx.speedMul || 1; p.jumpMul = fx.jumpMul || 1; p.doubleJump = !!fx.doubleJump;
     p.x = z0.entry.x; p.z = z0.entry.z; p.y = 0; p.yaw = 0; p.pitch = 0;
-    ensureSlot();
-    var owned = (G.slot.owned && G.slot.owned.length ? G.slot.owned : (G.plan.start || ['pip'])).filter(function (id) { return IB.WEAPONS[id]; });
-    G.ws = W.create(owned, { reloadMul: fx.reloadMul, recoilMul: fx.recoilMul, spreadMul: fx.spreadMul, magLevel: (G.slot && G.slot.upgrades && G.slot.upgrades.mag) || 0 });
+    var owned = syncArmory();
+    G.bank = {};
+    G.ws = W.create(owned, { magLevel: (G.slot.upgrades && G.slot.upgrades.mag) || 0, magMul: IB.SkillFX.fx.magMul });
+    applySkillStats(true);
     var first = Object.keys(G.ws.guns).sort(function (a, b) { return IB.WEAPONS[b].slot - IB.WEAPONS[a].slot; })[0] || 'pip';
     W.equip(G.ws, first, true);
     if (IB.Gear) IB.Gear.startLevel(G);   // attachments on the guns, shield full
@@ -12903,7 +14131,8 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     HUD.pips(G.level.zones.length, 0, 0);
     if (!AUTOTEST) M.intro({ level: G.plan.level, name: G.plan.name, zones: G.level.zones.length, line: G.plan.intro }, 2.2);
     // save at level start
-    ensureSlot(); G.slot.level = G.plan.level; G.slot.plan = G.plan.id; G.slot.owned = Object.keys(G.ws.guns); G.store.save(G.slot); G.saved = true;
+    ensureSlot(); G.slot.level = G.plan.level; G.slot.plan = G.plan.id; G.slot.owned = G.slot.arsenal.slice(); G.store.save(G.slot); G.saved = true;
+    hudLevel();
     Inp.enabled = true; Inp.reset();
     if (!AUTOTEST) Inp.requestLock();
   };
@@ -13020,7 +14249,9 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     var nd = G.run.deaths === 0 ? (IB.Gems ? IB.Gems.noDeathBonus(robots) : Math.floor(robots * 0.25)) : 0;
     ensureSlot();
     G.slot.gems = (G.slot.gems || 0) + clear + nd;
-    G.slot.highest = Math.max(G.slot.highest || 0, L);
+    var h0 = G.slot.highest || 0;
+    G.slot.highest = Math.max(h0, L);
+    var lvUp = IB.Skills.playerLevel(G.slot.highest) - IB.Skills.playerLevel(h0), ptsUp = IB.Skills.earned(G.slot.highest) - IB.Skills.earned(h0);
     G.slot.stats = G.slot.stats || {};
     G.slot.stats.kills = (G.slot.stats.kills || 0) + G.run.kills;
     G.slot.stats.deaths = (G.slot.stats.deaths || 0) + G.run.deaths;
@@ -13028,9 +14259,11 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     G.slot.stats.coreHits = (G.slot.stats.coreHits || 0) + G.run.coreHits;
     G.slot.best = G.slot.best || {}; var key = String(L);
     if (!G.slot.best[key] || G.run.time < G.slot.best[key]) G.slot.best[key] = Math.round(G.run.time);
-    G.slot.owned = Object.keys(G.ws.guns);
+    G.slot.owned = (G.slot.arsenal || []).slice();
     G.lastResults = { time: G.run.time, kills: G.run.kills, corePct: G.run.hits ? Math.round(G.run.coreHits / G.run.hits * 100) : 0, deaths: G.run.deaths,
-      gemsRobots: robots, gemsClear: clear, gemsNoDeath: nd, gemsTotal: robots + clear + nd };
+      gemsRobots: robots, gemsClear: clear, gemsNoDeath: nd, gemsTotal: robots + clear + nd,
+      playerLevel: IB.Skills.playerLevel(G.slot.highest), levelUp: lvUp, pointsUp: ptsUp,
+      slotUp: IB.Skills.loadoutMax(G.slot.highest) > IB.Skills.loadoutMax(h0) };
   }
   function levelExit() {
     var next = G.plan.next && IB.LEVEL_PLANS[G.plan.next];
@@ -13043,7 +14276,9 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     G.store.save(G.slot);
     setDim(1);
     HUD.show(false); document.getElementById('touch').hidden = true;
-    var line = 'Level ' + G.plan.level + ' cleared · ' + r.kills + ' robots · ' + HUD.mmss(r.time) + ' · +' + r.gemsTotal + ' gems';
+    var line = 'Level ' + G.plan.level + ' cleared · ' + r.kills + ' robots · ' + HUD.mmss(r.time) + ' · +' + r.gemsTotal + ' gems' +
+      (r.levelUp ? ' · LV ' + r.playerLevel + (r.pointsUp ? ' · +' + r.pointsUp + ' skill point' + (r.pointsUp > 1 ? 's' : '') : '') : '') +
+      (r.slotUp ? ' · third gun slot open' : '');
     var t0 = performance.now();
     if (M.loading) M.loading({ level: next.level, name: next.name, line: line }); else M.intro({ level: next.level, name: next.name, zones: next.zones.length, line: line }, 1.6);
     var prog = function (f) { if (M.loadingProgress) M.loadingProgress(f); };
@@ -13146,7 +14381,9 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       var r = rh.robot, zone = rh.zone;
       var res = IB.Damage.hit({ weapon: def, dist: endT, zone: zone, dmgLevel: up('dmg'), coreLevel: up('core'), critLevel: up('crit'), rng: Math.random, blinded: r.state === 'blinded' });
       G.run.hits++; if (zone === 'core') G.run.coreHits++;
-      var killed = AI.damage(r, res.damage, { kx: dx * 4, kz: dz * 4 }, onKill);
+      var dmg = res.damage *= IB.SkillFX.hitMul(zone);   // Heavy Ink, Core Dump (the damage number shows it too)
+      var killed = AI.damage(r, dmg, { kx: dx * 4, kz: dz * 4 }, onKill);
+      IB.SkillFX.onHit(r, dmg, zone, killed, _end, onKill);   // Electrify, Lightning Rod
       FX.puff(_end.x, _end.y, _end.z, zone === 'core' ? 5 : 3, PAL.ink, 0.12, 0.38, 2.2);
       if (zone === 'core') FX.puff(_end.x, _end.y, _end.z, 2, PAL.amber, 0.08, 0.2, 3);
       if (!killed) { HUD.hit(zone === 'core' ? 'core' : 'hit'); A.play(zone === 'core' ? 'core' : 'hit'); }
@@ -13172,6 +14409,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     if (Math.random() < 0.2) G.spawnPickup('ammo', r.x, r.z);
     else if (G.player.health < G.player.maxHp * 0.4 && Math.random() < 0.25) G.spawnPickup('health', r.x, r.z);
     if (G.fx && G.fx.leech) G.player.health = Math.min(G.player.maxHp, G.player.health + G.fx.leech);
+    IB.SkillFX.onKill(r, G.player, onKill);   // Salvage Bolts, Chain Reaction
     if (IB.Drops) IB.Drops.onKill(r);   // ~5 % loot drop
   }
   G.onKill = onKill;
@@ -13186,6 +14424,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   G.hurt = function (robot, dmg) {
     var p = G.player;
     if (!p.alive || p.protect > 0 || G.complete) return;
+    dmg *= IB.SkillFX.hurtMul();   // Tin Titan
     var through = IB.Gear ? IB.Gear.absorb(G, dmg) : dmg;   // an equipped shield takes it first
     p.health -= through; p.lastHurt = 0;
     A.play(robot.proj ? (robot.type === 'bomber' ? 'boom' : 'boltHit') : 'bite', { pos: robot }); if (through > 0) A.play('hurt', { gain: 0.8 });
@@ -13195,7 +14434,8 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     HUD.arc(Math.atan2(dx * rx + dz * rz, dx * fx + dz * fz)); // 0 = ahead, + = to the right
     G.shake = Math.max(G.shake, 0.5); G.addTrauma(Math.min(0.5, 0.12 + dmg * 0.012));
     if (HUD.damageFlash) HUD.damageFlash(Math.min(1, through / 30));
-    if (p.health <= 0) die(robot);
+    if (p.health <= 0 && IB.SkillFX.closeCall(p, G.zone)) { HUD.toast('Close call!', 1.4); A.play('pickup', { pitch: 0.7 }); }
+    else if (p.health <= 0) die(robot);
   };
   function die(robot) {
     var p = G.player;
@@ -13275,6 +14515,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       if (!free) { var n = G.store.newest(); free = n ? n.id : 1; }
       G.slot = G.store.newSlot(free, (Math.random() * 1e9) | 0);
       G.slot.plan = IB.CAMPAIGN[0]; G.slot.owned = (IB.LEVEL_PLANS[IB.CAMPAIGN[0]].start || ['pip']).slice();
+      G.slot.arsenal = G.slot.owned.slice(); G.slot.loadout = G.slot.owned.slice(0, IB.Skills.loadoutMax(0));
       G.store.save(G.slot);
       M.wipe(function () { if (G.plan.id !== IB.CAMPAIGN[0]) G.switchPlan(IB.LEVEL_PLANS[IB.CAMPAIGN[0]]).then(function () { G.startLevel(); }); else G.startLevel(); });
     });
@@ -13289,6 +14530,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     M.on('cancelReset', function () { M.settings(G.settings, M._settingsFrom); });
     M.on('doReset', function () { G.store.resetAll(); G.slot = null; G.settings = G.store.loadSettings(); G.applySettings(); G.toTitle(); });
     M.on('resume', function () { G.resume(); });
+    M.on('fieldkit', function () { if (G.mode !== 'paused') return; M.hide(); G.mode = 'play'; G.openMenu(); });
     M.on('restart', function () { M.wipe(function () { G.startLevel(); }); });
     M.on('quit', function () { M.wipe(function () { G.toTitle(); }); });
     M.on('next', function () { M.wipe(function () { G.toTitle(); }); });
@@ -13338,6 +14580,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   function playFrame(dt, dtRaw) {
     var p = G.player, s = G.settings;
     if (Inp.pausePressed) { G.pause(); return; }
+    if (Inp.menuPressed && !G.dead && G.run.started) { G.openMenu(); return; }
     if (G.fade) {
       G.fade.t += dtRaw;
       var fk = Math.min(1, G.fade.t / G.fade.dur);
@@ -13395,6 +14638,8 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     if (G.run.started && !G.complete && !G.dead) G.run.time += dt;
     // regen (Nanite Welders)
     if (G.fx && G.fx.regen && p.alive && p.lastHurt > 3) p.health = Math.min(p.maxHp, p.health + G.fx.regen * dt);
+    IB.SkillFX.regen(p, dt);   // Tin Titan
+    if (!IB.Status && G.run.started) IB.SkillFX.update(dt, onKill);   // Electrify ticks (until the loot system's IB.Status exists)
     // weapons
     W.update(G.ws, dt, { player: p, cam: R.camera, input: { fire: Inp.fire && p.alive && G.run.started, firePressed: Inp.firePressed && p.alive && G.run.started, aim: Inp.aim && p.alive }, shoot: shoot,
       onFire: function (d) { if (s.shake && (d.cls === 'smg' || d.cls === 'rifle')) G.shake = Math.max(G.shake, 0.15); } });
@@ -13429,7 +14674,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     AI.sync(); AI.updateCorpses(dtRaw);
     updatePickups(dtRaw, tAll);
     if (IB.Drops) { IB.Drops.update(dtRaw, tAll, G); IB.Gear.update(dtRaw, G); }
-    var magnet = 2.5 * (1 + 0.5 * up('magnet'));
+    var magnet = 2.5 * (1 + 0.5 * up('magnet')) * IB.SkillFX.fx.magnetMul;   // Scrap Magnet
     FX.update(dtRaw, R.camera, p, magnet, collectGem);
     W.pose(G.ws, dtRaw, p, Inp.lookDX, Inp.lookDY, s.headBob, tAll);
     // HUD
@@ -13535,6 +14780,12 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     look: function (yaw, pitch) { G.player.yaw = yaw; G.player.pitch = pitch || 0; },
     pause: function () { G.pause(); }, resume: function () { G.resume(); }, title: function () { G.toTitle(); }, start: function () { G.startLevel(); },
     menu: function (act) { M.act(act); },
+    tabMenu: function (tab) { G.openMenu(tab); }, closeTabMenu: function () { G.closeMenu(); },
+    progress: function () {
+      var pr = G.progress(); pr.skills = G.slot ? Object.assign({}, G.slot.skills) : {};
+      pr.arsenal = G.slot ? G.slot.arsenal.slice() : []; pr.loadout = G.slot ? G.slot.loadout.slice() : [];
+      pr.carried = W.ownedSlots(G.ws).map(function (k) { return G.ws.slots[k]; }); return pr;
+    },
     setTier: function (t) { G.setTier(t); }
   };
   if (IB.GearTest) Object.keys(IB.GearTest).forEach(function (k) { window.__TEST__[k] = IB.GearTest[k]; });   // loot hooks (game/gear.js)
