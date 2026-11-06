@@ -125,7 +125,7 @@
       '</section>';
     if (T.tab === 'inventory') mountGear();
     el.querySelectorAll('.tm-scroll').forEach(function (s) { if (scroll[s.dataset.pane]) s.scrollTop = scroll[s.dataset.pane]; });
-    if (focusFirst && T.tab === 'skills') { var tr = el.querySelector('.sk-tree'), seln = el.querySelector('.sk-node.sel'); if (tr && seln && tr.scrollHeight > tr.clientHeight + 4) seln.scrollIntoView({ block: 'center' }); }
+    if (focusFirst && T.tab === 'skills') { var tr = el.querySelector('.sk-treewrap'), seln = el.querySelector('.sk-node.sel'); if (tr && seln && tr.scrollHeight > tr.clientHeight + 4) seln.scrollIntoView({ block: 'center' }); }
     if (touch()) return;
     var f = keepFocus ? el.querySelector(keepFocus) : null;
     if (!f && focusFirst) f = el.querySelector('.sk-node.sel') || el.querySelector('.lo-slot.sel') || el.querySelector('.tm-body [data-nav]') || el.querySelector('.tm-tab[aria-selected="true"]');

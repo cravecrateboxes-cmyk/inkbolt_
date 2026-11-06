@@ -122,7 +122,7 @@
     im.count = BLAST_CAP * LOBES; im.visible = false;
     scene.add(im);
     Pj.mesh = im;
-    for (i = 0; i < BOLT_CAP; i++) Pj.bolts.push({ on: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, sp: 0, t: 0, dmg: 0, src: { x: 0, z: 0, type: 'gunner', proj: true } });
+    for (i = 0; i < BOLT_CAP; i++) Pj.bolts.push({ on: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, sp: 0, t: 0, dmg: 0, vs: 0, src: { x: 0, z: 0, type: 'gunner', proj: true } });
     for (i = 0; i < BLAST_CAP; i++) Pj.blasts.push({ on: false, x: 0, y: 0, z: 0, R: 3, t: 0, lobe: new Float32Array(LOBES * 4) });
     for (i = 0; i < QUEUE_CAP; i++) Pj.queue.push({ on: false, t: 0, x: 0, y: 0, z: 0, R: 3, D: 0, Dr: 0, src: { x: 0, z: 0, type: 'bomber', proj: true } });
     Pj.next = 0;
@@ -138,7 +138,9 @@
     Pj.mesh.instanceMatrix.needsUpdate = true; Pj.mesh.count = BLAST_CAP * LOBES; Pj.mesh.visible = false; Pj.boltCount = 0;
   };
 
-  Pj.fire = function (x, y, z, dx, dy, dz, speed, dmg, src) {
+  /* vs: 0 a bolt at the player; 1 a rogue's bolt (Handy Helpers): hits robots that are not rogue, never the player;
+     2 a bolt at a rogue: hits rogue robots, and the player if he is in the way */
+  Pj.fire = function (x, y, z, dx, dy, dz, speed, dmg, src, vs) {
     if (!Pj.mesh) return null;
     var b = null, i, oldest = 0;
     for (i = 0; i < BOLT_CAP; i++) {
@@ -150,6 +152,7 @@
     b.on = true; b.t = 0; b.x = x; b.y = y; b.z = z; b.sp = speed;
     b.vx = dx / L * speed; b.vy = dy / L * speed; b.vz = dz / L * speed; b.dmg = dmg;
     b.src.x = src ? src.x : x; b.src.z = src ? src.z : z; b.src.type = src ? src.type : 'gunner';
+    b.vs = vs || 0;
     return b;
   };
 
@@ -223,6 +226,22 @@
     if (IB.FX && IB.FX.word) IB.FX.word(['BLAM', 'KRUNCH', 'FWOOM'][(Math.random() * 3) | 0], x, y + 0.9, z, 1.7);
   }
 
+  function hitRobot(b, nx, ny, nz, ctx) {
+    var AI = IB.AI; if (!AI || !AI.robots) return false;
+    for (var i = 0; i < AI.robots.length; i++) {
+      var r = AI.robots[i]; if (!r.on || r.state === 'spawn' || r.state === 'pose') continue;
+      if (b.vs === 1 ? r.rogue > 0 : !(r.rogue > 0)) continue;
+      var v = AI.VIS[r.type];
+      if (!Pj.segHitsCapsule(b.x, b.y, b.z, nx, ny, nz, r.x, r.y + v.y0 + v.radius * 0.5, r.y + v.y1 - v.radius * 0.5, r.z, v.radius, HIT_R)) continue;
+      b.on = false;
+      AI.damage(r, b.dmg, { kx: b.vx / b.sp * 2, kz: b.vz / b.sp * 2 }, b.vs === 1 ? ctx.onKill : null);
+      if (IB.Boom) IB.Boom.boltHit(nx, ny, nz, -b.vx / b.sp, -b.vy / b.sp, -b.vz / b.sp);
+      sfx('boltHit', nx, nz, 0.5);
+      return true;
+    }
+    return false;
+  }
+
   Pj.update = function (dt, ctx) {
     if (!Pj.mesh) return;
     Pj.ctx = ctx;
@@ -235,8 +254,10 @@
       b.t += dt;
       if (b.t > LIFE) { b.on = false; continue; }
       var nx = b.x + b.vx * dt, ny = b.y + b.vy * dt, nz = b.z + b.vz * dt;
+      // robot fights (rogues): robot capsules on the bolt's side
+      if (b.vs && hitRobot(b, nx, ny, nz, ctx)) continue;
       // player capsule
-      if (p && p.alive && Pj.segHitsCapsule(b.x, b.y, b.z, nx, ny, nz, p.x, p.y + PLAYER_R, p.y + PLAYER_H - PLAYER_R, p.z, PLAYER_R, HIT_R)) {
+      if (b.vs !== 1 && p && p.alive && Pj.segHitsCapsule(b.x, b.y, b.z, nx, ny, nz, p.x, p.y + PLAYER_R, p.y + PLAYER_H - PLAYER_R, p.z, PLAYER_R, HIT_R)) {
         b.on = false;
         if (ctx.hurt) ctx.hurt(b.src, b.dmg);
         if (FX) { FX.puff(nx, ny, nz, 3, PAL.amber, 0.1, 0.3, 2.5); FX.puff(nx, ny, nz, 2, PAL.ink, 0.12, 0.35, 2); }
