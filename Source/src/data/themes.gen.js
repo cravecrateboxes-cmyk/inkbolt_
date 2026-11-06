@@ -106,7 +106,7 @@
       'M': { pieces: ['Mobile'], y: CEIL, rotate: 'random90', collide: false }
     },
     gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
-    trail: { wall: 'TrailWall', height: 18.3 },
+    trail: { wall: 'TrailWall', height: 18.3, variants: ['TrailWall_B', 'TrailWall_C', 'TrailWall_D', 'TrailWall_E'] },
     hatch: 'Hatch', stand: 'Block_C',
     backdrop: null,
     budget: { prop: 2000, landmark: 4000, total: 70000 },
@@ -120,7 +120,7 @@
         var d = this.symbols[ch];
         d.pieces.concat(d.stack ? [d.stack.piece] : []).forEach(function (n) { seen[n] = 1; });
       }, this);
-      return out.concat(Object.keys(seen), ['GateFrame', 'GateShutter', 'TrailWall', 'Hatch', 'CeilingTile']);
+      return out.concat(Object.keys(seen), ['GateFrame', 'GateShutter', 'TrailWall', 'Hatch', 'CeilingTile'], this.trail.variants);
     },
     levels: {
       bedroom: {
@@ -453,6 +453,7 @@
   var PAPERS = ['Paper_A', 'Paper_B', 'Paper_C'];
   var FLOORSTUFF = ['Pencil', 'Crayons_A', 'Crayons_B'];
   var BAYS = ['Win_Bay_A', 'Win_Bay_B', 'Win_Bay_C'];
+  var TRAILS = ['TrailWall_B', 'TrailWall_C', 'TrailWall_D', 'TrailWall_E'];
   var WALLS = ['Wall_Plain', 'Wall_Corner', 'Wall_Switch', 'Wall_Vent', 'Win_Open', 'Wall_Cork', 'Wall_Map', 'Wall_Clock',
     'Wall_Poster_A', 'Wall_Poster_B', 'Wall_Poster_C'].concat(BAYS);
 
@@ -493,10 +494,15 @@
     if (side === 'W') return [c, grid.h - 1 - u];
     return [c, u];
   }
-  // a wall cell facing the room on this side (not a gate, not a corner)
+  // the door built-in (GateFrame) covers the two wall cells either side of a gate
+  function nearGate(grid, x, y) {
+    for (var d = -2; d <= 2; d++) { var g = grid.at(x + d, y); if (g === 'G' || g === 'E') return true; }
+    return false;
+  }
+  // a wall cell facing the room on this side (not a gate, not a corner, not behind the door built-in)
   function faceCell(side, u, c, r, grid) {
     var p = cellAt(side, u, c, r, grid), x = p[0], y = p[1];
-    if (grid.at(x, y) !== '#') return false;
+    if (grid.at(x, y) !== '#' || nearGate(grid, x, y)) return false;
     var o = side === 'N' ? grid.at(x, y + 1) : side === 'S' ? grid.at(x, y - 1) : side === 'W' ? grid.at(x + 1, y) : grid.at(x - 1, y);
     return !wallish(o);
   }
@@ -545,12 +551,13 @@
     if (side === 'N') { var L = letterAt(u, c, r, grid); if (L) return L; }
     var d = decorAt(side, u, c, r, grid);
     if (d) return d;
-    // light switch by the doors, the odd air vent high up
-    if ((side === 'N' || side === 'S') && wallAt(grid, c + 2, r) && grid.at(c + 2, r) !== '#' && grid.at(c + 1, r) === '#') return 'Wall_Switch';
+    // light switch just past the door built-in, the odd air vent high up
+    if ((side === 'N' || side === 'S') && wallAt(grid, c + 3, r) && grid.at(c + 3, r) !== '#' && grid.at(c + 1, r) === '#' && grid.at(c + 2, r) === '#') return 'Wall_Switch';
     if (side !== 'N' && hash(c * 7 + 3, r * 11 + 5) < 0.06) return 'Wall_Vent';
     return 'Wall_Plain';
   }
   function chooseWall(c, r, horiz, corner, hash, grid) {
+    if (nearGate(grid, c, r)) return null;   // inside the door built-in (GateFrame): no wall module
     // a real room corner has wall neighbours inside the grid both ways (the engine's `corner` counts outside cells)
     if ((wallAt(grid, c - 1, r) || wallAt(grid, c + 1, r)) && (wallAt(grid, c, r - 1) || wallAt(grid, c, r + 1))) return 'Wall_Corner';
     var side = sideOf(c, r, grid);
@@ -594,8 +601,10 @@
       'Q': { size: [4, 4], pieces: ['Landmark_Globe'], kind: 'wall' },
       'k': { size: [22, 1], pieces: ['Landmark_Chalkboard'], kind: 'wall' }
     },
-    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
-    trail: { wall: 'TrailWall', height: 16.5 },
+    // the door is a floor-to-ceiling library built-in (covers the wall cells either side, closes the trail ends);
+    // the trail is a library aisle of mixed bookcase slices
+    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05, dress: ['GateBooks'] },
+    trail: { wall: 'TrailWall', height: 16.5, variants: TRAILS },
     hatch: 'Hatch', stand: 'Eraser',
     backdrop: null,
     budget: { prop: 2000, landmark: 4000, total: 70000 },
@@ -604,8 +613,8 @@
       var turnedPieces = TURNED[90].map(function (n) { return n + '_R90'; }).concat(TURNED[270].map(function (n) { return n + '_R270'; }));
       return WALLS.concat(turnedPieces, letters, DESKS, BLOCKS, ['Block_S'], STACKS, BAGS, BEANS, PAPERS, FLOORSTUFF,
         ['Chair', 'Chair_Fallen', 'BooksA', 'BooksB', 'Bin', 'Bookcase', 'BookcaseB', 'Rug', 'Eraser',
-          'Landmark_TeacherDesk', 'Landmark_Globe', 'Landmark_Chalkboard', 'GateFrame', 'GateShutter', 'TrailWall',
-          'Hatch', 'LightPanel']);
+          'Landmark_TeacherDesk', 'Landmark_Globe', 'Landmark_Chalkboard', 'GateFrame', 'GateBooks', 'GateShutter', 'TrailWall',
+          'Hatch', 'LightPanel'], TRAILS);
     },
     levels: {
       classroom: {
@@ -935,6 +944,139 @@
   });
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
 
+/* ---- themes/livingroom.js ---- */
+/* Theme: Living Room (kit-livingroom). A "tiny" theme like the Big Bedroom: the player and the trash robots are toy
+   sized and one wide open-plan floor of a house is giant around them (about x6): an 18 m ceiling, panelled cream
+   wainscot under sage / peach / butter paint, honey floorboards, warm afternoon sun through tall windows lying on the
+   boards in bright patches. Lounge (sofa, coffee table, TV and games console, rug, bookshelves, fireplace, plants),
+   dining end (table and chairs under a pendant lamp, sideboard) and kitchen (island with stools, retro fridge,
+   counters with sink, stove and upper cabinets), all strewn with toys and household clutter for cover.
+   The gates are pet flaps in giant interior doors; the trails are hallway slices (photos, coats, a radiator, shoes).
+
+   Map notes (src/data/zones/livingroom_*.txt, 1 char = 1 m; generated by tools/livingroom_zones.py):
+   - the wall paint follows the room: a map with the fridge (R) is the kitchen (butter), one with the dining table
+     (D) the dining room (peach), anything else the lounge (sage).
+   - wall overlays sit in the floor row in front of a wall: W window / f, x picture frames face south or east (north
+     and west walls), w / r, y face north or west (south and east walls); a vertical run turns them onto side walls.
+   - O (rug) and u (sun patch) are 2 x 2 anchors whose pieces spread well beyond them. */
+(function (IB) {
+  'use strict';
+  var CEIL = 18;
+  // the paint scheme follows what is in the room (cached on the grid)
+  function scheme(grid) {
+    if (grid._lrScheme) return grid._lrScheme;
+    var s = '1';
+    for (var r = 0; r < grid.h && s === '1'; r++) for (var c = 0; c < grid.w; c++) {
+      var ch = grid.at(c, r);
+      if (ch === 'R') { s = '3'; break; }
+      if (ch === 'D') s = '2';
+    }
+    grid._lrScheme = s;
+    return s;
+  }
+  // wall.facing 'open' turns every module's painted face to its single open side; east / west faces get the _X
+  // modules (trims 6 mm higher) so they never share a plane with a north / south wall at an inside corner
+  function chooseWall(c, r, horiz, corner, hash, grid, face) {
+    if (face === 'S' || face === 'N') return 'Wall' + scheme(grid);
+    if (face === 'E' || face === 'W') return 'Wall' + scheme(grid) + '_X';
+    return 'Wall_Corner';
+  }
+  var BLOCKS = ['Block_A', 'Block_B', 'Block_C'];
+  var TRAILS = ['TrailWall_Photos', 'TrailWall_Coats', 'TrailWall_Radiator', 'TrailWall_Shoes'];
+  IB.registerTheme({
+    id: 'livingroom', name: 'Living Room', family: 'kit-livingroom', prefix: 'KIT_LIVINGROOM_',
+    palette: ['#BFDDB2', '#3FA3A0', '#FFE9A8', '#E2B47A'],
+    env: {
+      sky: null, clear: '#FFF1DC',
+      fog: { color: '#FFF0DA', near: 45, far: 150 },
+      sun: [-0.55, 0.7, 0.25],          // low afternoon sun from the west windows
+      ceiling: { height: CEIL, color: '#FBF5EA', light: 'CeilingTile', every: 1 },
+      clouds: false
+    },
+    // honey oak boards (a real 15 cm board at x6 is 0.9 m)
+    floor: { color: '#E6B57C', trail: '#DDAA70', lines: [{ dir: 'x', every: 0.9, width: 0.05, color: '#C2884F', y: 0.008 }] },
+    wall: { height: 18.4, roof: '#FFFFFF', facing: 'open', choose: chooseWall },
+    symbols: {
+      'T': { size: [14, 6], pieces: ['Landmark_Sofa'], kind: 'wall', turn: Math.PI },   // faces north, toward the TV
+      'Y': { size: [8, 4], pieces: ['CoffeeTable'], kind: 'cover' },
+      'V': { size: [12, 3], pieces: ['TVStand'], kind: 'wall' },
+      'n': { size: [3, 2], pieces: ['Controller'], kind: 'cover', flip: true },
+      'O': { size: [2, 2], pieces: ['Rug'], collide: false },
+      'Q': { size: [6, 2], pieces: ['Bookshelf'], kind: 'wall' },
+      'F': { size: [10, 2], pieces: ['Fireplace'], kind: 'wall', turn: Math.PI },        // on a south wall, facing north
+      'p': { size: [3, 3], pieces: ['Plant_Fig'], kind: 'cover', flip: true },
+      'q': { size: [2, 2], pieces: ['Plant_Snake'], kind: 'cover' },
+      'L': { size: [2, 2], pieces: ['FloorLamp'], kind: 'cover' },
+      'I': { size: [12, 6], pieces: ['Island'], kind: 'cover' },
+      'j': { size: [2, 2], pieces: ['Stool'], kind: 'cover' },
+      'R': { size: [5, 4], pieces: ['Fridge'], kind: 'wall' },
+      'k': { size: [3, 4], pieces: ['Counter', 'Counter_Sink', 'Counter', 'Counter_Stove'], kind: 'wall', sequence: true },
+      'D': { size: [10, 6], pieces: ['DiningTable'], kind: 'cover' },
+      'd': { size: [3, 3], pieces: ['DiningChair'], kind: 'cover' },                    // north of the table
+      'C': { size: [3, 3], pieces: ['DiningChair'], kind: 'cover', turn: Math.PI },     // south of the table
+      'U': { size: [10, 3], pieces: ['Sideboard'], kind: 'wall' },
+      'm': { size: [3, 3], pieces: ['Cushion'], kind: 'cover', flip: true },
+      'B': { size: [3, 3], pieces: ['Basket'], kind: 'cover', flip: true },
+      'X': { size: [3, 3], pieces: ['ToyBox'], kind: 'cover', flip: true },
+      'c': { pieces: BLOCKS, h: 0.92, rotate: 'random90', stack: { piece: 'Block_B', chance: 0.3, h: 0.92 }, kind: 'cover' },
+      'z': { size: [3, 2], pieces: ['Sneaker'], kind: 'cover', flip: true },
+      'g': { size: [2, 2], pieces: ['Mug'], kind: 'cover' },
+      'b': { size: [3, 2], pieces: ['BookPile'], kind: 'cover', flip: true },
+      'v': { size: [4, 2], pieces: ['ToyTruck'], kind: 'cover', flip: true },
+      'o': { size: [3, 3], pieces: ['Ball'], kind: 'cover' },
+      'W': { size: [9, 1], pieces: ['Window'], kind: 'wall' },
+      'w': { size: [9, 1], pieces: ['Window_R'], kind: 'wall' },
+      'u': { size: [2, 2], pieces: ['SunPatch'], collide: false },
+      'f': { size: [4, 1], pieces: ['Frame_A'], collide: false },
+      'r': { size: [4, 1], pieces: ['Frame_A_R'], collide: false },
+      'x': { size: [4, 1], pieces: ['Frame_B'], collide: false },
+      'y': { size: [4, 1], pieces: ['Frame_B_R'], collide: false }
+    },
+    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
+    trail: { wall: 'TrailWall', height: 18.3, variants: TRAILS },
+    hatch: 'Hatch', stand: 'Block_A',
+    backdrop: null,
+    budget: { prop: 2000, landmark: 4000, total: 70000 },
+    allPieces: function () {
+      var out = ['Wall_Corner'];
+      ['1', '2', '3'].forEach(function (s) { out.push('Wall' + s, 'Wall' + s + '_X'); });
+      var seen = {};
+      Object.keys(this.symbols).forEach(function (ch) {
+        var d = this.symbols[ch];
+        d.pieces.concat(d.stack ? [d.stack.piece] : []).forEach(function (n) { seen[n] = 1; });
+      }, this);
+      return out.concat(Object.keys(seen), ['GateFrame', 'GateShutter', 'TrailWall', 'Hatch', 'CeilingTile'], TRAILS);
+    },
+    levels: {
+      livingroom: {
+        name: 'Living Room',
+        intro: 'Sunny afternoon, toy-sized trouble. Clear the lounge, the dining room, then the kitchen.',
+        zones: [
+          // 36 + 41 + 52 = 129 robots; the kitchen's last wave is the dense finale
+          { map: 'livingroom_lounge', waves: [
+            [['crawler', 8], ['gunner', 1]],
+            [['crawler', 6], ['bomber', 2], ['gunner', 1]],
+            [['crawler', 6], ['drone', 2], ['gunner', 1]],
+            [['crawler', 5], ['gunner', 2], ['bomber', 2]]
+          ] },
+          { map: 'livingroom_dining', waves: [
+            [['crawler', 8], ['gunner', 2]],
+            [['crawler', 6], ['bomber', 3], ['drone', 1]],
+            [['crawler', 6], ['gunner', 3], ['drone', 1]],
+            [['crawler', 5], ['bomber', 3], ['gunner', 2], ['drone', 1]]
+          ] },
+          { map: 'livingroom_kitchen', waves: [
+            [['crawler', 7], ['gunner', 2], ['drone', 1]],
+            [['crawler', 6], ['bomber', 3], ['gunner', 2]],
+            [['crawler', 7], ['drone', 3], ['bomber', 2]],
+            [['crawler', 10], ['gunner', 4], ['bomber', 3], ['drone', 2]]
+          ] }
+        ]
+      }
+    }
+  });
+})(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
+
 /* ---- themes/mountains.js ---- */
 /* Theme: Mountains (kit-mountains) -- campaign level 1, "Pine Ridge".
    An alpine valley chain: slate-blue cliff ridges with snow ledges, snowy pines and spruce stands, a log cabin,
@@ -984,7 +1126,7 @@
     'Crate', 'Bundle', 'Pine_A', 'Pine_B', 'Pine_C', 'SpruceCluster_A', 'SpruceCluster_B', 'Drift_A', 'Drift_B',
     'Meadow_A', 'Meadow_B', 'Pond', 'Creek', 'Signpost', 'LanternPost', 'Skis', 'Campfire',
     'Landmark_Cabin', 'Landmark_Chalet', 'Landmark_Lookout', 'Landmark_RopeBridge', 'Landmark_LiftStation', 'Landmark_LiftLine',
-    'GateFrame', 'GateShutter', 'TrailWall', 'Hatch',
+    'GateFrame', 'GateShutter', 'TrailWall', 'TrailWall_Wood', 'TrailWall_Lantern', 'TrailWall_Drift', 'Hatch',
     'Backdrop_PeakA', 'Backdrop_PeakB', 'Backdrop_PeakC', 'Backdrop_Forest'];
 
   IB.registerTheme({
@@ -1021,7 +1163,8 @@
       'k': { pieces: ['Skis'], rotate: 'random90', kind: 'deco' }
     },
     gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
-    trail: { wall: 'TrailWall', height: 2.6 },
+    // log palisade; firewood, a lantern and a snow drift with skis mixed in per module
+    trail: { wall: 'TrailWall', height: 2.6, variants: ['TrailWall', 'TrailWall_Wood', 'TrailWall_Lantern', 'TrailWall_Drift'] },
     hatch: 'Hatch', stand: 'Crate',
     backdrop: { ring: [
       // big snow-capped peaks, far enough out to read as misty silhouettes above the cliff line
@@ -1138,7 +1281,9 @@
       'm': { size: [4, 4], pieces: ['FloorMarble'], collide: false }
     },
     gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.99, shutterHeight: 3.05 },
-    trail: { wall: 'TrailWall', height: 4.0 },
+    // corridor drywall with framed prints, whiteboards, status screens and fire cabinets mixed in
+    trail: { wall: 'TrailWall', height: 4.0, variants: ['TrailWall', 'TrailWall_Art', 'TrailWall_Board', 'TrailWall_Screen', 'TrailWall_Ext'],
+      end: 'TrailWall' },   // the express elevator stands against the hatch room's back wall
     hatch: 'Hatch', stand: 'Stand',
     // the skyline: one long layered slice of Manhattan (cloud banks, pre-war rooftops with water tanks, mid towers,
     // deco spires and glass needles). Ring 0 with count 4 lands exactly due east, south, west and north of the level's
@@ -1185,7 +1330,7 @@
       ['', '_W', '_E'].forEach(function (s) { out.push('WinCol' + s); });
       ['NW', 'NE', 'SE', 'SW'].forEach(function (s) { out.push('WinCorner_' + s); });
       DRY.forEach(function (n) { if (out.indexOf(n) < 0) out.push(n); });
-      out = out.concat(['Core', 'LobbyWood', 'LobbyWoodSconce', 'LobbyStone', 'CeilLight', 'GateFrame', 'GateShutter', 'TrailWall', 'Hatch', 'Stand',
+      out = out.concat(['Core', 'LobbyWood', 'LobbyWoodSconce', 'LobbyStone', 'CeilLight', 'GateFrame', 'GateShutter', 'TrailWall', 'TrailWall_Art', 'TrailWall_Board', 'TrailWall_Screen', 'TrailWall_Ext', 'Hatch', 'Stand',
         'Backdrop_Skyline']);
       var sym = this.symbols;
       Object.keys(sym).forEach(function (ch) { sym[ch].pieces.forEach(function (n) { if (out.indexOf(n) < 0) out.push(n); }); });
@@ -1355,7 +1500,8 @@
       'F': { size: [6, 6], pieces: ['Landmark_Fountain'], kind: 'wall' }   // not cover: the basin inside is unreachable
     },
     gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
-    trail: { wall: 'TrailWall', height: 2.64 },
+    // brick garden walls; posters, a garden door and a planter with a creeper mixed in per module
+    trail: { wall: 'TrailWall', height: 2.64, variants: ['TrailWall', 'TrailWall_Posters', 'TrailWall_Door', 'TrailWall_Planter'] },
     hatch: 'Hatch', stand: 'Crates',
     // a skyline of taller brick / stone towers, a steeple and rooftop water tanks beyond the zone walls
     backdrop: { ring: [
@@ -1366,7 +1512,7 @@
     ] },
     budget: { prop: 1200, landmark: 4000, total: 60000 },
     allPieces: function () {
-      return allWalls().concat(['Walk', 'WalkB', 'Plaza', 'PlazaB', 'LaneW', 'LaneY', 'Zebra', 'Manhole', 'GateFrame', 'GateShutter', 'TrailWall', 'Hatch',
+      return allWalls().concat(['Walk', 'WalkB', 'Plaza', 'PlazaB', 'LaneW', 'LaneY', 'Zebra', 'Manhole', 'GateFrame', 'GateShutter', 'TrailWall', 'TrailWall_Posters', 'TrailWall_Door', 'TrailWall_Planter', 'Hatch',
         'Lamp', 'LampP', 'StreetTree', 'BarrierR', 'BarrierW', 'Jersey', 'Planter', 'Bench', 'Van', 'Bus', 'Shelter', 'Cart',
         'Landmark_ClockTower', 'Landmark_Fountain', 'Backdrop_Row', 'Backdrop_Tower', 'Backdrop_Office', 'Backdrop_Church'], FURNITURE, JUNK, CARS);
     },
