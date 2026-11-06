@@ -7274,6 +7274,17 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     };
   }
 
+  /* Player health per player level (LV = 1 + highest level cleared, cap 20): 100 + 8k + 0.2k^2 (k = LV - 1), so
+     LV 20 has 324 base (+ Armor Plating, Tin Hide, Tin Titan and a shield on top). Tuned against the robots'
+     pressure at the campaign level he is playing (damage x enemyDmgMul, volleys / coolMul, hits / sqrt(aimMul)):
+       LV / L      1     5    10    15    20
+       health    100   135   188   251   324
+       pressure 1.00  1.30  1.79  2.45  3.03
+     Health keeps pace with pressure (ratio 1.00-1.07, unit tested); the shield (15-100 by level and rarity) and
+     skills supply the margin, so later levels ask for better gear and skills without becoming a wall. */
+  function playerMaxHp(lv) { var k = Math.max(1, Math.min(20, lv || 1)) - 1; return Math.round(100 + 8 * k + 0.2 * k * k); }
+  function enemyPressure(L) { var t = enemyTempo(L); return enemyDmgMul(L) / t.coolMul / Math.sqrt(t.aimMul); }
+
   // 4.4: at most 3 + floor(L/5) robots in Windup or Attack.
   function attackTokens(L) { return 3 + Math.floor(L / 5); }
 
@@ -7379,7 +7390,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   function staggers(dmg, maxHp, charged) { return !!charged || dmg >= 0.25 * maxHp; }
 
   IB.Damage = {
-    enemyHpMul: enemyHpMul, enemyDmgMul: enemyDmgMul, enemyTempo: enemyTempo, attackTokens: attackTokens, falloff: falloff,
+    enemyHpMul: enemyHpMul, enemyDmgMul: enemyDmgMul, enemyTempo: enemyTempo, playerMaxHp: playerMaxHp, enemyPressure: enemyPressure, attackTokens: attackTokens, falloff: falloff,
     hit: hit, splash: splash, blastRadius: blastRadius, rocketSplash: rocketSplash, frag: frag,
     flashDamage: flashDamage, selfDamage: selfDamage, knockback: knockback, blindDuration: blindDuration,
     flashPlayer: flashPlayer, shield: shield, bossShell: bossShell, melee: melee, staggers: staggers
@@ -7788,7 +7799,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   var SLOTS = 3;
   var SETTINGS_KEY = PREFIX + 'settings';
   var DEFAULT_SETTINGS = {
-    sfx: true, mouseSens: 1.0, touchSens: 1.0, fov: 85, invertY: false, graphics: 'auto',
+    sfx: true, mouseSens: 1.0, touchSens: 1.0, fov: 100, invertY: false, graphics: 'auto',
     shake: true, headBob: true, reduceFlash: false
   };
 
@@ -7957,12 +7968,16 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       var s = clone(DEFAULT_SETTINGS);
       var o = read(SETTINGS_KEY);
       if (o) for (var k in DEFAULT_SETTINGS) if (o[k] !== undefined && typeof o[k] === typeof DEFAULT_SETTINGS[k]) s[k] = o[k];
+      // settings v2: the old 85 default becomes the new 100 default (a field of view the player chose is kept)
+      if (o && !o.sv && o.fov === 85) s.fov = DEFAULT_SETTINGS.fov;
+      s.fov = Math.max(60, Math.min(130, s.fov));
       return s;
     }
 
     function saveSettings(s) {
       var out = clone(DEFAULT_SETTINGS);
       for (var k in DEFAULT_SETTINGS) if (s && s[k] !== undefined) out[k] = s[k];
+      out.sv = 2;
       write(SETTINGS_KEY, out);
       return out;
     }
@@ -8389,6 +8404,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     var d = defaultGear();
     if (!isObj(g)) return d;
     var out = { inv: [], shield: null, attach: {}, next: typeof g.next === 'number' ? g.next : 1, found: typeof g.found === 'number' ? g.found : 0 };
+    if (g.starter === true) out.starter = true;   // the level-3 starter shield was handed out
     var ids = {};
     (Array.isArray(g.inv) ? g.inv : []).forEach(function (it) {
       if (!isObj(it) || !T().types[it.type] || !T().rarityById[it.rarity] || !isObj(it.stats) || ids[it.id]) return;
@@ -8710,7 +8726,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   // ---------- Renderer ----------
   var R = IB.Render = {
     renderer: null, scene: null, camera: null, vmScene: null, vmCam: null,
-    gradient: null, worldOutline: null, vmOutline: null, baseFov: 85, fovMul: 1, tier: 'high', pixelRatio: 1,
+    gradient: null, worldOutline: null, vmOutline: null, baseFov: 100, fovMul: 1, tier: 'high', pixelRatio: 1,
     width: 1, height: 1
   };
 
@@ -13115,7 +13131,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       sw('sfx', 'Sound effects') +
       sl('mouseSens', 'Mouse sensitivity', 0.1, 3, 0.1, f1) +
       sl('touchSens', 'Touch look sensitivity', 0.1, 3, 0.1, f1) +
-      sl('fov', 'Field of view', 70, 100, 1, function (v) { return v + '°'; }) +
+      sl('fov', 'Field of view', 60, 130, 1, function (v) { return v + '°'; }) +
       sw('invertY', 'Invert Y') +
       seg('graphics', 'Graphics', [['auto', 'Auto'], ['high', 'High'], ['low', 'Low']]) +
       sw('shake', 'Screen shake') + sw('headBob', 'Head bob') + sw('reduceFlash', 'Reduce flash') +
@@ -14061,7 +14077,9 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   function applySkillStats(fresh) {
     var p = G.player, fx = G.fx || {}, sk = IB.SkillFX.fx;
     var hpWas = p.maxHp || 100, hurt = Math.max(0, hpWas - p.health);
-    p.maxHp = (fx.maxHp || 100) + sk.maxHpAdd;
+    // base health grows with the player level (IB.Damage.playerMaxHp); bench and skills add on top
+    var lvHp = IB.Damage.playerMaxHp(IB.Skills.playerLevel(G.slot ? G.slot.highest : 0));
+    p.maxHp = (fx.maxHp || 100) - 100 + lvHp + sk.maxHpAdd;
     p.health = fresh ? p.maxHp : Math.max(1, Math.min(p.maxHp, p.maxHp - hurt));
     var stWas = p.staminaMax || 4;
     p.staminaMax = 4 * (fx.staminaMul || 1) * sk.staminaMul;
@@ -14072,6 +14090,19 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       wf.spreadMul = (fx.spreadMul || 1) * sk.spreadMul; wf.magMul = sk.magMul; wf.rateMul = sk.rateMul;
     }
   }
+  // shields unlock with level 3: the first time a save has cleared it, a common cell is put in the bag and worn
+  // (shield drops start at the same point), so every player sees the shield bar from level 4 on
+  function grantStarterShield() {
+    if (!IB.Gear || !IB.Loot || !G.slot || (G.slot.highest || 0) < 3) return;
+    var g = IB.Gear.gear(G);
+    if (!g || g.starter) return;
+    g.starter = true;
+    var item = IB.Loot.makeItem('shield', 'common', 3, Math.random);
+    if (IB.Loot.addItem(g, item) && !g.shield) IB.Loot.equipShield(g, item.id);
+    G.store.save(G.slot);
+    G.starterShieldNote = item;
+  }
+  G.grantStarterShield = grantStarterShield;
   G.progress = function () {
     var h = G.slot ? G.slot.highest || 0 : 0, lv = IB.Skills.playerLevel(h);
     return { highest: h, level: lv, title: IB.Skills.rankTitle(lv), points: G.slot ? IB.Skills.available(G.slot.skills || {}, h) : 0,
@@ -14122,12 +14153,14 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     applySkillStats(true);
     var first = Object.keys(G.ws.guns).sort(function (a, b) { return IB.WEAPONS[b].slot - IB.WEAPONS[a].slot; })[0] || 'pip';
     W.equip(G.ws, first, true);
+    grantStarterShield();
     if (IB.Gear) IB.Gear.startLevel(G);   // attachments on the guns, shield full
     G.run = { time: 0, kills: 0, shots: 0, hits: 0, coreHits: 0, deaths: 0, gems: 0, retries: 3, started: false, introT: AUTOTEST ? 0.05 : 2.3 };
     G.shake = 0; G.trauma = 0; G.hitstop = 0; G.deathT = 0;
     G.fade = opts && opts.fadeIn ? { t: 0, dur: 1.4 } : null;
     setDim(G.fade ? 1 : 0);
     HUD.reset(); HUD.show(true); document.getElementById('touch').hidden = !Inp.touch;
+    if (G.starterShieldNote && IB.LootHUD) { IB.LootHUD.loot(G.starterShieldNote, 'Shields unlocked'); G.starterShieldNote = null; }
     HUD.pips(G.level.zones.length, 0, 0);
     if (!AUTOTEST) M.intro({ level: G.plan.level, name: G.plan.name, zones: G.level.zones.length, line: G.plan.intro }, 2.2);
     // save at level start
@@ -14312,7 +14345,8 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   // ---------------- health director ----------------
   // Watches the player's health and keeps health cans on the map in the current zone: one when healthy, up to four
   // when badly hurt. New cans land on open ground 7-22 m away (never on top of the player), and show on the radar.
-  var HEAL = 40;
+  // health cans restore 40% of max health (40 at LV 1), rounded to 5
+  function healAmount() { return Math.max(40, Math.round(G.player.maxHp * 0.4 / 5) * 5); }
   function healthWanted(frac) { return frac >= 0.8 ? 1 : frac >= 0.55 ? 2 : frac >= 0.3 ? 3 : 4; }
   function healthDirector(dt) {
     G.hdT = (G.hdT || 0) - dt;
@@ -14357,7 +14391,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       pk.mesh.position.y = 0.05 + Math.sin(t * 3 + i) * 0.04;
       FX.blob(pk.x, 0, pk.z, 0.35);
       if (Math.hypot(p.x - pk.x, p.z - pk.z) < 0.9 && p.y < 1) {
-        if (pk.kind === 'health') { if (p.health >= p.maxHp) return; p.health = Math.min(p.maxHp, p.health + HEAL); HUD.toast('+' + HEAL + ' health', 1.2); }
+        if (pk.kind === 'health') { if (p.health >= p.maxHp) return; var heal = healAmount(); p.health = Math.min(p.maxHp, p.health + heal); HUD.toast('+' + heal + ' health', 1.2); }
         else { W.addAmmo(G.ws, 0.5); HUD.toast('Ammo', 1.0); }
         pk.on = false; pk.mesh.visible = false; A.play('pickup');
       }
