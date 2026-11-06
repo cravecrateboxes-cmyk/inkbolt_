@@ -223,10 +223,14 @@
       if (!exposed) { P.roof.push(p); return; }
       var horiz = cellIs(grid, p.c - 1, p.r, WALLISH) || cellIs(grid, p.c + 1, p.r, WALLISH);
       var vert = cellIs(grid, p.c, p.r - 1, WALLISH) || cellIs(grid, p.c, p.r + 1, WALLISH);
-      var name = W.choose ? W.choose(p.c, p.r, horiz, horiz && vert, hash, grid) : pick(W.pieces, hash(p.c * 13, p.r * 17));
+      // facing from the open cardinal neighbours: 'S','N','E','W', 'corner' (two adjacent open sides) or 'none'
+      var oS = !solid(p.c, p.r + 1), oN = !solid(p.c, p.r - 1), oE = !solid(p.c + 1, p.r), oW = !solid(p.c - 1, p.r);
+      var nOpen = oS + oN + oE + oW, face = nOpen === 0 ? 'none' : nOpen === 1 ? (oS ? 'S' : oN ? 'N' : oE ? 'E' : 'W') : ((oS || oN) && (oE || oW) ? 'corner' : (oS ? 'S' : 'E'));
+      var name = W.choose ? W.choose(p.c, p.r, horiz, horiz && vert, hash, grid, face) : pick(W.pieces, hash(p.c * 13, p.r * 17));
       // wall modules face +/-Z; rotate for vertical runs. faceOpen: turn the module's +Z face (Blender -Y) to the open side
       var yaw = (!horiz && vert) ? Math.PI / 2 : 0;
-      if (W.faceOpen) {
+      if (W.facing === 'open' && face !== 'none' && face !== 'corner') yaw = { S: 0, N: Math.PI, E: Math.PI / 2, W: -Math.PI / 2 }[face];
+      else if (W.faceOpen) {
         if (yaw === 0 && !solid(p.c, p.r - 1) && solid(p.c, p.r + 1)) yaw = Math.PI;
         if (yaw !== 0 && !solid(p.c - 1, p.r) && solid(p.c + 1, p.r)) yaw = -Math.PI / 2;   // +Z face toward the open (west) side
       }

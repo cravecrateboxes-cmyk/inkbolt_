@@ -75,7 +75,8 @@
       // palette: exact hex colours, nearest sampling
       pal.encoding = THREE.LinearEncoding; pal.magFilter = pal.minFilter = THREE.NearestFilter; pal.generateMipmaps = false; pal.needsUpdate = true;
       A.palette[fam] = pal;
-      A.mat[fam] = IB.Render.toonMaterial({ map: pal, baked: A.BAKED[fam] });
+      // every kit bakes a 2 cm shell unless listed otherwise (blender CFG)
+      A.mat[fam] = IB.Render.toonMaterial({ map: pal, baked: A.BAKED[fam] !== undefined ? A.BAKED[fam] : 0.02 });
       gltf.scene.traverse(function (o) { if (o.isMesh) o.material = A.mat[fam]; });
       return gltf;
     });

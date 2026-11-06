@@ -13,7 +13,9 @@
      },
      floor: { color: '#hex', lines: [{ dir: 'x'|'z', every: 2, width: 0.05, color: '#hex', y: 0.01 }], trail: '#hex' },
      wall: { height: 3, roof: '#hex', faceOpen: bool,
-             pieces: ['Wall_A', ...] | choose: function (c, r, horiz, corner, hash, grid) -> name },
+             facing: 'open' (turn each module's +Z face toward its single open side: S/N/E/W; corners keep 0),
+             pieces: ['Wall_A', ...] | choose: function (c, r, horiz, corner, hash, grid, face) -> name },
+             (face = 'S'|'N'|'E'|'W' open side, 'corner' (two adjacent open sides) or 'none')
              (grid: {w, h, at(c, r)}; c/r = cell; modules face +/-Z and are turned 90 for vertical runs; with faceOpen the
               module's +Z face (= Blender -Y face) is turned toward the open side, so one-sided walls face the room)
      symbols: {                    // any ASCII symbol except the built-ins below
@@ -50,5 +52,7 @@
     return def;
   };
   // full kit name for a short piece name ('Crate' -> 'KIT_TOYTOWN_Crate'); names that already carry a prefix pass through
-  IB.themePiece = function (theme, n) { return /^(KIT_|BOT_|WPN_|PICKUP_)/.test(n) || /^(SpawnCan|TrailArrow|Hill|Tree|Cloud_[ABC]|InkChunk_\d)$/.test(n) ? n : theme.prefix + n; };
+  IB.themePiece = function (theme, n) {
+    if (IB.Assets && IB.Assets.geo && IB.Assets.geo[theme.prefix + n]) return theme.prefix + n;   // the theme's own piece wins over a common name
+    return /^(KIT_|BOT_|WPN_|PICKUP_)/.test(n) || /^(SpawnCan|TrailArrow|Hill|Tree|Cloud_[ABC]|InkChunk_\d)$/.test(n) ? n : theme.prefix + n; };
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
