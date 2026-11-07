@@ -70,6 +70,9 @@ MELEE, GRENADES AND NEW GUNS
   Models and arm actions: blender/fam_weapons.py (MELEE_SWINGS, THROW_L, pump_fire, shell_reload).
 
 WEAPON DROPS, MELEE STAMINA, MUZZLE CANS (round 4)
+  Waves (src/data/levelplans.js tuneWaves): light robots x1.15 on level 1 rising to x1.6 on level 13, each level has at
+  least 5% more robots than the one before (82 on level 1 to 234 on level 13); Soldiers from level 4, Blade Bots from
+  level 7; the next wave drops in when 6 or fewer robots are left.
   Gun tiers (src/game/wdrops.js): every gun has a quality tier, gray Standard x1.00, green Tuned x1.07, blue Rare x1.14,
   purple Epic x1.22, orange Legendary x1.32 damage (shown as its colour in the inventory). Soldiers drop guns at
   6 / 3 / 2 / 0.8 / 0.2 % (gray / green / blue / purple / orange); blade bots drop the katana or Voltaxe they wield at 7 %.

@@ -49,8 +49,8 @@ test('mountains is campaign level 1 with a gentle, busy three-zone plan', () => 
     }));
   });
   const first = plan.zones[0].waves[0];
-  assert.ok(first.length === 1 && first[0][0] === 'crawler' && first[0][1] >= 6 && first[0][1] <= 8, 'first wave: 6-8 crawlers');
-  assert.ok(total >= 60 && total <= 75, 'robots in the level: ' + total);
+  assert.ok(first.length === 1 && first[0][0] === 'crawler' && first[0][1] >= 6 && first[0][1] <= 10, 'first wave: 6-10 crawlers (campaign wave tuning x1.15)');
+  assert.ok(total >= 70 && total <= 90, 'robots in the level: ' + total);   // campaign tuning: x1.15 on level 1
 });
 
 test('every mountains map is big, gated and fully reachable', () => {

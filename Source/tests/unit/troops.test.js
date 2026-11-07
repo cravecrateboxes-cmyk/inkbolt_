@@ -1,5 +1,5 @@
 // Soldier + Blade Bot (data/enemies.js rows read by game/troops.js): stats, drop tables, level scaling, and how
-// they enter the campaign waves (Blade Bots from level 3, Soldiers from level 4, more of both each level).
+// they enter the campaign waves (Soldiers from level 4, Blade Bots from level 7, more of both each level).
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -66,16 +66,19 @@ test('health, shield and damage grow with the level like every robot (never a wa
   assert.ok(s10.grenade > s1.grenade && s10.melee > s1.melee);
 });
 
-test('campaign waves: Blade Bots from level 3, Soldiers from level 4, growing with the level, waves stay sized', () => {
+test('campaign waves: Soldiers from level 4, Blade Bots from level 7, growing with the level, totals climb', () => {
   const count = (plan, t) => plan.zones.reduce((a, z) => a + z.waves.reduce((b, w) => b + w.filter((e) => e[0] === t).reduce((c, e) => c + e[1], 0), 0), 0);
   let lastS = 0, lastB = 0;
   IB.CAMPAIGN.forEach((id) => {
     const p = IB.LEVEL_PLANS[id], L = p.level, s = count(p, 'soldier'), b = count(p, 'blader');
-    if (L < 3) assert.equal(b, 0, id + ' bladers');
+    if (L < 7) assert.equal(b, 0, id + ' bladers');
     if (L < 4) assert.equal(s, 0, id + ' soldiers');
-    if (L === 3) assert.ok(b >= 1 && b <= 3, id + ' a first taste of Blade Bots');
+    if (L === 7) assert.ok(b >= 1 && b <= 6, id + ' a first taste of Blade Bots');
     if (L === 4) assert.ok(s >= 1 && s <= 3, id + ' a first taste of Soldiers');
     if (L >= 4) assert.ok(s >= lastS && b >= lastB, id + ' grows');
+    const all = p.zones.reduce((a, z) => a + z.waves.reduce((b2, w) => b2 + w.reduce((c, e) => c + e[1], 0), 0), 0);
+    assert.ok(all >= (globalThis.__lastAll || 0), id + ' has at least as many robots as the level before');
+    globalThis.__lastAll = all;
     // the first wave of the first zone stays as it was (no new robots while the player settles in)
     assert.ok(p.zones[0].waves[0].every((e) => e[0] !== 'soldier' && e[0] !== 'blader'), id + ' opening wave');
     for (const z of p.zones) for (const w of z.waves) {

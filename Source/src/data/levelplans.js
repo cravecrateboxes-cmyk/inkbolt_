@@ -38,6 +38,43 @@
   // (melee weapons and the frag cans stand there too: every melee weapon and grenades are in hand by level 5)
   var WEAPONS = [];
   Object.keys(IB.UNLOCKS || {}).forEach(function (lv) { WEAPONS[lv - 1] = IB.UNLOCKS[lv].filter(function (id) { return lv > 1 || id !== 'pip'; }); });
+  /* Wave tuning for an action shooter: more to shoot, a steady climb.
+     - Soldiers from level 4, Blade Bots from level 7 (earlier ones become Crawlers / Gunners).
+     - Every entry grows by WAVE_MUL(level): x1.15 on level 1 rising to x1.6 on level 13. The extra bodies are the
+       light robots (crawler, drone, bomber, gunner); soldiers and blade bots keep their count, so the shooting
+       grows faster than the danger.
+     - The next wave drops in when 6 or fewer are left (game.js WAVE_NEXT), so there is little dead time. */
+  IB.MIN_LEVEL = { soldier: 4, blader: 7 };
+  var LIGHT = { crawler: 1, drone: 1, bomber: 1, gunner: 1 };
+  IB.WAVE_MUL = function (L) { return 1.15 + 0.45 * Math.min(1, Math.max(0, (L - 1) / 12)); };
+  function total(p) { var t = 0; p.zones.forEach(function (z) { z.waves.forEach(function (w) { w.forEach(function (e) { t += e[1]; }); }); }); return t; }
+  // a steady climb: each level has at least 5% more robots than the one before (the extra are light robots)
+  var prevTotal = 0;
+  function smooth(p) {
+    var t = total(p), want = Math.round(prevTotal * 1.05);
+    for (var pass = 0; pass < 4 && t < want; pass++, t = total(p)) {
+      var light = 0; p.zones.forEach(function (z) { z.waves.forEach(function (w) { w.forEach(function (e) { if (LIGHT[e[0]]) light += e[1]; }); }); });
+      var k = light ? 1 + (want - t) / light : 1;
+      p.zones.forEach(function (z) { z.waves.forEach(function (w) { w.forEach(function (e) { if (LIGHT[e[0]]) e[1] = Math.round(e[1] * k); }); }); });
+    }
+    prevTotal = total(p);
+  }
+  function tuneWaves(p, L) {
+    if (p.tuned) return; p.tuned = true;
+    var m = IB.WAVE_MUL(L);
+    (p.zones || []).forEach(function (z) {
+      z.waves = z.waves.map(function (w) {
+        var out = {};
+        w.forEach(function (e) {
+          var id = e[0], n = e[1];
+          if (IB.MIN_LEVEL[id] && L < IB.MIN_LEVEL[id]) id = id === 'blader' ? 'crawler' : 'gunner';
+          if (LIGHT[id]) n = Math.round(n * m);
+          out[id] = (out[id] || 0) + n;
+        });
+        return Object.keys(out).map(function (k) { return [k, out[k]]; });
+      });
+    });    smooth(p);
+  }
   IB.CAMPAIGN = ORDER.filter(function (id) { return P[id]; });
   IB.CAMPAIGN.forEach(function (id, i) {
     var p = P[id];
@@ -45,5 +82,7 @@
     p.next = IB.CAMPAIGN[i + 1] || null;
     p.weapons = p.weapons || WEAPONS[i] || [];
     if (i === 0) p.start = p.start || ['pip'];
+    tuneWaves(p, i + 1);
   });
+
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));

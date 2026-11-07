@@ -430,7 +430,7 @@
           }
         }
         var alive = AI.alive(i) + z.queue.length;
-        if (z.wave >= 0 && z.wave < z.plan.waves.length - 1 && z.queue.length === 0 && (alive <= 4 || z.waveT > 25)) queueWave(z, z.wave + 1);
+        if (z.wave >= 0 && z.wave < z.plan.waves.length - 1 && z.queue.length === 0 && (alive <= 6 || z.waveT > 22)) queueWave(z, z.wave + 1);
         if (z.wave === z.plan.waves.length - 1 && alive === 0 && z.queue.length === 0) {
           if (z.clearT < 0) z.clearT = 0;
           z.clearT += dt;
