@@ -135,7 +135,8 @@
       'F': { size: [6, 6], pieces: ['Landmark_Fountain'], kind: 'wall' }   // not cover: the basin inside is unreachable
     },
     gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
-    trail: { wall: 'TrailWall', height: 2.64 },
+    // brick garden walls; posters, a garden door and a planter with a creeper mixed in per module
+    trail: { wall: 'TrailWall', height: 2.64, variants: ['TrailWall', 'TrailWall_Posters', 'TrailWall_Door', 'TrailWall_Planter'] },
     hatch: 'Hatch', stand: 'Crates',
     // a skyline of taller brick / stone towers, a steeple and rooftop water tanks beyond the zone walls
     backdrop: { ring: [
@@ -146,7 +147,7 @@
     ] },
     budget: { prop: 1200, landmark: 4000, total: 60000 },
     allPieces: function () {
-      return allWalls().concat(['Walk', 'WalkB', 'Plaza', 'PlazaB', 'LaneW', 'LaneY', 'Zebra', 'Manhole', 'GateFrame', 'GateShutter', 'TrailWall', 'Hatch',
+      return allWalls().concat(['Walk', 'WalkB', 'Plaza', 'PlazaB', 'LaneW', 'LaneY', 'Zebra', 'Manhole', 'GateFrame', 'GateShutter', 'TrailWall', 'TrailWall_Posters', 'TrailWall_Door', 'TrailWall_Planter', 'Hatch',
         'Lamp', 'LampP', 'StreetTree', 'BarrierR', 'BarrierW', 'Jersey', 'Planter', 'Bench', 'Van', 'Bus', 'Shelter', 'Cart',
         'Landmark_ClockTower', 'Landmark_Fountain', 'Backdrop_Row', 'Backdrop_Tower', 'Backdrop_Office', 'Backdrop_Church'], FURNITURE, JUNK, CARS);
     },

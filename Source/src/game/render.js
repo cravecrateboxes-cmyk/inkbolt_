@@ -232,7 +232,7 @@
   // ---------- Renderer ----------
   var R = IB.Render = {
     renderer: null, scene: null, camera: null, vmScene: null, vmCam: null,
-    gradient: null, worldOutline: null, vmOutline: null, baseFov: 85, fovMul: 1, tier: 'high', pixelRatio: 1,
+    gradient: null, worldOutline: null, vmOutline: null, baseFov: 100, fovMul: 1, tier: 'high', pixelRatio: 1,
     width: 1, height: 1
   };
 
@@ -242,6 +242,8 @@
     r.setClearColor(PAL.ink, 1);
     R.gradient = makeGradient();
     R.worldOutline = outlineUniforms(0.012, 3.2);
+    // robots: the world's outline width (shared uniforms) but their own ink colour (Undercover tints it a stealthy blue)
+    R.robotOutline = { uInk: { value: new THREE.Color(PAL.ink) }, uOutBase: R.worldOutline.uOutBase, uOutK: R.worldOutline.uOutK, px: R.worldOutline.px };
     R.vmOutline = outlineUniforms(0.0035, 2.2);
     R.scene = new THREE.Scene();
     R.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 420);   // near 0.1 for depth precision

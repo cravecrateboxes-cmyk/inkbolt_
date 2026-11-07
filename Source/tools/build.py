@@ -69,9 +69,15 @@ def inline_js(code):
 
 def bundle(platform='plain', standalone=False):
     html = read('src/index.src.html')
-    css = read('src/ui/ui.css')
-    font = base64.b64encode(open(os.path.join(SRC, 'vendor/fonts/archivo.woff2'), 'rb').read()).decode()
-    css = css.replace("url('../../vendor/fonts/archivo.woff2')", "url(data:font/woff2;base64," + font + ")")
+    # every stylesheet linked in the BUILD:CSS block, in order; every vendored font url('../../vendor/fonts/X.woff2')
+    # is inlined as a data URL
+    block = re.search(r'<!--BUILD:CSS-->(.*?)<!--/BUILD:CSS-->', html, re.S).group(1)
+    css = '\n'.join(read(h) for h in re.findall(r'<link rel="stylesheet" href="([^"]+)">', block))
+
+    def font_url(m):
+        data = base64.b64encode(open(os.path.join(SRC, 'vendor/fonts', m.group(1)), 'rb').read()).decode()
+        return "url(data:font/woff2;base64," + data + ")"
+    css = re.sub(r"url\('\.\./\.\./vendor/fonts/([^']+\.woff2)'\)", font_url, css)
     html = re.sub(r'<!--BUILD:CSS-->.*?<!--/BUILD:CSS-->', lambda m: '<style>\n' + css + '\n</style>', html, flags=re.S)
     scripts = script_list(html)
     game = ['window.__PLATFORM__ = %s;' % json.dumps(platform)]

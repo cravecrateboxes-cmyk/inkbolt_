@@ -71,6 +71,41 @@
       gems: { chip: 0, shard: 2, core: 0 }, cost: 7, color: '#6E7480',
       radius: 0.9, height: 1.6, coreOffset: [0, 1.5, 0], coreRadius: 0.3, coreOnlyOpen: true,
       notes: 'Lid flips open to show its core during each spawn'
+    },
+    /* Soldier (game/troops.js): an armoured robot trooper. A shield pool (shield, x enemyHpMul) soaks damage before
+       health and recharges after shieldDelay s at shieldRate/s; keeps 7-15 m and strafes / uses cover, fires 4-bolt
+       bursts, throws up to `grenades` frag grenades (arc, bounce, red ring, blast), rifle-butts the player inside
+       meleeRange. armour: per-instance plate colours; torso / helmet shape sets. weaponDrops: chances per rarity on a
+       player kill (read by IB.WeaponDrops.roll). */
+    soldier: {
+      id: 'soldier', name: 'Soldier', built: 'Robot trooper in full armour with a bolt rifle', first: 4,
+      hp: 80, shield: 60, shieldPool: true, shieldDelay: 3.5, shieldRate: 24, speed: 3.2, chargeSpeed: 0,
+      attack: '4-bolt burst, frag grenades, rifle-butt strike', damage: 6, bolts: 4, boltSpeed: 26,
+      windup: 0.45, recover: 0.7, range: 24, keepDistance: [7, 15], usesCover: true,
+      grenades: 3, grenadeDamage: 30, grenadeRobotDamage: 20, grenadeRadius: 3.4, grenadeFuse: 2.1, grenadeEvery: [6, 10],
+      grenadeRange: [6, 19], grenadeWindup: 0.6,
+      meleeDamage: 14, meleeRange: 2.2, meleeWindup: 0.4, meleeKnock: 6,
+      gems: { chip: 4, shard: 0, core: 0 }, cost: 3.5, color: '#7FA8E0',
+      armour: ['#EEF1F5', '#9EA5B0', '#6F95D8', '#9B7BD8', '#474C59', '#C46C6C'],
+      torsos: ['A', 'B'], helmets: ['A', 'B', 'C'],
+      radius: 0.36, height: 1.88, coreOffset: [0, 1.32, 0.17], coreRadius: 0.11,
+      weaponDrops: { gray: 0.06, green: 0.03, blue: 0.02, purple: 0.008, orange: 0.002 },
+      notes: 'Shield bar soaks damage first and recharges; 3 grenades each; rifle-butt up close'
+    },
+    /* Blade Bot (game/troops.js): hover saucer with a spinning hub arm that wields a katana or a Voltaxe (weapons).
+       Patrols slowly; once it sees the player it homes in, winds up (spin-up whine, windup s), dashes at chargeSpeed
+       for up to dashTime s spinning the blade at ~spinRev rev/s, cuts on contact (damage; the axe also shocks for
+       shockDps x shockTime), overshoots and stays dizzy for `recover` s (dizzyMul damage taken). Too close: a spin
+       slash in place (spinDamage per cut). meleeDrop: chance to drop its weapon on a player kill. */
+    blader: {
+      id: 'blader', name: 'Blade Bot', built: 'Hover saucer with a spinning blade arm (katana or Voltaxe)', first: 3,
+      hp: 70, shield: 0, speed: 1.6, stalkSpeed: 2.6, chargeSpeed: 12, attack: 'Spin-up, dash, contact cuts',
+      damage: 18, spinDamage: 7, shockDps: 4, shockTime: 2, windup: 0.8, recover: 1.4, dizzyMul: 1.35,
+      range: 9, dashTime: 1.1, spinRev: 19, spinRange: 2.4, weapons: ['katana', 'eaxe'],
+      gems: { chip: 3, shard: 0, core: 0 }, cost: 2.5, color: '#8A6CD8',
+      radius: 0.48, height: 1.0, coreOffset: [0, 0.67, 0], coreRadius: 0.16,
+      meleeDrop: 0.07,
+      notes: 'Dodge the dash, then punish it while it is dizzy; never stand next to it'
     }
   };
 
@@ -131,7 +166,7 @@
   };
 
   IB.ENEMIES = ENEMIES;
-  IB.ENEMY_ORDER = ['crawler', 'gunner', 'bomber', 'tosser', 'drone', 'shieldbot', 'bruiser', 'binhive'];
+  IB.ENEMY_ORDER = ['crawler', 'gunner', 'bomber', 'tosser', 'drone', 'shieldbot', 'bruiser', 'binhive', 'soldier', 'blader'];
   IB.BOSSES = BOSSES;
   IB.BOSS_ORDER = ['skimmer', 'dumpstertank', 'cartcolossus', 'compactorprime'];
   IB.BOSS_RULES = BOSS_RULES;

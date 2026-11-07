@@ -6,7 +6,8 @@
   var W = IB.Weapons = {};
   var D2R = Math.PI / 180;
   var FIRE_SND = { pistol: ['pip', 1], smg: ['buzz', 1], rifle: ['gun', 1.05], sniper: ['gun', 0.62], handcannon: ['gun', 0.78], twintap: ['pip', 1.12],
-    whisk: ['buzz', 1.18], hornet: ['buzz', 0.9], longtom: ['gun', 0.82], brick: ['gun', 0.88], triplet: ['gun', 1.12] };
+    whisk: ['buzz', 1.18], hornet: ['buzz', 0.9], longtom: ['gun', 0.82], brick: ['gun', 0.88], triplet: ['gun', 1.12],
+    shotgun: ['gun', 0.66], scrapper: ['gun', 0.6], thunder: ['gun', 0.7], vanguard: ['gun', 0.92], railspike: ['gun', 1.3] };
   var _dir = new THREE.Vector3(), _right = new THREE.Vector3(), _up = new THREE.Vector3(), _fwd = new THREE.Vector3();
 
   // ---------------- viewmodel: Blender arms rig (22 bones) + weapon meshes from fps-weapons.glb ----------------
@@ -36,14 +37,55 @@
     W.clips = {};
     A.gltf.weapons.animations.forEach(function (c) { W.clips[c.name] = c; });
     W.models = {};
-    // muzzle flash: flat comic star, unlit, parented to the active weapon's MUZZLE socket
-    var star = new THREE.Shape(), pts = 10;
-    for (var i = 0; i <= pts; i++) { var a = i / pts * Math.PI * 2, r = i % 2 ? 0.035 : 0.09; if (i === 0) star.moveTo(Math.cos(a) * r, Math.sin(a) * r); else star.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
-    W.flash = new THREE.Mesh(new THREE.ShapeGeometry(star), new THREE.MeshBasicMaterial({ color: PAL.amber, depthTest: false }));
-    var inner = new THREE.Mesh(new THREE.CircleGeometry(0.03, 8), new THREE.MeshBasicMaterial({ color: PAL.paper, depthTest: false }));
-    inner.position.z = 0.001; W.flash.add(inner);
-    W.flash.renderOrder = 10; inner.renderOrder = 11; W.flash.visible = false;
+    // muzzle flash: layered flat comic star (ink rim, amber star, paper core) with side flares and a forward
+    // cone, unlit, parented to the active weapon's MUZZLE socket; scaled per class, two frames (full, then smaller)
+    function starGeo(n, r0, r1, jit) {
+      var sh = new THREE.Shape();
+      for (var i = 0; i <= n * 2; i++) { var a = i / (n * 2) * Math.PI * 2, r = (i % 2 ? r1 : r0) * (1 + (i % 4 === 0 ? jit : 0)); if (i === 0) sh.moveTo(Math.cos(a) * r, Math.sin(a) * r); else sh.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+      return new THREE.ShapeGeometry(sh);
+    }
+    // layers are merged into one geometry each (vertex colours, drawn in order with no depth test): 3 draw calls
+    var _lm = new THREE.Matrix4(), _lc = new THREE.Color();
+    function layers(list) {
+      var geos = list.map(function (L) {
+        var g = L[0].clone(); g.applyMatrix4(_lm.compose(new THREE.Vector3(0, 0, L[3] || 0), new THREE.Quaternion().setFromEuler(new THREE.Euler(L[4] || 0, L[5] || 0, L[6] || 0)), new THREE.Vector3(L[2][0], L[2][1], 1)));
+        var n = g.attributes.position.count, c = new Float32Array(n * 3); _lc.set(L[1]);
+        for (var i = 0; i < n; i++) { c[i * 3] = _lc.r; c[i * 3 + 1] = _lc.g; c[i * 3 + 2] = _lc.b; }
+        g.setAttribute('color', new THREE.BufferAttribute(c, 3)); g.deleteAttribute('uv'); g.deleteAttribute('normal');
+        return g;
+      });
+      var m = new THREE.Mesh(THREE.BufferGeometryUtils.mergeBufferGeometries(geos), new THREE.MeshBasicMaterial({ vertexColors: true, depthTest: false, depthWrite: false, side: THREE.DoubleSide }));
+      m.renderOrder = 10; m.frustumCulled = false;
+      return m;
+    }
+    var petal = new THREE.Shape(); petal.moveTo(0, 0); petal.quadraticCurveTo(0.07, 0.03, 0.16, 0); petal.quadraticCurveTo(0.07, -0.03, 0, 0);
+    var pg = new THREE.ShapeGeometry(petal), ONE = [1, 1];
+    W.flash = new THREE.Group();
+    W.flashStar = layers([[starGeo(6, 0.12, 0.058, 0.18), PAL.ink, ONE], [starGeo(6, 0.095, 0.04, 0.18), PAL.amber, ONE], [starGeo(5, 0.05, 0.028, 0), PAL.paper, ONE]]);
+    W.flash.add(W.flashStar);
+    // side flares (rifles, SMGs, snipers, shotguns): two petals out to the sides
+    W.flashSide = layers([[pg, PAL.ink, [1.12, 1.7]], [pg, PAL.ink, [1.12, 1.7], 0, 0, 0, Math.PI], [pg, PAL.amber, ONE], [pg, PAL.amber, ONE, 0, 0, 0, Math.PI]]);
+    W.flashSide.renderOrder = 9; W.flash.add(W.flashSide);
+    // a cone of fire forward along -z (seen edge-on from behind: a short spike)
+    W.flashCone = layers([[pg, PAL.ink, [1.5, 2.2], 0.002, 0, Math.PI / 2, 0], [pg, PAL.amber, [1.4, 1.5], 0, 0, Math.PI / 2, 0]]);
+    W.flashCone.renderOrder = 9; W.flash.add(W.flashCone);
+    W.flashCore = W.flashStar;
+    W.flash.visible = false;
+    // things the support hand holds (frag can for a throw, a shell while loading the pump gun) ride the HOLD_L socket
+    // on the left hand bone (blender/fam_weapons.py hold_socket)
+    W.held = {};
+    var hold = rig.getObjectByName('HOLD_L');
+    ['Frag', 'Shell'].forEach(function (n) {
+      var src = A.node['HELD_' + n]; if (!hold || !src) return;
+      var m = new THREE.Mesh(src.geometry, W.vmMat); m.frustumCulled = false; m.visible = false;
+      if (n === 'Frag') m.scale.setScalar(0.75);   // read at arm's length right in front of the lens: a little smaller
+      hold.add(m); W.held[n] = m;
+    });
   };
+  function showHeld(n, on) { var m = W.held && W.held[n]; if (m) m.visible = !!on; }
+  // flash size per class (pistol 1); and which classes get side flares
+  var FLASH_SCALE = { pistol: 0.95, smg: 1.0, rifle: 1.2, sniper: 1.55, shotgun: 1.7, rocket: 1.4, handcannon: 1.45 };
+  var FLASH_SIDE = { smg: true, rifle: true, sniper: true, shotgun: true };
   function model(id) {
     if (W.models[id]) return W.models[id];
     var A = IB.Assets, key = 'WPN_' + id.toUpperCase();
@@ -62,13 +104,21 @@
     W.models[id] = { mesh: gun, mag: mag, muzzle: muzzle, key: id.toUpperCase() };
     return W.models[id];
   }
-  function showModel(id, on) { var m = W.models[id]; if (!m) return; m.mesh.visible = on; if (m.mag) m.mag.visible = on; if (on && m.muzzle) m.muzzle.add(W.flash); }
+  function showModel(id, on) {
+    var m = W.models[id]; if (!m) return; m.mesh.visible = on; if (m.mag) m.mag.visible = on;
+    if (on && m.muzzle && IB.WEAPONS[id].cls !== 'melee') m.muzzle.add(W.flash);
+  }
 
   // ---------------- arm animation (Blender actions <WEAPON>_<Action>) ----------------
   W.anim = function (s, name, opts) {
     opts = opts || {};
     var m = s.cur && W.models[s.cur]; if (!m) return;
-    var clip = W.clips[m.key + '_' + name]; if (!clip) return;
+    W.play(m.key, name, opts);
+  };
+  // play <KEY>_<name> on the arms rig (KEY: a gun or a melee weapon); false when there is no such clip
+  W.play = function (key, name, opts) {
+    opts = opts || {};
+    var clip = W.clips[key + '_' + name]; if (!clip) return false;
     var act = W.mixer.clipAction(clip);
     act.reset(); act.enabled = true; act.setEffectiveWeight(1);
     act.setLoop(opts.once ? THREE.LoopOnce : THREE.LoopRepeat, Infinity);
@@ -77,6 +127,7 @@
     act.play();
     if (W.action && W.action !== act) act.crossFadeFrom(W.action, opts.fade === undefined ? 0.08 : opts.fade, false);
     W.action = act; W.animName = name; W.animOnce = !!opts.once;
+    return true;
   };
 
   // ---------------- state ----------------
@@ -84,29 +135,38 @@
   W.create = function (owned, fx) {
     var s = { guns: {}, slots: {}, cur: null, state: 'idle', t: 0, next: 0, burst: 0, sinceShot: 9, shotsInRow: 0,
       recoilP: 0, recoilY: 0, kickZ: 0, kickZv: 0, kickR: 0, kickRv: 0, swayX: 0, swayY: 0, flashT: 0, reloadT: 0, drawT: 0,
-      aim: 0, shoveT: 0, fx: fx || {}, triggerWas: false, pending: null };
+      aim: 0, shoveT: 0, fx: fx || {}, triggerWas: false, pending: null, melee: null, throwing: null, combo: 0, comboT: 9 };
     owned.forEach(function (id) { W.give(s, id); });
     return s;
   };
-  W.give = function (s, id, gear) {
-    var def = IB.WEAPONS[id]; if (!def || def.fire === 'throw' || def.fire === 'melee' || def.fire === 'projectile') return;
-    var mag = W.magSize(s, def);
-    if (!model(id)) return;   // only weapons with a Blender model are playable
-    s.guns[id] = { id: id, def: def, mag: mag, reserve: (def.reserve === null || def.reserve === undefined || def.reserve === Infinity) ? Infinity : def.reserve, rarity: 'common', mods: {} };
-    if (!s.slots[def.slot]) s.slots[def.slot] = id;
-    if (gear) W.setGear(s, id, gear.rarity, gear.mods);
+  // hitscan guns with a Blender model are playable (grenades, melee and the launcher are not yet)
+  W.playable = function (id) {
+    var def = IB.WEAPONS[id]; if (!def || def.fire === 'throw' || def.fire === 'melee' || def.fire === 'projectile') return false;
+    return !!IB.Assets.node['WPN_' + id.toUpperCase()];
   };
-  // rarity + fitted mods (src/data/loot.js) -> the gun's live stats; a bigger magazine tops the current one up
-  W.setGear = function (s, id, rarity, mods) {
-    var g = s.guns[id]; if (!g || !IB.Loot) return;
-    var before = W.magSize(s, g.def);
-    g.rarity = rarity || g.rarity || 'common'; g.mods = mods || g.mods || {};
-    g.def = IB.Loot.derive(IB.WEAPONS[id], g.rarity, g.mods);
-    var after = W.magSize(s, g.def);
-    if (after > before) g.mag = Math.min(after, g.mag + (after - before)); else g.mag = Math.min(g.mag, after);
+  // slots are loadout positions: keys 1..n switch between the carried guns in loadout order
+  W.give = function (s, id) {
+    if (!W.playable(id) || !model(id)) return;
+    var def = IB.WEAPONS[id];
+    s.guns[id] = { id: id, def: def, mag: W.magSize(s, def), reserve: (def.reserve === null || def.reserve === undefined || def.reserve === Infinity) ? Infinity : def.reserve };
+    if (W.slotOf(s, id) < 0) { var n = 1; while (s.slots[n]) n++; s.slots[n] = id; }
   };
-  W.gear = function (s) { var o = {}; Object.keys(s.guns).forEach(function (k) { var g = s.guns[k]; o[k] = { rarity: g.rarity || 'common', mods: g.mods || {} }; }); return o; };
-  W.magSize = function (s, def) { return IB.Upgrades ? IB.Upgrades.magSize(def.mag, s.fx.magLevel || 0) : def.mag; };
+  W.slotOf = function (s, id) { for (var k in s.slots) if (s.slots[k] === id) return +k; return -1; };
+  /* carry exactly `ids` (in key order). Guns leaving the loadout park their ammo in `bank` and guns joining it take
+     theirs back from there, so swapping in the Tab menu never refills a magazine. */
+  W.setLoadout = function (s, ids, bank) {
+    bank = bank || {};
+    Object.keys(s.guns).forEach(function (k) { bank[k] = { mag: s.guns[k].mag, reserve: s.guns[k].reserve }; });
+    var cur = s.cur;
+    s.guns = {}; s.slots = {};
+    ids.forEach(function (id) { W.give(s, id); var b = bank[id], g = s.guns[id]; if (g && b) { g.mag = Math.min(b.mag, W.magSize(s, g.def)); g.reserve = b.reserve; } });
+    if (!s.guns[cur]) { var first = s.slots[1]; s.cur = null; if (first) W.equip(s, first, true); else Object.keys(W.models).forEach(function (k) { showModel(k, false); }); }
+    return bank;
+  };
+  W.magSize = function (s, def) {
+    var m = IB.Upgrades ? IB.Upgrades.magSize(def.mag, s.fx.magLevel || 0) : def.mag;
+    return s.fx.magMul && m !== Infinity ? Math.ceil(m * s.fx.magMul - 1e-9) : m;   // Overload skill
+  };
   W.refill = function (s) { Object.keys(s.guns).forEach(function (k) { var g = s.guns[k]; g.mag = W.magSize(s, g.def); g.reserve = (g.def.reserve == null || g.def.reserve === Infinity) ? Infinity : g.def.reserve; }); };
   W.addAmmo = function (s, frac) { Object.keys(s.guns).forEach(function (k) { var g = s.guns[k]; if (g.reserve !== Infinity) g.reserve = Math.min(g.def.reserve * 1.5, g.reserve + Math.ceil(g.def.reserve * frac)); }); };
   W.current = function (s) { return s.cur ? s.guns[s.cur] : null; };
@@ -114,18 +174,19 @@
 
   W.equip = function (s, id, instant) {
     if (!s.guns[id] || (s.cur === id && s.state !== 'holster')) return;
-    if (s.cur && !instant) { s.pending = id; s.state = 'holster'; s.t = 0; W.anim(s, 'Holster', { once: true }); return; }
+    var sw = s.fx.swapMul || 1;   // Fast Fingers: quicker holster and draw
+    if (s.cur && !instant) { s.pending = id; s.state = 'holster'; s.t = 0; W.anim(s, 'Holster', { once: true, timeScale: 1 / sw }); return; }
     Object.keys(W.models).forEach(function (k) { showModel(k, false); });
     s.cur = id; s.state = 'draw'; s.t = 0; s.burst = 0; s.shotsInRow = 0; s.recoilP *= 0.5;
     showModel(id, true);
     if (instant) { s.state = 'idle'; W.anim(s, 'Idle', { fade: 0 }); }
-    else W.anim(s, 'Draw', { once: true, fade: 0 });
+    else W.anim(s, 'Draw', { once: true, fade: 0, timeScale: 1 / sw });
     IB.Audio && IB.Audio.play('draw');
   };
   W.slot = function (s, n) { if (s.slots[n]) W.equip(s, s.slots[n]); };
   W.cycle = function (s, dir) {
     var sl = W.ownedSlots(s); if (sl.length < 2) return;
-    var curSlot = s.guns[s.cur].def.slot, i = sl.indexOf(curSlot);
+    var curSlot = W.slotOf(s, s.cur), i = sl.indexOf(curSlot);
     W.slot(s, sl[(i + dir + sl.length) % sl.length]);
   };
   W.reload = function (s) {
@@ -133,9 +194,66 @@
     if (g.mag >= W.magSize(s, g.def) || g.reserve <= 0) return;
     s.state = 'reload'; s.t = 0; s.reloadT = g.def.reload * (s.fx.reloadMul || 1); s.burst = 0;
     var rc = W.clips[W.models[s.cur].key + '_Reload'];
-    W.anim(s, 'Reload', { once: true, timeScale: rc ? rc.duration / s.reloadT : 1 });   // Quick Hands rescales the clip
-    IB.Audio && IB.Audio.play('magOut');
+    W.anim(s, 'Reload', { once: true, timeScale: rc ? rc.duration / s.reloadT : 1 });   // Fast Fingers rescales the clip
+    IB.Audio && IB.Audio.play(g.def.reloadPerShell ? 'magIn' : 'magOut', g.def.reloadPerShell ? { pitch: 1.3, gain: 0.7 } : undefined);
   };
+  W.busy = function (s) { return !!(s.melee || s.throwing); };
+
+  // ---------------- melee (V): the gun goes away for one swing of the melee weapon, then comes back ----------------
+  /* id: melee weapon id. Swings chain into a combo (each swing plays the next clip) when V comes again inside the
+     weapon's comboWindow. ctx.melee(def, comboIndex, hitNo) is called when a blow lands. */
+  // V cuts into a reload, a draw or a holster (the swap finishes after the swing); never into another swing or a throw
+  W.meleeReady = function (s) { return !s.melee && !s.throwing; };
+  W.meleeStart = function (s, id) {
+    var def = IB.WEAPONS[id], m = def && model(id);
+    if (!m || !W.meleeReady(s)) return false;
+    if (s.state === 'reload') { s.state = 'idle'; s._magIn = false; showHeld('Shell', false); }
+    if (s.state === 'holster' && s.pending) { s.cur = s.pending; s.pending = null; }   // the swap target comes out after the swing
+    s.state = 'idle';
+    var clips = def.clips || ['Strike'];
+    s.combo = s.comboT < (def.comboWindow || 0.5) ? (s.combo + 1) % clips.length : 0;
+    var dur = W.clips[m.key + '_' + clips[s.combo]] ? W.clips[m.key + '_' + clips[s.combo]].duration : def.swing;
+    Object.keys(W.models).forEach(function (k) { showModel(k, false); });
+    showModel(id, true);
+    W.play(m.key, clips[s.combo], { once: true, fade: 0, timeScale: dur / (def.swing / (s.fx.meleeRate || 1)) });
+    s.melee = { id: id, def: def, t: 0, dur: def.swing / (s.fx.meleeRate || 1), hits: 0, combo: s.combo };
+    s.burst = 0; s.aim = 0;
+    IB.Audio && IB.Audio.play('shove', { pitch: id === 'eaxe' ? 0.7 : id === 'dagger' ? 1.35 : 1.05, gain: 1.1 });
+    return true;
+  };
+  function meleeUpdate(s, dt, ctx) {
+    var mm = s.melee; mm.t += dt;
+    var f = mm.t / mm.dur, d = mm.def;
+    if (mm.hits === 0 && f >= d.hit) { mm.hits = 1; if (ctx.melee) ctx.melee(d, mm.combo, 0); }
+    if (mm.hits === 1 && d.hit2 && f >= d.hit2) { mm.hits = 2; if (ctx.melee) ctx.melee(d, mm.combo, 1); }
+    if (mm.t >= mm.dur) {
+      s.melee = null; s.comboT = 0;
+      showModel(mm.id, false);
+      var cur = s.cur; s.cur = null;
+      if (cur) W.equip(s, cur, false);   // the gun is drawn again
+    }
+  }
+
+  // ---------------- grenade (G): the support hand throws a frag can while the gun dips ----------------
+  // the throw clip is generated per gun (<GUN>_Throw, 0.62 s, release at 52 %): ctx.onThrow() spawns the grenade
+  var THROW_RELEASE = 0.52, THROW_SHOW = 0.16;
+  W.throwStart = function (s) {
+    var g = W.current(s); if (!g || s.melee || s.throwing || s.state === 'holster') return false;
+    if (s.state === 'draw') s.state = 'idle';
+    if (s.state === 'reload') { s.state = 'idle'; s._magIn = false; showHeld('Shell', false); }
+    var key = W.models[s.cur].key, clip = W.clips[key + '_Throw'];
+    W.play(key, 'Throw', { once: true, fade: 0.05 });
+    s.throwing = { t: 0, dur: clip ? clip.duration : 0.62, released: false };
+    s.burst = 0;
+    return true;
+  };
+  function throwUpdate(s, dt, ctx) {
+    var th = s.throwing; th.t += dt;
+    var f = th.t / th.dur;
+    showHeld('Frag', f >= THROW_SHOW && !th.released);
+    if (!th.released && f >= THROW_RELEASE) { th.released = true; showHeld('Frag', false); if (ctx.onThrow) ctx.onThrow(); IB.Audio && IB.Audio.play('shove', { pitch: 1.4, gain: 0.8 }); }
+    if (th.t >= th.dur) s.throwing = null;
+  }
 
   // spread cone half-angle (deg) right now
   W.spread = function (s, player) {
@@ -162,19 +280,35 @@
     // springs (stiffness 220, damping 18)
     s.kickZv += (-220 * s.kickZ - 18 * s.kickZv) * dt; s.kickZ += s.kickZv * dt;
     s.kickRv += (-220 * s.kickR - 18 * s.kickRv) * dt; s.kickR += s.kickRv * dt;
-    var wantAim = inp.aim && s.state !== 'reload' && !p.sprinting;
+    s.comboT += dt;
+    if (s.melee) { meleeUpdate(s, dt, ctx); p.aiming = false; s.aim = Math.max(0, s.aim - dt * 14); return; }
+    if (s.throwing) throwUpdate(s, dt, ctx);
+    var wantAim = inp.aim && s.state !== 'reload' && !p.sprinting && !s.throwing;
     s.aim += ((wantAim ? 1 : 0) - s.aim) * Math.min(1, dt * 14);
     p.aiming = s.aim > 0.5;
     if (!g) return;
     p.weaponMoveMul = g.def.moveMul || 1;
     switch (s.state) {
       case 'holster':
-        if (s.t >= 0.2) { var nid = s.pending; s.pending = null; showModel(s.cur, false); s.cur = null; W.equip(s, nid, false); }
+        if (s.t >= 0.2 * (s.fx.swapMul || 1)) { var nid = s.pending; s.pending = null; showModel(s.cur, false); s.cur = null; W.equip(s, nid, false); }
         return;
       case 'draw':
-        if (s.t >= 0.3) s.state = 'idle';
+        if (s.t >= 0.3 * (s.fx.swapMul || 1)) s.state = 'idle';
         return;
       case 'reload':
+        if (g.def.reloadPerShell) {
+          // one shell per cycle (the clip loops); fire with a shell in the tube stops loading
+          showHeld('Shell', s.t >= s.reloadT * 0.22 && s.t < s.reloadT * 0.72);
+          if (inp.firePressed && g.mag > 0) { s.state = 'idle'; showHeld('Shell', false); break; }
+          if (s.t >= s.reloadT) {
+            g.mag++; if (g.reserve !== Infinity) g.reserve--;
+            IB.Audio && IB.Audio.play('magIn', { pitch: 1.3, gain: 0.7 });
+            showHeld('Shell', false);
+            if (g.mag < W.magSize(s, g.def) && g.reserve > 0) { s.t = 0; W.anim(s, 'Reload', { once: true, fade: 0, timeScale: (W.clips[W.models[s.cur].key + '_Reload'].duration) / s.reloadT }); }
+            else { s.state = 'idle'; IB.Audio && IB.Audio.play('slide'); }
+          }
+          return;
+        }
         if (s.t >= s.reloadT * 0.55 && !s._magIn) { s._magIn = true; IB.Audio && IB.Audio.play('magIn'); }
         if (s.t >= s.reloadT) {
           s._magIn = false;
@@ -184,14 +318,15 @@
         }
         return;
     }
-    if (p.sprinting) { s.burst = 0; return; }
+    if (p.sprinting || s.throwing) { s.burst = 0; return; }
     var d = g.def;
     var trig = d.fire === 'auto' ? inp.fire : inp.firePressed;
-    if (s.burst > 0 && s.next <= 0) { fire(s, g, ctx); s.burst--; s.next = s.burst > 0 ? (d.burstGap || 60 / d.rpm) : Math.max(0, d.cycle - (d.burst - 1) * (d.burstGap || 60 / d.rpm)); return; }
+    var rm = s.fx.rateMul || 1;   // Rapid skill: shorter gaps between shots
+    if (s.burst > 0 && s.next <= 0) { fire(s, g, ctx); s.burst--; s.next = (s.burst > 0 ? (d.burstGap || 60 / d.rpm) : Math.max(0, d.cycle - (d.burst - 1) * (d.burstGap || 60 / d.rpm))) / rm; return; }
     if (trig && s.next <= 0 && s.burst === 0) {
       if (g.mag <= 0) { if (inp.firePressed) IB.Audio && IB.Audio.play('dry'); W.reload(s); return; }
-      if (d.burst > 1) { s.burst = d.burst; s.next = 0; fire(s, g, ctx); s.burst--; s.next = d.burstGap || 60 / d.rpm; }
-      else { fire(s, g, ctx); s.next = d.cycle || 60 / d.rpm; }
+      if (d.burst > 1) { s.burst = d.burst; s.next = 0; fire(s, g, ctx); s.burst--; s.next = (d.burstGap || 60 / d.rpm) / rm; }
+      else { fire(s, g, ctx); s.next = (d.cycle || 60 / d.rpm) / rm; }
     }
   };
 
@@ -214,15 +349,16 @@
     s.recoilP += rec * D2R;
     s.recoilY += (Math.random() * 2 - 1) * (d.recoilH || 0) * (s.fx.recoilMul || 1) * D2R;
     s.kickZv += 1.6 + rec * 0.5; s.kickRv += 2.0 + rec * 1.2;
-    s.flashT = 0.045;
+    s.flashT = 0.055; s.flashCls = d.id === 'handcannon' ? 'handcannon' : d.cls;
     W.anim(s, 'Fire', { once: true, fade: 0.02 });
+    if (IB.Boom) IB.Boom.onFire(s, d);   // shell casing from the EJECT socket, muzzle smoke
     // layered shot per class; heavier guns pitch down, light ones up (+/-4% random per shot)
     var snd = FIRE_SND[d.id] || FIRE_SND[d.cls] || ['gun', 1];
     IB.Audio && IB.Audio.play(snd[0], { pitch: snd[1] * (1 + (Math.random() * 0.08 - 0.04)) });
     if (ctx.onFire) ctx.onFire(d);
   }
 
-  // quick shove with F when no melee weapon is equipped (20 damage)
+  // quick shove with V when no melee weapon is equipped (20 damage)
   W.shove = function (s) {
     if (s.shoveT > 0) return false;
     s.shoveT = 0.5; s.kickZv -= 3; s.kickRv -= 2;
@@ -248,9 +384,32 @@
     }
     return m.sight;
   };
-  var ADS_DIST = { pistol: 0.34, smg: 0.22, rifle: 0.17, sniper: 0.13, shotgun: 0.2, rocket: 0.2 }, VM_SCALE = 0.85;
+  // Procedural handling per weapon class, layered on top of the Blender rig actions (the authored poses come from
+  // HANDLING in Source/blender/fam_weapons.py: pistols sprint at high ready, muzzle up by the face; long guns at
+  // low ready across the chest). A class missing here (or a key missing in it) takes the 'rifle' value, so a new
+  // weapon gets sane handling from its cls alone.
+  //   ads        eye distance (m) behind the sight point when aiming
+  //   sprintBob  walk-bob scale while sprinting (eased in/out); the pistol's high-ready action carries its own
+  //              footfall bob near the face, so it takes less on top
+  //   sprintRoll share of the bob's roll kept while sprinting (a raised pistol rolling about the hip pivot swings wide)
+  //   fade       crossfade (s) into and out of the sprint loop (weight: heavier guns take longer to come up)
+  var VM_CLASS = {
+    pistol: { ads: 0.34, sprintBob: 1.15, sprintRoll: 0.45, fade: 0.18 },
+    smg: { ads: 0.27, sprintBob: 1.6, sprintRoll: 1, fade: 0.16 },
+    rifle: { ads: 0.29, sprintBob: 1.7, sprintRoll: 1, fade: 0.2 },
+    sniper: { ads: 0.13, fade: 0.22 },
+    shotgun: { ads: 0.2 }, rocket: { ads: 0.2 }
+  };
+  W.vmClass = function (cls) {
+    var c = VM_CLASS[cls] || {}, r = VM_CLASS.rifle, out = {};
+    Object.keys(r).forEach(function (k) { out[k] = c[k] !== undefined ? c[k] : r[k]; });
+    return out;
+  };
+  var VM_SCALE = 0.85;
   W.pose = function (s, dt, player, lookDX, lookDY, headBob, t) {
-    var g = W.current(s), k = Math.min(1, dt * 10);
+    var g = W.current(s), k = Math.min(1, dt * 10), vc = W.vmClass(g ? g.def.cls : 'rifle');
+    if (s.melee) g = null;   // melee swing: the arms play the swing clip; no gun handling, no flash
+    s.sprintK = (s.sprintK || 0) + ((player.sprinting ? 1 : 0) - (s.sprintK || 0)) * Math.min(1, dt * 8);
     // look sway lags the camera; clamp so fast flicks don't throw the gun off screen
     s.swayX += ((-lookDX * 0.0007) - s.swayX) * k; s.swayY += ((lookDY * 0.0007) - s.swayY) * k;
     s.swayX = Math.max(-0.06, Math.min(0.06, s.swayX)); s.swayY = Math.max(-0.05, Math.min(0.05, s.swayY));
@@ -264,30 +423,35 @@
     var x = (portrait ? 0.13 : 0.19), y = -0.13, z = -0.5, rx = 0, ry = 0.06, rz = 0;
     // walk cycle: figure-8 with roll; bigger and faster at sprint
     var hs = Math.hypot(player.vx, player.vz), moving = player.onGround && !player.sliding ? Math.min(1, hs / 6) : 0;
-    var amt = (headBob ? 1 : 0.6) * moving * (player.sprinting ? 1.7 : 1) * (1 - a * 0.85), ph = player.bobT;
-    x += Math.sin(ph) * 0.013 * amt; y -= Math.abs(Math.cos(ph)) * 0.011 * amt; rz += Math.sin(ph) * 0.03 * amt; ry += Math.cos(ph) * 0.012 * amt;
+    var amt = (headBob ? 1 : 0.6) * moving * (1 + (vc.sprintBob - 1) * s.sprintK) * (1 - a * 0.85), ph = player.bobT;
+    x += Math.sin(ph) * 0.013 * amt; y -= Math.abs(Math.cos(ph)) * 0.011 * amt; ry += Math.cos(ph) * 0.012 * amt;
+    rz += Math.sin(ph) * 0.03 * amt * (1 + (vc.sprintRoll - 1) * s.sprintK);
     // idle breathing
     y += Math.sin(t * 1.6) * 0.0028 * hip; rx += Math.sin(t * 1.6 + 1) * 0.004 * hip;
     // inertia
     x -= s.strafe * 0.012 * hip; rz -= s.strafe * 0.05; y += s.vert * hip;
     y -= player.dip * 0.45 + (player.landKick || 0) * 0.03;
     rx += s.swayY * 1.4; ry += s.swayX * 1.6;
-    // slide carry (procedural until a Slide action exists for the weapon)
+    // slide carry: the Slide action (gun tucked low and canted in, support arm out for balance) plus a small lean
+    // into the slide on top; procedural only for a weapon without a Slide action. Aiming while sliding keeps the
+    // two-hand hold (no Slide clip under the sights).
     var slideClip = g && W.clips[W.models[g.id].key + '_Slide'];
     s.slideK = (s.slideK || 0) + ((player.sliding ? 1 : 0) - (s.slideK || 0)) * Math.min(1, dt * 12);
     if (!slideClip) { rz += 0.5 * s.slideK; x -= 0.03 * s.slideK; y -= 0.035 * s.slideK; }
+    else { rz += 0.05 * s.slideK * hip; y -= 0.008 * s.slideK * hip; rx -= 0.02 * s.slideK * hip; }
     // aim down sights: blend toward the pose that puts the sight point on the screen centre
     if (g && a > 0.001) {
       var sp = W.sightOf(g.id);
-      var ax = -sp.x * VM_SCALE, ay = -sp.y * VM_SCALE, az = -(ADS_DIST[g.def.cls] || 0.25) - sp.z * VM_SCALE;
+      var ax = -sp.x * VM_SCALE, ay = -sp.y * VM_SCALE, az = -(g.def.adsDist || vc.ads) - sp.z * VM_SCALE;   // adsDist: a mounted scope's eye relief
       x += (ax - x) * a; y += (ay - y) * a; z += (az - z) * a;
       rx *= hip * 0.6 + 0.4 * (1 - a); ry *= hip; rz *= hip * 0.7 + 0.3;
     }
     // arm animation: once-clips (draw, fire, reload, holster) fall back to the Idle / Sprint / Slide loop
+    if (s.melee && W.mixer) W.mixer.update(dt);
     if (g && W.mixer) {
-      var want = player.sliding && slideClip ? 'Slide' : (player.sprinting ? 'Sprint' : 'Idle');
+      var want = player.sliding && slideClip && a < 0.5 ? 'Slide' : (player.sprinting ? 'Sprint' : 'Idle');
       var busy = W.animOnce && W.action && W.action.isRunning();
-      if (!busy && W.animName !== want && s.state !== 'holster') W.anim(s, want, { fade: want === 'Slide' ? 0.08 : 0.14 });
+      if (!busy && W.animName !== want && s.state !== 'holster') W.anim(s, want, { fade: want === 'Slide' || W.animName === 'Slide' ? 0.12 : (want === 'Sprint' || W.animName === 'Sprint' ? vc.fade : 0.14) });
       W.mixer.update(dt);
     }
     // recoil kick (spring) on top
@@ -295,12 +459,18 @@
     W.vmRoot.position.set(x + s.swayX * hip, y + s.swayY * hip, z);
     W.vmRoot.rotation.set(rx, ry, rz);
     W.vmRoot.scale.setScalar(VM_SCALE);
-    W.vmRoot.visible = !!g && !s.hidden;
+    W.vmRoot.visible = (!!g || !!s.melee) && !s.hidden;
+    if (!g) W.flash.visible = false;
     if (g) {
       W.flash.visible = s.flashT > 0 && s.aim < 0.3;   // never over the sights when aiming
-      W.flash.position.set(0, 0, -0.03);
-      W.flash.rotation.z = Math.random() * 6.28;
-      var fs = 0.8 + Math.random() * 0.5; W.flash.scale.set(fs, fs, fs);
+      if (W.flash.visible) {
+        var cls = s.flashCls || g.def.cls, big = s.flashT > 0.028 ? 1 : 0.62;   // frame 1 full, frame 2 smaller
+        W.flash.position.set(0, 0, -0.03);
+        W.flash.rotation.z = Math.random() * 6.28;
+        var fs = (FLASH_SCALE[cls] || 1) * (0.85 + Math.random() * 0.4) * big; W.flash.scale.set(fs, fs, fs);
+        W.flashSide.visible = !!FLASH_SIDE[cls]; W.flashSide.rotation.z = -W.flash.rotation.z + (Math.random() - 0.5) * 0.3;   // flares stay level
+        W.flashCone.visible = big === 1;
+      }
     }
   };
 })(window.IB = window.IB || {});

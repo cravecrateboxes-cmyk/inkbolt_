@@ -298,6 +298,11 @@ def drywall(k, kind):
     for s in (-1, 1):
         y0, y1 = srt(s * 0.497, s * 0.508)
         k.bx(-0.49, 0.49, y0, y1, 0, 0.1, 'graphite', ink=False)
+    return dry_decor(k, kind)
+
+
+def dry_decor(k, kind):
+    """The -Y face decor of a drywall module (wall at y -0.5), in k's current frame."""
     if kind == 'Art':
         k.bx(-0.36, 0.36, -0.53, -0.5, 1.3, 2.2, 'black')
         k.qy(-0.32, 0.32, 1.34, 2.16, -0.533, -1, 'paper')
@@ -443,6 +448,16 @@ def trail_wall(k):
         k.bx(x0, x1, -0.5, 0.5, 1.15, 1.25, 'teal', ink=False)
         k.bx(x0, x1, -0.5, 0.5, 1.3, 1.33, 'fabricBlue', ink=False)
         k.qx(-0.5, -0.49, 0.1, H, s * 0.253, s, 'drywall2')        # board joint
+    return k
+
+
+def trail_variant(k, kind):
+    """Corridor drywall with something on its trail face (+X): a framed print, a whiteboard, a status screen or a
+    fire cabinet (the drywall partition decor, turned onto the 0.5 m trail slab)."""
+    trail_wall(k)
+    k.push(-0.2415, 0, 90, z=0.05)   # drywall frame: its -Y face (y -0.5) lands just proud of the stripe (x +0.2585)
+    dry_decor(k, kind)
+    k.pop()
     return k
 
 
@@ -1261,6 +1276,8 @@ def build_kit_office(ao):
     hull_only(tmp)
     join_into(shutter, tmp)
     trail_wall(k).finish('TrailWall', ao=ao)
+    for kind in ('Art', 'Board', 'Screen', 'Ext'):
+        trail_variant(k, kind).finish('TrailWall_' + kind, ao=ao)
     hatch(k).finish('Hatch', ao=ao)
     stand(k).finish('Stand', ao=ao)
     # cell props

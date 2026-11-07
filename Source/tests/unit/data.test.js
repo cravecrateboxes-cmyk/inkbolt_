@@ -36,23 +36,31 @@ test('weapon table numbers (5.2)', () => {
   assert.equal(W.brick.moveMul, 0.9); assert.equal(W.pip.moveMul, 1);
   assert.equal(W.needle.pierce, 2); assert.equal(W.pip.pierce, 0);
   assert.equal(W.needle.coreMul, 2.5); assert.equal(W.longtom.coreMul, 2.0); assert.equal(W.buzz.coreMul, 1.75);
-  assert.equal(W.scrapper.pellets, 9); assert.equal(W.scrapper.unlock, 25); assert.equal(W.scrapper.reloadPerShell, true);
+  assert.equal(W.scrapper.pellets, 9); assert.equal(W.scrapper.unlock, 7); assert.equal(W.scrapper.reloadPerShell, true);
   assert.equal(W.cancannon.splash, 120); assert.equal(W.cancannon.radius, 4); assert.equal(W.cancannon.speed, 28);
   assert.deepEqual([W.frag.damage, W.frag.radius, W.frag.fuse, W.frag.carry, W.frag.speed, W.frag.cycle], [150, 5, 2.2, 3, 18, 0.45]);
   assert.deepEqual([W.popflash.damage, W.popflash.radius, W.popflash.fuse, W.popflash.carry, W.popflash.blind], [10, 10, 1.5, 2, 3.5]);
-  assert.deepEqual([W.katana.damage, W.katana.cycle, W.katana.arc, W.katana.range, W.katana.windup, W.katana.active, W.katana.recovery, W.katana.comboMul],
-    [45, 0.38, 100, 2.6, 0.08, 0.10, 0.20, 1.6]);
-  assert.deepEqual([W.fireaxe.damage, W.fireaxe.charged, W.fireaxe.cycle, W.fireaxe.arc, W.fireaxe.range, W.fireaxe.windup, W.fireaxe.active, W.fireaxe.recovery, W.fireaxe.chargeTime],
-    [75, 150, 0.75, 70, 2.3, 0.18, 0.12, 0.45, 0.8]);
-  assert.equal(W.frag.slot, 'Q'); assert.equal(W.katana.slot, 6);
+  // melee (V): [damage, swing s, hit fraction, arc deg, range m]
+  assert.deepEqual([W.dagger.damage, W.dagger.swing, W.dagger.hit, W.dagger.arc, W.dagger.range, W.dagger.backstab], [40, 0.32, 0.46, 70, 2.1, 2.5]);
+  assert.deepEqual([W.nunchucks.damage, W.nunchucks.swing, W.nunchucks.hit, W.nunchucks.hit2, W.nunchucks.arc, W.nunchucks.range], [24, 0.30, 0.40, 0.62, 120, 2.3]);
+  assert.deepEqual([W.katana.damage, W.katana.swing, W.katana.hit, W.katana.arc, W.katana.range, W.katana.combo, W.katana.comboMul], [62, 0.46, 0.40, 110, 2.7, 3, 1.6]);
+  assert.deepEqual([W.eaxe.damage, W.eaxe.swing, W.eaxe.hit, W.eaxe.arc, W.eaxe.range, W.eaxe.charged], [95, 0.75, 0.44, 80, 2.4, 150]);
+  assert.deepEqual(W.eaxe.shock, { dps: 10, dur: 3, chain: 2, chainRange: 4.5, chainMul: 0.45 });
+  for (const id of IB.MELEE_WEAPONS) assert.ok(W[id].clips.length >= 2 && W[id].hit > 0 && W[id].hit < 1, id + ' clips / hit');
+  // round 3 guns
+  assert.deepEqual([W.vanguard.damage, W.vanguard.rpm, W.vanguard.mag, W.vanguard.cls], [34, 480, 20, 'rifle']);
+  assert.deepEqual([W.thunder.damage, W.thunder.pellets, W.thunder.rpm, W.thunder.mag, W.thunder.cls, W.thunder.fire], [8, 8, 240, 12, 'shotgun', 'auto']);
+  assert.deepEqual([W.railspike.damage, W.railspike.pierce, W.railspike.scopeZoom, W.railspike.cls], [135, 4, 3, 'sniper']);
+  assert.equal(W.frag.slot, 'Q'); assert.equal(W.katana.slot, 'V');
 });
 
 test('every weapon has the required fields and names', () => {
   const names = ['P-12 Warden', 'R-50 Ironjaw', 'P-16 Twinfire', 'KV-9 Buzzsaw', 'KV-4 Whiplash', 'KV-7 Hornet', 'AR-22 Rivet',
     'AR-3 Tribolt', 'DMR-60 Longtom', 'LMG-26 Bricklayer', 'SR-160 Needle', 'RL-1 Canister', 'M-15 Frag Can', 'FX-2 Pop Flash',
-    'Mk-1 Ronin Blade', 'BA-7 Breacher Axe', 'SG-9 Scrapper'];
+    'Stinger', 'Twin Strikers', 'Ronin Blade', 'Voltaxe', 'SG-9 Scrapper', 'AR-40 Vanguard', 'SG-12 Thunderclap',
+    'SR-9 Railspike'];
   assert.deepEqual(IB.WEAPON_ORDER.map((id) => W[id].name), names);
-  assert.equal(Object.keys(W).length, 17);
+  assert.equal(Object.keys(W).length, 22);
   for (const w of Object.values(W)) {
     for (const f of ['id', 'name', 'cls', 'slot', 'fire', 'damage', 'pellets', 'burst', 'rpm', 'cycle', 'spreadHip', 'spreadAim',
       'recoil', 'recoilH', 'reload', 'mag', 'reserve', 'unlock', 'aimZoom', 'moveMul', 'pierce', 'coreMul', 'sound']) {
@@ -61,8 +69,8 @@ test('every weapon has the required fields and names', () => {
     assert.ok(Number.isFinite(w.cycle) && w.cycle > 0, w.id + ' cycle');
     assert.ok(Number.isFinite(w.reload), w.id + ' reload finite');
   }
-  assert.deepEqual(IB.WEAPON_CLASSES, ['pistol', 'smg', 'rifle', 'sniper', 'rocket', 'melee']);
-  assert.equal(IB.GLB_WEAPON_NAMES.length, 17);
+  assert.deepEqual(IB.WEAPON_CLASSES, ['pistol', 'smg', 'rifle', 'sniper', 'shotgun', 'rocket', 'melee']);
+  assert.equal(IB.GLB_WEAPON_NAMES.length, 22);
   assert.ok(IB.GLB_WEAPON_NAMES.includes('WPN_PIP') && IB.GLB_WEAPON_NAMES.includes('WPN_FRAG'));
 });
 
@@ -84,7 +92,7 @@ test('robot table (5.7)', () => {
   assert.equal(E.tosser.dot, 5); assert.equal(E.crawler.windup, 0.35); assert.equal(E.bomber.windup, 0.6);
   assert.equal(E.shieldbot.windup, 0.6); assert.equal(E.bruiser.windup, 0.9); assert.equal(E.drone.hover, 3);
   for (const id of ['gunner', 'tosser', 'drone']) assert.deepEqual(E[id].keepDistance, [8, 16]);
-  assert.equal(IB.GLB_BOT_NAMES.length, 8);
+  assert.equal(IB.GLB_BOT_NAMES.length, 10);
 });
 
 test('bosses (5.8) and rotation', () => {

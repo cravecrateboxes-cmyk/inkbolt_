@@ -12,32 +12,53 @@
       'BOT_BOMBER_Body', 'BOT_BOMBER_Roller', 'BOT_BOMBER_Cap', 'BOT_BOMBER_Light',
       'BOT_BOMBER_CORE', 'BOT_BOMBER_AXLE', 'BOT_BOMBER_CAP', 'BOT_BOMBER_WICK',
       'BOT_DRONE_Body', 'BOT_DRONE_Lid', 'BOT_DRONE_Rotor', 'BOT_DRONE_Gun', 'BOT_DRONE_Light',
-      'BOT_DRONE_CORE', 'BOT_DRONE_GUN', 'BOT_DRONE_GUNPIVOT', 'BOT_DRONE_LID', 'BOT_DRONE_ROTOR0', 'BOT_DRONE_ROTOR1', 'BOT_DRONE_ROTOR2', 'BOT_DRONE_ROTOR3', 'BOT_DRONE_LIGHT']
+      'BOT_DRONE_CORE', 'BOT_DRONE_GUN', 'BOT_DRONE_GUNPIVOT', 'BOT_DRONE_LID', 'BOT_DRONE_ROTOR0', 'BOT_DRONE_ROTOR1', 'BOT_DRONE_ROTOR2', 'BOT_DRONE_ROTOR3', 'BOT_DRONE_LIGHT',
+      'BOT_SOLDIER_Hips', 'BOT_SOLDIER_Thigh', 'BOT_SOLDIER_Shin', 'BOT_SOLDIER_TorsoA', 'BOT_SOLDIER_TorsoB', 'BOT_SOLDIER_HelmA', 'BOT_SOLDIER_HelmB',
+      'BOT_SOLDIER_HelmC', 'BOT_SOLDIER_Visor', 'BOT_SOLDIER_ArmR', 'BOT_SOLDIER_ArmL', 'BOT_SOLDIER_Nade',
+      'BOT_SOLDIER_HIP0', 'BOT_SOLDIER_HIP1', 'BOT_SOLDIER_WAIST', 'BOT_SOLDIER_CORE', 'BOT_SOLDIER_NECK', 'BOT_SOLDIER_SHOULDER0', 'BOT_SOLDIER_SHOULDER1',
+      'BOT_SOLDIER_VISOR', 'BOT_SOLDIER_MUZZLE', 'BOT_SOLDIER_HANDL',
+      'BOT_BLADER_Body', 'BOT_BLADER_Hub', 'BOT_BLADER_Katana', 'BOT_BLADER_Axe', 'BOT_BLADER_Light',
+      'BOT_BLADER_CORE', 'BOT_BLADER_HUB', 'BOT_BLADER_LIGHT', 'BOT_BLADER_GRIP']
   };
   // weapons that have a Blender model + arm actions: WPN_<ID> (gun), WPN_<ID>_Mag (detachable mag; revolver: the
   // cylinder) and sockets WPN_<ID>_MUZZLE / _MAG / _EJECT / _SIGHT (a point on the sight line just behind the rear
   // sight or optic) plus _SCOPE (eyepiece centre) on the scoped rifles
-  IB.MODELLED_WEAPONS = ['pip', 'handcannon', 'twintap', 'buzz', 'whisk', 'hornet', 'rivet', 'triplet', 'longtom', 'brick', 'needle'];
-  IB.SCOPED_WEAPONS = ['longtom', 'needle'];
+  IB.MODELLED_WEAPONS = ['pip', 'handcannon', 'twintap', 'buzz', 'whisk', 'hornet', 'rivet', 'triplet', 'longtom', 'brick', 'needle',
+    'scrapper', 'vanguard', 'thunder', 'railspike'];
+  IB.SCOPED_WEAPONS = ['longtom', 'needle', 'railspike'];
+  // melee weapons: WPN_<ID> (the nunchucks also WPN_NUNCHUCKS_Mag, the swinging stick) + actions <ID>_<clip> (weapons.js
+  // clips), <ID>_Idle; every gun also has <GUN>_Throw (the support hand throws a frag can held on the HOLD_L socket)
+  IB.MODELLED_MELEE = ['dagger', 'nunchucks', 'katana', 'eaxe'];
+  IB.HELD_ITEMS = ['HOLD_L', 'HELD_Frag', 'HELD_Shell'];
+  IB.ASSET_NAMES.weapons = IB.ASSET_NAMES.weapons.concat(IB.HELD_ITEMS, IB.MODELLED_MELEE.map(function (id) { return 'WPN_' + id.toUpperCase(); }));
   IB.MODELLED_WEAPONS.forEach(function (id) {
     var k = 'WPN_' + id.toUpperCase();
     ['', '_Mag', '_MUZZLE', '_MAG', '_EJECT', '_SIGHT'].concat(IB.SCOPED_WEAPONS.indexOf(id) >= 0 ? ['_SCOPE'] : [])
       .forEach(function (s) { IB.ASSET_NAMES.weapons.push(k + s); });
   });
-  IB.ARM_ACTIONS = ['Idle', 'Draw', 'Holster', 'Fire', 'Reload', 'Sprint', 'Slide'];
+  IB.ARM_ACTIONS = ['Idle', 'Draw', 'Holster', 'Fire', 'Reload', 'Sprint', 'Slide', 'Throw'];
   // triangle budgets incl. outline hull (brief 3.2); robots count body + legs + light. A weapon's budget covers
   // the gun and its WPN_<ID>_Mag together.
   IB.TRI_BUDGET = {
     meshes: { WPN_PIP: 1500, WPN_HANDCANNON: 1500, WPN_TWINTAP: 1500, WPN_BUZZ: 2000, WPN_WHISK: 2000, WPN_HORNET: 2000,
       WPN_RIVET: 2500, WPN_TRIPLET: 2500, WPN_LONGTOM: 2500, WPN_BRICK: 2500, WPN_NEEDLE: 3000,
-      ARMS: 3000, PICKUP_Gem: 60, PICKUP_Ammo: 300, PICKUP_Health: 300,
+      WPN_SCRAPPER: 2500, WPN_THUNDER: 2500, WPN_VANGUARD: 2600, WPN_RAILSPIKE: 3800,
+      WPN_DAGGER: 1000, WPN_NUNCHUCKS: 1400, WPN_KATANA: 1200, WPN_EAXE: 2000, HELD_Frag: 700, HELD_Shell: 300,
+      ARMS: 8000, PICKUP_Gem: 60, PICKUP_Ammo: 300, PICKUP_Health: 300,
       Cloud_A: 300, Cloud_B: 300, Cloud_C: 300, Hill: 300, Tree: 300, SpawnCan: 300, TrailArrow: 300,
       KIT_TOYTOWN_Landmark_WaterTower: 4000 },
     robots: {
       crawler: { parts: { BOT_CRAWLER_Body: 1, BOT_CRAWLER_Leg: 4, BOT_CRAWLER_Light: 1 }, max: 1200 },
       gunner: { parts: { BOT_GUNNER_Body: 1, BOT_GUNNER_Lid: 1, BOT_GUNNER_Gun: 1, BOT_GUNNER_Wheel: 2, BOT_GUNNER_Light: 1 }, max: 2000 },
       bomber: { parts: { BOT_BOMBER_Body: 1, BOT_BOMBER_Roller: 1, BOT_BOMBER_Cap: 1, BOT_BOMBER_Light: 1 }, max: 1400 },
-      drone: { parts: { BOT_DRONE_Body: 1, BOT_DRONE_Lid: 1, BOT_DRONE_Rotor: 4, BOT_DRONE_Gun: 1, BOT_DRONE_Light: 1 }, max: 1200 }
+      drone: { parts: { BOT_DRONE_Body: 1, BOT_DRONE_Lid: 1, BOT_DRONE_Rotor: 4, BOT_DRONE_Gun: 1, BOT_DRONE_Light: 1 }, max: 1200 },
+      // Soldier: one torso and one helmet of each shape set (variants are separate meshes, one drawn per robot)
+      soldier: { parts: { BOT_SOLDIER_Hips: 1, BOT_SOLDIER_Thigh: 2, BOT_SOLDIER_Shin: 2, BOT_SOLDIER_TorsoA: 1, BOT_SOLDIER_HelmA: 1, BOT_SOLDIER_Visor: 1, BOT_SOLDIER_ArmR: 1, BOT_SOLDIER_ArmL: 1 }, max: 4300 },
+      soldierHeavy: { parts: { BOT_SOLDIER_Hips: 1, BOT_SOLDIER_Thigh: 2, BOT_SOLDIER_Shin: 2, BOT_SOLDIER_TorsoB: 1, BOT_SOLDIER_HelmC: 1, BOT_SOLDIER_Visor: 1, BOT_SOLDIER_ArmR: 1, BOT_SOLDIER_ArmL: 1 }, max: 5200 },
+      soldierB: { parts: { BOT_SOLDIER_HelmB: 1 }, max: 950 },
+      blader: { parts: { BOT_BLADER_Body: 1, BOT_BLADER_Hub: 1, BOT_BLADER_Katana: 1, BOT_BLADER_Light: 1 }, max: 1700 },
+      bladerAxe: { parts: { BOT_BLADER_Body: 1, BOT_BLADER_Hub: 1, BOT_BLADER_Axe: 1, BOT_BLADER_Light: 1 }, max: 1700 },
+      nade: { parts: { BOT_SOLDIER_Nade: 1 }, max: 300 }
     },
     kitMax: 40000, kitPropMax: 1200
   };

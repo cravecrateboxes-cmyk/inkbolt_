@@ -7,7 +7,7 @@
   var SLOTS = 3;
   var SETTINGS_KEY = PREFIX + 'settings';
   var DEFAULT_SETTINGS = {
-    sfx: true, mouseSens: 1.0, touchSens: 1.0, fov: 85, invertY: false, graphics: 'auto',
+    sfx: true, mouseSens: 1.0, touchSens: 1.0, fov: 100, invertY: false, graphics: 'auto',
     shake: true, headBob: true, reduceFlash: false
   };
 
@@ -15,13 +15,19 @@
   function isObj(o) { return o !== null && typeof o === 'object' && !Array.isArray(o); }
 
   function slotKey(id) { return PREFIX + 'slot' + id; }
+  // loot inventory (core/loot.js repairs items deeply; this only guarantees the shape). armor: the worn vest
+  // (saves from before vests have none: it is added empty)
+  function defaultGear() { return { inv: [], shield: null, armor: null, attach: {}, next: 1, found: 0 }; }
 
   function defaultSlot(id, seed, savedAt) {
     return {
       v: 1, id: id, level: 1, highest: 0, gems: 0, upgrades: {},
-      loadout: { pistol: 'pip' },
+      // arsenal = every gun owned, loadout = the guns carried in key order, skills = {skillId: rank}
+      // (skill points are not stored: they are derived from `highest`, see core/skills.js)
+      arsenal: [], loadout: [], skills: {},   // empty arsenal: the level plan's start guns are handed out
       stats: { kills: 0, deaths: 0, time: 0, coreHits: 0 },
       best: {},
+      gear: defaultGear(),
       seed: seed >>> 0, saved: savedAt
     };
   }
@@ -37,7 +43,7 @@
     for (k in d) out[k] = d[k];
     for (k in obj) out[k] = obj[k];
     out.v = 1;
-    ['upgrades', 'loadout', 'stats', 'best'].forEach(function (f) {
+    ['upgrades', 'stats', 'best'].forEach(function (f) {
       if (!isObj(obj[f])) out[f] = d[f];
       else if (f === 'stats') {
         var s = {};
@@ -46,11 +52,33 @@
         out.stats = s;
       }
     });
+    if (!isObj(obj.gear)) out.gear = defaultGear();
+    else {
+      var g = defaultGear();
+      for (k in obj.gear) g[k] = obj.gear[k];
+      if (!Array.isArray(g.inv)) g.inv = [];
+      if (!isObj(g.attach)) g.attach = {};
+      if (typeof g.next !== 'number') g.next = 1;
+      out.gear = g;
+    }
     if (typeof out.level !== 'number' || out.level < 1) out.level = 1;
     if (typeof out.highest !== 'number' || out.highest < 0) out.highest = 0;
     if (typeof out.gems !== 'number' || out.gems < 0) out.gems = 0;
     if (typeof out.seed !== 'number') out.seed = 0;
     if (typeof out.saved !== 'number') out.saved = 0;
+    // loadout: the brief's class map {pistol: 'pip', smg: 'buzz'} (older saves) becomes the ordered list
+    // (the game trims it to the 2- or 3-gun limit when a level starts)
+    var lo = Array.isArray(obj.loadout) ? obj.loadout : (Array.isArray(obj.owned) ? obj.owned : []).concat(
+      isObj(obj.loadout) ? Object.keys(obj.loadout).map(function (c) { return obj.loadout[c]; }) : []);
+    lo = lo.filter(function (id) { return typeof id === 'string'; });
+    var ars = (Array.isArray(obj.arsenal) ? obj.arsenal : []).concat(Array.isArray(obj.owned) ? obj.owned : [], lo);
+    out.arsenal = ars.filter(function (id, i) { return typeof id === 'string' && ars.indexOf(id) === i; });
+    out.loadout = lo.filter(function (id, i) { return lo.indexOf(id) === i && out.arsenal.indexOf(id) >= 0; });
+    if (!out.loadout.length && out.arsenal.length) out.loadout = [out.arsenal[0]];
+    // skills: spent must never exceed what the progress has earned; a broken tree is reset (points refunded)
+    // (a save from before the six-row tree holds old skill ids: the whole tree is refunded and the game says so once)
+    if (!isObj(out.skills)) out.skills = {};
+    if (IB.Skills) { var san = IB.Skills.sanitize(out.skills, out.highest); out.skills = san.skills; if (san.reset) out.skillsRefunded = true; }
     return out;
   }
 
@@ -150,12 +178,16 @@
       var s = clone(DEFAULT_SETTINGS);
       var o = read(SETTINGS_KEY);
       if (o) for (var k in DEFAULT_SETTINGS) if (o[k] !== undefined && typeof o[k] === typeof DEFAULT_SETTINGS[k]) s[k] = o[k];
+      // settings v2: the old 85 default becomes the new 100 default (a field of view the player chose is kept)
+      if (o && !o.sv && o.fov === 85) s.fov = DEFAULT_SETTINGS.fov;
+      s.fov = Math.max(60, Math.min(130, s.fov));
       return s;
     }
 
     function saveSettings(s) {
       var out = clone(DEFAULT_SETTINGS);
       for (var k in DEFAULT_SETTINGS) if (s && s[k] !== undefined) out[k] = s[k];
+      out.sv = 2;
       write(SETTINGS_KEY, out);
       return out;
     }
@@ -178,6 +210,6 @@
 
   IB.Saves = {
     create: create, memoryBackend: memoryBackend, ago: ago, migrate: migrate,
-    DEFAULT_SETTINGS: DEFAULT_SETTINGS, PREFIX: PREFIX, SLOTS: SLOTS, slotKey: slotKey
+    defaultGear: defaultGear, DEFAULT_SETTINGS: DEFAULT_SETTINGS, PREFIX: PREFIX, SLOTS: SLOTS, slotKey: slotKey
   };
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));

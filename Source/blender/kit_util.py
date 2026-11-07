@@ -18,8 +18,10 @@ def finish(prefix, tris, name, m, ao, bevel=0.0, hull_t=0.02, cols=None):
     full = prefix + name
     obj = build_object(full, m, bevel, hull_t, ao=ao)
     tris[full] = sum(len(p.vertices) - 2 for p in obj.data.polygons)
-    for i, (c, hlf) in enumerate(cols or []):
-        e = bpy.data.objects.new('%s_COL%d' % (full, i), None)
+    for i, col in enumerate(cols or []):
+        c, hlf = col[0], col[1]
+        walk = len(col) > 2 and col[2]   # <Piece>_WCOL<n>: robots may walk on it (decks, steps, planks)
+        e = bpy.data.objects.new('%s_%sCOL%d' % (full, 'W' if walk else '', i), None)
         e.empty_display_type = 'CUBE'
         e.empty_display_size = 1.0
         bpy.context.scene.collection.objects.link(e)
@@ -29,9 +31,9 @@ def finish(prefix, tris, name, m, ao, bevel=0.0, hull_t=0.02, cols=None):
     return obj
 
 
-def col_box(x0, y0, z0, x1, y1, z1):
-    """collision box from two corners (Blender coords) -> (centre, half extents)"""
-    return (((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2), (abs(x1 - x0) / 2, abs(y1 - y0) / 2, abs(z1 - z0) / 2))
+def col_box(x0, y0, z0, x1, y1, z1, walk=False):
+    """collision box from two corners (Blender coords) -> (centre, half extents, walkable)"""
+    return (((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2), (abs(x1 - x0) / 2, abs(y1 - y0) / 2, abs(z1 - z0) / 2), walk)
 
 
 def tag(m, faces, color=None):

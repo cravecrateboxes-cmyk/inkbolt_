@@ -13,6 +13,7 @@
   var PAPERS = ['Paper_A', 'Paper_B', 'Paper_C'];
   var FLOORSTUFF = ['Pencil', 'Crayons_A', 'Crayons_B'];
   var BAYS = ['Win_Bay_A', 'Win_Bay_B', 'Win_Bay_C'];
+  var TRAILS = ['TrailWall_B', 'TrailWall_C', 'TrailWall_D', 'TrailWall_E'];
   var WALLS = ['Wall_Plain', 'Wall_Corner', 'Wall_Switch', 'Wall_Vent', 'Win_Open', 'Wall_Cork', 'Wall_Map', 'Wall_Clock',
     'Wall_Poster_A', 'Wall_Poster_B', 'Wall_Poster_C'].concat(BAYS);
 
@@ -53,10 +54,15 @@
     if (side === 'W') return [c, grid.h - 1 - u];
     return [c, u];
   }
-  // a wall cell facing the room on this side (not a gate, not a corner)
+  // the door built-in (GateFrame) covers the two wall cells either side of a gate
+  function nearGate(grid, x, y) {
+    for (var d = -2; d <= 2; d++) { var g = grid.at(x + d, y); if (g === 'G' || g === 'E') return true; }
+    return false;
+  }
+  // a wall cell facing the room on this side (not a gate, not a corner, not behind the door built-in)
   function faceCell(side, u, c, r, grid) {
     var p = cellAt(side, u, c, r, grid), x = p[0], y = p[1];
-    if (grid.at(x, y) !== '#') return false;
+    if (grid.at(x, y) !== '#' || nearGate(grid, x, y)) return false;
     var o = side === 'N' ? grid.at(x, y + 1) : side === 'S' ? grid.at(x, y - 1) : side === 'W' ? grid.at(x + 1, y) : grid.at(x - 1, y);
     return !wallish(o);
   }
@@ -105,12 +111,13 @@
     if (side === 'N') { var L = letterAt(u, c, r, grid); if (L) return L; }
     var d = decorAt(side, u, c, r, grid);
     if (d) return d;
-    // light switch by the doors, the odd air vent high up
-    if ((side === 'N' || side === 'S') && wallAt(grid, c + 2, r) && grid.at(c + 2, r) !== '#' && grid.at(c + 1, r) === '#') return 'Wall_Switch';
+    // light switch just past the door built-in, the odd air vent high up
+    if ((side === 'N' || side === 'S') && wallAt(grid, c + 3, r) && grid.at(c + 3, r) !== '#' && grid.at(c + 1, r) === '#' && grid.at(c + 2, r) === '#') return 'Wall_Switch';
     if (side !== 'N' && hash(c * 7 + 3, r * 11 + 5) < 0.06) return 'Wall_Vent';
     return 'Wall_Plain';
   }
   function chooseWall(c, r, horiz, corner, hash, grid) {
+    if (nearGate(grid, c, r)) return null;   // inside the door built-in (GateFrame): no wall module
     // a real room corner has wall neighbours inside the grid both ways (the engine's `corner` counts outside cells)
     if ((wallAt(grid, c - 1, r) || wallAt(grid, c + 1, r)) && (wallAt(grid, c, r - 1) || wallAt(grid, c, r + 1))) return 'Wall_Corner';
     var side = sideOf(c, r, grid);
@@ -148,14 +155,16 @@
       'O': { size: [3, 3], pieces: BEANS, flip: true, kind: 'cover' },
       'R': { size: [12, 10], pieces: ['Rug'], collide: false },
       'p': { size: [2, 2], pieces: PAPERS, flip: true, collide: false },
-      'l': { size: [3, 1], pieces: FLOORSTUFF, flip: true, kind: 'cover' },
+      'l': { size: [3, 1], pieces: FLOORSTUFF, flip: true, kind: 'cover', y: 0.035 },
       'e': { pieces: ['Eraser'], rotate: 'random90', kind: 'cover' },
       'T': { size: [10, 5], pieces: ['Landmark_TeacherDesk'], kind: 'wall' },
       'Q': { size: [4, 4], pieces: ['Landmark_Globe'], kind: 'wall' },
       'k': { size: [22, 1], pieces: ['Landmark_Chalkboard'], kind: 'wall' }
     },
-    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
-    trail: { wall: 'TrailWall', height: 16.5 },
+    // the door is a floor-to-ceiling library built-in (covers the wall cells either side, closes the trail ends);
+    // the trail is a library aisle of mixed bookcase slices
+    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05, dress: ['GateBooks'] },
+    trail: { wall: 'TrailWall', height: 16.5, variants: TRAILS },
     hatch: 'Hatch', stand: 'Eraser',
     backdrop: null,
     budget: { prop: 2000, landmark: 4000, total: 70000 },
@@ -164,8 +173,8 @@
       var turnedPieces = TURNED[90].map(function (n) { return n + '_R90'; }).concat(TURNED[270].map(function (n) { return n + '_R270'; }));
       return WALLS.concat(turnedPieces, letters, DESKS, BLOCKS, ['Block_S'], STACKS, BAGS, BEANS, PAPERS, FLOORSTUFF,
         ['Chair', 'Chair_Fallen', 'BooksA', 'BooksB', 'Bin', 'Bookcase', 'BookcaseB', 'Rug', 'Eraser',
-          'Landmark_TeacherDesk', 'Landmark_Globe', 'Landmark_Chalkboard', 'GateFrame', 'GateShutter', 'TrailWall',
-          'Hatch', 'LightPanel']);
+          'Landmark_TeacherDesk', 'Landmark_Globe', 'Landmark_Chalkboard', 'GateFrame', 'GateBooks', 'GateShutter', 'TrailWall',
+          'Hatch', 'LightPanel'], TRAILS);
     },
     levels: {
       classroom: {
@@ -179,13 +188,13 @@
           { map: 'classroom_reading', waves: [
             [['crawler', 8], ['drone', 2]],
             [['bomber', 3], ['crawler', 6]],
-            [['gunner', 3], ['crawler', 5]],
+            [['gunner', 3], ['crawler', 4], ['blader', 1]],
             [['drone', 2], ['crawler', 4]]] },
           { map: 'classroom_front', waves: [
             [['crawler', 8], ['gunner', 3]],
             [['drone', 3], ['bomber', 3], ['crawler', 4]],
             [['gunner', 4], ['crawler', 5]],
-            [['crawler', 3], ['bomber', 2], ['drone', 2]]] }
+            [['crawler', 2], ['bomber', 2], ['drone', 2], ['blader', 1]]] }
         ]
       }
     }

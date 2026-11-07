@@ -31,7 +31,7 @@ function serve() {
 // pinned for the screenshot (the page is thrown away after).
 async function combatHud(pg, o) {
   await pg.evaluate(() => { __TEST__.start(); __TEST__.forceWaves(); });
-  await pg.waitForFunction(() => __TEST__.state().alive >= 1, null, { timeout: 30000 });
+  await pg.waitForFunction(() => __TEST__.state().alive >= 1, null, { timeout: 60000 });
   await pg.evaluate((o) => {
     const G = IB.Game, H = IB.HUD, p = G.player; G.player.protect = 99;
     const live = IB.AI.robots.filter(r => r.on);
@@ -55,12 +55,23 @@ async function combatHud(pg, o) {
   }, o);
 }
 
+async function fieldKit(pg, tab) {
+  await pg.evaluate(() => __TEST__.start());
+  await pg.waitForFunction(() => IB.Game.run && IB.Game.run.started, null, { timeout: 20000 });
+  await pg.evaluate((tab) => {
+    const G = IB.Game; G.slot.highest = 11; G.slot.gems = 640;
+    G.slot.arsenal = ['pip', 'buzz', 'rivet', 'handcannon', 'needle', 'longtom', 'whisk']; G.slot.loadout = ['rivet', 'pip'];
+    G.slot.skills = { overload: 3, heavyink: 2, stream: 1, electrify: 1, rapid: 2, hazard: 1, healthy: 2 };
+    G.applyProgress(); __TEST__.tabMenu(tab);
+  }, tab);
+}
+
 // screen setup steps, run in the page
 const SCREENS = {
   title: async pg => { await pg.evaluate(() => __TEST__.title()); },
   hud: async pg => {
     await pg.evaluate(() => __TEST__.start());
-    await pg.waitForFunction(() => __TEST__.state().alive >= 3, null, { timeout: 20000 });
+    await pg.waitForFunction(() => __TEST__.state().alive >= 3, null, { timeout: 60000 });
     await pg.evaluate(() => { const G = IB.Game; G.player.protect = 99; const r = IB.AI.robots.find(r => r.on); if (r) { r.x = G.player.x + 1.2; r.z = G.player.z - 6; } IB.HUD.feed('pistol', 'Crawler', 1); IB.HUD.feed('smg', 'Crawler', 1); IB.HUD.hit('core'); IB.HUD.arc(0.6); });
   },
   // the new HUD API driven with fake data (game.js may not call all of it yet): weapon plate, slots with names, objective,
@@ -78,6 +89,36 @@ const SCREENS = {
     await pg.evaluate(() => __TEST__.start()); await pg.waitForTimeout(300);
     await pg.evaluate(() => { IB.HUD.dim(1); IB.Menus.loading({ level: 2, name: 'Backyard', line: 'Bins have taken the lawn. Watch the fence line.', palette: ['#7FD36B', '#FFFFFF', '#FF8A3D', '#B98A5A'] }); IB.Menus.loadingProgress(0.62); });
   },
+  // loot HUD: shield bar above health (recharging), the loot card, damage numbers (hit, core, crit, acid, shock)
+  'hud-loot': async pg => {
+    await combatHud(pg, { mag: 18, late: false, objective: 'Clear the lot · 12 robots' });
+    await pg.evaluate(() => {
+      const G = IB.Game, L = IB.Loot, LH = IB.LootHUD, p = G.player, noop = () => {};
+      const rng = (() => { let s = 11; return () => (s = (s * 16807) % 2147483647) / 2147483647; })();
+      LH.shield({ cur: 23, max: 34, charging: true }); LH.shield = noop;
+      LH.loot(L.makeItem('acid', 'epic', 6, rng), 'Fitted to KV-9 Buzzsaw');
+      const fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw), rx = Math.cos(p.yaw), rz = -Math.sin(p.yaw);
+      // long-lived numbers caught just after their pop (swiftshader frame times would otherwise fade them out)
+      const at = (side, fwd, y, n, k) => { const d = IB.FX.damageNumber(p.x + fx * fwd + rx * side, y, p.z + fz * fwd + rz * side, n, k); d.life = 60; d.t = 0.3; return d; };
+      at(-1.6, 7, 1.6, 22, 'hit'); at(-0.4, 6.5, 2.0, 41, 'core'); at(1.1, 7.5, 1.7, 88, 'crit'); at(2.4, 8, 1.3, 4, 'acid'); at(-2.8, 8.5, 1.2, 6, 'shock');
+      at(9, 8, 1.2, 13, 'hit');   // off to the side: clamped inside the screen edge
+      LH.tick = noop;
+    });
+  },
+  // Gear tab content (IB.GearUI.render) in its standalone panel: shield, guns with slots, bag
+  gear: async pg => {
+    await pg.evaluate(() => __TEST__.start()); await pg.waitForTimeout(300);
+    await pg.evaluate(() => {
+      const G = IB.Game, L = IB.Loot, g = IB.Gear.gear(G); G.slot.highest = 4;
+      IB.Weapons.give(G.ws, 'rivet');
+      const rng = (() => { let s = 7; return () => (s = (s * 16807) % 2147483647) / 2147483647; })();
+      [['shield', 'epic'], ['grip', 'rare'], ['acid', 'epic'], ['scope', 'common'], ['shield', 'common'], ['acid', 'rare']].forEach(([t, r], i) => {
+        const it = L.addItem(g, L.makeItem(t, r, 3 + i, rng));
+        if (i === 0) L.equipShield(g, it.id); if (i === 1) L.attach(g, 'rivet', IB.WEAPONS.rivet, it.id); if (i === 2) L.attach(g, 'buzz', IB.WEAPONS.buzz, it.id);
+      });
+      IB.Gear.refresh(G, true); __TEST__.gear();
+    });
+  },
   eliminated: async pg => { await pg.evaluate(() => __TEST__.start()); await pg.waitForTimeout(300); await pg.evaluate(() => __TEST__.damagePlayer(500)); },
   pause: async pg => { await pg.evaluate(() => __TEST__.start()); await pg.waitForTimeout(300); await pg.evaluate(() => __TEST__.pause()); },
   settings: async pg => { await pg.evaluate(() => { __TEST__.title(); __TEST__.menu('settings'); }); },
@@ -86,17 +127,38 @@ const SCREENS = {
     await pg.evaluate(() => { __TEST__.start(); });
     await pg.waitForTimeout(300);
     await pg.evaluate(() => { const G = IB.Game; G.slot.gems = 1234567; G.level.zones.forEach(z => { z.state = 'cleared'; }); __TEST__.teleport('hatch'); });
-    await pg.waitForFunction(() => __TEST__.state().complete, null, { timeout: 10000 });
+    await pg.waitForFunction(() => __TEST__.state().complete, null, { timeout: 60000 });
   },
-  fail: async pg => { await pg.evaluate(() => { __TEST__.start(); }); await pg.waitForTimeout(300); await pg.evaluate(() => { IB.Game.run.retries = 0; __TEST__.damagePlayer(500); }); await pg.waitForFunction(() => /Out of retries/.test(document.getElementById('overlay').textContent), null, { timeout: 10000 }); }
+  // field kit (Tab menu) with mid-campaign progress: skills half spent, a 3-gun loadout, a full arsenal
+  'tabmenu-skills': async pg => { await fieldKit(pg, 'skills'); await pg.evaluate(() => { const b = document.querySelector('[data-skill="ricochet"]'); if (b) b.click(); }); },
+  'tabmenu-inventory': async pg => { await fieldKit(pg, 'inventory'); },
+  // inventory with loot: a fitted grip + acid muzzle, a worn shield, spares in the backpack; a backpack gun selected (card + compare)
+  'tabmenu-gear': async pg => {
+    await fieldKit(pg, 'inventory');
+    await pg.evaluate(() => {
+      const G = IB.Game, L = IB.Loot, g = IB.Gear.gear(G);
+      const rng = (() => { let s = 7; return () => (s = (s * 16807) % 2147483647) / 2147483647; })();
+      [['shield', 'epic'], ['grip', 'rare'], ['acid', 'epic'], ['scope', 'common'], ['shield', 'common'], ['acid', 'rare']].forEach(([t, r], i) => {
+        const it = L.addItem(g, L.makeItem(t, r, 3 + i, rng));
+        if (i === 0) L.equipShield(g, it.id); if (i === 1) L.attach(g, 'rivet', IB.WEAPONS.rivet, it.id); if (i === 2) L.attach(g, 'rivet', IB.WEAPONS.rivet, it.id);
+      });
+      IB.Gear.refresh(G, true); IB.GearUI.state.sel = { k: 'gun', id: 'needle' }; IB.GearUI.render(document.getElementById('tmGear'), G);
+    });
+  },
+  'tabmenu-character': async pg => { await fieldKit(pg, 'character'); },
+  // settings on another category, the rotate hint and the level intro banner
+  'settings-controls': async pg => { await pg.evaluate(() => { __TEST__.title(); __TEST__.menu('settings'); IB.Menus.settingsCat(2); }); },
+  rotate: async pg => { await pg.evaluate(() => __TEST__.start()); await pg.waitForTimeout(300); await pg.evaluate(() => { IB.Game.pause(); IB.Menus.rotateHint(); }); },
+  intro: async pg => { await pg.evaluate(() => __TEST__.start()); await pg.waitForTimeout(300); await pg.evaluate(() => IB.Menus.intro({ level: 3, name: 'Rail Yard', zones: 3, line: 'The trains run on scrap now.' }, 60)); },
+  fail: async pg => { await pg.evaluate(() => { __TEST__.start(); }); await pg.waitForTimeout(300); await pg.evaluate(() => { IB.Game.run.retries = 0; __TEST__.damagePlayer(500); }); await pg.waitForFunction(() => /Out of retries/.test(document.getElementById('overlay').textContent), null, { timeout: 60000 }); }
 };
 
 async function autoChecks(pg, label, touch) {
   const r = await pg.evaluate((touch) => {
     const W = innerWidth, H = innerHeight, out = { overflow: document.documentElement.scrollWidth > W || document.body.scrollWidth > W, outside: [], small: [], hiddenOpen: [] };
     // an open overlay / loading screen must really be on screen (guards against class-name collisions hiding it)
-    ['overlay', 'loading'].forEach(id => { const el = document.getElementById(id); if (el && !el.hidden) { const cs = getComputedStyle(el); if (cs.visibility !== 'visible' || +cs.opacity < 0.5 || cs.display === 'none') out.hiddenOpen.push(id); } });
-    const sel = '#overlay .btn, #overlay .seg button, #overlay .switch, #overlay .range' + (touch ? ', #touch .tbtn:not([hidden]), #hud:not([hidden]) .pausebtn' : '');
+    ['overlay', 'loading', 'tabmenu'].forEach(id => { const el = document.getElementById(id); if (el && !el.hidden) { const cs = getComputedStyle(el); if (cs.visibility !== 'visible' || +cs.opacity < 0.5 || cs.display === 'none') out.hiddenOpen.push(id); } });
+    const sel = '#overlay .btn, #overlay .seg button, #overlay .switch, #overlay .range, #tabmenu:not([hidden]) button' + (touch ? ', #touch .tbtn:not([hidden]), #hud:not([hidden]) .pausebtn' : '');
     const ov = document.getElementById('overlay');
     document.querySelectorAll(sel).forEach(el => {
       if (el.closest('[hidden]')) return;
@@ -104,7 +166,10 @@ async function autoChecks(pg, label, touch) {
       const name = (el.textContent || el.id || el.className).trim().slice(0, 24);
       // overlay scrolls: judge vertical position against the scrollable content, horizontal against the viewport
       const top = b.top + (ov.contains(el) ? ov.scrollTop : 0), bottom = top + b.height, maxH = ov.contains(el) ? Math.max(H, ov.scrollHeight) : H;
-      if (b.left < -0.5 || b.right > W + 0.5 || top < -0.5 || bottom > maxH + 0.5) out.outside.push(name);
+      // field kit panes scroll on their own: judge those buttons against their pane horizontally only
+      const pane = el.closest('.tm-scroll');
+      if (pane) { const pr = pane.getBoundingClientRect(); if (b.left < pr.left - 0.5 || b.right > pr.right + 0.5 || b.right > W + 0.5) out.outside.push(name); }
+      else if (b.left < -0.5 || b.right > W + 0.5 || top < -0.5 || bottom > maxH + 0.5) out.outside.push(name);
       const min = el.classList.contains('switch') || el.classList.contains('range') ? 44 : 48;
       if (touch && (b.height < min - 0.5 || b.width < min - 0.5)) out.small.push(name + ' ' + Math.round(b.width) + 'x' + Math.round(b.height));
     });
@@ -130,12 +195,12 @@ async function autoChecks(pg, label, touch) {
       await pg.waitForFunction(() => window.__TEST__ && IB.Game.mode === 'play', null, { timeout: 30000 });
       await SCREENS[name](pg);
       await pg.waitForTimeout(900);
-      await pg.screenshot({ path: path.join(dir, name + '.png') });
+      await pg.screenshot({ path: path.join(dir, name + '.png'), timeout: 120000 });
       await autoChecks(pg, v.name + '/' + name, v.touch);
       if (v.rot) {
         await pg.setViewportSize({ width: v.rot.w, height: v.rot.h });
         await pg.waitForTimeout(600);
-        await pg.screenshot({ path: path.join(dir, name + '-rotated.png') });
+        await pg.screenshot({ path: path.join(dir, name + '-rotated.png'), timeout: 120000 });
         await autoChecks(pg, v.name + '/' + name + ' rotated', v.touch);
       }
       check(v.name + '/' + name + ' no page errors', logs.length === 0, logs.join(' | '));

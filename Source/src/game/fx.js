@@ -38,6 +38,25 @@
     ctx.lineWidth = R * 0.16; ctx.strokeStyle = '#15121C'; ctx.beginPath(); ctx.arc(0, 0, R - ctx.lineWidth / 2, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
   }
+  function drawScorch(ctx, cx, cy, R, seed) {
+    var r = rngFrom(seed), k, a;
+    ctx.fillStyle = '#15121C';
+    // halftone fringe: dots shrinking outward
+    for (k = 0; k < 90; k++) {
+      a = r() * Math.PI * 2; var d = R * (0.55 + r() * 0.42), dr = R * 0.07 * (1.15 - d / R);
+      ctx.beginPath(); ctx.arc(cx + Math.cos(a) * d, cy + Math.sin(a) * d, Math.max(1.2, dr), 0, Math.PI * 2); ctx.fill();
+    }
+    // radial streaks
+    for (k = 0; k < 13; k++) {
+      a = k / 13 * Math.PI * 2 + r() * 0.3; var L = R * (0.7 + r() * 0.3), w = 0.09 + r() * 0.07;
+      ctx.beginPath(); ctx.moveTo(cx + Math.cos(a - w) * R * 0.3, cy + Math.sin(a - w) * R * 0.3);
+      ctx.lineTo(cx + Math.cos(a) * L, cy + Math.sin(a) * L); ctx.lineTo(cx + Math.cos(a + w) * R * 0.3, cy + Math.sin(a + w) * R * 0.3); ctx.fill();
+    }
+    // the burn itself: a ragged blob
+    ctx.beginPath();
+    for (k = 0; k <= 16; k++) { a = k / 16 * Math.PI * 2; var rr = R * (0.36 + r() * 0.14); if (k === 0) ctx.moveTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); else ctx.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); }
+    ctx.fill();
+  }
   FX.makeAtlas = function () {
     return IB.Render.canvasTex(512, 512, function (ctx) {
       ctx.clearRect(0, 0, 512, 512);
@@ -46,9 +65,11 @@
       // white puff blob (tinted per particle) and soft blob shadow
       drawSplat(ctx, 320, 192, 40, 77, '#FFFFFF');
       ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.arc(448, 192, 52, 0, Math.PI * 2); ctx.fill();
+      // blast scorch marks (third row): an ink burn with radial streaks and a halftone fringe
+      drawScorch(ctx, 64, 320, 58, 211); drawScorch(ctx, 192, 320, 58, 977);
     });
   };
-  var CELL = { splat: [[0, 0], [1, 0], [2, 0], [3, 0]], hole: [[0, 1], [1, 1]], puff: [2, 1], disc: [3, 1] };
+  var CELL = { splat: [[0, 0], [1, 0], [2, 0], [3, 0]], hole: [[0, 1], [1, 1]], puff: [2, 1], disc: [3, 1], scorch: [[0, 2], [1, 2]] };
 
   function atlasMaterial(tex, opts) {
     var m = new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5, transparent: !!opts.transparent, depthWrite: !opts.transparent, fog: true,
@@ -90,7 +111,7 @@
     FX.parts.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(FX.pCap * 3), 3);
     FX.pool = []; for (var i = 0; i < FX.pCap; i++) { FX.pool.push({ on: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, t: 0, life: 1, s0: 0.2, s1: 0.5, rot: 0, g: 0 }); setUv(FX.parts, i, CELL.puff); }
     scene.add(FX.parts);
-    FX.particleScale = 1;
+    if (!(FX.particleScale > 0)) FX.particleScale = 1;   // the quality tier (game.setTier) may have set it before init
     // chunks
     FX.cCap = 96;
     // scrap chunks: the fps-common ink chunk (a crushed can), unlit ink
@@ -190,7 +211,7 @@
     _s.set(size, size, size);
     _m.compose(_v, _q, _s);
     FX.decals.setMatrixAt(i, _m);
-    var cell = kind === 'hole' ? CELL.hole[(Math.random() * 2) | 0] : CELL.splat[(Math.random() * 4) | 0];
+    var cell = kind === 'hole' ? CELL.hole[(Math.random() * 2) | 0] : kind === 'scorch' ? CELL.scorch[(Math.random() * 2) | 0] : CELL.splat[(Math.random() * 4) | 0];
     setUv(FX.decals, i, cell);
     FX.decals.instanceMatrix.needsUpdate = true;
     FX.decalCount = Math.min(cap, FX.decalCount + 1);
@@ -250,17 +271,21 @@
   FX.initGems = function (scene) {
     // one gem mesh (fps-weapons PICKUP_Gem), three gem types by instance colour and scale (brief 4.6)
     FX.gemCap = 240;
-    FX.gemMesh = new THREE.InstancedMesh(IB.Assets.get('PICKUP_Gem'), IB.Assets.mat.weapons, FX.gemCap);
+    // gems shine: their own toon material with a cool blue self-light, so the facets read bright diamond blue in any light
+    var gemMat = IB.Render.toonMaterial({ map: IB.Assets.palette.weapons, baked: IB.Assets.BAKED ? IB.Assets.BAKED.weapons : 0 });
+    gemMat.emissive = new THREE.Color(0x1E4E7A);
+    FX.gemMesh = new THREE.InstancedMesh(IB.Assets.get('PICKUP_Gem'), gemMat, FX.gemCap);
     FX.gemMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); FX.gemMesh.frustumCulled = false;
     FX.gems = [];
     for (var i = 0; i < FX.gemCap; i++) { FX.gems.push({ on: false, kind: 'chip', x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, bounced: false, t: 0, fly: false, zone: -1 }); FX.gemMesh.setMatrixAt(i, ZERO); FX.gemMesh.setColorAt(i, _c.set(PAL.chip)); }
     scene.add(FX.gemMesh);
   };
-  var GEMCOL = { chip: PAL.chip, shard: PAL.shard, core: PAL.core }, GEMSCALE = { chip: 1, shard: 1.35, core: 1.7 };
+  // diamond blues: chips sky blue, shards a deeper sapphire, cores an icy near-white blue (bigger)
+  var GEMCOL = { chip: 0x58C8FF, shard: 0x3D7BFF, core: 0xC6EEFF }, GEMSCALE = { chip: 1, shard: 1.35, core: 1.7 };
   FX.dropGem = function (kind, x, y, z, zone) {
     for (var i = 0; i < FX.gemCap; i++) {
       var g = FX.gems[i]; if (g.on) continue;
-      g.on = true; g.kind = kind; g.x = x; g.y = y + 0.3; g.rest = y - 0.1; g.z = z; g.t = 0; g.fly = false; g.bounced = false; g.zone = zone;
+      g.on = true; g.kind = kind; g.x = x; g.y = y + 0.3; g.z = z; g.t = 0; g.fly = false; g.bounced = false; g.zone = zone;
       var a = Math.random() * Math.PI * 2, s = 1 + Math.random() * 1.5;
       g.vx = Math.cos(a) * s; g.vz = Math.sin(a) * s; g.vy = 3 + Math.random() * 2;
       FX.gemMesh.setColorAt(i, _c.set(GEMCOL[kind])); FX.gemMesh.instanceColor.needsUpdate = true;
@@ -332,7 +357,7 @@
         g.x += dxp / d * sp; g.y += dyp / d * sp; g.z += dzp / d * sp;
       } else {
         g.vy -= 18 * dt; g.x += g.vx * dt; g.y += g.vy * dt; g.z += g.vz * dt;
-        var rest = g.rest === undefined ? 0.3 : g.rest;
+        var rest = 0.3 + (IB.Zones && IB.Zones.floorY ? IB.Zones.floorY(g.x, g.z, g.y) : 0);   // rest on a deck / stair top
         if (g.y < rest) {
           g.y = rest;
           if (!g.bounced) { g.vy = Math.abs(g.vy) * 0.35; g.bounced = true; g.vx *= 0.5; g.vz *= 0.5; }
@@ -344,6 +369,8 @@
       _v.set(g.x, g.y + (g.vy === 0 && !g.fly ? Math.sin(t0 * 3 + i) * 0.06 : 0), g.z); _s.set(sc2, sc2, sc2);
       _m.compose(_v, _q, _s); FX.gemMesh.setMatrixAt(i, _m);
       if (!g.fly) FX.blob(g.x, 0, g.z, 0.18 * GEMSCALE[g.kind]);
+      // a twinkle now and then: a tiny white glint off a facet
+      if (!g.fly && Math.random() < dt * 0.9) FX.puff(g.x + (Math.random() - 0.5) * 0.2, g.y + 0.12 * GEMSCALE[g.kind], g.z + (Math.random() - 0.5) * 0.2, 1, 0xFFFFFF, 0.05, 0.13, 0.2);
     }
     FX.gemMesh.instanceMatrix.needsUpdate = true;
     FX.gemMesh.count = gHi + 1;

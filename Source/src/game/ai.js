@@ -2,12 +2,23 @@
    ink-silhouette deaths. Crawler (melee lunge), Gunner (keeps distance, uses cover, 3-bolt volley),
    Bomber (rushes, 0.6 s fuse, blast that also hurts robots), Drone (hovers 3 m up, strafing bursts).
    Shared states: spawn, idle, alert, stagger, blinded, pose; per type: chase / keep, windup, attack, recover.
-   Per robot per frame there is no allocation: parts are posed with a small matrix stack of scratch matrices. */
+   Skill hooks (game/skillfx.js): AI.cloaked (Undercover: robots lose the player and search where he was last seen),
+   rogue robots (Handy Helpers: r.rogue > 0 s left; they fight the others, the others target them; AI.makeRogue),
+   a per-instance tint (teal rogue, wet blue Hydrate coat: r.wet).
+   Per robot per frame there is no allocation: parts are posed with a small matrix stack of scratch matrices.
+   Walkable surfaces (zones.js: boxes tagged walk, from <Piece>_WCOL empties): a ground robot keeps r.fy, the floor
+   under it (world.floorAt, stepping up at most STEP_UP), and r.gy, its smoothed foot height (glides up a step, falls
+   off an edge); r.y = r.gy + r.hop (the Crawler's lunge hop). Collision, sight, hits, shots, shadows and corpses all
+   work from r.y / r.fy, so robots climb stairs and ramps, cross bridges and fight on decks. Off-level targets (the
+   player up on a deck) are chased along the layered flow field instead of straight at them. Without walkable boxes
+   r.fy = r.gy = 0 and everything behaves as before; Drones fly as before. */
 (function (IB) {
   'use strict';
   var PAL = IB.PAL;
-  var AI = IB.AI = { robots: [], corpses: [], types: {}, typeList: [], tokens: 0, tokenMax: 3, level: 1 };
+  var AI = IB.AI = { robots: [], corpses: [], types: {}, typeList: [], tokens: 0, tokenMax: 3, level: 1,
+    cloaked: false, lkx: 0, lkz: 0, rogueChance: 0, rogueTime: 15, rogueDmgMul: 2, hitRogues: false };
   var CAP = 40, CORPSE_CAP = 16, TAU = Math.PI * 2;
+  var STEP_UP = 0.4;   // the highest walkable step a ground robot climbs onto (matches IB.Zones NAV_STEP)
   var ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
   var _m = new THREE.Matrix4(), _m2 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _v = new THREE.Vector3(), _s = new THREE.Vector3(1, 1, 1), _up = new THREE.Vector3(0, 1, 0), _ax = new THREE.Vector3(1, 0, 0), _c = new THREE.Color(), _dir = { x: 0, z: 0 }, _tmp = [], _mz = { x: 0, y: 0, z: 0 };
   var LIGHT_DIM = 0x7A6A4A;
@@ -109,7 +120,7 @@
       onDeath: function (r, quiet) {
         if (quiet || !IB.Projectiles || !IB.Projectiles.explode) return;
         var d = r.def;
-        IB.Projectiles.explode(r.x, r.y + 0.45, r.z, d.blastRadius || 3, (d.damage || 35) * r.dmgMul, (d.robotDamage || 45) * (AI.hpMul || 1), r);
+        IB.Projectiles.explode(r.x, r.y + 0.45, r.z, d.blastRadius || 3, (r.rogue > 0 || r.rogueEnd) ? 0 : (d.damage || 35) * r.dmgMul, (d.robotDamage || 45) * (AI.hpMul || 1), r);
       }
     },
 
@@ -156,20 +167,26 @@
     cmat.customProgramCacheKey = function () { return 'ibcorpse'; };
     AI.corpseMat = cmat;
     var A = IB.Assets, bake = A.BAKED.bots;
-    AI.mat = IB.Render.toonMaterial({ fx: true, map: A.palette.bots, baked: bake });
+    AI.mat = IB.Render.toonMaterial({ fx: true, map: A.palette.bots, baked: bake, uni: IB.Render.robotOutline });   // own ink colour (Undercover)
+    tintMaterial(AI.mat);
     AI.lightMat = IB.Render.toonMaterial({ map: A.palette.bots, baked: bake });
+    // armour recolour (Soldier variants): the palette's key armour texels take a per-instance colour (aTint)
+    AI.keyMat = IB.Render.toonMaterial({ fx: true, map: A.palette.bots, baked: bake });
+    tintMaterial(AI.keyMat); keyTintMaterial(AI.keyMat);
     Object.keys(VIS).forEach(function (id) {
       var v = VIS[id], T = { id: id, vis: v, parts: {}, partList: [], slots: [], corpse: null, hi: -1 };
       v.sockets(v);
       Object.keys(v.parts).forEach(function (pn) {
         var P = v.parts[pn];
         var geo = A.get(P.asset).clone(), n = CAP * P.count;
-        if (!P.light) { var fx = new THREE.InstancedBufferAttribute(new Float32Array(n * 2), 2); fx.setUsage(THREE.DynamicDrawUsage); geo.setAttribute('aFx', fx); }
-        var im = new THREE.InstancedMesh(geo, P.light ? AI.lightMat : AI.mat, n);
+        if (!P.light) { var fx = new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4); fx.setUsage(THREE.DynamicDrawUsage); geo.setAttribute('aFx', fx); }
+        if (P.tint) { var ta = new THREE.InstancedBufferAttribute(new Float32Array(n * 3).fill(1), 3); ta.setUsage(THREE.DynamicDrawUsage); geo.setAttribute('aTint', ta); }
+        var im = new THREE.InstancedMesh(geo, P.light ? AI.lightMat : P.tint ? AI.keyMat : AI.mat, n);
         im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); im.frustumCulled = false;
         for (var i = 0; i < n; i++) { im.setMatrixAt(i, ZERO); if (P.light) im.setColorAt(i, _c.set(LIGHT_DIM)); }
         scene.add(im);
-        T.parts[pn] = { name: pn, mesh: im, count: P.count, fx: im.geometry.attributes.aFx || null };
+        // opt: a shape variant (only some robots wear it): drawn only in frames where a live robot uses it
+        T.parts[pn] = { name: pn, mesh: im, count: P.count, fx: im.geometry.attributes.aFx || null, tint: im.geometry.attributes.aTint || null, opt: !!P.opt, used: false };
         T.partList.push(T.parts[pn]);
       });
       // corpse geometry: whole robot in rest pose, all ink
@@ -183,11 +200,56 @@
       for (var k = 0; k < CORPSE_CAP; k++) cm.setMatrixAt(k, ZERO);
       scene.add(cm);
       T.corpse = cm; T.corpses = [];
-      for (k = 0; k < CORPSE_CAP; k++) T.corpses.push({ on: false, t: 0, x: 0, y: 0, z: 0, vy: 0, yaw: 0, tip: 1 });
+      for (k = 0; k < CORPSE_CAP; k++) T.corpses.push({ on: false, t: 0, x: 0, y: 0, z: 0, vy: 0, yaw: 0, tip: 1, fy: 0 });
       for (var s = 0; s < CAP; s++) { var r = newRobot(id, s); T.slots.push(r); AI.robots.push(r); }
       AI.types[id] = T; AI.typeList.push(T);
     });
   };
+
+  /* robot material: aFx grows to vec4 (x flash, y ink, z tint kind, w tint amount). Kind 1 = rogue (teal body and a teal
+     outline), kind 2 = wet (Hydrate: cold blue, a rim sheen and a hard comic glint). */
+  var TINT_GLSL = [
+    'if ( vFx.z > 0.5 && vFx.z < 1.5 ) {',
+    '  float lum = dot( gl_FragColor.rgb, vec3( 0.333 ) );',
+    '  gl_FragColor.rgb = mix( gl_FragColor.rgb, vec3( 0.07, 0.78, 0.71 ) * ( 0.45 + 0.75 * lum ), vFx.w );',
+    '} else if ( vFx.z > 1.5 ) {',
+    '  vec3 nw = normalize( normal );',
+    '  float rim = pow( 1.0 - abs( nw.z ), 2.0 );',
+    '  float glint = step( 0.9, dot( nw, normalize( vec3( -0.35, 0.75, 0.55 ) ) ) );',
+    '  gl_FragColor.rgb = mix( gl_FragColor.rgb, gl_FragColor.rgb * vec3( 0.55, 0.78, 1.2 ) + vec3( 0.0, 0.04, 0.12 ), vFx.w );',
+    '  gl_FragColor.rgb += vFx.w * ( rim * vec3( 0.25, 0.55, 0.95 ) * 0.7 + glint * vec3( 0.85, 0.95, 1.0 ) );',
+    '}',
+    'if ( vHull > 0.5 ) gl_FragColor = vec4( ( vFx.z > 0.5 && vFx.z < 1.5 ) ? mix( uInk, vec3( 0.07, 0.85, 0.78 ), vFx.w ) : uInk, 1.0 );'
+  ].join('\n');
+  /* key-colour recolour: texels of the two armour key swatches ('plate' #F4F6F9, 'plate2' #B8BEC7 in fam_bots.py)
+     take the instance colour aTint (plate2 a shade darker); everything else keeps its palette colour */
+  function keyTintMaterial(mat) {
+    var base = mat.onBeforeCompile, key = mat.customProgramCacheKey;
+    mat.onBeforeCompile = function (sh) {
+      base(sh);
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec3 aTint;\nvarying vec3 vTint;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvTint = aTint;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vTint;')
+        .replace('#include <map_fragment>', ['#include <map_fragment>',
+          '#ifdef USE_MAP',
+          'float ibK1 = step( distance( texelColor.rgb, vec3( 0.957, 0.965, 0.976 ) ), 0.012 );',
+          'float ibK2 = step( distance( texelColor.rgb, vec3( 0.722, 0.745, 0.780 ) ), 0.012 );',
+          'diffuseColor.rgb = mix( diffuseColor.rgb, vTint, ibK1 );',
+          'diffuseColor.rgb = mix( diffuseColor.rgb, vTint * 0.66, ibK2 );',
+          '#endif'].join('\n'));
+    };
+    mat.customProgramCacheKey = function () { return key() + 'key'; };
+  }
+  function tintMaterial(mat) {
+    var base = mat.onBeforeCompile, key = mat.customProgramCacheKey;
+    mat.onBeforeCompile = function (sh) {
+      base(sh);
+      sh.vertexShader = sh.vertexShader.replace('attribute vec2 aFx;\nvarying vec2 vFx;', 'attribute vec4 aFx;\nvarying vec4 vFx;');
+      sh.fragmentShader = sh.fragmentShader.replace('varying vec2 vFx;', 'varying vec4 vFx;')
+        .replace('if ( vHull > 0.5 ) gl_FragColor = vec4( uInk, 1.0 );', TINT_GLSL);
+    };
+    mat.customProgramCacheKey = function () { return key() + 'tint'; };
+  }
 
   function newRobot(type, slot) {
     return { type: type, slot: slot, def: IB.ENEMIES && IB.ENEMIES[type] || {}, on: false, state: 'off', st: 0, x: 0, y: 0, z: 0, vx: 0, vz: 0, yaw: 0, hp: 1, maxHp: 1,
@@ -196,11 +258,16 @@
       // ranged / vehicle state
       cool: 0, thinkT: 0, mode: 'approach', gx: 0, gz: 0, sdir: 1, bump: 0, shots: 0, shotT: 0, aimTo: 0,
       roll: 0, tilt: 0, wob: 0, lid: 0, aim: -0.45, gunOut: 0, kick: 0, hy: 0, spin: Math.random() * 6, bankX: 0, bankZ: 0,
-      fuse: 0, fuse0: 0.6, capPop: 0, fizzT: Math.random() };
+      fuse: 0, fuse0: 0.6, capPop: 0, fizzT: Math.random(),
+      // walkable surfaces: floor under the robot, smoothed foot height, its fall speed, the Crawler's lunge hop
+      fy: 0, gy: 0, fvy: 0, hop: 0,
+      // skills: rogue seconds left (Handy Helpers), wet seconds left (Hydrate), current robot target
+      rogue: 0, rogueEnd: false, wet: 0, tgt: null, tgtT: 0 };
   }
 
   AI.clear = function () {
-    AI.robots.forEach(function (r) { r.on = false; r.state = 'off'; r.token = false; r.fuse = 0; });
+    AI.robots.forEach(function (r) { r.on = false; r.state = 'off'; r.token = false; r.fuse = 0; r.rogue = 0; r.wet = 0; r.tgt = null; });
+    AI.cloaked = false;
     AI.typeList.forEach(function (T) { T.corpses.forEach(function (c) { c.on = false; }); });
     AI.tokens = 0;
   };
@@ -208,7 +275,11 @@
     AI.level = L; AI.tokenMax = 3 + Math.floor(L / 5);
     AI.hpMul = IB.Damage ? IB.Damage.enemyHpMul(L) : 1 + 0.06 * (L - 1);
     AI.dmgMul = IB.Damage ? IB.Damage.enemyDmgMul(L) : Math.min(3, 1 + 0.04 * (L - 1));
+    // per-level tempo: volley pauses, aim spread and lead, windup tells, move speed (core/damage.js enemyTempo)
+    AI.tempo = IB.Damage && IB.Damage.enemyTempo ? IB.Damage.enemyTempo(L) : TEMPO1;
   };
+  var TEMPO1 = { coolMul: 1, aimMul: 1, leadAdd: 0, tellMul: 1, speedMul: 1 };
+  function tempo() { return AI.tempo || TEMPO1; }
 
   /* spawn a robot hopping out of a spawn can at (x,z) toward (tx,tz) */
   AI.spawn = function (type, x, z, zone, tx, tz, opts) {
@@ -221,29 +292,36 @@
     r.maxHp = r.hp = stat(type, 'hp', 30) * (AI.hpMul || 1);
     r.sx = x; r.sz = z; r.x = x; r.z = z; r.tx = tx; r.tz = tz;
     r.hy = v.flying ? stat(type, 'hover', 3) - v.centre : 0;
-    r.gy = opts.y || 0; r.vy = 0; r.flyH = r.hy;   // gy: the surface under the robot (ground, deck, stair, branch); ly: height above it
-    r.ly = opts.pose ? r.hy : 1.0; r.y = r.gy + r.ly;
+    r.sy = opts.y || 0;   // the floor the spawn can stands on (a mezzanine spawn stands on the deck)
+    r.y = r.sy + (opts.pose ? r.hy : 1.0);
     r.vx = r.vz = 0; r.kx = r.kz = 0; r.flash = 0; r.crouch = 0; r.token = false; r.alert = 0; r.blind = 0;
     r.cool = 0.6 + Math.random() * 1.2; r.thinkT = 0; r.mode = 'approach'; r.sdir = Math.random() < 0.5 ? -1 : 1; r.bump = 0; r.lost = 0;
     r.tilt = 0; r.wob = 0; r.lid = 0; r.aim = -0.45; r.gunOut = 0; r.kick = 0; r.bankX = r.bankZ = 0; r.fuse = 0; r.capPop = 0;
     r.yaw = Math.atan2(tx - x, tz - z); r.walk = Math.random() * 3; r.dmgMul = (AI.dmgMul || 1) * (opts.dmgScale || 1);
-    if (!opts.pose && IB.FX) IB.FX.puff(x, r.gy + 1.0, z, 6, PAL.ink, 0.2, 0.6, 2.5);
+    r.rogue = 0; r.rogueEnd = false; r.wet = 0; r.tgt = null; r.tgtT = 0;
+    r.fy = r.gy = 0; r.fvy = 0; r.hop = 0;
+    r.maxShield = r.shield = 0;
+    if (v.init) v.init(r, opts);   // per-type spawn state (troops.js: armour variant, shield pool, grenades, blade)
+    if (!opts.pose && IB.FX) IB.FX.puff(x, 1.0, z, 6, PAL.ink, 0.2, 0.6, 2.5);
     return r;
   };
 
   AI.alive = function (zone) {
-    var n = 0; for (var i = 0; i < AI.robots.length; i++) { var r = AI.robots[i]; if (r.on && r.state !== 'pose' && (zone === undefined || r.zone === zone)) n++; }
+    // rogue robots (Handy Helpers) already counted as kills: they never hold a zone open
+    var n = 0; for (var i = 0; i < AI.robots.length; i++) { var r = AI.robots[i]; if (r.on && r.state !== 'pose' && !(r.rogue > 0) && (zone === undefined || r.zone === zone)) n++; }
     return n;
   };
   // test hook / zone wipe: quiet kills (Bombers do not blow up)
   AI.killAll = function (zone, cb) {
-    AI.robots.forEach(function (r) { if (r.on && r.state !== 'pose' && (zone === undefined || r.zone === zone)) AI.kill(r, cb, true); });
+    AI.robots.forEach(function (r) { if (r.on && r.state !== 'pose' && !(r.rogue > 0) && (zone === undefined || r.zone === zone)) AI.kill(r, cb, true); });
   };
   AI.despawn = function (zone) { AI.robots.forEach(function (r) { if (r.on && (zone === undefined || r.zone === zone)) { releaseToken(r); r.on = false; r.state = 'off'; r.fuse = 0; } }); };
 
   function releaseToken(r) { if (r.token) { r.token = false; AI.tokens = Math.max(0, AI.tokens - 1); } }
   function setState(r, s) { if ((s !== 'windup' && s !== 'attack') && r.token && s !== 'recover') releaseToken(r); r.state = s; r.st = 0; }
-  function takeToken(r) { if (r.token || AI.tokens >= AI.tokenMax) return r.token; r.token = true; AI.tokens++; return true; }
+  // attack tokens ration the robots attacking the player at once; robot-vs-robot fights (rogues) need none
+  var _freeToken = false;
+  function takeToken(r) { if (_freeToken) return true; if (r.token || AI.tokens >= AI.tokenMax) return r.token; r.token = true; AI.tokens++; return true; }
 
   // hearing: wake robots within radius
   AI.hear = function (x, z, radius) {
@@ -262,10 +340,20 @@
   AI.damage = function (r, dmg, opts, onKill) {
     if (!r.on || r.state === 'spawn' || r.state === 'pose') return false;
     opts = opts || {};
+    if (r.rogue > 0) onKill = null;   // a rogue was already paid for; whoever wrecks it earns nothing
+    var vd = VIS[r.type];
+    if (vd.onDamage) {   // per-type: a shield pool soaks it first (Soldier), a dizzy Blade Bot takes more
+      dmg = vd.onDamage(r, dmg, opts);
+      if (!(dmg > 0)) { r.flash = 0.06; if (r.state === 'idle') setState(r, 'alert'); return false; }
+    }
     r.hp -= dmg; r.flash = 0.06;
     if (r.state === 'idle') setState(r, 'alert');
-    if (r.hp <= 0) { AI.kill(r, onKill); return true; }
-    if (dmg >= r.maxHp * 0.25 || opts.stagger) {
+    if (r.hp <= 0) {
+      // Handy Helpers: a robot the player wrecks may turn rogue instead (it still counts as the player's kill)
+      if (onKill && AI.rogueChance > 0 && !r.def.boss && Math.random() < AI.rogueChance) { AI.makeRogue(r, AI.rogueTime); onKill(r); paid(r); return true; }
+      AI.kill(r, onKill); return true;
+    }
+    if ((dmg >= r.maxHp * 0.25 || opts.stagger) && !(vd.noStagger && vd.noStagger(r))) {
       setState(r, 'stagger'); r.kx = opts.kx || 0; r.kz = opts.kz || 0; r.crouch = 0;
     }
     return false;
@@ -278,13 +366,35 @@
     var T = AI.types[r.type], c = null, v = VIS[r.type];
     for (var i = 0; i < CORPSE_CAP; i++) if (!T.corpses[i].on) { c = T.corpses[i]; c.idx = i; break; }
     if (!c) { var oldest = 0; for (i = 1; i < CORPSE_CAP; i++) if (T.corpses[i].t > T.corpses[oldest].t) oldest = i; c = T.corpses[oldest]; c.idx = oldest; }
-    c.on = true; c.t = 0; c.x = r.x; c.y = r.y; c.gy = r.gy || 0; c.vy = 0; c.z = r.z; c.yaw = r.yaw; c.tip = Math.random() < 0.5 ? 1 : -1;
+    c.on = true; c.t = 0; c.x = r.x; c.y = r.y; c.vy = 0; c.z = r.z; c.yaw = r.yaw; c.tip = Math.random() < 0.5 ? 1 : -1; c.fy = r.fy || 0;
     var my = r.y + 0.5;
-    if (IB.FX) { IB.FX.chunk(r.x, my, r.z, 3 + ((Math.random() * 4) | 0), 3); IB.FX.puff(r.x, my, r.z, 6, PAL.ink, 0.25, 0.7, 3); }
+    if (IB.Boom && IB.Boom.ready) IB.Boom.robotDeath(r, quiet);   // comic explosion per type (Drones drop and blow up on impact)
+    else if (IB.FX) { IB.FX.chunk(r.x, my, r.z, 3 + ((Math.random() * 4) | 0), 3); IB.FX.puff(r.x, my, r.z, 6, PAL.ink, 0.25, 0.7, 3); }
     r.fuse = 0;
+    var rogue = r.rogue > 0 || r.rogueEnd;
     if (v.onDeath) v.onDeath(r, quiet);
-    if (onKill) onKill(r);
+    // a rogue self-destructs: a blast that only hurts robots (Bombers already blew up in onDeath, harmless to the player)
+    if (rogue && !quiet && !v.onDeath && IB.Projectiles && IB.Projectiles.explode) IB.Projectiles.explode(r.x, r.y + 0.45, r.z, 2.6, 0, 30 * (AI.hpMul || 1), r);
+    r.rogue = 0; r.rogueEnd = false; r.wet = 0; r.tgt = null;
+    if (onKill && !rogue) { onKill(r); paid(r); }
   };
+  // a kill the player earned: per-type extras (troops.js: weapon drops)
+  function paid(r) { var v = VIS[r.type]; if (v.onPlayerKill) v.onPlayerKill(r); }
+  /* Handy Helpers: r fights for the player for t seconds (full health, teal), then self-destructs */
+  AI.makeRogue = function (r, t) {
+    if (!r.on || r.state === 'pose') return false;
+    releaseToken(r);
+    r.rogue = t || AI.rogueTime || 15; r.rogueEnd = false; r.hp = r.maxHp; r.fuse = 0; r.capPop = 0; r.tgt = null; r.tgtT = 0; r.wet = 0;
+    r.crouch = 0; r.kx = r.kz = 0; if (!VIS[r.type].flying) { r.hop = 0; r.y = r.gy; }
+    setState(r, 'alert'); r.flash = 0.25;
+    if (IB.Status && IB.Status.clearRobot) IB.Status.clearRobot(r);
+    var y = r.y + 0.6;
+    if (IB.Boom && IB.Boom.ready) { IB.Boom.zap(r.x, y, r.z, 1.3, PAL.teal); IB.Boom.word('CLANG!', r.x, y + 0.9, r.z, 1.5); }
+    if (IB.FX) IB.FX.puff(r.x, y, r.z, 8, PAL.teal, 0.12, 0.4, 3);
+    play('clank', r, 0.9);
+    return true;
+  };
+  function rogueEnd(r) { r.rogue = 0; r.rogueEnd = true; AI.kill(r, null); }
 
   // ---------------- hitscan ----------------
   function rayCapsule(ox, oy, oz, dx, dy, dz, cx, cz, y0, y1, rad) {
@@ -311,7 +421,7 @@
   AI.raycast = function (ox, oy, oz, dx, dy, dz, maxT, skip) {
     var best = maxT, br = null, bz = 'body';
     for (var i = 0; i < AI.robots.length; i++) {
-      var r = AI.robots[i]; if (!r.on || r.state === 'pose' || r === skip || (skip && skip.indexOf && skip.indexOf(r) >= 0)) continue;
+      var r = AI.robots[i]; if (!r.on || r.state === 'pose' || r === skip || (r.rogue > 0 && !AI.hitRogues) || (skip && skip.indexOf && skip.indexOf(r) >= 0)) continue;
       var v = VIS[r.type], bodyY = r.y - r.crouch * 0.12;
       var tb = rayCapsule(ox, oy, oz, dx, dy, dz, r.x, r.z, bodyY + v.y0 + v.radius * 0.5, bodyY + v.y1 - v.radius * 0.5, v.radius);
       var sy = Math.sin(r.yaw), cy = Math.cos(r.yaw);
@@ -329,63 +439,20 @@
   };
 
   // ---------------- movement helpers ----------------
-  // circle vs AABBs on XZ. Ground robots step onto low boxes (stairs, branch steps: up to Zones.CLIMB) and walk under
-  // boxes that start 1.2 m above their feet; flyers pass over what is below them and under what is above them.
-  function collide(r, world, rad, fly) {
+  // circle vs AABBs on XZ; boxes lower than ylo (or 0.3 m) are stepped over / flown over. base: a ground robot's
+  // floor height (walkable surfaces): boxes are measured from it, and walkable boxes up to a step higher are walked onto
+  function collide(r, world, rad, ylo, base) {
     world.query(r.x - rad, r.z - rad, r.x + rad, r.z + rad, _tmp);
-    var Zs = IB.Zones;
+    var lo = Math.max(0.3, ylo || 0) + (base || 0), top = 1.2 + (base || 0);
     for (var i = 0; i < _tmp.length; i++) {
-      var b = _tmp[i];
-      if (fly) { if (b.y1 < r.y - 0.1 || b.y0 > r.y + 0.7) continue; }
-      else if (b.y1 <= r.gy + Zs.stepLimit(b) + 0.02 || b.y0 >= r.gy + 1.2) continue;
+      var b = _tmp[i]; if (b.y1 < lo || (!ylo && b.y0 > top)) continue;   // ground robots pass under raised boxes
+      if (b.walk && !ylo && b.y1 <= (base || 0) + STEP_UP) continue;          // a step, ramp or deck edge: walk onto it
       var cx = Math.max(b.x0, Math.min(r.x, b.x1)), cz = Math.max(b.z0, Math.min(r.z, b.z1));
       var dx = r.x - cx, dz = r.z - cz, d2 = dx * dx + dz * dz;
       if (d2 >= rad * rad) continue;
       if (d2 > 1e-8) { var d = Math.sqrt(d2); r.x += dx / d * (rad - d); r.z += dz / d * (rad - d); }
       else { r.x += (r.x < (b.x0 + b.x1) / 2 ? -1 : 1) * 0.05; }
     }
-  }
-  // the surface under a body at (x, z) with feet at gy: the ground or the highest box top it can step onto
-  var _sup = [];
-  function supportY(world, x, z, gy, rad) {
-    var best = world.groundAt(x, z), Zs = IB.Zones;
-    world.query(x - rad, z - rad, x + rad, z + rad, _sup);
-    for (var i = 0; i < _sup.length; i++) {
-      var b = _sup[i]; if (b.kind === 'gate') continue;
-      if (x + rad <= b.x0 || x - rad >= b.x1 || z + rad <= b.z0 || z - rad >= b.z1) continue;
-      if (b.y1 <= gy + Zs.stepLimit(b) + 0.02 && b.y1 > best) best = b.y1;
-    }
-    return best;
-  }
-  AI.supportY = supportY;
-  // highest box top under a flyer (anything below it) and the lowest underside above it
-  function flyBounds(world, r) {
-    var lo = world.groundAt(r.x, r.z), hi = 1e9;
-    world.query(r.x - 0.3, r.z - 0.3, r.x + 0.3, r.z + 0.3, _sup);
-    for (var i = 0; i < _sup.length; i++) {
-      var b = _sup[i]; if (b.kind === 'gate' || r.x + 0.3 <= b.x0 || r.x - 0.3 >= b.x1 || r.z + 0.3 <= b.z0 || r.z - 0.3 >= b.z1) continue;
-      if (b.y1 <= r.y - 0.2 && b.y1 > lo) lo = b.y1;
-      if (b.y0 >= r.y + 0.1 && b.y0 < hi) hi = b.y0;
-    }
-    _fb.lo = lo; _fb.hi = hi; return _fb;
-  }
-  var _fb = { lo: 0, hi: 1e9 };
-  // vertical: ground robots climb onto steps (eased) and fall off edges; flyers keep their hover over whatever is
-  // below, rise toward a player standing higher up and stay under ceilings and decks
-  function settle(r, world, fly, p, dt) {
-    if (fly) {
-      var fb = flyBounds(world, r), oldY = r.y;
-      r.gy += (fb.lo - r.gy) * Math.min(1, dt * 2);
-      var want = r.gy + r.hy;
-      if (p && p.alive && p.y > r.gy + 1) want = Math.max(want, p.y + 1.6);
-      want = Math.min(want, fb.hi - 0.7);
-      r.flyH = Math.max(0.6, want - r.gy);
-      r.ly = oldY - r.gy;   // keep the body where it is; the hover easing moves it toward flyH
-      return;
-    }
-    var sup = supportY(world, r.x, r.z, r.gy, 0.2);
-    if (sup >= r.gy - 0.01) { if (sup > r.gy) r.gy = Math.min(sup, r.gy + dt * 6); r.vy = 0; }
-    else { r.vy -= 18 * dt; r.gy = Math.max(sup, r.gy + r.vy * dt); if (r.gy <= sup) r.vy = 0; }
   }
   function turnTo(r, yaw, rate, dt) {
     var d = wrapAngle(yaw - r.yaw);
@@ -406,15 +473,18 @@
     return Math.atan2(p.y + 1.15 - py, Math.max(0.5, Math.hypot(p.x - px, p.z - pz)));
   }
   /* one bolt from the muzzle at the player's chest; lead = fraction of the player's velocity to lead by */
-  function fireBolt(r, v, p, speed, dmg, lead, spread) {
-    var m = muzzleWorld(r, v, r.gunOut);
+  function fireBolt(r, v, p, speed, dmg, lead, spread) { fireFrom(r, muzzleWorld(r, v, r.gunOut), p, speed, dmg, lead, spread); }
+  function fireFrom(r, m, p, speed, dmg, lead, spread) {
     var tx = p.x, ty = p.y + 1.15, tz = p.z;
     var dx = tx - m.x, dy = ty - m.y, dz = tz - m.z, d = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+    lead = (lead || 0) + tempo().leadAdd; spread = (spread || 0) * tempo().aimMul;
     if (lead) { var tt = d / speed; tx += (p.vx || 0) * tt * lead; tz += (p.vz || 0) * tt * lead; dx = tx - m.x; dz = tz - m.z; d = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1; }
     dx /= d; dy /= d; dz /= d;
     if (spread) { dx += (Math.random() - 0.5) * spread; dy += (Math.random() - 0.5) * spread * 0.6; dz += (Math.random() - 0.5) * spread; }
-    if (IB.Projectiles && IB.Projectiles.fire) IB.Projectiles.fire(m.x, m.y, m.z, dx, dy, dz, speed, dmg, r);
+    // bolts in a robot fight: a rogue's hit other robots only (vs 1, x rogueDmgMul), bolts at a rogue hit rogues (vs 2)
+    if (IB.Projectiles && IB.Projectiles.fire) IB.Projectiles.fire(m.x, m.y, m.z, dx, dy, dz, speed, r.rogue > 0 ? dmg * AI.rogueDmgMul : dmg, r, r.rogue > 0 ? 1 : p.robot ? 2 : 0);
     if (IB.FX) { IB.FX.puff(m.x, m.y, m.z, 2, PAL.amber, 0.1, 0.22, 1.2); IB.FX.puff(m.x, m.y, m.z, 1, PAL.ink, 0.1, 0.3, 0.8); }
+    if (IB.Boom) IB.Boom.muzzle(m.x, m.y, m.z, r.type === 'drone' ? 0.32 : 0.42);
     play('bolt', r, 0.8);
     r.kick = 1;
   }
@@ -422,8 +492,11 @@
   // ---------------- behaviours (engaged states) ----------------
   var _mv = { x: 0, z: 0, s: 0 };
   function move(x, z, s) { var l = Math.hypot(x, z); if (l > 1e-6) { _mv.x = x / l; _mv.z = z / l; _mv.s = s; } }
+  // the target stands on another level (up on a deck while the robot is on the ground, or the other way round): only
+  // in zones with walkable surfaces (layered nav); there the robot paths up the stairs instead of running at it
+  function offLevel(r, P, zone) { return !!(zone && zone.nav.layers) && !VIS[r.type].flying && Math.abs(P.y - r.fy) > 0.9; }
   function towardPlayer(r, ctx, zone, dx, dz, dist, s) {
-    if ((r.seesPlayer && r.level) || !zone || r.zone !== ctx.activeZone || !IB.Zones.flowDir(zone, r.x, r.gy || 0, r.z, _dir)) move(dx, dz, s);
+    if (ctx.player.robot || (r.seesPlayer && !offLevel(r, ctx.player, zone)) || !zone || r.zone !== ctx.activeZone || !IB.Zones.flowDir(zone, r.x, r.z, _dir, VIS[r.type].flying ? 0 : r.fy)) move(dx, dz, s);
     else move(_dir.x, _dir.z, s);
   }
 
@@ -433,16 +506,17 @@
     switch (r.state) {
       case 'chase': {
         if (!p.alive) break;
-        if (r.seesPlayer && r.level && dist < 14) {
+        var lv = offLevel(r, p, zone);
+        if (r.seesPlayer && dist < 14 && !lv) {
           var mvx = dx / dist, mvz = dz / dist;
           var zz = Math.sin(r.zig + r.st * 5.5) * Math.min(1, (dist - 2) / 5) * 0.75;
           move(mvx - mvz * zz, mvz + mvx * zz, speed);
         } else towardPlayer(r, ctx, zone, dx, dz, dist, speed);
-        if (dist < (def.reach || 2.3) && r.seesPlayer && r.level && takeToken(r)) { setState(r, 'windup'); r.lx = dx / dist; r.lz = dz / dist; }
+        if (dist < (def.reach || 2.3) && r.seesPlayer && !lv && takeToken(r)) { setState(r, 'windup'); r.lx = dx / dist; r.lz = dz / dist; }
         break;
       }
       case 'windup': {
-        var wu = def.windup || 0.35;
+        var wu = (def.windup || 0.35) * tempo().tellMul;
         turnTo(r, Math.atan2(dx, dz), 10, dt);
         r.crouch = Math.min(1, r.st / wu);
         tell(r, r.st / wu);
@@ -452,11 +526,11 @@
       }
       case 'attack': {
         _mv.x = r.lx; _mv.z = r.lz; _mv.s = 9.5;
-        r.ly = Math.sin(Math.min(1, r.st / 0.24) * Math.PI) * 0.35;
+        r.hop = Math.sin(Math.min(1, r.st / 0.24) * Math.PI) * 0.35; r.y = r.gy + r.hop;
         if (!r.bit && dist < v.radius + 0.35 + 0.45 && Math.abs(p.y - r.y) < 1.2) {
           r.bit = true; ctx.hurt(r, (def.damage || 8) * r.dmgMul);
         }
-        if (r.st >= 0.24) { r.ly = 0; setState(r, 'recover'); }
+        if (r.st >= 0.24) { r.hop = 0; r.y = r.gy; setState(r, 'recover'); }
         break;
       }
       case 'recover':
@@ -473,13 +547,13 @@
     switch (r.state) {
       case 'chase': {
         if (!p.alive) break;
-        var rush = r.seesPlayer && dist < 7 ? 1.35 : 1;
-        if (r.seesPlayer && r.level && dist < 16) {
+        var rush = r.seesPlayer && dist < 7 ? 1.35 : 1, blv = offLevel(r, p, zone);
+        if (r.seesPlayer && dist < 16 && !blv) {
           var w = Math.sin(r.zig + r.st * 3.1) * 0.25 * Math.min(1, (dist - 2) / 6);
           move(dx / dist - dz / dist * w, dz / dist + dx / dist * w, speed * rush);
         } else towardPlayer(r, ctx, zone, dx, dz, dist, speed);
         if (r.fuse > 0) move(dx, dz, speed * 0.55);   // fuse already lit (e.g. after a stagger): keep coming
-        else if (dist < reach && r.seesPlayer && r.level) {
+        else if (dist < reach && r.seesPlayer && !blv) {
           if (takeToken(r)) { setState(r, 'windup'); r.fuse0 = r.fuse = def.fuse || def.windup || 0.6; play('fuse', r); }
           else move(-dz * r.sdir + dx * (dist - 2.6), dx * r.sdir + dz * (dist - 2.6), speed * 0.5);   // circle until a token frees up
         }
@@ -512,13 +586,13 @@
     var p = ctx.player, v = VIS[r.type], best = null, bs = Infinity;
     ctx.world.query(r.x - 8, r.z - 8, r.x + 8, r.z + 8, _tmp);
     for (var i = 0; i < _tmp.length; i++) {
-      var b = _tmp[i]; if (b.kind !== 'cover' || b.y1 < r.gy + 0.9 || b.y0 > r.gy + 0.4) continue;
+      var b = _tmp[i]; if (b.kind !== 'cover' || b.y1 < 0.9) continue;
       var cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2, hx = (b.x1 - b.x0) / 2, hz = (b.z1 - b.z0) / 2;
       var ux = cx - p.x, uz = cz - p.z, ul = Math.hypot(ux, uz) || 1; ux /= ul; uz /= ul;
       var t = Math.min(Math.abs(ux) > 1e-3 ? hx / Math.abs(ux) : 1e9, Math.abs(uz) > 1e-3 ? hz / Math.abs(uz) : 1e9);
       var sx = cx + ux * (t + v.radius + 0.3), sz = cz + uz * (t + v.radius + 0.3);
       var dp = Math.hypot(sx - p.x, sz - p.z); if (dp < lo - 1 || dp > hi + 2) continue;
-      if (zone && !IB.Zones.isOpen(zone, sx, sz, r.gy)) continue;
+      if (zone && !IB.Zones.isOpen(zone, sx, sz)) continue;
       var dr = Math.hypot(sx - r.x, sz - r.z); if (dr > 10) continue;
       var taken = false;   // one Gunner per cover spot
       for (var j = 0; j < AI.robots.length && !taken; j++) { var o = AI.robots[j]; if (o !== r && o.on && o.type === r.type && (o.mode === 'cover' || o.mode === 'hold') && Math.abs(o.gx - sx) + Math.abs(o.gz - sz) < 1.5) taken = true; }
@@ -562,7 +636,7 @@
   }
 
   function thinkGunner(r, dt, ctx, zone, dx, dz, dist) {
-    var p = ctx.player, def = r.def, v = VIS.gunner, speed = def.speed || 3, wu = def.windup || 0.5;
+    var p = ctx.player, def = r.def, v = VIS.gunner, speed = def.speed || 3, wu = (def.windup || 0.5) * tempo().tellMul;
     var up = r.state === 'windup' || r.state === 'attack';
     r.lid += ((up ? 0.55 : 0) - r.lid) * Math.min(1, dt * (up ? 14 : 6));
     r.gunOut += ((up ? 0.07 : 0) - r.gunOut) * Math.min(1, dt * 10);
@@ -595,13 +669,13 @@
       case 'recover':
         if (r.token) releaseToken(r);
         r.aim += (-0.45 - r.aim) * Math.min(1, dt * 3);
-        if (r.st >= (def.recover || 0.8)) { setState(r, 'keep'); r.cool = 1.0 + Math.random() * 1.4; r.thinkT = 0; }
+        if (r.st >= (def.recover || 0.8)) { setState(r, 'keep'); r.cool = (1.0 + Math.random() * 1.4) * tempo().coolMul; r.thinkT = 0; }
         break;
     }
   }
 
   function thinkDrone(r, dt, ctx, zone, dx, dz, dist) {
-    var p = ctx.player, def = r.def, v = VIS.drone, speed = def.speed || 4.5, wu = def.windup || 0.45;
+    var p = ctx.player, def = r.def, v = VIS.drone, speed = def.speed || 4.5, wu = (def.windup || 0.45) * tempo().tellMul;
     var up = r.state === 'windup' || r.state === 'attack';
     r.lid += ((up ? 1 : 0) - r.lid) * Math.min(1, dt * (up ? 12 : 5));
     var kd = def.keepDistance || [8, 16], mid = (kd[0] + kd[1]) / 2;
@@ -639,7 +713,7 @@
         if (r.token) releaseToken(r);
         move(ox, oz, speed * 0.8);
         r.aim += (-0.25 - r.aim) * Math.min(1, dt * 3);
-        if (r.st >= (def.recover || 0.8)) { setState(r, 'keep'); r.cool = 1.3 + Math.random() * 1.6; }
+        if (r.st >= (def.recover || 0.8)) { setState(r, 'keep'); r.cool = (1.3 + Math.random() * 1.6) * tempo().coolMul; }
         break;
     }
   }
@@ -651,14 +725,77 @@
     drone: { think: thinkDrone }
   };
   AI.BEH = BEH;
+  // helpers shared with the robot types in other files (game/troops.js)
+  AI.K = { move: move, mv: _mv, setState: setState, takeToken: takeToken, releaseToken: releaseToken, tell: tell, play: play, turnTo: turnTo,
+    towardPlayer: towardPlayer, offLevel: offLevel, planKeep: planKeep, keepMove: keepMove, canFire: canFire, fireFrom: fireFrom,
+    wrapAngle: wrapAngle, clamp: clamp, sock: sock, tempo: tempo, lightDefault: lightDefault, ZERO: ZERO };
+
+  // ---------------- targets: the player, or a robot in a rogue fight ----------------
+  /* A robot fighting a robot sees it through a stand-in "player": the behaviours aim at its chest, bite it and shoot it
+     exactly as they would the player, and hurt() lands on the robot. */
+  var _tp = { x: 0, y: 0, z: 0, vx: 0, vz: 0, alive: true, robot: null };
+  var _rctx = { player: _tp, world: null, level: null, activeZone: -1, shake: null, onKill: null, hurt: hurtTarget };
+  var _rogues = [];
+  function hurtTarget(src, dmg) {
+    var t = _tp.robot; if (!t || !t.on) return;
+    var dx = t.x - src.x, dz = t.z - src.z, d = Math.hypot(dx, dz) || 1;
+    AI.damage(t, src.rogue > 0 ? dmg * AI.rogueDmgMul : dmg, { kx: dx / d * 3, kz: dz / d * 3 }, src.rogue > 0 ? _rctx.onKill : null);
+    play('bite', t, 0.7);
+  }
+  function fillTarget(t) {
+    var v = VIS[t.type];
+    _tp.x = t.x; _tp.z = t.z; _tp.y = t.y + (v.y0 + v.y1) * 0.5 - 1.15; _tp.vx = t.vx; _tp.vz = t.vz; _tp.alive = t.on; _tp.robot = t;
+  }
+  function fightable(o) { return o && o.on && o.state !== 'pose' && o.state !== 'spawn'; }
+  // a rogue picks the nearest robot that is not rogue (30 m)
+  function enemyFor(r) {
+    var best = 900, br = null;
+    for (var i = 0; i < AI.robots.length; i++) {
+      var o = AI.robots[i]; if (o === r || !fightable(o) || o.rogue > 0) continue;
+      var d = (o.x - r.x) * (o.x - r.x) + (o.z - r.z) * (o.z - r.z); if (d < best) { best = d; br = o; }
+    }
+    return br;
+  }
+  // the others go for a rogue when it is nearer than the player (or the player is gone / cloaked), up to 25 m
+  function rogueFor(r, distP, p) {
+    var lim = AI.cloaked || !p.alive ? 25 : Math.min(25, distP), best = lim * lim, br = null;
+    for (var i = 0; i < _rogues.length; i++) {
+      var o = _rogues[i]; if (!o.on || !(o.rogue > 0)) continue;
+      var d = (o.x - r.x) * (o.x - r.x) + (o.z - r.z) * (o.z - r.z); if (d < best) { best = d; br = o; }
+    }
+    return br;
+  }
+  /* Undercover: the player is invisible, so wander and search around where he was last seen; a rogue with nothing
+     left to fight keeps close to the player */
+  function searchMove(r, dt, mode, dx, dz, dist, speed) {
+    if (mode === 'follow') {
+      if (dist > 4) { move(dx, dz, speed * 0.9); return; }
+      r.wanderT -= dt;
+      if (r.wanderT <= 0) { r.wanderT = 1.5 + Math.random() * 1.5; var b = Math.random() * TAU; r.wx = r.x + dx + Math.cos(b) * 2.5; r.wz = r.z + dz + Math.sin(b) * 2.5; }
+    } else {
+      r.wanderT -= dt;
+      if (r.wanderT <= 0) { r.wanderT = 1.4 + Math.random() * 1.8; var a = Math.random() * TAU, rad = 1.5 + Math.random() * 5; r.wx = AI.lkx + Math.cos(a) * rad; r.wz = AI.lkz + Math.sin(a) * rad; }
+    }
+    var wx = r.wx - r.x, wz = r.wz - r.z;
+    if (Math.hypot(wx, wz) > 0.4) move(wx, wz, speed * (mode === 'follow' ? 0.6 : 0.5));
+  }
+  /* Undercover on / off; (x, z) is where the robots last saw the player */
+  AI.cloak = function (on, x, z) {
+    AI.cloaked = !!on;
+    if (on) { AI.lkx = x; AI.lkz = z; for (var i = 0; i < AI.robots.length; i++) { var r = AI.robots[i]; if (r.on && !(r.rogue > 0)) { r.wanderT = Math.random() * 0.6; r.seesPlayer = false; } } }
+  };
 
   /* ctx: {player, world, level, activeZone, hurt(robot, dmg), shake(trauma), onKill(robot)} */
   AI.update = function (dt, ctx) {
     var p = ctx.player, world = ctx.world, i, r;
+    var nR = 0;
+    for (i = 0; i < AI.robots.length; i++) { r = AI.robots[i]; if (r.on && r.rogue > 0) _rogues[nR++] = r; }
+    _rogues.length = nR;
+    _rctx.world = world; _rctx.level = ctx.level; _rctx.activeZone = ctx.activeZone; _rctx.shake = ctx.shake; _rctx.onKill = ctx.onKill;
     var zone = ctx.level && ctx.activeZone >= 0 ? ctx.level.zones[ctx.activeZone] : null;
     if (zone) {
       zone.nav.t -= dt;
-      if (zone.nav.t <= 0) { zone.nav.t = 0.25; IB.Zones.flowField(zone, p.x, p.y, p.z); }
+      if (zone.nav.t <= 0) { zone.nav.t = 0.25; IB.Zones.flowField(zone, p.x, p.z, p.y); }
     }
     for (i = 0; i < AI.robots.length; i++) {
       r = AI.robots[i]; if (!r.on) continue;
@@ -666,31 +803,47 @@
       var speed = def.speed || 5.0, fly = !!v.flying;
       r.st += dt; r.flash = Math.max(0, r.flash - dt); r.idleT += dt; r.cool -= dt;
       r.kick = Math.max(0, r.kick - dt * 6);
-      var dx = p.x - r.x, dz = p.z - r.z, dist = Math.sqrt(dx * dx + dz * dz) || 0.001;
-      // on the player's level (not on a deck above / a branch below): only then rush straight in and bite
-      r.level = fly || Math.abs((p.y || 0) - (r.gy || 0)) < 1.6;
+      // target: the player; a robot (rogue fights); or nobody (player cloaked -> search, rogue with no enemy -> follow)
+      var P = p, C = ctx, mode = null, tgt = null;
+      var dxp = p.x - r.x, dzp = p.z - r.z, distP = Math.sqrt(dxp * dxp + dzp * dzp) || 0.001;
+      if (r.rogue > 0) {
+        r.rogue -= dt;
+        if (r.rogue <= 0) { rogueEnd(r); continue; }
+        r.tgtT -= dt;
+        if (r.tgtT <= 0 || !fightable(r.tgt) || r.tgt.rogue > 0) { r.tgtT = 0.3; r.tgt = enemyFor(r); }
+        tgt = r.tgt; if (!tgt) mode = 'follow';
+      } else if (r.state !== 'pose') {
+        tgt = nR && r.state !== 'spawn' ? rogueFor(r, distP, p) : null; r.tgt = tgt;
+        if (!tgt && AI.cloaked) mode = 'search';
+      }
+      if (tgt) { fillTarget(tgt); P = _tp; C = _rctx; }
+      _freeToken = !!tgt;
+      var dx = P.x - r.x, dz = P.z - r.z, dist = Math.sqrt(dx * dx + dz * dz) || 0.001;
       _mv.x = _mv.z = _mv.s = 0;
       // periodic sight check (staggered)
       r.losT -= dt;
-      if (r.losT <= 0 && r.state !== 'pose') {
+      // nobody to fight: drop any attack in progress (a Bomber's fuse goes out too)
+      if (mode) { r.seesPlayer = false; if (r.state === 'windup' || r.state === 'attack' || r.state === 'recover') { r.fuse = 0; if (!fly) { r.hop = 0; r.y = r.gy; } r.crouch = 0; setState(r, v.home); } }
+      else if (r.losT <= 0 && r.state !== 'pose') {
         r.losT = 0.2;
-        r.seesPlayer = p.alive && dist < 25 && world.los(r.x, r.y + v.eye, r.z, p.x, p.y + 1.4, p.z);
+        r.seesPlayer = P.alive && dist < 25 && world.los(r.x, r.y + v.eye, r.z, P.x, P.y + 1.4, P.z);
       }
       r.lost = r.seesPlayer ? 0 : r.lost + dt;
       switch (r.state) {
         case 'pose':
           r.walk += dt * 0.6; r.crouch = r.type === 'crawler' ? 0.15 + Math.sin(r.idleT * 2.2 + r.slot) * 0.12 : 0;
-          if (fly) r.ly = r.hy + Math.sin(r.idleT * 1.7 + r.slot) * 0.08;
+          if (fly) r.y = r.hy + Math.sin(r.idleT * 1.7 + r.slot) * 0.08;
           break;
         case 'spawn': {
           var k = Math.min(1, r.st / 0.8);
           r.x = r.sx + (r.tx - r.sx) * k; r.z = r.sz + (r.tz - r.sz) * k;
-          if (fly) r.ly = 1.0 + (r.hy - 1.0) * k * k * (3 - 2 * k) + Math.sin(k * Math.PI) * 0.6;
-          else r.ly = Math.max(0, (1 - k) * 1.0 + Math.sin(k * Math.PI) * 0.8);
+          if (fly) r.y = (r.sy || 0) + 1.0 + (r.hy - 1.0) * k * k * (3 - 2 * k) + Math.sin(k * Math.PI) * 0.6;
+          else r.y = (r.sy || 0) + Math.max(0, (1 - k) * 1.0 + Math.sin(k * Math.PI) * 0.8);
           r.walk += dt * 6;
           if (r.st >= 0.8) {
-            r.ly = fly ? r.hy : 0;
-            if (!fly && IB.FX) IB.FX.puff(r.x, r.gy + 0.1, r.z, 4, PAL.ink, 0.15, 0.45, 2);
+            r.fy = r.gy = world.floorAt(r.x, r.z, (r.sy || 0) + STEP_UP); r.fvy = 0; r.hop = 0;   // the floor at the spawn can (ground or deck)
+            r.y = fly ? r.hy : r.gy;
+            if (!fly && IB.FX) IB.FX.puff(r.x, 0.1, r.z, 4, PAL.ink, 0.15, 0.45, 2);
             setState(r, zone && r.zone === ctx.activeZone ? 'alert' : 'idle');
           }
           break;
@@ -706,7 +859,7 @@
           break;
         }
         case 'alert':
-          turnTo(r, Math.atan2(dx, dz), 8, dt);
+          if (!mode) turnTo(r, Math.atan2(dx, dz), 8, dt);
           r.alert = 0.4;
           if (r.st >= 0.4) { setState(r, v.home); r.thinkT = 0; }
           break;
@@ -714,27 +867,35 @@
           r.x += r.kx * dt; r.z += r.kz * dt; r.kx *= Math.max(0, 1 - 6 * dt); r.kz *= Math.max(0, 1 - 6 * dt);
           if (r.type === 'crawler' || fly) r.yaw += dt * 3;
           r.wob = Math.sin(r.st * 28) * 0.16 * (1 - r.st / 0.6);
-          if (fly) r.ly -= dt * 0.8 * (1 - r.st / 0.6);
+          if (fly) r.y -= dt * 0.8 * (1 - r.st / 0.6);
           if (r.st >= 0.6) { r.wob = 0; setState(r, v.home); r.thinkT = 0; }
           break;
         case 'blinded':
           r.yaw += dt * 1.5;
-          if (fly) r.ly += ((r.hy - 0.5) - r.ly) * Math.min(1, dt * 2);
+          if (fly) r.y += ((r.hy - 0.5) - r.y) * Math.min(1, dt * 2);
           if (r.st >= r.blind) { setState(r, v.home); r.thinkT = 0; }
           break;
         default:
-          B.think(r, dt, ctx, zone, dx, dz, dist);
+          if (mode) searchMove(r, dt, mode, dx, dz, dist, speed);
+          else B.think(r, dt, C, zone, dx, dz, dist);
       }
-      r.y = r.gy + r.ly;
+      _freeToken = false;
       if (r.state === 'spawn' || r.state === 'pose') continue;
-      if (B.tick) { B.tick(r, dt, ctx); if (!r.on) continue; }
+      if (B.tick) { B.tick(r, dt, C); if (!r.on) continue; }
       // movement: smooth velocity toward the wish, collide, face
-      var tvx = _mv.x * _mv.s, tvz = _mv.z * _mv.s, blend = Math.min(1, dt * (r.state === 'attack' && r.type === 'crawler' ? 30 : fly ? 4 : 10));
+      var sm = r.state === 'attack' ? 1 : tempo().speedMul;
+      var tvx = _mv.x * _mv.s * sm, tvz = _mv.z * _mv.s * sm, blend = Math.min(1, dt * (r.state === 'attack' && r.type === 'crawler' ? 30 : fly ? 4 : 10));
       r.vx += (tvx - r.vx) * blend; r.vz += (tvz - r.vz) * blend;
       var ox = r.x, oz = r.z;
       r.x += r.vx * dt; r.z += r.vz * dt;
-      collide(r, world, v.radius * 0.9, fly);
-      settle(r, world, fly, p, dt);
+      collide(r, world, v.radius * 0.9, fly ? r.y - 0.1 : 0, fly ? 0 : Math.max(r.fy, r.gy));
+      if (!fly) {
+        // walkable surfaces: the floor under the robot; glide up onto a step, fall off an edge (r.y = r.gy without them)
+        r.fy = world.floorAt(r.x, r.z, Math.max(r.fy, r.gy) + STEP_UP);
+        if (r.gy < r.fy) { r.gy += (r.fy - r.gy) * Math.min(1, dt * 14); if (r.fy - r.gy < 0.004) r.gy = r.fy; r.fvy = 0; }
+        else if (r.gy > r.fy) { r.fvy -= 18 * dt; r.gy = Math.max(r.fy, r.gy + r.fvy * dt); if (r.gy <= r.fy) r.fvy = 0; }
+        r.y = r.gy + r.hop;
+      } else r.fy = world.floorAt(r.x, r.z, r.y);
       if (fly && ctx.level) {
         var Z = ctx.level.zones[r.zone];
         if (Z) { r.x = clamp(r.x, Z.ox + 1.2, Z.ox + Z.w - 1.2); r.z = clamp(r.z, Z.oz + 1.2, Z.oz + Z.h - 1.2); }
@@ -748,7 +909,7 @@
       if (v.wheelR) r.roll += fwd * dt / v.wheelR;
       if (fly) {
         // hover: altitude bob, bank into the strafe, rotors
-        if (r.state !== 'stagger' && r.state !== 'blinded') r.ly += ((r.flyH + Math.sin(r.idleT * 1.7 + r.slot) * 0.1) - r.ly) * Math.min(1, dt * 3);
+        if (r.state !== 'stagger' && r.state !== 'blinded') r.y += ((r.hy + Math.sin(r.idleT * 1.7 + r.slot) * 0.1) - r.y) * Math.min(1, dt * 3);
         var side = r.vx * Math.cos(r.yaw) - r.vz * Math.sin(r.yaw);
         r.bankX += (clamp(fwd * 0.05, -0.3, 0.3) - r.bankX) * Math.min(1, dt * 5);
         r.bankZ += (clamp(-side * 0.05, -0.3, 0.3) - r.bankZ) * Math.min(1, dt * 5);
@@ -760,22 +921,22 @@
             // roll backward (facing the player) when backing off, else face the way it rolls
             if ((r.vx * dx + r.vz * dz) / (hs * dist) < -0.3) turnTo(r, Math.atan2(-r.vx, -r.vz), 5, dt);
             else turnTo(r, Math.atan2(r.vx, r.vz), 5, dt);
-          } else if (p.alive && r.state !== 'idle') turnTo(r, Math.atan2(dx, dz), 4, dt);
+          } else if (P.alive && r.state !== 'idle' && !mode) turnTo(r, Math.atan2(dx, dz), 4, dt);
         }
+      } else if (v.face) {
+        v.face(r, dt, P, dx, dz, dist, hs, fwd, mode);   // troops.js: Soldiers aim the torso while the legs walk, Blade Bots spin
       } else {
         if (r.type === 'bomber') r.tilt += ((r.state === 'chase' || r.state === 'windup' ? clamp(fwd * 0.03, -0.1, 0.16) : 0) - r.tilt) * Math.min(1, dt * 6);
         if (hs > 0.3 && r.state !== 'stagger' && r.state !== 'blinded') turnTo(r, Math.atan2(r.vx, r.vz), 9, dt);
         if (r.state !== 'windup' && r.state !== 'attack') r.crouch = Math.max(0, r.crouch - dt * 4);
       }
       r.alert = Math.max(0, r.alert - dt);
-      r.y = r.gy + r.ly;
     }
     // soft separation (60% of overlap); flyers only separate from flyers
     for (i = 0; i < AI.robots.length; i++) {
       var A = AI.robots[i]; if (!A.on || A.state === 'spawn') continue;
       for (var j = i + 1; j < AI.robots.length; j++) {
         var b = AI.robots[j]; if (!b.on || b.state === 'spawn' || Math.abs(A.y - b.y) > 1.2) continue;
-        if (!VIS[A.type].flying && !VIS[b.type].flying && Math.abs(A.gy - b.gy) > 0.3) continue;   // a step apart on stairs: no shove
         var sx = b.x - A.x, sz = b.z - A.z, rr = VIS[A.type].radius + VIS[b.type].radius, d2 = sx * sx + sz * sz;
         if (d2 < rr * rr && d2 > 1e-6) {
           var d = Math.sqrt(d2), push = (rr - d) * 0.3 / d;
@@ -787,7 +948,7 @@
 
   // ---------------- render sync ----------------
   // P: a tiny matrix stack for posing parts. root() = the robot's transform; t/rx/ry/rz/s multiply in place; emit() writes an instance.
-  var _base = new THREE.Matrix4(), _cur = new THREE.Matrix4(), _stk = [], _sp = 0, _rob = null, _T = null;
+  var _base = new THREE.Matrix4(), _cur = new THREE.Matrix4(), _stk = [], _sp = 0, _rob = null, _T = null, _tk = 0, _ta = 0;
   for (var si = 0; si < 6; si++) _stk.push(new THREE.Matrix4());
   var P = AI.poser = {
     root: function () { _cur.copy(_base); _sp = 0; return P; },
@@ -801,11 +962,15 @@
     pop: function () { _cur.copy(_stk[--_sp]); return P; },
     emit: function (name, k) {
       var Pt = _T.parts[name], idx = _rob.slot * Pt.count + k;
-      Pt.mesh.setMatrixAt(idx, _cur);
-      if (Pt.fx) Pt.fx.setXY(idx, _rob.flash > 0 ? 1 : 0, 0);
+      Pt.mesh.setMatrixAt(idx, _cur); Pt.used = true;
+      if (Pt.tint && _rob.tint) Pt.tint.setXYZ(idx, _rob.tint.r, _rob.tint.g, _rob.tint.b);
+      if (Pt.fx) Pt.fx.setXYZW(idx, _rob.flash > 0 ? 1 : 0, 0, _tk, _ta);
       else if (Pt.mesh.instanceColor) Pt.mesh.setColorAt(idx, _c.set(_T.vis.lightColor ? _T.vis.lightColor(_rob) : lightDefault(_rob)));
       return P;
     },
+    // a part this robot does not show (another shape variant, a grenade not in hand)
+    hide: function (name, k) { var Pt = _T.parts[name]; Pt.mesh.setMatrixAt(_rob.slot * Pt.count + (k || 0), ZERO); return P; },
+    mul: function (m) { _cur.multiply(m); return P; },
     // legacy one-liner: translate, pitch about X, stretch Y
     set: function (name, k, lx, ly, lz, rx, sy) { return P.root().t(lx, ly, lz).rx(rx || 0).s(1, sy, 1).emit(name, k); }
   };
@@ -814,20 +979,26 @@
       var T = AI.typeList[ti], hi = -1, s, k, pi;
       for (s = CAP - 1; s >= 0; s--) if (T.slots[s].on) { hi = s; break; }
       _T = T;
+      for (pi = 0; pi < T.partList.length; pi++) T.partList[pi].used = false;
       for (s = 0; s <= hi; s++) {
         var r = T.slots[s];
         if (!r.on) { for (pi = 0; pi < T.partList.length; pi++) { var Pz = T.partList[pi]; for (k = 0; k < Pz.count; k++) Pz.mesh.setMatrixAt(s * Pz.count + k, ZERO); } continue; }
         _rob = r;
+        // tint: rogue teal (blinks in its last 3 s), wet blue while a Hydrate coat lasts
+        if (r.rogue > 0) { _tk = 1; _ta = r.rogue < 3 && Math.sin(r.rogue * 16) > 0 ? 0.25 : 0.62; }
+        else if (r.wet > 0) { _tk = 2; _ta = Math.min(1, r.wet * 1.5) * 0.85; }
+        else { _tk = 0; _ta = 0; }
         _q.setFromAxisAngle(_up, r.yaw); _v.set(r.x, r.y, r.z); _s.set(1, 1, 1);
         _base.compose(_v, _q, _s);
         T.vis.pose(r, P);
-        if (IB.FX) IB.FX.blob(r.x, r.gy || 0, r.z, T.vis.shadow * (T.vis.flying ? 0.8 : 1 - Math.min(0.5, r.ly || 0)));
+        if (IB.FX) IB.FX.blob(r.x, r.fy || 0, r.z, T.vis.shadow * (T.vis.flying ? 0.8 : 1 - Math.min(0.5, r.y - (r.fy || 0))));
       }
       for (pi = 0; pi < T.partList.length; pi++) {
         var Pt = T.partList[pi]; Pt.mesh.instanceMatrix.needsUpdate = true;
         Pt.mesh.count = (hi + 1) * Pt.count;   // draw only up to the highest live slot
-        Pt.mesh.visible = hi >= 0;             // and no draw call at all for a type with none alive
+        Pt.mesh.visible = hi >= 0 && (!Pt.opt || Pt.used);   // and no draw call at all for a type with none alive
         if (Pt.fx) Pt.fx.needsUpdate = true;
+        if (Pt.tint) Pt.tint.needsUpdate = true;
         if (Pt.mesh.instanceColor) Pt.mesh.instanceColor.needsUpdate = true;
       }
       T.hi = hi;
@@ -842,7 +1013,7 @@
         var c = T.corpses[i];
         if (!c.on) { T.corpse.setMatrixAt(i, ZERO); continue; }
         c.t += dt;
-        if (c.y > c.gy) { c.vy -= 16 * dt; c.y = Math.max(c.gy, c.y + c.vy * dt); }
+        if (c.y > c.fy) { c.vy -= 16 * dt; c.y = Math.max(c.fy, c.y + c.vy * dt); }   // drop to the floor under it
         var y, tip, alpha = 1;
         if (c.t < 0.12) { y = c.y + Math.sin(c.t / 0.12 * Math.PI / 2) * 0.3; tip = 0; }
         else if (c.t < 0.62) { var k = (c.t - 0.12) / 0.5; y = c.y + 0.3 * (1 - k * k); tip = k * k * (Math.PI / 2); }

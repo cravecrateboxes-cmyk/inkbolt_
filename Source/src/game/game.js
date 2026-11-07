@@ -46,7 +46,7 @@
     // Blender GLBs: common, weapons, bots and the first level's theme kit (brief 4.2 boot order); other kits load per level
     var saved0 = G.store.newest();
     G.plan = IB.LEVEL_PLANS[params.get('plan') || (saved0 && saved0.plan) || IB.CAMPAIGN[0]] || IB.LEVEL_PLANS[IB.CAMPAIGN[0]];
-    IB.Assets.load(['common', 'weapons', 'bots', Z.themeOf(G.plan).family], function (f) { bootProgress(0.2 + f * 0.7); })
+    IB.Assets.load(['common', 'weapons', 'bots', 'gear', Z.themeOf(G.plan).family], function (f) { bootProgress(0.2 + f * 0.7); })
       .then(bootAfterAssets)
       .catch(function (e) {
         G.errors.push(String(e && e.message || e));
@@ -55,6 +55,9 @@
   };
   function bootAfterAssets() {
     FX.init(R.scene); AI.init(R.scene); W.init(R.vmScene); IB.Projectiles.init(R.scene);
+    if (IB.Throwables) IB.Throwables.init(R.scene);   // frag cans (G)
+    if (IB.WeaponDrops) IB.WeaponDrops.init(R.scene);   // tiered gun / melee drops (soldiers, blade bots)
+    if (IB.Gear) { IB.Gear.init(); IB.Drops.init(R.scene); }   // loot: fps-gear models, world drops
     G.buildLevel();
     G.player = IB.Player.create();
     G.ws = W.create(['pip', 'buzz'], {});
@@ -108,7 +111,7 @@
     G.level.root.traverse(function (o) {
       if (o.isMesh || o.isInstancedMesh) {
         if (o.geometry && !shared.has(o.geometry)) o.geometry.dispose();
-        if (o.material && o.material.isMeshBasicMaterial) o.material.dispose();
+        if (o.material && (o.material.isMeshBasicMaterial || o.material.isShaderMaterial)) o.material.dispose();
       }
     });
     R.scene.remove(G.level.root);
@@ -128,32 +131,22 @@
     return G.ensureTheme(plan).then(function () { G.plan = plan; G.buildLevel(); });
   };
 
-  function resetLevelState() {
-    var L = G.level;
-    AI.clear(); FX.clear(); IB.Projectiles.clear();
-    L.zones.forEach(function (z, i) {
-      z.state = 'idle'; z.wave = -1; z.waveT = 0; z.queue = []; z.clearT = -1; z.spawnedTotal = 0;
-      if (z.entryGate) Z.setGate(z.entryGate, i > 0, true);
-      Z.setGate(z.exitGate, false, true);
-    });
-    L.trails.forEach(function (t) { Z.lightTrail(t, 0); t.litT = -1; });
-    G.zone = 0; Z.setVisible(L, 0);
-    G.pickups.forEach(function (p) { p.mesh.visible = false; p.on = false; });
-    L.zones.forEach(function (z) { z.pickups.forEach(function (pk) { G.spawnPickup(pk.kind, pk.x, pk.z, pk.y); }); });
-    placeWeaponStands(G.plan.weapons || []);
-    placeLoot();
-  }
-
-  // ---------------- loot on mounts (armory walls, benches): guns with a rarity, mods, gear ----------------
-  /* zones list mounts from their theme pieces (zone.mounts: {x, y, z, yaw, kind: 'gun' | 'mod' | 'item'}). Each level
-     start rolls what hangs there: guns from the modelled set with an armory rarity (purple very rare, orange never),
-     a mod or a gear item. Walk up and press E (touch: USE) to take it. */
-  var _lm = new THREE.Matrix4(), _lq = new THREE.Quaternion(), _lp = new THREE.Vector3(), _ls = new THREE.Vector3(), _lZ = new THREE.Matrix4().makeScale(0, 0, 0), _lc = new THREE.Color();
+  // ---------------- armory mounts (Strike Team HQ): real guns on wall racks, gear on benches and shelves ----------------
+  /* zone.mounts come from theme pieces ({x, y, z, yaw, kind: 'gun' | 'mod' | 'item', fill}). Each level start rolls what
+     hangs there: a rack gun is one of the guns unlocked so far at a weapon tier from ARMORY_TIERS (gray / green / blue
+     common, purple very rare, orange never); a bench holds a gun attachment and a shelf a shield cell or vest, made by
+     IB.Loot.makeItem at ARMORY_GEAR odds (no Legendary). Look at one and press E (touch: USE) to take it: guns join the
+     arsenal like a weapon drop (or upgrade your tier, or break down for gems), gear goes in the bag like a loot drop.
+     Drawn as one instanced mesh per model per zone, so a wall of guns costs a few draw calls. */
+  var ARMORY_TIERS = { gray: 46, green: 34, blue: 19.25, purple: 0.75, orange: 0 };
+  var ARMORY_GEAR = { common: 62, rare: 33, epic: 5, legendary: 0 };
+  G.ARMORY_TIERS = ARMORY_TIERS; G.ARMORY_GEAR = ARMORY_GEAR;
+  function rollW(w) { var k = Object.keys(w), tot = 0, i; for (i = 0; i < k.length; i++) tot += w[k[i]]; var x = Math.random() * tot; for (i = 0; i < k.length; i++) { if (w[k[i]] <= 0) continue; x -= w[k[i]]; if (x < 0) return k[i]; } return k[0]; }
+  var _lm = new THREE.Matrix4(), _lq = new THREE.Quaternion(), _lp = new THREE.Vector3(), _ls = new THREE.Vector3(), _lZ = new THREE.Matrix4().makeScale(0, 0, 0), _lc = new THREE.Color(), _ly = new THREE.Vector3(0, 1, 0);
   function clearLoot() {
     (G.lootMeshes || []).forEach(function (m) { if (m.parent) m.parent.remove(m); if (m.userData.ownGeo) m.geometry.dispose(); });
     G.lootMeshes = []; G.loot = [];
   }
-  // a gun's local transform on its mount: barrel along the rack, side toward the room, bounding box centred
   // world display copy of a gun: the gun mesh plus its detachable mag (revolver: cylinder) at the MAG socket
   G.gunGeo = function (id) {
     G._gunGeo = G._gunGeo || {};
@@ -165,66 +158,73 @@
     G._gunGeo[id] = geo;
     return geo;
   };
+  // a gun's transform on its mount: barrel along the rack, side toward the room, bounding box centred, at most 0.86 m
   function gunLocal(id, out) {
     var geo = G.gunGeo(id); if (!geo.boundingBox) geo.computeBoundingBox();
     var bb = geo.boundingBox, len = Math.max(0.2, bb.max.z - bb.min.z), sc = Math.min(1.2, 0.86 / len);
-    _lq.setFromAxisAngle(_v.set(0, 1, 0), -Math.PI / 2);
+    _lq.setFromAxisAngle(_ly, -Math.PI / 2);
     _lp.set(((bb.max.z + bb.min.z) / 2) * sc, -((bb.max.y + bb.min.y) / 2) * sc, -((bb.max.x + bb.min.x) / 2) * sc);
     return out.compose(_lp, _lq, _ls.set(sc, sc, sc));
   }
+  function rackGuns() {
+    var out = (IB.ownedWeapons ? IB.ownedWeapons(G.plan.level) : []).filter(function (id) { var d = IB.WEAPONS[id]; return d && d.cls !== 'melee' && IB.Assets.geo['WPN_' + id.toUpperCase()]; });
+    return out.length ? out : (IB.MODELLED_WEAPONS || []).filter(function (id) { return IB.Assets.geo['WPN_' + id.toUpperCase()]; });
+  }
   function placeLoot() {
     clearLoot();
-    if (G.mode === 'title' || !IB.Loot) return;
-    var A = IB.Assets, theme = G.level.theme, guns = (IB.MODELLED_WEAPONS || []).filter(function (id) { return A.node['WPN_' + id.toUpperCase()] && IB.WEAPONS[id]; });
-    if (!G.worldWpnMat) G.worldWpnMat = R.toonMaterial({ map: A.palette.weapons, baked: A.BAKED.weapons });
+    if (G.mode === 'title' || !IB.Loot || !IB.WeaponDrops) return;
+    var A = IB.Assets, guns = rackGuns(), WD = IB.WeaponDrops, LT = IB.LOOT, AR = G.level.theme.armory || {}, TIERS = AR.tiers || ARMORY_TIERS, GEAR = AR.gear || ARMORY_GEAR;
+    var attach = Object.keys(LT.types).filter(function (k) { return LT.slots.indexOf(LT.types[k].slot) >= 0; });
+    var worn = Object.keys(LT.types).filter(function (k) { return LT.worn.indexOf(LT.types[k].slot) >= 0; });
+    if (!G.worldWpnMat) G.worldWpnMat = R.toonMaterial({ map: A.palette.weapons, baked: A.BAKED ? A.BAKED.weapons : 0 });
     G.level.zones.forEach(function (z, zi) {
       var groups = {}, tags = [];
-      z.mounts.forEach(function (m) {
+      (z.mounts || []).forEach(function (m) {
         if (m.fill < 1 && Math.random() > m.fill) return;   // an empty peg
-        var L = { x: m.x, y: m.y, z: m.z, yaw: m.yaw, zone: zi, kind: m.kind, taken: false }, key, pn;
+        var L = { x: m.x, y: m.y, z: m.z, yaw: m.yaw, zone: zi, kind: m.kind, taken: false }, key;
         if (m.kind === 'gun') {
-          L.id = guns[(Math.random() * guns.length) | 0]; L.rarity = IB.Loot.rollRarity(Math.random);
-          var def = IB.WEAPONS[L.id], RR = IB.LOOT.RARITY_BY_ID[L.rarity];
-          L.label = 'Take ' + def.name; L.sub = RR.name + ' ' + H_cls(def.cls); L.color = RR.color;
-          key = 'WPN_' + L.id.toUpperCase(); tags.push(L);
+          L.id = guns[(Math.random() * guns.length) | 0]; L.tier = rollW(TIERS);
+          var T = WD.tier(L.tier), def = IB.WEAPONS[L.id];
+          L.label = 'Take ' + def.name; L.sub = T.name + ' · x' + T.dmg.toFixed(2) + ' damage'; L.color = T.color;
+          key = 'WPN:' + L.id; tags.push(L);
         } else {
-          var pool = m.kind === 'mod' ? IB.LOOT.MODS : IB.LOOT.ITEMS;
-          L.id = m.kind === 'mod' ? IB.Loot.rollMod(Math.random) : IB.Loot.rollItem(Math.random);
-          pn = IB.themePiece(theme, (m.kind === 'mod' ? 'Mod_' : 'Item_') + L.id);
-          if (!A.geo[pn]) return;
-          key = pn;
-          L.label = (m.kind === 'mod' ? 'Fit ' : 'Take ') + pool[L.id].name; L.sub = pool[L.id].line; L.color = m.kind === 'mod' ? '#12C7B6' : '#FFB21E';
+          var types = m.kind === 'mod' ? attach : worn;
+          if (!types.length) return;
+          L.item = IB.Loot.makeItem(types[(Math.random() * types.length) | 0], rollW(GEAR), G.plan.level, Math.random);
+          key = IB.Loot.modelOf(L.item);
+          if (!A.geo[key]) return;
+          var RR = LT.rarityById[L.item.rarity];
+          L.label = 'Take ' + L.item.name; L.sub = RR.name + ' · ' + IB.Loot.summary(L.item); L.color = RR.color; tags.push(L);
         }
         (groups[key] || (groups[key] = [])).push(L);
         G.loot.push(L);
       });
-      // one instanced mesh per model per zone (drawn with its zone), one for the rarity tags
       Object.keys(groups).forEach(function (key) {
-        var list = groups[key], isGun = key.indexOf('WPN_') === 0;
-        var im = new THREE.InstancedMesh(isGun ? G.gunGeo(list[0].id) : A.get(key), isGun ? G.worldWpnMat : A.material(key), list.length);
+        var list = groups[key], isGun = key.indexOf('WPN:') === 0;
+        var geo = isGun ? G.gunGeo(list[0].id) : A.get(key), mat = isGun ? G.worldWpnMat : A.material(key);
+        var im = new THREE.InstancedMesh(geo, mat, list.length);
         im.frustumCulled = false;
-        var local = isGun ? gunLocal(list[0].id, new THREE.Matrix4()) : new THREE.Matrix4();
+        var local = isGun ? gunLocal(list[0].id, new THREE.Matrix4()) : new THREE.Matrix4().makeScale(0.8, 0.8, 0.8);
         list.forEach(function (L, i) {
-          _lq.setFromAxisAngle(_v.set(0, 1, 0), L.yaw);
+          _lq.setFromAxisAngle(_ly, L.yaw);
           _lm.compose(_lp.set(L.x, L.y, L.z), _lq, _ls.set(1, 1, 1)).multiply(local);
           im.setMatrixAt(i, _lm); L.im = im; L.idx = i;
         });
         z.group.add(im); G.lootMeshes.push(im);
       });
-      if (tags.length) {
+      if (tags.length) {   // a small plate in the rarity / tier colour under each item
         var tg = new THREE.InstancedMesh(new THREE.BoxGeometry(0.34, 0.05, 0.02), new THREE.MeshBasicMaterial({ color: 0xffffff }), tags.length);
         tg.frustumCulled = false; tg.userData.ownGeo = true;
         tags.forEach(function (L, i) {
-          _lq.setFromAxisAngle(_v.set(0, 1, 0), L.yaw);
-          _lm.compose(_lp.set(L.x, L.y - 0.2, L.z), _lq, _ls.set(1, 1, 1));
+          _lq.setFromAxisAngle(_ly, L.yaw);
+          _lm.compose(_lp.set(L.x, L.y - (L.kind === 'gun' ? 0.2 : -0.01), L.z), _lq, _ls.set(1, 1, 1));
           tg.setMatrixAt(i, _lm); tg.setColorAt(i, _lc.set(L.color)); L.tag = tg; L.tagIdx = i;
         });
         z.group.add(tg); G.lootMeshes.push(tg);
       }
     });
   }
-  function H_cls(cls) { return HUD.clsName ? HUD.clsName(cls).toLowerCase().replace('smg', 'SMG') : cls; }
-  // the loot the player is looking at, within reach (1.9 m from the eyes, inside a 30 degree cone)
+  // the armory item the player is looking at, within reach (1.9 m from the eyes, inside a 30 degree cone)
   function nearestLoot() {
     var p = G.player, best = null, bs = 0.52, eye = p.y + 1.5, cp = Math.cos(p.pitch);
     var fx = -Math.sin(p.yaw) * cp, fy = Math.sin(p.pitch), fz = -Math.cos(p.yaw) * cp;
@@ -237,63 +237,109 @@
     });
     return best;
   }
-  function takeLoot(L) {
-    var p = G.player, ws = G.ws;
-    if (L.kind === 'gun') {
-      var def = IB.WEAPONS[L.id];
-      Object.keys(ws.guns).forEach(function (k) { if (IB.WEAPONS[k].cls === def.cls && k !== L.id) { delete ws.guns[k]; if (ws.slots[def.slot] === k) delete ws.slots[def.slot]; } });
-      if (!ws.guns[L.id]) W.give(ws, L.id, { rarity: L.rarity, mods: {} }); else W.setGear(ws, L.id, L.rarity, ws.guns[L.id].mods);
-      ws.slots[def.slot] = L.id;
-      W.equip(ws, L.id);
-      if (HUD.pickup) HUD.pickup(def.name, def.cls, null, L.rarity); A.play('draw');
-    } else if (L.kind === 'mod') {
-      var g = W.current(ws), M = IB.LOOT.MODS[L.id];
-      if (!g) { HUD.toast('Hold a gun to fit ' + M.name, 1.6); return; }
-      var mods = {}; Object.keys(g.mods || {}).forEach(function (k) { mods[k] = g.mods[k]; }); mods[M.slot] = L.id;
-      W.setGear(ws, g.id, g.rarity, mods);
-      HUD.toast(M.name + ' fitted to ' + IB.WEAPONS[g.id].name, 1.8);
-    } else {
-      var I = IB.LOOT.ITEMS[L.id];
-      if (I.heal) { if (p.health >= p.maxHp) { HUD.toast('Health is full', 1.0); return; } p.health = Math.min(p.maxHp, p.health + I.heal); }
-      if (I.armor) { if ((p.armor || 0) >= 100) { HUD.toast('Armor is full', 1.0); return; } p.armor = Math.min(100, (p.armor || 0) + I.armor); }
-      if (I.ammo) W.refill(ws);
-      HUD.toast(I.name + ' · ' + I.line, 1.6);
-    }
+  // a rack gun joins the arsenal like a weapon drop: new gun at its tier, a better tier upgrades yours, else gems
+  function takeRackGun(id, tier) {
+    var s = G.slot, WD = IB.WeaponDrops, def = IB.WEAPONS[id], line;
+    s.gunTier = s.gunTier || {}; s.arsenal = s.arsenal || [];
+    var have = s.arsenal.indexOf(id) >= 0, cur = WD.tierOf(id), nt = WD.tier(tier);
+    if (!have) { s.arsenal.push(id); s.owned = s.arsenal.slice(); s.gunTier[id] = nt.id; line = nt.name + ' ' + def.name + ' · in your backpack (Tab)'; }
+    else if (nt.rank > cur.rank) { s.gunTier[id] = nt.id; line = def.name + ' upgraded to ' + nt.name + ' (x' + nt.dmg.toFixed(2) + ' damage)'; }
+    else { s.gems = (s.gems || 0) + nt.gems; line = nt.name + ' ' + def.name + ' · broken down for ' + nt.gems + ' gems'; }
+    HUD.toast(line, 2.4);
+    if (HUD.gems) HUD.gems(s.gems || 0, true);
     A.play('pickup');
+    if (G.store) G.store.save(s);
+    return true;
+  }
+  function takeLoot(L) {
+    var ok;
+    if (L.kind === 'gun') ok = takeRackGun(L.id, L.tier);
+    else ok = IB.Drops && IB.Drops.collect ? IB.Drops.collect({ it: L.item, x: L.x, z: L.z, on: true, fullT: 0, grp: { visible: true } }, G) : false;
+    if (!ok) return false;
     L.taken = true; L.im.setMatrixAt(L.idx, _lZ); L.im.instanceMatrix.needsUpdate = true;
     if (L.tag) { L.tag.setMatrixAt(L.tagIdx, _lZ); L.tag.instanceMatrix.needsUpdate = true; }
-    ensureSlot(); G.slot.owned = Object.keys(ws.guns); G.slot.gear = W.gear(ws); G.store.save(G.slot);
+    return true;
   }
-  function updateLoot(t) {
+  function updateLoot() {
+    if (!G.loot || !G.loot.length) { if (HUD.use) HUD.use(null); return; }
     var L = G.dead || G.complete || !G.player.alive ? null : nearestLoot();
     if (HUD.use) HUD.use(L ? { key: 'E', text: L.label, sub: L.sub, color: L.color } : null);
     if (L && Inp.usePressed) takeLoot(L);
   }
   G.nearestLoot = nearestLoot; G.takeLoot = takeLoot;
 
+  function resetLevelState() {
+    var L = G.level;
+    AI.clear(); FX.clear(); IB.Projectiles.clear(); if (IB.SkillFX) IB.SkillFX.clear();
+    if (IB.Throwables) IB.Throwables.clear();
+    if (IB.WeaponDrops) IB.WeaponDrops.clear();
+    if (IB.Drops) IB.Drops.clear();
+    if (IB.Status) IB.Status.clear();
+    L.zones.forEach(function (z, i) {
+      z.state = 'idle'; z.wave = -1; z.waveT = 0; z.queue = []; z.clearT = -1; z.spawnedTotal = 0;
+      if (z.entryGate) Z.setGate(z.entryGate, i > 0, true);
+      Z.setGate(z.exitGate, false, true);
+    });
+    L.trails.forEach(function (t) { Z.lightTrail(t, 0); t.litT = -1; });
+    G.zone = 0; Z.setVisible(L, 0);
+    G.pickups.forEach(function (p) { p.mesh.visible = false; p.on = false; });
+    L.zones.forEach(function (z) { z.pickups.forEach(function (pk) { G.spawnPickup(pk.kind, pk.x, pk.z, pk.y); }); });
+    placeWeaponStands(G.plan.weapons || []);
+    placeLoot();
+    if (IB.Boom) IB.Boom.levelStart(L, G.plan.level);   // VFX intensity for this level, explosive canisters in later zones
+  }
+
   // ---------------- new weapons waiting at the start of a level ----------------
+  // stand mesh per kind: a gun leans on its stock; a melee weapon stands on its pommel; frag cans sit in a little pyramid
+  function standItem(id) {
+    var A = IB.Assets, def = IB.WEAPONS[id];
+    if (def.cls === 'grenade') {
+      var g = new THREE.Group(), geo = A.get('HELD_Frag');
+      [[-0.17, 0, 0], [0.17, 0, 0], [0, 0.2, 0]].forEach(function (o) { var m = new THREE.Mesh(geo, G.worldWpnMat); m.scale.setScalar(2.2); m.position.set(o[0], o[1] + 0.1, 0); g.add(m); });
+      g.position.set(0, 1.02, 0.1);
+      return g;
+    }
+    var gun = new THREE.Mesh(A.get('WPN_' + id.toUpperCase()), G.worldWpnMat);
+    if (def.cls === 'melee') {
+      gun.scale.setScalar(1.6);
+      gun.rotation.set(-0.42, 0.5, 0);                               // standing on its pommel, leaning back on the crate
+      gun.position.set(0, 0.5 + (def.id === 'katana' ? 0.36 : def.id === 'eaxe' ? 0.5 : def.id === 'nunchucks' ? 0.35 : 0.18), 0.82);
+      return gun;
+    }
+    gun.scale.setScalar(1.35);
+    return gun;
+  }
   function placeWeaponStands(ids) {
     (G.weaponStands || []).forEach(function (w) { R.scene.remove(w.group); });
     G.weaponStands = [];
     if (G.mode === 'title') return;
     var z0 = G.level.zones[0], theme = G.level.theme, A = IB.Assets, standName = IB.themePiece(theme, theme.stand || 'Crate');
     if (!G.worldWpnMat) G.worldWpnMat = R.toonMaterial({ map: A.palette.weapons, baked: A.BAKED.weapons });
-    ids = ids.filter(function (id) { return A.node['WPN_' + id.toUpperCase()] && IB.WEAPONS[id]; });
+    ensureSlot();
+    ids = ids.filter(function (id) {
+      var def = IB.WEAPONS[id]; if (!def) return false;
+      if (def.cls === 'grenade') return !!A.geo.HELD_Frag && !G.slot.frag;
+      if (def.cls === 'melee') return !!A.node['WPN_' + id.toUpperCase()] && (G.slot.melee || []).indexOf(id) < 0;
+      return !!A.node['WPN_' + id.toUpperCase()];
+    });
+    var n = ids.length, gap = n > 3 ? 1.5 : 1.6;
     ids.forEach(function (id, i) {
-      var side = ids.length === 1 ? 0 : (i === 0 ? -1.6 : 1.6);
-      var x = z0.entry.x + side, zc = z0.entry.z - 3.8;
+      // one row of crates across the start area, centred on the entry (wider rows step back a little at the ends)
+      var side = (i - (n - 1) / 2) * 2 * gap;
+      var x = z0.entry.x + side, zc = z0.entry.z - 3.8 - (n > 3 && (i === 0 || i === n - 1) ? 0.6 : 0);
       var grp = new THREE.Group(); grp.position.set(x, 0, zc);
       if (A.geo[standName]) grp.add(new THREE.Mesh(A.get(standName), A.mat[A.family[standName]]));
-      var gun = new THREE.Mesh(G.gunGeo(id), G.worldWpnMat);
-      gun.scale.setScalar(1.35);
-      gun.rotation.set(70 * Math.PI / 180, 0.35 * (side > 0 ? -1 : 1), 0);   // standing on its stock, leaning back on the crate
-      gun.position.set(0, 0.32, 0.72);
-      grp.add(gun);
-      var ring = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.72, 28), new THREE.MeshBasicMaterial({ color: PAL.teal, transparent: true, opacity: 0.85 }));
+      var item = standItem(id), def = IB.WEAPONS[id];
+      if (def.cls !== 'melee' && def.cls !== 'grenade') {
+        item.rotation.set(70 * Math.PI / 180, 0.35 * (side > 0 ? -1 : 1), 0);   // standing on its stock, leaning back on the crate
+        item.position.set(0, 0.32, 0.72);
+      }
+      grp.add(item);
+      var ring = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.72, 28), new THREE.MeshBasicMaterial({ color: def.cls === 'melee' ? PAL.amber : def.cls === 'grenade' ? PAL.red : PAL.teal, transparent: true, opacity: 0.85 }));
       ring.rotation.x = -Math.PI / 2; ring.position.set(0, 0.02, 0.85); grp.add(ring);
       R.scene.add(grp);
       G.level.world.add(x - 0.5, 0, zc - 0.5, x + 0.5, 1, zc + 0.5, 'cover', 0);
-      G.weaponStands.push({ id: id, group: grp, gun: gun, ring: ring, x: x, z: zc + 0.85, taken: false });
+      G.weaponStands.push({ id: id, group: grp, gun: item, ring: ring, x: x, z: zc + 0.85, taken: false });
     });
   }
   function updateWeaponStands(t) {
@@ -306,17 +352,128 @@
   }
   function takeWeapon(w) {
     var def = IB.WEAPONS[w.id], ws = G.ws;
-    // one weapon per class: the new one replaces the old one (brief 5.2 carrying rule)
-    Object.keys(ws.guns).forEach(function (k) { if (IB.WEAPONS[k].cls === def.cls && k !== w.id) { delete ws.guns[k]; if (ws.slots[def.slot] === k) delete ws.slots[def.slot]; } });
-    W.give(ws, w.id);
-    W.equip(ws, w.id);
-    w.taken = true; w.group.remove(w.gun); w.ring.visible = false;
     ensureSlot();
-    G.slot.owned = Object.keys(ws.guns);
+    if (def.cls === 'melee' || def.cls === 'grenade') {
+      if (def.cls === 'melee') { grantMelee(w.id); G.slot.meleeSel = w.id; }
+      else { G.slot.frag = true; G.grenades = def.carry; }
+      w.taken = true; w.group.remove(w.gun); w.ring.visible = false;
+      G.store.save(G.slot);
+      if (HUD.pickup) HUD.pickup(def.name, def.cls, def.cls === 'melee' ? 'V' : 'G'); else HUD.toast('New: ' + def.name, 2.2);
+      A.play('pickup');
+      return;
+    }
+    // the gun joins the arsenal; it is carried at once (taking the place of the gun in hand when the loadout is full)
+    var r = IB.Loadout.pickup(G.slot.loadout || [], G.slot.arsenal || [], IB.Skills.loadoutMax(G.slot.highest), w.id, ws.cur);
+    G.slot.arsenal = r.arsenal; G.slot.owned = r.arsenal.slice(); G.slot.loadout = r.loadout;
+    if (G.bank) delete G.bank[w.id];   // a fresh gun off the stand comes fully loaded
+    W.setLoadout(ws, r.loadout, G.bank);
+    W.equip(ws, w.id);
+    if (IB.Gear) IB.Gear.refresh(G);   // the replaced gun's attachments go back to the bag
+    w.taken = true; w.group.remove(w.gun); w.ring.visible = false;
     G.store.save(G.slot);
-    if (HUD.pickup) HUD.pickup(def.name, def.cls); else HUD.toast('New weapon: ' + def.name, 2.2);
+    if (HUD.pickup) HUD.pickup(def.name, def.cls, r.slot + 1); else HUD.toast('New weapon: ' + def.name, 2.2);
     A.play('pickup'); A.play('draw');
   }
+
+  // ---------------- progression: arsenal, loadout, skills, player level ----------------
+  // arsenal / loadout come from the save (an empty arsenal gets the plan's start guns), trimmed to the 2/3-gun limit
+  function syncArmory() {
+    ensureSlot();
+    var s = G.slot, start = (G.plan.start || ['pip']);
+    var ars = IB.Loadout.fixArsenal(s.arsenal && s.arsenal.length ? s.arsenal : (s.owned && s.owned.length ? s.owned : start), W.playable);
+    if (!ars.length) ars = IB.Loadout.fixArsenal(start.concat(['pip']), W.playable);
+    s.arsenal = ars; s.owned = ars.slice();
+    s.loadout = IB.Loadout.fix(s.loadout, ars, IB.Skills.loadoutMax(s.highest));
+    return s.loadout;
+  }
+  G.syncArmory = syncArmory;
+  function grantMelee(id) { var m = G.slot.melee || (G.slot.melee = []); if (m.indexOf(id) < 0) m.push(id); }
+  /* a save that already cleared a level gets what stood at its start (saves from before these weapons existed, or a
+     stand walked past): guns join the arsenal, melee weapons the melee rack, frag cans the belt */
+  function grantCleared() {
+    ensureSlot();
+    var s = G.slot, h = s.highest || 0;
+    Object.keys(IB.UNLOCKS || {}).forEach(function (lv) {
+      if (+lv > h) return;
+      IB.UNLOCKS[lv].forEach(function (id) {
+        var def = IB.WEAPONS[id]; if (!def) return;
+        if (def.cls === 'melee') { if (IB.Assets.node['WPN_' + id.toUpperCase()]) grantMelee(id); }
+        else if (def.cls === 'grenade') s.frag = true;
+        else if (W.playable(id) && s.arsenal && s.arsenal.indexOf(id) < 0) s.arsenal.push(id);
+      });
+    });
+    if (s.melee && s.melee.length && s.melee.indexOf(s.meleeSel) < 0) s.meleeSel = s.melee[s.melee.length - 1];
+  }
+  G.grantCleared = grantCleared;
+  G.meleeId = function () { return G.slot && G.slot.melee && G.slot.melee.length ? (G.slot.melee.indexOf(G.slot.meleeSel) >= 0 ? G.slot.meleeSel : G.slot.melee[0]) : null; };
+  // stat skills on top of the Upgrade Bench effects; fresh = level start (full health), else keep the damage taken
+  function applySkillStats(fresh) {
+    var p = G.player, fx = G.fx || {}, sk = IB.SkillFX.fx;
+    var hpWas = p.maxHp || 100, hurt = Math.max(0, hpWas - p.health);
+    // base health grows with the player level (IB.Damage.playerMaxHp); bench and skills add on top
+    var lvHp = IB.Damage.playerMaxHp(IB.Skills.playerLevel(G.slot ? G.slot.highest : 0));
+    p.maxHp = Math.round(((fx.maxHp || 100) - 100 + lvHp) * sk.maxHpMul);   // Healthy: +% max health
+    p.vestHp = IB.Gear && IB.Gear.vestHp ? IB.Gear.vestHp(G) : 0;           // a worn armour vest adds flat health
+    p.maxHp += p.vestHp;
+    p.health = fresh ? p.maxHp : Math.max(1, Math.min(p.maxHp, p.maxHp - hurt));
+    var stWas = p.staminaMax || 4;
+    p.staminaMax = 4 * (fx.staminaMul || 1) * sk.staminaMul;   // Stamina: runs last 2.5x longer, 2x faster, half the recharge
+    p.stamina = fresh ? p.staminaMax : Math.min(p.staminaMax, p.stamina * p.staminaMax / stWas);
+    p.sprintMul = sk.sprintMul; p.staminaRechargeMul = sk.staminaRechargeMul; p.skillMoveMul = sk.moveMul || 1;
+    if (G.ws) {
+      var wf = G.ws.fx;
+      wf.reloadMul = (fx.reloadMul || 1) * sk.reloadMul; wf.recoilMul = (fx.recoilMul || 1) * sk.recoilMul;
+      wf.spreadMul = (fx.spreadMul || 1) * sk.spreadMul; wf.magMul = sk.magMul; wf.rateMul = sk.rateMul; wf.swapMul = sk.swapMul;
+    }
+  }
+  // starter gear (IB.LOOT.starters): shields unlock with level 3, armour vests with level 5. The first time a save has
+  // cleared that level a common item is put in the bag and worn (drops of that type start at the same point), so
+  // every player sees the shield bar from level 4 on and wears a vest from level 6 on. Older saves past those levels
+  // get theirs at the next level start.
+  function grantStarterShield() {
+    if (!IB.Gear || !IB.Loot || !G.slot) return;
+    var g = IB.Gear.gear(G), h = G.slot.highest || 0, given = false;
+    if (!g) return;
+    IB.LOOT.starters.forEach(function (s) {
+      if (h < s.cleared || g[s.flag]) return;
+      g[s.flag] = true; given = true;
+      var item = IB.Loot.makeItem(s.type, 'common', s.cleared, Math.random), slot = IB.Loot.slotOf(item);
+      if (IB.Loot.addItem(g, item) && !g[slot]) IB.Loot.equipWorn(g, slot, item.id);
+      (G.starterNotes = G.starterNotes || []).push({ item: item, note: s.note });
+    });
+    if (given) G.store.save(G.slot);
+  }
+  G.grantStarterShield = grantStarterShield;
+  G.progress = function () {
+    var h = G.slot ? G.slot.highest || 0 : 0, lv = IB.Skills.playerLevel(h);
+    return { highest: h, level: lv, title: IB.Skills.rankTitle(lv), points: G.slot ? IB.Skills.available(G.slot.skills || {}, h) : 0,
+      earned: IB.Skills.earned(h), loadoutMax: IB.Skills.loadoutMax(h) };
+  };
+  function hudLevel() { if (HUD.level) { var pr = G.progress(); HUD.level(pr.level, pr.title, pr.points); } }
+  // after the Tab menu: skills may have changed (stats, effects) and so may the loadout
+  G.applyProgress = function () {
+    ensureSlot();
+    IB.SkillFX.refresh(G.slot.skills);
+    applySkillStats(false);
+    W.setLoadout(G.ws, syncArmory(), G.bank);
+    if (IB.Gear) IB.Gear.refresh(G);   // guns joining the loadout get their attachments back
+    hudLevel();
+  };
+  G.openMenu = function (tab) {
+    if (G.mode !== 'play' || G.dead || G.complete || !IB.TabMenu) return;
+    G.mode = 'menu'; Inp.enabled = false; Inp.reset(); Inp.releaseLock(); IB.Plat.stop();
+    HUD.show(false); document.getElementById('touch').hidden = true;
+    A.play('ui');
+    IB.TabMenu.open(G, tab);
+  };
+  G.closeMenu = function () {
+    if (G.mode !== 'menu') return;
+    IB.TabMenu.close();
+    G.applyProgress();
+    G.store.save(G.slot);
+    A.play('uiBack');
+    G.resume();
+  };
 
   G.startLevel = function (opts) {
     M.hide();
@@ -325,28 +482,35 @@
     resetLevelState();
     var p = G.player, z0 = G.level.zones[0];
     Object.assign(p, IB.Player.create());
+    ensureSlot();
     var fx = IB.Upgrades && G.slot ? IB.Upgrades.effects(G.slot.upgrades || {}) : {};
     G.fx = fx;
-    p.maxHp = fx.maxHp || 100; p.health = p.maxHp; p.speedMul = fx.speedMul || 1; p.jumpMul = fx.jumpMul || 1; p.doubleJump = !!fx.doubleJump;
-    p.staminaMax = 4 * (fx.staminaMul || 1); p.stamina = p.staminaMax;
+    IB.SkillFX.begin(G.slot.skills);
+    p.speedMul = fx.speedMul || 1; p.jumpMul = fx.jumpMul || 1; p.doubleJump = !!fx.doubleJump;
     p.x = z0.entry.x; p.z = z0.entry.z; p.y = 0; p.yaw = 0; p.pitch = 0;
-    ensureSlot();
-    var owned = (G.slot.owned && G.slot.owned.length ? G.slot.owned : (G.plan.start || ['pip'])).filter(function (id) { return IB.WEAPONS[id]; });
-    G.ws = W.create(owned, { reloadMul: fx.reloadMul, recoilMul: fx.recoilMul, spreadMul: fx.spreadMul, magLevel: (G.slot && G.slot.upgrades && G.slot.upgrades.mag) || 0 });
-    var gear = (G.slot && G.slot.gear) || {};
-    Object.keys(gear).forEach(function (id) { if (G.ws.guns[id]) W.setGear(G.ws, id, gear[id].rarity, gear[id].mods); });
-    G.ws.guns && Object.keys(G.ws.guns).forEach(function (id) { var gg = G.ws.guns[id]; gg.mag = W.magSize(G.ws, gg.def); });
+    grantCleared();
+    var owned = syncArmory();
+    G.bank = {};
+    G.grenades = G.slot.frag ? IB.WEAPONS.frag.carry : 0;
+    G.ws = W.create(owned, { magLevel: (G.slot.upgrades && G.slot.upgrades.mag) || 0, magMul: IB.SkillFX.fx.magMul });
+    applySkillStats(true);
     var first = Object.keys(G.ws.guns).sort(function (a, b) { return IB.WEAPONS[b].slot - IB.WEAPONS[a].slot; })[0] || 'pip';
     W.equip(G.ws, first, true);
+    grantStarterShield();
+    if (IB.Gear) IB.Gear.startLevel(G);   // attachments on the guns, shield full
     G.run = { time: 0, kills: 0, shots: 0, hits: 0, coreHits: 0, deaths: 0, gems: 0, retries: 3, started: false, introT: AUTOTEST ? 0.05 : 2.3 };
     G.shake = 0; G.trauma = 0; G.hitstop = 0; G.deathT = 0;
-    G.fade = opts && opts.fadeIn ? { t: 0, dur: 1.4 } : null;
+    G.fade = opts && opts.fadeIn ? { t: 0, dur: 1.3 } : null;
     setDim(G.fade ? 1 : 0);
     HUD.reset(); HUD.show(true); document.getElementById('touch').hidden = !Inp.touch;
+    if (G.starterNotes && IB.LootHUD) { G.starterNotes.forEach(function (n) { IB.LootHUD.loot(n.item, n.note); }); G.starterNotes = null; }   // queued one after another
+    // a save from before the new skill tree: its points were refunded on load; say so once
+    if (G.slot.skillsRefunded) { delete G.slot.skillsRefunded; HUD.toast('New skill tree: your skill points were refunded (Tab)', 4); }
     HUD.pips(G.level.zones.length, 0, 0);
     if (!AUTOTEST) M.intro({ level: G.plan.level, name: G.plan.name, zones: G.level.zones.length, line: G.plan.intro }, 2.2);
     // save at level start
-    ensureSlot(); G.slot.level = G.plan.level; G.slot.plan = G.plan.id; G.slot.owned = Object.keys(G.ws.guns); G.store.save(G.slot); G.saved = true;
+    ensureSlot(); G.slot.level = G.plan.level; G.slot.plan = G.plan.id; G.slot.owned = G.slot.arsenal.slice(); G.store.save(G.slot); G.saved = true;
+    hudLevel();
     Inp.enabled = true; Inp.reset();
     if (!AUTOTEST) Inp.requestLock();
   };
@@ -398,13 +562,13 @@
           var e = z.queue[q]; e.t -= dt;
           if (e.t <= 0) {
             var dx = p.x - e.x, dz = p.z - e.z, d = Math.hypot(dx, dz) || 1, tx = e.x + dx / d * 1.3, tz = e.z + dz / d * 1.3;
-            if (!Z.isOpen(z, tx, tz, e.y)) { tx = e.x + dx / d * 0.7; tz = e.z + dz / d * 0.7; }
+            if (!Z.isOpen(z, tx, tz)) { tx = e.x + dx / d * 0.7; tz = e.z + dz / d * 0.7; }
             if (AI.spawn(e.type, e.x, e.z, i, tx, tz, { y: e.y })) { A.play('hop', { pos: e }); z.queue.splice(q, 1); z.spawnedTotal++; }
             else e.t = 0.3;
           }
         }
         var alive = AI.alive(i) + z.queue.length;
-        if (z.wave >= 0 && z.wave < z.plan.waves.length - 1 && z.queue.length === 0 && (alive <= 4 || z.waveT > 25)) queueWave(z, z.wave + 1);
+        if (z.wave >= 0 && z.wave < z.plan.waves.length - 1 && z.queue.length === 0 && (alive <= 6 || z.waveT > 22)) queueWave(z, z.wave + 1);
         if (z.wave === z.plan.waves.length - 1 && alive === 0 && z.queue.length === 0) {
           if (z.clearT < 0) z.clearT = 0;
           z.clearT += dt;
@@ -446,6 +610,7 @@
     Z.setVisible(G.level, i);   // keep this zone (the player stands in it) and the next one drawn
     HUD.pips(G.level.zones.length, i + 1, i + 1);
     HUD.toast(i + 1 < G.level.zones.length ? 'Zone clear. Follow the arrows.' : 'Level clear. Get to the hatch.', 2.4);
+    if (IB.Boom) IB.Boom.zoneClear(G.level, i, i + 1 >= G.level.zones.length);   // confetti at the gate, fireworks on a level clear
   }
 
   // ---------------- level exit, loading screen, next level ----------------
@@ -463,7 +628,9 @@
     var nd = G.run.deaths === 0 ? (IB.Gems ? IB.Gems.noDeathBonus(robots) : Math.floor(robots * 0.25)) : 0;
     ensureSlot();
     G.slot.gems = (G.slot.gems || 0) + clear + nd;
-    G.slot.highest = Math.max(G.slot.highest || 0, L);
+    var h0 = G.slot.highest || 0;
+    G.slot.highest = Math.max(h0, L);
+    var lvUp = IB.Skills.playerLevel(G.slot.highest) - IB.Skills.playerLevel(h0), ptsUp = IB.Skills.earned(G.slot.highest) - IB.Skills.earned(h0);
     G.slot.stats = G.slot.stats || {};
     G.slot.stats.kills = (G.slot.stats.kills || 0) + G.run.kills;
     G.slot.stats.deaths = (G.slot.stats.deaths || 0) + G.run.deaths;
@@ -471,9 +638,11 @@
     G.slot.stats.coreHits = (G.slot.stats.coreHits || 0) + G.run.coreHits;
     G.slot.best = G.slot.best || {}; var key = String(L);
     if (!G.slot.best[key] || G.run.time < G.slot.best[key]) G.slot.best[key] = Math.round(G.run.time);
-    G.slot.owned = Object.keys(G.ws.guns);
+    G.slot.owned = (G.slot.arsenal || []).slice();
     G.lastResults = { time: G.run.time, kills: G.run.kills, corePct: G.run.hits ? Math.round(G.run.coreHits / G.run.hits * 100) : 0, deaths: G.run.deaths,
-      gemsRobots: robots, gemsClear: clear, gemsNoDeath: nd, gemsTotal: robots + clear + nd };
+      gemsRobots: robots, gemsClear: clear, gemsNoDeath: nd, gemsTotal: robots + clear + nd,
+      playerLevel: IB.Skills.playerLevel(G.slot.highest), levelUp: lvUp, pointsUp: ptsUp,
+      slotUp: IB.Skills.loadoutMax(G.slot.highest) > IB.Skills.loadoutMax(h0) };
   }
   function levelExit() {
     var next = G.plan.next && IB.LEVEL_PLANS[G.plan.next];
@@ -486,20 +655,24 @@
     G.store.save(G.slot);
     setDim(1);
     HUD.show(false); document.getElementById('touch').hidden = true;
-    var line = 'Level ' + G.plan.level + ' cleared · ' + r.kills + ' robots · ' + HUD.mmss(r.time) + ' · +' + r.gemsTotal + ' gems';
+    var line = 'Level ' + G.plan.level + ' cleared · ' + r.kills + ' robots · ' + HUD.mmss(r.time) + ' · +' + r.gemsTotal + ' gems' +
+      (r.levelUp ? ' · LV ' + r.playerLevel + (r.pointsUp ? ' · +' + r.pointsUp + ' skill point' + (r.pointsUp > 1 ? 's' : '') : '') : '') +
+      (r.slotUp ? ' · third gun slot open' : '');
     var t0 = performance.now();
     if (M.loading) M.loading({ level: next.level, name: next.name, line: line }); else M.intro({ level: next.level, name: next.name, zones: next.zones.length, line: line }, 1.6);
     var prog = function (f) { if (M.loadingProgress) M.loadingProgress(f); };
     prog(0.1);
-    // build the next level in steps so the loading screen animates
+    // build the next level in steps so the loading screen animates. The loader (black screen + 3D gear, ui/loader.js)
+    // stays 3.5 s in all (its last 0.32 s fading out), then the level fades in from dark (G.fade, 1.3 s), ready to fight.
+    var HOLD = AUTOTEST ? 300 : 3500, OUT = AUTOTEST ? 60 : 320;
     setTimeout(function () {
       G.switchPlan(next).then(function () { prog(0.7); setTimeout(function () {
         try { R.renderer.compile(R.scene, R.camera); } catch (e) { /* first frame compiles anyway */ }
         prog(1);
         setTimeout(function () {
-          if (M.loadingHide) M.loadingHide();
+          if (M.loadingHide) M.loadingHide(null, OUT);
           G.startLevel({ fadeIn: true });
-        }, Math.max(0, (AUTOTEST ? 300 : 1700) - (performance.now() - t0)));
+        }, Math.max(0, HOLD - OUT - (performance.now() - t0)));
       }, 60); });
     }, 120);
   }
@@ -516,20 +689,12 @@
     M.results(G.lastResults);
   }
 
-  // ---------------- elevators: who rides ----------------
-  var _riders = [];
-  function elevatorRiders(p) {
-    _riders.length = 0;
-    if (p.alive) _riders.push({ x: p.x, y: p.y, z: p.z, set: function (dh) { p.y += dh; } });
-    AI.robots.forEach(function (r) { if (r.on && r.state !== 'pose' && !(AI.VIS[r.type] && AI.VIS[r.type].flying)) _riders.push({ x: r.x, y: r.gy, z: r.z, set: function (dh) { r.gy += dh; r.y += dh; } }); });
-    return _riders;
-  }
-
   // ---------------- pickups ----------------
   // ---------------- health director ----------------
   // Watches the player's health and keeps health cans on the map in the current zone: one when healthy, up to four
   // when badly hurt. New cans land on open ground 7-22 m away (never on top of the player), and show on the radar.
-  var HEAL = 40;
+  // health cans restore 40% of max health (40 at LV 1), rounded to 5
+  function healAmount() { return Math.max(40, Math.round(G.player.maxHp * 0.4 / 5) * 5); }
   function healthWanted(frac) { return frac >= 0.8 ? 1 : frac >= 0.55 ? 2 : frac >= 0.3 ? 3 : 4; }
   function healthDirector(dt) {
     G.hdT = (G.hdT || 0) - dt;
@@ -553,12 +718,22 @@
   function initPickups() {
     G.pickups = [];
     var geo = { ammo: IB.Assets.get('PICKUP_Ammo'), health: IB.Assets.get('PICKUP_Health') };
-    for (var i = 0; i < 28; i++) {
-      var kind = i < 10 ? 'ammo' : 'health';
+    // big levels place up to ~10 of each on the map; robots drop more (ammo) and the health director adds cans
+    for (var i = 0; i < 44; i++) {
+      var kind = i < 22 ? 'ammo' : 'health';
       var m = new THREE.Mesh(geo[kind], IB.Assets.mat.weapons); m.visible = false; R.scene.add(m);
       G.pickups.push({ kind: kind, mesh: m, on: false, x: 0, y: 0, z: 0 });
     }
   }
+  // ---------------- elevators: who rides (the player, ground robots standing on the cab floor) ----------------
+  var _riders = [];
+  function elevatorRiders(p) {
+    _riders.length = 0;
+    if (p.alive) _riders.push({ x: p.x, y: p.y, z: p.z, set: function (dh) { p.y += dh; } });
+    AI.robots.forEach(function (r) { if (r.on && r.state !== 'pose' && !(AI.VIS[r.type] && AI.VIS[r.type].flying)) _riders.push({ x: r.x, y: r.fy || 0, z: r.z, set: function (dh) { r.fy = (r.fy || 0) + dh; r.gy = (r.gy || 0) + dh; r.y += dh; } }); });
+    return _riders;
+  }
+
   G.spawnPickup = function (kind, x, z, y) {
     if (y === undefined || y === true) y = G.level ? G.level.world.groundAt(x, z) : 0;
     for (var i = 0; i < G.pickups.length; i++) {
@@ -572,11 +747,17 @@
     G.pickups.forEach(function (pk, i) {
       if (!pk.on) return;
       pk.mesh.rotation.y = t * 1.5 + i;
-      pk.mesh.position.y = pk.y + 0.05 + Math.sin(t * 3 + i) * 0.04;
-      FX.blob(pk.x, pk.y, pk.z, 0.35);
-      if (Math.hypot(p.x - pk.x, p.z - pk.z) < 0.9 && p.y < pk.y + 1 && p.y > pk.y - 0.8) {
-        if (pk.kind === 'health') { if (p.health >= p.maxHp) return; p.health = Math.min(p.maxHp, p.health + HEAL); HUD.toast('+' + HEAL + ' health', 1.2); }
-        else { W.addAmmo(G.ws, 0.5); HUD.toast('Ammo', 1.0); }
+      // hover clear of the floor (its lowest point stays ~14 cm up, so the base and its ink outline never sink in)
+      pk.mesh.position.y = (pk.y || 0) + 0.2 + Math.sin(t * 3 + i) * 0.05;
+      FX.blob(pk.x, pk.y || 0, pk.z, 0.35);
+      if (Math.hypot(p.x - pk.x, p.z - pk.z) < 0.9 && p.y < (pk.y || 0) + 1 && p.y > (pk.y || 0) - 0.8) {
+        if (pk.kind === 'health') { if (p.health >= p.maxHp) return; var heal = healAmount(); p.health = Math.min(p.maxHp, p.health + heal); HUD.toast('+' + heal + ' health', 1.2); }
+        else {
+          W.addAmmo(G.ws, 0.5);
+          var gotCan = G.slot && G.slot.frag && G.grenades < IB.WEAPONS.frag.carry;
+          if (gotCan) G.grenades++;
+          HUD.toast(gotCan ? 'Ammo + frag can' : 'Ammo', 1.0);
+        }
         pk.on = false; pk.mesh.visible = false; A.play('pickup');
       }
     });
@@ -584,6 +765,7 @@
 
   // ---------------- combat glue ----------------
   var _org = new THREE.Vector3(), _end = new THREE.Vector3(), _mz = new THREE.Vector3();
+  var _shot = { ox: 0, oy: 0, oz: 0, dx: 0, dy: 0, dz: 0, t: 0, wt: 0, def: null };   // for Stream / Ricochet (skillfx.js)
   function shoot(origin, dir, def) {
     var ox = origin.x, oy = origin.y, oz = origin.z, dx = dir.x, dy = dir.y, dz = dir.z;
     G.run.shots++;
@@ -591,21 +773,45 @@
     var whit = wh ? { t: wh.t, box: wh.box, nx: wh.nx, ny: wh.ny, nz: wh.nz } : null;
     var rh = AI.raycast(ox, oy, oz, dx, dy, dz, wt);
     var endT = rh ? rh.t : wt;
+    // piercing guns (Needle, Railspike): the round goes on through each robot it hits, weaker each time
+    if (rh && def.pierce > 0) {
+      rh = { robot: rh.robot, t: rh.t, zone: rh.zone };   // AI.raycast reuses one result object
+      var skip = [rh.robot], mul = 1;
+      for (var pi = 0; pi < def.pierce; pi++) {
+        var nx = AI.raycast(ox, oy, oz, dx, dy, dz, wt, skip);
+        if (!nx) break;
+        mul *= def.pierceMul || 0.7;
+        var nt = nx.t, hr = nx.robot, nz = nx.zone; skip.push(hr);
+        var res2 = IB.Damage.hit({ weapon: def, dist: nt, zone: nz, dmgLevel: up('dmg'), coreLevel: up('core'), critLevel: up('crit'), rng: Math.random });
+        var pd = res2.damage * mul, ex = ox + dx * nt, ey = oy + dy * nt, ez = oz + dz * nt;
+        var pk = AI.damage(hr, pd, { kx: dx * 3, kz: dz * 3 }, onKill);
+        if (IB.Boom) IB.Boom.robotHit(hr, ex, ey, ez, dx, dy, dz, nz, pk);
+        if (IB.Gear) IB.Gear.onHit(hr, { damage: pd }, nz, def, pk);
+      }
+    }
     _end.set(ox + dx * endT, oy + dy * endT, oz + dz * endT);
     W.muzzleWorld(R.camera, _mz);
-    if (def.fire !== 'auto' || G.run.shots % 2 === 0) FX.tracer(_mz.x, _mz.y, _mz.z, _end.x, _end.y, _end.z);
-    AI.hear(G.player.x, G.player.z, 20);
+    if (def.fire !== 'auto' || G.run.shots % 2 === 0) { if (IB.Boom) IB.Boom.tracer(_mz.x, _mz.y, _mz.z, _end.x, _end.y, _end.z, def); else FX.tracer(_mz.x, _mz.y, _mz.z, _end.x, _end.y, _end.z); }
+    AI.hear(G.player.x, G.player.z, 20 * (def.quiet || 1));   // acid muzzles are silenced
     if (rh) {
       var r = rh.robot, zone = rh.zone;
       var res = IB.Damage.hit({ weapon: def, dist: endT, zone: zone, dmgLevel: up('dmg'), coreLevel: up('core'), critLevel: up('crit'), rng: Math.random, blinded: r.state === 'blinded' });
       G.run.hits++; if (zone === 'core') G.run.coreHits++;
-      var killed = AI.damage(r, res.damage, { kx: dx * 4, kz: dz * 4 }, onKill);
+      var dmg = res.damage *= IB.SkillFX.hitMul(zone) * (IB.WeaponDrops ? IB.WeaponDrops.dmgMul(def.id) : 1);   // Heavy Ink, the gun's tier
+      _shot.ox = ox; _shot.oy = oy; _shot.oz = oz; _shot.dx = dx; _shot.dy = dy; _shot.dz = dz; _shot.t = rh.t; _shot.wt = wt; _shot.def = def;
+      var killed = AI.damage(r, dmg, { kx: dx * 4, kz: dz * 4 }, onKill);
+      // Electrify, Stream, Ricochet, Hazard, Hydrate, Chain Reaction
+      IB.SkillFX.onHit(r, dmg, zone, killed, _end, onKill, _shot);
       FX.puff(_end.x, _end.y, _end.z, zone === 'core' ? 5 : 3, PAL.ink, 0.12, 0.38, 2.2);
       if (zone === 'core') FX.puff(_end.x, _end.y, _end.z, 2, PAL.amber, 0.08, 0.2, 3);
+      if (IB.Boom) IB.Boom.robotHit(r, _end.x, _end.y, _end.z, dx, dy, dz, zone, killed);   // sparks, chips, core pop
       if (!killed) { HUD.hit(zone === 'core' ? 'core' : 'hit'); A.play(zone === 'core' ? 'core' : 'hit'); }
+      if (IB.Gear) IB.Gear.onHit(r, res, zone, def, killed);   // damage number, acid DoT
     } else if (whit) {
-      if (whit.box && whit.box.kind === 'gate') FX.puff(_end.x, _end.y, _end.z, 3, PAL.ink, 0.1, 0.3, 1.5);
+      if (whit.box && whit.box.kind === 'canister' && IB.Boom) IB.Boom.hitCan(whit.box, def.damage || 15);   // explosive canister
+      else if (whit.box && whit.box.kind === 'gate') FX.puff(_end.x, _end.y, _end.z, 3, PAL.ink, 0.1, 0.3, 1.5);
       else FX.impact(_end.x, _end.y, _end.z, whit.nx, whit.ny, whit.nz, Math.random() < 1 / 3);
+      if (IB.Boom) IB.Boom.impact(_end.x, _end.y, _end.z, whit.nx, whit.ny, whit.nz, whit.box);   // sparks / chips / dust by surface
     }
   }
   function up(id) { return (G.slot && G.slot.upgrades && G.slot.upgrades[id]) || 0; }
@@ -615,17 +821,20 @@
     var def = IB.ENEMIES[r.type];
     var drop = IB.Gems ? IB.Gems.robotDrop(r.type, G.plan.level, up('press')) : { chip: 1, shard: 0, core: 0, total: 1 };
     var k;
-    var gy = r.gy || 0;
-    for (k = 0; k < drop.chip; k++) FX.dropGem('chip', r.x, gy + 0.4, r.z, r.zone);
-    for (k = 0; k < drop.shard; k++) FX.dropGem('shard', r.x, gy + 0.4, r.z, r.zone);
-    for (k = 0; k < drop.core; k++) FX.dropGem('core', r.x, gy + 0.4, r.z, r.zone);
+    var gy = (r.fy || 0) + 0.4;   // from the floor the robot stood on (a deck on levels with walkable surfaces)
+    for (k = 0; k < drop.chip; k++) FX.dropGem('chip', r.x, gy, r.z, r.zone);
+    for (k = 0; k < drop.shard; k++) FX.dropGem('shard', r.x, gy, r.z, r.zone);
+    for (k = 0; k < drop.core; k++) FX.dropGem('core', r.x, gy, r.z, r.zone);
     var w = W.current(G.ws);
     HUD.feed(G.lastKillCls || (w ? w.def.cls : 'pistol'), def ? def.name : r.type, drop.total);
     G.lastKillCls = null;
-    if (Math.random() < 0.2) G.spawnPickup('ammo', r.x, r.z, gy);
-    else if (G.player.health < G.player.maxHp * 0.4 && Math.random() < 0.25) G.spawnPickup('health', r.x, r.z, gy);
+    if (Math.random() < 0.2) G.spawnPickup('ammo', r.x, r.z);
+    else if (G.player.health < G.player.maxHp * 0.4 && Math.random() < 0.25) G.spawnPickup('health', r.x, r.z);
     if (G.fx && G.fx.leech) G.player.health = Math.min(G.player.maxHp, G.player.health + G.fx.leech);
+    if (IB.Drops) IB.Drops.onKill(r);   // ~5 % loot drop
+    if (IB.Gear && IB.Gear.onKill) IB.Gear.onKill(G, r);   // Overcharge shield cells
   }
+  G.onKill = onKill;
   function collectGem(kind) {
     var v = IB.Gems ? IB.Gems.VALUES[kind] : 1;
     G.run.gems += v; if (G.slot) G.slot.gems = (G.slot.gems || 0) + v;
@@ -637,15 +846,16 @@
   G.hurt = function (robot, dmg) {
     var p = G.player;
     if (!p.alive || p.protect > 0 || G.complete) return;
-    if (p.armor > 0) { var soak = Math.min(p.armor, dmg * 0.6); p.armor -= soak; dmg -= soak; }   // Kevlar Vest
-    p.health -= dmg; p.lastHurt = 0;
-    A.play(robot.proj ? (robot.type === 'bomber' ? 'boom' : 'boltHit') : 'bite', { pos: robot }); A.play('hurt', { gain: 0.8 });
+    dmg *= IB.SkillFX.hurtMul();   // Tank
+    var through = IB.Gear ? IB.Gear.absorb(G, dmg) : dmg;   // an equipped shield takes it first
+    p.health -= through; p.lastHurt = 0;
+    A.play(robot.proj ? (robot.type === 'bomber' ? 'boom' : 'boltHit') : 'bite', { pos: robot }); if (through > 0) A.play('hurt', { gain: 0.8 });
     // arc pointing toward the attacker
     var dx = robot.x - p.x, dz = robot.z - p.z;
     var fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw), rx = Math.cos(p.yaw), rz = -Math.sin(p.yaw);
     HUD.arc(Math.atan2(dx * rx + dz * rz, dx * fx + dz * fz)); // 0 = ahead, + = to the right
     G.shake = Math.max(G.shake, 0.5); G.addTrauma(Math.min(0.5, 0.12 + dmg * 0.012));
-    if (HUD.damageFlash) HUD.damageFlash(Math.min(1, dmg / 30));
+    if (HUD.damageFlash) HUD.damageFlash(Math.min(1, through / 30));
     if (p.health <= 0) die(robot);
   };
   function die(robot) {
@@ -671,6 +881,7 @@
     AI.despawn(G.zone);
     z.state = 'active'; z.wave = -1; z.waveT = 0; z.startT = 0; z.queue = []; z.clearT = -1;
     W.refill(G.ws);
+    if (IB.Gear) IB.Gear.fillShield(G);
     IB.Plat.start();
   }
 
@@ -725,6 +936,7 @@
       if (!free) { var n = G.store.newest(); free = n ? n.id : 1; }
       G.slot = G.store.newSlot(free, (Math.random() * 1e9) | 0);
       G.slot.plan = IB.CAMPAIGN[0]; G.slot.owned = (IB.LEVEL_PLANS[IB.CAMPAIGN[0]].start || ['pip']).slice();
+      G.slot.arsenal = G.slot.owned.slice(); G.slot.loadout = G.slot.owned.slice(0, IB.Skills.loadoutMax(0));
       G.store.save(G.slot);
       M.wipe(function () { if (G.plan.id !== IB.CAMPAIGN[0]) G.switchPlan(IB.LEVEL_PLANS[IB.CAMPAIGN[0]]).then(function () { G.startLevel(); }); else G.startLevel(); });
     });
@@ -739,6 +951,7 @@
     M.on('cancelReset', function () { M.settings(G.settings, M._settingsFrom); });
     M.on('doReset', function () { G.store.resetAll(); G.slot = null; G.settings = G.store.loadSettings(); G.applySettings(); G.toTitle(); });
     M.on('resume', function () { G.resume(); });
+    M.on('fieldkit', function () { if (G.mode !== 'paused') return; M.hide(); G.mode = 'play'; G.openMenu(); });
     M.on('restart', function () { M.wipe(function () { G.startLevel(); }); });
     M.on('quit', function () { M.wipe(function () { G.toTitle(); }); });
     M.on('next', function () { M.wipe(function () { G.toTitle(); }); });
@@ -762,6 +975,8 @@
     else if (G.mode === 'title') titleFrame(dtRaw);
     else idleFrame(dtRaw);
     Z.updateClouds(G.level, dtRaw);
+    Z.updateLines(G.level, G.mode === 'paused' || G.mode === 'menu' ? 0 : dtRaw, G.mode === 'play' ? G.player : null);   // moving assembly lines
+    if (IB.SkillHUD) IB.SkillHUD.update(G, dtRaw);   // Undercover badge + cloak look
     R.render(G.mode === 'play' ? !G.dead && !G.ws.hidden : G.mode === 'title');
     Inp.endFrame();
   }
@@ -788,6 +1003,7 @@
   function playFrame(dt, dtRaw) {
     var p = G.player, s = G.settings;
     if (Inp.pausePressed) { G.pause(); return; }
+    if (Inp.menuPressed && !G.dead && G.run.started) { G.openMenu(); return; }
     if (G.fade) {
       G.fade.t += dtRaw;
       var fk = Math.min(1, G.fade.t / G.fade.dur);
@@ -821,31 +1037,41 @@
       if (Inp.slotPressed) W.slot(G.ws, Inp.slotPressed);
       if (Inp.wheel) W.cycle(G.ws, Inp.wheel > 0 ? 1 : -1);
       if (Inp.reloadPressed) W.reload(G.ws);
-      if (Inp.meleePressed && W.shove(G.ws)) doShove();
+      // V: strike with the melee weapon (a shove until one is picked up); B: next melee weapon; G: throw a frag can
+      if (Inp.meleePressed && G.run.started) { var mid = G.meleeId(); if (mid) meleeSwing(mid); else if (W.shove(G.ws)) doShove(); }
+      if (Inp.meleeCyclePressed) cycleMelee();
+      if (Inp.grenadePressed && G.run.started) { if (G.grenades > 0) W.throwStart(G.ws); else if (G.slot && G.slot.frag) HUD.toast('No frag cans · ammo boxes give one back', 1.4); }
+      if (Inp.cloakPressed) IB.SkillFX.tryCloak(p);       // F: Undercover
     }
     // fixed-step simulation
     acc += dt; var steps = 0;
-    // presses are latched until a simulation step uses them (a render frame can run zero fixed steps)
+    // presses are held until a fixed step consumes them: on frames shorter than one step (120/144 Hz screens) no
+    // step runs, and a press seen only on that frame would otherwise be dropped
     G.jumpLatch = G.jumpLatch || Inp.jumpPressed; G.slideLatch = G.slideLatch || Inp.slidePressed;
     var jump = G.jumpLatch, slidePress = G.slideLatch;
     while (acc >= STEP && steps < 4) {
-      acc -= STEP; steps++; G.jumpLatch = G.slideLatch = false;
-      if (G.level.elevators.length) Z.updateElevators(G.level, STEP, elevatorRiders(p));
-      if (p.alive) IB.Player.step(p, { mx: G.complete ? 0 : Inp.mx, mz: G.complete ? 0 : Inp.mz, sprint: Inp.sprint, jumpPressed: jump, slidePressed: slidePress, crouch: Inp.crouch }, G.level.world, STEP, footFx);
-      jump = false; slidePress = false;
+      acc -= STEP; steps++;
+      if (G.level.elevators && G.level.elevators.length) Z.updateElevators(G.level, STEP, elevatorRiders(p));
+      if (p.alive) IB.Player.step(p, { mx: G.complete ? 0 : Inp.mx, mz: G.complete ? 0 : Inp.mz, sprint: Inp.sprint && !G.ws.melee, jumpPressed: jump, slidePressed: slidePress, crouch: Inp.crouch }, G.level.world, STEP, footFx);
+      jump = false; slidePress = false; G.jumpLatch = false; G.slideLatch = false;
       if (G.run.started) {
         var actx = { player: p, world: G.level.world, level: G.level, activeZone: G.level.zones[G.zone].state === 'active' ? G.zone : -1, hurt: G.hurt, shake: G.addTrauma, onKill: onKill };
         AI.update(STEP, actx);
         IB.Projectiles.update(STEP, actx);
+        if (IB.Throwables) IB.Throwables.update(STEP, G.level.world);
       }
       if (G.run.started && !G.dead) updateZones(STEP);
     }
+    if (IB.Status && G.run.started) IB.Status.update(dt, onKill);   // shock / acid damage over time
     if (acc > STEP * 4) acc = 0;
     if (G.run.started && !G.complete && !G.dead) G.run.time += dt;
     // regen (Nanite Welders)
     if (G.fx && G.fx.regen && p.alive && p.lastHurt > 3) p.health = Math.min(p.maxHp, p.health + G.fx.regen * dt);
+    IB.SkillFX.regen(p, dt);   // Healthy + Tank repair
+    if (G.run.started) IB.SkillFX.update(dt, onKill, p);   // acid pools, wet coats, Undercover timer
     // weapons
     W.update(G.ws, dt, { player: p, cam: R.camera, input: { fire: Inp.fire && p.alive && G.run.started, firePressed: Inp.firePressed && p.alive && G.run.started, aim: Inp.aim && p.alive }, shoot: shoot,
+      melee: meleeHit, onThrow: throwFrag,
       onFire: function (d) { if (s.shake && (d.cls === 'smg' || d.cls === 'rifle')) G.shake = Math.max(G.shake, 0.15); } });
     // FOV: aim zoom, plus a small widen at sprint and a kick while sliding
     var cw = W.current(G.ws), aimZoom = cw ? (cw.def.scopeZoom ? 1 / cw.def.scopeZoom : (cw.def.aimZoom || 0.85)) : 0.85;
@@ -876,19 +1102,22 @@
     A.listener = { x: p.x, z: p.z, yaw: p.yaw };
     // render-side updates
     AI.sync(); AI.updateCorpses(dtRaw);
+    IB.SkillFX.syncMesh(tAll);   // acid pool decals
     updatePickups(dtRaw, tAll);
-    if (G.mode === 'play') updateLoot(tAll);
-    var magnet = 2.5 * (1 + 0.5 * up('magnet'));
+    if (IB.Throwables) IB.Throwables.sync(tAll);
+    if (IB.Drops) { IB.Drops.update(dtRaw, tAll, G); IB.Gear.update(dtRaw, G); }
+    if (IB.WeaponDrops) IB.WeaponDrops.update(dtRaw, tAll, G);
+    if (G.mode === 'play') updateLoot();
+    var magnet = 2.5 * (1 + 0.5 * up('magnet')) * IB.SkillFX.fx.magnetMul;   // Scrap Magnet
     FX.update(dtRaw, R.camera, p, magnet, collectGem);
     W.pose(G.ws, dtRaw, p, Inp.lookDX, Inp.lookDY, s.headBob, tAll);
     // HUD
     var zn = G.level.zones[G.zone];
     var w = W.current(G.ws);
     HUD.health(p.health, p.maxHp);
-    if (HUD.armor) HUD.armor(p.armor || 0);
     if (w) {
       HUD.ammo(w.mag, w.reserve);
-      if (HUD.weapon) HUD.weapon({ id: w.id, rarity: w.rarity || "common", name: w.def.name, cls: w.def.cls, mag: w.mag, magSize: W.magSize(G.ws, w.def), reserve: w.reserve,
+      if (HUD.weapon) HUD.weapon({ id: w.id, name: w.def.name, cls: w.def.cls, mag: w.mag, magSize: W.magSize(G.ws, w.def), reserve: w.reserve,
         reloading: G.ws.state === 'reload', reloadFrac: G.ws.state === 'reload' ? Math.min(1, G.ws.t / G.ws.reloadT) : 0 });
     }
     if (HUD.stamina) HUD.stamina(p.stamina / (p.staminaMax || 4), p.sliding);
@@ -896,12 +1125,13 @@
     if (HUD.radar && G.radarT <= 0) {
       G.radarT = 0.1;
       var rob = [];
-      AI.robots.forEach(function (r) { if (r.on && r.state !== 'pose') rob.push({ x: r.x, z: r.z, alert: r.state !== 'idle' && r.state !== 'spawn' }); });
+      AI.robots.forEach(function (r) { if (r.on && r.state !== 'pose') rob.push({ x: r.x, z: r.z, alert: !(r.rogue > 0) && r.state !== 'idle' && r.state !== 'spawn', rogue: r.rogue > 0 }); });
       var gates = []; G.level.zones.forEach(function (zz) { gates.push({ x: zz.exitGate.x, z: zz.exitGate.z, open: zz.exitGate.open > 0.5 }); });
       var last = G.level.zones[G.level.zones.length - 1];
       HUD.radar({ px: p.x, pz: p.z, yaw: p.yaw, range: 30, robots: rob, gates: gates,
         pickups: (G.weaponStands || []).filter(function (w2) { return !w2.taken; }).map(function (w2) { return { x: w2.x, z: w2.z, kind: 'weapon' }; })
-          .concat(G.pickups.filter(function (pk) { return pk.on; }).map(function (pk) { return { x: pk.x, z: pk.z, kind: pk.kind }; })),
+          .concat(G.pickups.filter(function (pk) { return pk.on; }).map(function (pk) { return { x: pk.x, z: pk.z, kind: pk.kind }; }))
+          .concat(IB.Drops ? IB.Drops.radar() : []).concat(IB.WeaponDrops ? IB.WeaponDrops.radar() : []),
         exit: last.state === 'cleared' ? { x: G.level.hatch.x, z: G.level.hatch.z } : null });
     }
     if (HUD.objective) {
@@ -909,6 +1139,7 @@
         (G.level.zones[G.level.zones.length - 1].state === 'cleared' ? 'Walk the exit path' : 'Follow the arrows to the next gate');
       HUD.objective(obj);
     }
+    if (HUD.kit) { var mk = G.meleeId(); HUD.kit(mk ? IB.WEAPONS[mk].name : null, G.slot && G.slot.frag ? G.grenades : -1); }
     HUD.slots(W.ownedSlots(G.ws).map(function (sl) { var id = G.ws.slots[sl]; return { slot: sl, cls: IB.WEAPONS[id].cls, name: IB.WEAPONS[id].name, on: id === G.ws.cur }; }));
     HUD.score(G.zone + 1, G.level.zones.length, G.run.time, zn.state === 'active' ? AI.alive(G.zone) + zn.queue.length + remainingInWaves(zn) : 0);
     HUD.gems(G.slot ? G.slot.gems : G.run.gems, false);
@@ -938,6 +1169,106 @@
       FX.puff(r.x, 0.6, r.z, 4, PAL.ink, 0.15, 0.4, 2);
     });
     if (hitAny) { G.hitstop = 0.035; HUD.hit('hit'); A.play('hit'); }
+  }
+
+  // ---------------- melee hits, melee rack, frag cans ----------------
+  var _mv = new THREE.Vector3();
+  /* a melee blow lands (weapons.js calls this at the swing's 'hit' fraction): every robot in range inside the arc, in
+     sight; the nearest takes the full blow, the rest x0.6 (nunchucks: all full). Katana: the third swing x comboMul.
+     Dagger: x backstab on a robot that has not seen the player or is struck from behind. Voltaxe: shock DoT, then arcs to
+     the nearest robots. */
+  function meleeHit(def, combo, hitNo) {
+    var p = G.player, yaw = p.yaw, fx = -Math.sin(yaw), fz = -Math.cos(yaw), cosArc = Math.cos(def.arc * Math.PI / 360);
+    var eyeY = IB.Player.eyeY(p, false), hits = [];
+    AI.robots.forEach(function (r) {
+      if (!r.on || r.state === 'pose' || r.state === 'spawn' || r.rogue > 0) return;
+      var v = AI.VIS[r.type], dx = r.x - p.x, dz = r.z - p.z, d = Math.hypot(dx, dz), reach = d - v.radius;
+      if (reach > def.range) return;
+      if (r.y + v.y1 < p.y - 0.4 || r.y + v.y0 > p.y + 2.4) return;
+      if (d > 0.6 && (dx * fx + dz * fz) / d < cosArc) return;
+      if (!G.level.world.los(p.x, eyeY, p.z, r.x, r.y + (v.y0 + v.y1) / 2, r.z)) return;
+      hits.push({ r: r, d: reach, dx: dx / (d || 1), dz: dz / (d || 1) });
+    });
+    hits.sort(function (a, b) { return a.d - b.d; });
+    var base = def.damage * ((G.fx && G.fx.meleeMul) || 1) * (IB.SkillFX && IB.SkillFX.hitMul ? IB.SkillFX.hitMul('body') : 1);
+    if (def.combo > 1 && combo >= def.combo - 1) base *= def.comboMul || 1;
+    if (G.meleeWinded) base *= MELEE_WINDED.dmg;
+    if (IB.WeaponDrops) base *= IB.WeaponDrops.dmgMul(def.id);
+    var landed = 0;
+    hits.forEach(function (h, i) {
+      var r = h.r, dmg = base * (i === 0 || def.id === 'nunchucks' ? 1 : 0.6);
+      if (def.backstab) {
+        var behind = (Math.sin(r.yaw) * -h.dx + Math.cos(r.yaw) * -h.dz) < -0.2;   // the robot faces away from the player
+        if (!r.seesPlayer || r.state === 'idle' || behind) dmg *= def.backstab;
+      }
+      G.lastKillCls = 'melee';
+      var kb = (def.knockback || 3) + (combo === 2 ? 3 : 0);
+      var killed = AI.damage(r, dmg, { stagger: !!def.stagger || combo === 2 || def.id === 'eaxe', kx: h.dx * kb, kz: h.dz * kb }, onKill);
+      landed++;
+      var v = AI.VIS[r.type], hy = r.y + (v.y0 + v.y1) / 2;
+      if (IB.Boom) IB.Boom.robotHit(r, r.x - h.dx * v.radius, hy, r.z - h.dz * v.radius, h.dx, 0, h.dz, 'body', killed);
+      if (IB.Gear && IB.Gear.onHit) IB.Gear.onHit(r, { damage: dmg }, 'body', def, killed);   // damage number
+      if (def.shock && !killed && IB.Status) IB.Status.apply(r, 'shock', def.shock.dps * ((AI.hpMul) || 1), def.shock.dur);
+      if (def.shock && i === 0) chainZap(r, dmg * def.shock.chainMul, def.shock);
+    });
+    if (landed) {
+      G.hitstop = def.id === 'eaxe' ? 0.07 : 0.045; HUD.hit('hit'); A.play('hit', { pitch: def.id === 'eaxe' ? 0.7 : 1 });
+      if (def.id === 'eaxe') { A.play('boltHit'); G.addTrauma(0.25); } else G.addTrauma(0.1);
+      AI.hear(p.x, p.z, 8);
+    } else {
+      // a swing into a wall or cover: chips and a clank
+      R.camera.getWorldDirection(_mv);
+      var wh = G.level.world.ray(R.camera.position.x, R.camera.position.y, R.camera.position.z, _mv.x, _mv.y, _mv.z, def.range);
+      if (wh && hitNo === 0) {
+        var ex = R.camera.position.x + _mv.x * wh.t, ey = R.camera.position.y + _mv.y * wh.t, ez = R.camera.position.z + _mv.z * wh.t;
+        if (wh.box && wh.box.kind === 'canister' && IB.Boom) IB.Boom.hitCan(wh.box, def.damage);
+        else { FX.impact(ex, ey, ez, wh.nx, wh.ny, wh.nz, false); if (IB.Boom) IB.Boom.impact(ex, ey, ez, wh.nx, wh.ny, wh.nz, wh.box); }
+        A.play('hit', { pitch: 0.6, gain: 0.6 });
+      }
+    }
+    return landed;
+  }
+  function chainZap(src, dmg, sh) {
+    var near = AI.robots.filter(function (r) { return r.on && r !== src && r.state !== 'spawn' && r.state !== 'pose' && !(r.rogue > 0) && Math.hypot(r.x - src.x, r.z - src.z) < sh.chainRange; })
+      .sort(function (a, b) { return Math.hypot(a.x - src.x, a.z - src.z) - Math.hypot(b.x - src.x, b.z - src.z); }).slice(0, sh.chain);
+    near.forEach(function (r) {
+      var va = AI.VIS[src.type], vb = AI.VIS[r.type];
+      if (IB.Boom && IB.Boom.lightning) IB.Boom.lightning(src.x, src.y + (va.y0 + va.y1) / 2, src.z, r.x, r.y + (vb.y0 + vb.y1) / 2, r.z);
+      G.lastKillCls = 'melee';
+      if (!AI.damage(r, dmg, { stagger: true }, onKill) && IB.Status) IB.Status.apply(r, 'shock', sh.dps * (AI.hpMul || 1), sh.dur);
+    });
+  }
+  G.meleeHit = meleeHit;
+  // a swing spends stamina (a share of the pool) and ends a sprint; out of stamina it is slower and weaker
+  var MELEE_WINDED = { rate: 1 / 1.5, dmg: 0.6 };
+  function meleeSwing(id) {
+    var p = G.player, def = IB.WEAPONS[id], max = p.staminaMax || 4, cost = (def.stamina || 0.15) * max;
+    if (!W.meleeReady(G.ws)) return;
+    G.meleeWinded = p.stamina < cost * 0.5;
+    G.ws.fx.meleeRate = G.meleeWinded ? MELEE_WINDED.rate : 1;
+    if (W.meleeStart(G.ws, id)) {
+      p.stamina = Math.max(0, p.stamina - cost); p.staminaRest = 0; p.sprinting = false;
+      if (G.meleeWinded && HUD.toast) HUD.toast('Winded · slower swings', 0.9);
+    }
+  }
+  G.meleeSwing = meleeSwing;
+  function cycleMelee() {
+    var list = G.slot && G.slot.melee; if (!list || list.length < 2) return;
+    var i = list.indexOf(G.meleeId());
+    G.slot.meleeSel = list[(i + 1) % list.length];
+    HUD.toast('Melee: ' + IB.WEAPONS[G.slot.meleeSel].name + ' (V)', 1.4); A.play('draw');
+  }
+  // the frag can leaves the support hand (weapons.js throw clip, release frame): from by the left shoulder, along the view
+  function throwFrag() {
+    if (G.grenades <= 0) return;
+    G.grenades--;
+    var def = IB.WEAPONS.frag, c = R.camera, p = G.player;
+    c.getWorldDirection(_mv);
+    var rx = Math.cos(p.yaw), rz = -Math.sin(p.yaw);
+    var sp = def.speed || 18, lift = def.throwUp || 4;
+    var hpMul = (AI.hpMul || 1) * (1 + 0.2 * up('blast'));
+    IB.Throwables.throw(c.position.x - rx * 0.25 + _mv.x * 0.5, c.position.y - 0.1 + _mv.y * 0.5, c.position.z - rz * 0.25 + _mv.z * 0.5,
+      _mv.x * sp * 0.68 + p.vx * 0.5, _mv.y * sp * 0.68 + lift * 0.8, _mv.z * sp * 0.68 + p.vz * 0.5, def, hpMul);   // ~12 m on the flat
   }
 
   // ---------------- performance guard ----------------
@@ -984,8 +1315,38 @@
     look: function (yaw, pitch) { G.player.yaw = yaw; G.player.pitch = pitch || 0; },
     pause: function () { G.pause(); }, resume: function () { G.resume(); }, title: function () { G.toTitle(); }, start: function () { G.startLevel(); },
     menu: function (act) { M.act(act); },
-    setTier: function (t) { G.setTier(t); }
+    tabMenu: function (tab) { G.openMenu(tab); }, closeTabMenu: function () { G.closeMenu(); },
+    progress: function () {
+      var pr = G.progress(); pr.skills = G.slot ? Object.assign({}, G.slot.skills) : {};
+      pr.arsenal = G.slot ? G.slot.arsenal.slice() : []; pr.loadout = G.slot ? G.slot.loadout.slice() : [];
+      pr.carried = W.ownedSlots(G.ws).map(function (k) { return G.ws.slots[k]; }); return pr;
+    },
+    setTier: function (t) { G.setTier(t); },
+    // skills: set a tree directly (no gates or budget: tests only), force chance skills (id -> 0..1), state
+    setSkills: function (sk) { ensureSlot(); G.slot.skills = Object.assign({}, sk); G.applyProgress(); return IB.SkillFX.fx; },
+    forceSkill: function (id, p) { if (p === null) delete IB.SkillFX.force[id]; else IB.SkillFX.force[id] = p; IB.SkillFX.refresh(G.slot.skills); },
+    skillState: function () {
+      var SF = IB.SkillFX, c = SF.cloakState();
+      return { cloak: c, cloaked: AI.cloaked, rogues: AI.robots.filter(function (r) { return r.on && r.rogue > 0; }).length,
+        pools: SF.activePools(), coats: SF.activeCoats(), stats: Object.assign({}, SF.stats), maxHp: G.player.maxHp, staminaMax: G.player.staminaMax,
+        sprintMul: G.player.sprintMul, swapMul: G.ws.fx.swapMul, reloadMul: G.ws.fx.reloadMul, shoveT: G.ws.shoveT,
+        seeing: AI.robots.filter(function (r) { return r.on && !(r.rogue > 0) && r.seesPlayer; }).length,
+        attacking: AI.robots.filter(function (r) { return r.on && !(r.rogue > 0) && (r.state === 'windup' || r.state === 'attack'); }).length };
+    },
+    // spawn a robot type at (x, z) in the current zone, awake (returns its slot)
+    spawnRobot: function (type, x, z) {
+      var r = AI.spawn(type, x, z, G.zone, x, z); if (!r) return -1;
+      r.state = 'idle'; r.st = 0; r.x = x; r.z = z; r.y = AI.VIS[type].flying ? r.hy : 0; r.vx = r.vz = 0;
+      return r.slot;
+    },
+    // fire one bullet of the gun in hand from (ox, oy, oz) along (dx, dy, dz) through the normal hit path
+    fireRay: function (ox, oy, oz, dx, dy, dz) { var L = Math.hypot(dx, dy, dz) || 1; shoot({ x: ox, y: oy, z: oz }, { x: dx / L, y: dy / L, z: dz / L }, W.current(G.ws).def); },
+    // a lethal hit from the player on robot i of type (Handy Helpers can turn it rogue)
+    wreck: function (type, slot) { var r = AI.types[type].slots[slot]; return AI.damage(r, r.hp + 1, {}, onKill); },
+    robot: function (type, slot) { var r = AI.types[type].slots[slot]; return { on: r.on, hp: r.hp, maxHp: r.maxHp, rogue: r.rogue, state: r.state, x: r.x, z: r.z, wet: r.wet, tgtRogue: !!(r.tgt && r.tgt.rogue > 0) }; },
+    setRogueTime: function (t) { AI.robots.forEach(function (r) { if (r.on && r.rogue > 0) r.rogue = t; }); }
   };
+  if (IB.GearTest) Object.keys(IB.GearTest).forEach(function (k) { window.__TEST__[k] = IB.GearTest[k]; });   // loot hooks (game/gear.js)
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', G.boot); else G.boot();
 })(window.IB = window.IB || {});

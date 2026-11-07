@@ -1,8 +1,8 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-['core/rng', 'data/weapons', 'data/enemies', 'data/upgrades', 'data/unlocks', 'data/levels',
-  'core/damage', 'core/gems', 'core/upgrades', 'core/saves', 'core/levelgen']
+['core/rng', 'data/weapons', 'data/enemies', 'data/upgrades', 'data/skills', 'data/unlocks', 'data/levels',
+  'core/damage', 'core/gems', 'core/upgrades', 'core/skills', 'core/saves', 'core/levelgen']
   .forEach((f) => require('../../src/' + f + '.js'));
 const IB = globalThis.IB;
 const S = IB.Saves;
@@ -19,8 +19,9 @@ test('new slot matches the 5.14 schema defaults', () => {
   const { store, now } = setup();
   const s = store.newSlot(2, 918273);
   assert.deepEqual(s, {
-    v: 1, id: 2, level: 1, highest: 0, gems: 0, upgrades: {}, loadout: { pistol: 'pip' },
-    stats: { kills: 0, deaths: 0, time: 0, coreHits: 0 }, best: {}, seed: 918273, saved: now()
+    v: 1, id: 2, level: 1, highest: 0, gems: 0, upgrades: {}, arsenal: [], loadout: [], skills: {},
+    stats: { kills: 0, deaths: 0, time: 0, coreHits: 0 }, best: {}, gear: { inv: [], shield: null, armor: null, attach: {}, next: 1, found: 0 },
+    seed: 918273, saved: now()
   });
   assert.equal(typeof store.newSlot(1).seed, 'number');
 });
@@ -91,14 +92,29 @@ test('version migration from v:1', () => {
   const s = store.load(2);
   assert.equal(s.v, 1); assert.equal(s.level, 7); assert.equal(s.gems, 182);
   assert.deepEqual(s.upgrades, { dmg: 2 });
-  assert.deepEqual(s.loadout, { pistol: 'pip' });
+  assert.deepEqual(s.loadout, []); assert.deepEqual(s.arsenal, []); assert.deepEqual(s.skills, {});
   assert.deepEqual(s.stats, { kills: 4, deaths: 0, time: 0, coreHits: 0 });
   assert.deepEqual(s.best, {});
-  // the full brief example passes through unchanged
+  // the full brief example keeps every field; its class-keyed loadout becomes the ordered list + arsenal
   const ex = { v: 1, id: 1, level: 7, highest: 6, gems: 182, upgrades: { dmg: 2, hp: 1 },
     loadout: { pistol: 'pip', smg: 'buzz', rifle: 'rivet', melee: 'katana', grenade: 'frag' },
     stats: { kills: 412, deaths: 3, time: 1835, coreHits: 120 }, seed: 918273, saved: 1730800000000, best: {} };
-  assert.deepEqual(S.migrate(JSON.parse(JSON.stringify(ex))), ex);
+  const list = ['pip', 'buzz', 'rivet', 'katana', 'frag'];
+  assert.deepEqual(S.migrate(JSON.parse(JSON.stringify(ex))), Object.assign({}, ex, { loadout: list, arsenal: list, skills: {}, gear: S.defaultGear() }));
+  // a current save passes through unchanged (gear included)
+  const curGear = { inv: [{ id: 'g1', type: 'grip' }], shield: null, armor: null, attach: { rivet: ['g1'] }, next: 2, found: 1, starter: true, starterVest: true };
+  const cur = Object.assign({}, ex, { loadout: ['rivet', 'pip'], arsenal: ['pip', 'rivet', 'buzz'], skills: { overload: 2, heavyink: 1 }, gear: curGear });
+  assert.deepEqual(S.migrate(JSON.parse(JSON.stringify(cur))), cur);
+  // the old 'owned' list fills the arsenal and the loadout
+  const old = S.migrate({ v: 1, id: 1, highest: 2, owned: ['pip', 'rivet'] });
+  assert.deepEqual(old.arsenal, ['pip', 'rivet']); assert.deepEqual(old.loadout, ['pip', 'rivet']);
+  // gear (loot inventory) gets its default shape; stored items are kept
+  const withGear = S.migrate({ v: 1, id: 1, gear: { inv: [{ id: 'g1', type: 'grip' }], shield: 'g1' } });
+  assert.equal(withGear.gear.inv.length, 1); assert.equal(withGear.gear.shield, 'g1'); assert.deepEqual(withGear.gear.attach, {});
+  assert.deepEqual(S.migrate({ v: 1, id: 1, gear: 'junk' }).gear, S.defaultGear());
+  // a save from before armour vests: the gear keeps everything and gains an empty vest slot
+  const preVest = S.migrate({ v: 1, id: 1, highest: 7, gear: { inv: [{ id: 'g1', type: 'shield', rarity: 'epic', level: 6, stats: { capacity: 40, delay: 3.5, rate: 15 } }], shield: 'g1', attach: {}, next: 2, found: 1, starter: true } });
+  assert.equal(preVest.gear.armor, null); assert.equal(preVest.gear.shield, 'g1'); assert.equal(preVest.gear.starter, true); assert.equal(preVest.gear.starterVest, undefined, 'the starter vest is still to come');
   // no version field -> treated as v1
   assert.equal(S.migrate({ id: 1, level: 3 }).v, 1);
   // unknown future version kept as-is
@@ -113,7 +129,7 @@ test('version migration from v:1', () => {
 
 test('settings defaults, save, backup', () => {
   const { be, store } = setup();
-  assert.deepEqual(store.loadSettings(), { sfx: true, mouseSens: 1.0, touchSens: 1.0, fov: 85, invertY: false,
+  assert.deepEqual(store.loadSettings(), { sfx: true, mouseSens: 1.0, touchSens: 1.0, fov: 100, invertY: false,
     graphics: 'auto', shake: true, headBob: true, reduceFlash: false });
   store.saveSettings({ fov: 100, sfx: false });
   assert.equal(store.loadSettings().fov, 100);
@@ -124,7 +140,7 @@ test('settings defaults, save, backup', () => {
   be.setItem('inkbolt.settings', '{bad');
   assert.equal(store.loadSettings().fov, 100, 'falls back to the backup');
   be.setItem('inkbolt.settings', JSON.stringify({ fov: 'wide' }));
-  assert.equal(store.loadSettings().fov, 85, 'wrong-typed value ignored');
+  assert.equal(store.loadSettings().fov, 100, 'wrong-typed value ignored');
 });
 
 test('reset clears all inkbolt keys only', () => {
@@ -137,7 +153,7 @@ test('reset clears all inkbolt keys only', () => {
   store.resetAll();
   assert.deepEqual(be.keys(), ['othergame.save']);
   assert.deepEqual(store.listSlots(), [null, null, null]);
-  assert.equal(store.loadSettings().fov, 85);
+  assert.equal(store.loadSettings().fov, 100);
 });
 
 test('backend that throws does not crash', () => {
@@ -145,7 +161,7 @@ test('backend that throws does not crash', () => {
   const store = S.create(bad, () => 1);
   assert.deepEqual(store.listSlots(), [null, null, null]);
   assert.doesNotThrow(() => store.save(store.newSlot(1, 1)));
-  assert.equal(store.loadSettings().fov, 85);
+  assert.equal(store.loadSettings().fov, 100);
   assert.doesNotThrow(() => store.resetAll());
 });
 
@@ -157,4 +173,34 @@ test('ago()', () => {
   assert.equal(S.ago(26 * 3600 * 1000), '1 day ago');
   assert.equal(S.ago(2 * 86400 * 1000), '2 days ago');
   assert.equal(S.ago(-5000), 'just now');
+});
+
+test('skills are validated against progress on load (spent <= earned, gates, one capstone)', () => {
+  const { be, store } = setup();
+  // highest 1 earns 2 points: 2 ranks are fine, 3 are not
+  be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 1, skills: { overload: 2 } }));
+  assert.deepEqual(store.load(1).skills, { overload: 2 });
+  be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 1, skills: { overload: 3 } }));
+  assert.deepEqual(store.load(1).skills, {}, 'overspent tree is reset (points refunded)');
+  // a row-3 skill without the 5 points below it, unknown (or retired) ids, bad ranks, non-objects: all reset
+  for (const bad of [{ hazard: 1 }, { nope: 1 }, { overboard: 2 }, { overload: 4 }, { overload: -1 }, { overload: 1.5 }, [1, 2], 'x']) {
+    be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 17, skills: bad }));
+    assert.deepEqual(store.load(1).skills, {}, JSON.stringify(bad));
+  }
+  // both capstones (even with a made-up huge 'highest')
+  const both = { overload: 3, heavyink: 3, rapid: 3, electrify: 1, healthy: 3, undercover: 1, handyhelpers: 1, chainreaction: 1 };
+  be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 99, skills: both }));
+  assert.deepEqual(store.load(1).skills, {});
+});
+
+test('settings v2: old 85 default becomes 100, a chosen field of view is kept, range 60-130', () => {
+  const be = IB.Saves.memoryBackend();
+  be.setItem('inkbolt.settings', JSON.stringify({ fov: 85 }));
+  assert.equal(IB.Saves.create(be).loadSettings().fov, 100);
+  be.setItem('inkbolt.settings', JSON.stringify({ fov: 92 }));
+  assert.equal(IB.Saves.create(be).loadSettings().fov, 92);
+  be.setItem('inkbolt.settings', JSON.stringify({ fov: 85, sv: 2 }));
+  assert.equal(IB.Saves.create(be).loadSettings().fov, 85, 'an 85 saved after v2 is a choice');
+  be.setItem('inkbolt.settings', JSON.stringify({ fov: 200, sv: 2 }));
+  assert.equal(IB.Saves.create(be).loadSettings().fov, 130);
 });

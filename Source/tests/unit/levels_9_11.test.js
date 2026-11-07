@@ -1,8 +1,7 @@
-// Levels 9-11 (Galleria Mall, Strike Team HQ, Redwood Hollow) and the armory loot rules.
+// Campaign levels 14-16 (Galleria Mall, Strike Team HQ, Redwood Hollow) and the armory odds.
 const test = require('node:test');
 const assert = require('node:assert');
 require('../../src/data/weapons.js');
-require('../../src/data/loot.js');
 require('../../src/data/themes.js');
 require('../../src/data/themes.gen.js');
 require('../../src/data/zones.gen.js');
@@ -33,15 +32,15 @@ function rects(g, ch) {
   return out;
 }
 
-test('the three new levels close the campaign as levels 9, 10 and 11', () => {
+test('the three new levels close the campaign as levels 14, 15 and 16', () => {
   assert.deepStrictEqual(IB.CAMPAIGN.slice(-3), ['mall', 'police', 'grove']);
   ['mall', 'police', 'grove'].forEach((id, i) => {
     const p = IB.LEVEL_PLANS[id];
-    assert.strictEqual(p.level, 9 + i);
+    assert.strictEqual(p.level, 14 + i);
     assert.strictEqual(p.zones.length, 3);
-    p.zones.forEach(z => { assert.ok(IB.ZONE_MAPS[z.map], z.map); assert.strictEqual(z.waves.length, 3); });
+    p.zones.forEach(z => { assert.ok(IB.ZONE_MAPS[z.map], z.map); assert.ok(z.waves.length >= 3); });
   });
-  assert.strictEqual(IB.LEVEL_PLANS.tt3.next, 'mall');
+  assert.strictEqual(IB.LEVEL_PLANS.island.next, 'mall');
   assert.strictEqual(IB.LEVEL_PLANS.grove.next, null);
 });
 
@@ -134,27 +133,12 @@ test('grove: bumpy terrain, redwood pairs joined by a 9 m bridge between their l
   });
 });
 
-test('armory rarity: purple is very rare and orange never drops from a rack', () => {
-  let seed = 12345;
-  const rng = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x80000000; };
-  const n = 100000, count = {};
-  for (let i = 0; i < n; i++) { const r = IB.Loot.rollRarity(rng); count[r] = (count[r] || 0) + 1; }
-  assert.strictEqual(count.legendary || 0, 0, 'orange');
-  assert.ok((count.epic || 0) > 0 && count.epic / n < 0.015, 'purple ' + count.epic / n);
-  assert.ok(count.common > count.uncommon && count.uncommon > count.rare && count.rare > count.epic);
-  assert.strictEqual(IB.LOOT.ARMORY_WEIGHTS.legendary, 0);
-});
-
-test('rarity and mods scale a gun without touching the weapon table', () => {
-  const base = IB.WEAPONS.rivet, before = JSON.stringify(base);
-  const d = IB.Loot.derive(base, 'epic', { mag: 'extmag', muzzle: 'suppressor', under: 'laser' });
-  assert.strictEqual(JSON.stringify(base), before);
-  assert.ok(Math.abs(d.damage - base.damage * 1.25) < 1e-9);
-  assert.strictEqual(d.mag, Math.round(Math.round(base.mag * 1.2) * 1.5));
-  assert.ok(Math.abs(d.recoil - base.recoil * 0.78) < 1e-9);
-  assert.ok(Math.abs(d.spreadHip - base.spreadHip * 0.8 * 0.65) < 1e-9);
-  // a mod in the wrong slot does nothing
-  const bad = IB.Loot.derive(base, 'common', { optic: 'extmag' });
-  assert.strictEqual(bad.mag, base.mag);
-  Object.values(IB.LOOT.MODS).forEach(m => assert.ok(['mag', 'muzzle', 'barrel', 'optic', 'under'].includes(m.slot), m.id));
+test('armory racks: purple is very rare and orange never hangs there; bench gear never Legendary', () => {
+  const A = IB.THEME_DEFS.police.armory, tot = o => Object.values(o).reduce((a, b) => a + b, 0);
+  assert.strictEqual(A.tiers.orange, 0);
+  assert.ok(A.tiers.purple > 0 && A.tiers.purple / tot(A.tiers) < 0.015, 'purple ' + A.tiers.purple / tot(A.tiers));
+  assert.ok(A.tiers.gray > A.tiers.green && A.tiers.green > A.tiers.blue && A.tiers.blue > A.tiers.purple);
+  assert.strictEqual(A.gear.legendary, 0);
+  // tier ids are the weapon-drop tiers (src/game/wdrops.js)
+  assert.deepStrictEqual(Object.keys(A.tiers), ['gray', 'green', 'blue', 'purple', 'orange']);
 });

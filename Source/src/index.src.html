@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#15121C">
 <link rel="icon" href="data:,">
 <title>INKBOLT</title>
-<!--BUILD:CSS--><link rel="stylesheet" href="src/ui/ui.css"><!--/BUILD:CSS-->
+<!--BUILD:CSS--><link rel="stylesheet" href="src/ui/ui.css"><link rel="stylesheet" href="src/ui/fieldkit.css"><link rel="stylesheet" href="src/ui/hud.css"><link rel="stylesheet" href="src/ui/loader.css"><!--/BUILD:CSS-->
 </head>
 <body>
 <div id="boot" class="boot"><div class="boot-plate"><span class="boot-word">INKBOLT</span><div class="boot-bar"><i id="bootBar"></i></div></div></div>
@@ -39,13 +39,15 @@
   <div class="use-prompt" id="usePrompt" hidden><span class="key">E</span><span class="ut"></span><span class="us"></span></div>
   <div class="prompt" id="prompt" hidden><span class="key" id="promptKey">R</span><span id="promptText">Reload</span><i class="prompt-bar"><i id="promptFill"></i></i></div>
   <div class="hud-bl">
+    <div class="lvtag" id="lvTag"><b class="lv-badge"><small>LV</small><span id="lvNum">1</span></b><span class="lv-title" id="lvTitle">Tin Rookie</span><span class="lv-pts" id="lvPts" hidden><b id="lvPtsN">+1</b><span class="lv-key" id="lvKey">Tab</span></span></div>
     <div class="plate ink health" id="health">
       <svg class="hp-glyph" viewBox="-12 -12 24 24" aria-hidden="true"><polygon points="11,0 5.5,9.5 -5.5,9.5 -11,0 -5.5,-9.5 5.5,-9.5"/><circle r="3.6"/></svg>
-      <div class="hp-bar"><i id="hpFill"></i><i class="hp-ticks"></i></div><b id="hpNum">100</b><b class="armor" id="armorNum" hidden>+0</b>
+      <div class="hp-bar"><i class="hp-chip" id="hpChip"></i><i id="hpFill"></i><i class="hp-ticks"></i></div><b id="hpNum">100</b>
     </div>
     <div class="stamina" id="stamina"><i id="stFill"></i></div>
   </div>
   <div class="hud-br">
+    <div class="kit" id="kit" hidden><span class="kit-chip" id="kitMelee" hidden><b class="key">V</b><span class="kit-ic" id="kitMeleeIc"></span><span id="kitMeleeName"></span></span><span class="kit-chip" id="kitGren" hidden><b class="key">G</b><span class="kit-ic" id="kitGrenIc"></span><span id="kitGrenN">3</span></span></div>
     <div class="slots" id="slots"></div>
     <div class="plate ink weapon" id="weapon">
       <div class="wpn-info">
@@ -67,33 +69,39 @@
       <span class="elim-row"><span id="elimCount">Back in 3</span><span id="elimRetries">Retries left 2</span></span>
     </div>
   </div>
+  <button class="plate ink pausebtn menubtn" id="menuBtn" aria-label="Inventory, skills and character"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h7v6H4zM13 5h7v6h-7zM4 13h7v6H4zM13 13h7v6h-7z" fill="currentColor"/></svg><i class="menubtn-dot" id="menuDot" hidden></i></button>
   <button class="plate ink pausebtn" id="pauseBtn" aria-label="Pause"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3v14H7zM14 5h3v14h-3z" fill="currentColor"/></svg></button>
 </div>
 <div id="touch" class="touch" hidden></div>
 <div id="overlay" class="overlay" hidden></div>
-<div id="loading" class="loading" hidden></div>
+<div id="tabmenu" class="tabmenu" hidden></div>
+<div id="loading" class="ldr" hidden></div>
 <!--BUILD:JS-->
 <script src="vendor/three.min.js"></script>
 <script src="vendor/GLTFLoader.js"></script>
 <script src="vendor/BufferGeometryUtils.js"></script>
 <script src="src/core/rng.js"></script>
 <script src="src/data/weapons.js"></script>
-<script src="src/data/loot.js"></script>
 <script src="src/data/enemies.js"></script>
 <script src="src/data/upgrades.js"></script>
+<script src="src/data/skills.js"></script>
 <script src="src/data/unlocks.js"></script>
 <script src="src/data/levels.js"></script>
 <script src="src/data/themes.js"></script>
 <script src="src/data/themes.gen.js"></script>
 <script src="src/data/levelplans.js"></script>
+<script src="src/data/loot.js"></script>
 <script src="src/data/assets.js"></script>
 <script src="src/data/assets.gen.js"></script>
 <script src="src/data/zones.gen.js"></script>
 <script src="src/core/damage.js"></script>
 <script src="src/core/gems.js"></script>
 <script src="src/core/upgrades.js"></script>
+<script src="src/core/skills.js"></script>
+<script src="src/core/loadout.js"></script>
 <script src="src/core/saves.js"></script>
 <script src="src/core/levelgen.js"></script>
+<script src="src/core/loot.js"></script>
 <script src="src/game/platform.js"></script>
 <script src="src/game/render.js"></script>
 <script src="src/game/assets.js"></script>
@@ -103,11 +111,29 @@
 <script src="src/game/player.js"></script>
 <script src="src/game/fx.js"></script>
 <script src="src/game/ai.js"></script>
+<script src="src/game/troops.js"></script>
 <script src="src/game/projectiles.js"></script>
+<script src="src/game/throwables.js"></script>
 <script src="src/game/weapons.js"></script>
+<script src="src/game/skillfx.js"></script>
+<script src="src/game/status.js"></script>
+<script src="src/game/dmgnum.js"></script>
+<script src="src/game/hpbars.js"></script>
+<script src="src/game/boom.js"></script>
+<script src="src/game/gear.js"></script>
+<script src="src/game/drops.js"></script>
+<script src="src/game/wdrops.js"></script>
 <script src="src/ui/hud.js"></script>
 <script src="src/ui/menus.js"></script>
+<script src="src/ui/loader.js"></script>
+<script src="src/ui/loothud.js"></script>
+<script src="src/ui/thumbs.js"></script>
+<script src="src/ui/skillicons.js"></script>
+<script src="src/ui/skillhud.js"></script>
+<script src="src/ui/gear.js"></script>
+<script src="src/ui/tabmenu.js"></script>
 <script src="src/game/game.js"></script>
+<script src="src/game/devmax.js"></script>
 <!--/BUILD:JS-->
 </body>
 </html>

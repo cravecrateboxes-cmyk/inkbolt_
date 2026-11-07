@@ -1,0 +1,33 @@
+/* INKBOLT between-levels loader (ui/loader.js): black screen, a real-3D gear on its own canvas, a quiet caption.
+   #loading uses the class "ldr" (the old gears screen styled ".loading" in ui.css is no longer used). */
+.ldr { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; align-content: center; gap: 4px; overflow: hidden;
+  background: #000; color: #EAF6FF; font-family: 'Barlow Condensed', 'Archivo', system-ui, sans-serif;
+  padding: calc(var(--sat) + 16px) calc(var(--sar) + 16px) calc(var(--sab) + 16px) calc(var(--sal) + 16px); animation: ldrIn .25s ease-out; }
+.ldr.out { opacity: 0; transition: opacity var(--ldr-out, 320ms) ease-in; }
+@keyframes ldrIn { from { opacity: 0; } }
+.ldr-stage { position: relative; width: min(74vmin, 560px); aspect-ratio: 1 / 1; }
+.ldr-cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
+.ldr-cap { position: relative; z-index: 1; display: grid; justify-items: center; gap: 2px; text-align: center; margin-top: -2vmin; min-width: 0; max-width: min(92vw, 640px); }
+.ldr-lv { font-weight: 600; font-size: 15px; letter-spacing: .42em; text-transform: uppercase; color: #29F0DE; padding-left: .42em;
+  text-shadow: 0 0 12px rgba(41, 240, 222, .45); }
+.ldr-lv b { font-weight: 700; color: #FFFFFF; font-variant-numeric: tabular-nums; }
+.ldr-name { margin: 0; font-weight: 700; font-size: clamp(30px, 2.4vw + 18px, 52px); line-height: 1; letter-spacing: .06em; text-transform: uppercase; color: #FFFFFF;
+  overflow-wrap: anywhere; }
+.ldr-line { margin: 4px 0 0; font-family: 'Archivo', system-ui, sans-serif; font-weight: 600; font-size: 13px; line-height: 1.4; color: rgba(214, 232, 245, .55); max-width: 46ch; }
+.ldr-bar { position: relative; width: min(220px, 60vw); height: 2px; margin-top: 14px; background: rgba(255, 255, 255, .1); overflow: hidden; }
+.ldr-bar i { position: absolute; inset: 0; transform-origin: left center; transform: scaleX(0); transition: transform .25s ease-out;
+  background: linear-gradient(90deg, #8A6CFF, #29F0DE 55%, #FFB21E); box-shadow: 0 0 8px rgba(41, 240, 222, .7); }
+.ldr-pct { font-weight: 600; font-size: 12px; letter-spacing: .2em; color: rgba(214, 232, 245, .45); font-variant-numeric: tabular-nums; margin-top: 2px; }
+/* phone sideways: gear left, caption right */
+@media (orientation: landscape) and (max-height: 520px) {
+  .ldr { grid-auto-flow: column; gap: 10px; }
+  .ldr-stage { width: min(calc(100vh - 40px), 330px); }
+  .ldr-cap { justify-items: start; text-align: left; margin-top: 0; max-width: min(46vw, 420px); }
+  .ldr-lv { padding-left: 0; }
+  .ldr-name { font-size: 34px; }
+}
+@media (orientation: portrait) and (max-width: 760px) {
+  .ldr-stage { width: min(92vw, 52vh); }
+  .ldr-name { font-size: 34px; }
+}

@@ -85,7 +85,9 @@
       'm': { size: [4, 4], pieces: ['FloorMarble'], collide: false }
     },
     gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.99, shutterHeight: 3.05 },
-    trail: { wall: 'TrailWall', height: 4.0 },
+    // corridor drywall with framed prints, whiteboards, status screens and fire cabinets mixed in
+    trail: { wall: 'TrailWall', height: 4.0, variants: ['TrailWall', 'TrailWall_Art', 'TrailWall_Board', 'TrailWall_Screen', 'TrailWall_Ext'],
+      end: 'TrailWall' },   // the express elevator stands against the hatch room's back wall
     hatch: 'Hatch', stand: 'Stand',
     // the skyline: one long layered slice of Manhattan (cloud banks, pre-war rooftops with water tanks, mid towers,
     // deco spires and glass needles). Ring 0 with count 4 lands exactly due east, south, west and north of the level's
@@ -94,6 +96,37 @@
     backdrop: { ring: [
       { piece: 'Backdrop_Skyline', count: 4, radius: [52, 52], scale: [1, 1], squeezeX: 0.347, face: true }
     ] },
+    // the city 58 floors down (see Z.buildCityBelow): streets, rooftops and water tanks under the haze
+    below: { depth: 170, haze: '#CCDCE8', hazeTop: 0.18, hazeBottom: 0.6, glass: '#6F8FB0',
+      // footprints of the Backdrop_Skyline buildings (fam_kit_office.py backdrop_skyline: near blocks, mid towers,
+      // far towers): [x along the row, front depth, width, depth, colour, window colour]. Keep in sync with the kit.
+      skyline: [
+        [-109, 7, 16, 12, '#CB937A', '#64798E'],
+        [-88, 7, 18, 14, '#E8DECB', '#64798E'],
+        [-66, 6, 15, 11, '#C9A574', '#64798E'],
+        [-44, 8, 19, 13, '#CB937A', '#64798E'],
+        [-22, 7, 16, 12, '#D3C6AE', '#64798E'],
+        [0, 6, 18, 14, '#CB937A', '#64798E'],
+        [22, 7, 15, 12, '#E8DECB', '#64798E'],
+        [44, 8, 17, 13, '#C9A574', '#64798E'],
+        [66, 6, 16, 12, '#CB937A', '#64798E'],
+        [88, 7, 18, 14, '#D3C6AE', '#64798E'],
+        [110, 8, 14, 11, '#CB937A', '#64798E'],
+        [-100, 25, 16, 12, '#D3C6AE', '#64798E'],
+        [-70, 25, 14, 12, '#A9CDE2', '#87AFCB'],
+        [-40, 25, 15, 11, '#CB937A', '#64798E'],
+        [-8, 26, 18, 12, '#D3C6AE', '#64798E'],
+        [26, 26, 14, 12, '#A9CDE2', '#87AFCB'],
+        [58, 25, 16, 11, '#CB937A', '#64798E'],
+        [92, 26, 17, 12, '#D3C6AE', '#64798E'],
+        [-90, 40, 16, 16, '#A9CDE2', '#87AFCB'],
+        [-56, 42, 18, 16, '#E8DECB', '#64798E'],
+        [-22, 41, 9, 9, '#A4D0C6', '#87AFCB'],
+        [12, 40, 22, 16, '#E8DECB', '#64798E'],
+        [46, 41, 26, 12, '#D3C6AE', '#64798E'],
+        [80, 42, 18, 16, '#E8DECB', '#64798E'],
+        [110, 42, 9, 9, '#A4D0C6', '#87AFCB']
+      ] },
     budget: { prop: 2000, landmark: 4000, total: 70000 },
     allPieces: function () {
       var out = [];
@@ -101,7 +134,7 @@
       ['', '_W', '_E'].forEach(function (s) { out.push('WinCol' + s); });
       ['NW', 'NE', 'SE', 'SW'].forEach(function (s) { out.push('WinCorner_' + s); });
       DRY.forEach(function (n) { if (out.indexOf(n) < 0) out.push(n); });
-      out = out.concat(['Core', 'LobbyWood', 'LobbyWoodSconce', 'LobbyStone', 'CeilLight', 'GateFrame', 'GateShutter', 'TrailWall', 'Hatch', 'Stand',
+      out = out.concat(['Core', 'LobbyWood', 'LobbyWoodSconce', 'LobbyStone', 'CeilLight', 'GateFrame', 'GateShutter', 'TrailWall', 'TrailWall_Art', 'TrailWall_Board', 'TrailWall_Screen', 'TrailWall_Ext', 'Hatch', 'Stand',
         'Backdrop_Skyline']);
       var sym = this.symbols;
       Object.keys(sym).forEach(function (ch) { sym[ch].pieces.forEach(function (n) { if (out.indexOf(n) < 0) out.push(n); }); });
@@ -115,18 +148,18 @@
           { map: 'office_cubicles', waves: [
             [['crawler', 7], ['gunner', 2]],
             [['crawler', 6], ['bomber', 2], ['gunner', 1]],
-            [['crawler', 5], ['gunner', 2], ['drone', 2]],
+            [['crawler', 4], ['gunner', 2], ['drone', 2], ['blader', 1]],
             [['crawler', 5], ['bomber', 3]]] },
           { map: 'office_wing', waves: [
             [['crawler', 6], ['gunner', 3]],
             [['drone', 3], ['crawler', 5], ['bomber', 1]],
-            [['gunner', 3], ['crawler', 6]],
-            [['crawler', 4], ['bomber', 2], ['drone', 2]]] },
+            [['gunner', 3], ['crawler', 5], ['blader', 1]],
+            [['crawler', 3], ['bomber', 2], ['drone', 2], ['soldier', 1]]] },
           { map: 'office_lobby', waves: [
             [['crawler', 7], ['gunner', 2]],
-            [['drone', 2], ['bomber', 2], ['crawler', 6]],
+            [['drone', 2], ['bomber', 2], ['crawler', 5], ['blader', 1]],
             [['gunner', 3], ['crawler', 6], ['drone', 1]],
-            [['crawler', 5], ['bomber', 3], ['gunner', 2], ['drone', 2]]] }
+            [['crawler', 4], ['bomber', 3], ['gunner', 2], ['drone', 2], ['soldier', 1]]] }
         ]
       }
     }

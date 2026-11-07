@@ -6,8 +6,8 @@ between trees at the same height (a "@layer 9" in the zone file); oaks, fruit tr
 berry bushes, tall grass, reeds, ferns, flowers, sunflowers, raised vegetable beds, pumpkin patches, boulders,
 fallen logs, a lily pond, picket fences, fruit crates, gate, hedge corridor wall, hatch, rolling-hill backdrop.
 
-Redwood footprint 6 x 6 (origin = trunk centre). Spiral: step k (1..19) has its top at 0.45 k m, centred 1.8 m from
-the trunk at angle (k - 20) * 30 degrees (Blender XY, 0 = +X = game east), a 1.1 m square shelf. The ring at 9 m:
+Redwood footprint 6 x 6 (origin = trunk centre). Spiral: step k (1..23) has its top at 0.375 k m, centred 1.8 m from
+the trunk at angle (k - 24) * 30 degrees (Blender XY, 0 = +X = game east), a 1.1 m square shelf. The ring at 9 m:
 east, north and west limbs (1.6 m wide, out to the footprint edge) and the north-east / north-west corners; the
 south half stays open above the last turn of the stairs so there is head room.
 """
@@ -37,7 +37,7 @@ ib_lib.PALETTES[FAM] = BASE + [
     ('hedge', '#4E9E52'), ('hedge2', '#3F8A47'),
 ]
 TRIS = {}
-STEP, NSTEP, RING_Z, RING_T = 0.45, 19, 9.0, 0.35
+STEP, NSTEP, RING_Z, RING_T = 0.375, 23, 9.0, 0.35   # 24 rises of 0.375 m (robots climb 0.4) to the 9 m ring
 
 
 def new(pal):
@@ -83,7 +83,7 @@ def spiral():
     """(k, top, cx, cy) for every branch step"""
     out = []
     for k in range(1, NSTEP + 1):
-        a = math.radians((k - 20) * 30)
+        a = math.radians((k - 24) * 30)
         out.append((k, k * STEP, math.cos(a) * 1.8, math.sin(a) * 1.8))
     return out
 
@@ -110,12 +110,12 @@ def build_redwood(pal, ao, name, seed, crown):
         a = math.atan2(cy, cx)
         r0, r1 = 0.85, 2.2
         m.beam((math.cos(a) * r0, math.sin(a) * r0, top - 0.55), (math.cos(a) * r1, math.sin(a) * r1, top - 0.42 - 0.1 * (k % 3)), 0.26, 'bark2')
-        cols.append(col_box(cx - 0.55, cy - 0.55, top - 0.3, cx + 0.55, cy + 0.55, top))
+        cols.append(col_box(cx - 0.55, cy - 0.55, top - 0.3, cx + 0.55, cy + 0.55, top, True))
     # the ring of limbs at 9 m
     for i, (x0, y0, x1, y1) in enumerate(RING):
         m.box(((x0 + x1) / 2, (y0 + y1) / 2, RING_Z - RING_T / 2), (x1 - x0, y1 - y0, RING_T), 'bark', bevel=False)
         m.box(((x0 + x1) / 2, (y0 + y1) / 2, RING_Z + 0.01), (x1 - x0 - 0.2, y1 - y0 - 0.2, 0.02), 'split', bevel=False)
-        cols.append(col_box(x0, y0, RING_Z - RING_T, x1, y1, RING_Z))
+        cols.append(col_box(x0, y0, RING_Z - RING_T, x1, y1, RING_Z, True))
     for (x, y) in ((2.0, 0.0), (0.0, 2.0), (-2.0, 0.0)):   # under-limb braces into the trunk
         m.beam((x * 0.4, y * 0.4, RING_Z - 1.6), (x, y, RING_Z - RING_T - 0.01), 0.3, 'bark2')
     # crown: broken stubs above head height, then layered foliage
@@ -290,7 +290,7 @@ def build_bridge(pal, ao):
         m.box((-0.25 + k * 0.5, 0, -0.08), (0.49, 1.0, 0.16), 'plank' if k % 2 else 'plank2', bevel=False)
     m.box((0, -0.45, 0.5), (0.08, 0.08, 1.0), 'bark', bevel=False)
     m.box((0, -0.45, 0.95), (1.0, 0.04, 0.04), 'rope', bevel=False)
-    finish('Bridge', m, ao, cols=[col_box(-0.5, -0.5, -0.16, 0.5, 0.5, 0), col_box(-0.5, -0.5, 0, 0.5, -0.42, 1.0)])
+    finish('Bridge', m, ao, cols=[col_box(-0.5, -0.5, -0.16, 0.5, 0.5, 0, True), col_box(-0.5, -0.5, 0, 0.5, -0.42, 1.0)])
 
 
 # ================================================================ gate, corridor hedge, hatch, backdrop

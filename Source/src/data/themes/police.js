@@ -1,9 +1,9 @@
 /* Theme: Strike Team HQ (kit-police) -- a police / special-forces base.
    Painted-block rooms under strip lights: a lobby with the star emblem, a briefing room, the armory, a vehicle bay and
-   a firing range. Weapon wall racks ('R') carry REAL guns: each of a rack's six mounts is filled at level start with a
-   modelled gun of a rolled rarity (IB.LOOT.ARMORY_WEIGHTS: purple is very rare, orange never appears here). Workbenches
-   ('b') carry weapon mods (extended / speed mag, suppressor, compensator, long barrel, red dot, laser, grip) and gear
-   shelves ('g') carry items (Kevlar vest, med kit, ammo box). Walk up and press E (touch: USE) to take one.
+   a firing range. Weapon wall racks ('R') carry REAL guns: about 60 % of a rack's four mounts are filled at level
+   start, each with a gun unlocked so far at a weapon tier rolled from `armory.tiers` (gray / green / blue common, purple
+   very rare, orange never). Workbenches ('b') hold gun attachments and gear shelves ('g') shield cells and vests, made
+   by the gear loot system at `armory.gear` odds. Look at one and press E (touch: USE) to take it.
    Built by blender/fam_kit_police.py; zone layouts by tools/police_zones.py (src/data/zones/police_*.txt).
 
    Symbols: R weapon rack [3,1] (turns to face the room)  b workbench [2,1]  g gear shelf [2,1]  l locker  f cabinet
@@ -61,6 +61,8 @@
       'Y': { pieces: ['Target'], rotate: 0, kind: 'cover' },
       'M': { size: [4, 4], pieces: ['Emblem'], collide: false }
     },
+    // armory odds (game.js placeLoot): rack guns by weapon tier (src/game/wdrops.js TIERS), bench / shelf gear by rarity
+    armory: { tiers: { gray: 46, green: 34, blue: 19.25, purple: 0.75, orange: 0 }, gear: { common: 62, rare: 33, epic: 5, legendary: 0 } },
     gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.5, shutterHeight: 3.05 },
     trail: { wall: 'TrailWall', height: 4.0 },
     hatch: 'Hatch', stand: 'Crate',
@@ -72,9 +74,9 @@
         name: 'Strike Team HQ',
         intro: 'The armory is open: take real guns off the wall racks and fit mods at the benches (E / USE).',
         zones: [
-          { map: 'police_1', waves: [[['crawler', 9], ['gunner', 2]], [['gunner', 4], ['crawler', 8]], [['crawler', 10], ['bomber', 3], ['gunner', 2]]] },
-          { map: 'police_2', waves: [[['crawler', 10], ['gunner', 3]], [['gunner', 5], ['bomber', 3], ['crawler', 6]], [['crawler', 12], ['gunner', 4], ['drone', 2]]] },
-          { map: 'police_3', waves: [[['gunner', 4], ['crawler', 8]], [['drone', 3], ['bomber', 4], ['crawler', 8]], [['gunner', 6], ['crawler', 12], ['bomber', 3], ['drone', 2]]] }
+          { map: 'police_1', waves: [[['crawler', 18], ['gunner', 6]], [['crawler', 4], ['bomber', 4], ['gunner', 5], ['blader', 6]], [['crawler', 4], ['drone', 3], ['gunner', 4], ['soldier', 6]], [['crawler', 4], ['bomber', 4], ['gunner', 5], ['soldier', 6]]] },
+          { map: 'police_2', waves: [[['crawler', 19], ['gunner', 6], ['drone', 2]], [['crawler', 5], ['bomber', 5], ['gunner', 5], ['blader', 6]], [['crawler', 5], ['drone', 4], ['gunner', 5], ['soldier', 6]], [['crawler', 4], ['bomber', 4], ['gunner', 5], ['blader', 5]]] },
+          { map: 'police_3', waves: [[['crawler', 19], ['gunner', 8]], [['crawler', 5], ['bomber', 5], ['drone', 4], ['soldier', 6]], [['crawler', 7], ['gunner', 7], ['drone', 4], ['blader', 6]], [['crawler', 7], ['gunner', 8], ['bomber', 7], ['drone', 3], ['soldier', 11]]] }
         ]
       }
     }

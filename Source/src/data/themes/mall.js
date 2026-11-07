@@ -77,11 +77,11 @@
         intro: 'Robots have taken both floors. The escalators and the glass lift go up to the mezzanine.',
         zones: [
           // Grand Atrium: fountain court; Gunners hold the mezzanine rails from the second wave
-          { map: 'mall_1', waves: [[['crawler', 9], ['gunner', 2]], [['crawler', 8], ['gunner', 3], ['drone', 1]], [['crawler', 10], ['bomber', 3], ['gunner', 2]]] },
+          { map: 'mall_1', waves: [[['crawler', 19], ['gunner', 4]], [['crawler', 4], ['bomber', 4], ['gunner', 4], ['blader', 5]], [['crawler', 4], ['drone', 4], ['gunner', 3], ['soldier', 5]], [['crawler', 4], ['bomber', 4], ['gunner', 4], ['soldier', 5]]] },
           // Food Court: tables for cover, Drones over the atrium
-          { map: 'mall_2', waves: [[['crawler', 10], ['drone', 2]], [['gunner', 4], ['crawler', 8]], [['bomber', 4], ['crawler', 10], ['drone', 2]]] },
+          { map: 'mall_2', waves: [[['crawler', 19], ['gunner', 4], ['drone', 3]], [['crawler', 5], ['bomber', 5], ['gunner', 4], ['blader', 5]], [['crawler', 5], ['drone', 5], ['gunner', 4], ['soldier', 5]], [['crawler', 4], ['bomber', 4], ['gunner', 4], ['blader', 5]]] },
           // Department Store: displays, the lift on the east side, a heavy last wave
-          { map: 'mall_3', waves: [[['crawler', 10], ['gunner', 3]], [['drone', 3], ['bomber', 3], ['crawler', 8]], [['gunner', 5], ['crawler', 12], ['bomber', 3], ['drone', 2]]] }
+          { map: 'mall_3', waves: [[['crawler', 19], ['gunner', 7]], [['crawler', 5], ['bomber', 5], ['drone', 4], ['soldier', 6]], [['crawler', 7], ['gunner', 7], ['drone', 4], ['blader', 5]], [['crawler', 7], ['gunner', 7], ['bomber', 7], ['drone', 3], ['soldier', 10]]] }
         ]
       }
     }

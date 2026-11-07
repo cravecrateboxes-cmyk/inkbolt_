@@ -82,12 +82,12 @@
       'U': { size: [6, 2], pieces: ['CubeShelf'], kind: 'cover' },
       'N': { size: [3, 3], pieces: ['Nightstand'], kind: 'cover' },
       'X': { size: [6, 6], pieces: ['ToyCastle'], kind: 'cover' },
-      'o': { size: [3, 3], pieces: ['Ball'], kind: 'cover' },
+      'o': { size: [3, 3], pieces: ['Ball'], kind: 'cover', y: 0.07 },
       'v': { size: [3, 2], pieces: ['ToyCar_A', 'ToyCar_B'], kind: 'cover', flip: true, sequence: true },
       'e': { size: [4, 2], pieces: ['TrainEngine'], kind: 'cover' },
       'x': { size: [3, 2], pieces: ['TrainCar_A', 'TrainCar_B'], kind: 'cover', sequence: true },
-      'r': { size: [3, 2], pieces: ['CrayonPile_A', 'CrayonPile_B'], kind: 'cover', flip: true, sequence: true },
-      'l': { size: [5, 1], pieces: ['Pencil'], kind: 'cover', flip: true },
+      'r': { size: [3, 2], pieces: ['CrayonPile_A', 'CrayonPile_B'], kind: 'cover', flip: true, sequence: true, y: 0.04 },
+      'l': { size: [5, 1], pieces: ['Pencil'], kind: 'cover', flip: true, y: 0.04 },
       'm': { size: [3, 3], pieces: ['ClothesPile'], kind: 'cover', flip: true },
       'z': { size: [2, 2], pieces: ['BrickTower'], kind: 'cover' },
       'O': { size: [2, 2], pieces: ['Rug_Round'], collide: false },
@@ -104,7 +104,7 @@
       'M': { pieces: ['Mobile'], y: CEIL, rotate: 'random90', collide: false }
     },
     gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
-    trail: { wall: 'TrailWall', height: 18.3 },
+    trail: { wall: 'TrailWall', height: 18.3, variants: ['TrailWall_B', 'TrailWall_C', 'TrailWall_D', 'TrailWall_E'] },
     hatch: 'Hatch', stand: 'Block_C',
     backdrop: null,
     budget: { prop: 2000, landmark: 4000, total: 70000 },
@@ -118,7 +118,7 @@
         var d = this.symbols[ch];
         d.pieces.concat(d.stack ? [d.stack.piece] : []).forEach(function (n) { seen[n] = 1; });
       }, this);
-      return out.concat(Object.keys(seen), ['GateFrame', 'GateShutter', 'TrailWall', 'Hatch', 'CeilingTile']);
+      return out.concat(Object.keys(seen), ['GateFrame', 'GateShutter', 'TrailWall', 'Hatch', 'CeilingTile'], this.trail.variants);
     },
     levels: {
       bedroom: {
@@ -129,20 +129,20 @@
           { map: 'bedroom_toyspill', waves: [
             [['crawler', 7], ['gunner', 1]],
             [['crawler', 6], ['bomber', 2], ['gunner', 1]],
-            [['crawler', 6], ['drone', 2], ['gunner', 1]],
+            [['crawler', 5], ['drone', 2], ['gunner', 1], ['blader', 1]],
             [['crawler', 5], ['gunner', 2], ['bomber', 2]]
           ] },
           { map: 'bedroom_underbed', waves: [
             [['crawler', 8], ['gunner', 2]],
-            [['crawler', 5], ['bomber', 3], ['drone', 1]],
+            [['crawler', 4], ['bomber', 3], ['drone', 1], ['blader', 1]],
             [['crawler', 6], ['gunner', 3], ['drone', 1]],
-            [['crawler', 5], ['bomber', 3], ['gunner', 2], ['drone', 1]]
+            [['crawler', 4], ['bomber', 3], ['gunner', 2], ['drone', 1], ['soldier', 1]]
           ] },
           { map: 'bedroom_deskcorner', waves: [
             [['crawler', 7], ['gunner', 2], ['drone', 1]],
-            [['crawler', 6], ['bomber', 3], ['gunner', 2]],
-            [['crawler', 7], ['drone', 3], ['bomber', 2]],
-            [['crawler', 10], ['gunner', 4], ['bomber', 3], ['drone', 3]]
+            [['crawler', 5], ['bomber', 3], ['gunner', 2], ['soldier', 1]],
+            [['crawler', 6], ['drone', 3], ['bomber', 2], ['blader', 1]],
+            [['crawler', 8], ['gunner', 4], ['bomber', 3], ['drone', 3], ['soldier', 1], ['blader', 1]]
           ] }
         ]
       }

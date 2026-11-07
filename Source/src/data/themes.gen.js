@@ -84,12 +84,12 @@
       'U': { size: [6, 2], pieces: ['CubeShelf'], kind: 'cover' },
       'N': { size: [3, 3], pieces: ['Nightstand'], kind: 'cover' },
       'X': { size: [6, 6], pieces: ['ToyCastle'], kind: 'cover' },
-      'o': { size: [3, 3], pieces: ['Ball'], kind: 'cover' },
+      'o': { size: [3, 3], pieces: ['Ball'], kind: 'cover', y: 0.07 },
       'v': { size: [3, 2], pieces: ['ToyCar_A', 'ToyCar_B'], kind: 'cover', flip: true, sequence: true },
       'e': { size: [4, 2], pieces: ['TrainEngine'], kind: 'cover' },
       'x': { size: [3, 2], pieces: ['TrainCar_A', 'TrainCar_B'], kind: 'cover', sequence: true },
-      'r': { size: [3, 2], pieces: ['CrayonPile_A', 'CrayonPile_B'], kind: 'cover', flip: true, sequence: true },
-      'l': { size: [5, 1], pieces: ['Pencil'], kind: 'cover', flip: true },
+      'r': { size: [3, 2], pieces: ['CrayonPile_A', 'CrayonPile_B'], kind: 'cover', flip: true, sequence: true, y: 0.04 },
+      'l': { size: [5, 1], pieces: ['Pencil'], kind: 'cover', flip: true, y: 0.04 },
       'm': { size: [3, 3], pieces: ['ClothesPile'], kind: 'cover', flip: true },
       'z': { size: [2, 2], pieces: ['BrickTower'], kind: 'cover' },
       'O': { size: [2, 2], pieces: ['Rug_Round'], collide: false },
@@ -106,7 +106,7 @@
       'M': { pieces: ['Mobile'], y: CEIL, rotate: 'random90', collide: false }
     },
     gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
-    trail: { wall: 'TrailWall', height: 18.3 },
+    trail: { wall: 'TrailWall', height: 18.3, variants: ['TrailWall_B', 'TrailWall_C', 'TrailWall_D', 'TrailWall_E'] },
     hatch: 'Hatch', stand: 'Block_C',
     backdrop: null,
     budget: { prop: 2000, landmark: 4000, total: 70000 },
@@ -120,7 +120,7 @@
         var d = this.symbols[ch];
         d.pieces.concat(d.stack ? [d.stack.piece] : []).forEach(function (n) { seen[n] = 1; });
       }, this);
-      return out.concat(Object.keys(seen), ['GateFrame', 'GateShutter', 'TrailWall', 'Hatch', 'CeilingTile']);
+      return out.concat(Object.keys(seen), ['GateFrame', 'GateShutter', 'TrailWall', 'Hatch', 'CeilingTile'], this.trail.variants);
     },
     levels: {
       bedroom: {
@@ -131,21 +131,306 @@
           { map: 'bedroom_toyspill', waves: [
             [['crawler', 7], ['gunner', 1]],
             [['crawler', 6], ['bomber', 2], ['gunner', 1]],
-            [['crawler', 6], ['drone', 2], ['gunner', 1]],
+            [['crawler', 5], ['drone', 2], ['gunner', 1], ['blader', 1]],
             [['crawler', 5], ['gunner', 2], ['bomber', 2]]
           ] },
           { map: 'bedroom_underbed', waves: [
             [['crawler', 8], ['gunner', 2]],
-            [['crawler', 5], ['bomber', 3], ['drone', 1]],
+            [['crawler', 4], ['bomber', 3], ['drone', 1], ['blader', 1]],
             [['crawler', 6], ['gunner', 3], ['drone', 1]],
-            [['crawler', 5], ['bomber', 3], ['gunner', 2], ['drone', 1]]
+            [['crawler', 4], ['bomber', 3], ['gunner', 2], ['drone', 1], ['soldier', 1]]
           ] },
           { map: 'bedroom_deskcorner', waves: [
             [['crawler', 7], ['gunner', 2], ['drone', 1]],
-            [['crawler', 6], ['bomber', 3], ['gunner', 2]],
-            [['crawler', 7], ['drone', 3], ['bomber', 2]],
-            [['crawler', 10], ['gunner', 4], ['bomber', 3], ['drone', 3]]
+            [['crawler', 5], ['bomber', 3], ['gunner', 2], ['soldier', 1]],
+            [['crawler', 6], ['drone', 3], ['bomber', 2], ['blader', 1]],
+            [['crawler', 8], ['gunner', 4], ['bomber', 3], ['drone', 3], ['soldier', 1], ['blader', 1]]
           ] }
+        ]
+      }
+    }
+  });
+})(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
+
+/* ---- themes/castle.js ---- */
+/* Theme: Castle Courtyard (kit-castle). Three wide wards inside one sandstone curtain wall on a bright summer day:
+   battered walls with corbelled parapets and merlons, round drum towers, gatehouses with timber portcullises (the zone
+   gates), a market ward with striped stalls, carts, hay and barrels round a well, a training yard with fenced
+   sparring rings, dummies, weapon racks and archery butts, and the inner ward round the keep. Higher outer ramparts,
+   towers, green hills and a village beyond the walls. Built by blender/fam_kit_castle.py; zone layouts by
+   tools/castle_zones.py (src/data/zones/castle_*.txt).
+
+   Symbols (1 cell = 1 m; prefab sizes are [x, z] cells):
+     #  curtain wall (1 cell thick: the module backs are the castle's outer face, seen over the passage walls)
+     ,  cobbles      ;  flagstones      g  grass                 (no collision)
+     b  barrels      c  crates / grain sacks    y  hay bale      f  fence (runs)     r  weapon rack (runs)
+     d  training dummy      x  archery butt (faces south)        i  brazier          n  banner pole
+     Y  haystack [2,2]      M  market stall [3,2]                K  cart [2,3]       W  well [3,3] (landmark)
+     O  drum tower [5,5] (against the wall)    X / V  stair to the wall walk [2,7], rising north, parapet east / west
+     T  the keep [12,12] (landmark, door and forebuilding stair face south)    Q  trebuchet [4,8] (landmark)
+   The wall uses facing 'open': the engine turns each module's face to its single open side; the chooser below gives
+   a straight run its rhythm (merlon / crenel by position, buttresses, banners, torches, arrow slits, posterns),
+   corners, wall ends and gate jambs the four-way corner turret, and the modules beside an inner corner a flush
+   face (the perpendicular parapet crosses their front). */
+(function (IB) {
+  'use strict';
+  function wallish(ch) { return ch === '#' || ch === 'G' || ch === 'E'; }
+  var BIG = 'OTXVWMK';   // prefabs that stand in front of the wall: keep the module behind them plain
+  function chooseWall(c, r, horiz, corner, hash, grid, face) {
+    if (face === 'corner' || face === 'none' || !face) return 'Corner';
+    var ns = face === 'S' || face === 'N', p = ns ? c : r;
+    var fc = c + (face === 'E' ? 1 : face === 'W' ? -1 : 0), fr = r + (face === 'S' ? 1 : face === 'N' ? -1 : 0);
+    var merlon = p % 2 === 0, h = hash(c * 7 + 3, r * 13 + 1), dc = ns ? 1 : 0, dr = ns ? 0 : 1;
+    // beside an inner corner the perpendicular parapet crosses this module's front: nothing proud here
+    if (wallish(grid.at(fc - dc, fr - dr)) || wallish(grid.at(fc + dc, fr + dr))) return 'Curtain_Inner';
+    // beside a gatehouse or behind a big prefab: plain merlon / crenel
+    for (var d = -3; d <= 3; d++) { var q = ns ? grid.at(c + d, r) : grid.at(c, r + d); if (q === 'G' || q === 'E') return merlon ? 'Curtain_M' : 'Curtain_C'; }
+    if (BIG.indexOf(grid.at(fc, fr)) >= 0) return merlon ? 'Curtain_M' : 'Curtain_C';
+    var k = p % 12;
+    if (k === 0) return 'Curtain_Buttress';
+    if (k === 7) return Math.floor(p / 12) % 2 ? 'Curtain_BannerB' : 'Curtain_BannerR';
+    if (k === 3) return 'Curtain_Torch';
+    if (k === 10) return 'Curtain_Slit';
+    if (p % 24 === 16) return 'Curtain_Door';
+    return merlon ? (h < 0.5 ? 'Curtain_M' : 'Curtain_M2') : (h < 0.5 ? 'Curtain_C' : 'Curtain_C2');
+  }
+  var WALLS = ['Curtain_M', 'Curtain_M2', 'Curtain_C', 'Curtain_C2', 'Curtain_Slit', 'Curtain_BannerR', 'Curtain_BannerB',
+    'Curtain_Torch', 'Curtain_Buttress', 'Curtain_Door', 'Curtain_Inner', 'Corner'];
+  function flat(pieces) { return { pieces: pieces, alternate: true, collide: false }; }
+
+  IB.registerTheme({
+    id: 'castle', name: 'Castle Courtyard', family: 'kit-castle', prefix: 'KIT_CASTLE_',
+    palette: ['#D3C4A6', '#C33F38', '#3D5DA8', '#8FBF5C'],
+    // high summer: deep blue sky to a warm pale horizon, light warm haze, a high sun from the south-west
+    env: { sky: ['#6FB0EA', '#F6EDD5'], fog: { color: '#E9E4D2', near: 60, far: 165 }, sun: [-0.42, 0.78, 0.46], clouds: true, ceiling: null },
+    // packed-earth wards; the passages between wards are cobbled; meadow outside the walls
+    floor: { color: '#CDB48A', trail: '#BFB5A2', outside: '#9CC46C' },
+    wall: { height: 7.7, roof: '#E6DAC0', facing: 'open', choose: chooseWall },
+    symbols: {
+      ',': flat(['Cobble', 'CobbleB']),
+      ';': flat(['Flag', 'FlagB']),
+      'g': flat(['Grass', 'GrassB']),
+      'b': { pieces: ['Barrels', 'BarrelStack'], rotate: 'random90', kind: 'cover' },
+      'c': { pieces: ['Crates', 'Sacks'], rotate: 'random90', kind: 'cover' },
+      'y': { pieces: ['HayBale'], rotate: 'random90', kind: 'cover' },
+      'f': { pieces: ['Fence'], rotate: 'run', kind: 'cover' },
+      'r': { pieces: ['Rack'], rotate: 'run', kind: 'cover' },
+      'd': { pieces: ['Dummy'], rotate: 'random90', kind: 'cover' },
+      'x': { pieces: ['Target'], rotate: 0, kind: 'cover' },
+      'i': { pieces: ['Brazier'], kind: 'prop' },
+      'n': { pieces: ['BannerPoleR', 'BannerPoleB'], alternate: true, kind: 'prop' },
+      'Y': { size: [2, 2], pieces: ['HayStack'], flip: true, kind: 'cover', y: 0.03 },
+      'M': { size: [3, 2], pieces: ['Stall_A', 'Stall_B', 'Stall_C'], sequence: true, flip: true, kind: 'cover' },
+      'K': { size: [2, 3], pieces: ['Cart_Hay', 'Cart_Barrels'], flip: true, kind: 'cover' },
+      'W': { size: [3, 3], pieces: ['Landmark_Well'], kind: 'wall' },
+      'O': { size: [5, 5], pieces: ['Tower_A', 'Tower_B'], flip: true, kind: 'wall' },
+      'X': { size: [2, 7], pieces: ['Stairs'], kind: 'wall' },
+      'V': { size: [2, 7], pieces: ['StairsL'], kind: 'wall' },
+      'T': { size: [12, 12], pieces: ['Landmark_Keep'], kind: 'wall' },
+      'Q': { size: [4, 8], pieces: ['Landmark_Trebuchet'], kind: 'wall' }
+    },
+    // the zone gates are gatehouses with a timber portcullis; the passages between wards are walled as high as the
+    // curtain (merlons on top), so nothing beyond them shows over the top
+    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
+    trail: { wall: 'TrailWall', height: 7.7 },
+    hatch: 'Hatch', stand: 'Crates',
+    backdrop: { ring: [
+      // the outer curtain: high ramparts with towers and stairs just outside the wards, seen over the walls
+      { piece: 'Backdrop_Rampart', count: 12, radius: [26, 34], scale: [0.95, 1.15], face: true, squeezeX: 0.7 },
+      { piece: 'Backdrop_Tower', count: 7, radius: [36, 44], scale: [0.9, 1.2], face: true, squeezeX: 0.72 },
+      { piece: 'Backdrop_Village', count: 6, radius: [58, 66], scale: [1.0, 1.2], face: true, squeezeX: 0.8 },
+      { piece: 'Backdrop_Hills', count: 9, radius: [76, 92], scale: [1.1, 1.5], face: true, squeezeX: 0.85 }
+    ] },
+    budget: { prop: 2500, landmark: 5000, total: 70000 },
+    allPieces: function () {
+      var out = WALLS.concat(['GateFrame', 'GateShutter', 'TrailWall', 'Hatch',
+        'Backdrop_Rampart', 'Backdrop_Tower', 'Backdrop_Village', 'Backdrop_Hills']);
+      var sym = this.symbols;
+      Object.keys(sym).forEach(function (ch) { sym[ch].pieces.forEach(function (n) { if (out.indexOf(n) < 0) out.push(n); }); });
+      return out;
+    },
+    levels: {
+      castle: {
+        name: 'Castle Courtyard',
+        intro: 'The robots have taken the castle. Clear the market, the training yard, then the keep.',
+        zones: [
+          // Market Ward: crawlers through the stalls, gunners behind the carts, a drone over the well
+          { map: 'castle_market', waves: [
+            [['crawler', 8], ['gunner', 2]],
+            [['crawler', 4], ['gunner', 3], ['blader', 1]],
+            [['crawler', 3], ['gunner', 2], ['drone', 1], ['soldier', 1]],
+            [['crawler', 3], ['gunner', 2], ['soldier', 1]]] },
+          // Training Yard: gunners on the drill ground, bombers across the open grass, a drone over the archery range
+          { map: 'castle_yard', waves: [
+            [['crawler', 6], ['gunner', 3]],
+            [['crawler', 3], ['bomber', 3], ['blader', 1]],
+            [['gunner', 3], ['drone', 1], ['crawler', 2], ['soldier', 1]],
+            [['crawler', 3], ['bomber', 2], ['gunner', 2], ['soldier', 1]]] },
+          // Inner Ward: everything round the keep
+          { map: 'castle_keep', waves: [
+            [['crawler', 6], ['gunner', 3]],
+            [['bomber', 3], ['crawler', 2], ['drone', 1], ['blader', 2]],
+            [['gunner', 3], ['crawler', 2], ['soldier', 2]],
+            [['crawler', 3], ['bomber', 2], ['gunner', 2], ['blader', 1]]] }
+        ]
+      }
+    }
+  });
+})(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
+
+/* ---- themes/city2.js ---- */
+/* Theme: Downtown at Dusk (kit-city2). A dense downtown at sunset, built to look nothing like Small City's sunny main
+   street or the office skyline: 4-6 storey brownstones, red-brick tenements hung with fire escapes, cream cast-iron
+   lofts and lavender deco fronts, warm lit windows, neon sign bands and blade signs over dark shop glass, an elevated
+   railway on riveted green steel (one span with a stopped train), a subway entrance, a statue plaza, cabs, box
+   trucks, newsstands, hot-dog carts, steam stacks and billboards. Purple-to-tangerine sky, warm haze.
+   Built by blender/fam_kit_city2.py; zone layouts by tools/city2_zones.py (src/data/zones/city2_*.txt).
+
+   Symbols (1 cell = 1 m; prefab sizes are [x, z] cells):
+     #  facade (the zone edge is 1 cell thick; inner blocks are thicker and roofed)
+     ,  sidewalk     ;  plaza granite     -  |  white lane dash along X / Z     ~  !  double yellow along X / Z
+     z  Z  zebra bars along X / Z         o  manhole                          (all of these: no collision)
+     i  l  e  w  street light with its arm over the street to the S / N / E / W        I  twin-globe plaza lamp
+     t  street tree      m  hydrant / mailbox / news boxes / litter basket      c  trash bags / boxes / pallets
+     =  sawhorse (runs)  j  jersey barrier (runs)    s  steam stack     b  bench [2,1]     C  cab / sedan [2,4]
+     V  box truck [2,5]  k  newsstand [2,3]          n  hot-dog cart [2,2]               Y  billboard on legs [6,2]
+     L  elevated railway span [4,6]     R  span with a stopped train [4,12]   (open underneath: only the columns
+        collide; a run must reach the zone edge at both ends, where the facade becomes a dark El portal)
+     U  subway entrance [3,5] (opens south)      Q  statue on a granite plinth [4,4] (landmark)
+   The wall uses facing 'open'. The chooser cuts every facade run into buildings 4-7 m wide (each with its own style
+   and height), puts pilasters on the taller side of a boundary, corner piers where facades meet, a shop door with a
+   neon blade sign in each building, three bays of fire escape on brownstones and tenements, plain brick beside inner
+   corners and gates, and the El portal where the railway meets the wall. */
+(function (IB) {
+  'use strict';
+  // must mirror STYLES in blender/fam_kit_city2.py: [material, storeys]
+  var STY = [['B', 5], ['K', 6], ['I', 4], ['D', 6], ['K', 5], ['B', 4], ['I', 5], ['D', 5]];
+  var NSTY = STY.length, ESC = 'BK';
+  var WIDTHS = [5, 6, 4, 7, 5, 4, 6], WSUM = 37;
+  var CARS = ['Cab', 'Sedan_Plum', 'CabAd', 'Sedan_Teal', 'Cab'];
+  var FURNITURE = ['Hydrant', 'Mailbox', 'NewsBoxes', 'TrashCan'], JUNK = ['TrashBags', 'Boxes', 'Pallets'];
+
+  function segment(pos, line, hash) {
+    var p = pos + Math.floor(hash(line * 7 + 3, 11) * WSUM), cyc = Math.floor(p / WSUM), q = p - cyc * WSUM, k = 0;
+    while (q >= WIDTHS[k]) { q -= WIDTHS[k]; k++; }
+    return { b: cyc * WIDTHS.length + k, i: q, w: WIDTHS[k] };
+  }
+  // neighbouring buildings never share a style
+  function styleOf(b, line, hash) { var s = (Math.floor(hash(line * 5 + 1, 17) * NSTY) + b * 3 + Math.floor(hash(b + 50, line + 99) * 2)) % NSTY; return s < 0 ? s + NSTY : s; }
+  function wallish(ch) { return ch === '#' || ch === 'G' || ch === 'E'; }
+  // building run of a facade cell: position along the run and the run's line (rows for N/S faces, columns for E/W)
+  function runAt(c, r, ns, hash) { var line = ns ? r : c + 997, g = segment(ns ? c : r, line, hash); return { g: g, s: styleOf(g.b, line, hash), line: line }; }
+
+  function chooseWall(c, r, horiz, corner, hash, grid, face) {
+    if (face === 'corner' || face === 'none' || !face) {
+      var a = STY[runAt(c, r, true, hash).s], b = STY[runAt(c, r, false, hash).s], t = a[1] >= b[1] ? a : b;
+      return 'Corner_' + t[0] + t[1];
+    }
+    var ns = face === 'S' || face === 'N', dc = ns ? 1 : 0, dr = ns ? 0 : 1;
+    var fc = c + (face === 'E' ? 1 : face === 'W' ? -1 : 0), fr = r + (face === 'S' ? 1 : face === 'N' ? -1 : 0);
+    var R = runAt(c, r, ns, hash), g = R.g, s = R.s, st = STY[s], n = st[1];
+    var front = grid.at(fc, fr);
+    if (front === 'L' || front === 'R') return 'Portal_' + s;                      // the El runs into the facade
+    for (var d = -2; d <= 2; d++) { var q = grid.at(c + d * dc, r + d * dr); if (q === 'G' || q === 'E') return 'Pilaster_' + st[0] + n; }
+    if (wallish(grid.at(fc - dc, fr - dr)) || wallish(grid.at(fc + dc, fr + dr))) return 'Blank_' + st[0] + n;   // inner corner
+    var nPrev = STY[styleOf(g.b - 1, R.line, hash)][1], nNext = STY[styleOf(g.b + 1, R.line, hash)][1];
+    if ((g.i === 0 && n >= nPrev) || (g.i === g.w - 1 && n > nNext)) return 'Pilaster_' + st[0] + n;
+    var door = 1 + Math.floor(hash(g.b + 7, R.line) * (g.w - 2));
+    if (g.i === door) return 'Door_' + s;
+    if (ESC.indexOf(st[0]) >= 0 && g.w >= 6) {                                      // three bays of fire escape (wide buildings)
+      var e0 = door <= 2 ? door + 1 : door - 3, k = g.i - e0;
+      if (k >= 0 && k < 3) return ['EscB_', 'EscA_', 'EscC_'][k] + s;
+    }
+    return Math.abs(g.i - door) % 2 === 1 ? (hash(c * 3 + 1, r * 7 + 2) < 0.5 ? 'Win_' : 'Win2_') + s : 'Pier_' + s;
+  }
+
+  function wallPieces() {
+    var out = [], seen = {};
+    for (var s = 0; s < NSTY; s++) {
+      out.push('Win_' + s, 'Win2_' + s, 'Door_' + s, 'Pier_' + s, 'Portal_' + s);
+      if (ESC.indexOf(STY[s][0]) >= 0) out.push('EscA_' + s, 'EscB_' + s, 'EscC_' + s);
+    }
+    STY.forEach(function (t) { var k = t[0] + t[1]; if (!seen[k]) { seen[k] = 1; out.push('Pilaster_' + k, 'Corner_' + k, 'Blank_' + k); } });
+    return out;
+  }
+  function flat(pieces, rot, alt) { return { pieces: pieces, collide: false, rotate: rot || 0, alternate: !!alt }; }
+
+  IB.registerTheme({
+    id: 'city2', name: 'Downtown at Dusk', family: 'kit-city2', prefix: 'KIT_CITY2_',
+    palette: ['#8E5644', '#FF4FA8', '#45E6F2', '#F6C33B'],
+    // sunset: violet zenith to a tangerine horizon, warm rose haze, a low sun from the west
+    env: { sky: ['#4E4793', '#FF9F6E'], fog: { color: '#C98A8C', near: 48, far: 150 }, sun: [-0.78, 0.42, 0.3], clouds: true, ceiling: null },
+    floor: { color: '#4F4C5C', trail: '#625D6C', outside: '#3C3946' },
+    wall: { height: 8, roof: '#4C4656', facing: 'open', choose: chooseWall },
+    symbols: {
+      ',': flat(['Walk', 'WalkB'], 0, true),
+      ';': flat(['Plaza', 'PlazaB'], 0, true),
+      '-': flat(['LaneW'], 0), '|': flat(['LaneW'], Math.PI / 2),
+      '~': flat(['LaneY'], 0), '!': flat(['LaneY'], Math.PI / 2),
+      'z': flat(['Zebra'], 0), 'Z': flat(['Zebra'], Math.PI / 2),
+      'o': flat(['Manhole']),
+      'i': { pieces: ['Lamp'], rotate: 0, kind: 'prop' },
+      'l': { pieces: ['Lamp'], rotate: Math.PI, kind: 'prop' },
+      'e': { pieces: ['Lamp'], rotate: Math.PI / 2, kind: 'prop' },
+      'w': { pieces: ['Lamp'], rotate: -Math.PI / 2, kind: 'prop' },
+      'I': { pieces: ['LampP'], kind: 'prop' },
+      't': { pieces: ['StreetTree'], rotate: 'random90', kind: 'prop' },
+      'm': { pieces: FURNITURE, rotate: 'random90', kind: 'cover' },
+      'c': { pieces: JUNK, rotate: 'random90', kind: 'cover' },
+      '=': { pieces: ['Sawhorse'], rotate: 'run', kind: 'cover' },
+      'j': { pieces: ['Jersey'], rotate: 'run', kind: 'cover' },
+      's': { pieces: ['SteamStack'], rotate: 'random90', kind: 'prop' },
+      'b': { size: [2, 1], pieces: ['Bench'], flip: true, kind: 'cover' },
+      'C': { size: [2, 4], pieces: CARS, flip: true, kind: 'cover' },
+      'V': { size: [2, 5], pieces: ['Truck'], flip: true, kind: 'cover' },
+      'k': { size: [2, 3], pieces: ['Newsstand'], flip: true, kind: 'cover' },
+      'n': { size: [2, 2], pieces: ['HotDog'], kind: 'cover' },
+      'Y': { size: [6, 2], pieces: ['Billboard'], kind: 'wall' },
+      'L': { size: [4, 6], pieces: ['El_A', 'El_A', 'El_B'], kind: 'wall' },
+      'R': { size: [4, 12], pieces: ['Landmark_ElTrain'], kind: 'wall' },
+      'U': { size: [3, 5], pieces: ['Landmark_Subway'], kind: 'wall' },
+      'Q': { size: [4, 4], pieces: ['Landmark_Statue'], kind: 'wall' }
+    },
+    // the gates are bridge buildings over the street (closed to the rooflines); the passages between blocks are
+    // 16 m brick alleys, so nothing of the next block shows over them
+    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
+    trail: { wall: 'TrailWall', height: 16 },
+    hatch: 'Hatch', stand: 'Boxes',
+    backdrop: { ring: [
+      { piece: 'Backdrop_Block', count: 14, radius: [20, 30], scale: [0.95, 1.2], face: true, squeezeX: 0.75 },
+      { piece: 'Backdrop_Tower', count: 8, radius: [36, 48], scale: [0.9, 1.25], face: true, squeezeX: 0.8 },
+      { piece: 'Backdrop_Spire', count: 2, radius: [50, 56], scale: [1.0, 1.1], face: true, squeezeX: 0.85 }
+    ] },
+    budget: { prop: 2500, landmark: 5000, total: 70000 },
+    allPieces: function () {
+      var out = wallPieces().concat(['GateFrame', 'GateShutter', 'TrailWall', 'Hatch', 'Backdrop_Block', 'Backdrop_Tower', 'Backdrop_Spire']);
+      var sym = this.symbols;
+      Object.keys(sym).forEach(function (ch) { sym[ch].pieces.forEach(function (n) { if (out.indexOf(n) < 0) out.push(n); }); });
+      return out;
+    },
+    levels: {
+      city2: {
+        name: 'Downtown at Dusk',
+        intro: 'The lights are on and the robots own the avenue. Clear three blocks before nightfall.',
+        zones: [
+          // El Avenue: crawlers down the avenue, gunners behind the parked cabs, a drone under the El
+          { map: 'city2_avenue', waves: [
+            [['crawler', 7], ['gunner', 2]],
+            [['crawler', 4], ['gunner', 3], ['soldier', 1]],
+            [['crawler', 3], ['gunner', 2], ['drone', 1], ['blader', 1]],
+            [['crawler', 3], ['gunner', 2], ['soldier', 1]]] },
+          // Statue Plaza: bombers across the open granite, gunners on the ring road
+          { map: 'city2_plaza', waves: [
+            [['crawler', 6], ['gunner', 3]],
+            [['crawler', 3], ['bomber', 3], ['blader', 1]],
+            [['gunner', 3], ['drone', 1], ['crawler', 2], ['soldier', 2]],
+            [['crawler', 3], ['bomber', 2], ['gunner', 2], ['blader', 1]]] },
+          // The Crossing: everything at once round the two blocks and under the train
+          { map: 'city2_crossing', waves: [
+            [['crawler', 6], ['gunner', 3]],
+            [['bomber', 3], ['crawler', 3], ['drone', 1], ['soldier', 1]],
+            [['gunner', 3], ['crawler', 3], ['soldier', 2]],
+            [['crawler', 2], ['bomber', 2], ['gunner', 2], ['blader', 2]]] }
         ]
       }
     }
@@ -168,6 +453,7 @@
   var PAPERS = ['Paper_A', 'Paper_B', 'Paper_C'];
   var FLOORSTUFF = ['Pencil', 'Crayons_A', 'Crayons_B'];
   var BAYS = ['Win_Bay_A', 'Win_Bay_B', 'Win_Bay_C'];
+  var TRAILS = ['TrailWall_B', 'TrailWall_C', 'TrailWall_D', 'TrailWall_E'];
   var WALLS = ['Wall_Plain', 'Wall_Corner', 'Wall_Switch', 'Wall_Vent', 'Win_Open', 'Wall_Cork', 'Wall_Map', 'Wall_Clock',
     'Wall_Poster_A', 'Wall_Poster_B', 'Wall_Poster_C'].concat(BAYS);
 
@@ -208,10 +494,15 @@
     if (side === 'W') return [c, grid.h - 1 - u];
     return [c, u];
   }
-  // a wall cell facing the room on this side (not a gate, not a corner)
+  // the door built-in (GateFrame) covers the two wall cells either side of a gate
+  function nearGate(grid, x, y) {
+    for (var d = -2; d <= 2; d++) { var g = grid.at(x + d, y); if (g === 'G' || g === 'E') return true; }
+    return false;
+  }
+  // a wall cell facing the room on this side (not a gate, not a corner, not behind the door built-in)
   function faceCell(side, u, c, r, grid) {
     var p = cellAt(side, u, c, r, grid), x = p[0], y = p[1];
-    if (grid.at(x, y) !== '#') return false;
+    if (grid.at(x, y) !== '#' || nearGate(grid, x, y)) return false;
     var o = side === 'N' ? grid.at(x, y + 1) : side === 'S' ? grid.at(x, y - 1) : side === 'W' ? grid.at(x + 1, y) : grid.at(x - 1, y);
     return !wallish(o);
   }
@@ -260,12 +551,13 @@
     if (side === 'N') { var L = letterAt(u, c, r, grid); if (L) return L; }
     var d = decorAt(side, u, c, r, grid);
     if (d) return d;
-    // light switch by the doors, the odd air vent high up
-    if ((side === 'N' || side === 'S') && wallAt(grid, c + 2, r) && grid.at(c + 2, r) !== '#' && grid.at(c + 1, r) === '#') return 'Wall_Switch';
+    // light switch just past the door built-in, the odd air vent high up
+    if ((side === 'N' || side === 'S') && wallAt(grid, c + 3, r) && grid.at(c + 3, r) !== '#' && grid.at(c + 1, r) === '#' && grid.at(c + 2, r) === '#') return 'Wall_Switch';
     if (side !== 'N' && hash(c * 7 + 3, r * 11 + 5) < 0.06) return 'Wall_Vent';
     return 'Wall_Plain';
   }
   function chooseWall(c, r, horiz, corner, hash, grid) {
+    if (nearGate(grid, c, r)) return null;   // inside the door built-in (GateFrame): no wall module
     // a real room corner has wall neighbours inside the grid both ways (the engine's `corner` counts outside cells)
     if ((wallAt(grid, c - 1, r) || wallAt(grid, c + 1, r)) && (wallAt(grid, c, r - 1) || wallAt(grid, c, r + 1))) return 'Wall_Corner';
     var side = sideOf(c, r, grid);
@@ -303,14 +595,16 @@
       'O': { size: [3, 3], pieces: BEANS, flip: true, kind: 'cover' },
       'R': { size: [12, 10], pieces: ['Rug'], collide: false },
       'p': { size: [2, 2], pieces: PAPERS, flip: true, collide: false },
-      'l': { size: [3, 1], pieces: FLOORSTUFF, flip: true, kind: 'cover' },
+      'l': { size: [3, 1], pieces: FLOORSTUFF, flip: true, kind: 'cover', y: 0.035 },
       'e': { pieces: ['Eraser'], rotate: 'random90', kind: 'cover' },
       'T': { size: [10, 5], pieces: ['Landmark_TeacherDesk'], kind: 'wall' },
       'Q': { size: [4, 4], pieces: ['Landmark_Globe'], kind: 'wall' },
       'k': { size: [22, 1], pieces: ['Landmark_Chalkboard'], kind: 'wall' }
     },
-    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
-    trail: { wall: 'TrailWall', height: 16.5 },
+    // the door is a floor-to-ceiling library built-in (covers the wall cells either side, closes the trail ends);
+    // the trail is a library aisle of mixed bookcase slices
+    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05, dress: ['GateBooks'] },
+    trail: { wall: 'TrailWall', height: 16.5, variants: TRAILS },
     hatch: 'Hatch', stand: 'Eraser',
     backdrop: null,
     budget: { prop: 2000, landmark: 4000, total: 70000 },
@@ -319,8 +613,8 @@
       var turnedPieces = TURNED[90].map(function (n) { return n + '_R90'; }).concat(TURNED[270].map(function (n) { return n + '_R270'; }));
       return WALLS.concat(turnedPieces, letters, DESKS, BLOCKS, ['Block_S'], STACKS, BAGS, BEANS, PAPERS, FLOORSTUFF,
         ['Chair', 'Chair_Fallen', 'BooksA', 'BooksB', 'Bin', 'Bookcase', 'BookcaseB', 'Rug', 'Eraser',
-          'Landmark_TeacherDesk', 'Landmark_Globe', 'Landmark_Chalkboard', 'GateFrame', 'GateShutter', 'TrailWall',
-          'Hatch', 'LightPanel']);
+          'Landmark_TeacherDesk', 'Landmark_Globe', 'Landmark_Chalkboard', 'GateFrame', 'GateBooks', 'GateShutter', 'TrailWall',
+          'Hatch', 'LightPanel'], TRAILS);
     },
     levels: {
       classroom: {
@@ -334,13 +628,628 @@
           { map: 'classroom_reading', waves: [
             [['crawler', 8], ['drone', 2]],
             [['bomber', 3], ['crawler', 6]],
-            [['gunner', 3], ['crawler', 5]],
+            [['gunner', 3], ['crawler', 4], ['blader', 1]],
             [['drone', 2], ['crawler', 4]]] },
           { map: 'classroom_front', waves: [
             [['crawler', 8], ['gunner', 3]],
             [['drone', 3], ['bomber', 3], ['crawler', 4]],
             [['gunner', 4], ['crawler', 5]],
-            [['crawler', 3], ['bomber', 2], ['drone', 2]]] }
+            [['crawler', 2], ['bomber', 2], ['drone', 2], ['blader', 1]]] }
+        ]
+      }
+    }
+  });
+})(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
+
+/* ---- themes/coalmine.js ---- */
+/* Theme: Deep Coal Mine (kit-coalmine). A big room-and-pillar coal mine far underground: dark faceted rock with
+   banded strata and glinting coal seams, coal pillars holding up a low dark roof, timbered drifts with plank
+   lagging, narrow-gauge rail with ore carts, belt conveyors, cribs and roof jacks, and warm pools of lantern light.
+   Built by blender/fam_kit_coalmine.py; zone layouts by tools/industrial_zones.py (src/data/zones/coalmine_*.txt).
+
+   Symbols (1 cell = 1 m; prefab sizes are [x, z] in cells):
+     #  rock: faceted strata walls (seams, lamps on brackets, prop timbers, signs, overlooks into the old workings on the
+        east / west edges); corners, notches and coal pillars' edges get all-round rock lumps
+     Y  timbered drift [6, 1] (posts, cap, lagging, plank bulkhead to the roof): runs of Y across a 6 m gap in the rock
+        make a closed tunnel          y  the same with the track (on the cell at local x + 0.5)
+     -  rail (1 m, turns with its run)        C  ore cart on its rails [1, 2]
+     c  powder / tool crates (stacked)       u  coal sacks         =  stacked timbers (runs)     b  oil drums
+     O  coal heap [2, 2]                     X  timber crib with a roof post [2, 2]             I  roof jack
+     k  belt conveyor (runs)                 l  lantern post        L  work light on a tripod
+     w  puddle [2, 2] (no collision)         d  coal dust spill [2, 2] (no collision)
+     T  drill rig at the coal face [8, 5] (booms point north)      H  main shaft headframe + cage [6, 6]
+     Z  loading hopper over the track [6, 4] (track along the block's second row)    Q  foreman's shack [5, 4]
+   Light pools are painted on the floor. Each kind has its own height, so wall lamps (one kind per facing), lantern
+   posts and work lights may overlap one another; the maps keep posts >= 5 m and work lights >= 6 m apart. */
+(function (IB) {
+  'use strict';
+  var SOLID = '#GE';
+  function solid(grid, c, r) { return SOLID.indexOf(grid.at(c, r)) >= 0; }
+  // same facing rule as zones.js buildWalls: the open side of a wall cell ('S','N','E','W', 'corner' or 'none')
+  function faceOf(grid, c, r) {
+    var oS = !solid(grid, c, r + 1), oN = !solid(grid, c, r - 1), oE = !solid(grid, c + 1, r), oW = !solid(grid, c - 1, r);
+    var n = oS + oN + oE + oW;
+    if (n === 0) return 'none';
+    if (n === 1) return oS ? 'S' : oN ? 'N' : oE ? 'E' : 'W';
+    return ((oS || oN) && (oE || oW)) ? 'corner' : (oS ? 'S' : 'E');
+  }
+  // cells u-k .. u+k along the run are all straight wall with the same facing
+  function runOK(grid, c, r, F, k0, k1) {
+    var along = F === 'S' || F === 'N';
+    for (var d = -k0; d <= k1; d++) {
+      var x = along ? c + d : c, y = along ? r : r + d;
+      if (grid.at(x, y) !== '#' || faceOf(grid, x, y) !== F) return false;
+    }
+    return true;
+  }
+  function hasRig(grid) {
+    if (grid._cmRig === undefined) { grid._cmRig = false; for (var c = 0; c < grid.w; c++) if (grid.at(c, 1) === 'T') grid._cmRig = true; }
+    return grid._cmRig;
+  }
+  var ROCK = ['Rock_A', 'Rock_B', 'Rock_C'];
+  function chooseWall(c, r, horiz, corner, hash, grid, face) {
+    var F = face || faceOf(grid, c, r);
+    if (F === 'none' || F === 'corner') return hash(c * 7 + 1, r * 5 + 3) < 0.5 ? 'Rock_Corner_A' : 'Rock_Corner_B';
+    var u = (F === 'S' || F === 'N') ? c : r;
+    // overlooks on the east / west edges: 4-cell openings every 18 m with solid rock either side
+    if ((c === 0 || c === grid.w - 1) && (F === 'E' || F === 'W')) {
+      var m = r % 18;
+      if (m >= 7 && m <= 10 && runOK(grid, c, r - (m - 7), F, 2, 5)) return 'Rock_Open';
+    }
+    // the coal face behind the drill rig: one long seam
+    if (r === 0 && F === 'S' && hasRig(grid)) return (c % 2) ? 'Seam_A' : 'Seam_B';
+    // wall lamps every 8 m on long straight runs (one pool kind per facing, so facing pools never fight)
+    if (u % 8 === 4 && runOK(grid, c, r, F, 4, 4)) return 'Rock_Lamp' + F;
+    if (u % 8 === 0 && runOK(grid, c, r, F, 1, 1) && hash(c * 3 + 5, r * 7 + 2) < 0.55) return 'Rock_Prop';
+    if (u % 8 === 2 && runOK(grid, c, r, F, 1, 1) && hash(c * 13 + 1, r * 3 + 9) < 0.12) return 'Rock_Sign';
+    // coal seams in stretches of 7 m
+    var line = (F === 'S' || F === 'N') ? r : c, reg = Math.floor((u + line * 3) / 7);
+    if (hash(reg * 13 + 5, line * 7 + 17) < 0.3) return (u % 2) ? 'Seam_A' : 'Seam_B';
+    return ROCK[Math.min(2, Math.floor(hash(c * 5 + 1, r * 11 + 7) * 3))];
+  }
+  var WALLS = ['Rock_A', 'Rock_B', 'Rock_C', 'Seam_A', 'Seam_B', 'Rock_LampS', 'Rock_LampN', 'Rock_LampE', 'Rock_LampW',
+    'Rock_Prop', 'Rock_Sign', 'Rock_Open', 'Rock_Corner_A', 'Rock_Corner_B'];
+
+  IB.registerTheme({
+    id: 'coalmine', name: 'Deep Coal Mine', family: 'kit-coalmine', prefix: 'KIT_COALMINE_',
+    palette: ['#25242B', '#A8743F', '#FFD66B', '#54493F'],
+    env: {
+      // no sky underground: the roof is a dark rock ceiling; warm-brown smoky fog swallows the far end of the halls
+      sky: null, clear: '#17120F', clouds: false,
+      fog: { color: '#231C18', near: 18, far: 82 },
+      // light from high and behind the player's usual heading: floors and robots lit, rock faces mostly in mid tone
+      sun: [0.3, 0.88, 0.37],
+      ceiling: { height: 9.0, color: '#2E2724', light: 'CeilRock', every: 12 }
+    },
+    // trodden coal-dust floor, a lighter packed-earth drift floor; the dark of the old workings outside the overlooks
+    floor: { color: '#4E433B', trail: '#5A4B3F', outside: '#0F0C0B' },
+    wall: { height: 9.4, roof: '#3B332E', facing: 'open', choose: chooseWall },
+    symbols: {
+      'Y': { size: [6, 1], pieces: ['Drift_Plain', 'Drift_Plain', 'Drift_Lamp'], kind: 'wall' },
+      'y': { size: [6, 1], pieces: ['Drift_Rail', 'Drift_Rail', 'Drift_RailLamp'], kind: 'wall' },
+      '-': { pieces: ['Rail'], rotate: 'run', collide: false },
+      'C': { size: [1, 2], pieces: ['OreCart_Full', 'OreCart_Full', 'OreCart_Empty'], kind: 'cover' },
+      'c': { pieces: ['Crate_Powder', 'Crate_Tools', 'Crate_Plain'], h: 0.9, rotate: 'random90', stack: { piece: 'Crate_Lid', chance: 0.3, h: 0.65 }, kind: 'cover' },
+      'u': { pieces: ['Sacks_A', 'Sacks_B'], rotate: 'random90', kind: 'cover' },
+      '=': { pieces: ['Timbers_A', 'Timbers_B'], rotate: 'run', alternate: true, kind: 'cover' },
+      'b': { pieces: ['Drums_A', 'Drums_B'], rotate: 'random90', kind: 'cover' },
+      'O': { size: [2, 2], pieces: ['CoalHeap_A', 'CoalHeap_B'], flip: true, kind: 'cover' },
+      'X': { size: [2, 2], pieces: ['Crib'], kind: 'wall' },
+      'I': { pieces: ['RoofJack'], rotate: 'random90', kind: 'wall' },
+      'k': { pieces: ['Conveyor_A', 'Conveyor_B'], rotate: 'run', alternate: true, kind: 'cover' },
+      'l': { pieces: ['LanternPost'], rotate: 'random90', kind: 'cover' },
+      'L': { pieces: ['WorkLight'], rotate: 'random90', kind: 'cover' },
+      'w': { size: [2, 2], pieces: ['Puddle_A', 'Puddle_B'], flip: true, collide: false },
+      'd': { size: [2, 2], pieces: ['Dust_A', 'Dust_B'], flip: true, collide: false },
+      'T': { size: [8, 5], pieces: ['Landmark_DrillRig'], kind: 'wall' },
+      'H': { size: [6, 6], pieces: ['Landmark_Headframe'], kind: 'wall' },
+      'Z': { size: [6, 4], pieces: ['Landmark_Hopper'], kind: 'wall' },
+      'Q': { size: [5, 4], pieces: ['Landmark_Shack'], kind: 'wall' }
+    },
+    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
+    trail: { wall: 'TrailWall', height: 9.4 },
+    hatch: 'Hatch', stand: 'Stand',
+    // the far side of the old workings (seen through the overlooks): one long slice due east, west, north and south
+    backdrop: { ring: [
+      { piece: 'Backdrop_Cavern', count: 4, radius: [58, 58], scale: [1, 1], squeezeX: 0.36, face: true }
+    ] },
+    budget: { prop: 2000, landmark: 4000, total: 70000 },
+    allPieces: function () {
+      var out = WALLS.concat(['CeilRock', 'GateFrame', 'GateShutter', 'TrailWall', 'Hatch', 'Stand', 'Backdrop_Cavern']);
+      var sym = this.symbols;
+      Object.keys(sym).forEach(function (ch) {
+        sym[ch].pieces.concat(sym[ch].stack ? [sym[ch].stack.piece] : []).forEach(function (n) { if (out.indexOf(n) < 0) out.push(n); });
+      });
+      return out;
+    },
+    levels: {
+      coalmine: {
+        name: 'Deep Seam',
+        intro: 'Down the shaft. Clear the haulage, the coal face, then ride the cage out.',
+        zones: [
+          // Haulage Way: 34 robots, drones come through the drifts from the third wave
+          { map: 'coalmine_haulage', waves: [
+            [['crawler', 7], ['gunner', 2]],
+            [['crawler', 6], ['bomber', 2], ['gunner', 1]],
+            [['crawler', 4], ['gunner', 2], ['drone', 2], ['blader', 1]],
+            [['crawler', 4], ['bomber', 2], ['soldier', 1]]] },
+          // The Coal Face: 37 robots between conveyors and cribs
+          { map: 'coalmine_face', waves: [
+            [['crawler', 6], ['gunner', 3]],
+            [['drone', 2], ['crawler', 5], ['bomber', 2], ['blader', 1]],
+            [['gunner', 3], ['crawler', 4], ['soldier', 2]],
+            [['crawler', 5], ['bomber', 2], ['drone', 2]]] },
+          // Main Shaft: 40 robots, the dense finale round the headframe
+          { map: 'coalmine_shaft', waves: [
+            [['crawler', 7], ['gunner', 2]],
+            [['drone', 2], ['bomber', 2], ['crawler', 5], ['soldier', 1]],
+            [['gunner', 3], ['crawler', 5], ['drone', 1], ['blader', 1]],
+            [['crawler', 3], ['bomber', 2], ['gunner', 2], ['drone', 2], ['soldier', 1], ['blader', 1]]] }
+        ]
+      }
+    }
+  });
+})(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
+
+/* ---- themes/factory.js ---- */
+/* Theme: Robot Works (kit-factory). The enemy's robot assembly plant: tall steel-framed halls with painted block
+   dados, blue corrugated siding and a clerestory window band (the dusk sky, smokestacks and sawtooth roofs of the
+   works show through), roof trusses with high-bay lamps throwing pools of light, assembly lines building half-done
+   Crawlers, Gunners, Bombers and Drones under robot arms, conveyors of parts, crates and pallets, overhead catwalks,
+   hazard stripes everywhere, a giant stamping press with its forge, and the supervisor's raised control booth.
+   Built by blender/fam_kit_factory.py; zone layouts by tools/industrial_zones.py (src/data/zones/factory_*.txt).
+
+   Symbols (1 cell = 1 m; prefab sizes are [x, z] in cells):
+     #  walls: on the zone edge, 6 m bays (red I-beam column, then window modules: plain, glints, electrical panel,
+        stencilled robot sign, exhaust fan, fire hose); solid siding near the gates; end modules (trims stop short,
+        no pipes) beside inside corners; interior '#' = painted block walls
+     A  assembly line section [8, 4] (Crawler, Gunner, Bomber, Drone in sequence; runs of them make long lines); the
+        belt MOVES: half-built robots ride it out of a feed hood at one end of the run into an exit hood at the other,
+        the cleats scroll, neighbouring runs flow opposite ways (theme conveyor option, see zones.js "moving lines")
+     R  robot arm cell [2, 2]        =  moving belt conveyor with parts, feed / exit hoods at the run ends (runs)
+     c  parts crates (stacked)
+     p  pallet of parts [2, 2]       b  drums      g  gas cylinder rack      x  welding screen / tool chest
+     K  overhead catwalk [2, 8] (walk under it; runs join end to end)        M  machine tool [3, 2]
+     Q  rack of finished robots [6, 2]       W  robot test cage [4, 4]       z  hazard floor pad [2, 2] (no collision)
+     T  giant press + forge [10, 8] (landmark, front to the south)          B  raised control booth [8, 6] (landmark)
+   Floor decals (lamp pools from the roof trusses, hazard pads, cage floors, the booth's and the press's pools) each sit
+   at their own height, so overlapping decals never z-fight. */
+(function (IB) {
+  'use strict';
+  var SOLID = '#GE';
+  function solid(grid, c, r) { return SOLID.indexOf(grid.at(c, r)) >= 0; }
+  function faceOf(grid, c, r) {
+    var oS = !solid(grid, c, r + 1), oN = !solid(grid, c, r - 1), oE = !solid(grid, c + 1, r), oW = !solid(grid, c - 1, r);
+    var n = oS + oN + oE + oW;
+    if (n === 0) return 'none';
+    if (n === 1) return oS ? 'S' : oN ? 'N' : oE ? 'E' : 'W';
+    return ((oS || oN) && (oE || oW)) ? 'corner' : (oS ? 'S' : 'E');
+  }
+  function runOK(grid, c, r, F, k) {
+    var along = F === 'S' || F === 'N';
+    for (var d = -k; d <= k; d++) {
+      var x = along ? c + d : c, y = along ? r : r + d;
+      if (grid.at(x, y) !== '#' || faceOf(grid, x, y) !== F) return false;
+    }
+    return true;
+  }
+  function runOK1(grid, c, r, F) { return grid.at(c, r) === '#' && faceOf(grid, c, r) === F; }
+  // distance (cells) from a wall cell on the north / south edge to the centre of that edge's gate
+  function gateDist(grid, c, r) {
+    if (r !== 0 && r !== grid.h - 1) return 99;
+    var ch = r === 0 ? 'G' : 'E', a = -1, b = -1;
+    for (var x = 0; x < grid.w; x++) if (grid.at(x, r) === ch) { if (a < 0) a = x; b = x; }
+    return a < 0 ? 99 : Math.abs(c + 0.5 - (a + b + 1) / 2);
+  }
+  var WIN = ['Wall_Win_A', 'Wall_Win_A', 'Wall_Win_B', 'Wall_Win_A', 'Wall_Win_Panel', 'Wall_Win_A', 'Wall_Win_Vent', 'Wall_Win_B', 'Wall_Win_Hose'];
+  function pick(list, h) { return list[Math.min(list.length - 1, Math.floor(h * list.length))]; }
+  function chooseWall(c, r, horiz, corner, hash, grid, face) {
+    var F = face || faceOf(grid, c, r);
+    if (F === 'none' || F === 'corner') return 'Corner';
+    var edge = c === 0 || r === 0 || c === grid.w - 1 || r === grid.h - 1;
+    var u = (F === 'S' || F === 'N') ? c : r;
+    if (!edge) {   // interior block walls
+      var h = hash(c * 5 + 3, r * 7 + 1);
+      return h < 0.12 ? 'Block_Arrow' : h < 0.2 ? 'Block_Num' : 'Block_Plain';
+    }
+    var gd = gateDist(grid, c, r);
+    if (gd < 4) return gd > 2.6 ? 'Wall_Panel' : 'Wall_Plain';
+    if (u % 6 === 0 && runOK(grid, c, r, F, 1)) return 'Wall_Col';
+    if (!runOK(grid, c, r, F, 1)) {
+      // the run ends in a corner on one or both sides: an end module that keeps its trims and pipes out of the
+      // corner square (the module's local +X side is east for S, west for N, north for E, south for W)
+      var along = F === 'S' || F === 'N';
+      var lo = along ? runOK1(grid, c - 1, r, F) : runOK1(grid, c, r - 1, F), hi = along ? runOK1(grid, c + 1, r, F) : runOK1(grid, c, r + 1, F);
+      var plusIsHi = F === 'S' || F === 'W', R = plusIsHi ? !hi : !lo, L = plusIsHi ? !lo : !hi;
+      return 'Wall_End' + (L && R ? 'LR' : L ? 'L' : 'R');
+    }
+    if (u % 6 === 3 && hash(c * 11 + 2, r * 13 + 5) < 0.35) return 'Wall_Win_Sign';
+    return pick(WIN, hash(c * 7 + 3, r * 13 + 1));
+  }
+  var WALLS = ['Wall_Win_A', 'Wall_Win_B', 'Wall_Win_Panel', 'Wall_Win_Sign', 'Wall_Win_Vent', 'Wall_Win_Hose',
+    'Wall_Plain', 'Wall_Panel', 'Wall_Col', 'Wall_EndL', 'Wall_EndR', 'Wall_EndLR', 'Corner', 'Block_Plain', 'Block_Arrow', 'Block_Num'];
+
+  IB.registerTheme({
+    id: 'factory', name: 'Robot Works', family: 'kit-factory', prefix: 'KIT_FACTORY_',
+    palette: ['#5F80A0', '#F2C230', '#EC7A2E', '#B7B3AA'],
+    env: {
+      // dusk outside the clerestory; a warm industrial haze inside; lamps every 12 m on the roof trusses
+      sky: ['#6D8FC9', '#F6B98A'], clouds: true,
+      fog: { color: '#D9C6B2', near: 45, far: 150 },
+      sun: [0.35, 0.85, 0.4],
+      ceiling: { height: 10.0, color: '#8E9097', light: 'CeilTruss', every: 12 }
+    },
+    // power-floated concrete with saw-cut joints every 4 m; a lighter service-corridor floor
+    floor: {
+      color: '#ABA8A0', trail: '#B9B5AB', outside: '#7E7A76',
+      lines: [{ dir: 'x', every: 4, width: 0.04, color: '#97948C', y: 0.008 }, { dir: 'z', every: 4, width: 0.04, color: '#97948C', y: 0.0105 }]
+    },
+    wall: { height: 10.4, roof: '#8E9097', facing: 'open', choose: chooseWall },
+    symbols: {
+      // moving lines: half-built robots ride the assembly belts and parts the conveyors, out of a feed hood at one end
+      // of each run and into an exit hood at the other; the belt cleats scroll; a player on a belt top is carried
+      'A': { size: [8, 4], pieces: ['Line_Crawler', 'Line_Gunner', 'Line_Bomber', 'Line_Drone'], sequence: true, kind: 'wall',
+             conveyor: { speed: 0.55, dir: 'alt', y: 0.884, spacing: 2.6, inset: 0.6, ends: { start: 'Line_Feed', end: 'Line_Exit', at: 0.6 },
+                         items: ['LineBot_CrawlerBare', 'LineBot_Gunner', 'LineBot_Bomber', 'LineBot_Crawler', 'LineBot_GunnerBare', 'LineBot_Drone'],
+                         cleat: 'Line_Cleat', cleatEvery: 0.8, cleatY: 0.884, carry: { top: 1.05, width: 0.9 } } },
+      'R': { size: [2, 2], pieces: ['Arm_A', 'Arm_B'], flip: true, kind: 'cover' },
+      '=': { pieces: ['Conveyor'], rotate: 'run', kind: 'cover',
+             conveyor: { speed: 0.7, dir: 'alt', y: 0.864, spacing: 1.3, inset: 0.5, ends: { start: 'Conveyor_Feed', end: 'Conveyor_Exit', at: 0.5 },
+                         items: ['Item_Can', 'Item_Bottle', 'Item_Drone', 'Item_Wheels'], cleat: 'Belt_Cleat', cleatEvery: 0.5, cleatY: 0.864,
+                         carry: { top: 1.0, width: 0.9 } } },
+      'c': { pieces: ['Crate_Cans', 'Crate_Wheels', 'Crate_Closed'], h: 0.86, rotate: 'random90', stack: { piece: 'Crate_Lid', chance: 0.3, h: 0.5 }, kind: 'cover' },
+      'p': { size: [2, 2], pieces: ['Pallet_Bins', 'Pallet_Cans', 'Pallet_Bottles'], flip: true, kind: 'cover' },
+      'b': { pieces: ['Drums_A', 'Drums_B'], rotate: 'random90', kind: 'cover' },
+      'g': { pieces: ['GasRack'], rotate: 'random90', kind: 'cover' },
+      'x': { pieces: ['WeldScreen', 'ToolChest'], rotate: 'random90', sequence: true, kind: 'cover' },
+      'K': { size: [2, 8], pieces: ['Catwalk'], kind: 'cover' },
+      'M': { size: [3, 2], pieces: ['Machine_Mill', 'Machine_Lathe'], flip: true, kind: 'cover' },
+      'Q': { size: [6, 2], pieces: ['Landmark_RobotRack'], flip: true, kind: 'wall' },
+      'W': { size: [4, 4], pieces: ['TestCage'], flip: true, kind: 'wall' },
+      'z': { size: [2, 2], pieces: ['Hazard_A', 'Hazard_B'], collide: false },
+      'T': { size: [10, 8], pieces: ['Landmark_Press'], kind: 'wall' },
+      'B': { size: [8, 6], pieces: ['Landmark_Booth'], kind: 'wall' }
+    },
+    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
+    // end-room back wall faces out (siding toward the lift): turned inward, its half-ceilings overlap the side walls'
+    trail: { wall: 'TrailWall', height: 10.4, end: 'TrailWall', endYaw: Math.PI / 2, endLift: 0 },
+    hatch: 'Hatch', stand: 'Stand',
+    // the works outside the clerestory: one long slice due east, west, north and south of the level, facing it
+    backdrop: { ring: [
+      { piece: 'Backdrop_Works', count: 4, radius: [60, 60], scale: [1, 1], squeezeX: 0.36, face: true }
+    ] },
+    budget: { prop: 2000, landmark: 4000, total: 70000 },
+    allPieces: function () {
+      var out = WALLS.concat(['CeilTruss', 'GateFrame', 'GateShutter', 'TrailWall', 'Hatch', 'Stand', 'Backdrop_Works']);
+      var sym = this.symbols;
+      Object.keys(sym).forEach(function (ch) {
+        sym[ch].pieces.concat(sym[ch].stack ? [sym[ch].stack.piece] : [], IB.conveyorPieces(sym[ch].conveyor)).forEach(function (n) { if (out.indexOf(n) < 0) out.push(n); });
+      });
+      return out;
+    },
+    levels: {
+      factory: {
+        name: 'Robot Works',
+        intro: 'This is where they come from. Shut down the lines, the press shop, then the dispatch floor.',
+        zones: [
+          // Assembly Hall: 36 robots between the lines
+          { map: 'factory_lines', waves: [
+            [['crawler', 7], ['gunner', 2]],
+            [['crawler', 5], ['bomber', 2], ['gunner', 1], ['soldier', 1]],
+            [['crawler', 4], ['gunner', 2], ['drone', 2], ['blader', 1]],
+            [['crawler', 5], ['bomber', 3], ['soldier', 1]]] },
+          // Press Shop: 37 robots, drones over the press
+          { map: 'factory_press', waves: [
+            [['crawler', 6], ['gunner', 3]],
+            [['drone', 3], ['crawler', 3], ['bomber', 2], ['blader', 2]],
+            [['gunner', 3], ['crawler', 4], ['soldier', 2]],
+            [['crawler', 4], ['bomber', 2], ['drone', 2], ['blader', 1]]] },
+          // Control & Dispatch: 42 robots, the dense finale under the booth
+          { map: 'factory_dispatch', waves: [
+            [['crawler', 7], ['gunner', 2]],
+            [['drone', 2], ['bomber', 2], ['crawler', 4], ['soldier', 2]],
+            [['gunner', 3], ['crawler', 4], ['drone', 1], ['soldier', 2]],
+            [['crawler', 3], ['bomber', 2], ['gunner', 3], ['drone', 3], ['blader', 2]]] }
+        ]
+      }
+    }
+  });
+})(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
+
+/* ---- themes/factory2.js ---- */
+/* Theme: Heavy Works (kit-factory2). The plant where the enemy builds its BIG robots: 16 m halls with oxide-red block
+   plinths, deep-teal corrugated siding, a crane runway on corbels along every wall and a high clerestory onto a late
+   dusk (blast furnaces, cooling stacks, a goliath crane); roof bays with high-bay lamps, some with an overhead bridge
+   crane carrying an armour plate or a mech leg. On the floor the moving build lines: walker mechs and tread bruisers
+   (4-7 m tall) ride skids out of the feed house, through the drivetrain, armour and paint booths (bare chassis frame
+   -> drivetrain fitted -> armour plated in primer -> painted orange / teal and cream) into the dispatch house; belts of
+   parts, weld cells with sparks, chassis jigs, plate machines, leg racks, stacked plates and giant wheels, a fenced
+   test track a finished bruiser laps, and the Titan dock (a 10 m mech in its scaffold).
+   Built by blender/fam_kit_factory2.py; zone layouts by tools/heavy_zones.py (src/data/zones/factory2_*.txt).
+
+   Symbols (1 cell = 1 m; prefab sizes are [x, z] in cells):
+     #  walls: zone edge = window modules (plain, glints, panel, bay number, duct, hose) with an I-beam column every
+        6 m, plain modules near the gates, end modules beside inside corners; interior '#' = block walls
+     L  walker build line [14, 8], runs of four (feed house + drivetrain booth, armour booth, paint booth, dispatch
+        house); the walkers move east through the stages (moving line, see `conveyor`)
+     U  bruiser build line, the same tiles with tread bruisers riding it
+     =  moving belt of parts (plates, hubs, rams, lamp pods) between a feed and an exit hood (runs)
+     C  weld cell [4, 4]     X  chassis jig [6, 4]     M  plate machine [4, 2]     l  leg rack [4, 2]
+     p  armour plates [2, 2]     w  wheels / tread coil [2, 2]     c  parts crates     b  drums     x  gas cart / weld screen
+     z  hazard floor pad [2, 2] (no collision)     T  test track [16, 12] (a finished bruiser laps it)     D  Titan dock [10, 8]
+   Floor decals (lamp pools, track beds, hazard pads, cells, test track, dock) each sit at their own height. */
+(function (IB) {
+  'use strict';
+  var SOLID = '#GE';
+  function solid(grid, c, r) { return SOLID.indexOf(grid.at(c, r)) >= 0; }
+  function faceOf(grid, c, r) {
+    var oS = !solid(grid, c, r + 1), oN = !solid(grid, c, r - 1), oE = !solid(grid, c + 1, r), oW = !solid(grid, c - 1, r);
+    var n = oS + oN + oE + oW;
+    if (n === 0) return 'none';
+    if (n === 1) return oS ? 'S' : oN ? 'N' : oE ? 'E' : 'W';
+    return ((oS || oN) && (oE || oW)) ? 'corner' : (oS ? 'S' : 'E');
+  }
+  function runOK(grid, c, r, F, k) {
+    var along = F === 'S' || F === 'N';
+    for (var d = -k; d <= k; d++) {
+      var x = along ? c + d : c, y = along ? r : r + d;
+      if (grid.at(x, y) !== '#' || faceOf(grid, x, y) !== F) return false;
+    }
+    return true;
+  }
+  function runOK1(grid, c, r, F) { return grid.at(c, r) === '#' && faceOf(grid, c, r) === F; }
+  function gateDist(grid, c, r) {
+    if (r !== 0 && r !== grid.h - 1) return 99;
+    var ch = r === 0 ? 'G' : 'E', a = -1, b = -1;
+    for (var x = 0; x < grid.w; x++) if (grid.at(x, r) === ch) { if (a < 0) a = x; b = x; }
+    return a < 0 ? 99 : Math.abs(c + 0.5 - (a + b + 1) / 2);
+  }
+  var WIN = ['Wall_Win_A', 'Wall_Win_A', 'Wall_Win_B', 'Wall_Win_A', 'Wall_Win_Panel', 'Wall_Win_A', 'Wall_Win_Duct', 'Wall_Win_B', 'Wall_Win_Hose'];
+  function pick(list, h) { return list[Math.min(list.length - 1, Math.floor(h * list.length))]; }
+  function chooseWall(c, r, horiz, corner, hash, grid, face) {
+    var F = face || faceOf(grid, c, r);
+    if (F === 'none' || F === 'corner') return 'Corner';
+    var edge = c === 0 || r === 0 || c === grid.w - 1 || r === grid.h - 1;
+    var u = (F === 'S' || F === 'N') ? c : r;
+    if (!edge) { var h = hash(c * 5 + 3, r * 7 + 1); return h < 0.12 ? 'Block_Arrow' : h < 0.2 ? 'Block_Num' : 'Block_Plain'; }
+    var gd = gateDist(grid, c, r);
+    if (gd < 4) return gd > 2.6 ? 'Wall_Panel' : 'Wall_Plain';
+    if (u % 6 === 0 && runOK(grid, c, r, F, 1)) return 'Wall_Col';
+    if (!runOK(grid, c, r, F, 1)) {
+      var along = F === 'S' || F === 'N';
+      var lo = along ? runOK1(grid, c - 1, r, F) : runOK1(grid, c, r - 1, F), hi = along ? runOK1(grid, c + 1, r, F) : runOK1(grid, c, r + 1, F);
+      var plusIsHi = F === 'S' || F === 'W', R = plusIsHi ? !hi : !lo, L = plusIsHi ? !lo : !hi;
+      return 'Wall_End' + (L && R ? 'LR' : L ? 'L' : 'R');
+    }
+    if (u % 12 === 3 && hash(c * 11 + 2, r * 13 + 5) < 0.5) return 'Wall_Win_Sign';
+    return pick(WIN, hash(c * 7 + 3, r * 13 + 1));
+  }
+  var WALLS = ['Wall_Win_A', 'Wall_Win_B', 'Wall_Win_Panel', 'Wall_Win_Sign', 'Wall_Win_Duct', 'Wall_Win_Hose',
+    'Wall_Plain', 'Wall_Panel', 'Wall_Col', 'Wall_EndL', 'Wall_EndR', 'Wall_EndLR', 'Corner', 'Block_Plain', 'Block_Arrow', 'Block_Num'];
+  var BAYS = ['CeilBay', 'CeilBay', 'CeilBay_Plate', 'CeilBay', 'CeilBay_Leg'];
+  // a rounded rectangle (half sizes a, b, corner radius r) as a closed polyline, counter-clockwise seen from above
+  function loop(a, b, r, n) {
+    var pts = [], corners = [[a - r, b - r, 0], [-(a - r), b - r, 1], [-(a - r), -(b - r), 2], [a - r, -(b - r), 3]];
+    corners.forEach(function (C) {
+      for (var i = 0; i <= n; i++) { var t = (C[2] + i / n) * Math.PI / 2; pts.push([C[0] + Math.cos(t) * r, C[1] + Math.sin(t) * r]); }
+    });
+    return pts;
+  }
+  // the build line: one tile kind per stage station; the mechs pop in inside the feed house (2.1 m in) and out
+  // inside the dispatch house, and change stage in the middle of each booth (tile-local x = 4.75)
+  function buildLine(stages) {
+    return { size: [14, 8], pieces: ['Jig_Feed', 'Jig_Armour', 'Jig_Paint', 'Jig_Dispatch'], sequence: 'run', kind: 'wall',
+      conveyor: { speed: 0.45, dir: 1, y: 0, spacing: 9.0, inset: 2.1, items: [stages],
+        stations: { Jig_Feed: 4.75, Jig_Armour: 4.75, Jig_Paint: 4.75 }, cleat: 'Track_Slat', cleatEvery: 1.0, cleatY: 0.028 } };
+  }
+
+  IB.registerTheme({
+    id: 'factory2', name: 'Heavy Works', family: 'kit-factory2', prefix: 'KIT_FACTORY2_',
+    palette: ['#1F5A63', '#F07A22', '#A8442E', '#EFE3C4'],
+    env: {
+      // late dusk outside the clerestory (an orange furnace glow on the horizon); a warm, smoky haze in the halls
+      sky: ['#3A5576', '#F29A55'], clouds: true,
+      fog: { color: '#C9B49A', near: 55, far: 175 },
+      sun: [-0.4, 0.8, 0.45],
+      ceiling: { height: 16.0, color: '#7F858C', light: BAYS, every: 12 }
+    },
+    floor: {
+      color: '#A39E96', trail: '#B3AEA5', outside: '#6E6A66',
+      lines: [{ dir: 'x', every: 4, width: 0.05, color: '#8F8A82', y: 0.008 }, { dir: 'z', every: 4, width: 0.05, color: '#8F8A82', y: 0.0105 }]
+    },
+    wall: { height: 16.4, roof: '#7F858C', facing: 'open', choose: chooseWall },
+    symbols: {
+      'L': buildLine(['Mech_Walker_Frame', 'Mech_Walker_Drive', 'Mech_Walker_Armour', 'Mech_Walker_Paint']),
+      'U': buildLine(['Mech_Bruiser_Frame', 'Mech_Bruiser_Drive', 'Mech_Bruiser_Armour', 'Mech_Bruiser_Paint']),
+      '=': { pieces: ['Belt'], rotate: 'run', kind: 'cover',
+             conveyor: { speed: 0.6, dir: 'alt', y: 0.844, spacing: 1.4, inset: 0.5, ends: { start: 'Belt_Feed', end: 'Belt_Exit', at: 0.5 },
+                         items: ['Part_Plate', 'Part_Hub', 'Part_Piston', 'Part_Lamp'], cleat: 'Belt_Cleat', cleatEvery: 0.5, cleatY: 0.844,
+                         carry: { top: 0.98, width: 0.9 } } },
+      'C': { size: [4, 4], pieces: ['WeldCell_A', 'WeldCell_B'], flip: true, kind: 'cover' },
+      'X': { size: [6, 4], pieces: ['ChassisJig_Bruiser', 'ChassisJig_Walker'], flip: true, kind: 'wall' },
+      'M': { size: [4, 2], pieces: ['Machine_Brake', 'Machine_Plasma'], flip: true, kind: 'cover' },
+      'l': { size: [4, 2], pieces: ['LegRack'], flip: true, kind: 'cover' },
+      'p': { size: [2, 2], pieces: ['Plates_Flat', 'Plates_Rack'], kind: 'cover' },
+      'w': { size: [2, 2], pieces: ['Wheels_Stack', 'Wheels_Cradle', 'Wheels_Coil'], kind: 'cover' },
+      'c': { pieces: ['Crate_Open', 'Crate_Closed'], h: 0.9, rotate: 'random90', stack: { piece: 'Crate_Lid', chance: 0.3, h: 0.5 }, kind: 'cover' },
+      'b': { pieces: ['Drums_A', 'Drums_B'], rotate: 'random90', kind: 'cover' },
+      'x': { pieces: ['GasCart', 'WeldScreen'], rotate: 'random90', sequence: true, kind: 'cover' },
+      'z': { size: [2, 2], pieces: ['Hazard_A', 'Hazard_B'], collide: false },
+      // the test track: a finished bruiser laps the lane (a closed loop in the prefab's own metres)
+      'T': { size: [16, 12], pieces: ['TestTrack'], kind: 'wall',
+             conveyor: { path: loop(5.9, 3.9, 1.5, 6), speed: 2.4, n: 2, y: 0, items: ['Mech_Bruiser_Test'] } },
+      'D': { size: [10, 8], pieces: ['Landmark_Titan'], kind: 'wall' }
+    },
+    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
+    trail: { wall: 'TrailWall', height: 16.4, end: 'TrailWall', endYaw: Math.PI / 2, endLift: 0 },
+    hatch: 'Hatch', stand: 'Stand',
+    backdrop: { ring: [
+      { piece: 'Backdrop_Heavy', count: 4, radius: [60, 60], scale: [1, 1], squeezeX: 0.36, face: true }
+    ] },
+    budget: { prop: 3000, landmark: 5000, total: 70000 },
+    allPieces: function () {
+      var out = WALLS.concat(BAYS, ['GateFrame', 'GateShutter', 'TrailWall', 'Hatch', 'Stand', 'Backdrop_Heavy']);
+      var sym = this.symbols;
+      Object.keys(sym).forEach(function (ch) {
+        sym[ch].pieces.concat(sym[ch].stack ? [sym[ch].stack.piece] : [], IB.conveyorPieces(sym[ch].conveyor)).forEach(function (n) { if (out.indexOf(n) < 0) out.push(n); });
+      });
+      return out.filter(function (n, i) { return out.indexOf(n) === i; });
+    },
+    levels: {
+      factory2: {
+        name: 'Heavy Works',
+        intro: 'The big ones are built here. Stop the chassis hall, the armour shop, then the dispatch floor.',
+        zones: [
+          // Chassis Hall: 42 robots around the walker line
+          { map: 'factory2_chassis', waves: [
+            [['crawler', 7], ['gunner', 3]],
+            [['crawler', 4], ['bomber', 3], ['gunner', 2], ['blader', 2]],
+            [['gunner', 3], ['drone', 3], ['crawler', 3], ['soldier', 2]],
+            [['crawler', 4], ['bomber', 2], ['gunner', 2], ['soldier', 2]]] },
+          // Armour & Test: 44 robots, drones over the bruiser line and the test track
+          { map: 'factory2_armour', waves: [
+            [['crawler', 6], ['gunner', 3], ['drone', 1]],
+            [['drone', 3], ['crawler', 4], ['bomber', 2], ['blader', 2]],
+            [['gunner', 4], ['crawler', 4], ['bomber', 1], ['soldier', 2]],
+            [['crawler', 4], ['bomber', 3], ['drone', 3], ['blader', 2]]] },
+          // Dispatch & the Titan: 50 robots, the dense finale under the Titan
+          { map: 'factory2_dispatch', waves: [
+            [['crawler', 7], ['gunner', 3], ['drone', 1]],
+            [['drone', 3], ['bomber', 3], ['crawler', 4], ['soldier', 2]],
+            [['gunner', 4], ['crawler', 5], ['drone', 2], ['blader', 2]],
+            [['crawler', 3], ['bomber', 3], ['gunner', 3], ['drone', 2], ['soldier', 3]]] }
+        ]
+      }
+    }
+  });
+})(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
+
+/* ---- themes/garden.js ---- */
+/* Theme: Wide Garden Playground (kit-garden). A wide public park on a sunny afternoon: lawns with mown stripes,
+   gravel paths and paving, clipped yew hedges as the zone walls (brick dwarf walls and brick gate piers near the
+   gates, the gates are pergola arches with a green roller door), flower beds, box hedges, picket fences, trees,
+   benches, picnic tables, lamps, urns, a fountain, a gazebo, a potting shed, a sandpit, swings, a seesaw, monkey
+   bars, and in every garden a big climbable playground: the play tower, the three-tower play fort (bridges, stairs,
+   a ramp, slides, a climbing wall) and the pirate play ship. Robots walk up the stairs, ramps and bridges too: the
+   playground pieces carry walkable collision boxes (<Piece>_WCOL<n>, see src/game/zones.js and src/game/ai.js).
+   Built by blender/fam_kit_garden.py; zone layouts by tools/garden_zones.py (src/data/zones/garden_*.txt).
+
+   Symbols (1 cell = 1 m; prefab sizes are [x, z] in cells; built-ins: # hedge, S spawn can, P entry, E entry gate,
+   G exit gate, a ammo, h health):
+     ,  gravel path            ;  paving                   m  rubber play surface (no collision)
+     t  tree (oak, lime, blossom, pine)                     f  flower bed (tulips, roses, daisies)
+     =  low box hedge (runs)   -  white picket fence (runs) o  stone urn of flowers      l  lamp post
+     i  litter bin             d  birdbath                  b  bench [2, 1]              k  picnic table [2, 2]
+     F  fountain [6, 6]        Z  gazebo [6, 6] (raised floor, walkable, open to the south)
+     H  potting shed [4, 4]    Q  sandpit [4, 4]            W  swings [4, 2]             w  seesaw [4, 2]
+     M  monkey bars [6, 2]     T  play tower [10, 10] (stairs to the south)   U  the same, turned (stairs north)
+     X  play fort [30, 16] (towers + links, the middle garden's centrepiece)  Y  pirate play ship [20, 10]
+   Wall chooser: hedge modules facing the open side; the two cells either side of a gate are left empty (the gate
+   frame's brick piers fill them), the next two get a brick dwarf wall in front of the hedge; corners get the
+   all-round corner hedge. */
+(function (IB) {
+  'use strict';
+  var SOLID = '#GE';
+  function solid(grid, c, r) { return SOLID.indexOf(grid.at(c, r)) >= 0; }
+  // distance (cells) from a wall cell on the north / south edge to the centre of that edge's gate
+  function gateDist(grid, c, r) {
+    if (r !== 0 && r !== grid.h - 1) return 99;
+    var ch = r === 0 ? 'G' : 'E', a = -1, b = -1;
+    for (var x = 0; x < grid.w; x++) if (grid.at(x, r) === ch) { if (a < 0) a = x; b = x; }
+    return a < 0 ? 99 : Math.abs(c + 0.5 - (a + b + 1) / 2);
+  }
+  var HEDGES = ['Hedge_A', 'Hedge_A', 'Hedge_B', 'Hedge_A', 'Hedge_C', 'Hedge_A', 'Hedge_B'];
+  function chooseWall(c, r, horiz, corner, hash, grid, face) {
+    var gd = gateDist(grid, c, r);
+    if (gd < 2.6) return null;               // the gate frame's brick piers stand here
+    if (face === 'none' || face === 'corner') return 'Hedge_Corner';
+    if (gd < 4.6) return 'Hedge_Brick';
+    var oS = !solid(grid, c, r + 1), oN = !solid(grid, c, r - 1), oE = !solid(grid, c + 1, r), oW = !solid(grid, c - 1, r);
+    if (oS + oN + oE + oW !== 1) return 'Hedge_Corner';
+    return HEDGES[Math.min(HEDGES.length - 1, Math.floor(hash(c * 7 + 3, r * 13 + 1) * HEDGES.length))];
+  }
+  var WALLS = ['Hedge_A', 'Hedge_B', 'Hedge_C', 'Hedge_Brick', 'Hedge_Corner'];
+
+  IB.registerTheme({
+    id: 'garden', name: 'Wide Garden Playground', family: 'kit-garden', prefix: 'KIT_GARDEN_',
+    palette: ['#7CC35A', '#3D8BE0', '#FFC93C', '#E8413B'],
+    // a warm, sunny afternoon: deep blue sky to a pale gold horizon, light haze
+    env: { sky: ['#5FA8E8', '#FFF1C8'], fog: { color: '#E6EED8', near: 55, far: 160 }, sun: [0.45, 0.82, 0.35], clouds: true, ceiling: null },
+    // mown lawn: 2 m stripes of a lighter green; a gravel path between the gardens; lawn outside
+    floor: { color: '#7CC35A', trail: '#DCCBA4', outside: '#78BA58',
+      lines: [{ dir: 'z', every: 4, width: 2, color: '#8DCF68', y: 0.008 }] },
+    wall: { height: 3.4, roof: '#55A84A', facing: 'open', choose: chooseWall },
+    symbols: {
+      ',': { pieces: ['Path_A', 'Path_B'], alternate: true, collide: false },
+      ';': { pieces: ['Pave_A', 'Pave_B'], alternate: true, collide: false },
+      'm': { pieces: ['Mat_A', 'Mat_A', 'Mat_A', 'Mat_B'], collide: false },
+      't': { pieces: ['Tree_Oak', 'Tree_Lime', 'Tree_Blossom', 'Tree_Oak', 'Tree_Pine'], rotate: 'random90', kind: 'cover' },
+      'f': { pieces: ['Bed_Tulip', 'Bed_Rose', 'Bed_Daisy'], alternate: true, rotate: 'random90', kind: 'cover' },
+      '=': { pieces: ['LowHedge'], rotate: 'run', kind: 'cover' },
+      '-': { pieces: ['Picket'], rotate: 'run', kind: 'cover' },
+      'o': { pieces: ['Urn'], kind: 'cover' },
+      'l': { pieces: ['Lamp'], kind: 'prop' },
+      'i': { pieces: ['Bin'], kind: 'cover' },
+      'd': { pieces: ['Birdbath'], kind: 'cover' },
+      'b': { size: [2, 1], pieces: ['Bench'], flip: true, kind: 'cover' },
+      'k': { size: [2, 2], pieces: ['Picnic'], flip: true, kind: 'cover' },
+      'F': { size: [6, 6], pieces: ['Landmark_Fountain'], kind: 'wall' },
+      'Z': { size: [6, 6], pieces: ['Landmark_Gazebo'], kind: 'wall' },
+      'H': { size: [4, 4], pieces: ['Shed'], flip: true, kind: 'wall' },
+      'Q': { size: [4, 4], pieces: ['Sandpit'], kind: 'cover' },
+      'W': { size: [4, 2], pieces: ['Swings'], kind: 'prop' },
+      'w': { size: [4, 2], pieces: ['Seesaw'], kind: 'cover' },
+      'M': { size: [6, 2], pieces: ['MonkeyBars'], kind: 'prop' },
+      // the playgrounds (walkable decks, stairs, ramps and bridges; see the header)
+      'T': { size: [10, 10], pieces: ['Landmark_PlayTower'], kind: 'wall' },
+      'U': { size: [10, 10], pieces: ['Landmark_PlayTower'], turn: Math.PI, kind: 'wall' },
+      'X': { size: [30, 16], pieces: ['Landmark_PlayFort'], with: { Landmark_PlayFort: ['Landmark_PlayFortLinks'] }, kind: 'wall' },
+      'Y': { size: [20, 10], pieces: ['Landmark_PlayShip'], kind: 'wall' }
+    },
+    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
+    // the gravel path between gardens runs between tall hedges: lamps, roses and a bird box mixed in per module
+    trail: { wall: 'TrailWall', height: 3.4, variants: ['TrailWall', 'TrailWall_Lamp', 'TrailWall_Rose', 'TrailWall', 'TrailWall_Box'] },
+    hatch: 'Hatch', stand: 'Stand',
+    // park trees just past the hedges, the suburb's houses further out
+    backdrop: { ring: [
+      { piece: 'Backdrop_Trees', count: 4, radius: [40, 40], scale: [1, 1], squeezeX: 0.36, face: true },
+      { piece: 'Backdrop_Houses', count: 4, radius: [62, 62], scale: [1, 1], squeezeX: 0.4, face: true }
+    ] },
+    budget: { prop: 2500, landmark: 5000, total: 70000 },
+    allPieces: function () {
+      var out = WALLS.concat(['GateFrame', 'GateShutter', 'TrailWall', 'TrailWall_Lamp', 'TrailWall_Rose', 'TrailWall_Box', 'Hatch', 'Stand',
+        'Backdrop_Trees', 'Backdrop_Houses']);
+      var sym = this.symbols;
+      Object.keys(sym).forEach(function (ch) {
+        var d = sym[ch], list = d.pieces.slice();
+        if (d.with) Object.keys(d.with).forEach(function (n) { list = list.concat(d.with[n]); });
+        list.forEach(function (n) { if (out.indexOf(n) < 0) out.push(n); });
+      });
+      return out;
+    },
+    levels: {
+      garden: {
+        name: 'Wide Garden Playground',
+        intro: 'They have taken over the park. Climb the playgrounds, shoot from the decks, and mind: they climb too.',
+        zones: [
+          // The Lawns: the play tower among swings, sandpit and flower beds; 38 robots
+          { map: 'garden_lawns', waves: [
+            [['crawler', 7], ['gunner', 2]],
+            [['crawler', 5], ['bomber', 2], ['drone', 1], ['blader', 1]],
+            [['gunner', 3], ['crawler', 4], ['soldier', 2]],
+            [['crawler', 5], ['bomber', 3], ['drone', 2], ['blader', 1]]] },
+          // The Fort: the big three-tower play fort in the middle, the gazebo and the fountain; 43 robots
+          { map: 'garden_fort', waves: [
+            [['crawler', 8], ['gunner', 2]],
+            [['drone', 2], ['crawler', 4], ['bomber', 2], ['soldier', 2]],
+            [['gunner', 3], ['crawler', 5], ['drone', 1], ['blader', 2]],
+            [['crawler', 4], ['bomber', 3], ['gunner', 2], ['drone', 1], ['soldier', 2]]] },
+          // Pirate Cove: the play ship, a second tower, the potting shed and picnic lawn; 46 robots, the finale
+          { map: 'garden_cove', waves: [
+            [['crawler', 8], ['gunner', 3]],
+            [['drone', 2], ['bomber', 3], ['crawler', 4], ['blader', 2]],
+            [['gunner', 3], ['crawler', 5], ['drone', 2], ['soldier', 2]],
+            [['crawler', 3], ['bomber', 3], ['gunner', 2], ['drone', 1], ['soldier', 2], ['blader', 1]]] }
         ]
       }
     }
@@ -364,8 +1273,8 @@
   function hgt(c, r, zi) {
     var k = zi * 1.7;
     var mounds = 1.15 * Math.sin(0.19 * c + 1.3 + k) * Math.sin(0.17 * r + 0.6 + k) + 0.6 * Math.sin(0.41 * c - 0.27 * r + k);
-    var band = ((r + 0.35 * c + 7 * zi) % 18 + 18) % 18, ridge = 1.7 * Math.max(0, 1 - Math.abs(band - 9) / 3.2);
-    return Math.max(0, 1.0 + mounds + ridge);
+    var band = ((r + 0.35 * c + 7 * zi) % 18 + 18) % 18, ridge = 1.7 * Math.max(0, 1 - Math.abs(band - 9) / 3.6);
+    return Math.max(0, 0.72 * (1.0 + mounds + ridge));   // slopes stay under the robots' 0.4 m step per nav cell
   }
   function chooseWall(c, r, horiz, corner, hash, grid, face) {
     if (face === 'corner' || face === 'none') return 'Ridge_Pillar';
@@ -383,7 +1292,7 @@
     palette: ['#7CC05E', '#A9583A', '#FFC928', '#B4DD8E'],
     env: { sky: ['#7EC8F0', '#EAF6E4'], fog: { color: '#D9EEDB', near: 44, far: 125 }, sun: [0.45, 0.8, 0.4], clouds: true, ceiling: null },
     floor: { color: '#86C466', trail: '#CDB894', outside: '#86C266' },
-    terrain: { height: hgt, flat: 'ZVWULf', ramp: [1, 5], low: '#7DBE5C', high: '#B4DD8E', patch: '#93CC70', top: 4 },
+    terrain: { height: hgt, flat: 'ZVWULf', ramp: [1, 5], low: '#7DBE5C', high: '#B4DD8E', patch: '#93CC70', top: 3 },
     wall: { height: 6, roof: '#7CC05E', facing: 'open', choose: chooseWall },
     symbols: {
       'Z': { size: [6, 6], pieces: ['Landmark_Redwood_A', 'Landmark_Redwood_B'], face: 0, kind: 'step' },
@@ -419,9 +1328,467 @@
         name: 'Redwood Hollow',
         intro: 'Climb the broken branches up the giant redwoods. The robots will climb after you.',
         zones: [
-          { map: 'grove_1', waves: [[['crawler', 10], ['gunner', 2]], [['crawler', 10], ['gunner', 3], ['drone', 1]], [['crawler', 12], ['bomber', 3], ['gunner', 2]]] },
-          { map: 'grove_2', waves: [[['crawler', 10], ['drone', 2]], [['gunner', 4], ['crawler', 10]], [['bomber', 4], ['crawler', 10], ['drone', 3]]] },
-          { map: 'grove_3', waves: [[['crawler', 12], ['gunner', 3]], [['drone', 3], ['bomber', 3], ['crawler', 10]], [['gunner', 6], ['crawler', 14], ['bomber', 3], ['drone', 3]]] }
+          { map: 'grove_1', waves: [[['crawler', 20], ['gunner', 5]], [['crawler', 5], ['bomber', 4], ['gunner', 4], ['blader', 6]], [['crawler', 4], ['drone', 5], ['gunner', 4], ['soldier', 6]], [['crawler', 4], ['bomber', 4], ['gunner', 5], ['soldier', 7]]] },
+          { map: 'grove_2', waves: [[['crawler', 20], ['gunner', 5], ['drone', 3]], [['crawler', 5], ['bomber', 5], ['gunner', 5], ['blader', 7]], [['crawler', 5], ['drone', 5], ['gunner', 5], ['soldier', 6]], [['crawler', 4], ['bomber', 4], ['gunner', 5], ['blader', 6]]] },
+          { map: 'grove_3', waves: [[['crawler', 20], ['gunner', 8]], [['crawler', 5], ['bomber', 5], ['drone', 5], ['soldier', 7]], [['crawler', 7], ['gunner', 7], ['drone', 5], ['blader', 6]], [['crawler', 8], ['gunner', 8], ['bomber', 7], ['drone', 4], ['soldier', 12]]] }
+        ]
+      }
+    }
+  });
+})(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
+
+/* ---- themes/island.js ---- */
+/* Theme: Lagoon Island (kit-island). A wide tropical island on a bright day with open ocean all around it: sandy
+   beaches and grassy dunes, palm groves and jungle thickets, warm basalt rocks, tide pools, freshwater ponds with
+   reeds and lily pads, a big lagoon lake with a palm islet, beach huts on stilts, boats pulled up on the sand, crates
+   and barrels washed ashore, a ruined lookout, a red-and-white lighthouse and a small research outpost the robots
+   have taken over. Built by blender/fam_kit_island.py; zone layouts by tools/island_zones.py
+   (src/data/zones/island_*.txt).
+
+   Symbols (1 cell = 1 m; prefab sizes are [x, z] in cells):
+     #  edge walls (1 cell thick): jungle thickets, basalt outcrops, dunes behind a driftwood fence, in 8 m stretches.
+        2 m modules sit on every even cell of a straight run (odd cells: nothing, or a 1 m module at a run end);
+        corners and notches get round rock / jungle clumps; the cells beside a gate are left to the frame's jambs.
+     { }  sea wall on a west / east zone edge that faces the ocean: a low rock-armoured breakwater with a tall
+        collision box (the surf is right behind it: an honest barrier, not a cut-off world edge)
+     o rock   O outcrop [2,2]   c crate (stacks)   b barrels   t palm   F palm clump [2,2]   x driftwood (runs)
+     f driftwood fence (runs)   = sandbags (runs)   r reeds   p tiki torch / signpost   u beach umbrella
+     B boat [4,2]   M grass [3,3]   D dune [3,3]   W pond [4,4]   w tide pool [3,3]   V lagoon [14,10]
+     H beach hut [5,5]   L lighthouse [6,6]   T ruined lookout [4,4]   R research outpost [7,5]   A radio mast [2,2]
+     Q solar array [3,2]   K robot charger [2,2]
+   Water: ponds, tide pools and the lagoon are shallow, wadeable and walkable (no collision; the nav grid is open
+   there); only the lagoon's palm islet blocks. Every flat decal sits on its own height in the kit, never on the floor.
+   Trails are jungle paths: a boardwalk floor (floor.trailLines planks) between rope railings and hedges.
+   Backdrop (backdrop.build, run by zones.js): the island ground is painted in code around the level from the zone
+   footprints (grass, sand, wet sand, a foam line, turquoise shallows, deep blue sea out past the fog); the zone
+   edges marked `sea` in the plan get a 4.5 m beach strip and then the water. Jungle canopy and palm groves fill the
+   land outside the walls, palms and rocks line the shore, a jetty with a moored boat sits off each sea wall, buoys,
+   a sailboat and islets dot the sea, an animated surf line and shimmer dashes play on the water. */
+(function (IB) {
+  'use strict';
+  var SOLID = '#GE{}';
+  function solid(g, c, r) { return SOLID.indexOf(g.at(c, r)) >= 0; }
+  function faceOf(g, c, r) {
+    var oS = !solid(g, c, r + 1), oN = !solid(g, c, r - 1), oE = !solid(g, c + 1, r), oW = !solid(g, c - 1, r);
+    var n = oS + oN + oE + oW;
+    if (n === 0) return 'none';
+    if (n === 1) return oS ? 'S' : oN ? 'N' : oE ? 'E' : 'W';
+    return ((oS || oN) && (oE || oW)) ? 'corner' : (oS ? 'S' : 'E');
+  }
+  // distance (cells) from a wall cell on the north / south edge to the centre of that edge's gate
+  function gateDist(g, c, r) {
+    if (r !== 0 && r !== g.h - 1) return 99;
+    var ch = r === 0 ? 'G' : 'E', a = -1, b = -1;
+    for (var x = 0; x < g.w; x++) if (g.at(x, r) === ch) { if (a < 0) a = x; b = x; }
+    return a < 0 ? 99 : Math.abs(c + 0.5 - (a + b + 1) / 2);
+  }
+  function inRun(g, c, r, F) { return g.at(c, r) === '#' && faceOf(g, c, r) === F && gateDist(g, c, r) > 2.6; }
+  var STYLES = ['Jungle', 'Jungle', 'Rocks', 'Jungle', 'Dune', 'Rocks', 'Jungle', 'Dune', 'Jungle'];
+  function chooseWall(c, r, horiz, corner, hash, g) {
+    var F = faceOf(g, c, r);
+    if (F === 'none' || F === 'corner') return hash(c * 3 + 1, r * 7 + 2) < 0.5 ? 'Corner_A' : 'Corner_B';
+    if (gateDist(g, c, r) < 2.6) return null;          // the gate frame's rock jambs fill the cells beside a gate
+    var along = F === 'S' || F === 'N', u = along ? c : r;
+    var seg = Math.floor(u / 8), st = STYLES[Math.floor(hash(seg * 13 + (along ? r : c) * 7 + 3, along ? 1 : 2) * STYLES.length)];
+    if (u % 2 === 0) return st + (hash(c * 5 + 1, r * 3 + 7) < 0.5 ? '_A' : '_B');   // 2 m module, centred on its cell
+    var prev = along ? inRun(g, c - 1, r, F) : inRun(g, c, r - 1, F), next = along ? inRun(g, c + 1, r, F) : inRun(g, c, r + 1, F);
+    return (!prev || !next) ? st + '_1' : null;          // odd cells are covered by their neighbours' 2 m modules
+  }
+  var WALLS = ['Jungle_A', 'Jungle_B', 'Jungle_1', 'Rocks_A', 'Rocks_B', 'Rocks_1', 'Dune_A', 'Dune_B', 'Dune_1', 'Corner_A', 'Corner_B'];
+  var SEAWALL = ['SeaWall_A', 'SeaWall_A', 'SeaWall_A', 'SeaWall_B', 'SeaWall_A', 'SeaWall_A', 'SeaWall_A', 'SeaWall_A', 'SeaWall_A', 'SeaWall_A', 'SeaWall_C', 'SeaWall_A', 'SeaWall_A', 'SeaWall_A'];
+
+  // ---------------------------------------------------------------- island ground + backdrop (zones.js backdrop.build)
+  var SEA_M = 4.5, LAND_M = 50;          // land beyond a zone edge: a beach strip on sea edges, wide island elsewhere
+  // ground bands by signed distance from the coast (m, + = out to sea), each on its own height (outer = lower)
+  var BANDS = [
+    { d0: -9, d1: -1.2, y: -0.03, c: '#F0DAA0' },    // dry sand
+    { d0: -1.2, d1: 0, y: -0.04, c: '#D7B983' },     // wet sand
+    { d0: 0, d1: 1.3, y: -0.05, c: '#F6FFFF' },      // foam line
+    { d0: 1.3, d1: 10, y: -0.08, c: '#5FD8D6' },     // turquoise shallows
+    { d0: 10, d1: 26, y: -0.10, c: '#35B4D6' },      // reef blue
+    { d0: 26, d1: 'far', y: -0.13, c: '#2687C6' }    // deep sea, out past the fog
+  ];
+  var GRASS = { y: -0.02, c: '#8FCB63' }, SURF = { y: -0.06, c: '#F6FFFF' };
+  function sdRect(x, z, b, r) {
+    var hx = (b.x1 - b.x0) / 2 - r, hz = (b.z1 - b.z0) / 2 - r;
+    var qx = Math.abs(x - (b.x0 + b.x1) / 2) - hx, qz = Math.abs(z - (b.z0 + b.z1) / 2) - hz;
+    return Math.hypot(Math.max(qx, 0), Math.max(qz, 0)) + Math.min(Math.max(qx, qz), 0) - r;
+  }
+  function smin(a, b, k) { var h = Math.max(k - Math.abs(a - b), 0) / k; return Math.min(a, b) - h * h * k * 0.25; }
+
+  function buildIsland(level, api) {
+    var THREE = (typeof window !== 'undefined' && window.THREE) || globalThis.THREE;
+    var zones = level.zones, last = zones.length - 1, hz = level.hatch ? level.hatch.z : zones[last].oz - 30;
+    var rects = [], seaEdges = [], keep = [];
+    zones.forEach(function (z, i) {
+      var sea = (z.plan && z.plan.sea) || '';
+      var mW = sea.indexOf('W') >= 0 ? SEA_M : LAND_M, mE = sea.indexOf('E') >= 0 ? SEA_M : LAND_M;
+      rects.push({ x0: z.ox - mW, x1: z.ox + z.w + mE, z0: i === last ? Math.min(z.oz, hz) - 34 : z.oz - 6, z1: z.oz + z.h + (i === 0 ? 36 : 6) });
+      if (mW === SEA_M) seaEdges.push({ x: z.ox, z0: z.oz, z1: z.oz + z.h, s: -1 });
+      if (mE === SEA_M) seaEdges.push({ x: z.ox + z.w, z0: z.oz, z1: z.oz + z.h, s: 1 });
+      keep.push([z.ox - 1.5, z.oz - 1.5, z.ox + z.w + 1.5, z.oz + z.h + 1.5]);
+    });
+    level.trails.forEach(function (t) { keep.push([t.x - 4, t.z1 - 1, t.x + 4, t.z0 + 1]); });
+    if (level.hatch) keep.push([level.hatch.x - 5, level.hatch.z - 5, level.hatch.x + 5, level.hatch.z0 + 1]);
+    function seaDist(x, z) {
+      var d = 1e9;
+      seaEdges.forEach(function (e) { var dz = Math.max(e.z0 - z, 0, z - e.z1); d = Math.min(d, Math.hypot(x - e.x, dz)); });
+      return d;
+    }
+    // signed land field: < 0 on the island. Smooth union of the zone footprints with their margins, plus a slow
+    // wobble that fades out near the sea walls (their beach strip stays exactly SEA_M wide)
+    function field(x, z) {
+      var f = 1e9;
+      for (var i = 0; i < rects.length; i++) f = smin(f, sdRect(x, z, rects[i], 9), 14);
+      var w = Math.min(1, Math.max(0, (seaDist(x, z) - 8) / 16));
+      return f + w * (4.5 * Math.sin(x * 0.083 + z * 0.047 + 0.6) + 3.0 * Math.sin(x * 0.031 - z * 0.071 + 2.1));
+    }
+    var bx0 = 1e9, bx1 = -1e9, bz0 = 1e9, bz1 = -1e9;
+    rects.forEach(function (b) { bx0 = Math.min(bx0, b.x0); bx1 = Math.max(bx1, b.x1); bz0 = Math.min(bz0, b.z0); bz1 = Math.max(bz1, b.z1); });
+    var cx = (bx0 + bx1) / 2, cz = (bz0 + bz1) / 2, RMAX = Math.hypot(bx1 - bx0, bz1 - bz0) / 2 + 40;
+    // coastline: outermost crossing along N rays from the island centre (star-shaped by construction)
+    var N = 360, rad = [], i, k;
+    for (i = 0; i < N; i++) {
+      var a = i / N * Math.PI * 2, dx = Math.cos(a), dz = Math.sin(a), r = RMAX;
+      while (r > 2 && field(cx + dx * r, cz + dz * r) > 0) r -= 2;
+      var lo = r, hi = r + 2;
+      for (k = 0; k < 12; k++) { var mid = (lo + hi) / 2; if (field(cx + dx * mid, cz + dz * mid) > 0) hi = mid; else lo = mid; }
+      rad.push((lo + hi) / 2);
+    }
+    for (k = 0; k < 2; k++) rad = rad.map(function (v, j) { return 0.25 * rad[(j + N - 1) % N] + 0.5 * v + 0.25 * rad[(j + 1) % N]; });
+    var C = rad.map(function (v, j) { var a = j / N * Math.PI * 2; return [cx + Math.cos(a) * v, cz + Math.sin(a) * v]; });
+    var NRM = C.map(function (p, j) {
+      var q0 = C[(j + N - 1) % N], q1 = C[(j + 1) % N], tx = q1[0] - q0[0], tz = q1[1] - q0[1], L = Math.hypot(tx, tz) || 1;
+      return [tz / L, -tx / L];
+    });
+    function off(j, d) { return [C[j][0] + NRM[j][0] * d, C[j][1] + NRM[j][1] * d]; }
+    function far(j) { var a = j / N * Math.PI * 2; return [cx + Math.cos(a) * 640, cz + Math.sin(a) * 640]; }
+    var g = api.geo;
+    for (i = 0; i < N; i++) {          // grass core (fan from the centre)
+      var j1 = (i + 1) % N;
+      g.flat([[cx, cz], off(i, BANDS[0].d0), off(j1, BANDS[0].d0)], GRASS.y, GRASS.c);
+    }
+    BANDS.forEach(function (B) {
+      for (var i2 = 0; i2 < N; i2++) {
+        var j2 = (i2 + 1) % N;
+        var a0 = off(i2, B.d0), a1 = off(j2, B.d0), b1 = B.d1 === 'far' ? far(j2) : off(j2, B.d1), b0 = B.d1 === 'far' ? far(i2) : off(i2, B.d1);
+        g.flat([a0, a1, b1, b0], B.y, B.c);
+      }
+    });
+
+    // ---- pieces on the land and at sea
+    var hash = api.hash;
+    function pick(list, h) { return list[Math.min(list.length - 1, Math.floor(h * list.length))]; }
+    var CANOPY = ['Backdrop_Jungle_A', 'Backdrop_Jungle_B'], GROVE = ['Backdrop_Palms_A', 'Backdrop_Palms_B', 'Backdrop_Jungle_A'];
+    // jungle canopy right behind every land edge of every zone (seen over the thicket walls)
+    zones.forEach(function (z, zi) {
+      var sea = (z.plan && z.plan.sea) || '';
+      var edges = [{ n: 'N', y: z.oz - 5.5, a: z.ox, b: z.ox + z.w, yaw: 0 }, { n: 'S', y: z.oz + z.h + 5.5, a: z.ox, b: z.ox + z.w, yaw: Math.PI }];
+      if (sea.indexOf('W') < 0) edges.push({ n: 'W', x: z.ox - 5.5, a: z.oz, b: z.oz + z.h, yaw: Math.PI / 2 });
+      if (sea.indexOf('E') < 0) edges.push({ n: 'E', x: z.ox + z.w + 5.5, a: z.oz, b: z.oz + z.h, yaw: -Math.PI / 2 });
+      edges.forEach(function (e, ei) {
+        for (var t = e.a + 4; t < e.b - 3; t += 10.5) {
+          var hh = hash(zi * 31 + ei * 7 + Math.round(t), 17), x = e.x !== undefined ? e.x + (hh - 0.5) * 1.5 : t + (hh - 0.5) * 2, zz = e.y !== undefined ? e.y + (hh - 0.5) * 1.5 : t + (hh - 0.5) * 2;
+          if (e.n === 'S' && zi > 0) break;                  // the gap between two zones is filled from the zone south of it
+          if (e.n === 'N' && zi < last) zz = z.oz - 6;       // ... on the middle line of the 12 m gap
+          var halfW = e.y !== undefined ? 5.2 : 3.2, halfD = e.y !== undefined ? 3.2 : 5.2;
+          if (!keepOut(x, zz, halfW, halfD)) continue;
+          if (field(x, zz) > -4) continue;
+          api.add(pick(CANOPY, hash(zi + 3, Math.round(t * 3))), x, 0, zz, e.yaw + (hh > 0.5 ? Math.PI : 0), 0.95 + hh * 0.25);
+        }
+      });
+    });
+    function keepOut(x, z, hx, hzz) {
+      for (var q = 0; q < keep.length; q++) { var K = keep[q]; if (x + hx > K[0] && x - hx < K[2] && z + hzz > K[1] && z - hzz < K[3]) return false; }
+      return true;
+    }
+    // palm groves and more jungle further inland
+    for (var gx = bx0; gx < bx1; gx += 24) for (var gz = bz0; gz < bz1; gz += 24) {
+      var h1 = hash(Math.round(gx) + 500, Math.round(gz) + 500), px = gx + (h1 - 0.5) * 10, pz = gz + (hash(Math.round(gx), Math.round(gz) + 77) - 0.5) * 10;
+      if (field(px, pz) > -11 || !keepOut(px, pz, 11, 11)) continue;
+      api.add(pick(GROVE, hash(Math.round(px), 91)), px, 0, pz, h1 * 6.28, 0.9 + h1 * 0.4);
+    }
+    // the shore: palms leaning out over the sand, rocks in the surf (none in front of a sea wall's view lane)
+    for (i = 0; i < N; i += 3) {
+      var hs = hash(i, 301);
+      var nearSea = seaDist(C[i][0], C[i][1]) < 10;
+      if (hs < 0.45 && !nearSea) {
+        var p1 = off(i, -5 - hs * 4);
+        if (keepOut(p1[0], p1[1], 2, 2)) api.add(pick(['Palm_A', 'Palm_B', 'Palm_C'], hash(i, 302)), p1[0], 0, p1[1], Math.atan2(NRM[i][0], NRM[i][1]) + Math.PI, 1.0 + hs * 0.3);
+      } else if (hs > 0.86) {
+        var p2 = off(i, nearSea ? 5 + hs * 3 : 1.5);
+        api.add('Backdrop_Rocks', p2[0], -0.005, p2[1], hs * 9.0, 0.8 + hs * 0.5);
+      }
+    }
+    // off each sea wall: a jetty running out from the beach with a boat tied up, rocks off the ends of the wall
+    seaEdges.forEach(function (e, ei) {
+      var zc = (e.z0 + e.z1) / 2 + (ei % 2 ? 8 : -8), x0 = e.x + e.s * (SEA_M + 1.5);
+      api.add('Jetty', x0 + e.s * 4, 0, zc, e.s > 0 ? -Math.PI / 2 : Math.PI / 2, 1);
+      api.add('Boat_A', x0 + e.s * 5.5, -0.16, zc + 2.4, 0, 1);
+      api.add('Backdrop_Rocks', e.x + e.s * 9, -0.005, e.z0 + 3, 1.3 + ei, 1.1);
+      api.add('Backdrop_Rocks', e.x + e.s * 10, -0.005, e.z1 - 4, 2.1 + ei, 0.9);
+    });
+    // at sea: buoys, a sailboat and islets (inside the fog's reach, so they read as far away rather than vanish)
+    var sea = [['Backdrop_Buoy', 16, 22, 1, 0.08], ['Backdrop_Sailboat', 60, 75, 1.4, 0.0], ['Backdrop_Islet_A', 62, 80, 1.2, 0.0], ['Backdrop_Islet_B', 45, 60, 1.0, 0.0]];
+    var counts = [6, 3, 4, 5];
+    sea.forEach(function (S, si) {
+      for (var n = 0; n < counts[si]; n++) {
+        var j = Math.floor((n + hash(si, n) * 0.6 + si * 0.21) / counts[si] * N) % N, d = S[1] + (S[2] - S[1]) * hash(n, si + 40);
+        var p = off(j, d);
+        api.add(S[0], p[0], -0.1 - S[4], p[1], hash(n, si) * 6.28, S[3] * (0.85 + 0.3 * hash(si, n + 9)));
+      }
+    });
+
+    // ---- animated water: a surf line breathing in and out along the shore, shimmer dashes blinking on the sea
+    if (!THREE || !IB.Assets || !level.root) return;
+    var sg = new IB.Geo();
+    for (i = 0; i < N; i++) { var jj = (i + 1) % N; sg.flat([off(i, 2), off(jj, 2), off(jj, 2.6), off(i, 2.6)], SURF.y, SURF.c); }
+    var surf = new THREE.Mesh(sg.build(), IB.Zones.mat);
+    surf.frustumCulled = false;
+    level.root.add(surf);
+    var spos = surf.geometry.attributes.position;
+    var GL = IB.themePiece(IB.THEME_DEFS.island, 'Sea_Glint'), NG = 150;
+    var gm = IB.Assets.get(GL) && new THREE.InstancedMesh(IB.Assets.get(GL), IB.Assets.material(GL), NG);
+    var gl = [];
+    for (i = 0; i < NG; i++) {
+      var jg = Math.floor(hash(i, 601) * N), dg = 5 + Math.pow(hash(i, 602), 1.6) * 70, pg = off(jg, dg);
+      gl.push({ x: pg[0], z: pg[1], yaw: Math.atan2(NRM[jg][0], NRM[jg][1]) + Math.PI / 2, ph: hash(i, 603) * 6.28, sp: 0.6 + hash(i, 604) * 0.8, s: 0.8 + hash(i, 605) * 1.2 });
+    }
+    if (gm) { gm.frustumCulled = false; level.root.add(gm); }
+    var _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
+    api.tick(function (dt, t) {
+      var w = 0.45 * Math.sin(t * 0.7) + 0.25 * Math.sin(t * 1.9 + 1.0);
+      for (var q = 0; q < N; q++) {
+        var j3 = (q + 1) % N, dd = 2.2 + w + 0.25 * Math.sin(q * 0.37 + t * 1.3), dd1 = 2.2 + w + 0.25 * Math.sin(j3 * 0.37 + t * 1.3);
+        var A = off(q, dd), Bv = off(j3, dd1), Cc = off(j3, dd1 + 0.55), D = off(q, dd + 0.55);
+        spos.setXYZ(q * 4, A[0], SURF.y, A[1]); spos.setXYZ(q * 4 + 1, Bv[0], SURF.y, Bv[1]);
+        spos.setXYZ(q * 4 + 2, Cc[0], SURF.y, Cc[1]); spos.setXYZ(q * 4 + 3, D[0], SURF.y, D[1]);
+      }
+      spos.needsUpdate = true;
+      if (!gm) return;
+      for (var q2 = 0; q2 < gl.length; q2++) {
+        var G = gl[q2], s = Math.max(0, Math.sin(t * G.sp + G.ph)) * G.s;
+        _q.setFromAxisAngle(UP, G.yaw); _p.set(G.x, -0.06, G.z); _s.set(s + 0.001, 1, s + 0.001);
+        gm.setMatrixAt(q2, _m.compose(_p, _q, _s));
+      }
+      gm.instanceMatrix.needsUpdate = true;
+    });
+  }
+
+  var OTHER = ['SeaWall_A', 'SeaWall_B', 'SeaWall_C', 'GateFrame', 'GateShutter', 'TrailWall', 'TrailWall_Fern', 'TrailWall_Torch',
+    'TrailWall_Palm', 'Hatch', 'Jetty', 'Boat_A', 'Palm_A', 'Palm_B', 'Palm_C', 'Backdrop_Jungle_A', 'Backdrop_Jungle_B',
+    'Backdrop_Palms_A', 'Backdrop_Palms_B', 'Backdrop_Rocks', 'Backdrop_Islet_A', 'Backdrop_Islet_B', 'Backdrop_Buoy',
+    'Backdrop_Sailboat', 'Sea_Glint'];
+
+  IB.registerTheme({
+    id: 'island', name: 'Lagoon Island', family: 'kit-island', prefix: 'KIT_ISLAND_',
+    palette: ['#2FA0E8', '#3DAA5C', '#F2DDA4', '#5FD8D6'],
+    // bright tropical noon: deep blue zenith, pale sea-haze horizon; the fog is the horizon colour, so the ocean
+    // runs out into the sky with no edge
+    env: { sky: ['#2F9BEA', '#D2F0FF'], fog: { color: '#D2F0FF', near: 60, far: 140 }, sun: [0.45, 0.85, 0.3], clouds: true, ceiling: null },
+    // sand everywhere in the zones; the trails between them are plank boardwalks
+    floor: { color: '#EFD9A2', trail: '#C8955E', outside: '#8FCB63',
+      trailLines: [{ dir: 'x', every: 0.42, width: 0.05, color: '#9E6C3E', y: 0.009 }] },
+    wall: { height: 4.2, roof: '#3DAA5C', facing: 'open', choose: chooseWall },
+    symbols: {
+      '{': { pieces: SEAWALL, rotate: Math.PI / 2, h: 4.2, kind: 'wall' },
+      '}': { pieces: SEAWALL, rotate: -Math.PI / 2, h: 4.2, kind: 'wall' },
+      'o': { pieces: ['Rock_A', 'Rock_B', 'Rock_C'], rotate: 'random90', h: 1.1, kind: 'cover' },
+      'O': { size: [2, 2], pieces: ['Outcrop_A', 'Outcrop_B'], flip: true, kind: 'cover' },
+      'c': { pieces: ['Crate_A', 'Crate_B'], rotate: 'random90', h: 0.86, stack: { piece: 'Crate_Small', chance: 0.3, h: 0.48 }, kind: 'cover' },
+      'b': { pieces: ['Barrel_A', 'Barrel_B'], rotate: 'random90', h: 0.9, kind: 'cover' },
+      't': { pieces: ['Palm_A', 'Palm_B', 'Palm_C'], rotate: 'random90', kind: 'cover' },
+      'F': { size: [2, 2], pieces: ['PalmClump_A', 'PalmClump_B'], flip: true, kind: 'cover' },
+      'x': { pieces: ['Driftwood'], rotate: 'run', kind: 'cover' },
+      'f': { pieces: ['Fence'], rotate: 'run', kind: 'cover' },
+      '=': { pieces: ['Sandbags'], rotate: 'run', kind: 'cover' },
+      'r': { pieces: ['Reeds'], rotate: 'random90', collide: false },
+      'p': { pieces: ['TikiTorch', 'Signpost', 'TikiTorch'], sequence: true, kind: 'deco' },
+      'u': { pieces: ['Umbrella'], rotate: 'random90', kind: 'deco' },
+      'B': { size: [4, 2], pieces: ['Boat_A', 'Boat_B'], flip: true, kind: 'cover' },
+      'M': { size: [3, 3], pieces: ['Grass_A', 'Grass_B'], flip: true, collide: false },
+      'D': { size: [3, 3], pieces: ['Dune_Patch_A', 'Dune_Patch_B'], flip: true, collide: false },
+      'W': { size: [4, 4], pieces: ['Pond_A', 'Pond_B'], flip: true, collide: false },
+      'w': { size: [3, 3], pieces: ['TidePool_A', 'TidePool_B'], flip: true, collide: false },
+      'V': { size: [14, 10], pieces: ['Lagoon'], flip: true, kind: 'cover' },
+      'H': { size: [5, 5], pieces: ['Landmark_Hut'], flip: true, kind: 'wall' },
+      'L': { size: [6, 6], pieces: ['Landmark_Lighthouse'], kind: 'wall' },
+      'T': { size: [4, 4], pieces: ['Landmark_Lookout'], flip: true, kind: 'wall' },
+      'R': { size: [7, 5], pieces: ['Landmark_Outpost'], flip: true, kind: 'wall' },
+      'A': { size: [2, 2], pieces: ['Mast'], kind: 'cover' },
+      'Q': { size: [3, 2], pieces: ['Solar'], flip: true, kind: 'cover' },
+      'K': { size: [2, 2], pieces: ['Charger'], flip: true, kind: 'cover' }
+    },
+    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
+    // jungle path: rope railing and hedge, with ferns, tiki torches and palms mixed in per module
+    trail: { wall: 'TrailWall', height: 2.6, variants: ['TrailWall', 'TrailWall_Fern', 'TrailWall_Torch', 'TrailWall_Palm', 'TrailWall_Fern'] },
+    hatch: 'Hatch', stand: 'Crate_A',
+    backdrop: { build: buildIsland },
+    budget: { prop: 1600, landmark: 4000, total: 80000 },
+    allPieces: function () {
+      var out = WALLS.concat(OTHER);
+      var sym = this.symbols;
+      Object.keys(sym).forEach(function (ch) {
+        sym[ch].pieces.concat(sym[ch].stack ? [sym[ch].stack.piece] : []).forEach(function (n) { if (out.indexOf(n) < 0) out.push(n); });
+      });
+      return out;
+    },
+    levels: {
+      island: {
+        name: 'Lagoon Island',
+        intro: 'The robots have taken the island. Clear the beach, the lagoon, then their outpost at the lighthouse.',
+        zones: [
+          // Landing Beach (sea wall to the east): 40 robots
+          { map: 'island_beach', sea: 'E', waves: [
+            [['crawler', 8], ['gunner', 2]],
+            [['crawler', 4], ['bomber', 2], ['gunner', 2], ['blader', 2]],
+            [['crawler', 4], ['drone', 2], ['gunner', 1], ['soldier', 2]],
+            [['crawler', 3], ['bomber', 2], ['gunner', 2], ['soldier', 2]]] },
+          // The Lagoon (sea wall to the west): 42 robots, drones over the water
+          { map: 'island_lagoon', sea: 'W', waves: [
+            [['crawler', 8], ['gunner', 2], ['drone', 1]],
+            [['crawler', 4], ['bomber', 3], ['gunner', 2], ['blader', 2]],
+            [['crawler', 4], ['drone', 3], ['gunner', 2], ['soldier', 2]],
+            [['crawler', 3], ['bomber', 2], ['gunner', 2], ['blader', 2]]] },
+          // Lighthouse Point and the robots' outpost (sea wall to the east): 52 robots, the dense finale
+          { map: 'island_point', sea: 'E', waves: [
+            [['crawler', 8], ['gunner', 3]],
+            [['crawler', 4], ['bomber', 3], ['drone', 2], ['soldier', 2]],
+            [['crawler', 5], ['gunner', 3], ['drone', 2], ['blader', 2]],
+            [['crawler', 6], ['gunner', 4], ['bomber', 3], ['drone', 1], ['soldier', 4]]] }
+        ]
+      }
+    }
+  });
+})(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
+
+/* ---- themes/livingroom.js ---- */
+/* Theme: Living Room (kit-livingroom). A "tiny" theme like the Big Bedroom: the player and the trash robots are toy
+   sized and one wide open-plan floor of a house is giant around them (about x6): an 18 m ceiling, panelled cream
+   wainscot under sage / peach / butter paint, honey floorboards, warm afternoon sun through tall windows lying on the
+   boards in bright patches. Lounge (sofa, coffee table, TV and games console, rug, bookshelves, fireplace, plants),
+   dining end (table and chairs under a pendant lamp, sideboard) and kitchen (island with stools, retro fridge,
+   counters with sink, stove and upper cabinets), all strewn with toys and household clutter for cover.
+   The gates are pet flaps in giant interior doors; the trails are hallway slices (photos, coats, a radiator, shoes).
+
+   Map notes (src/data/zones/livingroom_*.txt, 1 char = 1 m; generated by tools/livingroom_zones.py):
+   - the wall paint follows the room: a map with the fridge (R) is the kitchen (butter), one with the dining table
+     (D) the dining room (peach), anything else the lounge (sage).
+   - wall overlays sit in the floor row in front of a wall: W window / f, x picture frames face south or east (north
+     and west walls), w / r, y face north or west (south and east walls); a vertical run turns them onto side walls.
+   - O (rug) and u (sun patch) are 2 x 2 anchors whose pieces spread well beyond them. */
+(function (IB) {
+  'use strict';
+  var CEIL = 18;
+  // the paint scheme follows what is in the room (cached on the grid)
+  function scheme(grid) {
+    if (grid._lrScheme) return grid._lrScheme;
+    var s = '1';
+    for (var r = 0; r < grid.h && s === '1'; r++) for (var c = 0; c < grid.w; c++) {
+      var ch = grid.at(c, r);
+      if (ch === 'R') { s = '3'; break; }
+      if (ch === 'D') s = '2';
+    }
+    grid._lrScheme = s;
+    return s;
+  }
+  // wall.facing 'open' turns every module's painted face to its single open side; east / west faces get the _X
+  // modules (trims 6 mm higher) so they never share a plane with a north / south wall at an inside corner
+  function chooseWall(c, r, horiz, corner, hash, grid, face) {
+    if (face === 'S' || face === 'N') return 'Wall' + scheme(grid);
+    if (face === 'E' || face === 'W') return 'Wall' + scheme(grid) + '_X';
+    return 'Wall_Corner';
+  }
+  var BLOCKS = ['Block_A', 'Block_B', 'Block_C'];
+  var TRAILS = ['TrailWall_Photos', 'TrailWall_Coats', 'TrailWall_Radiator', 'TrailWall_Shoes'];
+  IB.registerTheme({
+    id: 'livingroom', name: 'Living Room', family: 'kit-livingroom', prefix: 'KIT_LIVINGROOM_',
+    palette: ['#BFDDB2', '#3FA3A0', '#FFE9A8', '#E2B47A'],
+    env: {
+      sky: null, clear: '#FFF1DC',
+      fog: { color: '#FFF0DA', near: 45, far: 150 },
+      sun: [-0.55, 0.7, 0.25],          // low afternoon sun from the west windows
+      ceiling: { height: CEIL, color: '#FBF5EA', light: 'CeilingTile', every: 1 },
+      clouds: false
+    },
+    // honey oak boards (a real 15 cm board at x6 is 0.9 m)
+    floor: { color: '#E6B57C', trail: '#DDAA70', lines: [{ dir: 'x', every: 0.9, width: 0.05, color: '#C2884F', y: 0.008 }] },
+    wall: { height: 18.4, roof: '#FFFFFF', facing: 'open', choose: chooseWall },
+    symbols: {
+      'T': { size: [14, 6], pieces: ['Landmark_Sofa'], kind: 'wall', turn: Math.PI },   // faces north, toward the TV
+      'Y': { size: [8, 4], pieces: ['CoffeeTable'], kind: 'cover' },
+      'V': { size: [12, 3], pieces: ['TVStand'], kind: 'wall' },
+      'n': { size: [3, 2], pieces: ['Controller'], kind: 'cover', flip: true },
+      'O': { size: [2, 2], pieces: ['Rug'], collide: false },
+      'Q': { size: [6, 2], pieces: ['Bookshelf'], kind: 'wall' },
+      'F': { size: [10, 2], pieces: ['Fireplace'], kind: 'wall', turn: Math.PI },        // on a south wall, facing north
+      'p': { size: [3, 3], pieces: ['Plant_Fig'], kind: 'cover', flip: true },
+      'q': { size: [2, 2], pieces: ['Plant_Snake'], kind: 'cover' },
+      'L': { size: [2, 2], pieces: ['FloorLamp'], kind: 'cover' },
+      'I': { size: [12, 6], pieces: ['Island'], kind: 'cover' },
+      'j': { size: [2, 2], pieces: ['Stool'], kind: 'cover' },
+      'R': { size: [5, 4], pieces: ['Fridge'], kind: 'wall' },
+      'k': { size: [3, 4], pieces: ['Counter', 'Counter_Sink', 'Counter', 'Counter_Stove'], kind: 'wall', sequence: true },
+      'D': { size: [10, 6], pieces: ['DiningTable'], kind: 'cover' },
+      'd': { size: [3, 3], pieces: ['DiningChair'], kind: 'cover' },                    // north of the table
+      'C': { size: [3, 3], pieces: ['DiningChair'], kind: 'cover', turn: Math.PI },     // south of the table
+      'U': { size: [10, 3], pieces: ['Sideboard'], kind: 'wall' },
+      'm': { size: [3, 3], pieces: ['Cushion'], kind: 'cover', flip: true },
+      'B': { size: [3, 3], pieces: ['Basket'], kind: 'cover', flip: true },
+      'X': { size: [3, 3], pieces: ['ToyBox'], kind: 'cover', flip: true },
+      'c': { pieces: BLOCKS, h: 0.92, rotate: 'random90', stack: { piece: 'Block_B', chance: 0.3, h: 0.92 }, kind: 'cover' },
+      'z': { size: [3, 2], pieces: ['Sneaker'], kind: 'cover', flip: true },
+      'g': { size: [2, 2], pieces: ['Mug'], kind: 'cover' },
+      'b': { size: [3, 2], pieces: ['BookPile'], kind: 'cover', flip: true },
+      'v': { size: [4, 2], pieces: ['ToyTruck'], kind: 'cover', flip: true },
+      'o': { size: [3, 3], pieces: ['Ball'], kind: 'cover', y: 0.07 },
+      'W': { size: [9, 1], pieces: ['Window'], kind: 'wall' },
+      'w': { size: [9, 1], pieces: ['Window_R'], kind: 'wall' },
+      'u': { size: [2, 2], pieces: ['SunPatch'], collide: false },
+      'f': { size: [4, 1], pieces: ['Frame_A'], collide: false },
+      'r': { size: [4, 1], pieces: ['Frame_A_R'], collide: false },
+      'x': { size: [4, 1], pieces: ['Frame_B'], collide: false },
+      'y': { size: [4, 1], pieces: ['Frame_B_R'], collide: false }
+    },
+    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
+    trail: { wall: 'TrailWall', height: 18.3, variants: TRAILS },
+    hatch: 'Hatch', stand: 'Block_A',
+    backdrop: null,
+    budget: { prop: 2000, landmark: 4000, total: 70000 },
+    allPieces: function () {
+      var out = ['Wall_Corner'];
+      ['1', '2', '3'].forEach(function (s) { out.push('Wall' + s, 'Wall' + s + '_X'); });
+      var seen = {};
+      Object.keys(this.symbols).forEach(function (ch) {
+        var d = this.symbols[ch];
+        d.pieces.concat(d.stack ? [d.stack.piece] : []).forEach(function (n) { seen[n] = 1; });
+      }, this);
+      return out.concat(Object.keys(seen), ['GateFrame', 'GateShutter', 'TrailWall', 'Hatch', 'CeilingTile'], TRAILS);
+    },
+    levels: {
+      livingroom: {
+        name: 'Living Room',
+        intro: 'Sunny afternoon, toy-sized trouble. Clear the lounge, the dining room, then the kitchen.',
+        zones: [
+          // 36 + 41 + 52 = 129 robots; the kitchen's last wave is the dense finale
+          { map: 'livingroom_lounge', waves: [
+            [['crawler', 8], ['gunner', 1]],
+            [['crawler', 5], ['bomber', 2], ['gunner', 1], ['soldier', 1]],
+            [['crawler', 5], ['drone', 2], ['gunner', 1], ['blader', 1]],
+            [['crawler', 3], ['gunner', 2], ['bomber', 2], ['soldier', 2]]
+          ] },
+          { map: 'livingroom_dining', waves: [
+            [['crawler', 8], ['gunner', 2]],
+            [['crawler', 4], ['bomber', 3], ['drone', 1], ['blader', 2]],
+            [['crawler', 4], ['gunner', 3], ['drone', 1], ['soldier', 2]],
+            [['crawler', 4], ['bomber', 3], ['gunner', 2], ['drone', 1], ['blader', 1]]
+          ] },
+          { map: 'livingroom_kitchen', waves: [
+            [['crawler', 7], ['gunner', 2], ['drone', 1]],
+            [['crawler', 4], ['bomber', 3], ['gunner', 2], ['soldier', 2]],
+            [['crawler', 5], ['drone', 3], ['bomber', 2], ['blader', 2]],
+            [['crawler', 8], ['gunner', 4], ['bomber', 3], ['drone', 2], ['soldier', 2]]
+          ] }
         ]
       }
     }
@@ -508,11 +1875,11 @@
         intro: 'Robots have taken both floors. The escalators and the glass lift go up to the mezzanine.',
         zones: [
           // Grand Atrium: fountain court; Gunners hold the mezzanine rails from the second wave
-          { map: 'mall_1', waves: [[['crawler', 9], ['gunner', 2]], [['crawler', 8], ['gunner', 3], ['drone', 1]], [['crawler', 10], ['bomber', 3], ['gunner', 2]]] },
+          { map: 'mall_1', waves: [[['crawler', 19], ['gunner', 4]], [['crawler', 4], ['bomber', 4], ['gunner', 4], ['blader', 5]], [['crawler', 4], ['drone', 4], ['gunner', 3], ['soldier', 5]], [['crawler', 4], ['bomber', 4], ['gunner', 4], ['soldier', 5]]] },
           // Food Court: tables for cover, Drones over the atrium
-          { map: 'mall_2', waves: [[['crawler', 10], ['drone', 2]], [['gunner', 4], ['crawler', 8]], [['bomber', 4], ['crawler', 10], ['drone', 2]]] },
+          { map: 'mall_2', waves: [[['crawler', 19], ['gunner', 4], ['drone', 3]], [['crawler', 5], ['bomber', 5], ['gunner', 4], ['blader', 5]], [['crawler', 5], ['drone', 5], ['gunner', 4], ['soldier', 5]], [['crawler', 4], ['bomber', 4], ['gunner', 4], ['blader', 5]]] },
           // Department Store: displays, the lift on the east side, a heavy last wave
-          { map: 'mall_3', waves: [[['crawler', 10], ['gunner', 3]], [['drone', 3], ['bomber', 3], ['crawler', 8]], [['gunner', 5], ['crawler', 12], ['bomber', 3], ['drone', 2]]] }
+          { map: 'mall_3', waves: [[['crawler', 19], ['gunner', 7]], [['crawler', 5], ['bomber', 5], ['drone', 4], ['soldier', 6]], [['crawler', 7], ['gunner', 7], ['drone', 4], ['blader', 5]], [['crawler', 7], ['gunner', 7], ['bomber', 7], ['drone', 3], ['soldier', 10]]] }
         ]
       }
     }
@@ -568,7 +1935,7 @@
     'Crate', 'Bundle', 'Pine_A', 'Pine_B', 'Pine_C', 'SpruceCluster_A', 'SpruceCluster_B', 'Drift_A', 'Drift_B',
     'Meadow_A', 'Meadow_B', 'Pond', 'Creek', 'Signpost', 'LanternPost', 'Skis', 'Campfire',
     'Landmark_Cabin', 'Landmark_Chalet', 'Landmark_Lookout', 'Landmark_RopeBridge', 'Landmark_LiftStation', 'Landmark_LiftLine',
-    'GateFrame', 'GateShutter', 'TrailWall', 'Hatch',
+    'GateFrame', 'GateShutter', 'TrailWall', 'TrailWall_Wood', 'TrailWall_Lantern', 'TrailWall_Drift', 'Hatch',
     'Backdrop_PeakA', 'Backdrop_PeakB', 'Backdrop_PeakC', 'Backdrop_Forest'];
 
   IB.registerTheme({
@@ -605,7 +1972,8 @@
       'k': { pieces: ['Skis'], rotate: 'random90', kind: 'deco' }
     },
     gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
-    trail: { wall: 'TrailWall', height: 2.6 },
+    // log palisade; firewood, a lantern and a snow drift with skis mixed in per module
+    trail: { wall: 'TrailWall', height: 2.6, variants: ['TrailWall', 'TrailWall_Wood', 'TrailWall_Lantern', 'TrailWall_Drift'] },
     hatch: 'Hatch', stand: 'Crate',
     backdrop: { ring: [
       // big snow-capped peaks, far enough out to read as misty silhouettes above the cliff line
@@ -722,7 +2090,9 @@
       'm': { size: [4, 4], pieces: ['FloorMarble'], collide: false }
     },
     gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.99, shutterHeight: 3.05 },
-    trail: { wall: 'TrailWall', height: 4.0 },
+    // corridor drywall with framed prints, whiteboards, status screens and fire cabinets mixed in
+    trail: { wall: 'TrailWall', height: 4.0, variants: ['TrailWall', 'TrailWall_Art', 'TrailWall_Board', 'TrailWall_Screen', 'TrailWall_Ext'],
+      end: 'TrailWall' },   // the express elevator stands against the hatch room's back wall
     hatch: 'Hatch', stand: 'Stand',
     // the skyline: one long layered slice of Manhattan (cloud banks, pre-war rooftops with water tanks, mid towers,
     // deco spires and glass needles). Ring 0 with count 4 lands exactly due east, south, west and north of the level's
@@ -731,6 +2101,37 @@
     backdrop: { ring: [
       { piece: 'Backdrop_Skyline', count: 4, radius: [52, 52], scale: [1, 1], squeezeX: 0.347, face: true }
     ] },
+    // the city 58 floors down (see Z.buildCityBelow): streets, rooftops and water tanks under the haze
+    below: { depth: 170, haze: '#CCDCE8', hazeTop: 0.18, hazeBottom: 0.6, glass: '#6F8FB0',
+      // footprints of the Backdrop_Skyline buildings (fam_kit_office.py backdrop_skyline: near blocks, mid towers,
+      // far towers): [x along the row, front depth, width, depth, colour, window colour]. Keep in sync with the kit.
+      skyline: [
+        [-109, 7, 16, 12, '#CB937A', '#64798E'],
+        [-88, 7, 18, 14, '#E8DECB', '#64798E'],
+        [-66, 6, 15, 11, '#C9A574', '#64798E'],
+        [-44, 8, 19, 13, '#CB937A', '#64798E'],
+        [-22, 7, 16, 12, '#D3C6AE', '#64798E'],
+        [0, 6, 18, 14, '#CB937A', '#64798E'],
+        [22, 7, 15, 12, '#E8DECB', '#64798E'],
+        [44, 8, 17, 13, '#C9A574', '#64798E'],
+        [66, 6, 16, 12, '#CB937A', '#64798E'],
+        [88, 7, 18, 14, '#D3C6AE', '#64798E'],
+        [110, 8, 14, 11, '#CB937A', '#64798E'],
+        [-100, 25, 16, 12, '#D3C6AE', '#64798E'],
+        [-70, 25, 14, 12, '#A9CDE2', '#87AFCB'],
+        [-40, 25, 15, 11, '#CB937A', '#64798E'],
+        [-8, 26, 18, 12, '#D3C6AE', '#64798E'],
+        [26, 26, 14, 12, '#A9CDE2', '#87AFCB'],
+        [58, 25, 16, 11, '#CB937A', '#64798E'],
+        [92, 26, 17, 12, '#D3C6AE', '#64798E'],
+        [-90, 40, 16, 16, '#A9CDE2', '#87AFCB'],
+        [-56, 42, 18, 16, '#E8DECB', '#64798E'],
+        [-22, 41, 9, 9, '#A4D0C6', '#87AFCB'],
+        [12, 40, 22, 16, '#E8DECB', '#64798E'],
+        [46, 41, 26, 12, '#D3C6AE', '#64798E'],
+        [80, 42, 18, 16, '#E8DECB', '#64798E'],
+        [110, 42, 9, 9, '#A4D0C6', '#87AFCB']
+      ] },
     budget: { prop: 2000, landmark: 4000, total: 70000 },
     allPieces: function () {
       var out = [];
@@ -738,7 +2139,7 @@
       ['', '_W', '_E'].forEach(function (s) { out.push('WinCol' + s); });
       ['NW', 'NE', 'SE', 'SW'].forEach(function (s) { out.push('WinCorner_' + s); });
       DRY.forEach(function (n) { if (out.indexOf(n) < 0) out.push(n); });
-      out = out.concat(['Core', 'LobbyWood', 'LobbyWoodSconce', 'LobbyStone', 'CeilLight', 'GateFrame', 'GateShutter', 'TrailWall', 'Hatch', 'Stand',
+      out = out.concat(['Core', 'LobbyWood', 'LobbyWoodSconce', 'LobbyStone', 'CeilLight', 'GateFrame', 'GateShutter', 'TrailWall', 'TrailWall_Art', 'TrailWall_Board', 'TrailWall_Screen', 'TrailWall_Ext', 'Hatch', 'Stand',
         'Backdrop_Skyline']);
       var sym = this.symbols;
       Object.keys(sym).forEach(function (ch) { sym[ch].pieces.forEach(function (n) { if (out.indexOf(n) < 0) out.push(n); }); });
@@ -752,18 +2153,18 @@
           { map: 'office_cubicles', waves: [
             [['crawler', 7], ['gunner', 2]],
             [['crawler', 6], ['bomber', 2], ['gunner', 1]],
-            [['crawler', 5], ['gunner', 2], ['drone', 2]],
+            [['crawler', 4], ['gunner', 2], ['drone', 2], ['blader', 1]],
             [['crawler', 5], ['bomber', 3]]] },
           { map: 'office_wing', waves: [
             [['crawler', 6], ['gunner', 3]],
             [['drone', 3], ['crawler', 5], ['bomber', 1]],
-            [['gunner', 3], ['crawler', 6]],
-            [['crawler', 4], ['bomber', 2], ['drone', 2]]] },
+            [['gunner', 3], ['crawler', 5], ['blader', 1]],
+            [['crawler', 3], ['bomber', 2], ['drone', 2], ['soldier', 1]]] },
           { map: 'office_lobby', waves: [
             [['crawler', 7], ['gunner', 2]],
-            [['drone', 2], ['bomber', 2], ['crawler', 6]],
+            [['drone', 2], ['bomber', 2], ['crawler', 5], ['blader', 1]],
             [['gunner', 3], ['crawler', 6], ['drone', 1]],
-            [['crawler', 5], ['bomber', 3], ['gunner', 2], ['drone', 2]]] }
+            [['crawler', 4], ['bomber', 3], ['gunner', 2], ['drone', 2], ['soldier', 1]]] }
         ]
       }
     }
@@ -773,10 +2174,10 @@
 /* ---- themes/police.js ---- */
 /* Theme: Strike Team HQ (kit-police) -- a police / special-forces base.
    Painted-block rooms under strip lights: a lobby with the star emblem, a briefing room, the armory, a vehicle bay and
-   a firing range. Weapon wall racks ('R') carry REAL guns: each of a rack's six mounts is filled at level start with a
-   modelled gun of a rolled rarity (IB.LOOT.ARMORY_WEIGHTS: purple is very rare, orange never appears here). Workbenches
-   ('b') carry weapon mods (extended / speed mag, suppressor, compensator, long barrel, red dot, laser, grip) and gear
-   shelves ('g') carry items (Kevlar vest, med kit, ammo box). Walk up and press E (touch: USE) to take one.
+   a firing range. Weapon wall racks ('R') carry REAL guns: about 60 % of a rack's four mounts are filled at level
+   start, each with a gun unlocked so far at a weapon tier rolled from `armory.tiers` (gray / green / blue common, purple
+   very rare, orange never). Workbenches ('b') hold gun attachments and gear shelves ('g') shield cells and vests, made
+   by the gear loot system at `armory.gear` odds. Look at one and press E (touch: USE) to take it.
    Built by blender/fam_kit_police.py; zone layouts by tools/police_zones.py (src/data/zones/police_*.txt).
 
    Symbols: R weapon rack [3,1] (turns to face the room)  b workbench [2,1]  g gear shelf [2,1]  l locker  f cabinet
@@ -834,6 +2235,8 @@
       'Y': { pieces: ['Target'], rotate: 0, kind: 'cover' },
       'M': { size: [4, 4], pieces: ['Emblem'], collide: false }
     },
+    // armory odds (game.js placeLoot): rack guns by weapon tier (src/game/wdrops.js TIERS), bench / shelf gear by rarity
+    armory: { tiers: { gray: 46, green: 34, blue: 19.25, purple: 0.75, orange: 0 }, gear: { common: 62, rare: 33, epic: 5, legendary: 0 } },
     gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.5, shutterHeight: 3.05 },
     trail: { wall: 'TrailWall', height: 4.0 },
     hatch: 'Hatch', stand: 'Crate',
@@ -845,9 +2248,9 @@
         name: 'Strike Team HQ',
         intro: 'The armory is open: take real guns off the wall racks and fit mods at the benches (E / USE).',
         zones: [
-          { map: 'police_1', waves: [[['crawler', 9], ['gunner', 2]], [['gunner', 4], ['crawler', 8]], [['crawler', 10], ['bomber', 3], ['gunner', 2]]] },
-          { map: 'police_2', waves: [[['crawler', 10], ['gunner', 3]], [['gunner', 5], ['bomber', 3], ['crawler', 6]], [['crawler', 12], ['gunner', 4], ['drone', 2]]] },
-          { map: 'police_3', waves: [[['gunner', 4], ['crawler', 8]], [['drone', 3], ['bomber', 4], ['crawler', 8]], [['gunner', 6], ['crawler', 12], ['bomber', 3], ['drone', 2]]] }
+          { map: 'police_1', waves: [[['crawler', 18], ['gunner', 6]], [['crawler', 4], ['bomber', 4], ['gunner', 5], ['blader', 6]], [['crawler', 4], ['drone', 3], ['gunner', 4], ['soldier', 6]], [['crawler', 4], ['bomber', 4], ['gunner', 5], ['soldier', 6]]] },
+          { map: 'police_2', waves: [[['crawler', 19], ['gunner', 6], ['drone', 2]], [['crawler', 5], ['bomber', 5], ['gunner', 5], ['blader', 6]], [['crawler', 5], ['drone', 4], ['gunner', 5], ['soldier', 6]], [['crawler', 4], ['bomber', 4], ['gunner', 5], ['blader', 5]]] },
+          { map: 'police_3', waves: [[['crawler', 19], ['gunner', 8]], [['crawler', 5], ['bomber', 5], ['drone', 4], ['soldier', 6]], [['crawler', 7], ['gunner', 7], ['drone', 4], ['blader', 6]], [['crawler', 7], ['gunner', 8], ['bomber', 7], ['drone', 3], ['soldier', 11]]] }
         ]
       }
     }
@@ -992,7 +2395,8 @@
       'F': { size: [6, 6], pieces: ['Landmark_Fountain'], kind: 'wall' }   // not cover: the basin inside is unreachable
     },
     gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
-    trail: { wall: 'TrailWall', height: 2.64 },
+    // brick garden walls; posters, a garden door and a planter with a creeper mixed in per module
+    trail: { wall: 'TrailWall', height: 2.64, variants: ['TrailWall', 'TrailWall_Posters', 'TrailWall_Door', 'TrailWall_Planter'] },
     hatch: 'Hatch', stand: 'Crates',
     // a skyline of taller brick / stone towers, a steeple and rooftop water tanks beyond the zone walls
     backdrop: { ring: [
@@ -1003,7 +2407,7 @@
     ] },
     budget: { prop: 1200, landmark: 4000, total: 60000 },
     allPieces: function () {
-      return allWalls().concat(['Walk', 'WalkB', 'Plaza', 'PlazaB', 'LaneW', 'LaneY', 'Zebra', 'Manhole', 'GateFrame', 'GateShutter', 'TrailWall', 'Hatch',
+      return allWalls().concat(['Walk', 'WalkB', 'Plaza', 'PlazaB', 'LaneW', 'LaneY', 'Zebra', 'Manhole', 'GateFrame', 'GateShutter', 'TrailWall', 'TrailWall_Posters', 'TrailWall_Door', 'TrailWall_Planter', 'Hatch',
         'Lamp', 'LampP', 'StreetTree', 'BarrierR', 'BarrierW', 'Jersey', 'Planter', 'Bench', 'Van', 'Bus', 'Shelter', 'Cart',
         'Landmark_ClockTower', 'Landmark_Fountain', 'Backdrop_Row', 'Backdrop_Tower', 'Backdrop_Office', 'Backdrop_Church'], FURNITURE, JUNK, CARS);
     },

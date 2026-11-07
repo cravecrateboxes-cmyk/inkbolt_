@@ -33,14 +33,15 @@
       objective: $('objective'), objText: $('objText'), radar: $('radar'), radarCv: $('radarCv'),
       weapon: $('weapon'), wpnName: $('wpnName'), wpnIcon: $('wpnIcon'), wpnCls: $('wpnCls'), magStrip: $('magStrip'), magFill: $('magFill'),
       prompt: $('prompt'), promptKey: $('promptKey'), promptText: $('promptText'), promptFill: $('promptFill'),
-      stamina: $('stamina'), stFill: $('stFill'), dim: $('dim'), hurt: $('hurt'), hurtFlash: $('hurtFlash'),
+      hpChip: $('hpChip'), stamina: $('stamina'), stFill: $('stFill'), dim: $('dim'), hurt: $('hurt'), hurtFlash: $('hurtFlash'),
       pickup: $('pickup'), pickupIcon: $('pickupIcon'), pickupName: $('pickupName'), pickupLine: $('pickupLine'),
-      confirm: $('confirm'), confirmNum: $('confirmNum'), pauseBtn: $('pauseBtn')
+      confirm: $('confirm'), confirmNum: $('confirmNum'), pauseBtn: $('pauseBtn'),
+      lvTag: $('lvTag'), lvNum: $('lvNum'), lvTitle: $('lvTitle'), lvPts: $('lvPts'), lvPtsN: $('lvPtsN'), lvKey: $('lvKey'), menuBtn: $('menuBtn'), menuDot: $('menuDot')
     };
     H.arcs = [];
     for (var i = 0; i < 6; i++) {
       var g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-      g.innerHTML = '<path class="ink" d="M-40 -116 A122 122 0 0 1 40 -116"/><path d="M-38 -116 A122 122 0 0 1 38 -116"/><path class="tip" d="M-9 -128 L0 -138 L9 -128Z"/>';
+      g.innerHTML = '<path class="ink" d="M-44 -124 A131 131 0 0 1 44 -124"/><path d="M-42 -124.5 A131 131 0 0 1 42 -124.5"/><path class="tip" d="M-9 -133 L0 -143 L9 -133 L0 -137Z"/>';
       g.style.opacity = 0; H.el.arcs.appendChild(g);
       H.arcs.push({ g: g, t: 0, ang: 0 });
     }
@@ -52,19 +53,36 @@
       H.el.pauseBtn.addEventListener('touchstart', press, { passive: false });
       H.el.pauseBtn.addEventListener('click', press);
     }
+    // touch menu button (loadout / gear / skills): same flag as the Tab key
+    if (H.el.menuBtn) {
+      var menu = function (e) { e.preventDefault(); e.stopPropagation(); if (IB.Input) IB.Input.menuPressed = true; };
+      H.el.menuBtn.addEventListener('touchstart', menu, { passive: false });
+      H.el.menuBtn.addEventListener('click', menu);
+    }
     if (H.el.radarCv) H.radarCtx = H.el.radarCv.getContext('2d');
   };
   H.show = function (on) { H.el.hud.hidden = !on; if (!on) { H.el.hurt.classList.remove('low'); H.damageFlash(0); } else if (H.lowHp) H.el.hurt.classList.add('low'); };
 
   function set(key, val, fn) { if (H.last[key] !== val) { H.last[key] = val; fn(val); } }
   H.reset = function () {
-    H.last = {}; H.el.feed.innerHTML = ''; H.feedRows = []; H.lowHp = false;
+    H.last = {}; H.el.feed.innerHTML = ''; H.feedRows = []; H.lowHp = false; H.hpPct = null;
     for (var k in WL) WL[k] = typeof WL[k] === 'number' ? -2 : null; WL.state = '';
     H.el.hurt.classList.remove('low'); H.damageFlash(0);   // dim is left alone: game.js owns the fade across level loads
     H.el.pickup.hidden = true; H.el.hud.classList.remove('picking'); H.el.prompt.hidden = true; H.el.confirm.hidden = true; H.el.toast.hidden = true;
     pickT = 0; confirmT = 0; toastT = 0; hitT = 0;
   };
 
+  /* player level tag above the health plate: LV badge, rank title, unspent skill points (+ the Tab hint) */
+  H.level = function (lv, title, points) {
+    var el = H.el; if (!el.lvTag) return;
+    set('lv', lv + '|' + title + '|' + points, function () {
+      el.lvNum.textContent = lv; el.lvTitle.textContent = title;
+      el.lvPts.hidden = !(points > 0); el.lvPtsN.textContent = '+' + points;
+      el.lvKey.textContent = touch() ? 'pts' : 'Tab';
+      el.lvTag.setAttribute('aria-label', 'Level ' + lv + ', ' + title + (points > 0 ? ', ' + points + ' skill points to spend' : ''));
+      if (el.menuDot) el.menuDot.hidden = !(points > 0);
+    });
+  };
   H.gems = function (n, pulse) {
     set('gems', n, function (v) { H.el.gemCount.textContent = v; });
     if (pulse) { H.el.gems.classList.remove('pulse'); void H.el.gems.offsetWidth; H.el.gems.classList.add('pulse'); }
@@ -85,7 +103,15 @@
   H.health = function (hp, max) {
     var v = Math.max(0, Math.ceil(hp));
     set('hp', v + '/' + max, function () {
-      H.el.hpNum.textContent = v; H.el.hpFill.style.width = Math.max(0, Math.min(100, hp / max * 100)) + '%';
+      var pct = Math.max(0, Math.min(100, hp / max * 100));
+      H.el.hpNum.textContent = v; H.el.hpFill.style.width = pct + '%';
+      // trailing damage chip: holds the old width, then drains after a beat (CSS transition); healing snaps it
+      var chip = H.el.hpChip;
+      if (chip) {
+        var heal = H.hpPct == null || pct > H.hpPct;
+        if (heal !== H.chipSnap) { H.chipSnap = heal; chip.classList.toggle('snap', heal); }
+        chip.style.width = pct + '%'; H.hpPct = pct;
+      }
       var low = hp < 30 && hp > 0;
       H.el.health.classList.toggle('low', low);
       H.el.health.style.setProperty('--ticks', Math.max(2, Math.round(max / 10)));
@@ -107,14 +133,11 @@
     if (d.reserve !== undefined) w.reserve = d.reserve;
     if (d.reloading !== undefined) w.reloading = d.reloading;
     if (d.reloadFrac !== undefined) w.reloadFrac = d.reloadFrac;
-    if (d.rarity !== undefined) w.rarity = d.rarity;
-    if (w.id !== L.id || w.name !== L.name || w.cls !== L.cls || w.rarity !== L.rarity) {
-      L.id = w.id; L.name = w.name; L.cls = w.cls; L.rarity = w.rarity;
-      var RR = w.rarity && w.rarity !== 'common' && IB.LOOT ? IB.LOOT.RARITY_BY_ID[w.rarity] : null;
-      if (RR) el.weapon.style.setProperty('--rar', RR.color); el.weapon.classList.toggle('rar', !!RR);
+    if (w.id !== L.id || w.name !== L.name || w.cls !== L.cls) {
+      L.id = w.id; L.name = w.name; L.cls = w.cls;
       el.wpnName.textContent = String(w.name || CLS_NAME[w.cls] || '').toUpperCase();
       el.wpnIcon.innerHTML = H.icon(w.cls);
-      el.wpnCls.textContent = H.clsName(w.cls) + (RR ? ' · ' + RR.name : '');
+      el.wpnCls.textContent = H.clsName(w.cls);
     }
     var melee = w.cls === 'melee' || w.cls === 'shove';
     if (melee !== L.melee) { L.melee = melee; el.weapon.classList.toggle('melee', melee); L.mag = -1; }
@@ -148,6 +171,24 @@
   // legacy: keeps name/class from the last HUD.weapon call
   var AMMO = { mag: 0, reserve: 0, magSize: 0 };
   H.ammo = function (mag, res) { AMMO.mag = mag; AMMO.reserve = res; AMMO.magSize = Math.max(H.wpn.magSize || 0, mag); H.weapon(AMMO); };
+
+  /* equipment row over the weapon plate: the melee weapon on V and the frag cans on G (count; -1 = not owned yet).
+     The phone melee / grenade buttons show with them. */
+  var KL = { m: undefined, g: undefined };
+  H.kit = function (meleeName, grenades) {
+    if (meleeName === KL.m && grenades === KL.g) return;
+    KL.m = meleeName; KL.g = grenades;
+    var k = $('kit'); if (!k) return;
+    k.hidden = !meleeName && grenades < 0;
+    $('kitMelee').hidden = !meleeName;
+    if (meleeName) { $('kitMeleeName').textContent = String(meleeName).toUpperCase(); $('kitMeleeIc').innerHTML = ICONS.melee; }
+    $('kitGren').hidden = grenades < 0;
+    if (grenades >= 0) { $('kitGrenN').textContent = '\u00D7' + grenades; $('kitGrenIc').innerHTML = ICONS.grenade; $('kitGren').classList.toggle('none', grenades === 0); }
+    var tm = $('tMelee'), tg = $('tGren'), tn = $('tGrenN');
+    if (tm) tm.hidden = !meleeName;
+    if (tg) { tg.hidden = grenades < 0; tg.classList.toggle('none', grenades === 0); }
+    if (tn) tn.textContent = grenades > 0 ? grenades : '';
+  };
 
   /* list: [{slot, cls, name?, on}] */
   H.slots = function (list) {
@@ -204,6 +245,21 @@
     }
   };
   var toastT = 0;
+  /* "E  Take ..." prompt for armory loot within reach (touch: the USE button shows instead of the key) */
+  var USE = { on: false, text: '', color: '' };
+  H.use = function (d) {
+    var el = H.el.use || (H.el.use = document.getElementById('usePrompt')), tb = H.el.tUse || (H.el.tUse = document.getElementById('tUse'));
+    if (!el) return;
+    var on = !!d;
+    if (on !== USE.on) { USE.on = on; el.hidden = !on; if (tb) tb.hidden = !on; }
+    if (on && (d.text !== USE.text || d.color !== USE.color)) {
+      USE.text = d.text; USE.color = d.color;
+      el.querySelector('.key').textContent = ('ontouchstart' in window) ? 'USE' : d.key;
+      el.querySelector('.ut').textContent = d.text;
+      el.querySelector('.us').textContent = d.sub || '';
+      el.style.setProperty('--rar', d.color || '#12C7B6');
+    }
+  };
   H.toast = function (text, secs) { H.el.toast.textContent = text; H.el.toast.hidden = false; toastT = secs || 2.5; H.el.toast.style.animation = 'none'; void H.el.toast.offsetWidth; H.el.toast.style.animation = ''; };
   H.elim = function (show, name, count, retries) {
     H.el.elim.hidden = !show;
@@ -214,38 +270,16 @@
     } else H.last.elim = null;
   };
 
-  /* "E  Take ..." prompt for loot within reach (touch: the USE button shows instead of the key) */
-  var USE = { on: false, text: '', color: '' };
-  H.use = function (d) {
-    var el = H.el.use || (H.el.use = document.getElementById('usePrompt')), tb = H.el.tUse || (H.el.tUse = document.getElementById('tUse'));
-    if (!el) return;
-    var on = !!d;
-    if (on !== USE.on) { USE.on = on; el.hidden = !on; if (tb) tb.hidden = !on; }
-    if (on && (d.text !== USE.text || d.color !== USE.color)) {
-      USE.text = d.text; USE.color = d.color;
-      el.querySelector('.key').textContent = touch() ? 'USE' : d.key;
-      el.querySelector('.ut').textContent = d.text;
-      el.querySelector('.us').textContent = d.sub || '';
-      el.style.setProperty('--rar', d.color || '#12C7B6');
-    }
-  };
-  var ARM = -1;
-  H.armor = function (v) {
-    v = Math.ceil(v);
-    if (v === ARM) return; ARM = v;
-    var el = H.el.armor || (H.el.armor = document.getElementById('armorNum'));
-    if (el) { el.hidden = v <= 0; el.textContent = '+' + v; }
-  };
   /* new-weapon banner */
   var pickT = 0;
-  H.pickup = function (name, cls, slot, rarity) {
+  H.pickup = function (name, cls, slot) {
     slot = slot || CLS_SLOT[cls];
-    var RR = rarity && IB.LOOT && IB.LOOT.RARITY_BY_ID[rarity];
-    if (RR) H.el.pickup.style.setProperty('--rar', RR.color); H.el.pickup.classList.toggle('rar', !!RR);
     H.el.pickupIcon.innerHTML = H.icon(cls);
     H.el.pickupName.textContent = String(name).toUpperCase();
-    var how = touch() ? 'tap swap to equip' : (slot ? 'press ' + slot + ' to equip' : 'equipped');
-    H.el.pickupLine.textContent = (RR ? RR.name + ' ' : 'New ') + H.clsName(cls).toLowerCase().replace('smg', 'SMG') + ' · ' + how;
+    var how = cls === 'melee' ? (touch() ? 'tap the blade button' : 'press V to strike · B: next melee') :
+      cls === 'grenade' ? (touch() ? 'tap the can button to throw' : 'press G to throw') :
+      touch() ? 'tap swap to equip' : (slot ? 'press ' + slot + ' to equip' : 'equipped');
+    H.el.pickupLine.textContent = 'New ' + H.clsName(cls).toLowerCase().replace('smg', 'SMG') + ' · ' + how;
     H.el.toast.hidden = true; toastT = 0;
     H.el.hud.classList.add('picking');
     H.el.pickup.hidden = false; H.el.pickup.classList.remove('out', 'on'); void H.el.pickup.offsetWidth; H.el.pickup.classList.add('on');
@@ -287,7 +321,7 @@
   // d: {px, pz, yaw, range, robots:[{x,z,alert}], gates:[{x,z,open}], pickups:[{x,z,kind}], exit:{x,z}|null}
   // yaw 0 faces -Z; positive yaw turns left. Up on the radar is the view direction.
   var PT = { x: 0, y: 0, edge: false };
-  var PICK = { health: '#5BCF4A', ammo: '#5B9BF5', weapon: '#FFB21E', gem: '#12C7B6' };
+  var PICK = { health: '#5BCF4A', ammo: '#5B9BF5', weapon: '#FFB21E', gem: '#2EEAD8' };
   H.radar = function (d) {
     var cv = H.el.radarCv, ctx = H.radarCtx; if (!ctx || !d) return;
     if (H.el.radar.hidden) H.el.radar.hidden = false;
@@ -304,59 +338,81 @@
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, S, S);
-    // face
-    ctx.fillStyle = '#231E2E'; ctx.fillRect(0, 0, S, S);
-    // grid: 10 m ink lines
-    ctx.strokeStyle = 'rgba(255,253,247,.07)'; ctx.lineWidth = dpr;
+    // glass face clipped to a cut-corner square; the frame is drawn last
+    var cut = Math.round(S * 0.09);
+    octo(ctx, S, cut, 0); ctx.save(); ctx.clip();
+    ctx.fillStyle = 'rgba(8, 12, 22, .72)'; ctx.fillRect(0, 0, S, S);
+    // grid: 10 m hairlines
+    ctx.strokeStyle = 'rgba(120, 220, 230, .09)'; ctx.lineWidth = dpr;
     var step = 10 * k;
     ctx.beginPath();
     for (var g = c % step; g < S; g += step) { ctx.moveTo(g, 0); ctx.lineTo(g, S); ctx.moveTo(0, g); ctx.lineTo(S, g); }
     ctx.stroke();
-    // view cone
-    ctx.fillStyle = 'rgba(18,199,182,.16)';
+    // view cone: teal, fading out with range
+    var cg = ctx.createRadialGradient(c, c, 0, c, c, R * 1.1);
+    cg.addColorStop(0, 'rgba(46, 234, 216, .32)'); cg.addColorStop(1, 'rgba(46, 234, 216, 0)');
+    ctx.fillStyle = cg;
     ctx.beginPath(); ctx.moveTo(c, c); ctx.arc(c, c, R * 1.5, -Math.PI / 2 - 0.62, -Math.PI / 2 + 0.62); ctx.closePath(); ctx.fill();
-    // half-range ring
-    ctx.strokeStyle = 'rgba(255,253,247,.16)'; ctx.lineWidth = 1.5 * dpr; ctx.setLineDash([4 * dpr, 4 * dpr]);
+    // range rings
+    ctx.strokeStyle = 'rgba(214, 238, 255, .16)'; ctx.lineWidth = dpr; ctx.setLineDash([3 * dpr, 4 * dpr]);
     ctx.beginPath(); ctx.arc(c, c, R / 2, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
     var i, p;
-    // gates: teal bars (closed = ink-cored)
+    // gates: teal bars (closed = dark-cored)
     var gates = d.gates || [];
     for (i = 0; i < gates.length; i++) {
       p = map(gates[i].x, gates[i].z, true);
       ctx.save(); ctx.translate(p.x, p.y);
-      ctx.fillStyle = '#15121C'; ctx.fillRect(-7 * dpr, -4 * dpr, 14 * dpr, 8 * dpr);
-      ctx.fillStyle = gates[i].open ? '#12C7B6' : '#0B8F83'; ctx.fillRect(-5.5 * dpr, -2.5 * dpr, 11 * dpr, 5 * dpr);
-      if (!gates[i].open) { ctx.fillStyle = '#15121C'; ctx.fillRect(-1 * dpr, -2.5 * dpr, 2 * dpr, 5 * dpr); }
+      ctx.fillStyle = 'rgba(8, 12, 22, .85)'; ctx.fillRect(-7 * dpr, -3.5 * dpr, 14 * dpr, 7 * dpr);
+      ctx.fillStyle = gates[i].open ? '#2EEAD8' : '#1C8F86'; ctx.fillRect(-5.5 * dpr, -2 * dpr, 11 * dpr, 4 * dpr);
+      if (!gates[i].open) { ctx.fillStyle = 'rgba(8, 12, 22, .9)'; ctx.fillRect(-1 * dpr, -2 * dpr, 2 * dpr, 4 * dpr); }
       ctx.restore();
     }
     // pickups
     var pk = d.pickups || [];
     for (i = 0; i < pk.length; i++) {
-      p = map(pk[i].x, pk[i].z, false); if (!p) continue;
-      ctx.fillStyle = '#15121C'; ctx.fillRect(p.x - 4.5 * dpr, p.y - 4.5 * dpr, 9 * dpr, 9 * dpr);
-      ctx.fillStyle = PICK[pk[i].kind] || '#FFFDF7'; ctx.fillRect(p.x - 3 * dpr, p.y - 3 * dpr, 6 * dpr, 6 * dpr);
+      p = map(pk[i].x, pk[i].z, pk[i].kind === 'loot'); if (!p) continue;   // loot stays pinned to the edge
+      if (pk[i].kind === 'loot') { diamond(ctx, p.x, p.y, 7 * dpr, 'rgba(8, 12, 22, .9)'); diamond(ctx, p.x, p.y, 4.8 * dpr, pk[i].color || '#FFFDF7'); continue; }
+      ctx.fillStyle = 'rgba(8, 12, 22, .9)'; ctx.fillRect(p.x - 4.5 * dpr, p.y - 4.5 * dpr, 9 * dpr, 9 * dpr);
+      ctx.fillStyle = pk[i].color || PICK[pk[i].kind] || '#FFFDF7'; ctx.fillRect(p.x - 3 * dpr, p.y - 3 * dpr, 6 * dpr, 6 * dpr);
     }
     // exit: teal hex bolt, clamped to the edge
     if (d.exit) {
       p = map(d.exit.x, d.exit.z, true);
-      hex(ctx, p.x, p.y, 8 * dpr, '#15121C'); hex(ctx, p.x, p.y, 5.6 * dpr, '#12C7B6');
-      ctx.fillStyle = '#15121C'; ctx.beginPath(); ctx.arc(p.x, p.y, 1.8 * dpr, 0, Math.PI * 2); ctx.fill();
+      hex(ctx, p.x, p.y, 8 * dpr, 'rgba(8, 12, 22, .9)'); hex(ctx, p.x, p.y, 5.6 * dpr, '#2EEAD8');
+      ctx.fillStyle = 'rgba(8, 12, 22, .9)'; ctx.beginPath(); ctx.arc(p.x, p.y, 1.8 * dpr, 0, Math.PI * 2); ctx.fill();
     }
-    // robots
+    // robots: red pips with a soft glow (alerted ones bigger and brighter)
     var rb = d.robots || [];
     for (i = 0; i < rb.length; i++) {
       var r = rb[i]; p = map(r.x, r.z, false); if (!p) continue;
-      var rad = (r.alert ? 5.2 : 4.2) * dpr * (S > 140 * dpr ? 1 : 0.85);
-      ctx.fillStyle = '#15121C'; ctx.beginPath(); ctx.arc(p.x, p.y, rad + 1.6 * dpr, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = r.alert ? '#FF5148' : '#FFFDF7'; ctx.beginPath(); ctx.arc(p.x, p.y, rad, 0, Math.PI * 2); ctx.fill();
+      var rad = (r.alert ? 4.4 : 3.6) * dpr * (S > 140 * dpr ? 1 : 0.85);
+      ctx.fillStyle = r.alert ? 'rgba(255, 75, 62, .28)' : 'rgba(255, 255, 255, .14)'; ctx.beginPath(); ctx.arc(p.x, p.y, rad * 2.1, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(8, 12, 22, .9)'; ctx.beginPath(); ctx.arc(p.x, p.y, rad + 1.2 * dpr, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = r.alert ? '#FF4B3E' : '#F1F8FF'; ctx.beginPath(); ctx.arc(p.x, p.y, rad, 0, Math.PI * 2); ctx.fill();
     }
     // player arrow
     ctx.save(); ctx.translate(c, c);
-    ctx.beginPath(); ctx.moveTo(0, -9 * dpr); ctx.lineTo(7 * dpr, 7 * dpr); ctx.lineTo(0, 3.5 * dpr); ctx.lineTo(-7 * dpr, 7 * dpr); ctx.closePath();
-    ctx.lineJoin = 'round'; ctx.lineWidth = 3.5 * dpr; ctx.strokeStyle = '#15121C'; ctx.stroke();
-    ctx.fillStyle = '#FFFDF7'; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(0, -8.5 * dpr); ctx.lineTo(6.5 * dpr, 7 * dpr); ctx.lineTo(0, 3.5 * dpr); ctx.lineTo(-6.5 * dpr, 7 * dpr); ctx.closePath();
+    ctx.lineJoin = 'round'; ctx.lineWidth = 2.5 * dpr; ctx.strokeStyle = 'rgba(8, 12, 22, .9)'; ctx.stroke();
+    ctx.fillStyle = '#FFFFFF'; ctx.fill();
     ctx.restore();
+    ctx.restore();
+    // frame: hairline round the cut square, brighter teal brackets on the corners, a north-up tick at the top
+    ctx.lineWidth = 1.5 * dpr; ctx.strokeStyle = 'rgba(214, 238, 255, .3)';
+    octo(ctx, S, cut, 0.75 * dpr); ctx.stroke();
+    ctx.strokeStyle = '#2EEAD8'; ctx.lineWidth = 2 * dpr; ctx.beginPath();
+    var e = dpr, L = S * 0.16;
+    ctx.moveTo(e, cut + L); ctx.lineTo(e, cut); ctx.lineTo(cut, e); ctx.lineTo(cut + L, e);
+    ctx.moveTo(S - e, S - cut - L); ctx.lineTo(S - e, S - cut); ctx.lineTo(S - cut, S - e); ctx.lineTo(S - cut - L, S - e);
+    ctx.stroke();
+    ctx.fillStyle = '#2EEAD8'; ctx.beginPath(); ctx.moveTo(c - 4 * dpr, 0); ctx.lineTo(c + 4 * dpr, 0); ctx.lineTo(c, 5 * dpr); ctx.closePath(); ctx.fill();
   };
+  function octo(ctx, S, cut, inset) {
+    var a = inset, b = S - inset;
+    ctx.beginPath(); ctx.moveTo(a + cut, a); ctx.lineTo(b - cut * 0.4, a); ctx.lineTo(b, a + cut * 0.4); ctx.lineTo(b, b - cut); ctx.lineTo(b - cut, b);
+    ctx.lineTo(a + cut * 0.4, b); ctx.lineTo(a, b - cut * 0.4); ctx.lineTo(a, a + cut); ctx.closePath();
+  }
+  function diamond(ctx, x, y, r, col) { ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath(); ctx.fill(); }
   function hex(ctx, x, y, r, col) {
     ctx.fillStyle = col; ctx.beginPath();
     for (var i = 0; i < 6; i++) { var a = i * Math.PI / 3; ctx[i ? 'lineTo' : 'moveTo'](x + Math.cos(a) * r, y + Math.sin(a) * r); }

@@ -3,7 +3,7 @@
   'use strict';
   var I = IB.Input = {
     mx: 0, mz: 0, lookDX: 0, lookDY: 0, fire: false, aim: false, sprint: false,
-    jumpPressed: false, firePressed: false, reloadPressed: false, meleePressed: false, pausePressed: false,
+    jumpPressed: false, firePressed: false, reloadPressed: false, meleePressed: false, cloakPressed: false, pausePressed: false, grenadePressed: false, meleeCyclePressed: false,
     slotPressed: 0, wheel: 0, keys: {}, locked: false, dragging: false, touch: false, enabled: false, lastLook: 0
   };
   var canvas;
@@ -18,10 +18,14 @@
       switch (e.code) {
         case 'Space': I.jumpPressed = true; break;
         case 'KeyR': I.reloadPressed = true; break;
-        case 'KeyF': I.meleePressed = true; break;
-        case 'KeyE': I.usePressed = true; break;
+        case 'KeyV': I.meleePressed = true; break;
+        case 'KeyE': I.usePressed = true; break;   // take what you look at (armory racks, benches, shelves)   // melee strike (a shove without a melee weapon)
+        case 'KeyG': I.grenadePressed = true; break;   // throw a frag can
+        case 'KeyB': I.meleeCyclePressed = true; break;   // next melee weapon
+        case 'KeyF': I.cloakPressed = true; break;   // Undercover skill
         case 'Escape': case 'KeyP': I.pausePressed = true; break;
         case 'KeyC': case 'ControlLeft': I.slidePressed = true; break;
+        case 'Tab': I.menuPressed = true; break;   // field kit (loadout, gear, skills); Tab never moves focus in play
         default: if (/^Digit[1-9]$/.test(e.code)) I.slotPressed = +e.code.slice(5);
       }
       if (gameKey(e.code)) e.preventDefault();
@@ -49,7 +53,7 @@
     });
     if (I.touch) I.buildTouch();
   };
-  function gameKey(c) { return /^(Space|Key[WASDQRFPC]|Arrow|Digit|ShiftLeft|ShiftRight|ControlLeft|Tab)/.test(c); }
+  function gameKey(c) { return /^(Space|Key[WASDQRFPCV]|Arrow|Digit|ShiftLeft|ShiftRight|ControlLeft|Tab)/.test(c); }
   I.requestLock = function () {
     if (I.touch || !canvas.requestPointerLock) return;
     try { var p = canvas.requestPointerLock(); if (p && p.catch) p.catch(function () { /* drag-to-look fallback */ }); } catch (e) { /* fallback */ }
@@ -66,7 +70,7 @@
   };
   I.endFrame = function () {
     I.lookDX = 0; I.lookDY = 0; I.jumpPressed = false; I.firePressed = false; I.reloadPressed = false;
-    I.meleePressed = false; I.usePressed = false; I.pausePressed = false; I.slotPressed = 0; I.wheel = 0; I.swapPressed = false; I.slidePressed = false;
+    I.meleePressed = false; I.usePressed = false; I.cloakPressed = false; I.grenadePressed = false; I.meleeCyclePressed = false; I.pausePressed = false; I.slotPressed = 0; I.wheel = 0; I.swapPressed = false; I.slidePressed = false; I.menuPressed = false;
   };
   I.reset = function () { I.fire = I.aim = false; I.mx = I.mz = 0; I.keys = {}; I.endFrame(); if (I.stick) I.stick.id = null; };
 
@@ -81,7 +85,12 @@
       '<button class="tbtn tswap" id="tSwap" aria-label="Swap weapon">' + svgSwap() + '</button>' +
       '<button class="tbtn tjump" id="tJump" aria-label="Jump">' + svgJump() + '</button>' +
       '<button class="tbtn tuse" id="tUse" aria-label="Use" hidden>USE</button>' +
-      '<button class="tbtn tslide" id="tSlide" aria-label="Slide or crouch" style="width:56px;height:56px;right:calc(var(--sar) + 200px);bottom:calc(var(--sab) + 140px)">' + svgSlide() + '</button>';
+      '<button class="tbtn tslide" id="tSlide" aria-label="Slide or crouch" style="width:56px;height:56px;right:calc(var(--sar) + 200px);bottom:calc(var(--sab) + 140px)">' + svgSlide() + '</button>' +
+      // Undercover (skill): shown by ui/skillhud.js only while the skill is owned; the ring is its cooldown
+      '<button class="tbtn tcloak" id="tCloak" aria-label="Undercover" hidden style="width:52px;height:52px;right:calc(var(--sar) + 270px);bottom:calc(var(--sab) + 112px)">' + svgCloak() + '</button>' +
+      // melee (tap: strike; hold: next melee weapon) and frag can; game.js shows them once owned
+      '<button class="tbtn tmelee" id="tMelee" aria-label="Melee" hidden style="width:52px;height:52px;right:calc(var(--sar) + 128px);bottom:calc(var(--sab) + 214px)">' + svgMelee() + '</button>' +
+      '<button class="tbtn tgren" id="tGren" aria-label="Throw frag can" hidden style="width:52px;height:52px;right:calc(var(--sar) + 196px);bottom:calc(var(--sab) + 214px)">' + svgGren() + '<i class="tcount" id="tGrenN"></i></button>';
     var stick = I.stick = { id: null, ox: 0, oy: 0, el: document.getElementById('stick'), knob: document.getElementById('stickKnob') };
     var look = { id: null, x: 0, y: 0 };
     function hold(id, down, up) {
@@ -103,6 +112,10 @@
     hold('tSwap', function () { I.swapPressed = true; I.wheel += 1; });
     hold('tJump', function () { I.jumpPressed = true; });
     hold('tUse', function () { I.usePressed = true; });
+    hold('tCloak', function () { I.cloakPressed = true; });
+    var meleeHold = null;
+    hold('tMelee', function () { I.meleePressed = true; meleeHold = setTimeout(function () { I.meleeCyclePressed = true; }, 520); }, function () { clearTimeout(meleeHold); });
+    hold('tGren', function () { I.grenadePressed = true; });
     hold('tSlide', function () { I.slidePressed = true; I.crouch = true; }, function () { I.crouch = false; });
     var layer = document.getElementById('touchLayer');
     layer.addEventListener('touchstart', function (e) {
@@ -145,5 +158,8 @@
   function svgAim() { return '<svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="14" fill="none" stroke="currentColor" stroke-width="4"/><circle cx="24" cy="24" r="3" fill="currentColor"/></svg>'; }
   function svgSwap() { return '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M10 18h26l-7-7M38 30H12l7 7" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/></svg>'; }
   function svgSlide() { return '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 34h26l8-6M14 26l8-8 8 4" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/><circle cx="30" cy="12" r="4" fill="currentColor"/></svg>'; }
+  function svgCloak() { return '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 26c5-9 27-9 32 0-5 9-27 9-32 0z" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/><circle cx="24" cy="26" r="5" fill="currentColor"/><path d="M10 40 38 12" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg>'; }
+  function svgMelee() { return '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M9 39 34 14l4-6 3 3-6 4-25 25zM11 33l5 5" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'; }
+  function svgGren() { return '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M16 17h16v23H16zM20 9h8v8h-8zM28 11h8" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/></svg>'; }
   function svgJump() { return '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 8 10 24h8v14h12V24h8z" fill="currentColor"/></svg>'; }
 })(window.IB = window.IB || {});

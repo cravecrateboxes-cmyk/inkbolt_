@@ -14,8 +14,8 @@
   function hgt(c, r, zi) {
     var k = zi * 1.7;
     var mounds = 1.15 * Math.sin(0.19 * c + 1.3 + k) * Math.sin(0.17 * r + 0.6 + k) + 0.6 * Math.sin(0.41 * c - 0.27 * r + k);
-    var band = ((r + 0.35 * c + 7 * zi) % 18 + 18) % 18, ridge = 1.7 * Math.max(0, 1 - Math.abs(band - 9) / 3.2);
-    return Math.max(0, 1.0 + mounds + ridge);
+    var band = ((r + 0.35 * c + 7 * zi) % 18 + 18) % 18, ridge = 1.7 * Math.max(0, 1 - Math.abs(band - 9) / 3.6);
+    return Math.max(0, 0.72 * (1.0 + mounds + ridge));   // slopes stay under the robots' 0.4 m step per nav cell
   }
   function chooseWall(c, r, horiz, corner, hash, grid, face) {
     if (face === 'corner' || face === 'none') return 'Ridge_Pillar';
@@ -33,7 +33,7 @@
     palette: ['#7CC05E', '#A9583A', '#FFC928', '#B4DD8E'],
     env: { sky: ['#7EC8F0', '#EAF6E4'], fog: { color: '#D9EEDB', near: 44, far: 125 }, sun: [0.45, 0.8, 0.4], clouds: true, ceiling: null },
     floor: { color: '#86C466', trail: '#CDB894', outside: '#86C266' },
-    terrain: { height: hgt, flat: 'ZVWULf', ramp: [1, 5], low: '#7DBE5C', high: '#B4DD8E', patch: '#93CC70', top: 4 },
+    terrain: { height: hgt, flat: 'ZVWULf', ramp: [1, 5], low: '#7DBE5C', high: '#B4DD8E', patch: '#93CC70', top: 3 },
     wall: { height: 6, roof: '#7CC05E', facing: 'open', choose: chooseWall },
     symbols: {
       'Z': { size: [6, 6], pieces: ['Landmark_Redwood_A', 'Landmark_Redwood_B'], face: 0, kind: 'step' },
@@ -69,9 +69,9 @@
         name: 'Redwood Hollow',
         intro: 'Climb the broken branches up the giant redwoods. The robots will climb after you.',
         zones: [
-          { map: 'grove_1', waves: [[['crawler', 10], ['gunner', 2]], [['crawler', 10], ['gunner', 3], ['drone', 1]], [['crawler', 12], ['bomber', 3], ['gunner', 2]]] },
-          { map: 'grove_2', waves: [[['crawler', 10], ['drone', 2]], [['gunner', 4], ['crawler', 10]], [['bomber', 4], ['crawler', 10], ['drone', 3]]] },
-          { map: 'grove_3', waves: [[['crawler', 12], ['gunner', 3]], [['drone', 3], ['bomber', 3], ['crawler', 10]], [['gunner', 6], ['crawler', 14], ['bomber', 3], ['drone', 3]]] }
+          { map: 'grove_1', waves: [[['crawler', 20], ['gunner', 5]], [['crawler', 5], ['bomber', 4], ['gunner', 4], ['blader', 6]], [['crawler', 4], ['drone', 5], ['gunner', 4], ['soldier', 6]], [['crawler', 4], ['bomber', 4], ['gunner', 5], ['soldier', 7]]] },
+          { map: 'grove_2', waves: [[['crawler', 20], ['gunner', 5], ['drone', 3]], [['crawler', 5], ['bomber', 5], ['gunner', 5], ['blader', 7]], [['crawler', 5], ['drone', 5], ['gunner', 5], ['soldier', 6]], [['crawler', 4], ['bomber', 4], ['gunner', 5], ['blader', 6]]] },
+          { map: 'grove_3', waves: [[['crawler', 20], ['gunner', 8]], [['crawler', 5], ['bomber', 5], ['drone', 5], ['soldier', 7]], [['crawler', 7], ['gunner', 7], ['drone', 5], ['blader', 6]], [['crawler', 8], ['gunner', 8], ['bomber', 7], ['drone', 4], ['soldier', 12]]] }
         ]
       }
     }

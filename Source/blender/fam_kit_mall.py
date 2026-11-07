@@ -115,15 +115,15 @@ def build_escalator(pal, ao):
     m = new(pal)
     n, y0, y1 = 14, -5.0 + 0.9, 5.0 - 1.0
     run, rise = (y1 - y0) / n, DECK / n
-    cols = [col_box(-0.84, -5.0, 0, 0.84, y0, 0.05)]
+    cols = [col_box(-0.84, -5.0, 0, 0.84, y0, 0.05, True)]
     m.box((0, -5.0 + 0.45, 0.025), (1.68, 0.9, 0.05), 'steel', bevel=False)
     for k in range(n):
         a, top = y0 + k * run, (k + 1) * rise
         m.box((0, a + run / 2, top / 2), (1.66, run, top), 'step', bevel=False)
         m.box((0, a + 0.03, top + 0.004), (1.6, 0.04, 0.008), 'yellow', bevel=False)
-        cols.append(col_box(-0.84, a, 0, 0.84, a + run, top))
+        cols.append(col_box(-0.84, a, 0, 0.84, a + run, top, True))
     m.box((0, y1 + 0.5, DECK / 2), (1.68, 1.0, DECK), 'steel', bevel=False)
-    cols.append(col_box(-0.84, y1, 0, 0.84, 5.0, DECK))
+    cols.append(col_box(-0.84, y1, 0, 0.84, 5.0, DECK, True))
     # side cladding (solid under the balustrades) and glass balustrades with a handrail along the step line
     for sx in (-1, 1):
         x = sx * 0.92

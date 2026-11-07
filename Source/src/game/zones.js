@@ -1,5 +1,14 @@
 /* INKBOLT zones: ASCII zone layouts -> merged toon geometry, AABB collision (2 m grid),
-   gates, trail arrows, exit hatch, nav grid + BFS flow fields. */
+   gates, trail arrows, exit hatch, nav grid + BFS flow fields.
+
+   Walkable surfaces (generic, data-driven): a kit piece marks a collision box as something ground robots may walk ON
+   by naming its Blender empty <Piece>_WCOL<n> instead of <Piece>_COL<n> (decks, stair steps, ramps as stepped boxes,
+   bridge planks, a raised gazebo floor). Such boxes get box.walk = true. The world answers floorAt(x, z, y): the top
+   of the highest walkable box under a point, at or below y (0 = the ground plane). A zone that holds walkable boxes
+   gets a two-layer nav grid (layer 0: the lowest standable surface of each cell, layer 1: a deck above it with
+   headroom underneath); neighbouring cells connect only when their surfaces differ by at most NAV_STEP, so the BFS
+   flow field climbs stairs and ramps and never "teleports" up a deck edge. Zones without walkable boxes keep the
+   original single-layer grid and code path unchanged. */
 (function (IB) {
   'use strict';
   var PAL = IB.PAL;
@@ -7,6 +16,8 @@
   var CELL = 2;          // collision grid cell (m)
   var NAV = 0.5;         // nav cell (m)
   var TRAIL_LEN = 12;
+  var NAV_STEP = 0.4;
+  var NAV_LAYERS = 4;    // walkable surfaces kept per nav cell (ground, stair flights / branch steps stacked above, a deck)    // largest rise between neighbouring walkable nav cells (robots' step-up, ai.js STEP_UP)
 
   // ---------------- parsing ----------------
   /* A zone file is the floor plan, optionally followed by upper layers: a line "@layer <y>" starts a grid of the same
@@ -66,7 +77,7 @@
   function hash(a, b) { var h = (a * 374761393 + b * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
 
   // ---------------- collision world ----------------
-  function World() { this.boxes = []; this.grid = new Map(); this.terrains = []; }
+  function World() { this.boxes = []; this.grid = new Map(); this.walkN = 0; this.terrains = []; }
   /* ground height: 0, or a zone's terrain heightfield (1 m vertex grid, bilinear) for themes with bumpy ground */
   World.prototype.groundAt = function (x, z) {
     for (var i = 0; i < this.terrains.length; i++) {
@@ -129,6 +140,7 @@
       if (tt0 < best) { var tn = this.groundNormal(ox + dx * tt0, oz + dz * tt0); best = tt0; bb = null; bnx = tn.x; bny = tn.y; bnz = tn.z; }
     }
     _stamp++;
+
     var cx = Math.floor(ox / CELL), cz = Math.floor(oz / CELL);
     var stepX = dx > 0 ? 1 : -1, stepZ = dz > 0 ? 1 : -1;
     var tDX = Math.abs(dx) > 1e-9 ? CELL / Math.abs(dx) : 1e9, tDZ = Math.abs(dz) > 1e-9 ? CELL / Math.abs(dz) : 1e9;
@@ -155,6 +167,20 @@
     if (best >= maxT) return null;
     _hit.t = best; _hit.box = bb; _hit.nx = bnx; _hit.ny = bny; _hit.nz = bnz;
     return _hit;
+  };
+  // top of the highest walkable box (box.walk) whose footprint holds (x, z) and whose top is at or below y; 0 (the
+  // ground plane) when there is none. Worlds without walkable boxes answer 0 straight away.
+  World.prototype.floorAt = function (x, z, y) {
+    var g0 = this.terrains.length ? this.groundAt(x, z) : 0;
+    if (!this.walkN) return g0;
+    var a = this.grid.get(Math.floor(x / CELL) * 73856 + Math.floor(z / CELL)), best = g0;
+    if (!a) return g0;
+    for (var j = 0; j < a.length; j++) {
+      var b = this.boxes[a[j]];
+      if (!b.walk || !b.on || b.y1 > y || b.y1 <= best || x < b.x0 || x > b.x1 || z < b.z0 || z > b.z1) continue;
+      best = b.y1;
+    }
+    return best;
   };
   World.prototype.los = function (ax, ay, az, bx, by, bz) {
     var dx = bx - ax, dy = by - ay, dz = bz - az, d = Math.sqrt(dx * dx + dy * dy + dz * dz);
@@ -245,7 +271,8 @@
     if (colCache[name] !== undefined) return colCache[name];
     var node = IB.Assets.node[name], out = [];
     if (node) node.children.forEach(function (c) {
-      if (/_COL\d*$/.test(c.name)) out.push({ x: c.position.x, y: c.position.y, z: c.position.z, hx: Math.abs(c.scale.x), hy: Math.abs(c.scale.y), hz: Math.abs(c.scale.z) });
+      // <Piece>_COL<n>: solid box; <Piece>_WCOL<n>: a box robots may also walk on (deck, step, plank)
+      if (/_W?COL\d*$/.test(c.name)) out.push({ x: c.position.x, y: c.position.y, z: c.position.z, hx: Math.abs(c.scale.x), hy: Math.abs(c.scale.y), hz: Math.abs(c.scale.z), walk: /_WCOL\d*$/.test(c.name) });
     });
     colCache[name] = out.length ? out : null;
     return colCache[name];
@@ -256,7 +283,19 @@
     var c = Math.round(Math.cos(yaw)), s = Math.round(Math.sin(yaw));
     cols.forEach(function (b) {
       var cx = b.x * c + b.z * s, cz = -b.x * s + b.z * c, hx = c !== 0 ? b.hx : b.hz, hz = c !== 0 ? b.hz : b.hx;
-      world.add(x + cx - hx, b.y - b.hy, z + cz - hz, x + cx + hx, b.y + b.hy, z + cz + hz, kind, zi);
+      var nb = world.add(x + cx - hx, b.y - b.hy, z + cz - hz, x + cx + hx, b.y + b.hy, z + cz + hz, kind, zi);
+      if (b.walk) { nb.walk = true; world.walkN++; }
+    });
+  }
+  // d.with: { piece: [extra pieces] } placed with the same transform (a big landmark split into parts that each
+  // keep to the theme's per-piece triangle budget); their collision boxes are added too
+  function addWith(P, world, theme, d, name, x, y, zz, yaw, zi) {
+    var extra = d.with && d.with[name];
+    if (!extra) return;
+    extra.forEach(function (n2) {
+      P.add(n2, x, y, zz, yaw);
+      var c2 = d.collide !== false && colsOf(IB.themePiece(theme, n2));
+      if (c2) addCols(world, c2, x, zz, yaw, d.kind || 'cover', zi);
     });
   }
   function boxCols(w, d, h) { return [{ x: 0, y: h / 2, z: 0, hx: w / 2, hy: h / 2, hz: d / 2 }]; }
@@ -279,6 +318,7 @@
       var oS = !solid(p.c, p.r + 1), oN = !solid(p.c, p.r - 1), oE = !solid(p.c + 1, p.r), oW = !solid(p.c - 1, p.r);
       var nOpen = oS + oN + oE + oW, face = nOpen === 0 ? 'none' : nOpen === 1 ? (oS ? 'S' : oN ? 'N' : oE ? 'E' : 'W') : ((oS || oN) && (oE || oW) ? 'corner' : (oS ? 'S' : 'E'));
       var name = W.choose ? W.choose(p.c, p.r, horiz, horiz && vert, hash, grid, face) : pick(W.pieces, hash(p.c * 13, p.r * 17));
+      if (!name) return;   // the chooser leaves cells a gate built-in covers empty (their collision stays)
       // wall modules face +/-Z; rotate for vertical runs. faceOpen: turn the module's +Z face (Blender -Y) to the open side
       var yaw = (!horiz && vert) ? Math.PI / 2 : 0;
       if (W.facing === 'open' && face !== 'none' && face !== 'corner') yaw = { S: 0, N: Math.PI, E: Math.PI / 2, W: -Math.PI / 2 }[face];
@@ -298,95 +338,12 @@
     return y;
   }
   function addColsY(world, cols, x, y0, z, yaw, kind, zi) {
-    addCols(world, cols.map(function (b) { return { x: b.x, y: b.y + y0, z: b.z, hx: b.hx, hy: b.hy, hz: b.hz }; }), x, z, yaw, kind, zi);
-  }
-  // a single-cell symbol: one piece per cell
-  function buildCells(P, z, grid, theme, world, ch, d, yb) {
-    var pts = find(grid, ch);
-    if (d.links) {   // rails: one half-module from the cell centre toward each linked neighbour (straight, L, T, end)
-      pts.forEach(function (p) {
-        var x = z.ox + p.c + 0.5, zz = z.oz + p.r + 0.5, y0 = baseY(world, yb, x, zz), n = 0, lk = d.links;
-        var L = function (dc, dr) { return lk.indexOf(grid.at(p.c + dc, p.r + dr)) >= 0; };
-        var ns = L(0, 1) && L(0, -1) && !L(1, 0) && !L(-1, 0), ew = L(1, 0) && L(-1, 0) && !L(0, 1) && !L(0, -1);
-        if (d.full && (ns || ew)) {   // straight run: one full module, no post
-          var fy = ns ? 0 : Math.PI / 2;
-          P.add(d.full, x, y0, zz, fy);
-          if (d.collide !== false) addColsY(world, colsOf(IB.themePiece(theme, d.full)) || boxCols(0.2, 1, d.h || 1), x, y0, zz, fy, d.kind || 'cover', z.idx);
-          return;
-        }
-        [[0, 1, 0], [1, 0, Math.PI / 2], [0, -1, Math.PI], [-1, 0, -Math.PI / 2]].forEach(function (k) {
-          if (lk.indexOf(grid.at(p.c + k[0], p.r + k[1])) < 0) return;
-          n++; P.add(d.pieces[0], x, y0, zz, k[2]);
-          if (d.collide !== false) addColsY(world, colsOf(IB.themePiece(theme, d.pieces[0])) || boxCols(0.2, 0.5, d.h || 1), x, y0, zz, k[2], d.kind || 'cover', z.idx);
-        });
-        if (d.post) P.add(d.post, x, y0, zz, 0);
-      });
-      return;
-    }
-    pts.forEach(function (p, i) {
-      var x = z.ox + p.c + 0.5, zz = z.oz + p.r + 0.5, yaw = 0;
-      if (d.rotate === 'run') {
-        var vert = !(cellIs(grid, p.c - 1, p.r, ch) || cellIs(grid, p.c + 1, p.r, ch)) && (cellIs(grid, p.c, p.r - 1, ch) || cellIs(grid, p.c, p.r + 1, ch));
-        yaw = vert ? Math.PI / 2 : 0;
-      } else if (d.rotate === 'random90') yaw = Math.floor(hash(p.c, p.r * 9) * 4) * Math.PI / 2;
-      else if (d.rotate === 'edge') yaw = edgeYaw(grid, p.c, p.r, d.edge || '.');
-      else if (typeof d.rotate === 'number') yaw = d.rotate;
-      var name = d.sequence ? d.pieces[i % d.pieces.length] : d.alternate ? d.pieces[(p.c + p.r) % d.pieces.length] : pick(d.pieces, hash(p.c * 3 + 1, p.r * 5 + 2));
-      var y0 = baseY(world, yb, x, zz, d.sink ? 0.45 : 0, d.sink ? 0.45 : 0);
-      P.add(name, x, (d.y || 0) + y0, zz, yaw);
-      if (d.collide !== false) addColsY(world, d.cols || colsOf(IB.themePiece(theme, name)) || boxCols(1, 1, d.h || 1), x, (d.y || 0) + y0, zz, yaw, d.kind || 'cover', z.idx);
-      if (d.mount && z.mounts) z.mounts.push({ x: x, y: y0, z: zz, yaw: yaw, kind: d.mount, piece: name });
-      if (d.stack && hash(p.c * 5, p.r * 3) < d.stack.chance) {
-        P.add(d.stack.piece, x, (d.h || 1) + y0, zz, Math.floor(hash(p.c * 7, p.r) * 4) * Math.PI / 2);
-        if (d.collide !== false) world.add(x - 0.5, (d.h || 1) + y0, zz - 0.5, x + 0.5, (d.h || 1) + y0 + (d.stack.h || 1), zz + 0.5, d.kind || 'cover', z.idx);
-      }
-    });
-  }
-  // yaw that turns a piece's +Z face (Blender -Y) away from the neighbouring wall toward the open side ('edge' rotate)
-  function edgeYaw(grid, c, r, open) {
-    function op(cc, rr) { return open.indexOf(grid.at(cc, rr)) >= 0; }
-    if (!op(c, r - 1) && op(c, r + 1)) return 0;
-    if (!op(c, r + 1) && op(c, r - 1)) return Math.PI;
-    if (!op(c - 1, r) && op(c + 1, r)) return Math.PI / 2;
-    if (!op(c + 1, r) && op(c - 1, r)) return -Math.PI / 2;
-    return 0;
-  }
-  // a multi-cell prefab symbol: each connected block is tiled with prefabs of size [w, d] (rotated 90 if that fits)
-  function buildPrefabs(P, z, grid, theme, world, ch, d, yb) {
-    var sw = d.size[0], sd = d.size[1];
-    rects(grid, ch).forEach(function (R, ri) {
-      var yaw = 0, tw = sw, td = sd;
-      if (!(R.w % sw === 0 && R.h % sd === 0) && R.w % sd === 0 && R.h % sw === 0) { yaw = Math.PI / 2; tw = sd; td = sw; }
-      var nx = Math.max(1, Math.floor(R.w / tw)), nz = Math.max(1, Math.floor(R.h / td));
-      if (R.w % tw || R.h % td) { tw = R.w / nx; td = R.h / nz; }   // block not a multiple: centre one prefab per cell group
-      for (var i = 0; i < nx; i++) for (var k = 0; k < nz; k++) {
-        var x = z.ox + R.c + (i + 0.5) * tw, zz = z.oz + R.r + (k + 0.5) * td, h = hash(R.c + i * 7, R.r + k * 11);
-        var y = yaw + (d.flip && hash(R.c * 3 + i, R.r * 5 + k) > 0.5 ? Math.PI : 0);
-        if (typeof d.face === 'number') y = d.face;
-        if (d.orient === 'wall') y = wallYaw(grid, R, y);
-        var name = d.sequence ? d.pieces[(ri + i + k) % d.pieces.length] : pick(d.pieces, h);
-        var y0 = baseY(world, yb, x, zz, tw / 2 * 0.8, td / 2 * 0.8);
-        P.add(name, x, (d.y || 0) + y0, zz, y);
-        if (d.collide !== false) addColsY(world, d.cols || colsOf(IB.themePiece(theme, name)) || boxCols(sw, sd, d.h || 1), x, (d.y || 0) + y0, zz, y, d.kind || 'cover', z.idx);
-        if (d.elevator) z.elevators.push(makeElevator(P, z, theme, world, d.elevator, x, y0, zz, y));
-        if (d.mounts) d.mounts.forEach(function (m) {   // pickup mounts inside the prefab (e.g. guns on a wall rack), prefab-local
-          var c = Math.round(Math.cos(y)), s2 = Math.round(Math.sin(y));
-          z.mounts.push({ x: x + m[0] * c + m[2] * s2, y: y0 + m[1], z: zz - m[0] * s2 + m[2] * c, yaw: y + (m[3] || 0), kind: m[4] || 'gun', piece: name, fill: d.fill === undefined ? 1 : d.fill });
-        });
-      }
-    });
-  }
-  // prefab against a wall: turn its front (+Z) away from the side of the block with the most wall cells
-  function wallYaw(grid, R, fallback) {
-    function cnt(c0, r0, dc, dr, n) { var k = 0; for (var i = 0; i < n; i++) if (grid.at(c0 + dc * i, r0 + dr * i) === '#') k++; return k; }
-    var N = cnt(R.c, R.r - 1, 1, 0, R.w), S = cnt(R.c, R.r + R.h, 1, 0, R.w), W = cnt(R.c - 1, R.r, 0, 1, R.h), E = cnt(R.c + R.w, R.r, 0, 1, R.h);
-    var m = Math.max(N, S, W, E); if (!m) return fallback;
-    return m === N ? 0 : m === S ? Math.PI : m === W ? Math.PI / 2 : -Math.PI / 2;
+    addCols(world, cols.map(function (b) { return { x: b.x, y: b.y + y0, z: b.z, hx: b.hx, hy: b.hy, hz: b.hz, walk: b.walk }; }), x, z, yaw, kind, zi);
   }
   // walkable deck (mezzanine floor) over each block of the symbol: slab with fascia, ink edge bands, collision
   function buildDeck(g, z, grid, world, ch, d, yb) {
     var D = d.deck, t = D.thick || 0.4, chars = ch + (D.with || '');
-    if (chars.length > 1) { var rows2 = grid.rows.map(function (row) { var o = ''; for (var i = 0; i < row.length; i++) o += (D.with === '*' ? row[i] !== '.' : chars.indexOf(row[i]) >= 0) ? ch : row[i]; return o; }); grid = { w: grid.w, h: grid.h, rows: rows2, at: function (c, r) { return (r < 0 || r >= rows2.length || c < 0 || c >= grid.w) ? '.' : rows2[r][c]; } }; }
+    if (chars.length > 1) { var rows2 = grid.rows.map(function (row) { var o = ''; for (var i = 0; i < row.length; i++) o += (D.with === '*' ? row[i] !== '.' && row[i] !== '#' : chars.indexOf(row[i]) >= 0) ? ch : row[i]; return o; }); grid = { w: grid.w, h: grid.h, rows: rows2, at: function (c, r) { return (r < 0 || r >= rows2.length || c < 0 || c >= grid.w) ? '.' : rows2[r][c]; } }; }
     var top = col(D.color, '#E8E0D0'), side = col(D.edge, '#BFB6A6'), under = col(D.under, '#D9D2C4');
     rects(grid, ch).forEach(function (R) {
       var x0 = z.ox + R.c, z0 = z.oz + R.r;
@@ -395,7 +352,7 @@
       g.flat([[x0, z0], [x0 + R.w, z0], [x0 + R.w, z0 + R.h], [x0, z0 + R.h]], yb - t, under);
       for (var q = bi; q < g.pos.length / 3; q++) g.nor[q * 3 + 1] = -1;
       for (var ti = g.idx.length - 6; ti < g.idx.length; ti += 3) { var tmp = g.idx[ti + 1]; g.idx[ti + 1] = g.idx[ti + 2]; g.idx[ti + 2] = tmp; }
-      world.add(x0, yb - t, z0, x0 + R.w, yb, z0 + R.h, 'deck', z.idx);
+      var db = world.add(x0, yb - t, z0, x0 + R.w, yb, z0 + R.h, 'deck', z.idx); db.walk = true; world.walkN++;
     });
     // ink bands along exposed slab edges (top and bottom of the fascia), 1 cm proud, merged into runs
     var ink = col(PAL.ink);
@@ -411,26 +368,6 @@
         g.box(cx, yb - 0.0275, cz, sx, 0.045, sz, ink, { hull: false });
         g.box(cx, yb - t + 0.0275, cz, sx, 0.045, sz, ink, { hull: false });
       });
-    });
-  }
-  function buildSymbols(P, z, grid, theme, world, g, yb) {
-    yb = yb || 0;
-    if (!yb) buildWalls(P, z, grid, theme, world);
-    Object.keys(theme.symbols || {}).forEach(function (ch) {
-      var d = theme.symbols[ch];
-      if (d.deck) buildDeck(g, z, grid, world, ch, d, yb);
-      else if (d.size) buildPrefabs(P, z, grid, theme, world, ch, d, yb);
-      else buildCells(P, z, grid, theme, world, ch, d, yb);
-    });
-    // spawn cans (fps-common) are part of every theme
-    find(grid, 'S').forEach(function (p) {
-      var x = z.ox + p.c + 0.5, zz = z.oz + p.r + 0.5, y0 = baseY(world, yb, x, zz, 0.4, 0.4);
-      P.add(theme.spawn || 'SpawnCan', x, y0, zz, hash(p.c, p.r) * 6.28);
-      world.add(x - 0.4, y0, zz - 0.4, x + 0.4, y0 + 1.0, zz + 0.4, 'cover', z.idx);
-      z.spawns.push({ x: x, y: y0, z: zz });
-    });
-    ['a', 'h'].forEach(function (k) {
-      find(grid, k).forEach(function (s) { var x = z.ox + s.c + 0.5, zz = z.oz + s.r + 0.5; z.pickups.push({ kind: k === 'a' ? 'ammo' : 'health', x: x, y: baseY(world, yb, x, zz), z: zz }); });
     });
   }
 
@@ -452,7 +389,8 @@
     var L = { mesh: mesh, x: x, z: zz, c: c, s: s, y0: y0, top: E.top, wait: E.wait || 3, speed: E.speed || 1.5, h: 0, dir: 1, t: E.wait || 3, state: 'wait', fy: fy, rot: rot,
       iw: iw, id: id, moving: [], stop: [] };
     // cab boxes (local offsets from the cab floor top) move with the cab
-    L.moving.push({ b: box(-iw, -id, iw, id, y0 + fy - ft, y0 + fy, 'step'), lo: -ft, hi: 0 });
+    var fl = box(-iw, -id, iw, id, y0 + fy - ft, y0 + fy, 'step'); fl.walk = true; world.walkN++;
+    L.moving.push({ b: fl, lo: -ft, hi: 0 });
     L.moving.push({ b: box(-iw - 0.08, -id, -iw, id, y0 + fy, y0 + fy + rail, 'wall'), lo: 0, hi: rail });
     L.moving.push({ b: box(iw, -id, iw + 0.08, id, y0 + fy, y0 + fy + rail, 'wall'), lo: 0, hi: rail });
     L.moving.push({ b: box(-iw, -id - 0.08, iw, -id, y0 + fy, y0 + fy + rail, 'wall'), lo: 0, hi: rail });
@@ -490,11 +428,297 @@
     });
   };
 
-  // floor: flat colour plus optional painted lines (lot lines, planks, carpet tiles, lane marks)
+  // a single-cell symbol: one piece per cell
+  function buildCells(P, z, grid, theme, world, ch, d, yb) {
+    var pts = find(grid, ch);
+    if (d.links) {   // rails: one half-module from the cell centre toward each linked neighbour (straight, L, T, end)
+      pts.forEach(function (p) {
+        var x = z.ox + p.c + 0.5, zz = z.oz + p.r + 0.5, y0 = baseY(world, yb, x, zz), n = 0, lk = d.links;
+        var L = function (dc, dr) { return lk.indexOf(grid.at(p.c + dc, p.r + dr)) >= 0; };
+        var ns = L(0, 1) && L(0, -1) && !L(1, 0) && !L(-1, 0), ew = L(1, 0) && L(-1, 0) && !L(0, 1) && !L(0, -1);
+        if (d.full && (ns || ew)) {   // straight run: one full module, no post
+          var fy = ns ? 0 : Math.PI / 2;
+          P.add(d.full, x, y0, zz, fy);
+          if (d.collide !== false) addColsY(world, colsOf(IB.themePiece(theme, d.full)) || boxCols(0.2, 1, d.h || 1), x, y0, zz, fy, d.kind || 'cover', z.idx);
+          return;
+        }
+        [[0, 1, 0], [1, 0, Math.PI / 2], [0, -1, Math.PI], [-1, 0, -Math.PI / 2]].forEach(function (k) {
+          if (lk.indexOf(grid.at(p.c + k[0], p.r + k[1])) < 0) return;
+          n++; P.add(d.pieces[0], x, y0, zz, k[2]);
+          if (d.collide !== false) addColsY(world, colsOf(IB.themePiece(theme, d.pieces[0])) || boxCols(0.2, 0.5, d.h || 1), x, y0, zz, k[2], d.kind || 'cover', z.idx);
+        });
+        if (d.post) P.add(d.post, x, y0, zz, 0);
+      });
+      return;
+    }
+    pts.forEach(function (p, i) {
+      var x = z.ox + p.c + 0.5, zz = z.oz + p.r + 0.5, yaw = 0;
+      if (d.rotate === 'run') {
+        var vert = !(cellIs(grid, p.c - 1, p.r, ch) || cellIs(grid, p.c + 1, p.r, ch)) && (cellIs(grid, p.c, p.r - 1, ch) || cellIs(grid, p.c, p.r + 1, ch));
+        yaw = vert ? Math.PI / 2 : 0;
+      } else if (d.rotate === 'random90') yaw = Math.floor(hash(p.c, p.r * 9) * 4) * Math.PI / 2;
+      else if (d.rotate === 'edge') yaw = edgeYaw(grid, p.c, p.r, d.edge || '.');
+      else if (typeof d.rotate === 'number') yaw = d.rotate;
+      var name = d.sequence ? d.pieces[i % d.pieces.length] : d.alternate ? d.pieces[(p.c + p.r) % d.pieces.length] : pick(d.pieces, hash(p.c * 3 + 1, p.r * 5 + 2));
+      var y0 = baseY(world, yb || 0, x, zz, d.sink ? 0.45 : 0, d.sink ? 0.45 : 0), py = (d.y || 0) + y0;
+      P.add(name, x, py, zz, yaw);
+      if (d.collide !== false) addColsY(world, d.cols || colsOf(IB.themePiece(theme, name)) || boxCols(1, 1, d.h || 1), x, py, zz, yaw, d.kind || 'cover', z.idx);
+      addWith(P, world, theme, d, name, x, py, zz, yaw, z.idx);
+      if (d.mount && z.mounts) z.mounts.push({ x: x, y: y0, z: zz, yaw: yaw, kind: d.mount, piece: name, fill: d.fill === undefined ? 1 : d.fill });
+      if (d.stack && hash(p.c * 5, p.r * 3) < d.stack.chance) {
+        P.add(d.stack.piece, x, (d.h || 1) + y0, zz, Math.floor(hash(p.c * 7, p.r) * 4) * Math.PI / 2);
+        if (d.collide !== false) world.add(x - 0.5, (d.h || 1) + y0, zz - 0.5, x + 0.5, (d.h || 1) + y0 + (d.stack.h || 1), zz + 0.5, d.kind || 'cover', z.idx);
+      }
+    });
+    // moving line: one lane per straight run of cells (a 1-wide column runs north-south, anything else per row)
+    if (d.conveyor) rects(grid, ch).forEach(function (R) {
+      if (R.w === 1 && R.h > 1) addLine(P, z, theme, world, ch, d, z.ox + R.c + 0.5, z.oz + R.r + R.h / 2, Math.PI / 2, R.h / 2, null);
+      else for (var y = 0; y < R.h; y++) addLine(P, z, theme, world, ch, d, z.ox + R.c + R.w / 2, z.oz + R.r + y + 0.5, 0, R.w / 2, null);
+    });
+  }
+  // a multi-cell prefab symbol: each connected block is tiled with prefabs of size [w, d] (rotated 90 if that fits)
+  function buildPrefabs(P, z, grid, theme, world, ch, d, yb) {
+    var sw = d.size[0], sd = d.size[1];
+    yb = yb || 0;
+    rects(grid, ch).forEach(function (R, ri) {
+      var yaw = 0, tw = sw, td = sd;
+      if (!(R.w % sw === 0 && R.h % sd === 0) && R.w % sd === 0 && R.h % sw === 0) { yaw = Math.PI / 2; tw = sd; td = sw; }
+      var nx = Math.max(1, Math.floor(R.w / tw)), nz = Math.max(1, Math.floor(R.h / td));
+      if (R.w % tw || R.h % td) { tw = R.w / nx; td = R.h / nz; }   // block not a multiple: centre one prefab per cell group
+      // the run (prefabs in a row along the prefab's local X) and its downstream order: local +X is east, or north for
+      // turned blocks; conveyor.dir -1 reverses it
+      var nRun = yaw ? nz : nx, lanes = d.conveyor ? [] : null, back = d.conveyor && d.conveyor.dir === -1;
+      for (var i = 0; i < nx; i++) for (var k = 0; k < nz; k++) {
+        var x = z.ox + R.c + (i + 0.5) * tw, zz = z.oz + R.r + (k + 0.5) * td, h = hash(R.c + i * 7, R.r + k * 11);
+        var y = yaw + (d.turn || 0) + (d.flip && hash(R.c * 3 + i, R.r * 5 + k) > 0.5 ? Math.PI : 0);
+        if (typeof d.face === 'number') y = d.face;
+        if (d.orient === 'wall') y = wallYaw(grid, R, y);
+        var seq = yaw ? nz - 1 - k : i; if (back) seq = nRun - 1 - seq;
+        // sequence 'run': the first and last pieces cap each run (feed / dispatch), the middle ones repeat in order
+        var L = d.pieces.length, name = d.sequence === 'run' ? d.pieces[seq === 0 ? 0 : seq === nRun - 1 ? L - 1 : 1 + (seq - 1) % Math.max(1, L - 2)]
+          : d.sequence ? d.pieces[(ri + i + k) % L] : pick(d.pieces, h);
+        var y0 = baseY(world, yb, x, zz, tw / 2 * 0.8, td / 2 * 0.8), py = (d.y || 0) + y0;
+        P.add(name, x, py, zz, y);
+        if (d.collide !== false) addColsY(world, d.cols || colsOf(IB.themePiece(theme, name)) || boxCols(sw, sd, d.h || 1), x, py, zz, y, d.kind || 'cover', z.idx);
+        addWith(P, world, theme, d, name, x, py, zz, y, z.idx);
+        if (d.elevator) z.elevators.push(makeElevator(P, z, theme, world, d.elevator, x, y0, zz, y));
+        if (d.mounts) d.mounts.forEach(function (m) {   // pickup mounts inside the prefab (guns on a wall rack), prefab-local
+          var c = Math.round(Math.cos(y)), s2 = Math.round(Math.sin(y));
+          z.mounts.push({ x: x + m[0] * c + m[2] * s2, y: y0 + m[1], z: zz - m[0] * s2 + m[2] * c, yaw: y + (m[3] || 0), kind: m[4] || 'gun', piece: name, fill: d.fill === undefined ? 1 : d.fill });
+        });
+        if (lanes) {
+          if (d.conveyor.path) addLine(P, z, theme, world, ch, d, x, zz, y, 0, [{ at: 0, name: name }]);   // a loop per prefab
+          else { var li = yaw ? i : k; (lanes[li] || (lanes[li] = [])).push({ x: x, z: zz, name: name }); }
+        }
+      }
+      // straight lines: one lane per row of prefabs, tiles in downstream order (stations are looked up per tile)
+      if (lanes) lanes.forEach(function (T) {
+        var cx = 0, cz = 0, len = yaw ? td : tw, yw = yaw + (d.turn || 0);
+        T.forEach(function (t) { cx += t.x / T.length; cz += t.z / T.length; });
+        addLine(P, z, theme, world, ch, d, cx, cz, yw, T.length * len / 2, T.map(function (t) {
+          return { at: (t.x - cx) * Math.cos(yw) - (t.z - cz) * Math.sin(yw), name: t.name };   // tile centre, line-local x
+        }));
+      });
+    });
+  }
+
+  // ---------------- moving lines (theme symbol option `conveyor`) ----------------
+  /* A symbol with `conveyor: {...}` is a moving line: belt cleats / track slats slide along each run and parts or
+     half-built robots ride it, popping in and out of sight inside end hoods or station booths so the loop never shows.
+       speed: 0.6 (m/s), dir: 1 | -1 | 'alt' (downstream = the placed piece's local +X, -X, or flipping every other run)
+       y: 0.86             height of the item base (belt top)
+       spacing: 1.2        metres between items (count: n overrides it)
+       items: ['Piece', ['Stage0', 'Stage1', ...]]   each item a piece or a stage chain (see stations); items of one
+                           symbol must come from one kit family
+       inset: 0.5          items pop in / out this far inside each end of the run
+       ends: { start: 'Feed', end: 'Exit', at: 0.5 }  pieces placed at the run ends (centre `at` m in from each end),
+                           turned so their local +X points downstream; their _COL boxes collide
+       stations: { 'Piece': x }   prefab lines: a tile of that piece moves its items on to the next stage where they pass
+                           its local x (inside a booth that hides the swap)
+       cleat: 'Cleat', cleatEvery: 0.5, cleatY: 0.86   belt cleats / track slats sliding along the whole run
+       path: [[x, z], ...] prefabs only: a closed loop in prefab-local metres (a test track) instead of a straight run;
+                           the items face along it
+       carry: { top: 1.0, width: 0.8 }   a player standing on the line's collision top is carried along
+     Per zone each moving symbol is ONE InstancedMesh (all its item kinds merged into one geometry; each instance shows
+     only its own kind), plus one more for every cleat, so a zone's lines cost a few draw calls; Z.updateLines (once a
+     frame from game.js) moves the visible zones only. Collision stays static: the line is cover. */
+  function addLine(P, z, theme, world, ch, d, cx, cz, yaw, half, tiles) {
+    var C = d.conveyor, lines = z.lines || (z.lines = []);
+    var nth = lines.filter(function (l) { return l.ch === ch; }).length;
+    var dir = C.dir === 'alt' ? (nth % 2 ? -1 : 1) : (C.dir || 1);
+    var l = { ch: ch, C: C, cx: cx, cz: cz, yaw: yaw, c: Math.cos(yaw), s: Math.sin(yaw), dir: dir, half: half, len: 2 * half, y: C.y || 0, stations: [], nth: nth };
+    if (C.path) {   // closed loop: cumulative arc length of the polyline
+      var pts = C.path, cum = [0];
+      for (var i = 1; i <= pts.length; i++) { var a = pts[i - 1], b = pts[i % pts.length]; cum.push(cum[i - 1] + Math.hypot(b[0] - a[0], b[1] - a[1])); }
+      l.loop = { pts: pts, cum: cum }; l.t0 = 0; l.span = cum[pts.length]; l.dir = 1;
+    } else {
+      var inset = C.inset !== undefined ? C.inset : 0.5;
+      l.t0 = inset; l.span = Math.max(0.1, l.len - 2 * inset);
+      (tiles || []).forEach(function (t) {
+        var sx = C.stations && C.stations[t.name];
+        if (sx !== undefined && sx !== null) l.stations.push(half + dir * (t.at + sx));
+      });
+      l.stations.sort(function (a, b) { return a - b; });
+      if (C.ends) [['start', 0], ['end', 1]].forEach(function (E) {
+        var n = C.ends[E[0]]; if (!n) return;
+        var at = C.ends.at !== undefined ? C.ends.at : 0.5, t = E[1] ? l.len - at : at, lx = dir * (t - half);
+        var ex = cx + lx * l.c, ez = cz - lx * l.s, ey = yaw + (dir < 0 ? Math.PI : 0);
+        P.add(n, ex, 0, ez, ey);
+        var ec = colsOf(IB.themePiece(theme, n)); if (ec) addCols(world, ec, ex, ez, ey, 'cover', z.idx);
+      });
+    }
+    var n = C.n || Math.max(1, Math.round(l.span / (C.spacing || 1.2)));
+    l.n = n; l.gap = l.span / n;
+    l.chains = [];
+    for (var k = 0; k < n; k++) {
+      var it = C.items[(k + nth * 3) % C.items.length];
+      l.chains.push((Array.isArray(it) ? it : [it]).map(function (nm) { return IB.themePiece(theme, nm); }));
+    }
+    if (C.cleat && !C.path) { l.cleat = IB.themePiece(theme, C.cleat); l.cn = Math.max(1, Math.round(l.len / (C.cleatEvery || 0.5))); }
+    lines.push(l);
+  }
+  // all kinds merged into one geometry; aKind tags each kind's vertices (cached per level, shared by the zones)
+  function kindAtlas(level, names) {
+    var key = names.join('|'), A = level.atlas || (level.atlas = {});
+    if (!A[key]) {
+      var list = names.map(function (n, k) {
+        var g = IB.Assets.get(n).clone(), a = new Float32Array(g.attributes.position.count); a.fill(k);
+        g.setAttribute('aKind', new THREE.BufferAttribute(a, 1)); return g;
+      });
+      A[key] = list.length > 1 ? THREE.BufferGeometryUtils.mergeBufferGeometries(list, false) : list[0];
+    }
+    var src = A[key], g = new THREE.BufferGeometry();   // a zone's view of the atlas: shared buffers + its own iKind
+    g.setIndex(src.index);
+    Object.keys(src.attributes).forEach(function (a) { g.setAttribute(a, src.attributes[a]); });
+    return g;
+  }
+  // the kit's toon material, plus: an instance draws only the vertices of its own kind (iKind)
+  var lineMats = {};
+  function lineMat(fam) {
+    if (lineMats[fam]) return lineMats[fam];
+    var m = IB.Render.toonMaterial({ map: IB.Assets.palette[fam], baked: IB.Assets.BAKED[fam] !== undefined ? IB.Assets.BAKED[fam] : 0.02 });
+    var base = m.onBeforeCompile, key = m.customProgramCacheKey;
+    m.onBeforeCompile = function (sh) {
+      base(sh);
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aKind;\nattribute float iKind;\n')
+        .replace('#include <fog_vertex>', '#include <fog_vertex>\nif ( abs( aKind - iKind ) > 0.5 ) gl_Position = vec4( 0.0, 0.0, -2.0, 1.0 );');
+    };
+    m.customProgramCacheKey = function () { return key() + 'line'; };
+    return (lineMats[fam] = m);
+  }
+  function lineMesh(level, zone, names, count) {
+    var g = kindAtlas(level, names), kind = new THREE.InstancedBufferAttribute(new Float32Array(count), 1);
+    kind.setUsage(THREE.DynamicDrawUsage); g.setAttribute('iKind', kind);
+    var mesh = new THREE.InstancedMesh(g, lineMat(IB.Assets.family[names[0]]), count);
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); mesh.frustumCulled = false;
+    zone.group.add(mesh);
+    return { mesh: mesh, kind: kind, names: names };
+  }
+  function buildLines(level, zone) {
+    if (!zone.lines) return;
+    var syms = {};
+    zone.lines.forEach(function (l) { (syms[l.ch] || (syms[l.ch] = [])).push(l); });
+    zone.lineMeshes = [];
+    Object.keys(syms).forEach(function (ch) {
+      var L = syms[ch], names = [], count = 0;
+      L.forEach(function (l) { l.base = count; count += l.n; l.chains.forEach(function (c) { c.forEach(function (n) { if (names.indexOf(n) < 0) names.push(n); }); }); });
+      var M = lineMesh(level, zone, names, count);
+      L.forEach(function (l) { l.items = M; l.kinds = l.chains.map(function (c) { return c.map(function (n) { return names.indexOf(n); }); }); });
+      zone.lineMeshes.push(M);
+    });
+    var cl = zone.lines.filter(function (l) { return l.cleat; }), cnames = [], cc = 0;
+    cl.forEach(function (l) { l.cbase = cc; cc += l.cn; if (cnames.indexOf(l.cleat) < 0) cnames.push(l.cleat); });
+    if (cl.length) {
+      var CM = lineMesh(level, zone, cnames, cc);
+      cl.forEach(function (l) { l.cleats = CM; for (var j = 0; j < l.cn; j++) CM.kind.array[l.cbase + j] = cnames.indexOf(l.cleat); });
+      zone.lineMeshes.push(CM);
+    }
+    placeLines(zone, level.lineT || 0);
+  }
+  var _lp = { x: 0, z: 0, yaw: 0 }, _lm = new THREE.Matrix4(), _lq = new THREE.Quaternion(), _lv = new THREE.Vector3();
+  function linePos(l, t, out) {
+    var lx, lz = 0, yaw = l.yaw;
+    if (l.loop) {
+      var P = l.loop.pts, cum = l.loop.cum, i = 0;
+      while (i < P.length - 1 && cum[i + 1] < t) i++;
+      var a = P[i], b = P[(i + 1) % P.length], f = (t - cum[i]) / Math.max(1e-6, cum[i + 1] - cum[i]);
+      lx = a[0] + (b[0] - a[0]) * f; lz = a[1] + (b[1] - a[1]) * f;
+      yaw += Math.atan2(b[0] - a[0], b[1] - a[1]);   // models face +Z: turn them along the path
+    } else lx = l.dir * (t - l.half);
+    out.x = l.cx + lx * l.c + lz * l.s; out.z = l.cz - lx * l.s + lz * l.c; out.yaw = yaw;
+    return out;
+  }
+  function setInst(M, i, x, y, z, yaw) {
+    _lq.setFromAxisAngle(_up, yaw); _lv.set(x, y, z);
+    M.mesh.setMatrixAt(i, _lm.compose(_lv, _lq, _s1));
+  }
+  function placeLines(zone, T) {
+    zone.lines.forEach(function (l) {
+      var run = T * (l.C.speed || 0.6);
+      for (var i = 0; i < l.n; i++) {
+        var t = l.t0 + ((i * l.gap + run) % l.span), k = l.kinds[i], st = 0;
+        while (st < l.stations.length && l.stations[st] < t) st++;
+        linePos(l, t, _lp);
+        setInst(l.items, l.base + i, _lp.x, l.y, _lp.z, _lp.yaw);
+        l.items.kind.array[l.base + i] = k[Math.min(st, k.length - 1)];
+      }
+      if (l.cleats) for (var j = 0; j < l.cn; j++) {
+        linePos(l, (j * l.len / l.cn + run) % l.len, _lp);
+        setInst(l.cleats, l.cbase + j, _lp.x, l.C.cleatY !== undefined ? l.C.cleatY : l.y, _lp.z, _lp.yaw);
+      }
+    });
+    zone.lineMeshes.forEach(function (M) { M.mesh.instanceMatrix.needsUpdate = true; M.kind.needsUpdate = true; });
+  }
+  // once a frame (game.js): move the lines of the zones being drawn; carry a player standing on a line top
+  var _carry = [];
+  Z.updateLines = function (level, dt, player) {
+    if (!level) return;
+    level.lineT = (level.lineT || 0) + dt;
+    level.zones.forEach(function (zone) {
+      if (!zone.lineMeshes || !zone.group.visible) return;
+      placeLines(zone, level.lineT);
+      if (!player || !player.onGround || !dt) return;
+      zone.lines.forEach(function (l) {
+        var K = l.C.carry; if (!K || l.loop || Math.abs(player.y - K.top) > 0.05) return;
+        var dx = player.x - l.cx, dz = player.z - l.cz, lx = dx * l.c - dz * l.s, lz = dx * l.s + dz * l.c;
+        if (Math.abs(lx) > l.half || Math.abs(lz) > (K.width || 0.8) / 2) return;
+        var v = l.dir * (l.C.speed || 0.6) * dt, nx = player.x + v * l.c, nz = player.z - v * l.s, r = IB.MOVE.radius;
+        level.world.query(nx - r, nz - r, nx + r, nz + r, _carry);
+        for (var i = 0; i < _carry.length; i++) {   // never carry the player into a wall, a hood or a crate
+          var b = _carry[i];
+          if (b.y1 > player.y + 0.05 && b.y0 < player.y + IB.MOVE.height && nx + r > b.x0 && nx - r < b.x1 && nz + r > b.z0 && nz - r < b.z1) return;
+        }
+        player.x = nx; player.z = nz;
+      });
+    });
+  };
+  function buildSymbols(P, z, grid, theme, world, g, yb) {
+    yb = yb || 0;
+    if (!yb) buildWalls(P, z, grid, theme, world);
+    Object.keys(theme.symbols || {}).forEach(function (ch) {
+      var d = theme.symbols[ch];
+      if (d.deck) buildDeck(g, z, grid, world, ch, d, yb);
+      else if (d.size) buildPrefabs(P, z, grid, theme, world, ch, d, yb);
+      else buildCells(P, z, grid, theme, world, ch, d, yb);
+    });
+    // spawn cans (fps-common) are part of every theme
+    find(grid, 'S').forEach(function (p) {
+      var x = z.ox + p.c + 0.5, zz = z.oz + p.r + 0.5, y0 = baseY(world, yb, x, zz, 0.4, 0.4);
+      P.add(theme.spawn || 'SpawnCan', x, y0, zz, hash(p.c, p.r) * 6.28);
+      world.add(x - 0.4, y0, zz - 0.4, x + 0.4, y0 + 1.0, zz + 0.4, 'cover', z.idx);
+      z.spawns.push({ x: x, y: y0, z: zz });
+    });
+    ['a', 'h'].forEach(function (k) {
+      find(grid, k).forEach(function (s) { var x = z.ox + s.c + 0.5, zz = z.oz + s.r + 0.5; z.pickups.push({ kind: k === 'a' ? 'ammo' : 'health', x: x, y: baseY(world, yb, x, zz), z: zz }); });
+    });
+  }
+
+  // floor: flat colour plus optional painted lines (lot lines, planks, carpet tiles, lane marks);
+  // floor.trailLines (optional) replaces floor.lines on the trails and the exit waypath (e.g. boardwalk planks)
   function paintFloor(g, x0, z0, w, h, theme, isTrail) {
     var F = theme.floor || {};
     g.flat([[x0, z0], [x0 + w, z0], [x0 + w, z0 + h], [x0, z0 + h]], 0.004, col(isTrail && F.trail ? F.trail : F.color, '#E6DCC6'));
-    (F.lines || []).forEach(function (L) {
+    ((isTrail && F.trailLines) || F.lines || []).forEach(function (L) {
       var y = L.y || 0.008, c = col(L.color), half = (L.width || 0.04) / 2, every = L.every || 1;
       if (L.dir === 'x') for (var zz = z0 + every; zz < z0 + h - 0.01; zz += every) g.flat([[x0, zz - half], [x0 + w, zz - half], [x0 + w, zz + half], [x0, zz + half]], y, c);
       else for (var xx = x0 + every; xx < x0 + w - 0.01; xx += every) g.flat([[xx - half, z0], [xx + half, z0], [xx + half, z0 + h], [xx - half, z0 + h]], y, c);
@@ -518,13 +742,12 @@
     var idx = g.idx; for (var t = idx.length - 6; t < idx.length; t += 3) { var tmp = idx[t + 1]; idx[t + 1] = idx[t + 2]; idx[t + 2] = tmp; }
     if (C.light) {
       var ev = C.every || 4;
-      var clr = C.clear || '', rad = C.clearR || 2;
+      // light: one piece, or a list mixed per bay (e.g. roof bays with and without an overhead crane)
+      var clr = C.clear || '', rad = C.clearR || 2;   // keep fittings off walls and tall pieces (symbols within clearR cells)
       for (var lx = x0 + ev / 2; lx < x0 + w; lx += ev) for (var lz = z0 + ev / 2; lz < z0 + h; lz += ev) {
-        var ok = true;   // keep fittings off walls and tall pieces (C.clear: symbols within C.clearR cells)
-        if (grid && clr) for (var dr = -rad; dr <= rad && ok; dr++) for (var dc = -rad; dc <= rad && ok; dc++) {
-          if (clr.indexOf(grid.at(Math.floor(lx - x0) + dc, Math.floor(lz - z0) + dr)) >= 0) ok = false;
-        }
-        if (ok) P.add(C.light, lx, y, lz, 0);
+        var ok = true;
+        if (grid && clr) for (var dr = -rad; dr <= rad && ok; dr++) for (var dc = -rad; dc <= rad && ok; dc++) if (clr.indexOf(grid.at(Math.floor(lx - x0) + dc, Math.floor(lz - z0) + dr)) >= 0) ok = false;
+        if (ok) P.add(Array.isArray(C.light) ? pick(C.light, hash(Math.round(lx) * 7 + 3, Math.round(lz) * 11 + 5)) : C.light, lx, y, lz, 0);
       }
     }
   }
@@ -534,6 +757,10 @@
   function makeGate(P, cx, cz, width, theme, zoneIdx, world, kind) {
     var GT = theme.gate || {};
     P.add(GT.frame || 'GateFrame', cx, 0, cz, 0);
+    (GT.dress || []).forEach(function (n) { P.add(n, cx, 0, cz, 0); });   // extra pieces dressing the frame
+    // a frame that stands proud of the wall (a built-in, a portal) brings its own collision boxes
+    var fcols = colsOf(IB.themePiece(theme, GT.frame || 'GateFrame'));
+    if (fcols) addCols(world, fcols, cx, cz, 0, 'wall', zoneIdx);
     var sname = IB.themePiece(theme, GT.shutter || 'GateShutter');
     var shutter = new THREE.Mesh(IB.Assets.get(sname), IB.Assets.material(sname));
     shutter.scale.x = width / 3;
@@ -545,11 +772,13 @@
   Z.setGate = function (gate, open, instant) {
     gate.target = open ? 1 : 0;
     gate.speed = open ? 1 / 1.2 : 1 / 0.6;
-    if (instant) gate.open = gate.target;
+    if (instant) { gate.open = gate.target; gate.was = gate.open; }
     Z.applyGate(gate);
   };
   Z.applyGate = function (gate) {
     var o = gate.open;
+    if (o <= 0 && gate.target === 0 && gate.was > 0 && IB.Boom) IB.Boom.gateSlam(gate);   // shutter hits the floor: dust, chips, CLANG!
+    gate.was = o;
     gate.shutter.scale.y = Math.max(0.02, 1 - o);
     gate.shutter.position.y = o * (gate.h || 3.05);
     gate.shutter.visible = o < 0.98;
@@ -558,6 +787,11 @@
 
   // ---------------- trail ----------------
   var DULL = new THREE.Color(0xE9DFC8), TEAL = new THREE.Color(PAL.teal);
+  // trail.variants (optional): modules mixed in per slot with trail.wall, so a long run never repeats one slice
+  function trailPiece(T, k, side) {
+    var W = T.wall || 'TrailWall';
+    return T.variants && T.variants.length ? pick([W].concat(T.variants), hash(k * 7 + 3, side * 13 + 101)) : W;
+  }
   function buildTrail(level, from, to, theme, world, idx) {
     var g = new IB.Geo(), P = new Parts(theme), T = theme.trail || {};
     var x = from.x, z0 = from.z, z1 = to.z, w = 3, len = z0 - z1, wallH = T.height || 2.6;
@@ -565,7 +799,7 @@
     addCeiling(g, P, x - w / 2 - 1, z1, w + 2, len, theme);
     [-1, 1].forEach(function (sgn) {
       var wx = x + sgn * (w / 2 + 0.75);
-      for (var k = 0; k < len; k++) P.add(T.wall || 'TrailWall', wx, 0, z1 + k + 0.5, sgn > 0 ? Math.PI : 0);
+      for (var k = 0; k < len; k++) P.add(trailPiece(T, Math.round(z1 + k) * 3 + idx * 31, sgn), wx, 0, z1 + k + 0.5, sgn > 0 ? Math.PI : 0);
       world.add(wx - 0.25, 0, z1, wx + 0.25, wallH, z0, 'wall', idx);
     });
     var grp = new THREE.Group();
@@ -592,125 +826,173 @@
     colA.needsUpdate = true; trail.lit = n;
   };
 
-  // ---------------- nav grid / flow field (2.5D) ----------------
-  /* Each 0.5 m nav cell holds one node per walkable surface in it: the ground (or terrain) and the tops of boxes
-     (decks, stairs, branch steps, cab floors). A node is open when a robot body (1.2 m) fits on it: nothing in its
-     footprint between the surface + its step limit and 1.2 m above it. Robots step up 0.34 m onto anything and up to
-     CLIMB onto 'step' boxes (stairs, escalators, broken branches), and drop down up to DROP. The flow field is a BFS
-     over these nodes from the player's node, so robots follow stairs and branches up to a player on a mezzanine or a
-     tree platform. Gates never block (they are open or the zone is sealed anyway). */
-  var CLIMB = 0.6, LOWSTEP = 0.34, DROP = 2.2, BODY = 1.2;
-  Z.CLIMB = CLIMB; Z.LOWSTEP = LOWSTEP;
-  Z.stepLimit = function (b) { return b.kind === 'step' || b.kind === 'deck' ? CLIMB : LOWSTEP; };
+  // ---------------- nav grid / flow field ----------------
   function buildNav(zone, world) {
-    var nx = Math.ceil(zone.w / NAV), nz = Math.ceil(zone.h / NAV), NC = nx * nz;
-    var start = new Int32Array(NC + 1), hs = [], tmp = [], tmp2 = [], cand = [];
+    var nx = Math.ceil(zone.w / NAV), nz = Math.ceil(zone.h / NAV);
+    if (zone.terrain) return buildNavLayered(zone, world, nx, nz);   // bumpy ground: every cell has its own height
+    for (var w = 0; w < world.boxes.length; w++) if (world.boxes[w].walk && world.boxes[w].zone === zone.idx) return buildNavLayered(zone, world, nx, nz);
+    var blocked = new Uint8Array(nx * nz), tmp = [];
     for (var j = 0; j < nz; j++) for (var i = 0; i < nx; i++) {
-      var c = j * nx + i, x = zone.ox + (i + 0.5) * NAV, z = zone.oz + (j + 0.5) * NAV, inf = 0.3;
-      start[c] = hs.length;
-      if (i === 0 || j === 0 || i === nx - 1 || j === nz - 1) continue;
-      var g0 = world.groundAt(x, z);
-      cand.length = 0; cand.push(g0);
-      world.query(x - 0.01, z - 0.01, x + 0.01, z + 0.01, tmp);
-      var k, b;
-      for (k = 0; k < tmp.length; k++) { b = tmp[k]; if (b.kind === 'gate') continue; if (x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1 && b.y1 > g0 + 0.05) cand.push(b.y1); }
-      cand.sort(function (p, q) { return p - q; });
-      world.query(x - inf, z - inf, x + inf, z + inf, tmp2);
-      var last = -1e9;
-      for (var ci = 0; ci < cand.length; ci++) {
-        var h = cand[ci]; if (h - last < 0.08) continue;
-        var ok = true;
-        for (k = 0; k < tmp.length && ok; k++) { b = tmp[k]; if (b.kind !== 'gate' && x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1 && b.y0 <= h + 0.01 && b.y1 > h + 0.05) ok = false; }   // under / inside a box
-        for (k = 0; k < tmp2.length && ok; k++) {
-          b = tmp2[k]; if (b.kind === 'gate') continue;
-          if (x + inf > b.x0 && x - inf < b.x1 && z + inf > b.z0 && z - inf < b.z1 && b.y0 < h + BODY && b.y1 > h + Z.stepLimit(b) + 0.01) ok = false;
+      var x = zone.ox + (i + 0.5) * NAV, z = zone.oz + (j + 0.5) * NAV, inf = 0.3;
+      world.query(x - inf, z - inf, x + inf, z + inf, tmp);
+      for (var k = 0; k < tmp.length; k++) {
+        var b = tmp[k]; if (b.y1 < 0.35 || b.y0 > 1.2 || b.kind === 'gate') continue;   // walk under raised boxes (desks, beds)
+        if (x + inf > b.x0 && x - inf < b.x1 && z + inf > b.z0 && z - inf < b.z1) { blocked[j * nx + i] = 1; break; }
+      }
+      if (i === 0 || j === 0 || i === nx - 1 || j === nz - 1) blocked[j * nx + i] = 1;
+    }
+    zone.nav = { nx: nx, nz: nz, blocked: blocked, dist: new Int16Array(nx * nz), queue: new Int32Array(nx * nz), t: 0 };
+  }
+  /* Zones with walkable boxes: two nav layers. Node n = layer * nx * nz + cell; nav.h[n] = surface height.
+     Per cell the walkable boxes holding the cell centre are stacked bottom-up: a box that starts on (or within 0.35 m
+     of) a surface raises it (stair steps, a solid platform), a box floating higher starts a new surface (a deck with
+     open ground under it). A surface is open when nothing but the gate blocks the robot's body there (0.3 m around
+     the centre, from step height to 1.2 m above it; walkable boxes a step up or less never block). Layer 0 = the
+     lowest open surface, layer 1 = the next one at least 1.2 m higher. Layer 0 matches the single-layer grid wherever
+     no walkable box is near, so canister / pickup placement (ground cells, nav.h = 0) works as before. */
+  function buildNavLayered(zone, world, nx, nz) {
+    var NL = NAV_LAYERS, NC = nx * nz, blocked = new Uint8Array(NC * NL), hgt = new Float32Array(NC * NL), tmp = [], surf = [], wb = [];
+    blocked.fill(1);
+    for (var j = 1; j < nz - 1; j++) for (var i = 1; i < nx - 1; i++) {
+      var c = j * nx + i, x = zone.ox + (i + 0.5) * NAV, z = zone.oz + (j + 0.5) * NAV, inf = 0.3, k, b, s;
+      world.query(x - inf, z - inf, x + inf, z + inf, tmp);
+      wb.length = 0;
+      for (k = 0; k < tmp.length; k++) { b = tmp[k]; if (b.walk && x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1) wb.push(b); }
+      wb.sort(function (p, q) { return p.y0 - q.y0; });
+      surf.length = 0; surf.push(world.groundAt(x, z));
+      for (k = 0; k < wb.length; k++) {
+        b = wb[k];
+        var on = -1;
+        for (s = 0; s < surf.length; s++) if (b.y0 <= surf[s] + 0.35 && b.y1 > surf[s]) on = s;
+        if (on >= 0) surf[on] = Math.max(surf[on], b.y1); else if (b.y1 > surf[surf.length - 1]) surf.push(b.y1);
+      }
+      var L = 0, last = -9;
+      for (s = 0; s < surf.length && L < NL; s++) {
+        var h = surf[s], open = h - last >= 1.2;
+        for (k = 0; k < tmp.length && open; k++) {
+          b = tmp[k];
+          if (b.kind === 'gate' || b.y1 < h + 0.35 || b.y0 > h + 1.2 || (b.walk && b.y1 <= h + NAV_STEP)) continue;
+          if (x + inf > b.x0 && x - inf < b.x1 && z + inf > b.z0 && z - inf < b.z1) open = false;
         }
-        if (ok) { hs.push(h); last = h; }
+        if (!open) continue;
+        blocked[L * NC + c] = 0; hgt[L * NC + c] = h; last = h; L++;
       }
     }
-    start[NC] = hs.length;
-    var N = hs.length;
-    zone.nav = { nx: nx, nz: nz, start: start, h: Float32Array.from(hs), dist: new Int16Array(N), queue: new Int32Array(N), cellOf: new Int32Array(N), t: 0 };
-    for (var cc = 0; cc < NC; cc++) for (var n = start[cc]; n < start[cc + 1]; n++) zone.nav.cellOf[n] = cc;
+    zone.nav = { nx: nx, nz: nz, layers: NL, blocked: blocked, h: hgt, dist: new Int16Array(NC * NL), queue: new Int32Array(NC * NL), t: 0 };
   }
   Z.navCell = function (zone, x, z) {
     var i = Math.floor((x - zone.ox) / NAV), j = Math.floor((z - zone.oz) / NAV);
     if (i < 0 || j < 0 || i >= zone.nav.nx || j >= zone.nav.nz) return -1;
     return j * zone.nav.nx + i;
   };
-  // the node a body with feet at y stands on in cell c: the highest surface not above y + CLIMB, else the nearest one
-  function nodeIn(N, c, y) {
-    var best = -1, bh = -1e9, near = -1, nd = 1e9;
-    for (var n = N.start[c]; n < N.start[c + 1]; n++) {
-      var h = N.h[n];
-      if (h <= y + CLIMB + 0.05 && h > bh) { bh = h; best = n; }
-      var d = Math.abs(h - y); if (d < nd) { nd = d; near = n; }
-    }
-    return best >= 0 ? best : near;
+  // layered nav: the open node of cell c whose surface is nearest to height y (within maxDy), or -1
+  function nodeAt(N, c, y, maxDy) {
+    var NC = N.nx * N.nz, best = -1, bd = maxDy;
+    for (var L = 0; L < N.layers; L++) { var n = L * NC + c; if (N.blocked[n]) continue; var d = Math.abs(N.h[n] - y); if (d < bd) { bd = d; best = n; } }
+    return best;
   }
-  Z.navNode = function (zone, x, y, z) { var c = Z.navCell(zone, x, z); return c < 0 ? -1 : nodeIn(zone.nav, c, y === undefined ? 0 : y); };
-  // a body on node a may move to a neighbouring node of height hb
-  function canMove(ha, hb) { return hb - ha <= CLIMB + 0.01 && ha - hb <= DROP; }
-  Z.flowField = function (zone, tx, ty, tz) {
-    if (tz === undefined) { tz = ty; ty = 0; }
-    var N = zone.nav, d = N.dist, q = N.queue, nx = N.nx, nz = N.nz;
+  // the open node of cell c that a robot standing at height y can step to (|dh| <= NAV_STEP), or -1
+  function stepNode(N, c, y) {
+    var NC = N.nx * N.nz;
+    for (var L = 0; L < N.layers; L++) { var n = L * NC + c; if (!N.blocked[n] && Math.abs(N.h[n] - y) <= NAV_STEP) return n; }
+    return -1;
+  }
+  Z.navNode = function (zone, x, z, y) { var c = Z.navCell(zone, x, z); return c < 0 ? -1 : zone.nav.layers ? nodeAt(zone.nav, c, y || 0, 1.0) : (zone.nav.blocked[c] ? -1 : c); };
+  function flowFieldLayered(zone, tx, tz, ty) {
+    var N = zone.nav, d = N.dist, q = N.queue, nx = N.nx, nz = N.nz, NC = nx * nz;
     d.fill(32767);
-    var c = Z.navCell(zone, tx, tz); if (c < 0) return;
-    var s = N.start[c] < N.start[c + 1] ? nodeIn(N, c, ty) : -1;
-    if (s < 0 || Math.abs(N.h[s] - ty) > 1.6) {   // nearest open node around the target at about its height
-      var bd = 1e9, si = c % nx, sj = (c / nx) | 0; s = -1;
-      for (var r = 1; r < 7 && s < 0; r++) for (var dj = -r; dj <= r; dj++) for (var di = -r; di <= r; di++) {
+    var c0 = Z.navCell(zone, tx, tz);
+    if (c0 < 0) return;
+    var s = nodeAt(N, c0, ty, 1.0);
+    if (s < 0) {   // nearest open node on the target's level
+      var bd = 1e9, si = c0 % nx, sj = (c0 / nx) | 0;
+      for (var r = 1; r < 6 && s < 0; r++) for (var dj = -r; dj <= r; dj++) for (var di = -r; di <= r; di++) {
         var ii = si + di, jj = sj + dj; if (ii < 0 || jj < 0 || ii >= nx || jj >= nz) continue;
-        var cc = jj * nx + ii;
-        for (var n = N.start[cc]; n < N.start[cc + 1]; n++) { var sc = di * di + dj * dj + Math.abs(N.h[n] - ty) * 4; if (Math.abs(N.h[n] - ty) < 1.6 && sc < bd) { bd = sc; s = n; } }
+        var n = nodeAt(N, jj * nx + ii, ty, 1.0); if (n >= 0 && di * di + dj * dj < bd) { bd = di * di + dj * dj; s = n; }
       }
       if (s < 0) return;
     }
-    var hd = 0, tl = 0; q[tl++] = s; d[s] = 0;
-    while (hd < tl) {
-      var cur = q[hd++], cell = N.cellOf[cur], ci = cell % nx, cj = (cell / nx) | 0, cd = d[cur] + 1, hcur = N.h[cur];
-      for (var k = 0; k < 4; k++) {
-        var ni = ci + (k === 0 ? -1 : k === 1 ? 1 : 0), nj = cj + (k === 2 ? -1 : k === 3 ? 1 : 0);
+    var h = 0, t = 0; q[t++] = s; d[s] = 0;
+    while (h < t) {
+      var cur = q[h++], cc = cur % NC, ci = cc % nx, cj = (cc / nx) | 0, cd = d[cur] + 1, ch = N.h[cur];
+      for (var e = 0; e < 4; e++) {
+        var ni = ci + (e === 0 ? -1 : e === 1 ? 1 : 0), nj = cj + (e === 2 ? -1 : e === 3 ? 1 : 0);
         if (ni < 0 || nj < 0 || ni >= nx || nj >= nz) continue;
-        var nc = nj * nx + ni;
-        for (var m = N.start[nc]; m < N.start[nc + 1]; m++) if (d[m] > cd && canMove(N.h[m], hcur)) { d[m] = cd; q[tl++] = m; }
+        var m = stepNode(N, nj * nx + ni, ch);
+        if (m >= 0 && d[m] > cd) { d[m] = cd; q[t++] = m; }
       }
     }
-  };
-  // direction toward the target along the flow field for a body with feet at y (writes into out {x,z}); false if none
-  Z.flowDir = function (zone, x, y, z, out) {
-    if (out === undefined) { out = z; z = y; y = 0; }
-    var N = zone.nav, c = Z.navCell(zone, x, z);
-    if (c < 0 || N.start[c] === N.start[c + 1]) return false;
-    var a = nodeIn(N, c, y), ha = N.h[a];
-    if (N.dist[a] >= 32767) return false;
-    var nx = N.nx, ci = c % nx, cj = (c / nx) | 0, best = N.dist[a], bi = -1, bj = -1;
-    function step(ii, jj) {   // best reachable node in a neighbouring cell, or -1
-      if (ii < 0 || jj < 0 || ii >= nx || jj >= N.nz) return -1;
-      var cc = jj * nx + ii, bn = -1;
-      for (var m = N.start[cc]; m < N.start[cc + 1]; m++) if (canMove(ha, N.h[m]) && (bn < 0 || N.dist[m] < N.dist[bn])) bn = m;
-      return bn;
+  }
+  // ty: the target's height (layered zones only; single-layer grids ignore it)
+  Z.flowField = function (zone, tx, tz, ty) {
+    if (zone.nav.layers) return flowFieldLayered(zone, tx, tz, ty || 0);
+    var N = zone.nav, d = N.dist, q = N.queue, nx = N.nx, nz = N.nz;
+    d.fill(32767);
+    var s = Z.navCell(zone, tx, tz);
+    if (s < 0) return;
+    if (N.blocked[s]) { // nearest open cell
+      var best = -1, bd = 1e9, si = s % nx, sj = (s / nx) | 0;
+      for (var r = 1; r < 6 && best < 0; r++) for (var dj = -r; dj <= r; dj++) for (var di = -r; di <= r; di++) {
+        var ii = si + di, jj = sj + dj; if (ii < 0 || jj < 0 || ii >= nx || jj >= nz) continue;
+        var c = jj * nx + ii; if (!N.blocked[c] && di * di + dj * dj < bd) { bd = di * di + dj * dj; best = c; }
+      }
+      if (best < 0) return; s = best;
     }
+    var h = 0, t = 0; q[t++] = s; d[s] = 0;
+    while (h < t) {
+      var cur = q[h++], ci = cur % nx, cj = (cur / nx) | 0, cd = d[cur] + 1;
+      if (ci > 0 && !N.blocked[cur - 1] && d[cur - 1] > cd) { d[cur - 1] = cd; q[t++] = cur - 1; }
+      if (ci < nx - 1 && !N.blocked[cur + 1] && d[cur + 1] > cd) { d[cur + 1] = cd; q[t++] = cur + 1; }
+      if (cj > 0 && !N.blocked[cur - nx] && d[cur - nx] > cd) { d[cur - nx] = cd; q[t++] = cur - nx; }
+      if (cj < nz - 1 && !N.blocked[cur + nx] && d[cur + nx] > cd) { d[cur + nx] = cd; q[t++] = cur + nx; }
+    }
+  };
+  // layered flow direction for a robot standing at height y: the step-reachable neighbour node with the least
+  // distance (a robot on a blocked node, e.g. brushing a rail, still finds its way out)
+  function flowDirLayered(zone, x, z, y, out) {
+    var N = zone.nav, c = Z.navCell(zone, x, z);
+    if (c < 0) return false;
+    var nx = N.nx, ci = c % nx, cj = (c / nx) | 0, me = stepNode(N, c, y), hy = me >= 0 ? N.h[me] : y;
+    var best = me >= 0 ? N.dist[me] : 32767, bi = -1, bj = -1;
     for (var dj = -1; dj <= 1; dj++) for (var di = -1; di <= 1; di++) {
       if (!di && !dj) continue;
-      var m = step(ci + di, cj + dj); if (m < 0) continue;
-      if (di && dj && (step(ci + di, cj) < 0 || step(ci, cj + dj) < 0)) continue;   // no corner cutting
-      var v = N.dist[m] + ((di && dj) ? 0.4 : 0);
-      if (v < best) { best = v; bi = ci + di; bj = cj + dj; }
+      var ii = ci + di, jj = cj + dj; if (ii < 0 || jj < 0 || ii >= nx || jj >= N.nz) continue;
+      var k = stepNode(N, jj * nx + ii, hy); if (k < 0) continue;
+      if (di && dj && (stepNode(N, cj * nx + ii, hy) < 0 || stepNode(N, jj * nx + ci, hy) < 0)) continue; // no corner cutting
+      var v = N.dist[k] + ((di && dj) ? 0.4 : 0);
+      if (v < best) { best = v; bi = ii; bj = jj; }
+    }
+    if (bi < 0) return false;
+    out.x = zone.ox + (bi + 0.5) * NAV - x; out.z = zone.oz + (bj + 0.5) * NAV - z;
+    var L = Math.hypot(out.x, out.z) || 1; out.x /= L; out.z /= L;
+    return true;
+  }
+  // direction toward target along the flow field (writes into out {x,z}); returns false if none.
+  // y: the robot's floor height (layered zones only; single-layer grids ignore it)
+  Z.flowDir = function (zone, x, z, out, y) {
+    var N = zone.nav;
+    if (N.layers) return flowDirLayered(zone, x, z, y || 0, out);
+    var c = Z.navCell(zone, x, z);
+    if (c < 0) return false;
+    var nx = N.nx, ci = c % nx, cj = (c / nx) | 0, best = N.dist[c], bi = -1, bj = -1;
+    for (var dj = -1; dj <= 1; dj++) for (var di = -1; di <= 1; di++) {
+      if (!di && !dj) continue;
+      var ii = ci + di, jj = cj + dj; if (ii < 0 || jj < 0 || ii >= nx || jj >= N.nz) continue;
+      var k = jj * nx + ii; if (N.blocked[k]) continue;
+      if (di && dj && (N.blocked[cj * nx + ii] || N.blocked[jj * nx + ci])) continue; // no corner cutting
+      var v = N.dist[k] + ((di && dj) ? 0.4 : 0);
+      if (v < best) { best = v; bi = ii; bj = jj; }
     }
     if (bi < 0) return false;
     out.x = zone.ox + (bi + 0.5) * NAV - x; out.z = zone.oz + (bj + 0.5) * NAV - z;
     var L = Math.hypot(out.x, out.z) || 1; out.x /= L; out.z /= L;
     return true;
   };
-  // open ground (or, with y, an open surface near that height) at (x, z)
-  Z.isOpen = function (zone, x, z, y) {
-    var c = Z.navCell(zone, x, z); if (c < 0) return false;
-    var N = zone.nav, want = y === undefined ? (zone.world ? zone.world.groundAt(x, z) : 0) : y, tol = y === undefined ? 0.1 : 0.4;
-    for (var n = N.start[c]; n < N.start[c + 1]; n++) if (Math.abs(N.h[n] - want) < tol) return true;
-    return false;
-  };
-  Z.surfaceAt = function (zone, x, z, y) { var n = Z.navNode(zone, x, y, z); return n < 0 ? null : zone.nav.h[n]; };
+  // open ground (in layered zones: layer 0 at ground level, not a stair step or a platform top)
+  Z.isOpen = function (zone, x, z) { var c = Z.navCell(zone, x, z); return c >= 0 && !zone.nav.blocked[c] && (!zone.nav.h || zone.nav.h[c] - (zone.world ? zone.world.groundAt(x, z) : 0) < 0.05); };
+  // floor height under (x, z) at or below y in the current level (0 without walkable surfaces); used by effects
+  Z.floorY = function (x, z, y) { return Z.world ? Z.world.floorAt(x, z, y === undefined ? 1e9 : y) : 0; };
+  Z.NAV_STEP = NAV_STEP;
 
   // ---------------- terrain (bumpy ground) ----------------
   /* theme.terrain = { height(c, r, zoneIdx) -> m (cell-corner coords), flat: 'symbols kept level', ramp: [a, b] cells,
@@ -761,6 +1043,7 @@
   Z.buildLevel = function (plan, scene) {
     if (!Z.mat) Z.mat = IB.Render.toonMaterial({});
     var world = new World(), theme = themeOf(plan);
+    Z.world = world;   // floor queries for effects (Z.floorY)
     var level = { world: world, zones: [], trails: [], plan: plan, root: new THREE.Group(), theme: theme, tris: 0, elevators: [] };
     scene.add(level.root);
     var prevExit = null;
@@ -791,6 +1074,7 @@
       zone.ground = new THREE.Mesh(g.build(), Z.mat);
       zone.group.add(zone.ground);
       zone.meshes = meshesFor(P, zone.group);
+      buildLines(level, zone);   // moving lines (conveyor symbols): instanced items + belt cleats
       zone.tris = zone.meshes.reduce(function (t, m) { return t + m.geometry.index.count / 3; }, 0);
       level.tris += zone.tris;
       if (zone.entryGate) zone.group.add(zone.entryGate.group);
@@ -824,8 +1108,10 @@
     var hz = exit.z - WAY - 1.5, g = new IB.Geo(), P = new Parts(theme);
     paintFloor(g, exit.x - 3, hz - 2.5, 6, exit.z - WAY - (hz - 2.5), theme, true);
     addCeiling(g, P, exit.x - 3.5, hz - 3.5, 7, exit.z - WAY - (hz - 3.5), theme);
-    for (var k = 0; k < 6; k++) P.add(T.wall || 'TrailWall', exit.x - 2.5 + k, 0, hz - 2.95, Math.PI / 2);
-    for (k = 0; k < 5; k++) { P.add(T.wall || 'TrailWall', exit.x - 3.0, 0, hz - 2 + k, 0); P.add(T.wall || 'TrailWall', exit.x + 3.0, 0, hz - 2 + k, Math.PI); }
+    // back wall: the module's trail face (+X) turned toward the hatch room (south), lifted 5 mm so its trims never
+    // share a plane with the side walls' where they cross in the corners
+    for (var k = 0; k < 6; k++) P.add(T.end || trailPiece(T, k * 5 + 900, 2), exit.x - 2.5 + k, T.endLift !== undefined ? T.endLift : 0.005, hz - 2.95, T.endYaw !== undefined ? T.endYaw : -Math.PI / 2);
+    for (k = 0; k < 5; k++) { P.add(trailPiece(T, k + 950, -1), exit.x - 3.0, 0, hz - 2 + k, 0); P.add(trailPiece(T, k + 950, 1), exit.x + 3.0, 0, hz - 2 + k, Math.PI); }
     world.add(exit.x - 3.25, 0, hz - 3.2, exit.x + 3.25, wallH, hz - 2.7, 'wall', -1);
     world.add(exit.x - 3.25, 0, hz - 2.75, exit.x - 2.75, wallH, hz + 2.75, 'wall', -1);
     world.add(exit.x + 2.75, 0, hz - 2.75, exit.x + 3.25, wallH, hz + 2.75, 'wall', -1);
@@ -835,16 +1121,183 @@
     return { trail: tr, hatch: { group: grp, x: exit.x, z: hz, r: 1.2, z0: exit.z } };
   };
 
-  // backdrop beyond the playable area (printed, fogged): rings of theme/common pieces; outlined puff clouds outdoors
+  // A city far below a high-rise level (theme.below): the street grid sits `depth` metres down. Built in code as one
+  // vertex-coloured mesh; the haze is baked per vertex by depth (aerial perspective), so looking down out of the windows
+  // shows streets, rooftops and water tanks fading into the haze instead of a flat fog wall. Contents:
+  //   * this tower's own curtain wall running down from the floor slab
+  //   * tall shafts under the skyline rows (the printed skyline pieces stop at z = -25)
+  //   * a block grid of mid and low buildings with banded window floors, parapets, water tanks and roof boxes
+  //   * streets, avenues with lane marks, and a park block or two
+  function buildCityBelow(level, theme, cz, rad, ring) {
+    var C = theme.below, D = C.depth || 170;
+    var pos = [], colr = [], win = [], fac = [], edge = [], idx = [];
+    // fac: (u along the face in m, floor height in m (0 = plain), light factor); win: window colour
+    // edge: (u, v, width, height) of the quad in metres, so the shader can ink every outer edge at a constant
+    // screen width (the comic outline the rest of the game has); width < 0 = no outline (streets, lane marks)
+    var NOWIN = new THREE.Color(0, 0, 0);
+    function quad(a, b, c2, d, c, w, fh, k, ua, ub, noInk) {
+      var n = pos.length / 3, U = [ua || 0, ub || 0, ub || 0, ua || 0];
+      var Lu = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]), Lv = Math.hypot(d[0] - a[0], d[1] - a[1], d[2] - a[2]);
+      var E = [[0, 0], [Lu, 0], [Lu, Lv], [0, Lv]];
+      [a, b, c2, d].forEach(function (p, i) {
+        pos.push(p[0], p[1], p[2]); colr.push(c.r, c.g, c.b); var ww = w || NOWIN; win.push(ww.r, ww.g, ww.b); fac.push(U[i], fh || 0, k);
+        edge.push(E[i][0], E[i][1], noInk ? -1 : Lu, Lv);
+      });
+      idx.push(n, n + 1, n + 2, n, n + 2, n + 3);
+    }
+    var LIGHT = [0.86, 0.72, 0.96, 0.64];       // +x, -x, +z, -z (low southern sun)
+    var INK = col('#2A2735'), ROOF = col(C.roof || '#8C8A93');
+    // box walls (no bottom) with an optional window grid drawn by the shader; roof cap + dark parapet rim
+    function tower(x0, z0, x1, z1, y0, y1, base, winC, fh, roof) {
+      var faces = [[[x1, z1], [x1, z0], 0], [[x0, z0], [x0, z1], 1], [[x0, z1], [x1, z1], 2], [[x1, z0], [x0, z0], 3]];
+      faces.forEach(function (F) {
+        var a = F[0], b = F[1], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        quad([a[0], y0, a[1]], [b[0], y0, b[1]], [b[0], y1, b[1]], [a[0], y1, a[1]], base, winC, fh, LIGHT[F[2]], 0, L);
+      });
+      if (roof === false) return;
+      var rc = roof || ROOF, r = Math.min(0.6, (x1 - x0) * 0.08), y = y1 + 0.03;
+      quad([x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0], rc, null, 0, 1);
+      quad([x0, y, z1], [x1, y, z1], [x1, y, z1 - r], [x0, y, z1 - r], INK, null, 0, 1, 0, 0, true);
+      quad([x0, y, z0 + r], [x1, y, z0 + r], [x1, y, z0], [x0, y, z0], INK, null, 0, 1, 0, 0, true);
+      quad([x0, y, z1], [x0 + r, y, z1], [x0 + r, y, z0], [x0, y, z0], INK, null, 0, 1, 0, 0, true);
+      quad([x1 - r, y, z1], [x1, y, z1], [x1, y, z0], [x1 - r, y, z0], INK, null, 0, 1, 0, 0, true);
+    }
+    function tank(x, z, y, s) {                 // rooftop water tank: legs, barrel, cone roof (octagon)
+      var seg = 8, r = 1.3 * s, h = 2.6 * s, yb = y + 1.6 * s, wood = col('#9A6B4A'), cone = col('#6E4B38');
+      tower(x - 0.9 * s, z - 0.9 * s, x + 0.9 * s, z + 0.9 * s, y, yb, col('#3B3545'), null, 0, false);
+      for (var i = 0; i < seg; i++) {
+        var a0 = i / seg * 6.283, a1 = (i + 1) / seg * 6.283, k = 0.72 + 0.28 * Math.cos(a0 - 0.8);
+        var p0 = [x + Math.cos(a0) * r, z + Math.sin(a0) * r], p1 = [x + Math.cos(a1) * r, z + Math.sin(a1) * r];
+        quad([p1[0], yb, p1[1]], [p0[0], yb, p0[1]], [p0[0], yb + h, p0[1]], [p1[0], yb + h, p1[1]], wood, null, 0, k);
+        var n = pos.length / 3; pos.push(p1[0], yb + h, p1[1], p0[0], yb + h, p0[1], x, yb + h + r * 0.8, z);
+        for (var j = 0; j < 3; j++) { colr.push(cone.r, cone.g, cone.b); win.push(0, 0, 0); fac.push(0, 0, k); edge.push(0, 0, -1, 0); }
+        idx.push(n, n + 1, n + 2);
+      }
+    }
+    function ground(x0, z0, x1, z1, y, c, ink) { quad([x0, y, z1], [x1, y, z1], [x1, y, z0], [x0, y, z0], c, null, 0, 1, 0, 0, !ink); }
+    // level footprint (our tower)
+    var minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9;
+    level.zones.forEach(function (z) { minX = Math.min(minX, z.ox); maxX = Math.max(maxX, z.ox + z.w); minZ = Math.min(minZ, z.oz); maxZ = Math.max(maxZ, z.oz + z.h); });
+    var hz = level.hatch ? level.hatch.z : minZ;
+    minZ = Math.min(minZ, hz - 6);
+    minX -= 0.6; maxX += 0.6; minZ -= 4; maxZ += 4;
+    var Y0 = -D, facade = col('#7E93AA'), glass = col(C.glass || '#5F7FA2'), setback = col('#6C7F95');
+    // the tower: each zone is a wing with its own curtain wall down to the street; between wings (where the trail
+    // corridors run) a lower set-back block with a roof 4 m down, so every floor plate stands on a building
+    var wings = level.zones.map(function (z) { return [z.ox - 0.6, z.oz - 0.3, z.ox + z.w + 0.6, z.oz + z.h + 0.3]; });
+    wings.forEach(function (w) { tower(w[0], w[1], w[2], w[3], Y0, -0.06, facade, glass, 4, false); });
+    for (var wi = 0; wi < wings.length; wi++) {
+      var lo = wings[wi], next = wings[wi + 1];
+      var gz0 = next ? next[3] : minZ, gz1 = lo[1];
+      if (gz1 - gz0 < 0.2) continue;
+      var gx0 = Math.max(lo[0], next ? next[0] : lo[0]) + 3, gx1 = Math.min(lo[2], next ? next[2] : lo[2]) - 3;
+      tower(gx0, gz0, gx1, gz1, Y0, -4, setback, glass, 4, col('#9AA3AE'));
+    }
+    // skyline rows: shafts carry the printed skyline down to the street (its pieces stop at z = -25). They start
+    // just behind the skyline's front blocks (6 m back) and run under its mid and far towers (to ~58 m back), stopping
+    // under its base; the dark roofs only show in the gaps between skyline blocks.
+    var RR = rad - 70 + (ring ? ring.radius[0] : 52), X = RR * (ring ? ring.squeezeX || 0.6 : 0.6);
+    var keep = [[minX - 7, minZ - 7, maxX + 7, maxZ + 7]];
+    function used(x0, z0, x1, z1) { for (var i = 0; i < keep.length; i++) { var k = keep[i]; if (x0 < k[2] && x1 > k[0] && z0 < k[3] && z1 > k[1]) return true; } return false; }
+    // one shaft under every skyline building (theme.below.skyline mirrors the blocks in fam_kit_office.py:
+    // [x, front depth, width, depth, colour]); the gaps between them look down into the streets
+    var SK = C.skyline || [], _c = new THREE.Vector3();
+    if (ring) for (var ri = 0; ri < ring.count; ri++) {
+      var an = ri / ring.count * Math.PI * 2, px = Math.cos(an) * RR * (ring.squeezeX || 0.6), pz = cz + Math.sin(an) * RR;
+      var pm = M(px, 0, pz, Math.atan2(-px, -(pz - cz)));
+      SK.forEach(function (bk, j) {
+        var lx0 = bk[0] - bk[2] / 2 + 0.4, lx1 = bk[0] + bk[2] / 2 - 0.4, ly0 = bk[1] + 0.4, ly1 = bk[1] + bk[3] - 0.4;
+        var ax0 = 1e9, ax1 = -1e9, az0 = 1e9, az1 = -1e9;
+        [[lx0, ly0], [lx1, ly0], [lx0, ly1], [lx1, ly1]].forEach(function (q) {
+          _c.set(q[0], 0, -q[1]).applyMatrix4(pm); ax0 = Math.min(ax0, _c.x); ax1 = Math.max(ax1, _c.x); az0 = Math.min(az0, _c.z); az1 = Math.max(az1, _c.z);
+        });
+        if (used(ax0 + 0.5, az0 + 0.5, ax1 - 0.5, az1 - 0.5)) return;   // corners where two rows cross: first one wins
+        keep.push([ax0, az0, ax1, az1]);
+        var pc = col(bk[4]), wc = col(bk[5] || '#64798E');
+        tower(ax0, az0, ax1, az1, Y0, -24, pc, wc, 3.4 + (j % 3) * 0.3, col('#4A4756'));
+      });
+    }
+    // street grid out to the haze; blocks of 1, 2 or 4 buildings
+    var ext = C.extent || 250, BLK = 26, ST = 9, street = col(C.street || '#5B616D'), walk = col('#A9A69D'), lane = col('#E8D47C'), park = col('#7FAA66');
+    ground(-ext, cz - ext, ext, cz + ext, Y0, street);
+    var BPAL = (C.blocks || ['#CDB89A', '#B39C86', '#9DB0C2', '#C9C3B6', '#AC8F78', '#8E9FB2', '#D2A58C']).map(function (h) { return col(h); });
+    var bc = 0;
+    for (var gx = -ext; gx < ext; gx += BLK + ST) for (var gz = cz - ext; gz < cz + ext; gz += BLK + ST) {
+      var bx0 = gx + ST / 2, bz0 = gz + ST / 2, bx1 = bx0 + BLK, bz1 = bz0 + BLK, hh = hash(Math.round(gx) + 999, Math.round(gz) + 999);
+      ground(gx + ST / 2 - 0.14, gz, gx + ST / 2 + 0.14, gz + BLK + ST, Y0 + 0.05, lane);     // avenue centre line
+      ground(gx, gz + ST / 2 - 0.14, gx + BLK + ST, gz + ST / 2 + 0.14, Y0 + 0.06, lane);     // street centre line
+      ground(bx0 - 0.8, bz0 - 0.8, bx1 + 0.8, bz1 + 0.8, Y0 + 0.15, walk, true);                    // sidewalk slab
+      if (hh < 0.06) { ground(bx0, bz0, bx1, bz1, Y0 + 0.3, park, true); continue; }
+      var parts = hh < 0.38 ? 1 : hh < 0.74 ? 2 : 4, mx = (bx0 + bx1) / 2, mz = (bz0 + bz1) / 2;
+      for (var q = 0; q < parts; q++) {
+        var qx0 = bx0, qz0 = bz0, qx1 = bx1, qz1 = bz1;
+        if (parts === 2) { if (q === 0) qz1 = mz - 0.8; else qz0 = mz + 0.8; }
+        if (parts === 4) { if (q & 1) qx0 = mx + 0.8; else qx1 = mx - 0.8; if (q & 2) qz0 = mz + 0.8; else qz1 = mz - 0.8; }
+        if (used(qx0, qz0, qx1, qz1)) continue;
+        var r2 = hash(bc, 51), dist = Math.hypot((qx0 + qx1) / 2, (qz0 + qz1) / 2 - cz);
+        // downtown towers near the centre, walk-ups toward the edges; every roof stays far below our floor
+        var top = Y0 + 16 + r2 * r2 * Math.max(24, 125 - dist * 0.38), tc = BPAL[bc % BPAL.length];
+        tower(qx0, qz0, qx1, qz1, Y0, top, tc, tc.clone().multiplyScalar(0.55), 3.4 + hash(bc, 55) * 0.8, ROOF.clone().lerp(tc, 0.3));
+        if (r2 > 0.42) tank(qx0 + 3 + hash(bc, 52) * Math.max(0, qx1 - qx0 - 6), qz0 + 3 + hash(bc, 53) * Math.max(0, qz1 - qz0 - 6), top, 1 + hash(bc, 54) * 0.4);
+        if (r2 < 0.75 && qx1 - qx0 > 8) tower(qx1 - 6, qz0 + 2, qx1 - 2, qz0 + 5, top, top + 1.6, col('#8A8794'), null, 0, col('#77747F'));   // roof bulkhead
+        bc++;
+      }
+    }
+    var geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(colr, 3));
+    geo.setAttribute('aWin', new THREE.Float32BufferAttribute(win, 3));
+    geo.setAttribute('aFac', new THREE.Float32BufferAttribute(fac, 3));
+    geo.setAttribute('aEdge', new THREE.Float32BufferAttribute(edge, 4));
+    geo.setIndex(pos.length / 3 > 65535 ? new THREE.Uint32BufferAttribute(idx, 1) : new THREE.Uint16BufferAttribute(idx, 1));
+    geo.computeBoundingSphere();
+    // window grid (floor bands + mullions) and the depth haze are drawn per pixel: one quad per facade
+    var mat = new THREE.ShaderMaterial({
+      uniforms: { uInk: { value: col('#221E2C') }, uHaze: { value: col(C.haze || '#CCDCE8') }, uDepth: { value: D }, uTop: { value: C.hazeTop || 0.18 }, uBot: { value: C.hazeBottom || 0.6 } },
+      extensions: { derivatives: true },
+      vertexShader: 'attribute vec3 color; attribute vec3 aWin; attribute vec3 aFac; attribute vec4 aEdge; varying vec3 vC; varying vec3 vW; varying vec3 vF; varying vec4 vE; varying float vY; varying float vDist;\n' +
+        'void main(){ vC = color; vW = aWin; vF = aFac; vE = aEdge; vY = position.y; vec4 mv = modelViewMatrix * vec4(position, 1.0); vDist = length(mv.xyz); gl_Position = projectionMatrix * mv; }',
+      fragmentShader: 'uniform vec3 uHaze; uniform float uDepth; uniform float uTop; uniform float uBot; uniform vec3 uInk; varying vec3 vC; varying vec3 vW; varying vec3 vF; varying vec4 vE; varying float vY; varying float vDist;\n' +
+        'void main(){ vec3 c = vC;\n' +
+        '  if (vF.y > 0.0) { float fy = fract(vY / vF.y); float fu = fract(vF.x / 2.6);\n' +
+        '    if (fy > 0.38 && fy < 0.9 && fu > 0.14) c = vW; }\n' +
+        '  c *= vF.z;\n' +
+        '  if (vE.z > 0.0) { vec2 d = min(vE.xy, vE.zw - vE.xy); vec2 px = fwidth(vE.xy) * 1.7;\n' +
+        '    if (d.x < px.x || d.y < px.y) c = uInk; }\n' +
+        '  float h = mix(uTop, uBot, clamp(-vY / uDepth, 0.0, 1.0)) + clamp((vDist - 120.0) / 260.0, 0.0, 0.3);\n' +
+        '  gl_FragColor = vec4(mix(c, uHaze, clamp(h, 0.0, 0.92)), 1.0); }'
+    });
+    var mesh = new THREE.Mesh(geo, mat);
+    mesh.frustumCulled = false; mesh.name = 'CityBelow';
+    level.root.add(mesh);
+    level.cityTris = idx.length / 3;
+  }
+
+  // backdrop beyond the playable area (printed, fogged): rings of theme/common pieces; outlined puff clouds outdoors.
+  // backdrop.build (optional): fn(level, api) paints its own ground (instead of the flat outside plane) and places
+  // pieces itself; api = { geo (IB.Geo merged with the world toon material), add(piece, x, y, z, yaw, scale), hash,
+  // tick(fn(dt, t)) (called every frame with the clouds) }
   Z.buildBackdrop = function (level, theme) {
     var g = new IB.Geo(), minZ = 0, maxZ = 0, F = theme.floor || {};
     level.zones.forEach(function (z) { minZ = Math.min(minZ, z.oz - 20); });
     var cz = (minZ + maxZ) / 2, rad = (maxZ - minZ) / 2 + 70;
-    if (theme.backdrop !== null) {
+    var B0 = theme.backdrop;
+    level.ticks = [];
+    if (B0 && B0.build) {
+      var P0 = new Parts(theme);
+      B0.build(level, {
+        geo: g, hash: hash,
+        add: function (n, x, y, z, yaw, s) { var m = M(x, y, z, yaw); if (s && s !== 1) m.multiply(new THREE.Matrix4().makeScale(s, s, s)); P0.add(n, 0, 0, 0, 0, m); },
+        tick: function (fn) { level.ticks.push(fn); }
+      });
+      if (g.count()) level.root.add(new THREE.Mesh(g.build(), Z.mat));
+      meshesFor(P0, level.root);
+    } else if (theme.backdrop !== null && !theme.below) {
       g.flat([[-rad - 60, cz - rad - 60], [rad + 60, cz - rad - 60], [rad + 60, cz + rad + 60], [-rad - 60, cz + rad + 60]], -0.02, col(F.outside || F.color, '#E6DCC6').multiplyScalar(F.outside ? 1 : 0.94));
       level.root.add(new THREE.Mesh(g.build(), Z.mat));
     }
     var B = theme.backdrop, P = new Parts(theme);
+    if (theme.below) buildCityBelow(level, theme, cz, rad, B && B.ring && B.ring[0]);
     if (B && B.ring) B.ring.forEach(function (ring, ri) {
       for (var i = 0; i < ring.count; i++) {
         var a = (i + ri * 0.37) / ring.count * Math.PI * 2, rr = rad - 70 + ring.radius[0] + (ring.radius[1] - ring.radius[0]) * hash(i, 3 + ri);
@@ -872,6 +1325,7 @@
   };
   var _cm = new THREE.Matrix4(), _cq = new THREE.Quaternion(), _cp = new THREE.Vector3(), _cs = new THREE.Vector3();
   Z.updateClouds = function (level, dt) {
+    if (level && level.ticks) { level.tickT = (level.tickT || 0) + dt; for (var ti = 0; ti < level.ticks.length; ti++) level.ticks[ti](dt, level.tickT); }
     if (!level || !level.clouds || !level.clouds.length) return;
     for (var k = 0; k < level.clouds.length; k++) {
       var cl = level.clouds[k]; cl.x += dt * 0.6; if (cl.x > 140) cl.x = -140;

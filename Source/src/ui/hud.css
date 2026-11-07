@@ -1,0 +1,349 @@
+/* INKBOLT HUD, tactical pass (loaded after ui.css; overrides its HUD section only).
+   Clean military sci-fi in the Call of Duty / Titanfall 2 vein: thin translucent glass panels anchored to the corners,
+   cut corners, hairline accents with a soft glow, condensed tabular numerals (Barlow Condensed), segmented slanted
+   health / shield bars with a trailing damage chip, weapon name + big ammo count bottom-right with the reserve smaller.
+   INKBOLT stays in the details: an ink-brush stroke under the weapon name, comic halftone at the screen edges while
+   hurt or low on health, ink-outlined damage numbers and enemy bars. Phone geometry (positions) is kept from ui.css;
+   only the skin and sizes change there. Touch buttons get the same glass look. */
+@font-face { font-family: 'Barlow Condensed'; src: url('../../vendor/fonts/barlow-condensed-500.woff2') format('woff2'); font-weight: 400 500; font-display: block; }
+@font-face { font-family: 'Barlow Condensed'; src: url('../../vendor/fonts/barlow-condensed-600.woff2') format('woff2'); font-weight: 600; font-display: block; }
+@font-face { font-family: 'Barlow Condensed'; src: url('../../vendor/fonts/barlow-condensed-700.woff2') format('woff2'); font-weight: 700 900; font-display: block; }
+:root {
+  --hf: 'Barlow Condensed', 'Archivo', system-ui, sans-serif;
+  --hx-txt: #F1F8FF; --hx-dim: rgba(208, 228, 242, .72); --hx-faint: rgba(208, 228, 242, .42);
+  --hx-teal: #2EEAD8; --hx-teal-g: rgba(46, 234, 216, .5); --hx-amber: #FFB21E; --hx-amber-g: rgba(255, 178, 30, .5);
+  --hx-red: #FF4B3E; --hx-red-g: rgba(255, 75, 62, .55); --hx-cell: #5FD0FF; --hx-cell-g: rgba(95, 208, 255, .5);
+  --hx-glass: rgba(9, 12, 22, .66); --hx-glass-2: rgba(9, 12, 22, .38); --hx-line: rgba(214, 238, 255, .26);
+  --hx-ts: 0 1px 1px rgba(0, 0, 0, .55), 0 0 8px rgba(0, 0, 0, .3);
+  --hx-cut: 10px;
+  /* ink brush stroke (dry edge, tapered), recoloured per use */
+  --hx-brush-teal: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 16' preserveAspectRatio='none'%3E%3Cpath fill='%232EEAD8' d='M2 9.6C26 6.4 66 4.6 112 4.3c44-.3 86 .4 126-2.1l-1.6 5.1c-9 .9-17 2-26 2.4l14 .2c-6 1.6-17 2.6-30 3-39 1.2-77 .7-116 1.9-19 .6-34 1.3-50 1.9l12-3.4c-4 .1-11 .2-17 .4z'/%3E%3Cpath fill='%232EEAD8' fill-opacity='.55' d='M40 13.6c40-1.4 90-1.6 150-2.4l-2 1.6c-48 .9-98 1.3-148 2z'/%3E%3C/svg%3E");
+  --hx-brush-amber: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 16' preserveAspectRatio='none'%3E%3Cpath fill='%23FFB21E' d='M2 9.6C26 6.4 66 4.6 112 4.3c44-.3 86 .4 126-2.1l-1.6 5.1c-9 .9-17 2-26 2.4l14 .2c-6 1.6-17 2.6-30 3-39 1.2-77 .7-116 1.9-19 .6-34 1.3-50 1.9l12-3.4c-4 .1-11 .2-17 .4z'/%3E%3C/svg%3E");
+  --hx-brush-red: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 16' preserveAspectRatio='none'%3E%3Cpath fill='%23FF4B3E' d='M2 9.6C26 6.4 66 4.6 112 4.3c44-.3 86 .4 126-2.1l-1.6 5.1c-9 .9-17 2-26 2.4l14 .2c-6 1.6-17 2.6-30 3-39 1.2-77 .7-116 1.9-19 .6-34 1.3-50 1.9l12-3.4c-4 .1-11 .2-17 .4z'/%3E%3C/svg%3E");
+}
+
+/* ---------- base: glass panels instead of ink plates ---------- */
+.hud { font-family: var(--hf); font-weight: 600; color: var(--hx-txt); }
+.hud b { font-weight: 700; }
+.hud .plate { filter: none; color: var(--hx-txt); --cut: var(--hx-cut); }
+.hud .plate::before { inset: 0; background: none; clip-path: none; box-shadow: none; }
+.hud .plate::after { inset: 0; background: var(--hx-glass); box-shadow: none;
+  clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut))); }
+.hud .dmgn { font-family: 'Archivo', system-ui, sans-serif; }   /* damage numbers stay comic */
+
+/* ---------- top-left: objective + gems ---------- */
+.hud .hud-tl { gap: 6px; }
+.hud .objective { min-height: 38px; padding: 6px 30px 6px 14px; gap: 10px; font-size: 18px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; text-shadow: var(--hx-ts); --cut: 0px; }
+.hud .objective::after { background: linear-gradient(90deg, rgba(9, 12, 22, .72), rgba(9, 12, 22, .5) 60%, rgba(9, 12, 22, 0)); }
+.hud .objective::before { inset: 0 auto 0 0; width: 3px; background: var(--hx-amber); box-shadow: 0 0 10px var(--hx-amber-g); }
+.hud .obj-mark { width: 9px; height: 9px; margin: 0 2px 0 3px; background: var(--hx-amber); box-shadow: 0 0 8px var(--hx-amber-g); transform: rotate(45deg); }
+.hud .objective.obj-in { animation: objIn .35s ease-out; }
+@keyframes objIn { 0% { opacity: 0; transform: translateX(-12px); } 100% { opacity: 1; transform: none; } }
+.hud .gems { height: 30px; gap: 8px; padding: 0 22px 0 12px; font-size: 22px; font-weight: 700; letter-spacing: .02em; text-shadow: var(--hx-ts); --cut: 0px; }
+.hud .gems::after { background: linear-gradient(90deg, rgba(9, 12, 22, .6), rgba(9, 12, 22, 0)); }
+.hud .gem-glyph { width: 12px; height: 16px; }
+
+/* ---------- top-centre: zone / timer / robots left strip ---------- */
+.hud .hud-top { gap: 6px; }
+.hud .score { min-width: 330px; height: 46px; padding: 0 30px; column-gap: 18px; --cut: 0px; }
+.hud .score::after { background: linear-gradient(90deg, rgba(9, 12, 22, .2), rgba(9, 12, 22, .7) 12%, rgba(9, 12, 22, .7) 88%, rgba(9, 12, 22, .2)); }
+.hud .score::before { background: linear-gradient(90deg, transparent, var(--hx-teal) 30%, var(--hx-teal) 70%, transparent) top / 100% 1px no-repeat,
+  linear-gradient(90deg, transparent, rgba(214, 238, 255, .22) 25%, rgba(214, 238, 255, .22) 75%, transparent) bottom / 100% 1px no-repeat; }
+.hud .score-zone, .hud .score-left { font-size: 15px; font-weight: 600; letter-spacing: .14em; color: var(--hx-dim); text-shadow: var(--hx-ts); }
+.hud .score-zone b, .hud .score-left b { color: var(--hx-txt); font-weight: 700; font-size: 18px; letter-spacing: .04em; }
+.hud .score-left.zero b { color: var(--hx-teal); text-shadow: 0 0 8px var(--hx-teal-g); }
+.hud .score-time { font-size: 32px; font-weight: 700; letter-spacing: .04em; text-shadow: var(--hx-ts); }
+.hud .pips { gap: 5px; }
+.hud .pips i { width: 26px; height: 4px; background: rgba(214, 238, 255, .26); box-shadow: none; transform: skewX(-30deg); }
+.hud .pips i.done { background: var(--hx-teal); box-shadow: 0 0 6px var(--hx-teal-g); }
+.hud .pips i.cur { background: var(--hx-amber); box-shadow: 0 0 6px var(--hx-amber-g); }
+
+/* ---------- top-right: radar + kill feed ---------- */
+.hud .hud-tr { gap: 10px; }
+.hud .radar { width: 172px; height: 172px; }
+.hud .radar::after, .hud .radar::before { display: none; }
+.hud .radar canvas { inset: 0; width: 100%; height: 100%; clip-path: none; }
+.hud .feed { gap: 4px; }
+.hud .feed-row { height: 28px; gap: 10px; padding: 0 12px 0 34px; font-size: 16px; --cut: 0px; animation: feedIn2 .18s ease-out; text-shadow: var(--hx-ts); }
+.hud .feed-row::after { background: linear-gradient(270deg, rgba(9, 12, 22, .72), rgba(9, 12, 22, .58) 70%, rgba(9, 12, 22, 0)); }
+.hud .feed-row::before { inset: 0 0 0 auto; width: 2px; background: var(--hx-teal); box-shadow: 0 0 8px var(--hx-teal-g); }
+.hud .feed-wpn { gap: 6px; color: var(--hx-dim); font-size: 14px; font-weight: 500; letter-spacing: .04em; }
+.hud .feed-wpn svg { width: 28px; height: 14px; color: var(--hx-teal); filter: drop-shadow(0 0 3px var(--hx-teal-g)); }
+.hud .feed-bot { font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.hud .feed-gem { font-weight: 700; color: var(--hx-teal); gap: 3px; }
+.hud .feed-gem::before { width: 8px; height: 11px; }
+@keyframes feedIn2 { from { transform: translateX(24px); opacity: 0; } }
+
+/* ---------- crosshair, hit markers, damage direction ---------- */
+.hud .xhair i { background: #FFFFFF; box-shadow: 0 0 0 1px rgba(0, 0, 0, .42), 0 0 4px rgba(0, 0, 0, .25); }
+.hud .xhair i:nth-child(1), .hud .xhair i:nth-child(2) { width: 9px; height: 2px; }
+.hud .xhair i:nth-child(3), .hud .xhair i:nth-child(4) { width: 2px; height: 9px; }
+.hud .xhair .xdot { background: #FFFFFF; box-shadow: 0 0 0 1px rgba(0, 0, 0, .42); }
+.hud .hitmark .hm-ink { stroke: rgba(0, 0, 0, .45); stroke-width: 4.5; }
+.hud .hitmark .hm { stroke: #FFFFFF; stroke-width: 2.2; }
+.hud .hitmark.core .hm { stroke: var(--hx-amber); }
+.hud .hitmark.kill { filter: drop-shadow(0 0 5px var(--hx-red-g)); }
+.hud .hitmark.kill .hm-ink { stroke-width: 6.5; }
+.hud .hitmark.kill .hm { stroke: var(--hx-red); stroke-width: 3.2; }
+.hud .arcs { width: 380px; height: 380px; margin: -190px; filter: drop-shadow(0 0 6px rgba(255, 60, 48, .7)); }
+.hud .arcs path { stroke: var(--hx-red); stroke-width: 5; stroke-linecap: butt; }
+.hud .arcs path.ink { stroke: rgba(30, 0, 0, .35); stroke-width: 10; }
+.hud .arcs path.tip { fill: var(--hx-red); stroke: rgba(30, 0, 0, .35); stroke-width: 1.5; }
+.hud .confirm { background: none; clip-path: none; padding: 0; gap: 5px; filter: drop-shadow(0 0 6px var(--hx-teal-g)); }
+.hud .confirm b { font-size: 22px; font-weight: 700; color: var(--hx-teal); text-shadow: 0 1px 1px rgba(0, 0, 0, .6); }
+.hud .prompt { padding: 5px 16px 5px 6px; gap: 5px 10px; background: rgba(9, 12, 22, .6); font-size: 16px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px)); }
+.hud .prompt .key { min-width: 26px; height: 26px; background: none; color: var(--hx-txt); box-shadow: inset 0 0 0 1.5px rgba(241, 248, 255, .8); font-size: 16px; font-weight: 700; letter-spacing: 0; }
+.hud .prompt.empty { color: var(--hx-red); }
+.hud .prompt.empty .key { background: none; color: var(--hx-red); box-shadow: inset 0 0 0 1.5px var(--hx-red); }
+.hud .prompt.low { color: var(--hx-amber); }
+.hud .prompt.low .key { color: var(--hx-amber); box-shadow: inset 0 0 0 1.5px var(--hx-amber); }
+.hud .prompt.reload { padding: 6px 16px 7px; }
+.hud .prompt .prompt-bar { height: 2px; background: rgba(214, 238, 255, .2); }
+.hud .prompt-bar i { background: var(--hx-teal); box-shadow: 0 0 6px var(--hx-teal-g); }
+
+/* ---------- bottom-left: level tag, shield, health, stamina ---------- */
+.hud .hud-bl { width: 330px; gap: 5px; }
+.hud .lvtag { height: 24px; filter: none; gap: 8px; align-items: center; padding-right: 26px; background: linear-gradient(90deg, rgba(9, 12, 22, .55), rgba(9, 12, 22, 0)); }
+.hud .lv-badge { align-items: baseline; padding: 3px 9px 0 8px; height: 22px; background: rgba(46, 234, 216, .14); color: var(--hx-teal); box-shadow: inset 0 0 0 1px rgba(46, 234, 216, .6);
+  clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); font-weight: 700; }
+.hud .lv-badge small { font-size: 11px; font-weight: 600; letter-spacing: .1em; }
+.hud .lv-badge span { font-size: 19px; color: var(--hx-txt); }
+.hud .lv-title { margin: 0; padding: 0; background: none; clip-path: none; color: var(--hx-dim); font-weight: 600; font-size: 14px; letter-spacing: .16em; text-shadow: var(--hx-ts); }
+.hud .lv-pts { margin-left: 2px; padding: 0 6px 0 8px; height: 22px; background: rgba(255, 178, 30, .16); color: var(--hx-amber); box-shadow: inset 0 0 0 1px rgba(255, 178, 30, .7);
+  clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); font-weight: 700; font-size: 15px; animation: ptsPulse2 1.6s ease-in-out infinite; }
+.hud .lv-key { background: none; color: var(--hx-amber); font-size: 11px; font-weight: 600; letter-spacing: .1em; padding: 0 4px 0 0; }
+@keyframes ptsPulse2 { 50% { background: rgba(255, 178, 30, .34); } }
+
+.hud .health, .hud .shieldbar { grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; --cut: 8px; }
+.hud .health { height: 42px; padding: 0 12px 0 12px; }
+.hud .health::after, .hud .shieldbar::after { background: linear-gradient(90deg, rgba(9, 12, 22, .7), rgba(9, 12, 22, .5) 70%, rgba(9, 12, 22, .3));
+  clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, 0 100%); }
+.hud .health::before { inset: 0 auto 0 0; width: 3px; background: #FFFFFF; box-shadow: 0 0 8px rgba(255, 255, 255, .45); }
+.hud .hp-glyph { width: 17px; height: 17px; }
+.hud .hp-glyph polygon { fill: none; stroke: var(--hx-txt); stroke-width: 2.4; }
+.hud .hp-glyph circle { fill: var(--hx-txt); }
+.hud .hp-bar { height: 12px; background: rgba(214, 238, 255, .13); box-shadow: none; transform: skewX(-20deg); }
+.hud .hp-bar #hpFill { background: linear-gradient(180deg, #FFFFFF, #D7E6F2); box-shadow: 0 0 8px rgba(255, 255, 255, .35); transition: width .1s linear; }
+.hud .hp-chip { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: var(--hx-red); opacity: .9; transition: width .45s ease-in .4s; }
+.hud .hp-chip.snap { transition: none; }
+.hud .hp-ticks { background: repeating-linear-gradient(90deg, transparent 0 calc(100% / var(--ticks, 10) - 2px), rgba(9, 12, 22, .7) calc(100% / var(--ticks, 10) - 2px) calc(100% / var(--ticks, 10))); }
+.hud .health b { font-size: 30px; font-weight: 700; line-height: 1; min-width: 2.2ch; text-shadow: var(--hx-ts); letter-spacing: .02em; }
+.hud .health.low { animation: none; }
+.hud .health.low::before { background: var(--hx-red); box-shadow: 0 0 10px var(--hx-red-g); animation: hxBlink .55s steps(1) infinite; }
+.hud .health.low #hpFill { background: linear-gradient(180deg, #FF7468, var(--hx-red)); box-shadow: 0 0 10px var(--hx-red-g); }
+.hud .health.low .hp-chip { background: #FFD3CF; }
+.hud .health.low .hp-glyph polygon { fill: none; stroke: var(--hx-red); }
+.hud .health.low .hp-glyph circle { fill: var(--hx-red); }
+.hud .health.low b { color: var(--hx-red); text-shadow: 0 0 10px var(--hx-red-g), 0 1px 1px rgba(0, 0, 0, .6); }
+@keyframes hxBlink { 50% { opacity: .25; } }
+
+.hud .shieldbar { height: 28px; padding: 0 12px 0 13px; }
+.hud .shieldbar::before { inset: 0 auto 0 0; width: 3px; background: var(--hx-cell); box-shadow: 0 0 8px var(--hx-cell-g); }
+.hud .sh-glyph { width: 15px; height: 15px; }
+.hud .sh-glyph polygon { fill: none; stroke: var(--hx-cell); stroke-width: 2.4; }
+.hud .sh-glyph path { fill: var(--hx-cell); }
+.hud .sh-bar { height: 7px; background: var(--hx-cell-bg, rgba(95, 208, 255, .14)); box-shadow: none; transform: skewX(-20deg); }
+.hud .sh-fill { background: linear-gradient(180deg, #F2FBFF, var(--hx-cell)); box-shadow: 0 0 8px var(--hx-cell-g); }
+.hud .sh-ticks { background: repeating-linear-gradient(90deg, transparent 0 calc(100% / var(--ticks, 4) - 2px), rgba(9, 12, 22, .9) calc(100% / var(--ticks, 4) - 2px) calc(100% / var(--ticks, 4))); }
+.hud .shieldbar b { font-size: 19px; font-weight: 700; color: var(--hx-cell); text-shadow: 0 0 8px var(--hx-cell-g), 0 1px 1px rgba(0, 0, 0, .6); }
+.hud .shieldbar.charging .sh-fill { background: repeating-linear-gradient(-45deg, var(--hx-cell) 0 5px, var(--hx-cell-a, rgba(95, 208, 255, .45)) 5px 10px); background-size: 14.14px 14.14px; animation: shBelt2 .45s linear infinite; }
+/* shield tiers (ui/loothud.js sets --hx-cell per rarity): rarer cells get a heavier glyph and a brighter edge */
+.hud .shieldbar.t-epic .sh-glyph polygon, .hud .shieldbar.t-legendary .sh-glyph polygon { fill: var(--hx-cell-bg); stroke-width: 3; }
+.hud .shieldbar.t-legendary::before { width: 4px; box-shadow: 0 0 12px var(--hx-cell-g), 0 0 3px #FFF3D6; }
+.hud .shieldbar.has-perk { grid-template-columns: auto minmax(0, 1fr) auto auto; }
+/* perk pip: Nova (four-point star) lit while armed, Overcharge (double chevron) lit while boosting */
+.hud .sh-perk { width: 16px; height: 16px; display: grid; place-items: center; opacity: .38; transition: opacity .2s; }
+.hud .sh-perk svg { width: 16px; height: 16px; fill: var(--hx-cell); stroke: var(--hx-cell); }
+.hud .sh-perk.overcharge svg { fill: none; }
+.hud .sh-perk.lit { opacity: 1; filter: drop-shadow(0 0 5px var(--hx-cell-g)); }
+.hud .sh-perk.lit.overcharge { animation: hxBlink .5s steps(2) infinite; }
+.hud .shieldbar.pk-nova::after { background: linear-gradient(90deg, rgba(120, 200, 255, .85), rgba(9, 12, 22, .5)); }
+.hud .shieldbar.pk-overcharge .sh-fill { box-shadow: 0 0 14px var(--hx-cell), 0 0 4px #FFFFFF; }
+@keyframes shBelt2 { to { background-position: 14.14px 0; } }
+.hud .shieldbar.empty b { color: var(--hx-faint); text-shadow: none; }
+.hud .shieldbar.empty .sh-glyph polygon { stroke: var(--hx-faint); }
+.hud .shieldbar.hit::after { background: linear-gradient(90deg, rgba(40, 110, 160, .75), rgba(9, 12, 22, .5)); }
+.hud .shieldbar.broke::before { background: var(--hx-red); }
+.hud .stamina { height: 3px; margin: 0 2px; background: rgba(214, 238, 255, .16); box-shadow: none; transform: skewX(-20deg); }
+.hud .stamina i { background: var(--hx-amber); box-shadow: 0 0 6px var(--hx-amber-g); }
+.hud .stamina.slide i { background: var(--hx-teal); box-shadow: 0 0 6px var(--hx-teal-g); }
+.hud .stamina.low i { background: var(--hx-red); }
+
+/* ---------- bottom-right: carried guns + weapon / ammo ---------- */
+.hud .hud-br { gap: 8px; }
+.hud .slots { gap: 4px; }
+.hud .slot { width: 54px; height: 34px; color: var(--hx-dim); --cut: 0px; transform: none; }
+.hud .slot::after { background: rgba(9, 12, 22, .7); clip-path: polygon(9px 0, 100% 0, calc(100% - 9px) 100%, 0 100%); }
+.hud .slot svg { width: 30px; height: 15px; margin-left: 6px; }
+.hud .slot .key { left: 9px; top: 3px; bottom: auto; font-size: 12px; font-weight: 700; color: var(--hx-dim); }
+.hud .slot.on { transform: none; color: var(--hx-txt); }
+.hud .slot.on::after { background: linear-gradient(180deg, rgba(46, 234, 216, .12), rgba(9, 12, 22, .66)); box-shadow: none; }
+.hud .slot.on::before { inset: auto 9px 0 0; height: 2px; background: var(--hx-teal); box-shadow: 0 0 8px var(--hx-teal-g); }
+.hud .slot.on .key { color: var(--hx-teal); }
+.hud .slot.on svg { filter: drop-shadow(0 0 4px rgba(255, 255, 255, .35)); }
+
+.hud .weapon { width: 372px; gap: 14px; padding: 10px 16px 10px 22px; --cut: 14px; }
+.hud .weapon::after { background: linear-gradient(270deg, rgba(9, 12, 22, .72), rgba(9, 12, 22, .52) 65%, rgba(9, 12, 22, .2));
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% 100%, 0 100%, 0 var(--cut)); }
+.hud .weapon::before { inset: 0 0 0 auto; width: 3px; background: var(--hx-teal); box-shadow: 0 0 10px var(--hx-teal-g); }
+.hud .wpn-info { gap: 4px; justify-items: end; }
+.hud .wpn-name { justify-self: end; max-width: 100%; font-size: 22px; font-weight: 700; letter-spacing: .07em; line-height: 1.1; padding: 0 2px 7px 10px; text-shadow: var(--hx-ts);
+  background: var(--hx-brush-teal) no-repeat right 0 bottom 0 / 100% 7px; }
+.hud .wpn-cls { gap: 7px; font-size: 13px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--hx-dim); }
+.hud .wpn-icon { color: var(--hx-teal); filter: drop-shadow(0 0 4px var(--hx-teal-g)); }
+.hud .wpn-icon svg { width: 30px; height: 15px; }
+.hud .mag-strip { width: 100%; height: 5px; margin-top: 4px; --c: #FFFFFF; transform: skewX(-20deg);
+  background: repeating-linear-gradient(90deg, rgba(214, 238, 255, .16) 0 calc(var(--seg) - 2px), transparent calc(var(--seg) - 2px) var(--seg)); }
+.hud .weapon.low .mag-strip { --c: var(--hx-amber); }
+.hud .weapon.reloading .mag-strip { --c: var(--hx-teal); }
+.hud .weapon.empty .mag-strip { background: repeating-linear-gradient(90deg, var(--hx-red) 0 calc(var(--seg) - 2px), transparent calc(var(--seg) - 2px) var(--seg)); }
+.hud .ammo { width: auto; min-width: 118px; height: auto; padding: 0; justify-content: flex-end; gap: 4px; --cut: 0px; }
+.hud .ammo::after, .hud .ammo::before { display: none; }
+.hud .ammo b { font-size: 60px; font-weight: 700; line-height: .86; letter-spacing: .01em; text-shadow: var(--hx-ts); }
+.hud .ammo span { font-size: 22px; font-weight: 600; color: var(--hx-dim); text-shadow: var(--hx-ts); }
+.hud .weapon.low .ammo { color: var(--hx-amber); }
+.hud .weapon.low .ammo b { text-shadow: 0 0 12px var(--hx-amber-g), 0 1px 1px rgba(0, 0, 0, .6); }
+.hud .weapon.low .wpn-name { background-image: var(--hx-brush-amber); }
+.hud .weapon.empty .ammo { color: var(--hx-red); }
+.hud .weapon.empty .ammo b { text-shadow: 0 0 12px var(--hx-red-g), 0 1px 1px rgba(0, 0, 0, .6); }
+.hud .weapon.empty .wpn-name { background-image: var(--hx-brush-red); }
+.hud .weapon.empty::before { background: var(--hx-red); box-shadow: 0 0 10px var(--hx-red-g); }
+.hud .weapon.low::before { background: var(--hx-amber); box-shadow: 0 0 10px var(--hx-amber-g); }
+.hud .weapon.reloading .ammo b { opacity: .45; }
+.hud .weapon.melee { padding: 12px 18px 12px 22px; }
+
+/* ---------- banners ---------- */
+.hud .pickup-card, .hud .loot-card { gap: 16px; padding: 12px 30px 12px 12px; --cut: 14px; }
+.hud .pickup-card::after, .hud .loot-card::after { background: linear-gradient(90deg, rgba(9, 12, 22, .82), rgba(9, 12, 22, .66)); box-shadow: none; }
+.hud .pickup-card::before { inset: 0 var(--cut) auto 0; height: 2px; background: var(--hx-teal); box-shadow: 0 0 10px var(--hx-teal-g); }
+.hud .loot-card::before { inset: 0 var(--cut) auto 0; height: 2px; background: var(--rar); box-shadow: 0 0 10px var(--rar); }
+.hud .pickup-icon { width: 72px; height: 46px; background: rgba(46, 234, 216, .12); color: var(--hx-teal); box-shadow: inset 0 0 0 1px rgba(46, 234, 216, .65); filter: drop-shadow(0 0 4px var(--hx-teal-g)); }
+.hud .pickup-txt b, .hud .loot-name { font-size: 32px; font-weight: 700; letter-spacing: .05em; line-height: 1; }
+.hud .pickup-txt span { font-size: 15px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--hx-dim); }
+.hud .loot-icon { background: color-mix(in srgb, var(--rar) 14%, transparent); box-shadow: inset 0 0 0 1px var(--rar); }
+.hud .loot-rar { font-size: 13px; font-weight: 700; letter-spacing: .16em; }
+.hud .loot-stats { font-size: 15px; font-weight: 500; color: var(--hx-dim); }
+.hud .loot-stats b { color: var(--hx-txt); font-weight: 700; }
+.hud .loot-note { font-size: 13px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--hx-teal); }
+.hud .toast { padding: 9px 40px; font-size: 18px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; text-shadow: var(--hx-ts); --cut: 0px; }
+.hud .toast::after { background: linear-gradient(90deg, rgba(9, 12, 22, 0), rgba(9, 12, 22, .66) 18%, rgba(9, 12, 22, .66) 82%, rgba(9, 12, 22, 0)); }
+.hud .toast::before { background: linear-gradient(90deg, transparent, var(--hx-teal) 30%, var(--hx-teal) 70%, transparent) top / 100% 1px no-repeat,
+  linear-gradient(90deg, transparent, var(--hx-teal) 30%, var(--hx-teal) 70%, transparent) bottom / 100% 1px no-repeat; }
+.hud .elim-card { padding: 14px 70px 16px; --cut: 0px; min-width: min(520px, 92vw); }
+.hud .elim-card::after { background: linear-gradient(90deg, rgba(120, 12, 14, 0), rgba(150, 18, 20, .82) 18%, rgba(150, 18, 20, .82) 82%, rgba(120, 12, 14, 0)); }
+.hud .elim-card::before { background: linear-gradient(90deg, transparent, #FF8A80 25%, #FF8A80 75%, transparent) top / 100% 1px no-repeat,
+  linear-gradient(90deg, transparent, #FF8A80 25%, #FF8A80 75%, transparent) bottom / 100% 1px no-repeat; }
+.hud .elim-by { font-size: 15px; font-weight: 600; letter-spacing: .3em; text-transform: uppercase; color: #FFD0CC; }
+.hud .elim-name { font-size: 52px; font-weight: 700; letter-spacing: .06em; text-shadow: 0 2px 0 rgba(60, 0, 0, .5); }
+.hud .elim-row { gap: 24px; font-size: 16px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; }
+
+/* touch pause / field-kit buttons */
+.hud .pausebtn { color: var(--hx-txt); --cut: 8px; }
+.hud .pausebtn::after { background: rgba(9, 12, 22, .55); box-shadow: inset 0 0 0 1.5px rgba(214, 238, 255, .4); }
+.hud .menubtn-dot { box-shadow: 0 0 8px var(--hx-amber-g); }
+
+/* Undercover cooldown badge (ui/skillhud.js, injected styles; "body" wins over them): a glass ability slot at bottom centre */
+body .cloakhud { bottom: calc(var(--sab) + 24px); gap: 9px; padding: 5px 18px 5px 6px; border-radius: 0; background: linear-gradient(90deg, rgba(9, 12, 22, .72), rgba(9, 12, 22, .55));
+  box-shadow: none; clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+  font: 600 15px var(--hf); letter-spacing: .14em; color: var(--hx-txt); text-shadow: var(--hx-ts); }
+body .cloakhud .ck-ring { width: 32px; height: 32px; background: conic-gradient(var(--hx-teal) calc(var(--k, 1) * 360deg), rgba(214, 238, 255, .16) 0); filter: drop-shadow(0 0 5px var(--hx-teal-g)); }
+body .cloakhud .ck-ring::before { inset: 3px; background: #0E1220; }
+body .cloakhud .ck-key { border-radius: 0; background: none; color: var(--hx-txt); box-shadow: inset 0 0 0 1.5px rgba(241, 248, 255, .8); font: 700 12px var(--hf); min-width: 20px; height: 20px; }
+body .cloakhud.ready .ck-txt { color: var(--hx-teal); text-shadow: 0 0 8px var(--hx-teal-g); }
+body .cloakhud.cool .ck-txt { color: var(--hx-dim); }
+body .cloakhud.on { background: linear-gradient(90deg, rgba(46, 234, 216, .9), rgba(46, 234, 216, .7)); color: #08131A; text-shadow: none; }
+body .cloakhud.on .ck-ring { background: conic-gradient(#08131A calc(var(--k, 1) * 360deg), rgba(8, 19, 26, .2) 0); filter: none; }
+body .cloakhud.on .ck-ring::before { background: #8FF5EA; }
+body .cloakhud.on .ck-key { color: #08131A; box-shadow: inset 0 0 0 1.5px #08131A; }
+
+/* ---------- screen edges: hurt flash and low health (comic halftone) ---------- */
+.hurt-flash { background: radial-gradient(circle, rgba(255, 60, 48, .95) 1.5px, transparent 2px) 0 0 / 8px 8px,
+  radial-gradient(ellipse 80% 75% at 50% 50%, transparent 42%, rgba(210, 24, 20, .62) 100%); }
+/* low health: a red vignette with comic halftone that grows toward the edges (small dots, then big ones) */
+.hurt-low { background: radial-gradient(ellipse 85% 80% at 50% 50%, transparent 36%, rgba(150, 10, 12, .78) 100%); }
+.hurt-low::before, .hurt-low::after { content: ''; position: absolute; inset: 0; }
+.hurt-low::before { background: radial-gradient(circle, #E3261D 1.4px, transparent 1.9px) 0 0 / 9px 9px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 75% at 50% 50%, transparent 52%, #000 78%); mask-image: radial-gradient(ellipse 80% 75% at 50% 50%, transparent 52%, #000 78%); }
+.hurt-low::after { background: radial-gradient(circle, #E3261D 3.1px, transparent 3.6px) 4.5px 4.5px / 9px 9px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 75% at 50% 50%, transparent 70%, #000 100%); mask-image: radial-gradient(ellipse 80% 75% at 50% 50%, transparent 70%, #000 100%); }
+.hurt::before { background: radial-gradient(circle, rgba(95, 208, 255, .9) 1.4px, transparent 1.9px) 0 0 / 8px 8px,
+  radial-gradient(ellipse 80% 75% at 50% 50%, transparent 50%, rgba(95, 208, 255, .42) 100%); }
+
+.hurt.low .hurt-low { animation: lowedge2 .6s ease-in-out infinite alternate; }
+@keyframes lowedge2 { from { opacity: .28; } to { opacity: .7; } }
+
+/* ---------- touch controls: glass rings ---------- */
+.touch .tbtn { font-family: var(--hf); font-weight: 700; font-size: 22px; background: radial-gradient(circle at 50% 40%, rgba(24, 30, 46, .42), rgba(9, 12, 22, .62));
+  box-shadow: inset 0 0 0 1.5px rgba(214, 238, 255, .5), 0 0 0 1px rgba(0, 0, 0, .25), 0 4px 14px rgba(0, 0, 0, .25); color: var(--hx-txt); }
+.touch .tbtn svg { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .5)); }
+.touch .tfire { box-shadow: inset 0 0 0 2px var(--hx-teal), inset 0 0 16px rgba(46, 234, 216, .3), 0 0 0 1px rgba(0, 0, 0, .25), 0 0 14px rgba(46, 234, 216, .25); color: var(--hx-teal); }
+.touch .tbtn.down { background: rgba(46, 234, 216, .88); color: #08131A; box-shadow: inset 0 0 0 2px #B9FFF8, 0 0 18px var(--hx-teal-g); }
+.stick { background: radial-gradient(circle, rgba(9, 12, 22, .15), rgba(9, 12, 22, .4)); box-shadow: inset 0 0 0 1.5px rgba(214, 238, 255, .45); }
+.stick-knob { background: rgba(241, 248, 255, .9); box-shadow: 0 0 0 1px rgba(0, 0, 0, .3), 0 0 12px rgba(46, 234, 216, .45); }
+
+/* ---------- phones: same geometry as ui.css, tactical skin and sizes ---------- */
+body.touch-on .hud .health { height: 36px; padding: 0 10px 0 10px; gap: 8px; }
+body.touch-on .hud .health b { font-size: 24px; }
+body.touch-on .hud .hp-bar { height: 9px; }
+body.touch-on .hud .hp-glyph { width: 14px; height: 14px; }
+body.touch-on .hud .shieldbar { height: 24px; padding: 0 10px; gap: 8px; }
+body.touch-on .hud .shieldbar b { font-size: 16px; }
+body.touch-on .hud .sh-bar { height: 6px; }
+body.touch-on .hud .sh-perk, body.touch-on .hud .sh-perk svg { width: 13px; height: 13px; }
+body.touch-on .hud .gems { height: 36px; font-size: 20px; padding: 0 16px 0 10px; }
+body.touch-on .hud .score { height: 44px; padding: 0 18px; column-gap: 10px; min-width: 0; }
+body.touch-on .hud .score-time { font-size: 26px; }
+body.touch-on .hud .score-zone, body.touch-on .hud .score-left { font-size: 12px; letter-spacing: .1em; }
+body.touch-on .hud .score-zone b, body.touch-on .hud .score-left b { font-size: 15px; }
+body.touch-on .hud .pips i { width: 18px; height: 3px; }
+body.touch-on .hud .radar { width: 96px; height: 96px; }
+body.touch-on .hud .objective { min-height: 32px; font-size: 14px; padding: 4px 22px 4px 10px; gap: 8px; letter-spacing: .06em; }
+body.touch-on .hud .obj-mark { width: 7px; height: 7px; }
+body.touch-on .hud .weapon { width: 256px; padding: 6px 12px 6px 14px; gap: 10px; --cut: 10px; }
+body.touch-on .hud .wpn-name { font-size: 16px; padding-bottom: 5px; background-size: 100% 5px; }
+body.touch-on .hud .mag-strip { height: 4px; }
+body.touch-on .hud .ammo { min-width: 72px; height: 46px; align-items: center; }
+body.touch-on .hud .ammo b { font-size: 40px; }
+body.touch-on .hud .ammo span { font-size: 16px; }
+body.touch-on .hud .slot { width: 50px; height: 34px; }
+body.touch-on .hud .slot.on { transform: none; }
+body.touch-on .hud .slot svg { width: 28px; height: 14px; }
+body.touch-on .hud .slot .key { left: 8px; top: 2px; }
+body.touch-on .hud .lvtag { height: 22px; }
+body.touch-on .hud .lv-badge { height: 20px; padding-top: 2px; }
+body.touch-on .hud .lv-badge span { font-size: 16px; }
+body.touch-on .hud .lv-title { font-size: 12px; letter-spacing: .12em; }
+body.touch-on .hud .pickup-card, body.touch-on .hud .loot-card { padding: 7px 18px 7px 7px; gap: 10px; }
+body.touch-on .hud .pickup-txt b { font-size: 21px; }
+body.touch-on .hud .loot-name { font-size: 19px; }
+body.touch-on .hud .pickup-txt span { font-size: 12px; }
+body.touch-on .hud .toast { font-size: 14px; padding: 7px 28px; }
+body.touch-on .hud .elim-name { font-size: 40px; }
+body.touch-on .hud .prompt { font-size: 14px; }
+body.touch-on .hud .arcs { width: 300px; height: 300px; margin: -150px; }
+@media (orientation: portrait) {
+  body.touch-on .hud .slot.on { transform: none; }
+  body.touch-on .hud .slots { gap: 4px; }
+  body.touch-on .hud .feed-row { height: 26px; font-size: 13px; gap: 7px; padding: 0 18px 0 10px; }
+  body.touch-on .hud .feed-row::after { background: linear-gradient(90deg, rgba(9, 12, 22, .66), rgba(9, 12, 22, .44) 55%, rgba(9, 12, 22, 0)); }
+  body.touch-on .hud .feed-row::before { inset: 0 auto 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hud .lv-pts, .hud .health.low::before, .hud .shieldbar.charging .sh-fill { animation: none; }
+}
+
+/* equipment row (melee on V, frag cans on G) over the weapon plate */
+.hud .kit { display: flex; gap: 8px; justify-content: flex-end; margin-bottom: 6px; }
+.hud .kit[hidden], .hud .kit-chip[hidden] { display: none; }
+.hud .kit-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 4px; background: rgba(20, 18, 28, 0.62);
+  border: 1px solid rgba(255, 253, 247, 0.22); clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  font: 600 13px/1 'Barlow Condensed', 'Archivo', sans-serif; letter-spacing: 0.06em; color: #FFFDF7; text-transform: uppercase; }
+.hud .kit-chip .key { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 3px; background: #FFFDF7; color: #15121C;
+  font-weight: 700; font-size: 12px; }
+.hud .kit-ic { display: inline-flex; width: 26px; height: 13px; color: #FFC23A; }
+.hud .kit-ic svg { width: 100%; height: 100%; }
+.hud .kit-chip.none { opacity: 0.45; }
+body.touch-on .hud .kit { display: none; }
+.touch .tbtn .tcount { position: absolute; right: 4px; bottom: 2px; font: 700 12px/1 'Barlow Condensed', sans-serif; font-style: normal; }
+.touch .tbtn.none { opacity: 0.4; }

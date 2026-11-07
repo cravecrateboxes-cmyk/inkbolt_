@@ -122,7 +122,7 @@
     im.count = BLAST_CAP * LOBES; im.visible = false;
     scene.add(im);
     Pj.mesh = im;
-    for (i = 0; i < BOLT_CAP; i++) Pj.bolts.push({ on: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, sp: 0, t: 0, dmg: 0, src: { x: 0, z: 0, type: 'gunner', proj: true } });
+    for (i = 0; i < BOLT_CAP; i++) Pj.bolts.push({ on: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, sp: 0, t: 0, dmg: 0, vs: 0, src: { x: 0, z: 0, type: 'gunner', proj: true } });
     for (i = 0; i < BLAST_CAP; i++) Pj.blasts.push({ on: false, x: 0, y: 0, z: 0, R: 3, t: 0, lobe: new Float32Array(LOBES * 4) });
     for (i = 0; i < QUEUE_CAP; i++) Pj.queue.push({ on: false, t: 0, x: 0, y: 0, z: 0, R: 3, D: 0, Dr: 0, src: { x: 0, z: 0, type: 'bomber', proj: true } });
     Pj.next = 0;
@@ -138,7 +138,9 @@
     Pj.mesh.instanceMatrix.needsUpdate = true; Pj.mesh.count = BLAST_CAP * LOBES; Pj.mesh.visible = false; Pj.boltCount = 0;
   };
 
-  Pj.fire = function (x, y, z, dx, dy, dz, speed, dmg, src) {
+  /* vs: 0 a bolt at the player; 1 a rogue's bolt (Handy Helpers): hits robots that are not rogue, never the player;
+     2 a bolt at a rogue: hits rogue robots, and the player if he is in the way */
+  Pj.fire = function (x, y, z, dx, dy, dz, speed, dmg, src, vs) {
     if (!Pj.mesh) return null;
     var b = null, i, oldest = 0;
     for (i = 0; i < BOLT_CAP; i++) {
@@ -150,6 +152,7 @@
     b.on = true; b.t = 0; b.x = x; b.y = y; b.z = z; b.sp = speed;
     b.vx = dx / L * speed; b.vy = dy / L * speed; b.vz = dz / L * speed; b.dmg = dmg;
     b.src.x = src ? src.x : x; b.src.z = src ? src.z : z; b.src.type = src ? src.type : 'gunner';
+    b.vs = vs || 0;
     return b;
   };
 
@@ -171,33 +174,15 @@
   }
 
   function detonate(q, ctx) {
-    var x = q.x, y = q.y, z = q.z, R = q.R, p = ctx.player, world = ctx.world, FX = IB.FX;
-    // blast ball
-    var bl = null, i;
-    for (i = 0; i < BLAST_CAP; i++) if (!Pj.blasts[i].on) { bl = Pj.blasts[i]; break; }
-    if (!bl) bl = Pj.blasts[0];
-    bl.on = true; bl.t = 0; bl.x = x; bl.y = y; bl.z = z; bl.R = R;
-    for (i = 0; i < LOBES; i++) {   // lobe 0 = core; the rest ring it, biased upward (offset xyz, size)
-      var a = i * 2.4 + Math.random() * 0.8, e = 0.15 + Math.random() * 0.6, o = i ? 0.3 + Math.random() * 0.12 : 0;
-      bl.lobe[i * 4] = Math.cos(a) * Math.cos(e) * o; bl.lobe[i * 4 + 1] = Math.sin(e) * o + (i ? 0 : 0.08); bl.lobe[i * 4 + 2] = Math.sin(a) * Math.cos(e) * o;
-      bl.lobe[i * 4 + 3] = i ? 0.26 + Math.random() * 0.08 : 0.42;
-    }
-    if (FX) {
-      var fy = IB.AI && IB.AI.supportY ? IB.AI.supportY(world, x, z, y - 0.3, 0.05) : 0, fn = world.terrains.length && fy === world.groundAt(x, z) ? world.groundNormal(x, z) : { x: 0, y: 1, z: 0 };
-      if (y - fy < R) FX.decal(x, fy + 0.01, z, fn.x, fn.y, fn.z, 'splat', R * 1.05);
-      FX.puff(x, y, z, 14, PAL.ink, 0.35, 1.2, 6.5, -2);
-      FX.puff(x, y + 0.2, z, 8, PAL.amber, 0.3, 0.85, 5);
-      FX.puff(x, y + 0.2, z, 4, PAL.paper, 0.25, 0.6, 4);
-      FX.puff(x, y, z, 4, PAL.red, 0.25, 0.7, 4.5);
-      FX.chunk(x, y, z, 6, 5);
-    }
+    var x = q.x, y = q.y, z = q.z, R = q.R, p = ctx.player, world = ctx.world, FX = IB.FX, i, Boom = IB.Boom && IB.Boom.ready ? IB.Boom : null;
     sfx('boom', x, z, 1);
-    if (IB.FX && IB.FX.word) IB.FX.word(['BLAM', 'KRUNCH', 'FWOOM'][(Math.random() * 3) | 0], x, y + 0.9, z, 1.7);
+    if (Boom) Boom.blast(x, y, z, R, q.src.type);   // comic fireball, smoke, debris, ring, scorch, word, shake (game/boom.js)
+    else blastBall(x, y, z, R, ctx);
     // player: distance to the capsule surface, cover halves it
     if (p && p.alive) {
       var cy = Math.max(p.y + PLAYER_R, Math.min(p.y + PLAYER_H - PLAYER_R, y));
       var dp = Math.sqrt((p.x - x) * (p.x - x) + (cy - y) * (cy - y) + (p.z - z) * (p.z - z));
-      if (ctx.shake) ctx.shake(dp < 6 ? 0.6 : 0.6 * Math.max(0, 1 - (dp - 6) / 8));
+      if (ctx.shake && !Boom) ctx.shake(dp < 6 ? 0.6 : 0.6 * Math.max(0, 1 - (dp - 6) / 8));
       var dmg = Pj.blastDamage(dp - PLAYER_R, R, q.D, covered(world, x, y, z, p.x, p.y + 1.0, p.z));
       if (dmg > 0.5 && ctx.hurt) ctx.hurt(q.src, dmg);
     }
@@ -216,6 +201,45 @@
         AI.damage(r, rd, { kx: hx * kb, kz: hz * kb, stagger: d < R * 0.6 }, ctx.onKill);
       }
     }
+    // explosive canisters in reach light up and go off next (chains ripple)
+    if (Boom) Boom.onBlast(x, y, z, R);
+  }
+  // the original lobe cloud (used only when game/boom.js is not loaded)
+  function blastBall(x, y, z, R, ctx) {
+    var bl = null, i, FX = IB.FX;
+    for (i = 0; i < BLAST_CAP; i++) if (!Pj.blasts[i].on) { bl = Pj.blasts[i]; break; }
+    if (!bl) bl = Pj.blasts[0];
+    bl.on = true; bl.t = 0; bl.x = x; bl.y = y; bl.z = z; bl.R = R;
+    for (i = 0; i < LOBES; i++) {   // lobe 0 = core; the rest ring it, biased upward (offset xyz, size)
+      var a = i * 2.4 + Math.random() * 0.8, e = 0.15 + Math.random() * 0.6, o = i ? 0.3 + Math.random() * 0.12 : 0;
+      bl.lobe[i * 4] = Math.cos(a) * Math.cos(e) * o; bl.lobe[i * 4 + 1] = Math.sin(e) * o + (i ? 0 : 0.08); bl.lobe[i * 4 + 2] = Math.sin(a) * Math.cos(e) * o;
+      bl.lobe[i * 4 + 3] = i ? 0.26 + Math.random() * 0.08 : 0.42;
+    }
+    if (FX) {
+      FX.decal(x, 0.01, z, 0, 1, 0, 'splat', R * 1.05);
+      FX.puff(x, y, z, 14, PAL.ink, 0.35, 1.2, 6.5, -2);
+      FX.puff(x, y + 0.2, z, 8, PAL.amber, 0.3, 0.85, 5);
+      FX.puff(x, y + 0.2, z, 4, PAL.paper, 0.25, 0.6, 4);
+      FX.puff(x, y, z, 4, PAL.red, 0.25, 0.7, 4.5);
+      FX.chunk(x, y, z, 6, 5);
+    }
+    if (IB.FX && IB.FX.word) IB.FX.word(['BLAM', 'KRUNCH', 'FWOOM'][(Math.random() * 3) | 0], x, y + 0.9, z, 1.7);
+  }
+
+  function hitRobot(b, nx, ny, nz, ctx) {
+    var AI = IB.AI; if (!AI || !AI.robots) return false;
+    for (var i = 0; i < AI.robots.length; i++) {
+      var r = AI.robots[i]; if (!r.on || r.state === 'spawn' || r.state === 'pose') continue;
+      if (b.vs === 1 ? r.rogue > 0 : !(r.rogue > 0)) continue;
+      var v = AI.VIS[r.type];
+      if (!Pj.segHitsCapsule(b.x, b.y, b.z, nx, ny, nz, r.x, r.y + v.y0 + v.radius * 0.5, r.y + v.y1 - v.radius * 0.5, r.z, v.radius, HIT_R)) continue;
+      b.on = false;
+      AI.damage(r, b.dmg, { kx: b.vx / b.sp * 2, kz: b.vz / b.sp * 2 }, b.vs === 1 ? ctx.onKill : null);
+      if (IB.Boom) IB.Boom.boltHit(nx, ny, nz, -b.vx / b.sp, -b.vy / b.sp, -b.vz / b.sp);
+      sfx('boltHit', nx, nz, 0.5);
+      return true;
+    }
+    return false;
   }
 
   Pj.update = function (dt, ctx) {
@@ -230,29 +254,33 @@
       b.t += dt;
       if (b.t > LIFE) { b.on = false; continue; }
       var nx = b.x + b.vx * dt, ny = b.y + b.vy * dt, nz = b.z + b.vz * dt;
+      // robot fights (rogues): robot capsules on the bolt's side
+      if (b.vs && hitRobot(b, nx, ny, nz, ctx)) continue;
       // player capsule
-      if (p && p.alive && Pj.segHitsCapsule(b.x, b.y, b.z, nx, ny, nz, p.x, p.y + PLAYER_R, p.y + PLAYER_H - PLAYER_R, p.z, PLAYER_R, HIT_R)) {
+      if (b.vs !== 1 && p && p.alive && Pj.segHitsCapsule(b.x, b.y, b.z, nx, ny, nz, p.x, p.y + PLAYER_R, p.y + PLAYER_H - PLAYER_R, p.z, PLAYER_R, HIT_R)) {
         b.on = false;
         if (ctx.hurt) ctx.hurt(b.src, b.dmg);
         if (FX) { FX.puff(nx, ny, nz, 3, PAL.amber, 0.1, 0.3, 2.5); FX.puff(nx, ny, nz, 2, PAL.ink, 0.12, 0.35, 2); }
+        if (IB.Boom) IB.Boom.boltHit(nx, ny, nz, -b.vx / b.sp, -b.vy / b.sp, -b.vz / b.sp);
         sfx('boltHit', nx, nz, 0.9);
         continue;
       }
       // world: ray along the step (no tunnelling), then a sphere test at the new spot (grazes)
       var ux = b.vx / b.sp, uy = b.vy / b.sp, uz = b.vz / b.sp, step = b.sp * dt;
       var h = world.ray(b.x, b.y, b.z, ux, uy, uz, step + HIT_R);
-      var hit = false, hx = 0, hy = 0, hz = 0, nnx = 0, nny = 1, nnz = 0;
-      if (h) { hit = true; hx = b.x + ux * h.t; hy = b.y + uy * h.t; hz = b.z + uz * h.t; nnx = h.nx; nny = h.ny; nnz = h.nz; }
+      var hit = false, hx = 0, hy = 0, hz = 0, nnx = 0, nny = 1, nnz = 0, hbox = null;
+      if (h) { hit = true; hx = b.x + ux * h.t; hy = b.y + uy * h.t; hz = b.z + uz * h.t; nnx = h.nx; nny = h.ny; nnz = h.nz; hbox = h.box; }
       else {
         world.query(nx - HIT_R, nz - HIT_R, nx + HIT_R, nz + HIT_R, _tmp);
         for (var k = 0; k < _tmp.length; k++) {
           var bx = _tmp[k];
-          if (Pj.sphereBox(nx, ny, nz, HIT_R, bx)) { hit = true; hx = nx; hy = ny; hz = nz; nnx = -ux; nny = -uy; nnz = -uz; break; }
+          if (Pj.sphereBox(nx, ny, nz, HIT_R, bx)) { hit = true; hx = nx; hy = ny; hz = nz; nnx = -ux; nny = -uy; nnz = -uz; hbox = bx; break; }
         }
       }
       if (hit) {
         b.on = false;
         if (FX) { FX.impact(hx, hy, hz, nnx, nny, nnz, false); FX.puff(hx + nnx * 0.05, hy + nny * 0.05, hz + nnz * 0.05, 2, PAL.amber, 0.08, 0.22, 2); }
+        if (IB.Boom) { IB.Boom.boltHit(hx, hy, hz, nnx, nny, nnz); if (hbox && hbox.kind === 'canister') IB.Boom.hitCan(hbox, b.dmg * 2); }   // robot fire sets canisters off too
         sfx('boltHit', hx, hz, 0.45);
         continue;
       }
