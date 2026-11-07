@@ -19,9 +19,9 @@ Floor layer: 1 lobby tile  2 carpet  3 armory rubber  4 garage concrete  5 range
   M floor emblem [4,4]
   wall-art codes on wall cells: w window  v projector screen  F flag  W whiteboard  m map board  n notice board
   e badge plaque  c clock  u door  s sign  C cage window  A first-aid  Z extinguisher  r roller door  O tool board
-  I panel / warning light  K bullet backstop
+  I panel / warning light  L bullet backstop   (art codes never reuse a symbol: the layer would build it)
 Ceiling layer: i panel light  j high-bay lamp  = ! + beam along X / Z / crossing  ~ ; duct along X / Z
-  * acoustic baffle (along X)  [ ] doorway lintel (wall along X / Z)
+  $ target carrier rail (along Z)  [ ] doorway lintel (wall along X / Z)
 """
 import os
 import sys
@@ -31,6 +31,7 @@ sys.path.insert(0, HERE)
 from zonekit import Zone, validate, OUT  # noqa: E402
 
 W, H = 48, 48
+WALK = set()
 WALK = set()
 PREFAB = {'R': (3, 1), 'b': (2, 1), 'g': (2, 1), 'K': (2, 2), 'T': (4, 2), 'B': (2, 1), 'X': (2, 2), 'D': (4, 1),
           'Q': (6, 2), 'V': (3, 6), 'J': (4, 3), 'y': (3, 2)}
@@ -99,6 +100,25 @@ class PZone(Zone):
         out += '@layer 0.008\n' + Zone.text(self.f)
         out += '@layer 4\n' + Zone.text(self.k)
         return out
+
+
+def border(z, c0, r0, w, h, base, ch):
+    """a band of `ch` over the `base` floor cells that touch a wall (room edges, round pillars)"""
+    for r in range(r0, r0 + h):
+        for c in range(c0, c0 + w):
+            if z.f.g[r][c] == base and any(z.at(c + dc, r + dr) == '#' for dc in (-1, 0, 1) for dr in (-1, 0, 1)):
+                z.f.g[r][c] = ch
+
+
+def joints(z, c0, r0, w, h, base='4'):
+    """concrete slab joints every 4 m: '0' west edge, '9' south edge, '%' both"""
+    for r in range(r0, r0 + h):
+        for c in range(c0, c0 + w):
+            if z.f.g[r][c] != base:
+                continue
+            a, b = c % 4 == 0, r % 4 == 3
+            if a or b:
+                z.f.g[r][c] = '%' if a and b else '0' if a else '9'
 
 
 def lintel(z, c0, r0, w, h, ch):
@@ -186,6 +206,7 @@ def zone1():
     z.put(16, 41, 'a')
     z.put(31, 41, 'h')
     z.floor(1, 26, 46, 21, '1')
+    border(z, 1, 26, 46, 21, '1', '8')
     z.floor(7, 24, 4, 2, '1')
     z.floor(21, 24, 8, 2, '1')
     z.floor(22, 34, 4, 4, 'M')
@@ -198,7 +219,7 @@ def zone1():
     z.art([(47, 36), (47, 37), (47, 40), (47, 41), (47, 42)], 'w')
     z.art([(8, 47), (39, 47)], 'u')
     z.art([(3, 47), (4, 47), (14, 47), (34, 47), (43, 47), (44, 47)], 'w')
-    z.art([(18, 47), (30, 47)], 'e')
+    z.art([(18, 47), (36, 47)], 'e')
     z.art([(17, 25)], 'c')
 
     # --- ceiling
@@ -342,7 +363,7 @@ def zone3():
     z.floor(3, 16, 4, 2, '5')
     z.floor(21, 16, 6, 2, '5')
     z.floor(41, 16, 4, 2, '5')
-    z.art([(c, 0) for c in list(range(1, 21)) + list(range(28, 47))], 'K')
+    z.art([(c, 0) for c in list(range(1, 21)) + list(range(28, 47))], 'L')
     z.art([(16, 16), (17, 16), (18, 16), (29, 16), (30, 16), (31, 16)], 'w')
     z.art([(9, 16), (38, 16)], 's')
     z.art([(14, 16), (33, 16)], 'I')
@@ -354,7 +375,9 @@ def zone3():
     z.block(1, 31, 3, 12, 'J')
     for r in (21, 25):
         z.block(46, r, 1, 3, 'R')
-    z.puts([(46, 29), (46, 35), (46, 36), (46, 42)], 'z')
+    z.puts([(46, 29), (46, 42), (46, 43)], 'z')
+    z.puts([(44, 30), (44, 33), (44, 37), (44, 40)] + [(c, 28) for c in (4, 10, 16, 32, 38, 44)], 'q')
+    z.puts([(19, 24), (30, 25), (40, 44)], 'N')
     z.puts([(45, 45), (46, 45), (46, 44), (1, 45), (2, 45), (9, 45)], 't')
     z.run(17, 33, 3, 'k')
     z.run(28, 33, 3, 'k')
@@ -370,6 +393,7 @@ def zone3():
     z.put(41, 46, 'a')
     z.put(6, 37, 'h')
     z.floor(1, 18, 46, 29, '4')
+    joints(z, 1, 18, 46, 29)
     for c in (4, 10, 16, 32, 38, 44):
         for r in range(19, 27):
             z.f.g[r][c] = '|'
@@ -386,16 +410,17 @@ def zone3():
     z.art([(0, 23), (0, 24)], 'I')
     z.art([(0, 20)], 's')
     z.art([(0, 28)], 's')
-    z.art([(47, 44)], 'I')
+    z.art([(47, 35)], 'I')
     z.art([(8, 47), (40, 47)], 'w')
 
     # --- ceiling
     lintel(z, 3, 16, 4, 2, '[')
     lintel(z, 21, 16, 6, 2, '[')
     lintel(z, 41, 16, 4, 2, '[')
-    for r in (2, 5, 8):
-        z.ceil(1, r, 46, 1, '*')
-    z.lights('i', range(3, 46, 3), (12, 14))
+    for c in list(range(3, 20, 3)) + list(range(29, 46, 3)):    # target carrier rails over each lane
+        z.ceil(c, 2, 1, 10, '$')
+    z.lights('i', [c for c in range(4, 46, 3) if 21 > c or c > 27] + [24], (6, 13))
+    z.ceil(1, 9, 46, 1, '~')
     z.beams_z((9, 15, 21, 27, 33, 39), 18, 46)
     z.lights('j', (6, 12, 18, 24, 30, 36, 42), (22, 28, 34, 40, 45))
     z.ceil(1, 31, 8, 1, '~')
@@ -407,10 +432,14 @@ def check_layers(z):
     for r in range(H):
         for c in range(W):
             base, fl, ce = z.g[r][c], z.f.g[r][c], z.k.g[r][c]
-            if base not in '#GE' and fl not in FLOORS + '/^,-|_:M':
+            if base not in '#GE' and fl not in FLOORS + '/^,-|_:M809%':
                 errs.append('no floor finish at (%d,%d)' % (c, r))
             if base == '#' and ce != '.':
                 errs.append('ceiling piece over a wall at (%d,%d)' % (c, r))
+            if base == '#' and fl != '.':   # wall art: the cell in front must be clear floor (no rack, locker, cell...)
+                fronts = [z.at(c + dc, r + dr) for dc, dr in ((0, 1), (0, -1), (1, 0), (-1, 0)) if z.at(c + dc, r + dr) not in '#GE']
+                if len(fronts) != 1 or fronts[0] not in '.Sah':
+                    errs.append('wall art %r at (%d,%d) faces %s' % (fl, c, r, fronts))
     return errs
 
 

@@ -21,6 +21,7 @@ Coplanar overlapping faces are avoided by construction (check_zfight fails the b
 import math
 
 import bpy  # noqa: F401  (must load before bmesh/mathutils)
+import bmesh
 from mathutils import Matrix, Vector
 
 from ib_lib import *  # noqa: F401,F403
@@ -49,7 +50,7 @@ ib_lib.PALETTES[FAM] = BASE + [
     ('olive', '#6F7B4A'), ('olive2', '#59643B'), ('sand', '#D2BC86'), ('khaki', '#B5A170'), ('peg', '#CDAE7E'),
     ('peg2', '#BE9C6A'), ('glass', '#A6D8F0'), ('screen', '#46C2F2'), ('screen2', '#1F3E66'), ('light', '#FFF4CF'),
     ('yellow', '#F7CF2E'), ('orange', '#F0883A'), ('green', '#4FA86A'), ('leaf', '#3F9358'), ('clay', '#C4704A'),
-    ('cork', '#C99A62'), ('blue', '#3B7EEB'), ('target', '#F3EEE2'),
+    ('cork', '#C99A62'), ('blue', '#3B7EEB'), ('target', '#F3EEE2'), ('flC', '#7F96B3'),
 ]
 assert len(ib_lib.PALETTES[FAM]) <= 64, len(ib_lib.PALETTES[FAM])
 ib_lib.ZFIGHT_STRICT[FAM] = False   # TEMP while remodelling
@@ -207,13 +208,30 @@ def notice(m, S, x0=-0.36, x1=0.36, z0=1.75, z1=2.65):
         m.bx(x - w / 2, x + w / 2, y - 0.05 - 0.003 * (k % 2), y - 0.044, z, z + 0.012, 'ink', cull='k', hull='none')
 
 
-def star(m, cx, z, y, r, color, t=0.006, thick=0.12):
-    """five-point star as five bars, each 3 mm further out than the last (no coplanar overlaps)"""
-    for i in range(5):
-        a = math.pi / 2 + i * 2 * math.pi / 5
-        L = r
-        m.box((cx + math.cos(a) * L * 0.42, y - t * (i + 1) - t / 2 * 0, z + math.sin(a) * L * 0.42), (L * 0.84, t, thick * r),
-              color, rot=(0, -math.degrees(a), 0), bevel=False)
+def star_pts(r, inner=0.42, a0=math.pi / 2):
+    return [((r if i % 2 == 0 else r * inner) * math.cos(a0 + i * math.pi / 5),
+             (r if i % 2 == 0 else r * inner) * math.sin(a0 + i * math.pi / 5)) for i in range(10)]
+
+
+def star(m, cx, z, y, r, color, t=0.006, hull='full'):
+    """five-point star prism in the wall plane: back face at y (dropped), front face t further toward -Y"""
+    bm = m.bm
+    P = star_pts(r)
+    fr = [bm.verts.new(m.parent @ Vector((cx + px, y - t, z + pz))) for px, pz in P]
+    bk = [bm.verts.new(m.parent @ Vector((cx + px, y, z + pz))) for px, pz in P]
+    faces = [bm.faces.new(list(reversed(fr)))]
+    for i in range(10):
+        j = (i + 1) % 10
+        faces.append(bm.faces.new((fr[i], fr[j], bk[j], bk[i])))
+    bmesh.ops.recalc_face_normals(bm, faces=faces)
+    tag(m, faces, color)
+    if hull != 'full':
+        m.hmode[m.nshape] = hull
+
+
+def star_flat(m, r, color, z):
+    """flat five-point star facing up (floor emblem)"""
+    return poly(m, star_pts(r), color, z)
 
 
 def badge(m, S, z=2.45, r=0.3):
@@ -273,6 +291,8 @@ def build_walls(pal, ao):
     m = new(pal); wall_base(m, 'C'); sign(m, 'C', 'mint', 'ink', 'white'); fin('WC_Sign', m, ao)
     m = new(pal); wall_base(m, 'C'); notice(m, 'C'); fin('WC_Board', m, ao)
     m = new(pal); wall_base(m, 'C'); clock(m, 'C'); fin('WC_Clock', m, ao)
+    for S in 'LOAGC':
+        m = new(pal); wall_base(m, S); lamp(m, S); fin('W%s_Lamp' % S, m, ao)
     m = new(pal); door(m, 'C', 'steel', 'mint'); fin('WC_Door', m, ao)
 
 
@@ -482,6 +502,22 @@ def backstop(m):
     m.bx(-0.5, 0.5, y - 0.02, y + 0.0, 2.65, 2.9, 'steel2', cull='klr')
 
 
+def lamp(m, S):
+    """wall light at 2.8 m: an up-light sconce in the lobby / office / cells, a caged bulkhead lamp elsewhere"""
+    y = face_y(S, 2.8)
+    if S in 'LOC':
+        m.bx(-0.07, 0.07, y - 0.02, y + 0.01, 2.62, 2.88, 'navy2' if S != 'O' else 'oak2', cull='k')
+        m.cy((0, y - 0.13, 2.7), 0.08, 0.15, 0.2, 'gold' if S == 'L' else 'chrome', seg=10, caps=True)
+        m.cy((0, y - 0.13, 2.9), 0.13, 0.13, 0.004, 'light', seg=10, hull='none')
+        m.bx(-0.015, 0.015, y - 0.06, y - 0.02, 2.72, 2.76, 'navy2', cull='k')
+    else:
+        m.bx(-0.16, 0.16, y - 0.03, y + 0.01, 2.62, 2.9, 'black', cull='k')
+        m.bx(-0.13, 0.13, y - 0.11, y - 0.03, 2.65, 2.87, 'light')
+        for k in range(3):
+            x = -0.09 + k * 0.09
+            m.bx(x - 0.008, x + 0.008, y - 0.125, y - 0.11, 2.64, 2.88, 'black', cull='k')
+
+
 def beacon(m, S):
     y = face_y(S, 2.6)
     m.bx(-0.08, 0.08, y - 0.08, y + 0.01, 2.5, 2.58, 'black', cull='k')
@@ -503,6 +539,7 @@ def floor_tiles(pal):
     tile('Floor_LobbyB', 'flB')
     tile('Floor_Rubber', 'rubber', 'rubber2', 0.025)
     tile('Floor_PaleA', 'paleA', 'paleB', 0.02)
+    tile('Floor_Border', 'flC', 'grout')
     m = new(pal)   # carpet tiles: quarter-turned pile shows as two tones per alternate cell
     quad(m, -0.5, -0.5, 0.5, 0.5, 'carpet'); fin('Floor_CarpetA', m, False, flat=True)
     m = new(pal)
@@ -511,6 +548,9 @@ def floor_tiles(pal):
     quad(m, -0.5, -0.5, 0.5, 0.5, 'conc'); fin('Floor_Conc', m, False, flat=True)
     m = new(pal)   # concrete with an expansion joint on its west edge
     quad(m, -0.48, -0.5, 0.5, 0.5, 'conc'); quad(m, -0.5, -0.5, -0.48, 0.5, 'conc2'); fin('Floor_ConcJ', m, False, flat=True)
+    m = new(pal)   # concrete with joints on its west and south edges
+    quad(m, -0.48, -0.48, 0.5, 0.5, 'conc'); quad(m, -0.5, -0.5, -0.48, 0.5, 'conc2'); quad(m, -0.48, -0.5, 0.5, -0.48, 'conc2')
+    fin('Floor_ConcJ2', m, False, flat=True)
     m = new(pal)   # concrete with an oil stain
     pts = [(math.cos(a / 8 * 2 * math.pi) * 0.3 * (1 + 0.25 * math.sin(a * 2.3)), math.sin(a / 8 * 2 * math.pi) * 0.22) for a in range(8)]
     sq = [(-0.5, -0.5), (0.5, -0.5), (0.5, 0.5), (-0.5, 0.5)]
@@ -567,10 +607,8 @@ def floor_tiles(pal):
     m.cy((0, 0, 0.004), 1.6, 1.6, 0.004, 'navy', seg=28)
     m.cy((0, 0, 0.008), 1.32, 1.32, 0.004, 'gold', seg=28)
     m.cy((0, 0, 0.012), 1.24, 1.24, 0.004, 'navy2', seg=28)
-    for i in range(5):
-        a = math.pi / 2 + i * 2 * math.pi / 5
-        m.box((math.cos(a) * 0.5, math.sin(a) * 0.5, 0.0175 + 0.0035 * i), (1.0, 0.24, 0.003), 'gold', rot=(0, 0, math.degrees(a)), bevel=False)
-    m.cy((0, 0, 0.034), 0.22, 0.22, 0.004, 'navy', seg=12)
+    star_flat(m, 1.12, 'gold', 0.019)
+    m.cy((0, 0, 0.0225), 0.2, 0.2, 0.004, 'navy', seg=12)
     fin('Emblem', m, False, flat=True)
 
 
@@ -590,6 +628,10 @@ def build_ceiling(pal, ao):
     m.bx(-0.5, 0.5, -0.07, 0.07, -0.36, -0.005, 'navy2', cull='lrt', hull='noside')
     m.bx(-0.5, 0.5, -0.13, 0.13, -0.42, -0.36, 'navy2', cull='lr', hull='noside')
     fin('Beam', m, ao)
+    m = new(pal)   # pale bulkhead beam (lobby, offices) along X
+    m.bx(-0.5, 0.5, -0.12, 0.12, -0.34, -0.005, 'wall2', cull='lrt', hull='noside')
+    m.bx(-0.5, 0.5, -0.14, 0.14, -0.4, -0.34, 'navy', cull='lr', hull='noside')
+    fin('BeamL', m, ao)
     m = new(pal)   # crossing: X beam plus a Z beam stopping at its web
     m.bx(-0.5, 0.5, -0.07, 0.07, -0.36, -0.005, 'navy2', cull='lrt', hull='noside')
     m.bx(-0.5, 0.5, -0.13, 0.13, -0.42, -0.36, 'navy2', cull='lr', hull='noside')
@@ -604,13 +646,10 @@ def build_ceiling(pal, ao):
     m.bx(0.42, 0.5, -0.32, 0.32, -0.52, -0.1, 'steel', cull='r', hull='noside')
     m.bx(-0.03, 0.03, -0.32, 0.32, -0.12, -0.005, 'steel2', cull='t')                  # hanger
     fin('Duct', m, ao)
-    m = new(pal)   # acoustic baffle hanging across the range
-    m.cur = 'noside'
-    m.box((0, 0, -0.85), (1.0, 0.08, 0.8), 'acou', rot=(25, 0, 0), bevel=False)
-    m.cur = 'full'
-    for sx in (-0.4, 0.4):
-        m.cy((sx, 0, -0.5), 0.01, 0.01, 0.495, 'black', seg=4, caps=False)
-    fin('Baffle', m, ao, hull=HT)
+    m = new(pal)   # target carrier rail module (along X; the range turns it along the lanes) with a hanger
+    m.bx(-0.5, 0.5, -0.035, 0.035, -0.7, -0.62, 'steel2', cull='lr', hull='noside')
+    m.bx(-0.015, 0.015, -0.015, 0.015, -0.62, -0.005, 'black', cull='t')
+    fin('Ceil_Rail', m, ao)
     m = new(pal)   # doorway lintel (bulkhead) over a two-cell wall: 0.85 m deep
     m.bx(-0.5, 0.5, -0.5, 0.5, -0.85, -0.12, 'wall', cull='lrt', hull='noside')
     m.bx(-0.5, 0.5, -0.5, 0.5, -0.12, 0.0, 'navy', cull='lrt', hull='noside')
@@ -1068,6 +1107,20 @@ def build_props(pal, ao):
     for x, z in ((0.04, 1.36), (-0.07, 1.22), (0.1, 1.15)):
         m.cy((x, -0.0275, z), 0.012, 0.012, 0.002, 'black', seg=6, rot=(90, 0, 0), hull='none')
     fin('Target', m, ao, cols=[col_box(-0.34, -0.2, 0, 0.34, 0.2, 1.85)])
+
+    m = new(pal)   # steel bollard: yellow with black bands
+    m.cy((0, 0, 0.0), 0.11, 0.11, 0.95, 'yellow', seg=10)
+    for z in (0.55, 0.75):
+        m.cy((0, 0, z), 0.114, 0.114, 0.08, 'ink', seg=10)
+    m.sp((0, 0, 0.95), 0.11, 'yellow', seg=(10, 3), scale=(1, 1, 0.45))
+    m.cy((0, 0, 0), 0.16, 0.16, 0.03, 'steel2', seg=10)
+    fin('Bollard', m, ao, cols=[col_box(-0.16, -0.16, 0, 0.16, 0.16, 1.0)])
+    m = new(pal)   # traffic cones
+    for k, (x, y, s2) in enumerate(((-0.18, -0.12, 1.0), (0.2, 0.1, 0.85), (-0.1, 0.25, 0.7))):
+        m.bx(x - 0.17 * s2, x + 0.17 * s2, y - 0.17 * s2, y + 0.17 * s2, 0.0, 0.035, 'black')
+        m.cy((x, y, 0.035), 0.12 * s2, 0.025 * s2, 0.62 * s2, 'orange', seg=8)
+        m.cy((x, y, 0.035 + 0.3 * s2), 0.075 * s2 + 0.008, 0.06 * s2 + 0.008, 0.1 * s2, 'white', seg=8, caps=False)
+    fin('Cones', m, ao, cols=[col_box(-0.36, -0.3, 0, 0.36, 0.42, 0.66)])
 
 
 # ================================================================ landmarks

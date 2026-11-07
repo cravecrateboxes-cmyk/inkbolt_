@@ -2190,30 +2190,32 @@
      f filing cabinet  k sandbags (runs)  x crate / ammo cans  K desk pod [2,2]  T briefing row [4,2] (faces north)
      U lectern  p plant  B waiting bench [2,1]  o vending / water cooler  H gear stand  z tool chest  t drums / tyres
      X pallet [2,2]  D ops console [4,1]  Q front desk [6,2]  V SWAT van [3,6]  J holding cell [4,3]
-     y range booth [3,2] (counter to the north)  Y target
-   Floor layer: 1 lobby tile  2 carpet  3 armory rubber  4 garage concrete  5 range  6 pale tile  7 entry mat
+     y range booth [3,2] (counter to the north)  Y target  q bollard  N traffic cones
+   Floor layer: 1 lobby tile  8 lobby border tile  2 carpet  3 armory rubber  4 garage concrete (0 9 % with a joint on
+     the west / south / both edges)  5 range  6 pale tile  7 entry mat
      / hazard stripes  ^ firing line  , lane line  - | garage line (X / Z)  _ : armory line (X / Z)  M emblem [4,4]
      Wall-art codes (on wall cells): w window  v projector screen (runs)  F flag  W whiteboard  m map  n notice board
      e badge  c clock  u door  s sign  C cage window  A first aid  Z extinguisher  r roller door (runs)  O tool board
-     I panel / warning light  K backstop
-   Ceiling layer: i panel light  j high-bay lamp  = ! + beam (X / Z / crossing)  ~ ; duct (X / Z)  * baffle
+     I panel / warning light  L backstop  (plain modules in the middle of long runs get a wall lamp every 5 m)
+   Ceiling layer: i panel light  j high-bay lamp  = ! + beam (X / Z / crossing)  ~ ; duct (X / Z)  $ carrier rail (Z)
      [ ] doorway lintel (X / Z)
    The wall chooser styles each module from the floor finish in front of it (lobby, office, armory, garage, range,
    cells), turns the art code on the cell into that style's piece and splits runs (screen, roller door) into
    left end / middle / right end parts. */
 (function (IB) {
   'use strict';
-  var FSTYLE = { '1': 'L', '7': 'L', 'M': 'L', '2': 'O', '3': 'A', '_': 'A', ':': 'A', '4': 'G', '-': 'G', '|': 'G',
+  var FSTYLE = { '1': 'L', '7': 'L', '8': 'L', 'M': 'L', '2': 'O', '0': 'G', '9': 'G', '%': 'G', '3': 'A', '_': 'A', ':': 'A', '4': 'G', '-': 'G', '|': 'G',
     '5': 'R', '^': 'R', ',': 'R', '6': 'C' };
   var ART = {
     L: { w: 'WL_Window', e: 'WL_Badge', n: 'WL_Board', c: 'WL_Clock', F: 'WL_Flag', u: 'WL_Door', s: 'WL_Sign' },
     O: { w: 'WO_Window', W: 'WO_White', m: 'WO_Map', c: 'WO_Clock', F: 'WO_Flag', n: 'WO_Board', u: 'WO_Door', v: 'WO_Screen' },
     A: { s: 'WA_Sign', C: 'WA_Cage', A: 'WA_Aid', Z: 'WA_Ext', u: 'WA_Door', n: 'WA_Board' },
     G: { r: 'WG_Roller', O: 'WG_Tools', I: 'WG_Panel', Z: 'WG_Ext', w: 'WG_Window', s: 'WG_Sign', n: 'WG_Board' },
-    R: { K: 'WR_Back', s: 'WR_Sign', I: 'WR_Light', w: 'WR_Window' },
+    R: { L: 'WR_Back', s: 'WR_Sign', I: 'WR_Light', w: 'WR_Window' },
     C: { s: 'WC_Sign', n: 'WC_Board', c: 'WC_Clock', u: 'WC_Door' }
   };
   var RUNS = { WO_Screen: 1, WG_Roller: 1 };   // drawn over several modules: L / M / R parts
+  var LAMP = { L: 'WL_Lamp', O: 'WO_Lamp', A: 'WA_Lamp', G: 'WG_Lamp', C: 'WC_Lamp' };   // every 5th module of a long plain run
   var FACE = { S: [0, 1], N: [0, -1], E: [1, 0], W: [-1, 0] };
   var LEFT = { S: [-1, 0], N: [1, 0], E: [0, 1], W: [0, -1] };   // the module's local -X neighbour (yaw per face)
   var NB = [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [-1, 1], [1, -1], [-1, -1]];
@@ -2223,6 +2225,17 @@
       (grid.layers || []).forEach(function (l) { if (!grid._polF && l.y < 1) grid._polF = l; });
     }
     return grid._polF;
+  }
+  // a lamp on a plain module in the middle of a straight run: both run neighbours plain walls facing the same way
+  function lampAt(c, r, d, grid, F) {
+    var ax = d[1] ? [1, 0] : [0, 1], pos = d[1] ? c : r;
+    if (pos % 5 !== 2) return false;
+    for (var k = -1; k <= 1; k++) {   // nothing but floor in front of the three modules (no rack, cell, shelf)
+      var nc = c + ax[0] * k, nr = r + ax[1] * k;
+      if (k && (grid.at(nc, nr) !== '#' || F.at(nc, nr) !== '.' && F.at(nc, nr) !== '#')) return false;
+      if ('.Sah'.indexOf(grid.at(nc + d[0], nr + d[1])) < 0) return false;
+    }
+    return true;
   }
   function chooseWall(c, r, horiz, corner, hash, grid, face) {
     var F = floorOf(grid), S = '', k;
@@ -2235,7 +2248,7 @@
     for (k = 1; k <= 4 && !S; k++) S = FSTYLE[F.at(c + d[0] * k, r + d[1] * k)] || '';
     S = S || 'L';
     var code = F.at(c, r), piece = ART[S][code];
-    if (!piece) return 'W' + S;
+    if (!piece) return LAMP[S] && lampAt(c, r, d, grid, F) ? LAMP[S] : 'W' + S;
     if (RUNS[piece]) {
       var L = LEFT[face], hasL = F.at(c + L[0], r + L[1]) === code, hasR = F.at(c - L[0], r - L[1]) === code;
       return piece + (!hasL ? 'L' : !hasR ? 'R' : 'M');
@@ -2278,6 +2291,8 @@
     'J': { size: [4, 3], pieces: ['Landmark_Cells'], orient: 'wall', kind: 'wall' },
     'y': { size: [3, 2], pieces: ['Booth'], kind: 'cover' },
     'Y': { pieces: ['Target'], rotate: 0, kind: 'cover' },
+    'q': { pieces: ['Bollard'], kind: 'cover' },
+    'N': { pieces: ['Cones'], rotate: 'random90', kind: 'cover' },
     // ---- floor layer (flat, no collision)
     '1': flat(['Floor_LobbyA', 'Floor_LobbyB'], 0, true),
     '2': flat(['Floor_CarpetA', 'Floor_CarpetB'], 0, true),
@@ -2285,6 +2300,8 @@
     '4': flat(['Floor_Conc', 'Floor_Conc', 'Floor_Conc', 'Floor_ConcJ', 'Floor_Conc', 'Floor_Conc', 'Floor_Conc', 'Floor_ConcStain', 'Floor_Conc', 'Floor_Conc']),
     '5': flat(['Floor_Range']),
     '6': flat(['Floor_PaleA']),
+    '8': flat(['Floor_Border']),
+    '0': flat(['Floor_ConcJ'], 0), '9': flat(['Floor_ConcJ'], Math.PI / 2), '%': flat(['Floor_ConcJ2']),
     '7': flat(['Floor_Mat']),
     '/': flat(['Floor_Hazard']),
     '^': flat(['Floor_RangeLine']),
@@ -2294,9 +2311,9 @@
     'M': { size: [4, 4], pieces: ['Emblem'], collide: false },
     // ---- ceiling layer (hanging from y = 4)
     'i': flat(['Ceil_Panel']), 'j': flat(['Ceil_HighBay']),
-    '=': flat(['Beam'], 0), '!': flat(['Beam'], Math.PI / 2), '+': flat(['BeamX']),
+    '=': flat(['BeamL'], 0), '!': flat(['Beam'], Math.PI / 2), '+': flat(['BeamX']),
     '~': flat(['Duct'], 0), ';': flat(['Duct'], Math.PI / 2),
-    '*': flat(['Baffle']), '[': flat(['Lintel'], 0), ']': flat(['Lintel'], Math.PI / 2)
+    '$': flat(['Ceil_Rail'], Math.PI / 2), '[': flat(['Lintel'], 0), ']': flat(['Lintel'], Math.PI / 2)
   };
   // every character a zone's floor plan can hold: the ceiling's auto lights skip them all (the zones light themselves
   // from the ceiling layer; the corridors and the hatch room keep the auto lights)
@@ -2304,6 +2321,7 @@
   var WALLS = [];
   Object.keys(ART).forEach(function (S) {
     WALLS.push('W' + S, 'Corner' + S);
+    if (LAMP[S]) WALLS.push(LAMP[S]);
     Object.keys(ART[S]).forEach(function (k) { var p = ART[S][k]; if (RUNS[p]) WALLS.push(p + 'L', p + 'M', p + 'R'); else WALLS.push(p); });
   });
   var PIECES = WALLS.concat(['CeilLight', 'GateFrame', 'GateShutter', 'TrailWall', 'TrailWall_Board', 'TrailWall_Badge',
