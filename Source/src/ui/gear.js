@@ -242,6 +242,18 @@
       itemPic(it, 'sh-pic') + '<span class="ws-name">' + esc(it.name) + (pl ? '<i class="ws-perk ' + pl.id + '">' + (IB.LootHUD ? IB.LootHUD.perkIcon(pl.id) : '') + esc(pl.name) + '</i>' : '') + '</span>' +
       '<b class="sh-cap' + (sl === 'shield' ? '' : ' vest') + '">' + big + '</b></button>';
   }
+  // melee weapon on V (and the frag cans on G): one tile; the backpack's Melee shelf picks which weapon is on V
+  function meleeTile(G, id, on) {
+    var def = IB.WEAPONS[id];
+    return '<button class="tile inv-item gun melee' + (on ? ' sel' : '') + '" style="--rar:' + (on ? '#FFC23A' : grade(def).color) + '" data-gact="melee" data-melee="' + id + '" data-nav aria-pressed="' + !!on + '" aria-label="' + esc(def.name) + ', melee' + (on ? ', on V' : '') + '">' + FR +
+      gunPic(id, 'it-pic') + '<span class="it-name">' + esc(def.name) + '</span>' + (on ? '<span class="it-mods" aria-hidden="true">V</span>' : '') + '</button>';
+  }
+  function meleeRow(G) {
+    var id = G.meleeId && G.meleeId();
+    if (!id) return '';
+    var cans = G.slot && G.slot.frag ? ' · Frag cans ×' + (G.grenades || 0) + ' (G)' : '';
+    return '<h4 class="inv-cat"><span>Melee (V)' + esc(cans) + '</span></h4><div class="inv-grid guns">' + meleeTile(G, id, true) + '</div>';
+  }
   function equippedCol(G, g) {
     var lo = loadout(G), max = maxSlots(G), rows = '';
     for (var i = 0; i < IB.LOADOUT_RULES.extra; i++) {
@@ -263,7 +275,7 @@
     var gems = String((G.slot && G.slot.gems) || 0);
     return '<section class="ep inv-eq" aria-label="Equipped">' + FR +
       '<h3 class="ep-h">' + IB.Menus.glyph('emblem') + 'Equipped<span>' + lo.length + '/' + max + '</span></h3>' +
-      '<div class="inv-eqbody tm-scroll" data-pane="eq"><div class="inv-wslots">' + rows + '</div>' + worn + '</div>' +
+      '<div class="inv-eqbody tm-scroll" data-pane="eq"><div class="inv-wslots">' + rows + '</div>' + worn + meleeRow(G) + '</div>' +
       '<div class="inv-bar"><span class="inv-gems" aria-label="' + gems + ' gems"><i class="gem-glyph" aria-hidden="true"></i><b aria-hidden="true">' + gems.split('').map(function (c) { return '<i>' + c + '</i>'; }).join('') + '</b></span>' +
         '<span class="inv-bag">Bag <b>' + g.inv.length + '/' + IB.LOOT.invCap + '</b></span></div>' +
       '</section>';
@@ -301,6 +313,7 @@
       '<h3 class="ep-h">' + svg(SI.mag) + 'Backpack<span>' + (guns.length + loose.length) + '</span></h3>' +
       '<div class="inv-bplist tm-scroll" data-pane="bp">' +
         cat('Weapons', guns.length, gunT, 'Every gun you own is carried.', 'guns') +
+        ((G.slot && G.slot.melee && G.slot.melee.length) ? cat('Melee (click to put on V)', G.slot.melee.length, G.slot.melee.map(function (m) { return meleeTile(G, m, m === G.meleeId()); }).join(''), '', 'guns') : '') +
         cat('Attachments', mods.length, mods.map(itemTile).join(''), attNames.slice(0, -1).join(', ').replace(/^./, function (c) { return c.toUpperCase(); }) + ' and ' + attNames[attNames.length - 1] + ' drop from robots.', 'gear') +
         wornCats +
       '</div></section>';
@@ -394,6 +407,7 @@
     function select(sel) { S.sel = sel; sfx('ui'); }
     switch (act) {
       case 'lock': select(null); setCard({ k: 'lock' }); sfx('dry'); return false;
+      case 'melee': if (G.slot && d.melee) { G.slot.meleeSel = d.melee; ok = true; sfx('draw'); } break;
       case 'slot': S.slot = +d.slot; S.target = null; select({ k: 'slot', i: +d.slot }); break;
       case 'gun':
         if (soft && !(S.sel && S.sel.k === 'gun' && S.sel.id === d.gun)) { select({ k: 'gun', id: d.gun }); break; }
