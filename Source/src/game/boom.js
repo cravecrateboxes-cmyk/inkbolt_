@@ -455,6 +455,12 @@
     gunner: { S: 1.32, words: [1, 0, 6], debris: 7, parts: ['BOT_GUNNER_Lid', 'BOT_GUNNER_Wheel'], nParts: 2, color: 0x4FA36A, sound: 0.75 },
     bomber: { S: 0.75, words: null, debris: 3, parts: ['BOT_BOMBER_Cap'], nParts: 1, color: 0x3E86D8, sound: 0 },
     drone: { S: 1.18, words: [0, 6, 9], debris: 5, parts: ['BOT_DRONE_Rotor', 'BOT_DRONE_Lid'], nParts: 2, color: 0xE2483D, sound: 0.8 },
+    // Soldier: armour plates in its own colour, the helmet pops off spinning, a blue burst where the shield cell blows
+    soldier: { S: 1.4, words: [0, 4, 10], debris: 8, parts: ['BOT_SOLDIER_ArmL', 'BOT_SOLDIER_Shin'], nParts: 2, color: 0x9EA5B0, sound: 0.8 },
+    soldierHelm: { S: 1, words: null, debris: 0, parts: ['BOT_SOLDIER_HelmA', 'BOT_SOLDIER_HelmB', 'BOT_SOLDIER_HelmC'], nParts: 0, color: 0xFFFFFF, sound: 0 },
+    // Blade Bot: the hub flies off with its blade still turning, sparks (blue arcs for the Voltaxe)
+    blader: { S: 1.2, words: [8, 0, 5], debris: 6, parts: ['BOT_BLADER_Hub'], nParts: 1, color: 0x8A6CD8, sound: 0.75 },
+    bladerWpn: { S: 1, words: null, debris: 0, parts: ['BOT_BLADER_Katana', 'BOT_BLADER_Axe'], nParts: 0, color: 0xFFFFFF, sound: 0 },
     blast: { S: 1.75, words: [3, 6, 7], debris: 5, parts: null, nParts: 0, color: 0x3E86D8, big: true, sound: 0 },
     canister: { S: 2.0, words: [3, 6, 7], debris: 6, parts: null, nParts: 0, color: PAL.red, big: true, sound: 0 },
     chain: { S: 0.95, words: [4, 10], debris: 2, parts: null, nParts: 0, color: 0xFFB21E, sound: 0 },
@@ -620,6 +626,20 @@
       return;
     }
     if (r.type === 'bomber' && !quiet) { flash(r.x, y, r.z, 1.2, PAL.paper, 0.08, C.cloud); return; }   // its own blast (projectiles) does the rest
+    if (r.type === 'soldier') {
+      explode(r.x, y, r.z, f, sMul, fl, r.tintHex);
+      var hb = BIN['BOT_SOLDIER_Helm' + (r.helm || 'A')], he = debris(hb, r.x, r.y + 1.6, r.z, 1.5, r.tintHex, 1);
+      he.vy = rnd(7, 9); he.wx = rnd(-20, 20); he.wz = rnd(-20, 20);
+      if (r.maxShield > 0) { var sc = card(C.ring, M_BILL, r.x, y + 0.2, r.z, 0.3, 0.3, 2.6, 0x5FC2FF); sc.fd = 0.4; sparkBurst(r.x, y + 0.2, r.z, cnt(10), 6, 0, 0.4, 0, 1, 0x8ED2FF, 0.35); }
+      return;
+    }
+    if (r.type === 'blader') {
+      explode(r.x, y, r.z, f, sMul, fl);
+      var we = debris(BIN[r.weaponId === 'eaxe' ? 'BOT_BLADER_Axe' : 'BOT_BLADER_Katana'], r.x, r.y + 0.9, r.z, 4, 0xFFFFFF, 1);
+      we.vy = rnd(6, 8); we.wy = rnd(25, 40) * (Math.random() < 0.5 ? -1 : 1);
+      if (r.weaponId === 'eaxe') { B.zap(r.x, y + 0.3, r.z, 1.4); sparkBurst(r.x, y, r.z, cnt(12), 7, 0, 0.3, 0, 1, 0x8ED2FF, 0.4); }
+      return;
+    }
     explode(r.x, y, r.z, f, sMul, fl);
   };
   /* a blast from IB.Projectiles (Bomber, canister, any splash weapon) */

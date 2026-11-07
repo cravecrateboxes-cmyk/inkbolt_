@@ -92,7 +92,7 @@ test('robot table (5.7)', () => {
   assert.equal(E.tosser.dot, 5); assert.equal(E.crawler.windup, 0.35); assert.equal(E.bomber.windup, 0.6);
   assert.equal(E.shieldbot.windup, 0.6); assert.equal(E.bruiser.windup, 0.9); assert.equal(E.drone.hover, 3);
   for (const id of ['gunner', 'tosser', 'drone']) assert.deepEqual(E[id].keepDistance, [8, 16]);
-  assert.equal(IB.GLB_BOT_NAMES.length, 8);
+  assert.equal(IB.GLB_BOT_NAMES.length, 10);
 });
 
 test('bosses (5.8) and rotation', () => {

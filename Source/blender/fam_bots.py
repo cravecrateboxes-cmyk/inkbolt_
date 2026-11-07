@@ -43,6 +43,11 @@ ib_lib.PALETTES['bots'] = BASE + [
     # Drone: soda can
     ('can', _lighten('#E2483D')), ('can2', _lighten('#B93A31')), ('alu', _lighten('#C4CBD3')),
     ('tin3', _lighten('#7E8794')),
+    # Soldier: armour plates in two KEY colours the game recolours per instance (white / grey / blue / purple /
+    # black ...: ai troops.js matches these exact texels), an undersuit, a gold chest core
+    ('plate', '#F4F6F9'), ('plate2', '#B8BEC7'), ('suit', '#3A3F4B'), ('suit2', '#5A606D'),
+    # Blade bot: violet saucer with hazard chevrons, bright steel blades, a glowing Voltaxe edge
+    ('violet', _lighten('#6A55A8')), ('violet2', _lighten('#4E3F82', 0.06)), ('blade', '#E8EEF4'), ('lens', '#7FF4FF'),
 ]
 
 
@@ -105,6 +110,60 @@ class Part:
     def lathe(self, prof, color, seg=12, phase=0.0, deco=False):
         for mm in self._each(deco):
             lathe(mm, prof, color, seg, phase)
+
+    def limb(self, a, b, r1, r2, color, seg=8, deco=False, caps=True):
+        """Round segment (frustum) from point a to point b."""
+        a, b = Vector(a), Vector(b)
+        d = b - a
+        q = Vector((0, 0, 1)).rotation_difference(d.normalized())
+        old = self.parent
+        self.parent = old @ Matrix.Translation(a) @ q.to_matrix().to_4x4()
+        self.cyl((0, 0, 0), r1, r2, d.length, color, seg=seg, caps=caps, deco=deco)
+        self.parent = old
+
+    def prism(self, poly, z0, z1, color, deco=False):
+        """Polygon (x, y) extruded from z0 to z1 (counter-clockwise polygon seen from +Z)."""
+        for mm in self._each(deco):
+            bm = mm.bm
+            lo = [bm.verts.new(mm.parent @ Vector((x, y, z0))) for x, y in poly]
+            hi = [bm.verts.new(mm.parent @ Vector((x, y, z1))) for x, y in poly]
+            n = len(poly)
+            bm.faces.new(list(reversed(lo)))
+            bm.faces.new(hi)
+            for k in range(n):
+                k2 = (k + 1) % n
+                bm.faces.new((lo[k], lo[k2], hi[k2], hi[k]))
+            mm._finish(lo + hi, color, False)
+
+    def blade(self, st, tip, color, edge_color):
+        """Lens-section blade along +X: stations (x, y_back, y_edge, half_thickness); the faces next to the edge
+        (+Y side) take edge_color (temper line / glowing edge); ends in the tip point."""
+        for mm in self._each(False):
+            bm = mm.bm
+            rings = []
+            for x, yb, ye, t in st:
+                ys, yh = yb + (ye - yb) * 0.3, yb + (ye - yb) * 0.72
+                pts = ((x, yb, 0), (x, ys, t), (x, yh, t * 0.5), (x, ye, 0), (x, yh, -t * 0.5), (x, ys, -t))
+                rings.append([bm.verts.new(mm.parent @ Vector(p)) for p in pts])
+            tv = bm.verts.new(mm.parent @ Vector(tip))
+            faces = [bm.faces.new(rings[0])]
+            edge = []
+            for a, b in zip(rings, rings[1:]):
+                for k in range(6):
+                    k2 = (k + 1) % 6
+                    f = bm.faces.new((a[k], b[k], b[k2], a[k2]))
+                    faces.append(f)
+                    if k in (2, 3):
+                        edge.append(f)
+            r = rings[-1]
+            for k in range(6):
+                f = bm.faces.new((r[k], tv, r[(k + 1) % 6]))
+                if k in (2, 3):
+                    edge.append(f)
+            mm._finish([v for ring in rings for v in ring] + [tv], color, False)
+            ei = mm.pal.index(edge_color)
+            for f in edge:
+                f.material_index = ei
 
     def band(self, z0, z1, r, color, seg=12, phase=0.0, deco=True):
         """Open ring band around Z (a painted stripe / strap standing proud of a round body)."""
@@ -425,6 +484,300 @@ def build_drone(pal):
     p.build('BOT_DRONE_Light', bevel=False, hull=0.008)
 
 
+# ================================================================ SOLDIER
+# Armoured robot trooper, human proportions (1.88 m), armour from helmet to boots. Rigid parts on pivots:
+#   Hips (origin = feet; legs and hips face the way it walks), Thigh / Shin x2 (hip / knee pivots),
+#   Torso A (trooper: round pauldrons) / B (heavy: chest slab, stacked pauldrons) on the waist pivot (it turns to aim),
+#   Helm A (crest) / B (flat top, brow, antenna) / C (tall, cheek guards, red mohawk) on the neck pivot,
+#   ArmR (holds the rifle: aims as one with ArmL about the shoulder line), ArmL (foregrip hand; throws the grenades),
+#   Visor (glowing sensor bar in the helmet slit, coloured by the game), Nade (its grenade).
+# No face, no eyes: the helmet has one visor slit. Armour is drawn in the two key colours 'plate' / 'plate2' that
+# the game recolours per instance (white, grey, blue, purple, gunmetal black ...); the suit, rifle and core keep theirs.
+S_HIP = 0.93            # hip joint height
+S_HIPX = 0.115
+S_THIGH = 0.43          # hip -> knee; knee -> sole 0.50
+S_WAIST = 1.0
+S_SHOULDER = (0.255, 0.0, 0.44)   # torso local (left = +x; the right arm is -x)
+S_NECK = (0, 0.0, 0.53)
+S_GRIP_R = (0.135, -0.24, -0.24)  # right hand (rifle grip) in right-shoulder space
+S_HAND_L = (-0.375, -0.45, -0.19)  # left hand (foregrip) in left-shoulder space
+S_RIFLE_X, S_RIFLE_Z = 0.135, -0.135
+S_SLIT = (0, -0.170, 0.135)       # visor slit centre on the face plate (helmet space); plate front y = -0.170
+
+
+def _elbow(a, b, la, lb, pole):
+    a, b, pole = Vector(a), Vector(b), Vector(pole)
+    d = b - a
+    L = d.length
+    u = d / L
+    x = (la * la - lb * lb + L * L) / (2 * L)
+    h = math.sqrt(max(0.0, la * la - x * x))
+    w = pole - u * pole.dot(u)
+    w.normalize()
+    return tuple(a + u * x + w * h)
+
+
+def _slit(p):
+    """Face plate front at y = -0.170 (z 0.03..0.17 at least): the ink visor slit, 5 mm proud."""
+    x, y, z = S_SLIT
+    p.box((x, y, z), (0.17, 0.010, 0.032), 'ink', deco=True)
+
+
+def build_soldier(pal):
+    # ---- hips: pelvis, belt, codpiece, tassets, grenade cans on the belt
+    p = Part(pal)
+    p.box((0, 0, 0.92), (0.32, 0.22, 0.16), 'plate2', bevel=True)
+    p.box((0, 0, 0.995), (0.34, 0.24, 0.05), 'suit')
+    p.box((0, -0.125, 0.885), (0.14, 0.03, 0.14), 'plate', rot=(8, 0, 0), bevel=True)
+    for sx in (-1, 1):
+        p.box((sx * 0.165, -0.04, 0.865), (0.10, 0.17, 0.16), 'plate', rot=(0, sx * 12, 0), bevel=True)
+    for x in (-0.07, 0.07):
+        p.box((x, 0.135, 0.985), (0.08, 0.04, 0.05), 'suit2', deco=True)                  # back pouches
+    for x in (-0.115, 0.115):
+        p.cyl((x, -0.135, 0.955), 0.03, 0.03, 0.075, 'gunmetal', seg=8)                     # grenade cans
+        p.cyl((x, -0.135, 0.985), 0.034, 0.034, 0.018, 'red', seg=8, caps=False, deco=True)
+    p.box((0, -0.122, 0.995), (0.07, 0.008, 0.035), 'amber', deco=True)                 # buckle
+    hips = p.build('BOT_SOLDIER_Hips', bevel=False)
+    for i, sx in enumerate((-1, 1)):
+        socket('BOT_SOLDIER_HIP%d' % i, hips, (sx * S_HIPX, 0, S_HIP))
+    socket('BOT_SOLDIER_WAIST', hips, (0, 0, S_WAIST))
+
+    # ---- thigh (origin on the hip joint) and shin + boot (origin on the knee)
+    p = Part(pal)
+    p.sphere((0, 0, 0), 0.075, 'suit2', seg=(8, 5))
+    p.limb((0, 0, -0.02), (0, 0, -0.41), 0.08, 0.066, 'suit')
+    p.box((0, -0.065, -0.19), (0.13, 0.05, 0.27), 'plate', bevel=True)
+    p.box((0, -0.0925, -0.13), (0.06, 0.008, 0.10), 'plate2', deco=True)
+    p.build('BOT_SOLDIER_Thigh', bevel=False)
+    p = Part(pal)
+    p.sphere((0, 0, 0), 0.062, 'gunmetal', seg=(8, 5))
+    p.box((0, -0.072, 0.0), (0.115, 0.06, 0.12), 'plate', bevel=True)
+    p.limb((0, 0, -0.02), (0, 0, -0.40), 0.063, 0.056, 'suit')
+    p.box((0, -0.052, -0.21), (0.12, 0.05, 0.25), 'plate', bevel=True)
+    p.box((0, -0.045, -0.445), (0.13, 0.27, 0.11), 'plate2', bevel=True)
+    p.box((0, -0.16, -0.462), (0.115, 0.06, 0.07), 'suit2')
+    p.box((0, -0.045, -0.50), (0.10, 0.25, 0.008), 'ink', deco=True)                     # sole
+    p.box((0, -0.0785, -0.16), (0.05, 0.008, 0.08), 'amber', deco=True)                  # shin stripe
+    p.build('BOT_SOLDIER_Shin', bevel=False)
+
+    # ---- torso A (trooper) and B (heavy); origin on the waist; gold core on the chest
+    sx_, sy_, sz_ = S_SHOULDER
+    for v in 'AB':
+        p = Part(pal)
+        p.cyl((0, 0, -0.04), 0.15, 0.16, 0.22, 'suit', seg=8)
+        p.box((0, -0.155, 0.09), (0.22, 0.03, 0.12), 'plate2')                 # ab plate
+        if v == 'A':
+            p.box((0, -0.01, 0.31), (0.46, 0.30, 0.30), 'plate', bevel=True)
+            p.cyl((0, 0, 0.45), 0.12, 0.12, 0.08, 'plate2', seg=10)                          # collar
+            for s in (-1, 1):
+                p.sphere((s * 0.27, 0, 0.445), 0.13, 'plate', seg=(8, 5), scale=(1, 1.05, 0.75))   # round pauldrons
+            p.box((0, 0.2, 0.30), (0.34, 0.12, 0.30), 'plate2')                 # backpack
+            cy = -0.16
+            p.box((0, cy - 0.002, 0.215), (0.40, 0.012, 0.012), 'ink', deco=True)          # plate seam
+            p.box((-0.15, cy - 0.002, 0.405), (0.08, 0.012, 0.025), 'amber', deco=True)    # unit stripe
+            p.box((0.27, 0, 0.545), (0.06, 0.05, 0.012), 'amber', deco=True)               # pauldron chevron
+        else:
+            p.box((0, 0.0, 0.31), (0.50, 0.32, 0.32), 'plate2', bevel=True)
+            p.box((0, -0.17, 0.30), (0.40, 0.06, 0.26), 'plate', bevel=True)                 # chest slab
+            p.cyl((0, 0, 0.455), 0.13, 0.125, 0.10, 'plate', seg=10)                        # tall collar
+            for s in (-1, 1):
+                p.box((s * 0.285, 0, 0.475), (0.21, 0.25, 0.07), 'plate', rot=(0, s * 18, 0), bevel=True)
+                p.box((s * 0.315, 0, 0.405), (0.18, 0.23, 0.06), 'plate2', rot=(0, s * 28, 0))
+            p.box((0, 0.215, 0.29), (0.38, 0.13, 0.32), 'plate2')               # backpack
+            for x in (-0.11, 0.0, 0.11):                                                    # spare grenades on the back
+                p.cyl((x, 0.27, 0.36), 0.032, 0.032, 0.07, 'gunmetal', seg=8, rot=(-90, 0, 0))
+            cy = -0.20
+            for s in (-1, 1):
+                p.box((s * 0.13, cy - 0.002, 0.20), (0.07, 0.012, 0.07), 'suit2', deco=True)   # slab pouches
+            p.box((0.13, cy - 0.002, 0.405), (0.09, 0.012, 0.022), 'amber', deco=True)
+        # core: gold reactor puck in the chest (weak point), gunmetal frame
+        p.cyl((0, cy + 0.01, 0.315), 0.072, 0.072, 0.045, 'core', seg=10, rot=(90, 0, 0))
+        p.cyl((0, cy + 0.006, 0.315), 0.088, 0.088, 0.022, 'gunmetal', seg=10, rot=(90, 0, 0), caps=False, deco=True)
+        # backpack vents + antenna
+        by = 0.26 if v == 'A' else 0.28
+        for x in (-0.09, 0.09):
+            p.cyl((x, by - 0.01, 0.20), 0.032, 0.032, 0.05, 'gunmetal', seg=8, rot=(-90, 0, 0))
+        p.cyl((0.12, by - 0.06, 0.44), 0.011, 0.011, 0.22, 'ink', seg=4)
+        t = p.build('BOT_SOLDIER_Torso' + v)
+        if v == 'A':
+            socket('BOT_SOLDIER_CORE', t, (0, -0.17, 0.315))
+            socket('BOT_SOLDIER_NECK', t, S_NECK)
+            socket('BOT_SOLDIER_SHOULDER0', t, (-sx_, sy_, sz_))
+            socket('BOT_SOLDIER_SHOULDER1', t, (sx_, sy_, sz_))
+
+    # ---- helmets (origin on the neck pivot); every one has the face plate + slit at the same spot
+    def neck(p):
+        p.cyl((0, 0, -0.03), 0.07, 0.075, 0.08, 'suit', seg=8)
+
+    p = Part(pal)                                                                            # A: crest
+    neck(p)
+    p.sphere((0, 0.0, 0.16), 0.155, 'plate', seg=(12, 7), scale=(1, 1.08, 1.0))
+    p.box((0, -0.12, 0.10), (0.20, 0.10, 0.14), 'plate2', bevel=True)
+    p.box((0, -0.095, 0.03), (0.16, 0.08, 0.06), 'plate')
+    p.box((0, 0.02, 0.31), (0.035, 0.26, 0.07), 'plate2')
+    for s in (-1, 1):
+        p.cyl((s * 0.13, 0, 0.14), 0.05, 0.05, 0.05, 'gunmetal', seg=8, rot=(0, s * 90, 0))
+        p.box((s * 0.0195, 0.02, 0.315), (0.008, 0.20, 0.02), 'red', deco=True)
+    _slit(p)
+    hA = p.build('BOT_SOLDIER_HelmA')
+    socket('BOT_SOLDIER_VISOR', hA, (S_SLIT[0], S_SLIT[1] - 0.004, S_SLIT[2]))
+
+    p = Part(pal)                                                                            # B: flat top, brow, antenna
+    neck(p)
+    p.box((0, 0.005, 0.15), (0.29, 0.31, 0.25), 'plate', bevel=True)
+    p.box((0, -0.15, 0.215), (0.30, 0.07, 0.05), 'plate2', rot=(-10, 0, 0), bevel=True)
+    p.box((0, -0.13, 0.105), (0.20, 0.08, 0.15), 'plate2', bevel=True)
+    p.cyl((0.12, 0.08, 0.27), 0.012, 0.012, 0.18, 'ink', seg=4)
+    p.sphere((0.12, 0.08, 0.455), 0.022, 'red', seg=(6, 4))
+    for s in (-1, 1):
+        for z in (0.12, 0.165):
+            p.box((s * 0.145, 0.04, z), (0.008, 0.12, 0.02), 'ink', deco=True)
+    _slit(p)
+    p.build('BOT_SOLDIER_HelmB')
+
+    p = Part(pal)                                                                            # C: tall, cheek guards, mohawk
+    neck(p)
+    p.sphere((0, 0.01, 0.17), 0.15, 'plate', seg=(12, 7), scale=(1, 1.1, 1.18))
+    p.box((0, -0.125, 0.09), (0.19, 0.09, 0.17), 'plate2', bevel=True)
+    for s in (-1, 1):
+        p.box((s * 0.115, -0.085, 0.07), (0.05, 0.13, 0.15), 'plate', rot=(0, 0, s * 8), bevel=True)
+    for y, z in ((-0.07, 0.33), (0.02, 0.36), (0.11, 0.33)):
+        p.box((0, y, z), (0.03, 0.08, 0.09), 'red')
+    _slit(p)
+    p.build('BOT_SOLDIER_HelmC')
+
+    p = Part(pal)
+    p.box((0, 0, 0), (0.15, 0.010, 0.018), 'light')
+    p.build('BOT_SOLDIER_Visor', bevel=False, hull=0.004)
+
+    # ---- arms (origin on the shoulder); the right one carries the rifle (barrel along -Y, the game's forward)
+    def arm(p, hand, pole, la, lb):
+        e = _elbow((0, 0, 0), hand, la, lb, pole)
+        p.sphere((0, 0, 0), 0.085, 'suit2', seg=(6, 4))
+        p.limb((0, 0, 0), e, 0.058, 0.052, 'suit')
+        a, b = Vector((0, 0, 0)), Vector(e)
+        p.limb(tuple(a + (b - a) * 0.22), tuple(a + (b - a) * 0.78), 0.071, 0.066, 'plate')
+        p.sphere(e, 0.056, 'gunmetal', seg=(6, 4))
+        h = Vector(hand)
+        p.limb(e, tuple(Vector(e) + (h - Vector(e)) * 0.84), 0.066, 0.058, 'plate')
+        p.box(hand, (0.075, 0.085, 0.075), 'plate2', bevel=True)
+        return e
+
+    p = Part(pal)
+    arm(p, S_GRIP_R, (-0.6, 0.5, -1.0), 0.30, 0.27)
+    x, z = S_RIFLE_X, S_RIFLE_Z
+    p.box((x, -0.25, z), (0.07, 0.30, 0.11), 'gunmetal', bevel=True)                         # receiver
+    p.box((x, -0.025, z - 0.015), (0.055, 0.17, 0.09), 'suit2', bevel=True)                  # stock
+    p.box((x, -0.30, z - 0.11), (0.045, 0.07, 0.14), 'suit2', rot=(-8, 0, 0))               # magazine
+    p.cyl((x, -0.40, z + 0.005), 0.04, 0.04, 0.22, 'plate2', seg=8, rot=(90, 0, 0))          # handguard
+    p.cyl((x, -0.62, z + 0.005), 0.022, 0.022, 0.20, 'steel', seg=8, rot=(90, 0, 0))         # barrel
+    p.cyl((x, -0.80, z + 0.005), 0.032, 0.032, 0.06, 'gunmetal', seg=8, rot=(90, 0, 0))      # muzzle brake
+    p.box((x, -0.47, z - 0.075), (0.035, 0.04, 0.09), 'ink')                                  # foregrip
+    p.box((x, -0.22, z + 0.075), (0.03, 0.09, 0.04), 'gunmetal')                              # sight
+    p.box((x, -0.268, z + 0.075), (0.02, 0.008, 0.022), 'amber', deco=True)                  # sight lens
+    p.box((x + 0.039, -0.25, z + 0.01), (0.008, 0.20, 0.022), 'amber', deco=True)            # receiver stripe
+    p.cyl((x, -0.858, z + 0.005), 0.016, 0.016, 0.01, 'ink', seg=6, rot=(90, 0, 0), deco=True)   # bore
+    ar = p.build('BOT_SOLDIER_ArmR', bevel=False)
+    socket('BOT_SOLDIER_MUZZLE', ar, (x, -0.875, z + 0.005))
+
+    p = Part(pal)
+    arm(p, S_HAND_L, (0.5, 0.2, -1.0), 0.33, 0.32)
+    p.box((S_HAND_L[0] + 0.0, S_HAND_L[1], S_HAND_L[2] + 0.042), (0.06, 0.07, 0.008), 'suit2', deco=True)   # knuckle plate
+    al = p.build('BOT_SOLDIER_ArmL', bevel=False)
+    socket('BOT_SOLDIER_HANDL', al, (S_HAND_L[0], S_HAND_L[1] - 0.02, S_HAND_L[2] + 0.07))
+
+    # ---- grenade: gunmetal can, red band, amber fuse cap, ink spoon (origin = centre)
+    p = Part(pal)
+    p.cyl((0, 0, -0.05), 0.045, 0.045, 0.10, 'gunmetal', seg=8)
+    p.cyl((0, 0, 0.05), 0.024, 0.024, 0.025, 'amber', seg=6)
+    p.cyl((0, 0, -0.012), 0.049, 0.049, 0.026, 'red', seg=8, caps=False, deco=True)
+    p.box((0.047, 0, 0.015), (0.008, 0.022, 0.06), 'ink', deco=True)
+    p.build('BOT_SOLDIER_Nade', bevel=False, hull=0.008)
+
+
+# ================================================================ BLADE BOT
+# Squat violet hover saucer with hazard chevrons on the rim, a front sensor slit (Light), a gold gyro core dome on
+# top and a hub on a short post. The Hub spins about the post: one arm ends in a clamp holding the weapon (+X), a
+# short counter arm carries an amber weight. Weapons (origin = the clamp, along +X, edge leading on +Y as it spins):
+#   Katana: ink-wrapped handle, round guard, brass collar, long curved steel blade with a pale temper line.
+#   Axe (Voltaxe): steel shaft with grips, gunmetal head, battery, teal coils, wide blade with a glowing edge.
+X_HUB = (0, 0, 0.84)
+X_GRIP = (0.47, 0, 0)
+
+
+def build_blader(pal):
+    SEG = 12
+    ph = math.radians(15)
+    p = Part(pal)
+    p.lathe([(0.0, 0.16), (0.24, 0.16), (0.34, 0.24), (0.49, 0.38), (0.49, 0.48), (0.42, 0.55), (0.28, 0.61),
+             (0.17, 0.63), (0.0, 0.63)], 'violet', seg=SEG, phase=ph)
+    p.sphere((0, 0, 0.62), 0.17, 'core', seg=(10, 5), scale=(1, 1, 0.68))
+    p.cyl((0, 0, 0.70), 0.045, 0.045, 0.16, 'gunmetal', seg=8)                                # hub post
+    # ---- deco: rim band, hazard chevrons, under-thruster glow, vents, core seat
+    p.band(0.383, 0.40, 0.497, 'violet2', seg=SEG, phase=ph)
+    p.band(0.46, 0.477, 0.497, 'violet2', seg=SEG, phase=ph)
+    for k in range(SEG):
+        if k % 2 == 0:
+            p.on_slope(k, SEG, (0.34, 0.24), (0.49, 0.38), 0.55, 0.004, (0.07, 0.006, 0.08), 'amber', phase=ph)
+    p.cyl((0, 0, 0.152), 0.18, 0.18, 0.008, 'teal', seg=10, deco=True)
+    p.cyl((0, 0, 0.142), 0.08, 0.08, 0.008, 'paper', seg=8, deco=True)
+    for k in (2, 5, 8, 11):
+        p.on_slope(k, SEG, (0.42, 0.55), (0.28, 0.61), 0.5, 0.004, (0.05, 0.006, 0.05), 'ink', phase=ph)
+    p.cyl((0, 0, 0.625), 0.18, 0.18, 0.02, 'gunmetal', seg=10, caps=False, deco=True)
+    body = p.build('BOT_BLADER_Body')
+    socket('BOT_BLADER_CORE', body, (0, 0, 0.67))
+    socket('BOT_BLADER_HUB', body, X_HUB)
+    socket('BOT_BLADER_LIGHT', body, (0, -0.48, 0.43))
+
+    p = Part(pal)
+    p.cyl((0, 0, -0.04), 0.12, 0.12, 0.08, 'steel', seg=10)
+    p.box((0.27, 0, 0), (0.38, 0.06, 0.05), 'gunmetal')
+    p.box((-0.20, 0, 0), (0.26, 0.06, 0.05), 'gunmetal')
+    p.cyl((-0.34, 0, -0.05), 0.07, 0.07, 0.10, 'amber', seg=8)
+    p.box((X_GRIP[0], 0, 0), (0.08, 0.09, 0.08), 'violet2', bevel=True)
+    p.cyl((0, 0, 0.04), 0.06, 0.06, 0.008, 'amber', seg=8, deco=True)
+    p.cyl((-0.34, 0, 0.05), 0.04, 0.04, 0.008, 'ink', seg=6, deco=True)
+    hub = p.build('BOT_BLADER_Hub', bevel=False)
+    socket('BOT_BLADER_GRIP', hub, X_GRIP)
+
+    # katana (origin = clamp centre; the clamp hides the middle of the handle)
+    p = Part(pal)
+    p.cyl((-0.14, 0, 0), 0.022, 0.022, 0.26, 'ink', seg=8, rot=(0, 90, 0))
+    for xb in (-0.10, -0.06, 0.06):
+        p.cyl((xb, 0, 0), 0.026, 0.026, 0.012, 'paper', seg=8, rot=(0, 90, 0), caps=False, deco=True)
+    p.cyl((-0.16, 0, 0), 0.027, 0.027, 0.022, 'steel', seg=8, rot=(0, 90, 0))
+    p.cyl((0.12, 0, 0), 0.065, 0.065, 0.02, 'gunmetal', seg=12, rot=(0, 90, 0))
+    p.box((0.155, 0.0, 0), (0.035, 0.05, 0.026), 'amber')
+    st = []
+    n = 7
+    for i in range(n):
+        t = i / (n - 1)
+        x = 0.17 + 0.82 * t
+        sori = -0.07 * t * t
+        w = 0.068 - 0.014 * t
+        st.append((x, -w / 2 + sori, w / 2 + sori, 0.009 - 0.002 * t))
+    p.blade(st, (1.06, -0.07 - 0.005, 0.0), 'blade', 'paper')
+    p.build('BOT_BLADER_Katana', bevel=False, hull=0.01)
+
+    # electric axe
+    p = Part(pal)
+    p.cyl((-0.10, 0, 0), 0.024, 0.024, 0.90, 'steel', seg=8, rot=(0, 90, 0))
+    p.cyl((-0.12, 0, 0), 0.03, 0.03, 0.03, 'gunmetal', seg=8, rot=(0, 90, 0))
+    p.cyl((0.08, 0, 0), 0.029, 0.029, 0.22, 'ink', seg=8, rot=(0, 90, 0), caps=False)
+    p.box((0.70, 0.0, 0), (0.12, 0.085, 0.075), 'gunmetal', bevel=True)
+    p.box((0.70, -0.065, 0), (0.08, 0.05, 0.055), 'teal')
+    p.prism([(0.62, 0.02), (0.78, 0.02), (0.83, 0.13), (0.85, 0.25), (0.70, 0.29), (0.55, 0.25), (0.57, 0.13)], -0.014, 0.014, 'steel')
+    p.prism([(0.55, 0.235), (0.70, 0.27), (0.85, 0.235), (0.855, 0.255), (0.70, 0.295), (0.545, 0.255)], -0.019, 0.019, 'lens')
+    p.prism([(0.67, -0.06), (0.70, -0.17), (0.73, -0.06)], -0.01, 0.01, 'steel')
+    for xc in (0.56, 0.60):
+        p.cyl((xc, 0, 0), 0.036, 0.036, 0.014, 'teal', seg=8, rot=(0, 90, 0), caps=False, deco=True)
+    p.build('BOT_BLADER_Axe', bevel=False, hull=0.01)
+
+    p = Part(pal)
+    p.box((0, 0, 0), (0.20, 0.02, 0.035), 'light')
+    p.build('BOT_BLADER_Light', bevel=False, hull=0.006)
+
+
 # ================================================================ BOTS
 def build_bots(ao):
     pal = Palette('bots')
@@ -432,6 +785,8 @@ def build_bots(ao):
     build_gunner(pal)
     build_bomber(pal)
     build_drone(pal)
+    build_soldier(pal)
+    build_blader(pal)
     export('bots')
 
 

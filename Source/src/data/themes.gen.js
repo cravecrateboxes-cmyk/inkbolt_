@@ -131,20 +131,20 @@
           { map: 'bedroom_toyspill', waves: [
             [['crawler', 7], ['gunner', 1]],
             [['crawler', 6], ['bomber', 2], ['gunner', 1]],
-            [['crawler', 6], ['drone', 2], ['gunner', 1]],
+            [['crawler', 5], ['drone', 2], ['gunner', 1], ['blader', 1]],
             [['crawler', 5], ['gunner', 2], ['bomber', 2]]
           ] },
           { map: 'bedroom_underbed', waves: [
             [['crawler', 8], ['gunner', 2]],
-            [['crawler', 5], ['bomber', 3], ['drone', 1]],
+            [['crawler', 4], ['bomber', 3], ['drone', 1], ['blader', 1]],
             [['crawler', 6], ['gunner', 3], ['drone', 1]],
-            [['crawler', 5], ['bomber', 3], ['gunner', 2], ['drone', 1]]
+            [['crawler', 4], ['bomber', 3], ['gunner', 2], ['drone', 1], ['soldier', 1]]
           ] },
           { map: 'bedroom_deskcorner', waves: [
             [['crawler', 7], ['gunner', 2], ['drone', 1]],
-            [['crawler', 6], ['bomber', 3], ['gunner', 2]],
-            [['crawler', 7], ['drone', 3], ['bomber', 2]],
-            [['crawler', 10], ['gunner', 4], ['bomber', 3], ['drone', 3]]
+            [['crawler', 5], ['bomber', 3], ['gunner', 2], ['soldier', 1]],
+            [['crawler', 6], ['drone', 3], ['bomber', 2], ['blader', 1]],
+            [['crawler', 8], ['gunner', 4], ['bomber', 3], ['drone', 3], ['soldier', 1], ['blader', 1]]
           ] }
         ]
       }
@@ -257,21 +257,21 @@
           // Market Ward: crawlers through the stalls, gunners behind the carts, a drone over the well
           { map: 'castle_market', waves: [
             [['crawler', 8], ['gunner', 2]],
-            [['crawler', 5], ['gunner', 3]],
-            [['crawler', 4], ['gunner', 2], ['drone', 1]],
-            [['crawler', 4], ['gunner', 2]]] },
+            [['crawler', 4], ['gunner', 3], ['blader', 1]],
+            [['crawler', 3], ['gunner', 2], ['drone', 1], ['soldier', 1]],
+            [['crawler', 3], ['gunner', 2], ['soldier', 1]]] },
           // Training Yard: gunners on the drill ground, bombers across the open grass, a drone over the archery range
           { map: 'castle_yard', waves: [
             [['crawler', 6], ['gunner', 3]],
-            [['crawler', 4], ['bomber', 3]],
-            [['gunner', 3], ['drone', 1], ['crawler', 3]],
-            [['crawler', 4], ['bomber', 2], ['gunner', 2]]] },
+            [['crawler', 3], ['bomber', 3], ['blader', 1]],
+            [['gunner', 3], ['drone', 1], ['crawler', 2], ['soldier', 1]],
+            [['crawler', 3], ['bomber', 2], ['gunner', 2], ['soldier', 1]]] },
           // Inner Ward: everything round the keep
           { map: 'castle_keep', waves: [
             [['crawler', 6], ['gunner', 3]],
-            [['bomber', 3], ['crawler', 4], ['drone', 1]],
-            [['gunner', 3], ['crawler', 4]],
-            [['crawler', 4], ['bomber', 2], ['gunner', 2]]] }
+            [['bomber', 3], ['crawler', 2], ['drone', 1], ['blader', 2]],
+            [['gunner', 3], ['crawler', 2], ['soldier', 2]],
+            [['crawler', 3], ['bomber', 2], ['gunner', 2], ['blader', 1]]] }
         ]
       }
     }
@@ -416,21 +416,21 @@
           // El Avenue: crawlers down the avenue, gunners behind the parked cabs, a drone under the El
           { map: 'city2_avenue', waves: [
             [['crawler', 7], ['gunner', 2]],
-            [['crawler', 5], ['gunner', 3]],
-            [['crawler', 4], ['gunner', 2], ['drone', 1]],
-            [['crawler', 4], ['gunner', 2]]] },
+            [['crawler', 4], ['gunner', 3], ['soldier', 1]],
+            [['crawler', 3], ['gunner', 2], ['drone', 1], ['blader', 1]],
+            [['crawler', 3], ['gunner', 2], ['soldier', 1]]] },
           // Statue Plaza: bombers across the open granite, gunners on the ring road
           { map: 'city2_plaza', waves: [
             [['crawler', 6], ['gunner', 3]],
-            [['crawler', 4], ['bomber', 3]],
-            [['gunner', 3], ['drone', 1], ['crawler', 4]],
-            [['crawler', 4], ['bomber', 2], ['gunner', 2]]] },
+            [['crawler', 3], ['bomber', 3], ['blader', 1]],
+            [['gunner', 3], ['drone', 1], ['crawler', 2], ['soldier', 2]],
+            [['crawler', 3], ['bomber', 2], ['gunner', 2], ['blader', 1]]] },
           // The Crossing: everything at once round the two blocks and under the train
           { map: 'city2_crossing', waves: [
             [['crawler', 6], ['gunner', 3]],
-            [['bomber', 3], ['crawler', 4], ['drone', 1]],
-            [['gunner', 3], ['crawler', 5]],
-            [['crawler', 4], ['bomber', 2], ['gunner', 2]]] }
+            [['bomber', 3], ['crawler', 3], ['drone', 1], ['soldier', 1]],
+            [['gunner', 3], ['crawler', 3], ['soldier', 2]],
+            [['crawler', 2], ['bomber', 2], ['gunner', 2], ['blader', 2]]] }
         ]
       }
     }
@@ -628,13 +628,13 @@
           { map: 'classroom_reading', waves: [
             [['crawler', 8], ['drone', 2]],
             [['bomber', 3], ['crawler', 6]],
-            [['gunner', 3], ['crawler', 5]],
+            [['gunner', 3], ['crawler', 4], ['blader', 1]],
             [['drone', 2], ['crawler', 4]]] },
           { map: 'classroom_front', waves: [
             [['crawler', 8], ['gunner', 3]],
             [['drone', 3], ['bomber', 3], ['crawler', 4]],
             [['gunner', 4], ['crawler', 5]],
-            [['crawler', 3], ['bomber', 2], ['drone', 2]]] }
+            [['crawler', 2], ['bomber', 2], ['drone', 2], ['blader', 1]]] }
         ]
       }
     }
@@ -771,20 +771,20 @@
           { map: 'coalmine_haulage', waves: [
             [['crawler', 7], ['gunner', 2]],
             [['crawler', 6], ['bomber', 2], ['gunner', 1]],
-            [['crawler', 5], ['gunner', 2], ['drone', 2]],
-            [['crawler', 5], ['bomber', 2]]] },
+            [['crawler', 4], ['gunner', 2], ['drone', 2], ['blader', 1]],
+            [['crawler', 4], ['bomber', 2], ['soldier', 1]]] },
           // The Coal Face: 37 robots between conveyors and cribs
           { map: 'coalmine_face', waves: [
             [['crawler', 6], ['gunner', 3]],
-            [['drone', 2], ['crawler', 6], ['bomber', 2]],
-            [['gunner', 3], ['crawler', 6]],
+            [['drone', 2], ['crawler', 5], ['bomber', 2], ['blader', 1]],
+            [['gunner', 3], ['crawler', 4], ['soldier', 2]],
             [['crawler', 5], ['bomber', 2], ['drone', 2]]] },
           // Main Shaft: 40 robots, the dense finale round the headframe
           { map: 'coalmine_shaft', waves: [
             [['crawler', 7], ['gunner', 2]],
-            [['drone', 2], ['bomber', 2], ['crawler', 6]],
-            [['gunner', 3], ['crawler', 6], ['drone', 1]],
-            [['crawler', 5], ['bomber', 2], ['gunner', 2], ['drone', 2]]] }
+            [['drone', 2], ['bomber', 2], ['crawler', 5], ['soldier', 1]],
+            [['gunner', 3], ['crawler', 5], ['drone', 1], ['blader', 1]],
+            [['crawler', 3], ['bomber', 2], ['gunner', 2], ['drone', 2], ['soldier', 1], ['blader', 1]]] }
         ]
       }
     }
@@ -935,21 +935,21 @@
           // Assembly Hall: 36 robots between the lines
           { map: 'factory_lines', waves: [
             [['crawler', 7], ['gunner', 2]],
-            [['crawler', 6], ['bomber', 2], ['gunner', 1]],
-            [['crawler', 5], ['gunner', 2], ['drone', 2]],
-            [['crawler', 6], ['bomber', 3]]] },
+            [['crawler', 5], ['bomber', 2], ['gunner', 1], ['soldier', 1]],
+            [['crawler', 4], ['gunner', 2], ['drone', 2], ['blader', 1]],
+            [['crawler', 5], ['bomber', 3], ['soldier', 1]]] },
           // Press Shop: 37 robots, drones over the press
           { map: 'factory_press', waves: [
             [['crawler', 6], ['gunner', 3]],
-            [['drone', 3], ['crawler', 5], ['bomber', 2]],
-            [['gunner', 3], ['crawler', 6]],
-            [['crawler', 5], ['bomber', 2], ['drone', 2]]] },
+            [['drone', 3], ['crawler', 3], ['bomber', 2], ['blader', 2]],
+            [['gunner', 3], ['crawler', 4], ['soldier', 2]],
+            [['crawler', 4], ['bomber', 2], ['drone', 2], ['blader', 1]]] },
           // Control & Dispatch: 42 robots, the dense finale under the booth
           { map: 'factory_dispatch', waves: [
             [['crawler', 7], ['gunner', 2]],
-            [['drone', 2], ['bomber', 2], ['crawler', 6]],
-            [['gunner', 3], ['crawler', 6], ['drone', 1]],
-            [['crawler', 5], ['bomber', 2], ['gunner', 3], ['drone', 3]]] }
+            [['drone', 2], ['bomber', 2], ['crawler', 4], ['soldier', 2]],
+            [['gunner', 3], ['crawler', 4], ['drone', 1], ['soldier', 2]],
+            [['crawler', 3], ['bomber', 2], ['gunner', 3], ['drone', 3], ['blader', 2]]] }
         ]
       }
     }
@@ -1103,21 +1103,21 @@
           // Chassis Hall: 42 robots around the walker line
           { map: 'factory2_chassis', waves: [
             [['crawler', 7], ['gunner', 3]],
-            [['crawler', 6], ['bomber', 3], ['gunner', 2]],
-            [['gunner', 3], ['drone', 3], ['crawler', 5]],
-            [['crawler', 6], ['bomber', 2], ['gunner', 2]]] },
+            [['crawler', 4], ['bomber', 3], ['gunner', 2], ['blader', 2]],
+            [['gunner', 3], ['drone', 3], ['crawler', 3], ['soldier', 2]],
+            [['crawler', 4], ['bomber', 2], ['gunner', 2], ['soldier', 2]]] },
           // Armour & Test: 44 robots, drones over the bruiser line and the test track
           { map: 'factory2_armour', waves: [
             [['crawler', 6], ['gunner', 3], ['drone', 1]],
-            [['drone', 3], ['crawler', 6], ['bomber', 2]],
-            [['gunner', 4], ['crawler', 6], ['bomber', 1]],
-            [['crawler', 6], ['bomber', 3], ['drone', 3]]] },
+            [['drone', 3], ['crawler', 4], ['bomber', 2], ['blader', 2]],
+            [['gunner', 4], ['crawler', 4], ['bomber', 1], ['soldier', 2]],
+            [['crawler', 4], ['bomber', 3], ['drone', 3], ['blader', 2]]] },
           // Dispatch & the Titan: 50 robots, the dense finale under the Titan
           { map: 'factory2_dispatch', waves: [
             [['crawler', 7], ['gunner', 3], ['drone', 1]],
-            [['drone', 3], ['bomber', 3], ['crawler', 6]],
-            [['gunner', 4], ['crawler', 7], ['drone', 2]],
-            [['crawler', 6], ['bomber', 3], ['gunner', 3], ['drone', 2]]] }
+            [['drone', 3], ['bomber', 3], ['crawler', 4], ['soldier', 2]],
+            [['gunner', 4], ['crawler', 5], ['drone', 2], ['blader', 2]],
+            [['crawler', 3], ['bomber', 3], ['gunner', 3], ['drone', 2], ['soldier', 3]]] }
         ]
       }
     }
@@ -1235,21 +1235,21 @@
           // The Lawns: the play tower among swings, sandpit and flower beds; 38 robots
           { map: 'garden_lawns', waves: [
             [['crawler', 7], ['gunner', 2]],
-            [['crawler', 6], ['bomber', 2], ['drone', 1]],
-            [['gunner', 3], ['crawler', 6]],
-            [['crawler', 6], ['bomber', 3], ['drone', 2]]] },
+            [['crawler', 5], ['bomber', 2], ['drone', 1], ['blader', 1]],
+            [['gunner', 3], ['crawler', 4], ['soldier', 2]],
+            [['crawler', 5], ['bomber', 3], ['drone', 2], ['blader', 1]]] },
           // The Fort: the big three-tower play fort in the middle, the gazebo and the fountain; 43 robots
           { map: 'garden_fort', waves: [
             [['crawler', 8], ['gunner', 2]],
-            [['drone', 2], ['crawler', 6], ['bomber', 2]],
-            [['gunner', 3], ['crawler', 7], ['drone', 1]],
-            [['crawler', 6], ['bomber', 3], ['gunner', 2], ['drone', 1]]] },
+            [['drone', 2], ['crawler', 4], ['bomber', 2], ['soldier', 2]],
+            [['gunner', 3], ['crawler', 5], ['drone', 1], ['blader', 2]],
+            [['crawler', 4], ['bomber', 3], ['gunner', 2], ['drone', 1], ['soldier', 2]]] },
           // Pirate Cove: the play ship, a second tower, the potting shed and picnic lawn; 46 robots, the finale
           { map: 'garden_cove', waves: [
             [['crawler', 8], ['gunner', 3]],
-            [['drone', 2], ['bomber', 3], ['crawler', 6]],
-            [['gunner', 3], ['crawler', 7], ['drone', 2]],
-            [['crawler', 6], ['bomber', 3], ['gunner', 2], ['drone', 1]]] }
+            [['drone', 2], ['bomber', 3], ['crawler', 4], ['blader', 2]],
+            [['gunner', 3], ['crawler', 5], ['drone', 2], ['soldier', 2]],
+            [['crawler', 3], ['bomber', 3], ['gunner', 2], ['drone', 1], ['soldier', 2], ['blader', 1]]] }
         ]
       }
     }
@@ -1560,21 +1560,21 @@
           // Landing Beach (sea wall to the east): 40 robots
           { map: 'island_beach', sea: 'E', waves: [
             [['crawler', 8], ['gunner', 2]],
-            [['crawler', 6], ['bomber', 2], ['gunner', 2]],
-            [['crawler', 6], ['drone', 2], ['gunner', 1]],
-            [['crawler', 5], ['bomber', 2], ['gunner', 2]]] },
+            [['crawler', 4], ['bomber', 2], ['gunner', 2], ['blader', 2]],
+            [['crawler', 4], ['drone', 2], ['gunner', 1], ['soldier', 2]],
+            [['crawler', 3], ['bomber', 2], ['gunner', 2], ['soldier', 2]]] },
           // The Lagoon (sea wall to the west): 42 robots, drones over the water
           { map: 'island_lagoon', sea: 'W', waves: [
             [['crawler', 8], ['gunner', 2], ['drone', 1]],
-            [['crawler', 6], ['bomber', 3], ['gunner', 2]],
-            [['crawler', 6], ['drone', 3], ['gunner', 2]],
-            [['crawler', 5], ['bomber', 2], ['gunner', 2]]] },
+            [['crawler', 4], ['bomber', 3], ['gunner', 2], ['blader', 2]],
+            [['crawler', 4], ['drone', 3], ['gunner', 2], ['soldier', 2]],
+            [['crawler', 3], ['bomber', 2], ['gunner', 2], ['blader', 2]]] },
           // Lighthouse Point and the robots' outpost (sea wall to the east): 52 robots, the dense finale
           { map: 'island_point', sea: 'E', waves: [
             [['crawler', 8], ['gunner', 3]],
-            [['crawler', 6], ['bomber', 3], ['drone', 2]],
-            [['crawler', 7], ['gunner', 3], ['drone', 2]],
-            [['crawler', 10], ['gunner', 4], ['bomber', 3], ['drone', 1]]] }
+            [['crawler', 4], ['bomber', 3], ['drone', 2], ['soldier', 2]],
+            [['crawler', 5], ['gunner', 3], ['drone', 2], ['blader', 2]],
+            [['crawler', 6], ['gunner', 4], ['bomber', 3], ['drone', 1], ['soldier', 4]]] }
         ]
       }
     }
@@ -1692,21 +1692,21 @@
           // 36 + 41 + 52 = 129 robots; the kitchen's last wave is the dense finale
           { map: 'livingroom_lounge', waves: [
             [['crawler', 8], ['gunner', 1]],
-            [['crawler', 6], ['bomber', 2], ['gunner', 1]],
-            [['crawler', 6], ['drone', 2], ['gunner', 1]],
-            [['crawler', 5], ['gunner', 2], ['bomber', 2]]
+            [['crawler', 5], ['bomber', 2], ['gunner', 1], ['soldier', 1]],
+            [['crawler', 5], ['drone', 2], ['gunner', 1], ['blader', 1]],
+            [['crawler', 3], ['gunner', 2], ['bomber', 2], ['soldier', 2]]
           ] },
           { map: 'livingroom_dining', waves: [
             [['crawler', 8], ['gunner', 2]],
-            [['crawler', 6], ['bomber', 3], ['drone', 1]],
-            [['crawler', 6], ['gunner', 3], ['drone', 1]],
-            [['crawler', 5], ['bomber', 3], ['gunner', 2], ['drone', 1]]
+            [['crawler', 4], ['bomber', 3], ['drone', 1], ['blader', 2]],
+            [['crawler', 4], ['gunner', 3], ['drone', 1], ['soldier', 2]],
+            [['crawler', 4], ['bomber', 3], ['gunner', 2], ['drone', 1], ['blader', 1]]
           ] },
           { map: 'livingroom_kitchen', waves: [
             [['crawler', 7], ['gunner', 2], ['drone', 1]],
-            [['crawler', 6], ['bomber', 3], ['gunner', 2]],
-            [['crawler', 7], ['drone', 3], ['bomber', 2]],
-            [['crawler', 10], ['gunner', 4], ['bomber', 3], ['drone', 2]]
+            [['crawler', 4], ['bomber', 3], ['gunner', 2], ['soldier', 2]],
+            [['crawler', 5], ['drone', 3], ['bomber', 2], ['blader', 2]],
+            [['crawler', 8], ['gunner', 4], ['bomber', 3], ['drone', 2], ['soldier', 2]]
           ] }
         ]
       }
@@ -1981,18 +1981,18 @@
           { map: 'office_cubicles', waves: [
             [['crawler', 7], ['gunner', 2]],
             [['crawler', 6], ['bomber', 2], ['gunner', 1]],
-            [['crawler', 5], ['gunner', 2], ['drone', 2]],
+            [['crawler', 4], ['gunner', 2], ['drone', 2], ['blader', 1]],
             [['crawler', 5], ['bomber', 3]]] },
           { map: 'office_wing', waves: [
             [['crawler', 6], ['gunner', 3]],
             [['drone', 3], ['crawler', 5], ['bomber', 1]],
-            [['gunner', 3], ['crawler', 6]],
-            [['crawler', 4], ['bomber', 2], ['drone', 2]]] },
+            [['gunner', 3], ['crawler', 5], ['blader', 1]],
+            [['crawler', 3], ['bomber', 2], ['drone', 2], ['soldier', 1]]] },
           { map: 'office_lobby', waves: [
             [['crawler', 7], ['gunner', 2]],
-            [['drone', 2], ['bomber', 2], ['crawler', 6]],
+            [['drone', 2], ['bomber', 2], ['crawler', 5], ['blader', 1]],
             [['gunner', 3], ['crawler', 6], ['drone', 1]],
-            [['crawler', 5], ['bomber', 3], ['gunner', 2], ['drone', 2]]] }
+            [['crawler', 4], ['bomber', 3], ['gunner', 2], ['drone', 2], ['soldier', 1]]] }
         ]
       }
     }

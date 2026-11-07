@@ -144,21 +144,21 @@
           // Chassis Hall: 42 robots around the walker line
           { map: 'factory2_chassis', waves: [
             [['crawler', 7], ['gunner', 3]],
-            [['crawler', 6], ['bomber', 3], ['gunner', 2]],
-            [['gunner', 3], ['drone', 3], ['crawler', 5]],
-            [['crawler', 6], ['bomber', 2], ['gunner', 2]]] },
+            [['crawler', 4], ['bomber', 3], ['gunner', 2], ['blader', 2]],
+            [['gunner', 3], ['drone', 3], ['crawler', 3], ['soldier', 2]],
+            [['crawler', 4], ['bomber', 2], ['gunner', 2], ['soldier', 2]]] },
           // Armour & Test: 44 robots, drones over the bruiser line and the test track
           { map: 'factory2_armour', waves: [
             [['crawler', 6], ['gunner', 3], ['drone', 1]],
-            [['drone', 3], ['crawler', 6], ['bomber', 2]],
-            [['gunner', 4], ['crawler', 6], ['bomber', 1]],
-            [['crawler', 6], ['bomber', 3], ['drone', 3]]] },
+            [['drone', 3], ['crawler', 4], ['bomber', 2], ['blader', 2]],
+            [['gunner', 4], ['crawler', 4], ['bomber', 1], ['soldier', 2]],
+            [['crawler', 4], ['bomber', 3], ['drone', 3], ['blader', 2]]] },
           // Dispatch & the Titan: 50 robots, the dense finale under the Titan
           { map: 'factory2_dispatch', waves: [
             [['crawler', 7], ['gunner', 3], ['drone', 1]],
-            [['drone', 3], ['bomber', 3], ['crawler', 6]],
-            [['gunner', 4], ['crawler', 7], ['drone', 2]],
-            [['crawler', 6], ['bomber', 3], ['gunner', 3], ['drone', 2]]] }
+            [['drone', 3], ['bomber', 3], ['crawler', 4], ['soldier', 2]],
+            [['gunner', 4], ['crawler', 5], ['drone', 2], ['blader', 2]],
+            [['crawler', 3], ['bomber', 3], ['gunner', 3], ['drone', 2], ['soldier', 3]]] }
         ]
       }
     }

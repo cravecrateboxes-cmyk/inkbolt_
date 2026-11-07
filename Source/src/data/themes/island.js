@@ -301,21 +301,21 @@
           // Landing Beach (sea wall to the east): 40 robots
           { map: 'island_beach', sea: 'E', waves: [
             [['crawler', 8], ['gunner', 2]],
-            [['crawler', 6], ['bomber', 2], ['gunner', 2]],
-            [['crawler', 6], ['drone', 2], ['gunner', 1]],
-            [['crawler', 5], ['bomber', 2], ['gunner', 2]]] },
+            [['crawler', 4], ['bomber', 2], ['gunner', 2], ['blader', 2]],
+            [['crawler', 4], ['drone', 2], ['gunner', 1], ['soldier', 2]],
+            [['crawler', 3], ['bomber', 2], ['gunner', 2], ['soldier', 2]]] },
           // The Lagoon (sea wall to the west): 42 robots, drones over the water
           { map: 'island_lagoon', sea: 'W', waves: [
             [['crawler', 8], ['gunner', 2], ['drone', 1]],
-            [['crawler', 6], ['bomber', 3], ['gunner', 2]],
-            [['crawler', 6], ['drone', 3], ['gunner', 2]],
-            [['crawler', 5], ['bomber', 2], ['gunner', 2]]] },
+            [['crawler', 4], ['bomber', 3], ['gunner', 2], ['blader', 2]],
+            [['crawler', 4], ['drone', 3], ['gunner', 2], ['soldier', 2]],
+            [['crawler', 3], ['bomber', 2], ['gunner', 2], ['blader', 2]]] },
           // Lighthouse Point and the robots' outpost (sea wall to the east): 52 robots, the dense finale
           { map: 'island_point', sea: 'E', waves: [
             [['crawler', 8], ['gunner', 3]],
-            [['crawler', 6], ['bomber', 3], ['drone', 2]],
-            [['crawler', 7], ['gunner', 3], ['drone', 2]],
-            [['crawler', 10], ['gunner', 4], ['bomber', 3], ['drone', 1]]] }
+            [['crawler', 4], ['bomber', 3], ['drone', 2], ['soldier', 2]],
+            [['crawler', 5], ['gunner', 3], ['drone', 2], ['blader', 2]],
+            [['crawler', 6], ['gunner', 4], ['bomber', 3], ['drone', 1], ['soldier', 4]]] }
         ]
       }
     }

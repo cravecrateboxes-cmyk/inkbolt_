@@ -26,7 +26,7 @@ test('level plan: three zones, 3-4 waves each, 110-130 robots of the modelled ty
   let total = 0;
   for (const z of PLAN.zones) {
     assert.ok(z.waves.length >= 3 && z.waves.length <= 4, z.map + ' waves');
-    for (const w of z.waves) for (const [type, n] of w) { assert.ok(['crawler', 'gunner', 'bomber', 'drone'].includes(type), type); total += n; }
+    for (const w of z.waves) for (const [type, n] of w) { assert.ok(['crawler', 'gunner', 'bomber', 'drone', 'soldier', 'blader'].includes(type), type); total += n; }
   }
   assert.ok(total >= 110 && total <= 130, 'robots ' + total);
   const last = PLAN.zones[2].waves[PLAN.zones[2].waves.length - 1].reduce((s, e) => s + e[1], 0);

@@ -102,21 +102,21 @@
           // Market Ward: crawlers through the stalls, gunners behind the carts, a drone over the well
           { map: 'castle_market', waves: [
             [['crawler', 8], ['gunner', 2]],
-            [['crawler', 5], ['gunner', 3]],
-            [['crawler', 4], ['gunner', 2], ['drone', 1]],
-            [['crawler', 4], ['gunner', 2]]] },
+            [['crawler', 4], ['gunner', 3], ['blader', 1]],
+            [['crawler', 3], ['gunner', 2], ['drone', 1], ['soldier', 1]],
+            [['crawler', 3], ['gunner', 2], ['soldier', 1]]] },
           // Training Yard: gunners on the drill ground, bombers across the open grass, a drone over the archery range
           { map: 'castle_yard', waves: [
             [['crawler', 6], ['gunner', 3]],
-            [['crawler', 4], ['bomber', 3]],
-            [['gunner', 3], ['drone', 1], ['crawler', 3]],
-            [['crawler', 4], ['bomber', 2], ['gunner', 2]]] },
+            [['crawler', 3], ['bomber', 3], ['blader', 1]],
+            [['gunner', 3], ['drone', 1], ['crawler', 2], ['soldier', 1]],
+            [['crawler', 3], ['bomber', 2], ['gunner', 2], ['soldier', 1]]] },
           // Inner Ward: everything round the keep
           { map: 'castle_keep', waves: [
             [['crawler', 6], ['gunner', 3]],
-            [['bomber', 3], ['crawler', 4], ['drone', 1]],
-            [['gunner', 3], ['crawler', 4]],
-            [['crawler', 4], ['bomber', 2], ['gunner', 2]]] }
+            [['bomber', 3], ['crawler', 2], ['drone', 1], ['blader', 2]],
+            [['gunner', 3], ['crawler', 2], ['soldier', 2]],
+            [['crawler', 3], ['bomber', 2], ['gunner', 2], ['blader', 1]]] }
         ]
       }
     }

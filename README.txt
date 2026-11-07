@@ -81,6 +81,17 @@ WEAPON DROPS, MELEE STAMINA, MUZZLE CANS (round 4)
   level 7). Shotguns take the Arc / Boom / Void cans.
   Undercover (F): a quick fade-flicker in, then a dark blue stealth look with every robot outlined in glowing blue.
 
+SOLDIERS AND BLADE BOTS (src/game/troops.js, rows in src/data/enemies.js, models in blender/fam_bots.py)
+  Soldier (from level 4): an armoured robot trooper. Its shield (the blue row on its health bar, 75% of its health)
+  takes damage first and recharges after 3.5 s without a hit. It keeps 7-15 m, strafes and uses cover, fires 4-bolt
+  bursts, throws up to 3 frag grenades (they bounce, blink, show a red ring, then blow) and rifle-butts you inside
+  2.2 m after a pull-back tell. Six armour colours (white, grey, blue, purple, black, crimson), two torsos, three
+  helmets; a visor slit, no face. Kills roll a weapon drop (6% gray, 3% green, 2% blue, 0.8% purple, 0.2% orange).
+  Blade Bot (from level 3): a hover saucer with a hub arm holding a katana or a Voltaxe. It patrols slowly; once it
+  sees you it homes in, spins up (whine, flashing), dashes with its blade at ~19 rev/s, cuts on contact (the Voltaxe
+  also shocks you for 2 s), overshoots and stays dizzy for 1.4 s, taking 35% more damage. Stand next to it and it spin
+  slashes in place. Kills have a 7% chance to drop its weapon. Both grow with the level like every robot.
+
 LOOT AND GEAR
   About one robot in twenty drops an item: a drop pod with a beam in its rarity colour, also marked on the radar as a
   diamond. Walk over it to bag it; an empty slot is filled right away. Bag: 40 items (worn and fitted ones included).
@@ -143,5 +154,6 @@ BUILD AND TEST (from the Source folder)
   node tests/e2e/screens.spec.js            (screenshots in tests/e2e/screens/, layout checks)
   node tests/e2e/perf.spec.js               (draw calls, triangles, frame times, VFX stress)
   node tests/e2e/vfx-shots.js               (frame-stepped explosion screenshots -> tests/e2e/review/vfx-*.png)
-  node tests/e2e/hud-shots.js               (HUD, enemy health bars and loader at 3 sizes -> tests/e2e/review/hud-*.png, loader-*.png)
+  node tests/e2e/troops.spec.js             (Soldier shield / grenades / melee, Blade Bot dash; SHOTS=1 -> review/troops-*.png)
+  node tests/e2e/hud-shots.js              (HUD, enemy health bars and loader at 3 sizes -> tests/e2e/review/hud-*.png, loader-*.png)
   Dev page: serve the repo folder over http and open Source/dev.html  (add ?autotest=1 to skip the title).

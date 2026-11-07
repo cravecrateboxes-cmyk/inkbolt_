@@ -108,21 +108,21 @@
           // The Lawns: the play tower among swings, sandpit and flower beds; 38 robots
           { map: 'garden_lawns', waves: [
             [['crawler', 7], ['gunner', 2]],
-            [['crawler', 6], ['bomber', 2], ['drone', 1]],
-            [['gunner', 3], ['crawler', 6]],
-            [['crawler', 6], ['bomber', 3], ['drone', 2]]] },
+            [['crawler', 5], ['bomber', 2], ['drone', 1], ['blader', 1]],
+            [['gunner', 3], ['crawler', 4], ['soldier', 2]],
+            [['crawler', 5], ['bomber', 3], ['drone', 2], ['blader', 1]]] },
           // The Fort: the big three-tower play fort in the middle, the gazebo and the fountain; 43 robots
           { map: 'garden_fort', waves: [
             [['crawler', 8], ['gunner', 2]],
-            [['drone', 2], ['crawler', 6], ['bomber', 2]],
-            [['gunner', 3], ['crawler', 7], ['drone', 1]],
-            [['crawler', 6], ['bomber', 3], ['gunner', 2], ['drone', 1]]] },
+            [['drone', 2], ['crawler', 4], ['bomber', 2], ['soldier', 2]],
+            [['gunner', 3], ['crawler', 5], ['drone', 1], ['blader', 2]],
+            [['crawler', 4], ['bomber', 3], ['gunner', 2], ['drone', 1], ['soldier', 2]]] },
           // Pirate Cove: the play ship, a second tower, the potting shed and picnic lawn; 46 robots, the finale
           { map: 'garden_cove', waves: [
             [['crawler', 8], ['gunner', 3]],
-            [['drone', 2], ['bomber', 3], ['crawler', 6]],
-            [['gunner', 3], ['crawler', 7], ['drone', 2]],
-            [['crawler', 6], ['bomber', 3], ['gunner', 2], ['drone', 1]]] }
+            [['drone', 2], ['bomber', 3], ['crawler', 4], ['blader', 2]],
+            [['gunner', 3], ['crawler', 5], ['drone', 2], ['soldier', 2]],
+            [['crawler', 3], ['bomber', 3], ['gunner', 2], ['drone', 1], ['soldier', 2], ['blader', 1]]] }
         ]
       }
     }
