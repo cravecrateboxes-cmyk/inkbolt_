@@ -9,8 +9,11 @@
      #  walls: on the zone edge, 6 m bays (red I-beam column, then window modules: plain, glints, electrical panel,
         stencilled robot sign, exhaust fan, fire hose); solid siding near the gates; end modules (trims stop short,
         no pipes) beside inside corners; interior '#' = painted block walls
-     A  assembly line section [8, 4] (Crawler, Gunner, Bomber, Drone in sequence; runs of them make long lines)
-     R  robot arm cell [2, 2]        =  belt conveyor with parts (runs)       c  parts crates (stacked)
+     A  assembly line section [8, 4] (Crawler, Gunner, Bomber, Drone in sequence; runs of them make long lines); the
+        belt MOVES: half-built robots ride it out of a feed hood at one end of the run into an exit hood at the other,
+        the cleats scroll, neighbouring runs flow opposite ways (theme conveyor option, see zones.js "moving lines")
+     R  robot arm cell [2, 2]        =  moving belt conveyor with parts, feed / exit hoods at the run ends (runs)
+     c  parts crates (stacked)
      p  pallet of parts [2, 2]       b  drums      g  gas cylinder rack      x  welding screen / tool chest
      K  overhead catwalk [2, 8] (walk under it; runs join end to end)        M  machine tool [3, 2]
      Q  rack of finished robots [6, 2]       W  robot test cage [4, 4]       z  hazard floor pad [2, 2] (no collision)
@@ -89,9 +92,17 @@
     },
     wall: { height: 10.4, roof: '#8E9097', facing: 'open', choose: chooseWall },
     symbols: {
-      'A': { size: [8, 4], pieces: ['Line_Crawler', 'Line_Gunner', 'Line_Bomber', 'Line_Drone'], sequence: true, kind: 'wall' },
+      // moving lines: half-built robots ride the assembly belts and parts the conveyors, out of a feed hood at one end
+      // of each run and into an exit hood at the other; the belt cleats scroll; a player on a belt top is carried
+      'A': { size: [8, 4], pieces: ['Line_Crawler', 'Line_Gunner', 'Line_Bomber', 'Line_Drone'], sequence: true, kind: 'wall',
+             conveyor: { speed: 0.55, dir: 'alt', y: 0.884, spacing: 2.6, inset: 0.6, ends: { start: 'Line_Feed', end: 'Line_Exit', at: 0.6 },
+                         items: ['LineBot_CrawlerBare', 'LineBot_Gunner', 'LineBot_Bomber', 'LineBot_Crawler', 'LineBot_GunnerBare', 'LineBot_Drone'],
+                         cleat: 'Line_Cleat', cleatEvery: 0.8, cleatY: 0.884, carry: { top: 1.05, width: 0.9 } } },
       'R': { size: [2, 2], pieces: ['Arm_A', 'Arm_B'], flip: true, kind: 'cover' },
-      '=': { pieces: ['Conveyor_Cans', 'Conveyor_Bottles', 'Conveyor_Drones', 'Conveyor_Wheels'], rotate: 'run', alternate: true, kind: 'cover' },
+      '=': { pieces: ['Conveyor'], rotate: 'run', kind: 'cover',
+             conveyor: { speed: 0.7, dir: 'alt', y: 0.864, spacing: 1.3, inset: 0.5, ends: { start: 'Conveyor_Feed', end: 'Conveyor_Exit', at: 0.5 },
+                         items: ['Item_Can', 'Item_Bottle', 'Item_Drone', 'Item_Wheels'], cleat: 'Belt_Cleat', cleatEvery: 0.5, cleatY: 0.864,
+                         carry: { top: 1.0, width: 0.9 } } },
       'c': { pieces: ['Crate_Cans', 'Crate_Wheels', 'Crate_Closed'], h: 0.86, rotate: 'random90', stack: { piece: 'Crate_Lid', chance: 0.3, h: 0.5 }, kind: 'cover' },
       'p': { size: [2, 2], pieces: ['Pallet_Bins', 'Pallet_Cans', 'Pallet_Bottles'], flip: true, kind: 'cover' },
       'b': { pieces: ['Drums_A', 'Drums_B'], rotate: 'random90', kind: 'cover' },
@@ -118,7 +129,7 @@
       var out = WALLS.concat(['CeilTruss', 'GateFrame', 'GateShutter', 'TrailWall', 'Hatch', 'Stand', 'Backdrop_Works']);
       var sym = this.symbols;
       Object.keys(sym).forEach(function (ch) {
-        sym[ch].pieces.concat(sym[ch].stack ? [sym[ch].stack.piece] : []).forEach(function (n) { if (out.indexOf(n) < 0) out.push(n); });
+        sym[ch].pieces.concat(sym[ch].stack ? [sym[ch].stack.piece] : [], IB.conveyorPieces(sym[ch].conveyor)).forEach(function (n) { if (out.indexOf(n) < 0) out.push(n); });
       });
       return out;
     },

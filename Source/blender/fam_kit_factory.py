@@ -15,6 +15,9 @@ Conventions (see src/data/themes.js and kit_base.py):
     strip light at ROOF; the two sides meet in the middle, so the passage between halls is closed.
   * Floor decals sit at their own heights (Z table) so overlapping decals of different pieces never z-fight.
   * The half-built robots echo fam_bots.py (tin-can Crawler, wheelie-bin Gunner, bottle Bomber, soda-can Drone).
+  * The belts move in the game (theme symbol option `conveyor`): Conveyor and the Line_* sections are static frames;
+    the parts (Item_*), the half-built robots (LineBot_*) and the belt cleats are separate pieces the engine slides
+    along each run, popping in and out inside the end hoods (Conveyor_Feed / _Exit, Line_Feed / _Exit).
 """
 import math
 import random
@@ -510,8 +513,9 @@ def gas_rack(k):
     return k
 
 
-def conveyor(k, variant):
-    """Belt conveyor section (1 m along X) with parts riding on it."""
+def conveyor(k):
+    """Belt conveyor section (1 m along X): frame, legs and the rubber belt. It moves in the game: the parts riding it
+    (Item_*) and the belt cleats (Belt_Cleat) are separate pieces animated by the engine (theme conveyor option)."""
     k.begin()
     for s in (-1, 1):
         k.bx(-0.5, 0.5, *srt(s * 0.4, s * 0.47), 0.72, 0.92, 'hazard')
@@ -520,20 +524,58 @@ def conveyor(k, variant):
             k.bx(x - 0.04, x + 0.04, *srt(s * 0.36, s * 0.42), 0, 0.72, 'steelDark', ink=False)
         k.bx(x - 0.03, x + 0.03, -0.41, 0.41, 0.2, 0.26, 'steelDark', ink=False)
     k.bx(-0.5, 0.5, -0.38, 0.38, 0.78, 0.86, 'rubber')
-    for x in (-0.25, 0.25):
-        k.qz(x - 0.015, x + 0.015, -0.37, 0.37, 0.863, 1, 'grate')
-    if variant == 0:
-        crawler(k, 0.0, 0.0, 0.86, legs=0, top=False, s=0.8)
-    elif variant == 1:
-        bottle(k, -0.18, 0.05, 0.86, cap=False, base=False, s=0.8)
-        k.cyl(0.25, -0.1, 0.86, 0.09, 0.09, 0.06, 'red', seg=8)
-    elif variant == 2:
-        drone(k, 0.0, 0.0, 0.86, arms=1, s=0.9)
-    else:
-        k.cyl(-0.2, 0.0, 0.86, 0.16, 0.16, 0.08, 'rubber', seg=8)
-        k.cyl(0.18, 0.05, 0.86, 0.16, 0.16, 0.08, 'rubber', seg=8)
-        k.cyl(0.18, 0.05, 0.94, 0.06, 0.06, 0.02, 'steel', seg=6, ink=False)
     k.col(-0.5, 0.5, -0.47, 0.47, 0, 1.0)
+    return k
+
+
+def belt_hood(k, kind, L=0.5, W=0.47, H=1.72, rail=0.92, base=None):
+    """End hood over a moving belt (local +X = downstream), straddling the end cell / tile: side walls standing on the
+    belt rails, a roof, a closed motor end and a rubber strip curtain over the open mouth, so the parts pop in and out of
+    sight inside it. kind 'Feed' (closed upstream end, at the start of a run) or 'Exit' (closed downstream end)."""
+    k.begin()
+    sx = -1 if kind == 'Feed' else 1          # the closed end
+    z0 = rail + 0.004 if base is None else base   # walls on the rails, or down to the floor beside them
+    for s in (-1, 1):
+        y0, y1 = srt(s * (W - 0.07), s * W)
+        k.bx(-L, L, y0, y1, z0, H, 'steel2')
+        k.stripes(-L + 0.04, L - 0.04, rail + 0.06, rail + 0.26, s * (W + 0.003), s, 4)
+    k.bx(-L - 0.02, L + 0.02, -W - 0.03, W + 0.03, H, H + 0.08, 'steelDark')
+    x0, x1 = srt(sx * (L - 0.066), sx * (L - 0.006))
+    k.bx(x0, x1, -W + 0.07, W - 0.07, max(z0, rail - 0.25), H, 'siding2')      # closed end panel (over the belt end)
+    k.bx(*srt(sx * L, sx * (L + 0.14)), -0.22, 0.22, rail - 0.3, rail + 0.4, 'steelDark')   # motor
+    k.cyl(sx * (L + 0.14), 0, rail + 0.05, 0.14, 0.14, 0.1, 'beam', seg=8, rot=(0, 90 * sx, 0))
+    xm = -sx * (L - 0.04)                                                       # strip curtain at the mouth
+    n = 5
+    for i in range(n):
+        y = -W + 0.09 + (2 * W - 0.18) * (i + 0.5) / n
+        k.bx(xm - 0.008 - 0.004 * (i % 2), xm + 0.008 - 0.004 * (i % 2), y - 0.07, y + 0.07, rail + 0.16, H - 0.004, 'rubber', ink=False)
+    k.qy(-0.18, 0.18, H - 0.3, H - 0.12, -W - 0.003 - 0.003, -1, 'label')
+    k.qy(-0.12, 0.12, H - 0.27, H - 0.15, -W - 0.009, -1, 'teal' if kind == 'Feed' else 'red')
+    k.col(-L, L, -W, W, 0, H + 0.08)
+    return k
+
+
+def belt_cleat(k, w=0.36):
+    """A belt cleat (slides along the moving belt)."""
+    k.begin()
+    k.bx(-0.03, 0.03, -w, w, 0.0, 0.025, 'grate', ink=False)
+    return k
+
+
+def belt_item(k, variant):
+    """Parts riding the factory belt (origin = belt top)."""
+    k.begin()
+    if variant == 'Can':
+        crawler(k, 0.0, 0.0, 0.0, legs=0, top=False, s=0.8)
+    elif variant == 'Bottle':
+        bottle(k, -0.12, 0.05, 0.0, cap=False, base=False, s=0.75)
+        k.cyl(0.25, -0.1, 0.0, 0.09, 0.09, 0.06, 'red', seg=8)
+    elif variant == 'Drone':
+        drone(k, 0.0, 0.0, 0.0, arms=1, s=0.8, deg=45)
+    else:
+        k.cyl(-0.2, 0.0, 0.0, 0.16, 0.16, 0.08, 'rubber', seg=8)
+        k.cyl(0.18, 0.05, 0.0, 0.16, 0.16, 0.08, 'rubber', seg=8)
+        k.cyl(0.18, 0.05, 0.08, 0.06, 0.06, 0.02, 'steel', seg=6, ink=False)
     return k
 
 
@@ -617,28 +659,14 @@ def assembly_line(k, kind):
         for s in (-1, 1):
             k.bx(x - 0.05, x + 0.05, *srt(s * 0.46, s * 0.52), 0, 0.74, 'steelDark', ink=False)
     k.bx(-4.0, 4.0, -0.46, 0.46, 0.8, 0.88, 'rubber')
-    for x in (-3.0, -1.0, 1.0, 3.0):
-        k.qz(x - 0.015, x + 0.015, -0.45, 0.45, 0.883, 1, 'grate')
     for s in (-1, 1):   # hazard lanes
         k.qz(-4.0, 4.0, *srt(s * 0.9, s * 1.0), Z['line'], 1, 'hazard')
-    z = 0.88
-    if kind == 'Crawler':
-        crawler(k, -1.8, 0.0, z, legs=1, top=False)
-        crawler(k, 1.9, 0.0, z, legs=3)
-        for i in range(3):
-            k.bx(-0.6 + i * 0.15, -0.58 + i * 0.15, -0.2, 0.2, z, z + 0.04, 'steelDark', ink=False)
-    elif kind == 'Gunner':
-        gunner(k, -1.8, 0.0, z, gun=False, deg=90)
-        gunner(k, 1.9, 0.0, z, gun=True, deg=90)
-        k.bx(-0.4, 0.3, -0.35, 0.35, z, z + 0.06, 'bin2')
-    elif kind == 'Bomber':
-        bottle(k, -2.2, 0.0, z, cap=False, base=False)
-        bottle(k, -0.6, 0.0, z, cap=False, base=True)
-        bottle(k, 1.9, 0.0, z, cap=True, base=True)
-    else:
-        drone(k, -1.8, 0.0, z, arms=0)
-        drone(k, 0.1, 0.0, z, arms=2)
-        drone(k, 2.1, 0.0, z, arms=4)
+    # the half-built robots ride the moving belt (LineBot_* pieces, animated by the engine); the section's type shows on
+    # a placard on the gantry and in its parts bin
+    tc = {'Crawler': 'tin', 'Gunner': 'bin', 'Bomber': 'glassB', 'Drone': 'can'}[kind]
+    for f in (-1, 1):
+        k.bx(-0.5, 0.5, *srt(f * 1.8, f * 1.84), 4.22, 4.38, 'label')
+        k.qy(-0.4, 0.4, 4.25, 4.35, f * 1.843, f, tc)
     robot_arm(k, -1.8, 1.55, 0, reach=1.0, tool='weld')
     robot_arm(k, 1.9, -1.55, 180, reach=1.0, tool='claw')
     # gantry
@@ -653,9 +681,9 @@ def assembly_line(k, kind):
     k.qz(-2.5, 2.5, -0.08, 0.08, 3.997, -1, 'lamp')
     k.cyl(3.8, -1.7, 4.4, 0.12, 0.12, 0.12, 'steelDark', seg=8)
     k.cyl(3.8, -1.7, 4.52, 0.1, 0.07, 0.2, 'hot', seg=8)
-    # parts bin at the -X end
+    # parts bin at the -X end, filled with this section's parts
     k.bx(-3.95, -3.25, 0.75, 1.45, 0, 0.6, 'bin2')
-    k.bx(-3.9, -3.3, 0.8, 1.4, 0.6, 0.7, 'tin')
+    k.bx(-3.9, -3.3, 0.8, 1.4, 0.6, 0.7, tc)
     k.col(-4.0, 4.0, -0.62, 0.62, 0, 1.05)
     for x in (-1.8, 1.9):
         pass
@@ -665,6 +693,24 @@ def assembly_line(k, kind):
     for x in (-3.8, 3.8):
         for s in (-1, 1):
             k.col(x - 0.08, x + 0.08, s * 1.7 - 0.08, s * 1.7 + 0.08, 0, 4.2)
+    return k
+
+
+def line_bot(k, kind):
+    """A half-built robot riding the assembly line (origin = belt top)."""
+    k.begin()
+    if kind == 'CrawlerBare':
+        crawler(k, 0.0, 0.0, 0.0, legs=1, top=False)
+    elif kind == 'Crawler':
+        crawler(k, 0.0, 0.0, 0.0, legs=3)
+    elif kind == 'GunnerBare':
+        gunner(k, 0.0, 0.0, 0.0, gun=False, deg=90)
+    elif kind == 'Gunner':
+        gunner(k, 0.0, 0.0, 0.0, gun=True, deg=90)
+    elif kind == 'Bomber':
+        bottle(k, 0.0, 0.0, 0.0, cap=True, base=True)
+    else:
+        drone(k, 0.0, 0.0, 0.0, arms=2, s=1.0, deg=0)
     return k
 
 
@@ -982,8 +1028,16 @@ def build_kit_factory(ao):
         drums(k, v).finish('Drums_%s' % 'AB'[v], ao=ao)
         hazard_floor(k, v).finish('Hazard_%s' % 'AB'[v])
     gas_rack(k).finish('GasRack', ao=ao)
-    for v, n in enumerate(('Cans', 'Bottles', 'Drones', 'Wheels')):
-        conveyor(k, v).finish('Conveyor_' + n, ao=ao)
+    conveyor(k).finish('Conveyor', ao=ao)
+    for kind in ('Feed', 'Exit'):
+        belt_hood(k, kind).finish('Conveyor_' + kind, ao=ao)
+        belt_hood(k, kind, L=0.6, W=0.68, H=2.12, rail=0.96, base=0.0).finish('Line_' + kind, ao=ao)
+    belt_cleat(k, 0.36).finish('Belt_Cleat')
+    belt_cleat(k, 0.44).finish('Line_Cleat')
+    for kind in ('Can', 'Bottle', 'Drone', 'Wheels'):
+        belt_item(k, kind).finish('Item_' + kind, ao=ao)
+    for kind in ('CrawlerBare', 'Crawler', 'GunnerBare', 'Gunner', 'Bomber', 'Drone'):
+        line_bot(k, kind).finish('LineBot_' + kind, ao=ao)
     tool_station(k, 'Screen').finish('WeldScreen', ao=ao)
     tool_station(k, 'Chest').finish('ToolChest', ao=ao)
     arm_cell(k, 'A').finish('Arm_A', ao=ao)

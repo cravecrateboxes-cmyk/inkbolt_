@@ -443,7 +443,7 @@ async function campaignRun(browser, base) {
   console.log('\n# campaign: big levels, no z-fighting, waypath -> loading -> next level');
   // PLANS=castle,city2 checks a subset (the full level-1 flow runs only when mountains is in the list);
   // campaign levels whose theme isn't built are skipped
-  const plans = process.env.PLANS ? process.env.PLANS.split(',') : ['mountains', 'smallcity', 'classroom', 'office', 'bedroom', 'coalmine', 'castle', 'city2', 'factory', 'livingroom', 'garden', 'island'];
+  const plans = process.env.PLANS ? process.env.PLANS.split(',') : ['mountains', 'smallcity', 'classroom', 'office', 'bedroom', 'coalmine', 'castle', 'city2', 'factory', 'livingroom', 'garden', 'factory2', 'island'];
   for (const plan of plans) {
     const pg = await newPage(browser, base + '?autotest=1&zcheck=1&plan=' + plan);
     if (!(await pg.evaluate(p => !!IB.LEVEL_PLANS[p], plan))) { console.log('SKIP ' + plan + ' (not built)'); await pg.context().close(); continue; }
@@ -451,6 +451,28 @@ async function campaignRun(browser, base) {
     check(plan + ' has no coplanar overlapping pieces', z.length === 0, z.slice(0, 3).join(' | '));
     const big = await pg.evaluate(() => IB.Game.level.zones.map(z => z.w * z.h));
     check(plan + ' zones are big (>= 2,000 m2 each)', big.every(a => a >= 2000), big.join(','));
+    // moving lines (theme conveyor symbols): the first zone's items travel; a player standing on a belt rides it
+    const lineAt = () => pg.evaluate(() => {
+      const z = IB.Game.level.zones[0]; if (!z.lines) return null;
+      const l = z.lines[0], a = l.items.mesh.instanceMatrix.array, i = l.base * 16; return [a[i + 12], a[i + 14]];
+    });
+    const l0 = await lineAt();
+    if (l0) {
+      await pg.waitForTimeout(800);
+      const l1 = await lineAt();
+      check(plan + ' assembly lines move', Math.hypot(l1[0] - l0[0], l1[1] - l0[1]) > 0.05, JSON.stringify([l0, l1]));
+      const ride = await pg.evaluate(() => {
+        const z = IB.Game.level.zones[0], l = z.lines.find(l => l.C.carry && l.len >= 3); if (!l) return null;
+        const p = IB.Game.player; p.protect = 1e9; p.x = l.cx; p.z = l.cz; p.y = l.C.carry.top; p.vx = p.vz = p.vy = 0; p.onGround = true;
+        return { x: p.x, z: p.z, dir: [l.dir * l.c, -l.dir * l.s] };
+      });
+      if (ride) {
+        await pg.waitForTimeout(1500);   // headless frames are slow and dt is clamped per frame
+        const p1 = await pg.evaluate(() => ({ x: IB.Game.player.x, z: IB.Game.player.z, y: IB.Game.player.y }));
+        const along = (p1.x - ride.x) * ride.dir[0] + (p1.z - ride.z) * ride.dir[1];
+        check(plan + ' a belt carries the player standing on it (downstream)', along > 0.02, JSON.stringify({ along, p1 }));
+      }
+    }
     if (plan !== 'mountains') { await pg.context().close(); continue; }
     const stands = await pg.evaluate(() => (IB.Game.weaponStands || []).map(w => w.id));
     check('new weapon waits at the start of level 1', stands.length >= 1, stands.join(','));

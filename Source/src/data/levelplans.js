@@ -33,7 +33,7 @@
   // campaign order (user's beta plan: mountains, small city, classroom, office tower, big bedroom, ... up to 20)
   // the Toy Town district levels (tt1-tt3) are retired from the campaign (kept registered for tests / ?plan=);
   // levels whose theme is not built yet are skipped by the filter below
-  var ORDER = ['mountains', 'smallcity', 'classroom', 'office', 'bedroom', 'coalmine', 'castle', 'city2', 'factory', 'livingroom', 'garden', 'island'];
+  var ORDER = ['mountains', 'smallcity', 'classroom', 'office', 'bedroom', 'coalmine', 'castle', 'city2', 'factory', 'livingroom', 'garden', 'factory2', 'island'];
   // new weapons waiting at the start of each campaign level (index = level - 1)
   // (melee weapons and the frag cans stand there too: every melee weapon and grenades are in hand by level 5)
   var WEAPONS = [];
