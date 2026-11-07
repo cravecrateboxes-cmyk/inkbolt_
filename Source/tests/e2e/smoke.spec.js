@@ -251,9 +251,9 @@ async function skillsRun(browser, base) {
   // a made-up tree straight into the save (the test hook skips gates, the budget and pick-one)
   await pg.evaluate(() => __TEST__.setSkills({ undercover: 1, stream: 3, ricochet: 3, hazard: 3, hydrate: 3, healthy: 3, stamina: 1, fastfingers: 3, tank: 3, electrify: 1, handyhelpers: 1, chainreaction: 1 }));
   let ss = await pg.evaluate(() => __TEST__.skillState());
-  check('stat skills apply (Healthy 124 max health, Stamina 2x sprint / 10 s, Fast Fingers 1/1.3 reload + swap)',
-    ss.maxHp === 124 && ss.sprintMul === 2 && Math.abs(ss.staminaMax - 10) < 1e-6 && Math.abs(ss.swapMul - 1 / 1.3) < 1e-6 && Math.abs(ss.reloadMul - 1 / 1.3) < 1e-6, JSON.stringify(ss));
-  // Stamina: 2x sprint straight at the far wall for a while: fast, and never inside or through a wall
+  check('stat skills apply (Healthy 124 max health, Stamina x1.3 sprint + x1.15 move / 10 s, Fast Fingers 1/1.3 reload + swap)',
+    ss.maxHp === 124 && ss.sprintMul === 1.3 && Math.abs(ss.staminaMax - 10) < 1e-6 && Math.abs(ss.swapMul - 1 / 1.3) < 1e-6 && Math.abs(ss.reloadMul - 1 / 1.3) < 1e-6, JSON.stringify(ss));
+  // Stamina: x1.5 sprint straight at the far wall for a while: fast, and never inside or through a wall
   await pg.evaluate(() => { IB.Game.player.protect = 999; __TEST__.look(0, 0); });
   await pg.mouse.move(640, 360);
   await pg.keyboard.down('ShiftLeft'); await pg.keyboard.down('KeyW');
@@ -271,7 +271,7 @@ async function skillsRun(browser, base) {
     vmax = Math.max(vmax, m[0]); if (m[1]) inside++;
   }
   await pg.keyboard.up('KeyW'); await pg.keyboard.up('ShiftLeft');
-  check('Stamina: sprint reaches ~18 m/s, the player never ends up inside a wall', vmax > 15 && inside === 0, 'vmax=' + vmax.toFixed(1) + ' inside=' + inside);
+  check('Stamina: sprint reaches ~13 m/s, the player never ends up inside a wall', vmax > 11.5 && inside === 0, 'vmax=' + vmax.toFixed(1) + ' inside=' + inside);
   // Undercover: robots must have noticed the player first
   await pg.evaluate(() => { IB.Game.player.protect = 999; __TEST__.teleport(0); });
   await until(pg, () => __TEST__.state().alive > 0, null, 10000);
@@ -436,6 +436,47 @@ async function meleeRun(browser, base) {
   }, line);
   check('Railspike pierces: both robots in the line are hit', pierced[0] && pierced[1], JSON.stringify(pierced));
   check('no console errors (melee run)', pg.logs.length === 0, pg.logs.join(' | '));
+  await pg.context().close();
+}
+
+// tiered weapon drops, melee drops, melee stamina, Void can pull, Undercover blue robot outline
+async function round4Run(browser, base) {
+  console.log('\n# weapon drops, melee stamina, muzzle cans, Undercover look');
+  const pg = await newPage(browser, base + '?autotest=1&plan=bedroom', { viewport: { width: 640, height: 360 } });
+  await pg.evaluate(() => { __TEST__.setTier('potato'); const G = IB.Game; G.slot.highest = 5; G.slot.melee = ['dagger']; G.slot.meleeSel = 'dagger'; G.startLevel(); G.player.protect = 1e9; });
+  await until(pg, () => IB.Game.run.started, null, 15000);
+  // a purple Vanguard lands in front: walking over it adds it to the arsenal at that tier
+  await pg.evaluate(() => { IB.WeaponDrops.testDrop('vanguard', 'purple'); const d = IB.WeaponDrops.live()[0], p = IB.Game.player; setTimeout(() => { p.x = d.x; p.z = d.z; }, 900); });
+  check('a dropped gun joins the arsenal at its tier', await until(pg, () => IB.Game.slot.arsenal.includes('vanguard') && IB.Game.slot.gunTier.vanguard === 'purple', null, 30000));
+  check('its tier raises its damage (purple x1.22)', await pg.evaluate(() => Math.abs(IB.WeaponDrops.dmgMul('vanguard') - 1.22) < 1e-9));
+  await pg.evaluate(() => { IB.Game.slot.melee = ['dagger']; IB.Game.slot.meleeSel = 'dagger'; IB.WeaponDrops.testDrop('katana', null, true); const d = IB.WeaponDrops.live()[0], p = IB.Game.player; setTimeout(() => { p.x = d.x; p.z = d.z; }, 900); });
+  const kat = await until(pg, () => IB.Game.slot.melee.includes('katana') && IB.Game.meleeId() === 'katana', null, 30000);
+  check('a dropped katana goes on V', kat, kat ? '' : await pg.evaluate(() => JSON.stringify({ live: IB.WeaponDrops.live(), p: [IB.Game.player.x, IB.Game.player.y, IB.Game.player.z], m: IB.Game.slot.melee, sel: IB.Game.slot.meleeSel })));
+  // melee costs stamina (katana: 20% of the pool), and ends a sprint
+  const st = await pg.evaluate(() => { const p = IB.Game.player; p.stamina = p.staminaMax; const a = p.stamina; IB.Game.meleeSwing('katana'); return [a, p.stamina, p.staminaMax]; });
+  check('a katana swing spends 20% of the stamina pool', Math.abs((st[0] - st[1]) - 0.2 * st[2]) < 1e-6, JSON.stringify(st));
+  await until(pg, () => !IB.Game.ws.melee, null, 20000);
+  const winded = await pg.evaluate(() => { const p = IB.Game.player; p.stamina = 0; IB.Game.meleeSwing('katana'); return [IB.Game.meleeWinded, IB.Game.ws.fx.meleeRate]; });
+  check('out of stamina: winded swings are slower', winded[0] === true && winded[1] < 1, JSON.stringify(winded));
+  await until(pg, () => !IB.Game.ws.melee, null, 20000);
+  // Void can: a hit pulls the robots around the target in
+  const ids = await pg.evaluate(() => { const p = IB.Game.player; return [__TEST__.spawnRobot('crawler', p.x, p.z - 8), __TEST__.spawnRobot('crawler', p.x + 4, p.z - 8)]; });
+  await until(pg, (a) => a.every((s) => __TEST__.robot('crawler', s).state !== 'spawn'), ids, 20000);
+  const pull = await pg.evaluate((a) => {
+    IB.AI.update0 = IB.AI.update; IB.AI.update = function () {};
+    const A = IB.AI.types.crawler.slots[a[0]], B = IB.AI.types.crawler.slots[a[1]], p = IB.Game.player;
+    A.x = p.x; A.z = p.z - 8; B.x = p.x + 4; B.z = p.z - 8;
+    const d0 = Math.hypot(B.x - A.x, B.z - A.z);
+    IB.Gear.onHit(A, { damage: 5 }, 'body', { can: { type: 'void', stats: { chance: 1, radius: 8 } } }, false);
+    return [d0, IB.Gear.voidCount()];
+  }, ids);
+  await pg.waitForTimeout(2500);
+  const d1 = await pg.evaluate((a) => { const A = IB.AI.types.crawler.slots[a[0]], B = IB.AI.types.crawler.slots[a[1]]; IB.AI.update = IB.AI.update0; return Math.hypot(B.x - A.x, B.z - A.z); }, ids);
+  check('a Void can hit opens a singularity that pulls robots in', pull[1] === 1 && d1 < pull[0] - 0.5, 'd ' + pull[0].toFixed(2) + ' -> ' + d1.toFixed(2));
+  // Undercover: robots get a dark-blue outline while hidden (after the flicker in)
+  await pg.evaluate(() => { __TEST__.setSkills({ undercover: 1 }); IB.SkillFX.tryCloak(IB.Game.player); });
+  check('Undercover tints the robot outlines blue', await until(pg, () => { const c = IB.Render.robotOutline.uInk.value; return c.b > 0.5 && c.r < 0.3; }, null, 20000));
+  check('no console errors (round 4)', pg.logs.length === 0, pg.logs.join(' | '));
   await pg.context().close();
 }
 
@@ -782,7 +823,7 @@ async function vfxRun(browser, base) {
   const browser = await chromium.launch({ args: ARGS });
   try {
     // ONLY=lootRun,tabMenuRun runs a subset
-    const runs = { hookRun, deathRun, inputRun, touchRun, tabMenuRun, skillsRun, slideRun, hudRun, lootRun, meleeRun, campaignRun, vfxRun };
+    const runs = { hookRun, deathRun, inputRun, touchRun, tabMenuRun, skillsRun, slideRun, hudRun, lootRun, meleeRun, round4Run, campaignRun, vfxRun };
     for (const [name, fn] of Object.entries(runs)) if (!process.env.ONLY || process.env.ONLY.split(',').includes(name)) await fn(browser, base);
   } catch (e) { console.log('FAIL exception ' + e.stack); failures++; }
   await browser.close(); server.close();

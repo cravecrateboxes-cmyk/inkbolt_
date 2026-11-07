@@ -13,7 +13,7 @@
 (function (IB) {
   'use strict';
   var T = IB.Thumbs = { cache: {}, W: 420, H: 210 };
-  var GEAR_NODE = { shield: 'GEAR_ShieldCell', grip: 'GEAR_Grip', scope: 'GEAR_Scope', acid: 'GEAR_Acid', muzzle: 'GEAR_Acid', mag: 'GEAR_Mag', armor: 'GEAR_Vest' };
+  var GEAR_NODE = { shield: 'GEAR_ShieldCell', grip: 'GEAR_Grip', scope: 'GEAR_Scope', acid: 'GEAR_Acid', shock: 'GEAR_Shock', blast: 'GEAR_Blast', void: 'GEAR_Void', muzzle: 'GEAR_Acid', mag: 'GEAR_Mag', armor: 'GEAR_Vest' };
   var VIEW = {
     shield: { yaw: -0.6, pitch: 0, tilt: -0.5, pad: 1.18, outline: 0.02, ink: 3 },
     armor: { yaw: -0.55, pitch: 0.22, pad: 1.18, outline: 0.02, ink: 3 },
@@ -139,7 +139,7 @@
     if (dot > 0 && IB.Loot && IB.Loot.modelOf) { var mn = IB.Loot.modelOf({ type: type, rarity: id.slice(dot + 1) }); if (mn && A.geo[mn]) n = mn; }
     if (!n || !A.geo[n]) return null;
     var gl = [{ geo: A.geo[n] }];
-    if ((type === 'acid' || type === 'muzzle') && A.geo.GEAR_Acid_Glow) gl.push({ geo: A.geo.GEAR_Acid_Glow });
+    if (A.geo[n + '_Glow']) gl.push({ geo: A.geo[n + '_Glow'] });   // muzzle cans: the glass core
     return { fam: 'gear', list: gl, view: VIEW[type] || VIEW.def };
   }
   function img(url) { return '<img class="pic" src="' + url + '" alt="" draggable="false">'; }

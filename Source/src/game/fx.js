@@ -271,13 +271,17 @@
   FX.initGems = function (scene) {
     // one gem mesh (fps-weapons PICKUP_Gem), three gem types by instance colour and scale (brief 4.6)
     FX.gemCap = 240;
-    FX.gemMesh = new THREE.InstancedMesh(IB.Assets.get('PICKUP_Gem'), IB.Assets.mat.weapons, FX.gemCap);
+    // gems shine: their own toon material with a cool blue self-light, so the facets read bright diamond blue in any light
+    var gemMat = IB.Render.toonMaterial({ map: IB.Assets.palette.weapons, baked: IB.Assets.BAKED ? IB.Assets.BAKED.weapons : 0 });
+    gemMat.emissive = new THREE.Color(0x1E4E7A);
+    FX.gemMesh = new THREE.InstancedMesh(IB.Assets.get('PICKUP_Gem'), gemMat, FX.gemCap);
     FX.gemMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); FX.gemMesh.frustumCulled = false;
     FX.gems = [];
     for (var i = 0; i < FX.gemCap; i++) { FX.gems.push({ on: false, kind: 'chip', x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, bounced: false, t: 0, fly: false, zone: -1 }); FX.gemMesh.setMatrixAt(i, ZERO); FX.gemMesh.setColorAt(i, _c.set(PAL.chip)); }
     scene.add(FX.gemMesh);
   };
-  var GEMCOL = { chip: PAL.chip, shard: PAL.shard, core: PAL.core }, GEMSCALE = { chip: 1, shard: 1.35, core: 1.7 };
+  // diamond blues: chips sky blue, shards a deeper sapphire, cores an icy near-white blue (bigger)
+  var GEMCOL = { chip: 0x58C8FF, shard: 0x3D7BFF, core: 0xC6EEFF }, GEMSCALE = { chip: 1, shard: 1.35, core: 1.7 };
   FX.dropGem = function (kind, x, y, z, zone) {
     for (var i = 0; i < FX.gemCap; i++) {
       var g = FX.gems[i]; if (g.on) continue;
@@ -365,6 +369,8 @@
       _v.set(g.x, g.y + (g.vy === 0 && !g.fly ? Math.sin(t0 * 3 + i) * 0.06 : 0), g.z); _s.set(sc2, sc2, sc2);
       _m.compose(_v, _q, _s); FX.gemMesh.setMatrixAt(i, _m);
       if (!g.fly) FX.blob(g.x, 0, g.z, 0.18 * GEMSCALE[g.kind]);
+      // a twinkle now and then: a tiny white glint off a facet
+      if (!g.fly && Math.random() < dt * 0.9) FX.puff(g.x + (Math.random() - 0.5) * 0.2, g.y + 0.12 * GEMSCALE[g.kind], g.z + (Math.random() - 0.5) * 0.2, 1, 0xFFFFFF, 0.05, 0.13, 0.2);
     }
     FX.gemMesh.instanceMatrix.needsUpdate = true;
     FX.gemMesh.count = gHi + 1;

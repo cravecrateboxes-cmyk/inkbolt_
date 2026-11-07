@@ -167,7 +167,7 @@
     cmat.customProgramCacheKey = function () { return 'ibcorpse'; };
     AI.corpseMat = cmat;
     var A = IB.Assets, bake = A.BAKED.bots;
-    AI.mat = IB.Render.toonMaterial({ fx: true, map: A.palette.bots, baked: bake });
+    AI.mat = IB.Render.toonMaterial({ fx: true, map: A.palette.bots, baked: bake, uni: IB.Render.robotOutline });   // own ink colour (Undercover)
     tintMaterial(AI.mat);
     AI.lightMat = IB.Render.toonMaterial({ map: A.palette.bots, baked: bake });
     Object.keys(VIS).forEach(function (id) {

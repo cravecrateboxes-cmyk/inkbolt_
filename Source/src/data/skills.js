@@ -60,7 +60,7 @@
       'Increases your max health and slowly regenerates 0.5% of it per second per rank after 4 s without damage.', 'heart'),
     // tier 4
     S('stamina', 4, 0, 'Stamina', 'special', [1], '', 'Marathon',
-      'You run 2x faster, your running lasts 2.5x longer, and stamina recharges in half the time.', 'run'),
+      'You move 15% faster, sprint 50% faster, your running lasts 2.5x longer, and stamina recharges in half the time.', 'run'),
     S('hydrate', 4, 1, 'Hydrate', 'rank', [6, 12, 18], '%', 'Coat chance',
       'Your bullets have a chance to coat a robot in electrified liquid for 6 s. Robots that come within 3 m of it take shock damage over time.', 'water'),
     S('undercover', 4, 2, 'Undercover', 'special', [1], '', 'Cloak (F)',

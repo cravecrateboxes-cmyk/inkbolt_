@@ -312,8 +312,8 @@ def build_scope(pal):
     return o
 
 
-def build_acid(pal):
-    """Acid muzzle: silencer can (collar, front cap with an ink bore), green glass window in a 4-bar cage,
+def build_acid(pal, name='GEAR_Acid', glass=('acid', 'acid3'), stripe='amber'):
+    """Muzzle can (acid and its variants: Arc / Boom / Void, by glass colour and stripe). Acid muzzle: silencer can (collar, front cap with an ink bore), green glass window in a 4-bar cage,
     a side vial feeding the can, warning stripe."""
     k = Kit(pal)
     L, R = 0.112, 0.0172
@@ -330,27 +330,27 @@ def build_acid(pal):
         k.cbox((rc * math.cos(a), (w0 + w1) / 2, rc * math.sin(a)), (0.0048, w1 - w0 + 0.002, 0.0048), 'gunmetal', ch=0.001,
                rot=(0, -(90 * i), 0), axis='y')
     # warning stripes: ink + amber rings on the front can
-    k.ring('y', (0, 0, 0), 0.084, 0.090, R - 0.001, R + 0.0032, 'amber', seg=14, hull=False)
+    k.ring('y', (0, 0, 0), 0.084, 0.090, R - 0.001, R + 0.0032, stripe, seg=14, hull=False)
     k.ring('y', (0, 0, 0), 0.094, 0.098, R - 0.001, R + 0.0032, 'ink', seg=14, hull=False)
     # side vial on top-right: glass cylinder in a clip, steel caps, feed tube into the can
     vx, vz, vy0, vy1, vr = 0.0145, 0.0165, 0.010, 0.060, 0.0062
     k.lathe([(vy0, 0), (vy0, vr + 0.0016), (vy0 + 0.007, vr + 0.0016), (vy0 + 0.007, 0)], 'steel', 'y', (vx, 0, vz), 8, hull=True)
     k.lathe([(vy1 - 0.007, 0), (vy1 - 0.007, vr + 0.0016), (vy1, vr + 0.0016), (vy1 + 0.004, 0.003), (vy1 + 0.004, 0)], 'steel', 'y', (vx, 0, vz), 8, hull=True)
-    k.lathe([(vy0 + 0.007, vr), (vy1 - 0.007, vr)], 'acid', 'y', (vx, 0, vz), 8, hull=True)    # glass wall (open tube, caps close it)
+    k.lathe([(vy0 + 0.007, vr), (vy1 - 0.007, vr)], glass[0], 'y', (vx, 0, vz), 8, hull=True)    # glass wall (open tube, caps close it)
     va = math.atan2(vz, vx)
-    k.cbox((vx + math.cos(va) * (vr - 0.0005), (vy0 + vy1) / 2 - 0.004, vz + math.sin(va) * (vr - 0.0005)), (0.0042, 0.022, 0.0022), 'acid3',
+    k.cbox((vx + math.cos(va) * (vr - 0.0005), (vy0 + vy1) / 2 - 0.004, vz + math.sin(va) * (vr - 0.0005)), (0.0042, 0.022, 0.0022), glass[1],
            ch=0.0, rot=(0, -math.degrees(va), 0))                                        # glass highlight
     for yy in (vy0 + 0.016, vy1 - 0.016):                                               # clip bands around the vial
         k.ring('y', (vx, 0, vz), yy - 0.0025, yy + 0.0025, vr - 0.001, vr + 0.0032, 'gun3', seg=8, hull=False)
-    o = finish('GEAR_Acid', k)
-    socket('GEAR_Acid_TIP', o, (0, L + 0.002, 0))
+    o = finish(name, k)
+    socket(name + '_TIP', o, (0, L + 0.002, 0))
     # glass core: separate unlit piece (fills the window between the cans)
     g = Kit(pal)
-    g.lathe([(w0, 0), (w0, R - 0.0012), (w1, R - 0.0012), (w1, 0)], 'acid', 'y', (0, 0, 0), 14, hull=False)
+    g.lathe([(w0, 0), (w0, R - 0.0012), (w1, R - 0.0012), (w1, 0)], glass[0], 'y', (0, 0, 0), 14, hull=False)
     for (yy, aa, rr) in ((0.042, 20, 0.0035), (0.052, 140, 0.0028), (0.063, 260, 0.0033), (0.070, 70, 0.0024), (0.047, 300, 0.0022)):
         a = D(aa)
-        g.sphere((math.cos(a) * (R - 0.0012), yy, math.sin(a) * (R - 0.0012)), rr, 'acid3', seg=(6, 4))
-    gl = finish('GEAR_Acid_Glow', g)
+        g.sphere((math.cos(a) * (R - 0.0012), yy, math.sin(a) * (R - 0.0012)), rr, glass[1], seg=(6, 4))
+    gl = finish(name + '_Glow', g)
     strip_hull(gl)
     return o
 
@@ -531,7 +531,8 @@ def build_capsule(pal):
 
 def build_gear(ao):
     pal = Palette(FAM)
-    objs = [build_grip(pal), build_scope(pal), build_acid(pal)] + [build_shield_cell(pal, t) for t in SHIELD_TIERS] + [build_mag(pal), build_vest(pal), build_capsule(pal)]
+    objs = [build_grip(pal), build_scope(pal), build_acid(pal), build_acid(pal, 'GEAR_Shock', ('cell', 'cell3'), 'rar'), build_acid(pal, 'GEAR_Blast', ('leg', 'leg3'), 'red'),
+            build_acid(pal, 'GEAR_Void', ('epc', 'epc3'), 'epc2')] + [build_shield_cell(pal, t) for t in SHIELD_TIERS] + [build_mag(pal), build_vest(pal), build_capsule(pal)]
     for o in objs:
         print('%-16s %5d tris (incl. outline)' % (o.name, tris(o)))
     export(FAM)

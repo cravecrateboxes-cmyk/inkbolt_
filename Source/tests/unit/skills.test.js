@@ -194,7 +194,7 @@ test('effects: every skill changes the runtime numbers its text promises', () =>
   const hl = S.effects({ healthy: 3 }); near(hl.maxHpMul, 1.24); near(hl.regenPct, 1.5); assert.equal(hl.regenDelay, 4);
   near(S.regenRate(hl, 200), 3, '0.5% per rank per second');
   // row 4
-  const sm = S.effects({ stamina: 1 }); assert.deepEqual([sm.sprintMul, sm.staminaMul, sm.staminaRechargeMul], [2, 2.5, 0.5]);
+  const sm = S.effects({ stamina: 1 }); assert.deepEqual([sm.sprintMul, sm.moveMul, sm.staminaMul, sm.staminaRechargeMul], [1.3, 1.15, 2.5, 0.5]);
   const hy = S.effects({ hydrate: 3 }); near(hy.coat, 0.18); assert.equal(hy.coatTime, 6); assert.equal(hy.coatRadius, 3); assert.ok(hy.coatBurn >= 5 && hy.coatBurn <= 7);
   const uc = S.effects({ undercover: 1 }); assert.ok(uc.cloak); assert.equal(uc.cloakTime, 5); assert.equal(uc.cloakCooldown, 30);
   // row 5

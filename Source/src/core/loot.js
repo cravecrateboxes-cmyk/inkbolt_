@@ -99,6 +99,9 @@
       case 'grip': return [{ k: 'Recoil', v: '-' + pct(s.recoil) }, { k: 'Spread', v: '-' + pct(s.spread) }];
       case 'scope': return [{ k: 'Zoom', v: s.zoom.toFixed(1) + 'x' }, { k: 'Aim spread', v: '-' + pct(s.aimSpread) }];
       case 'acid': var ac = acidStats(s); return [{ k: 'Acid', v: '+' + pct(ac.acid) + ' over ' + ac.dur.toFixed(1) + ' s' }, { k: 'Noise', v: '-' + pct(1 - T().types.acid.quiet) }];
+      case 'shock': return [{ k: 'Arc chance', v: pct(s.chance) }, { k: 'Shock', v: '+' + pct(s.arc) + ', jumps 5 m' }];
+      case 'blast': return [{ k: 'Blast chance', v: pct(s.chance) }, { k: 'Blast', v: 'x' + s.power.toFixed(2) + ' hit, 2.4 m' }];
+      case 'void': return [{ k: 'Pull chance', v: pct(s.chance) }, { k: 'Pull radius', v: s.radius.toFixed(1) + ' m' }];
       case 'mag': return [{ k: 'Magazine', v: '+' + pct(s.mag) }, { k: 'Reload', v: '-' + pct(s.reload) }];
       case 'armor': return [{ k: 'Armour', v: '-' + pct(s.dr) + ' dmg' }, { k: 'Max health', v: '+' + s.hp }];
     }
@@ -159,6 +162,7 @@
       var as = acidStats(m.stats); d.acid = as.acid; d.acidDur = as.dur; d.quiet = T().types.acid.quiet;
       d.mods.muzzle = m;
     }
+    if (m && (m.type === 'shock' || m.type === 'blast' || m.type === 'void')) { d.can = { type: m.type, stats: m.stats }; d.mods.muzzle = m; }
     // extended mag: more rounds (always at least one more), shorter reload
     if (mg && mg.type === 'mag' && def.mag > 0) {
       d.mag = Math.max(def.mag + 1, Math.round(def.mag * (1 + mg.stats.mag)));

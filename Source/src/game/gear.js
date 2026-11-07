@@ -62,6 +62,7 @@
     if (!A.palette.gear) return;
     Gear.vmMat = R.toonMaterial({ uni: R.vmOutline, map: A.palette.gear, baked: A.BAKED.gear });
     Gear.glowMat = new THREE.MeshBasicMaterial({ color: 0x7BE34A });
+    Gear.glowMats = { acid: Gear.glowMat };
     Gear.ready = true;
     if (IB.LootHUD) IB.LootHUD.ensure();
   };
@@ -160,16 +161,22 @@
   var MESH = { grip: 'GEAR_Grip', scope: 'GEAR_Scope', muzzle: 'GEAR_Acid', mag: 'GEAR_Mag' };
   var MAG_VISUAL = { pistol: true, smg: true, rifle: true, sniper: true };   // shotgun tubes / cylinders: stats only
   var ADS_DIST = { pistol: 0.34, smg: 0.22, rifle: 0.17, sniper: 0.13 };   // weapons.js defaults
-  function vmPart(m, slot) {
+  // muzzle cans: one model per can type (acid, Arc, Boom, Void), each with its glowing glass core and TIP socket
+  var _cg = new THREE.Color();
+  var CAN_MESH = { acid: 'GEAR_Acid', shock: 'GEAR_Shock', blast: 'GEAR_Blast', void: 'GEAR_Void' };
+  var CAN_GLOW = { acid: [0x7BE34A, 0xC8FF8A], shock: [0x3FB4FF, 0xBDF0FF], blast: [0xFF7A1E, 0xFFD27A], void: [0x9A5BFF, 0xE0C8FF] };
+  function vmPart(m, slot, type) {
     m.gearParts = m.gearParts || {};
-    if (m.gearParts[slot] !== undefined) return m.gearParts[slot];
-    var A = IB.Assets;
-    if (!MESH[slot] || !A.geo[MESH[slot]]) { m.gearParts[slot] = null; return null; }
-    var mesh = new THREE.Mesh(A.get(MESH[slot]), Gear.vmMat);
-    mesh.frustumCulled = false; mesh.name = 'VM_' + MESH[slot];
+    var key = slot === 'muzzle' ? 'muzzle.' + (type || 'acid') : slot;
+    if (m.gearParts[key] !== undefined) return m.gearParts[key];
+    var A = IB.Assets, node = slot === 'muzzle' ? CAN_MESH[type] || MESH.muzzle : MESH[slot];
+    if (!node || !A.geo[node]) { m.gearParts[key] = null; return null; }
+    var mesh = new THREE.Mesh(A.get(node), Gear.vmMat);
+    mesh.frustumCulled = false; mesh.name = 'VM_' + node;
     if (slot === 'muzzle') {
-      var glow = new THREE.Mesh(A.get('GEAR_Acid_Glow'), Gear.glowMat); glow.frustumCulled = false; mesh.add(glow);
-      var tip = new THREE.Object3D(); tip.position.copy(A.node.GEAR_Acid_TIP.position); tip.scale.setScalar(0.6); tip.name = 'VM_ACID_TIP'; mesh.add(tip);
+      var gm = Gear.glowMats[type] || (Gear.glowMats[type] = new THREE.MeshBasicMaterial({ color: (CAN_GLOW[type] || CAN_GLOW.acid)[0] }));
+      var glow = new THREE.Mesh(A.get(node + '_Glow'), gm); glow.frustumCulled = false; mesh.add(glow);
+      var tip = new THREE.Object3D(); tip.position.copy(A.node[node + '_TIP'].position); tip.scale.setScalar(0.6); tip.name = 'VM_CAN_TIP'; mesh.add(tip);
       mesh.userData.tip = tip;
     }
     if (slot === 'mag') {
@@ -182,7 +189,7 @@
       mesh.position.copy(mounts(m)[slot]);
       m.mesh.add(mesh);
     }
-    m.gearParts[slot] = mesh;
+    m.gearParts[key] = mesh;
     return mesh;
   }
   /* show the attachment meshes for weapon id (items by slot), move the muzzle flash and the ADS eye point */
@@ -191,12 +198,18 @@
     if (!m || !Gear.ready) return;
     m.id = m.id || id;
     IB.LOOT.slots.forEach(function (sl) {
+      if (sl === 'muzzle') {   // hide every can model, show the one fitted
+        Object.keys(m.gearParts || {}).forEach(function (k) { if (k.indexOf('muzzle.') === 0 && m.gearParts[k]) m.gearParts[k].visible = false; });
+        if (items.muzzle) { var cp = vmPart(m, 'muzzle', items.muzzle.type); if (cp) cp.visible = true; }
+        return;
+      }
       var on = !!items[sl], part = on ? vmPart(m, sl) : m.gearParts && m.gearParts[sl];
       if (part) part.visible = on;
     });
     // muzzle flash rides the acid can's tip
     if (!m.muzzle0) m.muzzle0 = m.muzzle || null;
-    var want = items.muzzle ? m.gearParts.muzzle.userData.tip : m.muzzle0;
+    var can = items.muzzle && m.gearParts['muzzle.' + items.muzzle.type];
+    var want = can ? can.userData.tip : m.muzzle0;
     if (want && m.muzzle !== want) { m.muzzle = want; if (isCur && W.flash) want.add(W.flash); }
     // ADS: the scope's eye point replaces the gun's sight point
     if (items.scope) { var eye = IB.Assets.node.GEAR_Scope_EYE ? IB.Assets.node.GEAR_Scope_EYE.position : new THREE.Vector3(); m.sight = m.gearParts.scope.position.clone().add(eye); m.sightScoped = true; }
@@ -234,7 +247,8 @@
     if (IB.LootHUD) IB.LootHUD.shield(p.shield);
   };
   Gear.vestHp = function (G) { var g = Gear.gear(G); return g ? L().armorOf(L().worn(g, 'armor')).hp : 0; };
-  Gear.startLevel = function (G) { if (IB.LootHUD) IB.LootHUD.reset(); Gear.novaQ = 0; Gear.refresh(G, true); };
+  Gear.startLevel = function (G) {
+    voids.length = 0; if (IB.LootHUD) IB.LootHUD.reset(); Gear.novaQ = 0; Gear.refresh(G, true); };
   Gear.fillShield = function (G) { var s = G.player && G.player.shield; if (s) { s.cur = s.max; s.since = 99; s.charging = false; s.boostT = 0; if (s.perk && s.perk.id === 'nova') s.nova = true; } };
 
   // ---------------- damage in / out ----------------
@@ -288,10 +302,56 @@
     var v = IB.AI.VIS[r.type], top = r.y + (v ? v.y1 : 0.9) + 0.22;
     if (IB.FX.damageNumber) IB.FX.damageNumber(r.x, top, r.z, res.damage, res.crit ? 'crit' : zone === 'core' ? 'core' : 'hit');
     if (!killed && def.acid > 0 && IB.Status) IB.Status.apply(r, 'acid', res.damage * def.acid / def.acidDur, def.acidDur);
+    if (def.can && Math.random() < def.can.stats.chance) canFx(def.can, r, res.damage, killed);
   };
+
+  // ---------------- Arc / Boom / Void cans ----------------
+  var AI_ = function () { return IB.AI; }, voids = [];
+  function mid(r) { var v = IB.AI.VIS[r.type]; return r.y + (v ? (v.y0 + v.y1) / 2 : 0.6); }
+  function canFx(can, r, dmg, killed) {
+    var G = IB.Game, AI = AI_(), st = can.stats, y = mid(r);
+    if (can.type === 'shock') {
+      // the robot is shocked, then the arc jumps to the nearest robot within 5 m
+      if (!killed && IB.Status) IB.Status.apply(r, 'shock', dmg * st.arc / 3, 3);
+      var best = null, bd = 5;
+      AI.robots.forEach(function (o) { if (o.on && o !== r && o.state !== 'spawn' && o.state !== 'pose' && !(o.rogue > 0)) { var d = Math.hypot(o.x - r.x, o.z - r.z); if (d < bd) { bd = d; best = o; } } });
+      if (IB.Boom) IB.Boom.zap(r.x, y, r.z, 0.5);
+      if (best) {
+        if (IB.Boom && IB.Boom.lightning) IB.Boom.lightning(r.x, y, r.z, best.x, mid(best), best.z);
+        if (!AI.damage(best, dmg * st.arc, { stagger: false }, G.onKill) && IB.Status) IB.Status.apply(best, 'shock', dmg * st.arc / 3, 3);
+      }
+      play('boltHit', { gain: 0.5, pitch: 1.4 });
+    } else if (can.type === 'blast') {
+      // a small blast on the robot: robots only (the player takes nothing from their own can)
+      if (IB.Projectiles) IB.Projectiles.explode(r.x, y, r.z, 2.4, 0, dmg * st.power, { type: 'blast', x: r.x, z: r.z });
+    } else if (can.type === 'void') {
+      voids.push({ x: r.x, y: y, z: r.z, r: r, t: 1.4, R: st.radius });
+      play('shove', { pitch: 0.5, gain: 0.8 });
+    }
+  }
+  // singularities: robots within reach are dragged toward the centre (stopping short of it and of walls)
+  function tickVoids(dt) {
+    var AI = AI_(), Z = IB.Zones, L = IB.Game.level;
+    for (var i = voids.length - 1; i >= 0; i--) {
+      var v = voids[i]; v.t -= dt;
+      if (v.r && v.r.on) { v.x = v.r.x; v.z = v.r.z; }
+      if (v.t <= 0) { voids.splice(i, 1); continue; }
+      if (IB.FX) { var a = Math.random() * 6.28, rr = 0.6 + Math.random() * v.R * 0.4; IB.FX.puff(v.x + Math.cos(a) * rr, v.y, v.z + Math.sin(a) * rr, 1, 0x9A5BFF, 0.06, 0.18, 0.5); }
+      AI.robots.forEach(function (o) {
+        if (!o.on || o === v.r || o.state === 'spawn' || o.state === 'pose' || o.rogue > 0 || (IB.AI.VIS[o.type] && IB.AI.VIS[o.type].flying && o.y > 2)) return;
+        var dx = v.x - o.x, dz = v.z - o.z, d = Math.hypot(dx, dz);
+        if (d > v.R || d < 1.1) return;
+        var step = Math.min(d - 1.1, dt * (3 + 6 * (1 - d / v.R))), nx = o.x + dx / d * step, nz = o.z + dz / d * step;
+        var zi = Z.zoneAt(L, nx, nz);
+        if (zi >= 0 && Z.isOpen(L.zones[zi], nx, nz)) { o.x = nx; o.z = nz; }
+      });
+    }
+  }
+  Gear.voidCount = function () { return voids.length; };
 
   // ---------------- per frame ----------------
   Gear.update = function (dt, G) {
+    if (voids.length) tickVoids(dt);
     var p = G.player, st = p && p.shield;
     if (st && p.alive) {
       var ev = L().tickShield(st, dt);
@@ -305,7 +365,8 @@
     var w = G.ws && IB.Weapons.current(G.ws), k = w && w.def.optic && p.alive ? Math.max(0, Math.min(1, (G.ws.aim - 0.7) / 0.22)) : 0;
     if (IB.LootHUD) IB.LootHUD.scope(k);
     if (G.ws) G.ws.hidden = k >= 0.98;
-    if (Gear.glowMat) { var k = 0.5 + 0.5 * Math.sin(performance.now() * 0.006); Gear.glowMat.color.setRGB(0.48 + 0.3 * k, 0.89 + 0.1 * k, 0.29 + 0.25 * k); }
+    if (Gear.glowMat) { var k = 0.5 + 0.5 * Math.sin(performance.now() * 0.006); Gear.glowMat.color.setRGB(0.48 + 0.3 * k, 0.89 + 0.1 * k, 0.29 + 0.25 * k);
+      Object.keys(Gear.glowMats).forEach(function (t) { if (t === 'acid') return; var c = CAN_GLOW[t]; Gear.glowMats[t].color.setHex(c[0]).lerp(_cg.setHex(c[1]), k * 0.6); }); }
   };
 
   /* an item for the test hooks: a given perk is forced by re-rolling (epic / legendary shields) */
@@ -338,7 +399,7 @@
         health: p.health, maxHp: p.maxHp, vestHp: p.vestHp || 0, novas: Gear.novaCount || 0, novaHit: Gear.novaLast || 0,
         weapon: w ? { id: w.id, recoil: w.def.recoil, spreadHip: w.def.spreadHip, spreadAim: w.def.spreadAim, aimZoom: w.def.aimZoom, acid: w.def.acid || 0, baseRecoil: IB.WEAPONS[w.id].recoil, baseAimZoom: IB.WEAPONS[w.id].aimZoom,
           mag: w.def.mag, baseMag: IB.WEAPONS[w.id].mag, magSize: IB.Weapons.magSize(G.ws, w.def), reload: w.def.reload, baseReload: IB.WEAPONS[w.id].reload } : null,
-        vm: w && IB.Weapons.models[w.id] && IB.Weapons.models[w.id].gearParts ? Object.keys(IB.Weapons.models[w.id].gearParts).filter(function (k) { var q = IB.Weapons.models[w.id].gearParts[k]; return q && q.visible; }) : [],
+        vm: w && IB.Weapons.models[w.id] && IB.Weapons.models[w.id].gearParts ? Object.keys(IB.Weapons.models[w.id].gearParts).filter(function (k) { var q = IB.Weapons.models[w.id].gearParts[k]; return q && q.visible; }).map(function (k) { return k.split('.')[0]; }) : [],
         numbers: IB.FX.numbersList ? IB.FX.numbersList() : [], statuses: IB.Status ? IB.Status.active() : 0 };
     },
     attach: function (id, wid) { var G = IB.Game, g = Gear.gear(G); wid = wid || G.ws.cur; var ok = L().attach(g, wid, IB.WEAPONS[wid], id); Gear.refresh(G); Gear.save(G); return ok; },

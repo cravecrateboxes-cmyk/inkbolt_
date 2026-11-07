@@ -41,7 +41,7 @@
 @keyframes objIn { 0% { opacity: 0; transform: translateX(-12px); } 100% { opacity: 1; transform: none; } }
 .hud .gems { height: 30px; gap: 8px; padding: 0 22px 0 12px; font-size: 22px; font-weight: 700; letter-spacing: .02em; text-shadow: var(--hx-ts); --cut: 0px; }
 .hud .gems::after { background: linear-gradient(90deg, rgba(9, 12, 22, .6), rgba(9, 12, 22, 0)); }
-.hud .gem-glyph { width: 12px; height: 16px; background: var(--hx-teal); filter: drop-shadow(0 0 5px var(--hx-teal-g)); }
+.hud .gem-glyph { width: 12px; height: 16px; }
 
 /* ---------- top-centre: zone / timer / robots left strip ---------- */
 .hud .hud-top { gap: 6px; }

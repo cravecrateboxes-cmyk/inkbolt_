@@ -107,6 +107,38 @@
       },
       quiet: 0.55    // robots hear a silenced shot at 55 % of the normal radius
     },
+    // more muzzle cans (same slot as the acid can; one per gun). chance = share of hits that trigger the effect
+    shock: {
+      id: 'shock', slot: 'muzzle', minCleared: 3, name: 'Arc can', weight: 12, classes: ['pistol', 'smg', 'rifle', 'sniper', 'shotgun'],
+      names: { common: 'Spark Can', rare: 'Arc Can', epic: 'Tesla Can', legendary: 'Storm Can' },
+      models: { common: 'GEAR_Shock', rare: 'GEAR_Shock', epic: 'GEAR_Shock', legendary: 'GEAR_Shock' },
+      stats: {
+        // a hit shocks the robot (arc share of the hit over 3 s) and jumps to the nearest robot within 5 m for the same
+        chance: { common: [0.10, 0.16], rare: [0.16, 0.22], epic: [0.22, 0.30], legendary: [0.30, 0.38], max: 0.45, round: 0.01 },
+        arc: { common: [0.25, 0.35], rare: [0.35, 0.45], epic: [0.45, 0.58], legendary: [0.58, 0.72], scale: 'mod', max: 0.9, round: 0.01 }
+      }
+    },
+    blast: {
+      id: 'blast', slot: 'muzzle', minCleared: 5, name: 'Boom can', weight: 12, classes: ['pistol', 'smg', 'rifle', 'sniper', 'shotgun'],
+      names: { common: 'Pop Can', rare: 'Boom Can', epic: 'Blast Can', legendary: 'Ruin Can' },
+      models: { common: 'GEAR_Blast', rare: 'GEAR_Blast', epic: 'GEAR_Blast', legendary: 'GEAR_Blast' },
+      stats: {
+        // a hit sets off a small blast (2.4 m) on the robot: power x the hit's damage to every robot in reach (never the player)
+        chance: { common: [0.06, 0.09], rare: [0.09, 0.12], epic: [0.12, 0.16], legendary: [0.16, 0.20], max: 0.25, round: 0.01 },
+        power: { common: [0.6, 0.8], rare: [0.8, 1.0], epic: [1.0, 1.3], legendary: [1.3, 1.6], scale: 'mod', max: 2, round: 0.05 }
+      }
+    },
+    void: {
+      id: 'void', slot: 'muzzle', minCleared: 7, name: 'Void can', weight: 10, classes: ['pistol', 'smg', 'rifle', 'sniper', 'shotgun'],
+      names: { common: 'Sink Can', rare: 'Void Can', epic: 'Vortex Can', legendary: 'Singularity' },
+      models: { common: 'GEAR_Void', rare: 'GEAR_Void', epic: 'GEAR_Void', legendary: 'GEAR_Void' },
+      stats: {
+        // a hit opens a singularity on the robot for 1.4 s: robots within radius are pulled in toward it (group them up for
+        // a frag can)
+        chance: { common: [0.04, 0.06], rare: [0.06, 0.08], epic: [0.08, 0.11], legendary: [0.11, 0.14], max: 0.18, round: 0.01 },
+        radius: { common: [5, 6], rare: [6, 7], epic: [7, 8], legendary: [8, 9.5], round: 0.1 }
+      }
+    },
     mag: {
       id: 'mag', slot: 'mag', name: 'Extended mag', weight: 22, classes: ['pistol', 'smg', 'rifle', 'sniper', 'shotgun'],
       noActions: ['revolver'],   // a cylinder takes no magazine

@@ -726,9 +726,9 @@
   /* gems spray out of a wreck */
   B.gemBurst = function (kind, x, y, z) {
     if (!B.ready) return;
-    var col = kind === 'core' ? PAL.core : kind === 'shard' ? PAL.shard : PAL.chip, c = card(C.star, M_BILL, x + rnd(-0.2, 0.2), y + 0.4, z + rnd(-0.2, 0.2), 0.42, 0.08, 0.32, col);
+    var col = kind === 'core' ? 0xC6EEFF : kind === 'shard' ? 0x3D7BFF : 0x58C8FF, c = card(C.star, M_BILL, x + rnd(-0.2, 0.2), y + 0.4, z + rnd(-0.2, 0.2), 0.42, 0.08, 0.32, col);
     c.ease = E_POP; c.vy = 1.2; c.vr = rnd(-5, 5);
-    if (kind !== 'chip') { c = card(C.shine, M_BILL, x, y + 0.5, z, 0.3, 0.1, 0.5, col); c.ease = E_POP; c.vr = 4; }
+    { c = card(C.shine, M_BILL, x, y + 0.5, z, 0.3, 0.1, 0.5, col); c.ease = E_POP; c.vr = 4; }
   };
   /* zone clear (confetti at the gate) / level clear (fireworks over the zone) */
   B.zoneClear = function (level, i, last) {

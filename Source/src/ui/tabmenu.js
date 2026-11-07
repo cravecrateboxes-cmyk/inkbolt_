@@ -74,7 +74,7 @@
     ensureArt();
     if (tab) T.tab = ALIAS[tab] || tab;
     if (!TABS.some(function (t) { return t[0] === T.tab; })) T.tab = 'inventory';
-    T.confirmRespec = false;
+    T.confirmRespec = false; T.enterT = performance.now();   // entrance motion on open
     if (IB.GearUI && IB.GearUI.reset) IB.GearUI.reset(G);
     if (!T.sel || !IB.SKILL_BY_ID[T.sel]) T.sel = firstSuggested();
     el.hidden = false;
@@ -83,7 +83,7 @@
   };
   T.close = function () { if (!el) return; el.hidden = true; el.innerHTML = ''; T._shown = null; };
   T.isOpen = function () { return !!el && !el.hidden; };
-  T.setTab = function (t) { T.tab = ALIAS[t] || t; T.confirmRespec = false; render(true); };
+  T.setTab = function (t) { T.tab = ALIAS[t] || t; T.confirmRespec = false; T.enterT = performance.now(); render(true); };
   function stepTab(d) {
     var i = TABS.map(function (t) { return t[0]; }).indexOf(T.tab);
     IB.Audio && IB.Audio.play('ui'); T.setTab(TABS[(i + d + TABS.length) % TABS.length][0]);
@@ -118,7 +118,7 @@
           '<div class="tm-meta"><span class="tm-gems" aria-label="Gems"><i class="gem-glyph" aria-hidden="true"></i><b>' + (G.slot.gems || 0) + '</b></span>' +
             '<button class="tm-close" data-act="close" data-nav aria-label="Close and resume">' + FR + svg('<path d="M5 5l14 14M19 5 5 19" stroke="currentColor" stroke-width="3.6" stroke-linecap="round"/>') + (touch() ? '' : '<kbd>Tab</kbd>') + '</button></div>' +
         '</header>' +
-        '<div class="tm-body tm-scroll tm-' + T.tab + '" data-pane="body" id="tmPanel" role="tabpanel" aria-labelledby="tmTab_' + T.tab + '">' + body +
+        '<div class="tm-body tm-scroll tm-' + T.tab + (performance.now() - (T.enterT || 0) < 450 ? ' tm-enter' : '') + '" data-pane="body" id="tmPanel" role="tabpanel" aria-labelledby="tmTab_' + T.tab + '">' + body +
           '<button class="tm-chev l" data-step="-1" aria-label="Previous tab">' + svg(CHEV, '', '0 0 64 64') + '</button><button class="tm-chev r" data-step="1" aria-label="Next tab">' + svg(CHEV, '', '0 0 64 64') + '</button>' +
         '</div>' +
         '<footer class="tm-foot">' + footer() + '</footer>' +
@@ -186,7 +186,14 @@
       var up = tierSkills(t.tier), dn = tierSkills(t.tier - 1), used = {};
       function near(a, list) { var best = null, bd = Infinity; list.forEach(function (b) { var d = Math.abs(pos[b.id].x - pos[a.id].x); if (d < bd - 1) { bd = d; best = b; } }); return best; }
       up.forEach(function (a) { var b = near(a, dn); if (b) { segs.push([pos[b.id], pos[a.id], a, b]); used[b.id] = 1; } });
-      dn.forEach(function (b) { if (!used[b.id]) { var a = near(b, up); if (a) segs.push([pos[b.id], pos[a.id], a, b]); } });
+      // a node left over reaches up to its nearest node(s): when two sit equally near (the middle node under a pair) it
+      // joins both, so the tree stays symmetric
+      dn.forEach(function (b) {
+        if (used[b.id]) return;
+        var a0 = near(b, up); if (!a0) return;
+        var bd = Math.abs(pos[a0.id].x - pos[b.id].x);
+        up.forEach(function (a) { if (Math.abs(Math.abs(pos[a.id].x - pos[b.id].x) - bd) < 1) segs.push([pos[b.id], pos[a.id], a, b]); });
+      });
     });
     segs.forEach(function (g) {
       var a = g[2], b = g[3], openA = IB.Skills.tierUnlocked(sk, a.tier), ownA = IB.Skills.rank(sk, a.id) > 0, ownB = !b || IB.Skills.rank(sk, b.id) > 0;

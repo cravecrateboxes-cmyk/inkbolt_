@@ -11,7 +11,7 @@
   var PAL = IB.PAL;
   var D = IB.Drops = { pool: [], ready: false };
   // fallback meshes per type (IB.Loot.modelOf picks the rarity's own model: shield cells have four)
-  var ITEM_MESH = { shield: 'GEAR_ShieldCell', grip: 'GEAR_Grip', scope: 'GEAR_Scope', acid: 'GEAR_Acid', mag: 'GEAR_Mag', armor: 'GEAR_Vest' };
+  var ITEM_MESH = { shield: 'GEAR_ShieldCell', grip: 'GEAR_Grip', scope: 'GEAR_Scope', acid: 'GEAR_Acid', shock: 'GEAR_Shock', blast: 'GEAR_Blast', void: 'GEAR_Void', mag: 'GEAR_Mag', armor: 'GEAR_Vest' };
   // beam per rarity: [opacity, height, width]: the rarer, the taller and brighter
   var BEAM = { common: [0.42, 0.8, 1], rare: [0.58, 1.05, 1], epic: [0.7, 1.25, 1.1], legendary: [0.82, 1.55, 1.3] };
   var _tmp = [];

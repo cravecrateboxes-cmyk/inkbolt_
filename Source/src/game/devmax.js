@@ -20,6 +20,7 @@
     slot.plan = slot.plan && IB.LEVEL_PLANS[slot.plan] ? slot.plan : plans[0];
     var guns = IB.WEAPON_ORDER.filter(function (id) { return IB.Weapons.playable(id); });
     slot.arsenal = guns.slice(); slot.owned = guns.slice();
+    slot.gunTier = {}; guns.forEach(function (id) { slot.gunTier[id] = 'orange'; });   // every gun at the top (Legendary) tier
     slot.melee = (IB.MELEE_WEAPONS || []).filter(function (id) { return IB.Assets.node['WPN_' + id.toUpperCase()]; });   // every melee weapon (V, B)
     slot.meleeSel = slot.melee.indexOf('katana') >= 0 ? 'katana' : slot.melee[0];
     slot.frag = true;                                                                     // frag cans (G)
@@ -33,15 +34,19 @@
     L.equipShield(g, put(L.makeItem('shield', 'legendary', 20, rolls(0.9))).id);       // Nova
     put(L.makeItem('shield', 'legendary', 20, rolls(0.1)));                             // Overcharge, spare
     L.equipWorn(g, 'armor', put(L.makeItem('armor', 'legendary', 20, best)).id);
-    guns.forEach(function (id) {
+    var CANS = ['acid', 'shock', 'blast', 'void'];
+    guns.forEach(function (id, gi) {
       var def = IB.WEAPONS[id];
       Object.keys(IB.LOOT.types).forEach(function (type) {
         if (!L.isAttachment({ type: type })) return;
+        // one muzzle can per gun, the four kinds in turn (acid, Arc, Boom, Void) so every kind is in play
+        if (CANS.indexOf(type) >= 0) { var want = CANS[gi % 4]; if (!L.compatible(L.makeItem(want, 'legendary', 20, best), id, def)) want = 'shock'; if (type !== want) return; }
         var probe = L.makeItem(type, 'legendary', 20, best);
         if (!L.compatible(probe, id, def)) return;
         L.attach(g, id, def, put(probe).id);
       });
     });
+    CANS.forEach(function (t) { put(L.makeItem(t, 'legendary', 20, best)); });   // a spare of each can in the bag
     slot.gear = g;
     slot.skills = {};                         // all points free: spend / respec as you like in Tab -> Skills
     store.save(slot);

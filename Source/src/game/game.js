@@ -56,6 +56,7 @@
   function bootAfterAssets() {
     FX.init(R.scene); AI.init(R.scene); W.init(R.vmScene); IB.Projectiles.init(R.scene);
     if (IB.Throwables) IB.Throwables.init(R.scene);   // frag cans (G)
+    if (IB.WeaponDrops) IB.WeaponDrops.init(R.scene);   // tiered gun / melee drops (soldiers, blade bots)
     if (IB.Gear) { IB.Gear.init(); IB.Drops.init(R.scene); }   // loot: fps-gear models, world drops
     G.buildLevel();
     G.player = IB.Player.create();
@@ -134,6 +135,7 @@
     var L = G.level;
     AI.clear(); FX.clear(); IB.Projectiles.clear(); if (IB.SkillFX) IB.SkillFX.clear();
     if (IB.Throwables) IB.Throwables.clear();
+    if (IB.WeaponDrops) IB.WeaponDrops.clear();
     if (IB.Drops) IB.Drops.clear();
     if (IB.Status) IB.Status.clear();
     L.zones.forEach(function (z, i) {
@@ -279,7 +281,7 @@
     var stWas = p.staminaMax || 4;
     p.staminaMax = 4 * (fx.staminaMul || 1) * sk.staminaMul;   // Stamina: runs last 2.5x longer, 2x faster, half the recharge
     p.stamina = fresh ? p.staminaMax : Math.min(p.staminaMax, p.stamina * p.staminaMax / stWas);
-    p.sprintMul = sk.sprintMul; p.staminaRechargeMul = sk.staminaRechargeMul;
+    p.sprintMul = sk.sprintMul; p.staminaRechargeMul = sk.staminaRechargeMul; p.skillMoveMul = sk.moveMul || 1;
     if (G.ws) {
       var wf = G.ws.fx;
       wf.reloadMul = (fx.reloadMul || 1) * sk.reloadMul; wf.recoilMul = (fx.recoilMul || 1) * sk.recoilMul;
@@ -647,7 +649,7 @@
       var r = rh.robot, zone = rh.zone;
       var res = IB.Damage.hit({ weapon: def, dist: endT, zone: zone, dmgLevel: up('dmg'), coreLevel: up('core'), critLevel: up('crit'), rng: Math.random, blinded: r.state === 'blinded' });
       G.run.hits++; if (zone === 'core') G.run.coreHits++;
-      var dmg = res.damage *= IB.SkillFX.hitMul(zone);   // Heavy Ink (the damage number shows it too)
+      var dmg = res.damage *= IB.SkillFX.hitMul(zone) * (IB.WeaponDrops ? IB.WeaponDrops.dmgMul(def.id) : 1);   // Heavy Ink, the gun's tier
       _shot.ox = ox; _shot.oy = oy; _shot.oz = oz; _shot.dx = dx; _shot.dy = dy; _shot.dz = dz; _shot.t = rh.t; _shot.wt = wt; _shot.def = def;
       var killed = AI.damage(r, dmg, { kx: dx * 4, kz: dz * 4 }, onKill);
       // Electrify, Stream, Ricochet, Hazard, Hydrate, Chain Reaction
@@ -888,7 +890,7 @@
       if (Inp.wheel) W.cycle(G.ws, Inp.wheel > 0 ? 1 : -1);
       if (Inp.reloadPressed) W.reload(G.ws);
       // V: strike with the melee weapon (a shove until one is picked up); B: next melee weapon; G: throw a frag can
-      if (Inp.meleePressed && G.run.started) { var mid = G.meleeId(); if (mid) W.meleeStart(G.ws, mid); else if (W.shove(G.ws)) doShove(); }
+      if (Inp.meleePressed && G.run.started) { var mid = G.meleeId(); if (mid) meleeSwing(mid); else if (W.shove(G.ws)) doShove(); }
       if (Inp.meleeCyclePressed) cycleMelee();
       if (Inp.grenadePressed && G.run.started) { if (G.grenades > 0) W.throwStart(G.ws); else if (G.slot && G.slot.frag) HUD.toast('No frag cans · ammo boxes give one back', 1.4); }
       if (Inp.cloakPressed) IB.SkillFX.tryCloak(p);       // F: Undercover
@@ -901,7 +903,7 @@
     var jump = G.jumpLatch, slidePress = G.slideLatch;
     while (acc >= STEP && steps < 4) {
       acc -= STEP; steps++;
-      if (p.alive) IB.Player.step(p, { mx: G.complete ? 0 : Inp.mx, mz: G.complete ? 0 : Inp.mz, sprint: Inp.sprint, jumpPressed: jump, slidePressed: slidePress, crouch: Inp.crouch }, G.level.world, STEP, footFx);
+      if (p.alive) IB.Player.step(p, { mx: G.complete ? 0 : Inp.mx, mz: G.complete ? 0 : Inp.mz, sprint: Inp.sprint && !G.ws.melee, jumpPressed: jump, slidePressed: slidePress, crouch: Inp.crouch }, G.level.world, STEP, footFx);
       jump = false; slidePress = false; G.jumpLatch = false; G.slideLatch = false;
       if (G.run.started) {
         var actx = { player: p, world: G.level.world, level: G.level, activeZone: G.level.zones[G.zone].state === 'active' ? G.zone : -1, hurt: G.hurt, shake: G.addTrauma, onKill: onKill };
@@ -955,6 +957,7 @@
     updatePickups(dtRaw, tAll);
     if (IB.Throwables) IB.Throwables.sync(tAll);
     if (IB.Drops) { IB.Drops.update(dtRaw, tAll, G); IB.Gear.update(dtRaw, G); }
+    if (IB.WeaponDrops) IB.WeaponDrops.update(dtRaw, tAll, G);
     var magnet = 2.5 * (1 + 0.5 * up('magnet')) * IB.SkillFX.fx.magnetMul;   // Scrap Magnet
     FX.update(dtRaw, R.camera, p, magnet, collectGem);
     W.pose(G.ws, dtRaw, p, Inp.lookDX, Inp.lookDY, s.headBob, tAll);
@@ -978,7 +981,7 @@
       HUD.radar({ px: p.x, pz: p.z, yaw: p.yaw, range: 30, robots: rob, gates: gates,
         pickups: (G.weaponStands || []).filter(function (w2) { return !w2.taken; }).map(function (w2) { return { x: w2.x, z: w2.z, kind: 'weapon' }; })
           .concat(G.pickups.filter(function (pk) { return pk.on; }).map(function (pk) { return { x: pk.x, z: pk.z, kind: pk.kind }; }))
-          .concat(IB.Drops ? IB.Drops.radar() : []),
+          .concat(IB.Drops ? IB.Drops.radar() : []).concat(IB.WeaponDrops ? IB.WeaponDrops.radar() : []),
         exit: last.state === 'cleared' ? { x: G.level.hatch.x, z: G.level.hatch.z } : null });
     }
     if (HUD.objective) {
@@ -1039,6 +1042,8 @@
     hits.sort(function (a, b) { return a.d - b.d; });
     var base = def.damage * ((G.fx && G.fx.meleeMul) || 1) * (IB.SkillFX && IB.SkillFX.hitMul ? IB.SkillFX.hitMul('body') : 1);
     if (def.combo > 1 && combo >= def.combo - 1) base *= def.comboMul || 1;
+    if (G.meleeWinded) base *= MELEE_WINDED.dmg;
+    if (IB.WeaponDrops) base *= IB.WeaponDrops.dmgMul(def.id);
     var landed = 0;
     hits.forEach(function (h, i) {
       var r = h.r, dmg = base * (i === 0 || def.id === 'nunchucks' ? 1 : 0.6);
@@ -1084,6 +1089,19 @@
     });
   }
   G.meleeHit = meleeHit;
+  // a swing spends stamina (a share of the pool) and ends a sprint; out of stamina it is slower and weaker
+  var MELEE_WINDED = { rate: 1 / 1.5, dmg: 0.6 };
+  function meleeSwing(id) {
+    var p = G.player, def = IB.WEAPONS[id], max = p.staminaMax || 4, cost = (def.stamina || 0.15) * max;
+    if (!W.meleeReady(G.ws)) return;
+    G.meleeWinded = p.stamina < cost * 0.5;
+    G.ws.fx.meleeRate = G.meleeWinded ? MELEE_WINDED.rate : 1;
+    if (W.meleeStart(G.ws, id)) {
+      p.stamina = Math.max(0, p.stamina - cost); p.staminaRest = 0; p.sprinting = false;
+      if (G.meleeWinded && HUD.toast) HUD.toast('Winded · slower swings', 0.9);
+    }
+  }
+  G.meleeSwing = meleeSwing;
   function cycleMelee() {
     var list = G.slot && G.slot.melee; if (!list || list.length < 2) return;
     var i = list.indexOf(G.meleeId());

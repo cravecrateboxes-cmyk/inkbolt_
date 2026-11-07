@@ -115,7 +115,7 @@
       if (fx && fx.slide) fx.slide(true);
     }
     p.crouching = !p.sliding && !!input.crouch && p.onGround;
-    var speed = (p.sprinting ? MOVE.sprint * (p.sprintMul || 1) : (p.crouching ? MOVE.crouchSpeed : MOVE.walk)) * p.speedMul * (p.aiming ? 0.7 : 1) * (p.weaponMoveMul || 1);
+    var speed = (p.sprinting ? MOVE.sprint * (p.sprintMul || 1) : (p.crouching ? MOVE.crouchSpeed : MOVE.walk)) * p.speedMul * (p.skillMoveMul || 1) * (p.aiming ? 0.7 : 1) * (p.weaponMoveMul || 1);
     // wish dir in world space (camera forward is -Z at yaw 0)
     var sy = Math.sin(p.yaw), cy = Math.cos(p.yaw);
     var mx = input.mx, mz = input.mz, ml = Math.hypot(mx, mz);

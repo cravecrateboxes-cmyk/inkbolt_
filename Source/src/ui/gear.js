@@ -42,7 +42,10 @@
 
   // ---------- gun presentation: grade colour (by when it unlocks) ----------
   var GRADES = [[3, 'Standard', '#E4DFD3'], [7, 'Tuned', '#6BE05A'], [11, 'Rare', '#4A9BFF'], [15, 'Epic', '#B77BFF'], [99, 'Prime', '#FF9A2E']];
-  function grade(def) { var u = def.unlock || 1; for (var i = 0; i < GRADES.length; i++) if (u <= GRADES[i][0]) return { name: GRADES[i][1], color: GRADES[i][2] }; return { name: 'Prime', color: '#FF9A2E' }; }
+  // a gun's colour is its quality tier (gray / green / blue / purple / orange: IB.WeaponDrops, raised by tiered drops)
+  function grade(def) {
+    if (IB.WeaponDrops) { var t = IB.WeaponDrops.tierOf(def.id); return { name: t.name, color: t.color }; }
+    var u = def.unlock || 1; for (var i = 0; i < GRADES.length; i++) if (u <= GRADES[i][0]) return { name: GRADES[i][1], color: GRADES[i][2] }; return { name: 'Prime', color: '#FF9A2E' }; }
   function clsName(c) { return IB.HUD && IB.HUD.clsName ? IB.HUD.clsName(c) : c; }
   function clsIcon(c) { return IB.HUD && IB.HUD.icon ? IB.HUD.icon(c) : ''; }
   // pictures: the real model rendered by IB.Thumbs, else the class / type glyph
@@ -93,6 +96,8 @@
   // per item type: the statLines rows in order as [stat key, glyph, which way is better] (for the compare marks)
   var ITEM_KEYS = { shield: [['capacity', 'cap', 'high'], ['rate', 'rate', 'high'], ['delay', 'delay', 'low']], grip: [['recoil', 'recoil', 'high'], ['spread', 'acc', 'high']],
     scope: [['zoom', 'zoom', 'high'], ['aimSpread', 'acc', 'high']], acid: [['acid', 'acid', 'high'], [null, 'noise']],
+    shock: [['chance', 'rate', 'high'], ['arc', 'acid', 'high']], blast: [['chance', 'rate', 'high'], ['power', 'recoil', 'high']],
+    void: [['chance', 'rate', 'high'], ['radius', 'zoom', 'high']],
     mag: [['mag', 'mag', 'high'], ['reload', 'reload', 'high']], armor: [['dr', 'armor', 'high'], ['hp', 'hp', 'high']] };
   // the perk of a shield cell as a highlighted card row
   function perkRow(it) {

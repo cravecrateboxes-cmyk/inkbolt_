@@ -542,9 +542,46 @@ body.kbd .tabmenu button:focus-visible { outline: 3px solid var(--fk-txt); outli
   .ch-stats li { min-height: 32px; font-size: 13px; padding: 0 8px 0 2px; gap: 6px; grid-template-columns: 28px minmax(0, 1fr) auto; } .ch-stats li b { font-size: 14px; } .ch-stats li .skic.sm { width: 28px; height: 28px; }
   .ch-list li { min-height: 26px; font-size: 13px; padding: 0 8px; }
 }
+/* ---------- life: the field kit breathes a little (entrance on open / tab change, idle shimmer, hover lift) ---------- */
+/* panels sweep in one after another when the kit opens or the tab changes (.tm-enter: tabmenu.js, ~0.45 s) */
+.tm-body.tm-enter > * { animation: tmRise .42s cubic-bezier(.2, .9, .25, 1.15) both; }
+.tm-body.tm-enter > :nth-child(2) { animation-delay: .06s; } .tm-body.tm-enter > :nth-child(3) { animation-delay: .12s; } .tm-body.tm-enter > :nth-child(4) { animation-delay: .18s; }
+@keyframes tmRise { from { transform: translateY(18px) rotateX(8deg) scale(.98); opacity: 0; } }
+.tm-body.tm-enter .inv-item, .tm-body.tm-enter .ch-stats li { animation: tmPop .34s cubic-bezier(.2, .9, .3, 1.3) .12s both; }
+@keyframes tmPop { from { transform: scale(.85); opacity: 0; } }
+/* a slow scan glint across every glass panel */
+.tabmenu .ep { position: relative; }
+.tabmenu .ep::after { content: ''; position: absolute; inset: 14px; pointer-events: none; z-index: 3;
+  background: linear-gradient(105deg, transparent 40%, rgba(190, 240, 255, .10) 48%, rgba(255, 255, 255, .16) 50%, rgba(190, 240, 255, .10) 52%, transparent 60%) 0 0 / 300% 100% no-repeat;
+  animation: epGlint 7s ease-in-out infinite; mix-blend-mode: screen; }
+.tabmenu .ep:nth-of-type(2)::after { animation-delay: 1.4s; } .tabmenu .ep:nth-of-type(3)::after { animation-delay: 2.8s; }
+@keyframes epGlint { 0%, 55% { background-position: 120% 0; } 85%, 100% { background-position: -20% 0; } }
+/* the tab glyphs and the level badge float gently; the open tab's glyph bobs */
+.tm-tab svg { transition: transform .18s cubic-bezier(.2, .9, .3, 1.4); }
+.tm-tab[aria-selected="true"] svg { animation: tmBob 2.6s ease-in-out infinite; }
+.tm-tab:hover svg { transform: translateY(-3px) rotate(-6deg) scale(1.08); }
+@keyframes tmBob { 50% { transform: translateY(-3px) rotate(3deg); } }
+.tm-lv { animation: tmFloat 4.2s ease-in-out infinite; }
+@keyframes tmFloat { 50% { transform: translateY(-2px) rotate(-1.5deg); } }
+/* tiles lift and glow under the pointer, press in on click (skill nodes keep their centring transform) */
+.tabmenu .inv-item, .tabmenu .inv-wslot, .tabmenu .inv-worn { transition: transform .14s cubic-bezier(.2, .9, .3, 1.5), filter .14s; }
+.tabmenu .inv-item:hover, .tabmenu .inv-wslot:hover, .tabmenu .inv-worn:hover { transform: translateY(-3px) scale(1.03); filter: brightness(1.12) drop-shadow(0 6px 0 rgba(4, 14, 24, .45)); }
+.tabmenu .inv-item:active, .tabmenu .inv-wslot:active, .tabmenu .inv-worn:active { transform: translateY(1px) scale(.97); transition-duration: .05s; }
+.tabmenu .sk-node { transition: transform .14s cubic-bezier(.2, .9, .3, 1.5), filter .14s; }
+.tabmenu .sk-node:active { transform: translate(-50%, -50%) scale(.95); }
+/* the skill tree's lit branches carry a travelling shimmer */
+.sk-branches .own, .sk-branches .lit { stroke-dasharray: 10 14; animation: brFlow 1.6s linear infinite; }
+@keyframes brFlow { to { stroke-dashoffset: -24; } }
+/* the gem counter bobs */
+.tm-gems .gem-glyph { animation: tmBob 3.4s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) {
   .inv-item.fits, .sk-node.buyable > .fr, .sk-points b.has, .sk-rbtn.confirm { animation: none; }
+  .tm-body.tm-enter > *, .tm-body.tm-enter .inv-item, .tm-body.tm-enter .ch-stats li, .tabmenu .ep::after,
+  .tm-tab[aria-selected="true"] svg, .tm-lv, .sk-branches .own, .sk-branches .lit, .tm-gems .gem-glyph { animation: none; }
+  .tabmenu .inv-item, .tabmenu .inv-wslot, .tabmenu .inv-worn, .tabmenu .sk-node, .tm-tab svg { transition: none; }
 }
+
 
 /* ---------- the same language on the overlay screens: title, pause, settings, results / fail / message panels,
    the level intro banner (the between-levels loading screen, #loading, keeps its own look) ---------- */

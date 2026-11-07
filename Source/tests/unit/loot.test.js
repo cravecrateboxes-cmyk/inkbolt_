@@ -29,6 +29,9 @@ test('shields only drop after level 3 is cleared, vests after level 5', () => {
   for (const t of ['shield', 'grip', 'scope', 'acid', 'mag']) assert.ok(s3.has(t), t + ' after level 3');
   assert.ok(seen(5).has('armor'), 'vests after level 5');
   assert.deepEqual(L.allowedTypes({ cleared: 0 }).map(t => t.id).sort(), ['acid', 'grip', 'mag', 'scope']);
+  // the new muzzle cans arrive level by level: Arc after 3, Boom after 5, Void after 7
+  assert.deepEqual(L.allowedTypes({ cleared: 7 }).map(t => t.id).filter(t => ['shock', 'blast', 'void'].includes(t)).sort(), ['blast', 'shock', 'void']);
+  assert.deepEqual(L.allowedTypes({ cleared: 4 }).map(t => t.id).filter(t => ['shock', 'blast', 'void'].includes(t)), ['shock']);
 });
 
 test('rarity odds: levels 1-3 as before (70 / 24 / 6), no legendary before level 6', () => {
@@ -164,7 +167,7 @@ test('attachment compatibility per weapon class', () => {
   assert.deepEqual(L.slotsFor('needle', W.needle), ['grip', 'muzzle', 'mag']);
   // shotguns take a grip and a mag; melee weapons and grenades nothing
   const sg = { cls: 'shotgun', mag: 6, reload: 0.5 }, melee = { cls: 'melee', mag: 0 };
-  assert.deepEqual(L.slotsFor('sg', sg), ['grip', 'mag']);
+  assert.deepEqual(L.slotsFor('sg', sg), ['grip', 'muzzle', 'mag']);   // shotguns take the Arc / Boom / Void cans (not acid)
   assert.deepEqual(L.slotsFor('blade', melee), []);
   if (W.frag) assert.deepEqual(L.slotsFor('frag', W.frag), []);
   assert.equal(L.typeForSlot('muzzle'), 'acid'); assert.equal(L.typeForSlot('mag'), 'mag');

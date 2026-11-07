@@ -57,9 +57,9 @@ CAMPAIGN (src/data/levelplans.js ORDER)
     ocean to the horizon all round (theme backdrop.build paints the island ground and the sea).
 
 MELEE, GRENADES AND NEW GUNS
-  Melee weapons (V, src/game/weapons.js W.meleeStart + game.js meleeHit): KN-3 Stinger dagger (fast stab, x2.5 on a
-  robot that has not seen you or is struck from behind), NC-2 Twin Strikers nunchucks (two hits per swing in a wide arc,
-  staggers), Mk-1 Ronin Blade katana (two-handed, 3-cut combo, the third cut x1.6), VX-7 Voltaxe electric axe (two-handed
+  Melee weapons (V, src/game/weapons.js W.meleeStart + game.js meleeHit): Stinger dagger (fast stab, x2.5 on a
+  robot that has not seen you or is struck from behind), Twin Strikers nunchucks (two hits per swing in a wide arc,
+  staggers), Ronin Blade katana (two-handed, 3-cut combo, the third cut x1.6), Voltaxe electric axe (two-handed
   heavy chop, shock damage over time, arcs to 2 robots nearby). The gun goes away for the swing and is drawn again.
   Frag cans (G, src/game/throwables.js): carry 3, thrown from the support hand; they bounce, a red ring shows the blast
   reach in the last second, and the blast hurts robots (and you, capped at 35). Ammo boxes give one back.
@@ -68,6 +68,18 @@ MELEE, GRENADES AND NEW GUNS
   battle rifle L8, SG-12 Thunderclap auto shotgun L9, SR-9 Railspike rail rifle L11 (3x scope, pierces 4 robots).
   A save that already cleared a level gets what stood at its start when the next level loads.
   Models and arm actions: blender/fam_weapons.py (MELEE_SWINGS, THROW_L, pump_fire, shell_reload).
+
+WEAPON DROPS, MELEE STAMINA, MUZZLE CANS (round 4)
+  Gun tiers (src/game/wdrops.js): every gun has a quality tier, gray Standard x1.00, green Tuned x1.07, blue Rare x1.14,
+  purple Epic x1.22, orange Legendary x1.32 damage (shown as its colour in the inventory). Soldiers drop guns at
+  6 / 3 / 2 / 0.8 / 0.2 % (gray / green / blue / purple / orange); blade bots drop the katana or Voltaxe they wield at 7 %.
+  A drop you do not own joins the arsenal; a better tier upgrades your gun; anything else is broken down into gems.
+  Melee costs stamina per swing (dagger 12 %, nunchucks 13 %, katana 20 %, Voltaxe 32 % of the pool) and ends a sprint;
+  out of stamina a swing is 50 % slower and hits for 60 %.
+  Muzzle cans (one per gun): acid, Arc Can (shock + arcs to the nearest robot, after level 3), Boom Can (small blast on
+  the robot, never hurts you, after level 5), Void Can (a singularity pulls nearby robots into the one you hit, after
+  level 7). Shotguns take the Arc / Boom / Void cans.
+  Undercover (F): a quick fade-flicker in, then a dark blue stealth look with every robot outlined in glowing blue.
 
 LOOT AND GEAR
   About one robot in twenty drops an item: a drop pod with a beam in its rarity colour, also marked on the radar as a
