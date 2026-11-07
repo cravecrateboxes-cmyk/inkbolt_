@@ -53,7 +53,6 @@ ib_lib.PALETTES[FAM] = BASE + [
     ('cork', '#C99A62'), ('blue', '#3B7EEB'), ('target', '#F3EEE2'), ('flC', '#7F96B3'),
 ]
 assert len(ib_lib.PALETTES[FAM]) <= 64, len(ib_lib.PALETTES[FAM])
-ib_lib.ZFIGHT_STRICT[FAM] = False   # TEMP while remodelling
 TRIS = {}
 H = 4.0
 HT = 0.02
@@ -255,6 +254,8 @@ def build_walls(pal, ao):
     m = new(pal); wall_base(m, 'L'); banner(m, 'L'); fin('WL_Flag', m, ao)
     m = new(pal); door(m, 'L', 'navy2', 'gold'); fin('WL_Door', m, ao)
     m = new(pal); wall_base(m, 'L'); sign(m, 'L', 'navy2', 'gold', 'paper'); fin('WL_Sign', m, ao)
+    m = new(pal); wall_base(m, 'L'); photos(m, 'L'); fin('WL_Photos', m, ao)
+    m = new(pal); wall_base(m, 'O'); photos(m, 'O'); fin('WO_Photos', m, ao)
     # ---- briefing / office
     m = new(pal); wall_base(m, 'O'); window(m, 'O'); fin('WO_Window', m, ao)
     m = new(pal); wall_base(m, 'O'); whiteboard(m, 'O'); fin('WO_White', m, ao)
@@ -266,7 +267,7 @@ def build_walls(pal, ao):
     for part in 'LMR':
         m = new(pal); wall_base(m, 'O'); screen(m, 'O', part); fin('WO_Screen' + part, m, ao)
     # ---- armory
-    m = new(pal); wall_base(m, 'A'); sign(m, 'A', 'yellow', 'ink', 'ink'); fin('WA_Sign', m, ao)
+    m = new(pal); wall_base(m, 'A'); sign(m, 'A', 'yellow', 'ink', 'ink', 'rifle'); fin('WA_Sign', m, ao)
     m = new(pal); wall_base(m, 'A'); cage(m, 'A'); fin('WA_Cage', m, ao)
     m = new(pal); wall_base(m, 'A'); firstaid(m, 'A'); fin('WA_Aid', m, ao)
     m = new(pal); wall_base(m, 'A'); extinguisher(m, 'A'); fin('WA_Ext', m, ao)
@@ -279,16 +280,16 @@ def build_walls(pal, ao):
     m = new(pal); wall_base(m, 'G'); panel(m, 'G'); fin('WG_Panel', m, ao)
     m = new(pal); wall_base(m, 'G'); extinguisher(m, 'G'); fin('WG_Ext', m, ao)
     m = new(pal); wall_base(m, 'G'); window(m, 'G', z0=2.2, z1=3.3, blinds=False); fin('WG_Window', m, ao)
-    m = new(pal); wall_base(m, 'G'); sign(m, 'G', 'yellow', 'ink', 'ink'); fin('WG_Sign', m, ao)
+    m = new(pal); wall_base(m, 'G'); sign(m, 'G', 'blue', 'white', 'white', 'parking'); fin('WG_Sign', m, ao)
     m = new(pal); wall_base(m, 'G'); notice(m, 'G'); fin('WG_Board', m, ao)
     # ---- range
     m = new(pal); acoustic(m); fin('WR', m, ao)          # replaces the plain band module: padded squares
     m = new(pal); backstop(m); fin('WR_Back', m, ao)
-    m = new(pal); acoustic(m); sign(m, 'R', 'white', 'red', 'ink'); fin('WR_Sign', m, ao)
+    m = new(pal); acoustic(m); sign(m, 'R', 'white', 'red', 'ink', 'rules'); fin('WR_Sign', m, ao)
     m = new(pal); acoustic(m); beacon(m, 'R'); fin('WR_Light', m, ao)
     m = new(pal); wall_base(m, 'R'); window(m, 'R', z0=1.15, z1=2.4, blinds=False); fin('WR_Window', m, ao)
     # ---- cells / lockers
-    m = new(pal); wall_base(m, 'C'); sign(m, 'C', 'mint', 'ink', 'white'); fin('WC_Sign', m, ao)
+    m = new(pal); wall_base(m, 'C'); sign(m, 'C', 'mint', 'ink', 'white', 'cell'); fin('WC_Sign', m, ao)
     m = new(pal); wall_base(m, 'C'); notice(m, 'C'); fin('WC_Board', m, ao)
     m = new(pal); wall_base(m, 'C'); clock(m, 'C'); fin('WC_Clock', m, ao)
     for S in 'LOAGC':
@@ -338,14 +339,55 @@ def door(m, S, leaf, trim):
     m.bx(-0.39, 0.39, y - 0.012, y - 0.005, 0.0, 0.18, 'steel', cull='kb', hull='none')  # kick plate
 
 
-def sign(m, S, plate, ink, edge):
+def sign(m, S, plate, ink, edge, icon='text'):
+    """wall sign: framed plate with a pictogram (rifle, parking P, rules list, cell door) or a line of block letters"""
     z = 2.75
     y = face_y(S, z)
     m.bx(-0.42, 0.42, y - 0.035, y + 0.01, z - 0.2, z + 0.2, edge, cull='k')
     m.bx(-0.39, 0.39, y - 0.045, y - 0.035, z - 0.17, z + 0.17, plate, cull='k', hull='none')
-    for k, (x0, x1) in enumerate(((-0.3, -0.21), (-0.17, -0.08), (-0.04, 0.05), (0.09, 0.18), (0.22, 0.3))):   # block letters
-        m.bx(x0, x1, y - 0.05 - 0.003 * (k % 2), y - 0.045, z - 0.07, z + 0.07, ink, cull='k', hull='none')
-    m.bx(-0.3, 0.3, y - 0.05, y - 0.045, z - 0.13, z - 0.11, ink, cull='k', hull='none')
+    f, f2 = y - 0.0485, y - 0.052          # pictogram layers, each >= 3 mm in front of the last
+
+    def mark(x0, x1, z0, z1, c=ink, front=f):
+        m.bx(x0, x1, front, y - 0.045, z + z0, z + z1, c, cull='k', hull='none')
+    if icon == 'rifle':                    # side view of a rifle over a stencil bar
+        mark(-0.3, 0.3, 0.02, 0.07)                      # receiver + barrel
+        mark(-0.34, -0.18, -0.03, 0.06, front=f2)        # stock
+        mark(-0.06, 0.02, -0.1, 0.02)                    # magazine
+        mark(-0.14, -0.09, -0.08, 0.02)                  # grip
+        mark(-0.1, 0.12, 0.07, 0.1, front=f2)            # scope
+        mark(-0.33, 0.33, -0.15, -0.13)
+    elif icon == 'parking':                # white P on blue
+        mark(-0.09, -0.04, -0.12, 0.12)
+        mark(-0.04, 0.08, 0.07, 0.12)
+        mark(-0.04, 0.08, -0.02, 0.03)
+        mark(0.05, 0.1, 0.03, 0.07, front=f2)
+    elif icon == 'rules':                  # red header and rule lines
+        mark(-0.36, 0.36, 0.08, 0.15)
+        for k in range(4):
+            mark(-0.32, 0.12 + 0.05 * (k % 2), -0.13 + k * 0.05, -0.11 + k * 0.05, 'ink')
+    elif icon == 'cell':                   # barred door
+        mark(-0.12, 0.12, -0.14, 0.13)
+        for k in range(4):
+            x = -0.08 + k * 0.055
+            mark(x - 0.01, x + 0.01, -0.12, 0.11, 'white', front=f2)
+        mark(0.2, 0.32, -0.02, 0.02)
+    else:                                  # block letters + underline
+        for k, (x0, x1) in enumerate(((-0.3, -0.21), (-0.17, -0.08), (-0.04, 0.05), (0.09, 0.18), (0.22, 0.3))):
+            mark(x0, x1, -0.07, 0.07, ink, front=f if k % 2 else f2)
+        mark(-0.3, 0.3, -0.13, -0.11)
+
+
+def photos(m, S):
+    """honour wall: three framed portraits and a plaque"""
+    y = face_y(S, 2.2)
+    for k, x in enumerate((-0.28, 0.0, 0.28)):
+        zc = 2.3 + (0.06 if k == 1 else 0.0)
+        m.bx(x - 0.11, x + 0.11, y - 0.025, y + 0.01, zc - 0.15, zc + 0.15, 'oak2' if S != 'L' else 'gold', cull='k')
+        m.bx(x - 0.08, x + 0.08, y - 0.029, y - 0.025, zc - 0.12, zc + 0.12, 'flA', cull='k', hull='none')
+        m.bx(x - 0.04, x + 0.04, y - 0.033, y - 0.029, zc - 0.02, zc + 0.06, 'clay', cull='k', hull='none')
+        m.bx(x - 0.06, x + 0.06, y - 0.033, y - 0.029, zc - 0.12, zc - 0.03, 'navy', cull='k', hull='none')
+    m.bx(-0.2, 0.2, y - 0.02, y + 0.01, 1.85, 2.0, 'oak', cull='k')
+    m.bx(-0.16, 0.16, y - 0.024, y - 0.02, 1.88, 1.97, 'gold', cull='k', hull='none')
 
 
 def whiteboard(m, S):
@@ -646,9 +688,19 @@ def build_ceiling(pal, ao):
     m.bx(0.42, 0.5, -0.32, 0.32, -0.52, -0.1, 'steel', cull='r', hull='noside')
     m.bx(-0.03, 0.03, -0.32, 0.32, -0.12, -0.005, 'steel2', cull='t')                  # hanger
     fin('Duct', m, ao)
+    m = new(pal)   # cable tray module along X: side rails, a mesh floor, a bundle of cables, a hanger
+    for sy in (-0.16, 0.16):
+        m.bx(-0.5, 0.5, sy - 0.012, sy + 0.012, -0.62, -0.54, 'steel', cull='lr', hull='noside')
+    m.bx(-0.5, 0.5, -0.148, 0.148, -0.62, -0.61, 'steel2', cull='lr', hull='noside')
+    for k, (y, z, r, c) in enumerate(((-0.09, -0.57, 0.035, 'black'), (-0.01, -0.575, 0.03, 'blue'), (0.07, -0.57, 0.035, 'black'),
+                                       (0.03, -0.52, 0.025, 'orange'), (-0.06, -0.515, 0.025, 'red'))):
+        m.cy((-0.5, y, z), r, r, 1.0, c, seg=6, rot=(0, 90, 0), caps=False, hull='noside')
+    m.bx(-0.008, 0.008, 0.162, 0.178, -0.6, -0.005, 'black', cull='t', hull='none')    # hanger
+    m.bx(-0.02, 0.02, -0.19, 0.19, -0.64, -0.62, 'black')
+    fin('Ceil_Tray', m, ao)
     m = new(pal)   # target carrier rail module (along X; the range turns it along the lanes) with a hanger
     m.bx(-0.5, 0.5, -0.035, 0.035, -0.7, -0.62, 'steel2', cull='lr', hull='noside')
-    m.bx(-0.015, 0.015, -0.015, 0.015, -0.62, -0.005, 'black', cull='t')
+    m.bx(-0.012, 0.012, -0.012, 0.012, -0.62, -0.005, 'black', cull='t', hull='none')
     fin('Ceil_Rail', m, ao)
     m = new(pal)   # doorway lintel (bulkhead) over a two-cell wall: 0.85 m deep
     m.bx(-0.5, 0.5, -0.5, 0.5, -0.85, -0.12, 'wall', cull='lrt', hull='noside')
@@ -904,7 +956,8 @@ def build_props(pal, ao):
         mug(m, -0.72, -0.15, 0.76, 'red' if side else 'white')
         chair(m, -0.15 + 0.1 * side, -0.72, 180 + (8 if side else -6), 'navy' if side else 'slate')
         m.parent = P
-    fin('DeskPod', m, ao, cols=[col_box(-0.92, -0.42, 0, 0.92, 0.42, 1.15)])
+    fin('DeskPod', m, ao, cols=[col_box(-0.92, -0.42, 0, 0.92, 0.42, 1.15), col_box(-0.45, -0.98, 0, 0.15, -0.42, 0.55),
+                                col_box(-0.25, 0.42, 0, 0.35, 0.98, 0.55)])
 
     # ops console [4,1] against the wall: desk, six monitors, two big wall screens, two chairs
     m = new(pal)
@@ -935,7 +988,8 @@ def build_props(pal, ao):
     m.sp((0, 0.33, 2.85), 0.08, 'black', seg=(8, 4))
     for sx in (-0.95, 0.95):
         chair(m, sx, -0.42, 180 + 0, 'navy')
-    fin('OpsConsole', m, ao, cols=[col_box(-1.95, -0.12, 0, 1.95, 0.5, 1.1)])
+    fin('OpsConsole', m, ao, cols=[col_box(-1.95, -0.12, 0, 1.95, 0.5, 1.1), col_box(-1.22, -0.68, 0, -0.68, -0.12, 0.55),
+                                   col_box(0.68, -0.68, 0, 1.22, -0.12, 0.55)])
 
     # briefing row [4,2]: a long table on the north half, four chairs facing it
     m = new(pal)

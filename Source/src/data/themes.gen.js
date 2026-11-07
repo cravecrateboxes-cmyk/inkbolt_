@@ -2195,9 +2195,9 @@
      the west / south / both edges)  5 range  6 pale tile  7 entry mat
      / hazard stripes  ^ firing line  , lane line  - | garage line (X / Z)  _ : armory line (X / Z)  M emblem [4,4]
      Wall-art codes (on wall cells): w window  v projector screen (runs)  F flag  W whiteboard  m map  n notice board
-     e badge  c clock  u door  s sign  C cage window  A first aid  Z extinguisher  r roller door (runs)  O tool board
+     e badge  c clock  u door  s sign  d honour photos  C cage window  A first aid  Z extinguisher  r roller door (runs)  O tool board
      I panel / warning light  L backstop  (plain modules in the middle of long runs get a wall lamp every 5 m)
-   Ceiling layer: i panel light  j high-bay lamp  = ! + beam (X / Z / crossing)  ~ ; duct (X / Z)  $ carrier rail (Z)
+   Ceiling layer: i panel light  j high-bay lamp  = ! + beam (X / Z / crossing)  ~ ; duct (X / Z)  { } cable tray (X / Z)  $ carrier rail (Z)
      [ ] doorway lintel (X / Z)
    The wall chooser styles each module from the floor finish in front of it (lobby, office, armory, garage, range,
    cells), turns the art code on the cell into that style's piece and splits runs (screen, roller door) into
@@ -2207,8 +2207,8 @@
   var FSTYLE = { '1': 'L', '7': 'L', '8': 'L', 'M': 'L', '2': 'O', '0': 'G', '9': 'G', '%': 'G', '3': 'A', '_': 'A', ':': 'A', '4': 'G', '-': 'G', '|': 'G',
     '5': 'R', '^': 'R', ',': 'R', '6': 'C' };
   var ART = {
-    L: { w: 'WL_Window', e: 'WL_Badge', n: 'WL_Board', c: 'WL_Clock', F: 'WL_Flag', u: 'WL_Door', s: 'WL_Sign' },
-    O: { w: 'WO_Window', W: 'WO_White', m: 'WO_Map', c: 'WO_Clock', F: 'WO_Flag', n: 'WO_Board', u: 'WO_Door', v: 'WO_Screen' },
+    L: { w: 'WL_Window', e: 'WL_Badge', n: 'WL_Board', c: 'WL_Clock', F: 'WL_Flag', u: 'WL_Door', s: 'WL_Sign', d: 'WL_Photos' },
+    O: { w: 'WO_Window', W: 'WO_White', m: 'WO_Map', c: 'WO_Clock', F: 'WO_Flag', n: 'WO_Board', u: 'WO_Door', v: 'WO_Screen', d: 'WO_Photos' },
     A: { s: 'WA_Sign', C: 'WA_Cage', A: 'WA_Aid', Z: 'WA_Ext', u: 'WA_Door', n: 'WA_Board' },
     G: { r: 'WG_Roller', O: 'WG_Tools', I: 'WG_Panel', Z: 'WG_Ext', w: 'WG_Window', s: 'WG_Sign', n: 'WG_Board' },
     R: { L: 'WR_Back', s: 'WR_Sign', I: 'WR_Light', w: 'WR_Window' },
@@ -2313,6 +2313,7 @@
     'i': flat(['Ceil_Panel']), 'j': flat(['Ceil_HighBay']),
     '=': flat(['BeamL'], 0), '!': flat(['Beam'], Math.PI / 2), '+': flat(['BeamX']),
     '~': flat(['Duct'], 0), ';': flat(['Duct'], Math.PI / 2),
+    '{': flat(['Ceil_Tray'], 0), '}': flat(['Ceil_Tray'], Math.PI / 2),
     '$': flat(['Ceil_Rail'], Math.PI / 2), '[': flat(['Lintel'], 0), ']': flat(['Lintel'], Math.PI / 2)
   };
   // every character a zone's floor plan can hold: the ceiling's auto lights skip them all (the zones light themselves

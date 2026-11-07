@@ -21,7 +21,7 @@ Floor layer: 1 lobby tile  2 carpet  3 armory rubber  4 garage concrete  5 range
   e badge plaque  c clock  u door  s sign  C cage window  A first-aid  Z extinguisher  r roller door  O tool board
   I panel / warning light  L bullet backstop   (art codes never reuse a symbol: the layer would build it)
 Ceiling layer: i panel light  j high-bay lamp  = ! + beam along X / Z / crossing  ~ ; duct along X / Z
-  $ target carrier rail (along Z)  [ ] doorway lintel (wall along X / Z)
+  { } cable tray (along X / Z)  $ target carrier rail (along Z)  [ ] doorway lintel (wall along X / Z)
 """
 import os
 import sys
@@ -221,6 +221,7 @@ def zone1():
     z.art([(3, 47), (4, 47), (14, 47), (34, 47), (43, 47), (44, 47)], 'w')
     z.art([(18, 47), (36, 47)], 'e')
     z.art([(17, 25)], 'c')
+    z.art([(12, 25), (37, 25), (0, 36)], 'd')
 
     # --- ceiling
     lintel(z, 7, 24, 4, 2, '[')
@@ -228,12 +229,12 @@ def zone1():
     lintel(z, 16, 10, 2, 4, ']')
     z.beams_x((28, 33, 38, 43), 1, 46)
     z.lights('i', range(4, 46, 4), (30, 35, 40, 45))
-    z.ceil(4, 41, 3, 1, '~')
     z.lights('i', (4, 8, 12), (4, 8, 12, 16, 20))
     z.ceil(2, 2, 1, 21, ';')
     z.beams_z((22, 27, 32, 37, 42), 1, 23)
     z.lights('j', (19, 24, 29, 34, 39, 44), (6, 12, 18))
-    z.ceil(18, 21, 29, 1, '~', over='.')
+    z.ceil(45, 1, 1, 23, '}')
+    z.ceil(1, 27, 46, 1, '{')
     return z
 
 
@@ -317,6 +318,7 @@ def zone2():
     z.art([(0, c) for c in (28, 29, 33, 34, 38, 39, 43)], 'w')
     z.art([(47, c) for c in (35, 36, 40, 41)], 'w')
     z.art([(47, 27)], 'm')
+    z.art([(0, 31), (47, 33)], 'd')
     z.art([(0, 25)], 'c')
     z.art([(c, 47) for c in (8, 9, 37, 38)], 'W')
     z.art([(14, 47), (33, 47)], 'F')
@@ -334,6 +336,8 @@ def zone2():
     z.beams_x((27, 32, 37, 42), 1, 46)
     z.lights('i', (4, 9, 14, 19, 24, 29, 34, 39, 44), (29, 34, 39, 44))
     z.ceil(1, 25, 46, 1, '~')
+    z.ceil(45, 1, 1, 21, '}')
+    z.ceil(2, 2, 1, 20, '}')
     return z
 
 
@@ -420,10 +424,11 @@ def zone3():
     for c in list(range(3, 20, 3)) + list(range(29, 46, 3)):    # target carrier rails over each lane
         z.ceil(c, 2, 1, 10, '$')
     z.lights('i', [c for c in range(4, 46, 3) if 21 > c or c > 27] + [24], (6, 13))
-    z.ceil(1, 9, 46, 1, '~')
+    z.ceil(1, 14, 46, 1, '~')
     z.beams_z((9, 15, 21, 27, 33, 39), 18, 46)
     z.lights('j', (6, 12, 18, 24, 30, 36, 42), (22, 28, 34, 40, 45))
-    z.ceil(1, 31, 8, 1, '~')
+    z.ceil(2, 18, 1, 29, '}')
+    z.ceil(45, 18, 1, 29, '}')
     return z
 
 

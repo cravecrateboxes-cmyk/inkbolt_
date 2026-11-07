@@ -32,7 +32,7 @@ const plan = IB.LEVEL_PLANS.police;
 const maps = plan.zones.map((z) => ({ name: z.map, g: parse(fs.readFileSync(path.join(ZDIR, z.map + '.txt'), 'utf8')) }));
 const PREFAB = Object.keys(TH.symbols).filter((k) => TH.symbols[k].size);
 const FLOOR = new Set('12345678/^,-|_:M09%');
-const CEIL = new Set('ij=!+~;$[]');
+const CEIL = new Set('ij=!+~;{}$[]');
 
 test('police theme: kit-police, indoor ceiling, zones light themselves, three zones of 100+ robots', () => {
   assert.equal(TH.family, 'kit-police');
