@@ -8,7 +8,7 @@
    Keyboard: Q / E (or the chevrons) switch tabs, arrows move between buttons, Enter selects (Enter on the selected
    skill spends a point; in the inventory Enter equips). The Inventory tab is drawn by IB.GearUI (ui/gear.js).
    Skills: the tree is laid out like the player's sketch (data/skills.js): six rows, the trunk at the bottom and the
-   two pick-one endgame skills on top; the UI only reads IB.SKILLS / IB.SKILL_TIERS and the IB.Skills API. */
+   two endgame skills on top; the UI only reads IB.SKILLS / IB.SKILL_TIERS and the IB.Skills API. */
 (function (IB) {
   'use strict';
   var T = IB.TabMenu = { tab: 'inventory', sel: null, confirmRespec: false };
@@ -125,6 +125,8 @@
       '</section>';
     if (T.tab === 'inventory') mountGear();
     el.querySelectorAll('.tm-scroll').forEach(function (s) { if (scroll[s.dataset.pane]) s.scrollTop = scroll[s.dataset.pane]; });
+    // a freshly opened skill tree starts at the trunk (the bottom row): the player works up from there
+    if (!('tree' in scroll)) { var tw = el.querySelector('.sk-treewrap'); if (tw) tw.scrollTop = tw.scrollHeight; }
     if (focusFirst && T.tab === 'skills') { var tr = el.querySelector('.sk-treewrap'), seln = el.querySelector('.sk-node.sel'); if (tr && seln && tr.scrollHeight > tr.clientHeight + 4) seln.scrollIntoView({ block: 'center' }); }
     if (touch()) return;
     var f = keepFocus ? el.querySelector(keepFocus) : null;
@@ -172,7 +174,6 @@
         pos[s.id] = { x: X[i], y: row * 100 + 50, tier: t.tier };
         nodes += node(s, sk, h, X[i], row, !!t.capstone);
       });
-      if (t.capstone && list.length === 2) nodes += '<span class="sk-or" style="--x:0;--r:' + row + '" aria-hidden="true">OR</span>';
       if (!open) {
         var need = t.gate - IB.Skills.spentAbove(sk, t.tier);
         gates += '<span class="sk-gate" style="--r:' + row + '" title="Spend ' + need + ' more point' + (need === 1 ? '' : 's') + ' in the rows below">' + svg(LOCK) + '<b>' + need + '</b></span>';
@@ -185,7 +186,12 @@
       if (t.tier === 1) { tierSkills(1).forEach(function (s) { segs.push([{ x: 0, y: rows * 100 + 30 }, pos[s.id], s, null]); }); return; }
       var up = tierSkills(t.tier), dn = tierSkills(t.tier - 1), used = {};
       function near(a, list) { var best = null, bd = Infinity; list.forEach(function (b) { var d = Math.abs(pos[b.id].x - pos[a.id].x); if (d < bd - 1) { bd = d; best = b; } }); return best; }
-      up.forEach(function (a) { var b = near(a, dn); if (b) { segs.push([pos[b.id], pos[a.id], a, b]); used[b.id] = 1; } });
+      // each node reaches down to its nearest node, or to both when two sit equally near (Electrify over the trunk pair)
+      up.forEach(function (a) {
+        var b0 = near(a, dn); if (!b0) return;
+        var bd = Math.abs(pos[b0.id].x - pos[a.id].x);
+        dn.forEach(function (b) { if (Math.abs(Math.abs(pos[b.id].x - pos[a.id].x) - bd) < 1) { segs.push([pos[b.id], pos[a.id], a, b]); used[b.id] = 1; } });
+      });
       // a node left over reaches up to its nearest node(s): when two sit equally near (the middle node under a pair) it
       // joins both, so the tree stays symmetric
       dn.forEach(function (b) {
@@ -206,7 +212,7 @@
       gates + nodes + '</div></div>';
     return '<div class="sk-left">' + detail(pr, sk, h) + plate(pr, sk, h) + '</div>' +
       '<section class="ep sk-treebox" aria-label="Skill tree">' + FR + tree +
-        '<div class="sk-treefoot"><b>Scrap Tree</b><span class="sk-spent" title="Points spent in the tree">' + spent + '</span></div></section>' +
+        '<div class="sk-treefoot"><b>Skill Tree</b><span class="sk-spent" title="Points spent in the tree">' + spent + '</span></div></section>' +
       bonusPanel(sk);
   }
   function node(s, sk, h, x, row, cap) {
@@ -224,7 +230,7 @@
   function detail(pr, sk, h) {
     var s = IB.SKILL_BY_ID[T.sel], q = state(s, sk, h), r = q.r, cb = q.cb, tx = rankLines(s, r);
     var tier = IB.SKILL_TIERS[s.tier - 1] || {};
-    var kind = s.kind === 'capstone' ? 'Endgame · pick one' : (tier.name || 'Tier ' + ROMAN[s.tier]) + (s.kind === 'special' ? ' · special' : '');
+    var kind = s.kind === 'capstone' ? 'Endgame' : (tier.name || 'Tier ' + ROMAN[s.tier]) + (s.kind === 'special' ? ' · special' : '');
     var lines = s.max > 1 ? (r > 0 && tx.now ? '<p><span>Current:</span> ' + esc(tx.now) + '</p>' : '') + (tx.next ? '<p class="nx"><span>Next level:</span> ' + esc(tx.next) + '</p>' : '<p class="mx">Maxed out</p>')
       : '<p class="' + (r ? 'mx' : 'nx') + '"><span>' + (r ? 'Owned:' : 'Unlocks:') + '</span> ' + esc(s.stat) + '</p>';
     var ranks = s.max > 1 ? '<div class="sk-ranks">' + s.ranks.map(function (v, i) { return '<span class="' + (i < r ? 'on' : i === r ? 'next' : '') + '">+' + v + (s.unit || '') + '</span>'; }).join('') + '</div>' : '';

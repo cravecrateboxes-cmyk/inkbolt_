@@ -735,7 +735,17 @@
   }
 
   G.spawnPickup = function (kind, x, z, y) {
-    if (y === undefined || y === true) y = G.level ? G.level.world.groundAt(x, z) : 0;
+    // rest on the highest floor under its whole footprint (slopes, terrain bumps, decks), so the spinning can never dips
+    // an edge into the ground; a hint height (a robot on a deck) finds that deck rather than the floor below it
+    if (G.level) {
+      var W0 = G.level.world, hint = typeof y === 'number' ? y : 0, top = -1e9;
+      for (var k = 0; k < 9; k++) {
+        var sx = x + (k ? Math.cos(k * Math.PI / 4) * 0.4 : 0), sz = z + (k ? Math.sin(k * Math.PI / 4) * 0.4 : 0);
+        var gy = W0.floorAt ? W0.floorAt(sx, sz, hint + 0.6) : W0.groundAt(sx, sz);
+        top = Math.max(top, gy, W0.groundAt(sx, sz));
+      }
+      y = top;
+    } else y = 0;
     for (var i = 0; i < G.pickups.length; i++) {
       var pk = G.pickups[i]; if (pk.on || pk.kind !== kind) continue;
       pk.on = true; pk.x = x; pk.y = y; pk.z = z; pk.mesh.position.set(x, y, z); pk.mesh.visible = true; return pk;
@@ -747,8 +757,8 @@
     G.pickups.forEach(function (pk, i) {
       if (!pk.on) return;
       pk.mesh.rotation.y = t * 1.5 + i;
-      // hover clear of the floor (its lowest point stays ~14 cm up, so the base and its ink outline never sink in)
-      pk.mesh.position.y = (pk.y || 0) + 0.2 + Math.sin(t * 3 + i) * 0.05;
+      // hover clear of the floor (its lowest point stays ~22 cm up, so the base and its ink outline never sink in)
+      pk.mesh.position.y = (pk.y || 0) + 0.27 + Math.sin(t * 3 + i) * 0.03;
       FX.blob(pk.x, pk.y || 0, pk.z, 0.35);
       if (Math.hypot(p.x - pk.x, p.z - pk.z) < 0.9 && p.y < (pk.y || 0) + 1 && p.y > (pk.y || 0) - 0.8) {
         if (pk.kind === 'health') { if (p.health >= p.maxHp) return; var heal = healAmount(); p.health = Math.min(p.maxHp, p.health + heal); HUD.toast('+' + heal + ' health', 1.2); }
@@ -829,7 +839,7 @@
     HUD.feed(G.lastKillCls || (w ? w.def.cls : 'pistol'), def ? def.name : r.type, drop.total);
     G.lastKillCls = null;
     if (Math.random() < 0.2) G.spawnPickup('ammo', r.x, r.z);
-    else if (G.player.health < G.player.maxHp * 0.4 && Math.random() < 0.25) G.spawnPickup('health', r.x, r.z);
+    else if (G.player.health < G.player.maxHp * 0.4 && Math.random() < 0.25) G.spawnPickup('health', r.x, r.z, r.fy || r.y || 0);
     if (G.fx && G.fx.leech) G.player.health = Math.min(G.player.maxHp, G.player.health + G.fx.leech);
     if (IB.Drops) IB.Drops.onKill(r);   // ~5 % loot drop
     if (IB.Gear && IB.Gear.onKill) IB.Gear.onKill(G, r);   // Overcharge shield cells

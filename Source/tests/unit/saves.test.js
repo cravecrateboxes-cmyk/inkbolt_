@@ -175,7 +175,7 @@ test('ago()', () => {
   assert.equal(S.ago(-5000), 'just now');
 });
 
-test('skills are validated against progress on load (spent <= earned, gates, one capstone)', () => {
+test('skills are validated against progress on load (spent <= earned, gates; both capstones are allowed)', () => {
   const { be, store } = setup();
   // highest 1 earns 2 points: 2 ranks are fine, 3 are not
   be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 1, skills: { overload: 2 } }));
@@ -187,10 +187,12 @@ test('skills are validated against progress on load (spent <= earned, gates, one
     be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 17, skills: bad }));
     assert.deepEqual(store.load(1).skills, {}, JSON.stringify(bad));
   }
-  // both capstones (even with a made-up huge 'highest')
+  // both capstones are kept once they are paid for (24 points: after level 11)
   const both = { overload: 3, heavyink: 3, rapid: 3, electrify: 1, healthy: 3, undercover: 1, handyhelpers: 1, chainreaction: 1 };
   be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 99, skills: both }));
-  assert.deepEqual(store.load(1).skills, {});
+  assert.deepEqual(store.load(1).skills, both);
+  be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 9, skills: both }));
+  assert.deepEqual(store.load(1).skills, {}, 'not enough points yet');
 });
 
 test('settings v2: old 85 default becomes 100, a chosen field of view is kept, range 60-130', () => {

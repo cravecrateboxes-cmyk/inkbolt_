@@ -1175,8 +1175,12 @@ body.kbd .tabmenu button:focus-visible { outline: 3px solid var(--fk-txt); outli
 @keyframes glowPulse { 50% { filter: brightness(1.25) drop-shadow(0 4px 0 rgba(4, 14, 24, .5)); } }
 /* the tree: six rows, trunk at the bottom, pick-one endgame on top */
 .sk-treebox { --ca: 30px; --cb: 10px; padding: 18px 16px 12px; }
-.sk-treewrap { flex: 1 1 auto; min-height: 0; padding: 8px 0 10px; display: grid; align-items: center; justify-items: center; }
-.sk-tree { position: relative; width: 100%; max-width: 600px; --node: clamp(56px, calc(8.4vh - 4px), 92px); --pitch: calc(var(--node) * 1.42); height: calc(var(--rows) * var(--pitch)); }
+.sk-treewrap { flex: 1 1 auto; min-height: 0; padding: 14px 8px 14px 0; display: block; overflow-y: scroll; scrollbar-gutter: stable; scrollbar-width: auto; scrollbar-color: var(--fk-cyan) rgba(4, 10, 28, .55); }
+.sk-treewrap::-webkit-scrollbar { width: 12px; }
+.sk-treewrap::-webkit-scrollbar-track { background: rgba(4, 10, 28, .55); border-radius: 6px; box-shadow: inset 0 0 0 2px rgba(120, 220, 255, .18); }
+.sk-treewrap::-webkit-scrollbar-thumb { background: var(--fk-cyan); border-radius: 6px; border: 2px solid var(--fk-ink); }
+/* the tree keeps roomy nodes and scrolls (trunk shown first); the gate badges get their own column on the left */
+.sk-tree { position: relative; width: calc(100% - 58px); max-width: 560px; margin: 0 auto 0 58px; --node: clamp(64px, 9.2vh, 88px); --pitch: calc(var(--node) * 1.62); height: calc(var(--rows) * var(--pitch)); }
 .sk-tree::before { content: ''; position: absolute; left: 50%; top: 50%; width: 82%; height: 92%; transform: translate(-50%, -50%); pointer-events: none; opacity: .11;
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M37 3L13 36H29L23 61L51 24H34L42 3Z' fill='%23C8F6FF'/%3E%3C/svg%3E") center / contain no-repeat; }
 .sk-litfill { position: absolute; left: -4%; right: -4%; bottom: calc(var(--pitch) * -.25); height: calc(var(--lit) * var(--pitch) + var(--pitch) * .2); pointer-events: none;
@@ -1210,7 +1214,7 @@ body.kbd .tabmenu button:focus-visible { outline: 3px solid var(--fk-txt); outli
 .st-open > .sk-rank { border-color: var(--fk-cyan); }
 .sk-plus { position: absolute; right: -8px; top: -8px; width: 24px; height: 24px; display: grid; place-items: center; padding-top: 3px; font-size: 22px; line-height: 1; color: var(--fk-ink); background: var(--fk-yel); box-shadow: 0 0 0 2.5px var(--fk-ink); border-radius: 3px; animation: ptsPulse 1.2s ease-in-out infinite; }
 .sk-or { position: absolute; left: calc(50% + var(--x) * 100% / 440); top: calc((var(--r) + .5) * var(--pitch)); transform: translate(-50%, -50%) rotate(-6deg); padding: 7px 10px 3px; font-size: 22px; color: var(--fk-ink); background: var(--fk-yel); box-shadow: 0 0 0 3px var(--fk-ink), 0 4px 0 3px rgba(4, 10, 28, .5); z-index: 1; }
-.sk-gate { position: absolute; left: 0; top: max(30px, calc(var(--r) * var(--pitch) + var(--pitch) * .5 - var(--node) * .5 - 4px)); transform: translateY(-100%); z-index: 2; display: flex; align-items: center; gap: 3px; padding: 5px 8px 2px 6px; font-size: 20px; color: #FFB4A8; background: rgba(10, 14, 34, .8); box-shadow: inset 0 0 0 2px rgba(255, 74, 61, .55); border-radius: 3px; }
+.sk-gate { position: absolute; left: -54px; top: max(30px, calc(var(--r) * var(--pitch) + var(--pitch) * .5 - var(--node) * .5 - 4px)); transform: translateY(-100%); z-index: 2; display: flex; align-items: center; gap: 3px; padding: 5px 8px 2px 6px; font-size: 20px; color: #FFB4A8; background: rgba(10, 14, 34, .8); box-shadow: inset 0 0 0 2px rgba(255, 74, 61, .55); border-radius: 3px; }
 .sk-gate svg { width: 18px; height: 18px; color: var(--fk-red); margin-top: -3px; }
 .sk-treefoot { flex: none; display: flex; align-items: flex-end; justify-content: center; position: relative; padding-top: 4px; }
 .sk-treefoot b { font-size: 40px; line-height: 1; text-transform: uppercase; letter-spacing: .05em; text-shadow: var(--fk-out); }
@@ -6879,11 +6883,11 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
 
    ECONOMY (see tests/unit/skills.test.js)
    Skill points come from campaign progress only: completing level L for the first time pays POINTS_AT[L]
-   (1 point, 2 on levels 1, 5, 10, 15 and 17). Level 17 pays the last point; nothing after it.
-     after level   1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17
-     points        2  3  4  5  7  8  9 10 11 13 14 15 16 17 19 20 22   -> 22 in total
-   The tree holds 33 points of normal skills plus two 5-point endgame skills (43): 22 buys about half of it.
-   See the layout note above IB.SKILL_TIERS for gates and the one-endgame-skill rule.
+   (2 a level early on, 3 later, 4 on levels 10 and 15). Level 16 (the last campaign level) pays the last point.
+     after level   1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16
+     points        2  4  6  8 11 13 15 17 20 24 27 30 33 36 40 43   -> 43 in total = the whole tree
+   The tree holds 33 points of normal skills plus two 5-point endgame skills (43). However the points are spent,
+   the top is always reachable: by the last level every skill, both endgame ones included, can be owned.
 
    PLAYER LEVEL = 1 + highest campaign level completed, capped at 20 (LEVEL_CAP): level 19 makes you LV 20 and
    the level 20 finale (Compactor Prime) is fought at max level, so every completion that leads somewhere
@@ -6894,20 +6898,20 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   // ranks: the effect value per rank (index 0 = rank 1); unit is appended in the UI
   function S(id, tier, col, name, kind, ranks, unit, stat, text, icon) {
     return { id: id, tier: tier, col: col, name: name, kind: kind, ranks: ranks, max: ranks.length, unit: unit,
-      stat: stat, text: text, icon: icon, cost: kind === 'capstone' ? 5 : 1, group: kind === 'capstone' ? 'capstone' : null };
+      stat: stat, text: text, icon: icon, cost: kind === 'capstone' ? 5 : 1, group: null };
   }
 
   /* The tree is laid out as the player's sketch: six rows, the trunk at the bottom, the two endgame skills on top.
-     Tier 1 = bottom row (trunk) ... tier 6 = top row (endgame, pick one). Gates count points spent in lower tiers.
+     Tier 1 = bottom row (trunk) ... tier 6 = top row (endgame). Gates count points spent in lower tiers.
        row (top->bottom)  tier  skills
-       1                  6     Handy Helpers* | Chain Reaction*        (* endgame, pick one, 5 points)
+       1                  6     Handy Helpers* | Chain Reaction*        (* endgame, 5 points each)
        2                  5     Tank | Fast Fingers
        3                  4     Stamina (special) | Hydrate | Undercover (special)
        4                  3     Hazard | Ricochet | Healthy
        5                  2     Stream | Electrify (special) | Rapid
        6                  1     Overload | Heavy Ink
-     Normal skills hold 30 + 3 = 33 points; one endgame skill needs 14 below it + 5 = 19 (first affordable after
-     level 15); both would need 24 > 22 points, and the pick-one rule forbids it anyway. */
+     Normal skills hold 30 + 3 = 33 points; an endgame skill needs 14 below it + 5 = 19 (first affordable after
+     level 9); the whole tree (43) is paid for by level 16. */
   IB.SKILL_TIERS = [
     { tier: 1, name: 'Trunk', gate: 0 },
     { tier: 2, name: 'Rounds', gate: 2 },
@@ -6946,7 +6950,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     S('tank', 5, 0, 'Tank', 'rank', [5, 10, 15], '%', 'Damage resistance',
       'Increases damage resistance and repairs 1 health per second per rank, starting after 4 s without taking damage (like a shield).', 'armor'),
     S('fastfingers', 5, 1, 'Fast Fingers', 'rank', [10, 20, 30], '%', 'Reload and swap speed', 'Increases weapon swap speed and reload speed.', 'reload'),
-    // tier 6: endgame, pick one
+    // tier 6: endgame (both can be owned)
     S('handyhelpers', 6, 0, 'Handy Helpers', 'capstone', [1], '', 'Rogue bots',
       'When you wreck a robot there is an 8% chance it turns rogue instead and fights for you for 15 s.', 'helper'),
     S('chainreaction', 6, 1, 'Chain Reaction', 'capstone', [1], '', 'Group blast',
@@ -6957,8 +6961,8 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   IB.SKILLS.forEach(function (s) { IB.SKILL_BY_ID[s.id] = s; });
 
   // points paid the first time a campaign level is completed; levels past 17 pay nothing
-  IB.SKILL_POINTS_AT = { 1: 2, 2: 1, 3: 1, 4: 1, 5: 2, 6: 1, 7: 1, 8: 1, 9: 1, 10: 2, 11: 1, 12: 1, 13: 1, 14: 1, 15: 2, 16: 1, 17: 2 };
-  IB.SKILL_LAST_LEVEL = 17;
+  IB.SKILL_POINTS_AT = { 1: 2, 2: 2, 3: 2, 4: 2, 5: 3, 6: 2, 7: 2, 8: 2, 9: 3, 10: 4, 11: 3, 12: 3, 13: 3, 14: 3, 15: 4, 16: 3 };
+  IB.SKILL_LAST_LEVEL = 16;
   IB.PLAYER_LEVEL_CAP = 20;
   // loadout size: 2 guns, 3 once level 10 (the Dumpster Tank) is beaten
   IB.LOADOUT_RULES = { base: 2, extra: 3, extraAfter: 10 };
@@ -11524,7 +11528,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     return { uInk: { value: new THREE.Color(PAL.ink) }, uOutBase: { value: base }, uOutK: { value: 0.002 }, px: px };
   }
 
-  var VERT_PARS = 'attribute vec3 aHull;\nvarying float vHull;\nuniform float uOutBase;\nuniform float uOutK;\nuniform float uBaked;\n';
+  var VERT_PARS = 'attribute vec3 aHull;\nvarying float vHull;\nuniform float uOutBase;\nuniform float uOutK;\nuniform float uBaked;\nuniform float uHullK;\n';
   var VERT_PROJECT = [
     'vec4 mvPosition = vec4( transformed, 1.0 );',
     '#ifdef USE_INSTANCING',
@@ -11538,10 +11542,31 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     '   hd = instanceMatrix * hd;',
     '  #endif',
     '  hd = modelViewMatrix * hd;',
-    '  mvPosition.xyz += hd.xyz * max( 0.0, max( uOutBase, uOutK * -mvPosition.z ) - uBaked );',
+    '  mvPosition.xyz += hd.xyz * max( 0.0, max( uOutBase, uOutK * -mvPosition.z ) * uHullK - uBaked );',
     '  vHull = 1.0;',
     '}',
     'gl_Position = projectionMatrix * mvPosition;'
+  ].join('\n');
+
+  /* Undercover (IB.Render.cloak 0..1, driven by ui/skillhud.js): the world goes a comic ink black, greyed with shades
+     (no streaks); robots (their own material) keep their colours, get a cold blue sheen and a thick,
+     bright stealth-blue outline drawn after the fog so they read from across the map. */
+  var ONE = { value: 1 };
+  var CLOAK_WORLD = [
+    'if ( uCloak > 0.0 ) {',
+    '  float lum = dot( gl_FragColor.rgb, vec3( 0.299, 0.587, 0.114 ) );',
+    '  vec3 g = vec3( pow( lum, 1.35 ) * 0.55 );',
+    '  float hatch = step( 0.5, fract( ( gl_FragCoord.x - gl_FragCoord.y ) * 0.25 ) ) * step( lum, 0.32 ) * 0.05;',
+    '  g = g - hatch;',
+    '  if ( vHull > 0.5 ) g = vec3( 0.02 );',
+    '  gl_FragColor.rgb = mix( gl_FragColor.rgb, g, uCloak );',
+    '}'
+  ].join('\n');
+  var CLOAK_ROBOT = [
+    'if ( uCloak > 0.0 ) {',
+    '  if ( vHull > 0.5 ) gl_FragColor.rgb = mix( gl_FragColor.rgb, uInk, uCloak );',
+    '  else gl_FragColor.rgb = mix( gl_FragColor.rgb, gl_FragColor.rgb * 0.55 + vec3( 0.10, 0.42, 0.85 ), uCloak * 0.55 );',
+    '}'
   ].join('\n');
 
   /* opts: { uni: outline uniforms, fx: per-instance flash/ink attribute, vertexColors, color, opacityAttr } */
@@ -11556,19 +11581,20 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     if (opts.skinning) mat.skinning = true;
     var baked = { value: opts.baked || 0 };
     var uni = opts.uni || IB.Render.worldOutline;
-    var fx = !!opts.fx;
+    var fx = !!opts.fx, robot = uni === IB.Render.robotOutline;
     mat.onBeforeCompile = function (sh) {
       sh.uniforms.uInk = uni.uInk; sh.uniforms.uOutBase = uni.uOutBase; sh.uniforms.uOutK = uni.uOutK; sh.uniforms.uBaked = baked;
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', '#include <common>\n' + VERT_PARS + (fx ? 'attribute vec2 aFx;\nvarying vec2 vFx;\n' : ''))
         .replace('#include <project_vertex>', VERT_PROJECT + (fx ? '\nvFx = aFx;' : ''));
+      sh.uniforms.uCloak = IB.Render.cloak; sh.uniforms.uHullK = robot ? IB.Render.robotHull : ONE;
       sh.fragmentShader = sh.fragmentShader
-        .replace('#include <common>', '#include <common>\nuniform vec3 uInk;\nvarying float vHull;\n' + (fx ? 'varying vec2 vFx;\n' : ''))
+        .replace('#include <common>', '#include <common>\nuniform vec3 uInk;\nuniform float uCloak;\nvarying float vHull;\n' + (fx ? 'varying vec2 vFx;\n' : ''))
         .replace('#include <fog_fragment>',
           (fx ? 'gl_FragColor.rgb = mix( gl_FragColor.rgb, vec3( 1.0 ), vFx.x );\ngl_FragColor.rgb = mix( gl_FragColor.rgb, uInk, vFx.y );\n' : '') +
-          'if ( vHull > 0.5 ) gl_FragColor = vec4( uInk, 1.0 );\n#include <fog_fragment>');
+          'if ( vHull > 0.5 ) gl_FragColor = vec4( uInk, 1.0 );\n#include <fog_fragment>\n' + (robot ? CLOAK_ROBOT : CLOAK_WORLD));
     };
-    mat.customProgramCacheKey = function () { return 'ibtoon' + (fx ? 'fx' : '') + (uni === IB.Render.worldOutline ? 'w' : 'v') + (opts.skinning ? 's' : ''); };
+    mat.customProgramCacheKey = function () { return 'ibtoon' + (fx ? 'fx' : '') + (robot ? 'r' : uni === IB.Render.worldOutline ? 'w' : 'v') + (opts.skinning ? 's' : ''); };
     return mat;
   }
 
@@ -11735,6 +11761,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     // robots: the world's outline width (shared uniforms) but their own ink colour (Undercover tints it a stealthy blue)
     R.robotOutline = { uInk: { value: new THREE.Color(PAL.ink) }, uOutBase: R.worldOutline.uOutBase, uOutK: R.worldOutline.uOutK, px: R.worldOutline.px };
     R.vmOutline = outlineUniforms(0.0035, 2.2);
+    R.cloak = { value: 0 }; R.robotHull = { value: 1 };   // Undercover look (ui/skillhud.js)
     R.scene = new THREE.Scene();
     R.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 420);   // near 0.1 for depth precision
     R.camera.rotation.order = 'YXZ';
@@ -11757,9 +11784,9 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   R.makeSky = function () {
     var g = new THREE.SphereGeometry(300, 24, 12);
     var m = new THREE.ShaderMaterial({
-      uniforms: { top: { value: new THREE.Color(PAL.sky) }, horizon: { value: new THREE.Color(PAL.cream) } },
+      uniforms: { top: { value: new THREE.Color(PAL.sky) }, horizon: { value: new THREE.Color(PAL.cream) }, uCloak: R.cloak },
       vertexShader: 'varying float vY; void main(){ vY = normalize(position).y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
-      fragmentShader: 'uniform vec3 top; uniform vec3 horizon; varying float vY; void main(){ float t = smoothstep(0.0, 0.32, vY); t = floor(t*5.0+0.5)/5.0; gl_FragColor = vec4(mix(horizon, top, t), 1.0); }',
+      fragmentShader: 'uniform vec3 top; uniform vec3 horizon; uniform float uCloak; varying float vY; void main(){ float t = smoothstep(0.0, 0.32, vY); t = floor(t*5.0+0.5)/5.0; vec3 c = mix(horizon, top, t); float l = dot(c, vec3(0.299, 0.587, 0.114)); gl_FragColor = vec4(mix(c, vec3(l * 0.32 + 0.03), uCloak), 1.0); }',
       side: THREE.BackSide, depthWrite: false, fog: false
     });
     R.sky = new THREE.Mesh(g, m); R.sky.renderOrder = -10; R.sky.frustumCulled = false;
@@ -14403,9 +14430,9 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     var A = IB.Assets, bake = A.BAKED.bots;
     AI.mat = IB.Render.toonMaterial({ fx: true, map: A.palette.bots, baked: bake, uni: IB.Render.robotOutline });   // own ink colour (Undercover)
     tintMaterial(AI.mat);
-    AI.lightMat = IB.Render.toonMaterial({ map: A.palette.bots, baked: bake });
+    AI.lightMat = IB.Render.toonMaterial({ map: A.palette.bots, baked: bake, uni: IB.Render.robotOutline });
     // armour recolour (Soldier variants): the palette's key armour texels take a per-instance colour (aTint)
-    AI.keyMat = IB.Render.toonMaterial({ fx: true, map: A.palette.bots, baked: bake });
+    AI.keyMat = IB.Render.toonMaterial({ fx: true, map: A.palette.bots, baked: bake, uni: IB.Render.robotOutline });
     tintMaterial(AI.keyMat); keyTintMaterial(AI.keyMat);
     Object.keys(VIS).forEach(function (id) {
       var v = VIS[id], T = { id: id, vis: v, parts: {}, partList: [], slots: [], corpse: null, hi: -1 };
@@ -21120,12 +21147,9 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   var H = IB.SkillHUD = { el: null, fx: null, btn: null, last: '' };
   var CSS = [
     '#c { transition: filter .07s linear; }',
-    'body.cloak-on #c { filter: saturate(.35) brightness(.82) contrast(1.25); }',
-    'body.cloak-flick #c { filter: saturate(.7) brightness(.95) contrast(1.1); }',
+    'body.cloak-flick #c { filter: contrast(1.15); }',
     '.cloakfx { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity .07s linear;',
-    '  background: radial-gradient(ellipse at center, rgba(20,40,110,.10) 40%, rgba(6,10,40,.78) 100%),',
-    '    radial-gradient(circle, rgba(10,20,60,.30) 30%, transparent 33%) 0 0 / 6px 6px; mix-blend-mode: multiply; }',
-    '.cloakfx::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(-58deg, rgba(255,255,255,.07) 0 2px, transparent 2px 9px); }',
+    '  background: radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,.82) 100%); }',
     'body.cloak-on .cloakfx { opacity: 1; } body.cloak-flick .cloakfx { opacity: .45; }',
     '.cloakhud { position: fixed; left: 50%; bottom: calc(var(--sab, 0px) + 112px); transform: translateX(-50%); display: flex; align-items: center; gap: 8px;',
     '  padding: 5px 12px 5px 6px; border-radius: 22px; background: rgba(34,29,44,.78); box-shadow: 0 0 0 3px #15121C; color: #FFFDF7;',
@@ -21168,7 +21192,11 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     var flick = on && ((el < 0.35 && Math.sin(el * el * 260 + el * 40) > (el / 0.35) * 1.6 - 0.8) || (s.t < 1 && Math.sin(s.t * 30) > 0.2));
     // robots glow a dark stealthy blue while hidden (pulsing gently), ink black otherwise
     var RO = IB.Render && IB.Render.robotOutline;
-    if (RO) { if (on && !flick) RO.uInk.value.setRGB(0.12, 0.24 + 0.08 * Math.sin(performance.now() * 0.006), 0.78); else RO.uInk.value.setHex(0x15121C); }
+    // while hidden the world goes ink black and grey (render.js CLOAK_WORLD) and robots blaze a bright stealth blue:
+    // a thick glowing outline, pulsing, that reads from across the map
+    var R = IB.Render, lit = on && !flick ? 1 : on ? 0.45 : 0, pulse = Math.sin(performance.now() * 0.008);
+    if (R && R.cloak) { R.cloak.value = lit; R.robotHull.value = 1 + lit * (1.6 + 0.35 * pulse); }
+    if (RO) { if (lit) RO.uInk.value.setRGB(0.25 + 0.1 * pulse, 0.78 + 0.12 * pulse, 1.0); else RO.uInk.value.setHex(0x15121C); }
     document.body.classList.toggle('cloak-on', on && !flick);
     document.body.classList.toggle('cloak-flick', on && flick);
     var k = !s ? 1 : s.active ? s.t / s.time : s.cd > 0 ? 1 - s.cd / s.cooldown : 1;
@@ -21699,7 +21727,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
    Keyboard: Q / E (or the chevrons) switch tabs, arrows move between buttons, Enter selects (Enter on the selected
    skill spends a point; in the inventory Enter equips). The Inventory tab is drawn by IB.GearUI (ui/gear.js).
    Skills: the tree is laid out like the player's sketch (data/skills.js): six rows, the trunk at the bottom and the
-   two pick-one endgame skills on top; the UI only reads IB.SKILLS / IB.SKILL_TIERS and the IB.Skills API. */
+   two endgame skills on top; the UI only reads IB.SKILLS / IB.SKILL_TIERS and the IB.Skills API. */
 (function (IB) {
   'use strict';
   var T = IB.TabMenu = { tab: 'inventory', sel: null, confirmRespec: false };
@@ -21816,6 +21844,8 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       '</section>';
     if (T.tab === 'inventory') mountGear();
     el.querySelectorAll('.tm-scroll').forEach(function (s) { if (scroll[s.dataset.pane]) s.scrollTop = scroll[s.dataset.pane]; });
+    // a freshly opened skill tree starts at the trunk (the bottom row): the player works up from there
+    if (!('tree' in scroll)) { var tw = el.querySelector('.sk-treewrap'); if (tw) tw.scrollTop = tw.scrollHeight; }
     if (focusFirst && T.tab === 'skills') { var tr = el.querySelector('.sk-treewrap'), seln = el.querySelector('.sk-node.sel'); if (tr && seln && tr.scrollHeight > tr.clientHeight + 4) seln.scrollIntoView({ block: 'center' }); }
     if (touch()) return;
     var f = keepFocus ? el.querySelector(keepFocus) : null;
@@ -21863,7 +21893,6 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
         pos[s.id] = { x: X[i], y: row * 100 + 50, tier: t.tier };
         nodes += node(s, sk, h, X[i], row, !!t.capstone);
       });
-      if (t.capstone && list.length === 2) nodes += '<span class="sk-or" style="--x:0;--r:' + row + '" aria-hidden="true">OR</span>';
       if (!open) {
         var need = t.gate - IB.Skills.spentAbove(sk, t.tier);
         gates += '<span class="sk-gate" style="--r:' + row + '" title="Spend ' + need + ' more point' + (need === 1 ? '' : 's') + ' in the rows below">' + svg(LOCK) + '<b>' + need + '</b></span>';
@@ -21876,7 +21905,12 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       if (t.tier === 1) { tierSkills(1).forEach(function (s) { segs.push([{ x: 0, y: rows * 100 + 30 }, pos[s.id], s, null]); }); return; }
       var up = tierSkills(t.tier), dn = tierSkills(t.tier - 1), used = {};
       function near(a, list) { var best = null, bd = Infinity; list.forEach(function (b) { var d = Math.abs(pos[b.id].x - pos[a.id].x); if (d < bd - 1) { bd = d; best = b; } }); return best; }
-      up.forEach(function (a) { var b = near(a, dn); if (b) { segs.push([pos[b.id], pos[a.id], a, b]); used[b.id] = 1; } });
+      // each node reaches down to its nearest node, or to both when two sit equally near (Electrify over the trunk pair)
+      up.forEach(function (a) {
+        var b0 = near(a, dn); if (!b0) return;
+        var bd = Math.abs(pos[b0.id].x - pos[a.id].x);
+        dn.forEach(function (b) { if (Math.abs(Math.abs(pos[b.id].x - pos[a.id].x) - bd) < 1) { segs.push([pos[b.id], pos[a.id], a, b]); used[b.id] = 1; } });
+      });
       // a node left over reaches up to its nearest node(s): when two sit equally near (the middle node under a pair) it
       // joins both, so the tree stays symmetric
       dn.forEach(function (b) {
@@ -21897,7 +21931,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       gates + nodes + '</div></div>';
     return '<div class="sk-left">' + detail(pr, sk, h) + plate(pr, sk, h) + '</div>' +
       '<section class="ep sk-treebox" aria-label="Skill tree">' + FR + tree +
-        '<div class="sk-treefoot"><b>Scrap Tree</b><span class="sk-spent" title="Points spent in the tree">' + spent + '</span></div></section>' +
+        '<div class="sk-treefoot"><b>Skill Tree</b><span class="sk-spent" title="Points spent in the tree">' + spent + '</span></div></section>' +
       bonusPanel(sk);
   }
   function node(s, sk, h, x, row, cap) {
@@ -21915,7 +21949,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   function detail(pr, sk, h) {
     var s = IB.SKILL_BY_ID[T.sel], q = state(s, sk, h), r = q.r, cb = q.cb, tx = rankLines(s, r);
     var tier = IB.SKILL_TIERS[s.tier - 1] || {};
-    var kind = s.kind === 'capstone' ? 'Endgame · pick one' : (tier.name || 'Tier ' + ROMAN[s.tier]) + (s.kind === 'special' ? ' · special' : '');
+    var kind = s.kind === 'capstone' ? 'Endgame' : (tier.name || 'Tier ' + ROMAN[s.tier]) + (s.kind === 'special' ? ' · special' : '');
     var lines = s.max > 1 ? (r > 0 && tx.now ? '<p><span>Current:</span> ' + esc(tx.now) + '</p>' : '') + (tx.next ? '<p class="nx"><span>Next level:</span> ' + esc(tx.next) + '</p>' : '<p class="mx">Maxed out</p>')
       : '<p class="' + (r ? 'mx' : 'nx') + '"><span>' + (r ? 'Owned:' : 'Unlocks:') + '</span> ' + esc(s.stat) + '</p>';
     var ranks = s.max > 1 ? '<div class="sk-ranks">' + s.ranks.map(function (v, i) { return '<span class="' + (i < r ? 'on' : i === r ? 'next' : '') + '">+' + v + (s.unit || '') + '</span>'; }).join('') + '</div>' : '';
@@ -22792,7 +22826,17 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   }
 
   G.spawnPickup = function (kind, x, z, y) {
-    if (y === undefined || y === true) y = G.level ? G.level.world.groundAt(x, z) : 0;
+    // rest on the highest floor under its whole footprint (slopes, terrain bumps, decks), so the spinning can never dips
+    // an edge into the ground; a hint height (a robot on a deck) finds that deck rather than the floor below it
+    if (G.level) {
+      var W0 = G.level.world, hint = typeof y === 'number' ? y : 0, top = -1e9;
+      for (var k = 0; k < 9; k++) {
+        var sx = x + (k ? Math.cos(k * Math.PI / 4) * 0.4 : 0), sz = z + (k ? Math.sin(k * Math.PI / 4) * 0.4 : 0);
+        var gy = W0.floorAt ? W0.floorAt(sx, sz, hint + 0.6) : W0.groundAt(sx, sz);
+        top = Math.max(top, gy, W0.groundAt(sx, sz));
+      }
+      y = top;
+    } else y = 0;
     for (var i = 0; i < G.pickups.length; i++) {
       var pk = G.pickups[i]; if (pk.on || pk.kind !== kind) continue;
       pk.on = true; pk.x = x; pk.y = y; pk.z = z; pk.mesh.position.set(x, y, z); pk.mesh.visible = true; return pk;
@@ -22804,8 +22848,8 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     G.pickups.forEach(function (pk, i) {
       if (!pk.on) return;
       pk.mesh.rotation.y = t * 1.5 + i;
-      // hover clear of the floor (its lowest point stays ~14 cm up, so the base and its ink outline never sink in)
-      pk.mesh.position.y = (pk.y || 0) + 0.2 + Math.sin(t * 3 + i) * 0.05;
+      // hover clear of the floor (its lowest point stays ~22 cm up, so the base and its ink outline never sink in)
+      pk.mesh.position.y = (pk.y || 0) + 0.27 + Math.sin(t * 3 + i) * 0.03;
       FX.blob(pk.x, pk.y || 0, pk.z, 0.35);
       if (Math.hypot(p.x - pk.x, p.z - pk.z) < 0.9 && p.y < (pk.y || 0) + 1 && p.y > (pk.y || 0) - 0.8) {
         if (pk.kind === 'health') { if (p.health >= p.maxHp) return; var heal = healAmount(); p.health = Math.min(p.maxHp, p.health + heal); HUD.toast('+' + heal + ' health', 1.2); }
@@ -22886,7 +22930,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     HUD.feed(G.lastKillCls || (w ? w.def.cls : 'pistol'), def ? def.name : r.type, drop.total);
     G.lastKillCls = null;
     if (Math.random() < 0.2) G.spawnPickup('ammo', r.x, r.z);
-    else if (G.player.health < G.player.maxHp * 0.4 && Math.random() < 0.25) G.spawnPickup('health', r.x, r.z);
+    else if (G.player.health < G.player.maxHp * 0.4 && Math.random() < 0.25) G.spawnPickup('health', r.x, r.z, r.fy || r.y || 0);
     if (G.fx && G.fx.leech) G.player.health = Math.min(G.player.maxHp, G.player.health + G.fx.leech);
     if (IB.Drops) IB.Drops.onKill(r);   // ~5 % loot drop
     if (IB.Gear && IB.Gear.onKill) IB.Gear.onKill(G, r);   // Overcharge shield cells

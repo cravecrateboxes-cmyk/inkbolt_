@@ -10,12 +10,9 @@
   var H = IB.SkillHUD = { el: null, fx: null, btn: null, last: '' };
   var CSS = [
     '#c { transition: filter .07s linear; }',
-    'body.cloak-on #c { filter: saturate(.35) brightness(.82) contrast(1.25); }',
-    'body.cloak-flick #c { filter: saturate(.7) brightness(.95) contrast(1.1); }',
+    'body.cloak-flick #c { filter: contrast(1.15); }',
     '.cloakfx { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity .07s linear;',
-    '  background: radial-gradient(ellipse at center, rgba(20,40,110,.10) 40%, rgba(6,10,40,.78) 100%),',
-    '    radial-gradient(circle, rgba(10,20,60,.30) 30%, transparent 33%) 0 0 / 6px 6px; mix-blend-mode: multiply; }',
-    '.cloakfx::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(-58deg, rgba(255,255,255,.07) 0 2px, transparent 2px 9px); }',
+    '  background: radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,.82) 100%); }',
     'body.cloak-on .cloakfx { opacity: 1; } body.cloak-flick .cloakfx { opacity: .45; }',
     '.cloakhud { position: fixed; left: 50%; bottom: calc(var(--sab, 0px) + 112px); transform: translateX(-50%); display: flex; align-items: center; gap: 8px;',
     '  padding: 5px 12px 5px 6px; border-radius: 22px; background: rgba(34,29,44,.78); box-shadow: 0 0 0 3px #15121C; color: #FFFDF7;',
@@ -58,7 +55,11 @@
     var flick = on && ((el < 0.35 && Math.sin(el * el * 260 + el * 40) > (el / 0.35) * 1.6 - 0.8) || (s.t < 1 && Math.sin(s.t * 30) > 0.2));
     // robots glow a dark stealthy blue while hidden (pulsing gently), ink black otherwise
     var RO = IB.Render && IB.Render.robotOutline;
-    if (RO) { if (on && !flick) RO.uInk.value.setRGB(0.12, 0.24 + 0.08 * Math.sin(performance.now() * 0.006), 0.78); else RO.uInk.value.setHex(0x15121C); }
+    // while hidden the world goes ink black and grey (render.js CLOAK_WORLD) and robots blaze a bright stealth blue:
+    // a thick glowing outline, pulsing, that reads from across the map
+    var R = IB.Render, lit = on && !flick ? 1 : on ? 0.45 : 0, pulse = Math.sin(performance.now() * 0.008);
+    if (R && R.cloak) { R.cloak.value = lit; R.robotHull.value = 1 + lit * (1.6 + 0.35 * pulse); }
+    if (RO) { if (lit) RO.uInk.value.setRGB(0.25 + 0.1 * pulse, 0.78 + 0.12 * pulse, 1.0); else RO.uInk.value.setHex(0x15121C); }
     document.body.classList.toggle('cloak-on', on && !flick);
     document.body.classList.toggle('cloak-flick', on && flick);
     var k = !s ? 1 : s.active ? s.t / s.time : s.cd > 0 ? 1 - s.cd / s.cooldown : 1;

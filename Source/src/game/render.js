@@ -34,7 +34,7 @@
     return { uInk: { value: new THREE.Color(PAL.ink) }, uOutBase: { value: base }, uOutK: { value: 0.002 }, px: px };
   }
 
-  var VERT_PARS = 'attribute vec3 aHull;\nvarying float vHull;\nuniform float uOutBase;\nuniform float uOutK;\nuniform float uBaked;\n';
+  var VERT_PARS = 'attribute vec3 aHull;\nvarying float vHull;\nuniform float uOutBase;\nuniform float uOutK;\nuniform float uBaked;\nuniform float uHullK;\n';
   var VERT_PROJECT = [
     'vec4 mvPosition = vec4( transformed, 1.0 );',
     '#ifdef USE_INSTANCING',
@@ -48,10 +48,31 @@
     '   hd = instanceMatrix * hd;',
     '  #endif',
     '  hd = modelViewMatrix * hd;',
-    '  mvPosition.xyz += hd.xyz * max( 0.0, max( uOutBase, uOutK * -mvPosition.z ) - uBaked );',
+    '  mvPosition.xyz += hd.xyz * max( 0.0, max( uOutBase, uOutK * -mvPosition.z ) * uHullK - uBaked );',
     '  vHull = 1.0;',
     '}',
     'gl_Position = projectionMatrix * mvPosition;'
+  ].join('\n');
+
+  /* Undercover (IB.Render.cloak 0..1, driven by ui/skillhud.js): the world goes a comic ink black, greyed with shades
+     (no streaks); robots (their own material) keep their colours, get a cold blue sheen and a thick,
+     bright stealth-blue outline drawn after the fog so they read from across the map. */
+  var ONE = { value: 1 };
+  var CLOAK_WORLD = [
+    'if ( uCloak > 0.0 ) {',
+    '  float lum = dot( gl_FragColor.rgb, vec3( 0.299, 0.587, 0.114 ) );',
+    '  vec3 g = vec3( pow( lum, 1.35 ) * 0.55 );',
+    '  float hatch = step( 0.5, fract( ( gl_FragCoord.x - gl_FragCoord.y ) * 0.25 ) ) * step( lum, 0.32 ) * 0.05;',
+    '  g = g - hatch;',
+    '  if ( vHull > 0.5 ) g = vec3( 0.02 );',
+    '  gl_FragColor.rgb = mix( gl_FragColor.rgb, g, uCloak );',
+    '}'
+  ].join('\n');
+  var CLOAK_ROBOT = [
+    'if ( uCloak > 0.0 ) {',
+    '  if ( vHull > 0.5 ) gl_FragColor.rgb = mix( gl_FragColor.rgb, uInk, uCloak );',
+    '  else gl_FragColor.rgb = mix( gl_FragColor.rgb, gl_FragColor.rgb * 0.55 + vec3( 0.10, 0.42, 0.85 ), uCloak * 0.55 );',
+    '}'
   ].join('\n');
 
   /* opts: { uni: outline uniforms, fx: per-instance flash/ink attribute, vertexColors, color, opacityAttr } */
@@ -66,19 +87,20 @@
     if (opts.skinning) mat.skinning = true;
     var baked = { value: opts.baked || 0 };
     var uni = opts.uni || IB.Render.worldOutline;
-    var fx = !!opts.fx;
+    var fx = !!opts.fx, robot = uni === IB.Render.robotOutline;
     mat.onBeforeCompile = function (sh) {
       sh.uniforms.uInk = uni.uInk; sh.uniforms.uOutBase = uni.uOutBase; sh.uniforms.uOutK = uni.uOutK; sh.uniforms.uBaked = baked;
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', '#include <common>\n' + VERT_PARS + (fx ? 'attribute vec2 aFx;\nvarying vec2 vFx;\n' : ''))
         .replace('#include <project_vertex>', VERT_PROJECT + (fx ? '\nvFx = aFx;' : ''));
+      sh.uniforms.uCloak = IB.Render.cloak; sh.uniforms.uHullK = robot ? IB.Render.robotHull : ONE;
       sh.fragmentShader = sh.fragmentShader
-        .replace('#include <common>', '#include <common>\nuniform vec3 uInk;\nvarying float vHull;\n' + (fx ? 'varying vec2 vFx;\n' : ''))
+        .replace('#include <common>', '#include <common>\nuniform vec3 uInk;\nuniform float uCloak;\nvarying float vHull;\n' + (fx ? 'varying vec2 vFx;\n' : ''))
         .replace('#include <fog_fragment>',
           (fx ? 'gl_FragColor.rgb = mix( gl_FragColor.rgb, vec3( 1.0 ), vFx.x );\ngl_FragColor.rgb = mix( gl_FragColor.rgb, uInk, vFx.y );\n' : '') +
-          'if ( vHull > 0.5 ) gl_FragColor = vec4( uInk, 1.0 );\n#include <fog_fragment>');
+          'if ( vHull > 0.5 ) gl_FragColor = vec4( uInk, 1.0 );\n#include <fog_fragment>\n' + (robot ? CLOAK_ROBOT : CLOAK_WORLD));
     };
-    mat.customProgramCacheKey = function () { return 'ibtoon' + (fx ? 'fx' : '') + (uni === IB.Render.worldOutline ? 'w' : 'v') + (opts.skinning ? 's' : ''); };
+    mat.customProgramCacheKey = function () { return 'ibtoon' + (fx ? 'fx' : '') + (robot ? 'r' : uni === IB.Render.worldOutline ? 'w' : 'v') + (opts.skinning ? 's' : ''); };
     return mat;
   }
 
@@ -245,6 +267,7 @@
     // robots: the world's outline width (shared uniforms) but their own ink colour (Undercover tints it a stealthy blue)
     R.robotOutline = { uInk: { value: new THREE.Color(PAL.ink) }, uOutBase: R.worldOutline.uOutBase, uOutK: R.worldOutline.uOutK, px: R.worldOutline.px };
     R.vmOutline = outlineUniforms(0.0035, 2.2);
+    R.cloak = { value: 0 }; R.robotHull = { value: 1 };   // Undercover look (ui/skillhud.js)
     R.scene = new THREE.Scene();
     R.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 420);   // near 0.1 for depth precision
     R.camera.rotation.order = 'YXZ';
@@ -267,9 +290,9 @@
   R.makeSky = function () {
     var g = new THREE.SphereGeometry(300, 24, 12);
     var m = new THREE.ShaderMaterial({
-      uniforms: { top: { value: new THREE.Color(PAL.sky) }, horizon: { value: new THREE.Color(PAL.cream) } },
+      uniforms: { top: { value: new THREE.Color(PAL.sky) }, horizon: { value: new THREE.Color(PAL.cream) }, uCloak: R.cloak },
       vertexShader: 'varying float vY; void main(){ vY = normalize(position).y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
-      fragmentShader: 'uniform vec3 top; uniform vec3 horizon; varying float vY; void main(){ float t = smoothstep(0.0, 0.32, vY); t = floor(t*5.0+0.5)/5.0; gl_FragColor = vec4(mix(horizon, top, t), 1.0); }',
+      fragmentShader: 'uniform vec3 top; uniform vec3 horizon; uniform float uCloak; varying float vY; void main(){ float t = smoothstep(0.0, 0.32, vY); t = floor(t*5.0+0.5)/5.0; vec3 c = mix(horizon, top, t); float l = dot(c, vec3(0.299, 0.587, 0.114)); gl_FragColor = vec4(mix(c, vec3(l * 0.32 + 0.03), uCloak), 1.0); }',
       side: THREE.BackSide, depthWrite: false, fog: false
     });
     R.sky = new THREE.Mesh(g, m); R.sky.renderOrder = -10; R.sky.frustumCulled = false;

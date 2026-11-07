@@ -2,11 +2,11 @@
 
    ECONOMY (see tests/unit/skills.test.js)
    Skill points come from campaign progress only: completing level L for the first time pays POINTS_AT[L]
-   (1 point, 2 on levels 1, 5, 10, 15 and 17). Level 17 pays the last point; nothing after it.
-     after level   1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17
-     points        2  3  4  5  7  8  9 10 11 13 14 15 16 17 19 20 22   -> 22 in total
-   The tree holds 33 points of normal skills plus two 5-point endgame skills (43): 22 buys about half of it.
-   See the layout note above IB.SKILL_TIERS for gates and the one-endgame-skill rule.
+   (2 a level early on, 3 later, 4 on levels 10 and 15). Level 16 (the last campaign level) pays the last point.
+     after level   1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16
+     points        2  4  6  8 11 13 15 17 20 24 27 30 33 36 40 43   -> 43 in total = the whole tree
+   The tree holds 33 points of normal skills plus two 5-point endgame skills (43). However the points are spent,
+   the top is always reachable: by the last level every skill, both endgame ones included, can be owned.
 
    PLAYER LEVEL = 1 + highest campaign level completed, capped at 20 (LEVEL_CAP): level 19 makes you LV 20 and
    the level 20 finale (Compactor Prime) is fought at max level, so every completion that leads somewhere
@@ -17,20 +17,20 @@
   // ranks: the effect value per rank (index 0 = rank 1); unit is appended in the UI
   function S(id, tier, col, name, kind, ranks, unit, stat, text, icon) {
     return { id: id, tier: tier, col: col, name: name, kind: kind, ranks: ranks, max: ranks.length, unit: unit,
-      stat: stat, text: text, icon: icon, cost: kind === 'capstone' ? 5 : 1, group: kind === 'capstone' ? 'capstone' : null };
+      stat: stat, text: text, icon: icon, cost: kind === 'capstone' ? 5 : 1, group: null };
   }
 
   /* The tree is laid out as the player's sketch: six rows, the trunk at the bottom, the two endgame skills on top.
-     Tier 1 = bottom row (trunk) ... tier 6 = top row (endgame, pick one). Gates count points spent in lower tiers.
+     Tier 1 = bottom row (trunk) ... tier 6 = top row (endgame). Gates count points spent in lower tiers.
        row (top->bottom)  tier  skills
-       1                  6     Handy Helpers* | Chain Reaction*        (* endgame, pick one, 5 points)
+       1                  6     Handy Helpers* | Chain Reaction*        (* endgame, 5 points each)
        2                  5     Tank | Fast Fingers
        3                  4     Stamina (special) | Hydrate | Undercover (special)
        4                  3     Hazard | Ricochet | Healthy
        5                  2     Stream | Electrify (special) | Rapid
        6                  1     Overload | Heavy Ink
-     Normal skills hold 30 + 3 = 33 points; one endgame skill needs 14 below it + 5 = 19 (first affordable after
-     level 15); both would need 24 > 22 points, and the pick-one rule forbids it anyway. */
+     Normal skills hold 30 + 3 = 33 points; an endgame skill needs 14 below it + 5 = 19 (first affordable after
+     level 9); the whole tree (43) is paid for by level 16. */
   IB.SKILL_TIERS = [
     { tier: 1, name: 'Trunk', gate: 0 },
     { tier: 2, name: 'Rounds', gate: 2 },
@@ -69,7 +69,7 @@
     S('tank', 5, 0, 'Tank', 'rank', [5, 10, 15], '%', 'Damage resistance',
       'Increases damage resistance and repairs 1 health per second per rank, starting after 4 s without taking damage (like a shield).', 'armor'),
     S('fastfingers', 5, 1, 'Fast Fingers', 'rank', [10, 20, 30], '%', 'Reload and swap speed', 'Increases weapon swap speed and reload speed.', 'reload'),
-    // tier 6: endgame, pick one
+    // tier 6: endgame (both can be owned)
     S('handyhelpers', 6, 0, 'Handy Helpers', 'capstone', [1], '', 'Rogue bots',
       'When you wreck a robot there is an 8% chance it turns rogue instead and fights for you for 15 s.', 'helper'),
     S('chainreaction', 6, 1, 'Chain Reaction', 'capstone', [1], '', 'Group blast',
@@ -80,8 +80,8 @@
   IB.SKILLS.forEach(function (s) { IB.SKILL_BY_ID[s.id] = s; });
 
   // points paid the first time a campaign level is completed; levels past 17 pay nothing
-  IB.SKILL_POINTS_AT = { 1: 2, 2: 1, 3: 1, 4: 1, 5: 2, 6: 1, 7: 1, 8: 1, 9: 1, 10: 2, 11: 1, 12: 1, 13: 1, 14: 1, 15: 2, 16: 1, 17: 2 };
-  IB.SKILL_LAST_LEVEL = 17;
+  IB.SKILL_POINTS_AT = { 1: 2, 2: 2, 3: 2, 4: 2, 5: 3, 6: 2, 7: 2, 8: 2, 9: 3, 10: 4, 11: 3, 12: 3, 13: 3, 14: 3, 15: 4, 16: 3 };
+  IB.SKILL_LAST_LEVEL = 16;
   IB.PLAYER_LEVEL_CAP = 20;
   // loadout size: 2 guns, 3 once level 10 (the Dumpster Tank) is beaten
   IB.LOADOUT_RULES = { base: 2, extra: 3, extraAfter: 10 };

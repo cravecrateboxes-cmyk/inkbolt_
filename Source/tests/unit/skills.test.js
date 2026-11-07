@@ -12,7 +12,7 @@ const S = IB.Skills;
 const buyAll = (sk, h, ids) => ids.reduce((acc, id) => { const n = S.buy(acc, h, id); assert.ok(n, 'buy ' + id + ' ' + JSON.stringify(S.canBuy(acc, h, id))); return n; }, sk || {});
 const treeCost = (filter) => IB.SKILLS.filter(filter || (() => true)).reduce((n, s) => n + s.max * s.cost, 0);
 
-test('data: 15 skills in 6 tiers (trunk at the bottom), 3-rank skills, 1-rank specials, two pick-one endgame skills', () => {
+test('data: 15 skills in 6 tiers (trunk at the bottom), 3-rank skills, 1-rank specials, two endgame skills', () => {
   assert.equal(IB.SKILLS.length, 15);
   assert.equal(IB.SKILL_TIERS.length, 6);
   const ids = new Set();
@@ -35,24 +35,21 @@ test('data: 15 skills in 6 tiers (trunk at the bottom), 3-rank skills, 1-rank sp
   assert.deepEqual(row(1), ['overload', 'heavyink']);
   const caps = IB.SKILLS.filter((s) => s.kind === 'capstone');
   assert.equal(caps.length, 2);
-  assert.ok(caps.every((s) => s.tier === IB.SKILL_TIERS.length && s.group === 'capstone' && s.cost === 5));
+  assert.ok(caps.every((s) => s.tier === IB.SKILL_TIERS.length && !s.group && s.cost === 5));
   assert.deepEqual(IB.SKILLS.filter((s) => s.kind === 'special').map((s) => s.id), ['electrify', 'stamina', 'undercover']);
   assert.deepEqual(IB.SKILL_TIERS.map((t) => t.gate), [0, 2, 5, 8, 11, 14]);
   assert.ok(IB.SKILL_TIERS[5].capstone && IB.SKILL_TIERS.slice(0, 5).every((t) => !t.capstone));
 });
 
-test('economy: 22 points from levels 1-17 only, the last one on level 17', () => {
+test('economy: 43 points from levels 1-16 only, enough for the whole tree by the last level', () => {
   // the schedule documented in data/skills.js
-  const after = [0, 2, 3, 4, 5, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 19, 20, 22];
-  for (let L = 0; L <= 17; L++) assert.equal(S.earned(L), after[L], 'after level ' + L);
-  assert.equal(S.totalPoints(), 22);
-  for (let L = 18; L <= 60; L++) assert.equal(S.earned(L), 22, 'nothing after level 17 (' + L + ')');
-  assert.ok(S.earned(17) > S.earned(16), 'level 17 pays the final point');
-  assert.equal(S.earned(-3), 0); assert.equal(S.earned(NaN), 0); assert.equal(S.earned('17'), 0);
-  // points are never enough for everything: not the whole tree, not even every normal skill
+  const after = [0, 2, 4, 6, 8, 11, 13, 15, 17, 20, 24, 27, 30, 33, 36, 40, 43];
+  for (let L = 0; L <= 16; L++) assert.equal(S.earned(L), after[L], 'after level ' + L);
+  assert.equal(S.totalPoints(), 43);
+  for (let L = 17; L <= 60; L++) assert.equal(S.earned(L), 43, 'nothing after level 16 (' + L + ')');
+  assert.equal(S.earned(-3), 0); assert.equal(S.earned(NaN), 0); assert.equal(S.earned('16'), 0);
   assert.equal(treeCost(), 43);
-  assert.equal(treeCost((s) => s.kind !== 'capstone'), 33);
-  assert.ok(treeCost((s) => s.kind !== 'capstone') > S.totalPoints());
+  assert.equal(treeCost(), S.totalPoints(), 'max level buys every skill');
 });
 
 test('available points are derived from progress, never stored; buying is the only way to spend them', () => {
@@ -63,7 +60,7 @@ test('available points are derived from progress, never stored; buying is the on
   assert.equal(S.available(sk, 1), 0);
   assert.equal(S.buy(sk, 1, 'overload'), null);
   assert.equal(S.canBuy(sk, 1, 'overload').reason, 'points');
-  assert.equal(S.available(sk, 2), 1, 'the next clear pays one more');
+  assert.equal(S.available(sk, 2), 2, 'the next clear pays two more');
   // buy() never mutates its input
   const before = JSON.stringify(sk); S.buy(sk, 5, 'overload'); assert.equal(JSON.stringify(sk), before);
   // ranks stop at max; specials have one rank
@@ -84,9 +81,8 @@ test('random players can never spend more than they earned, and every reachable 
         const n = S.buy(sk, h, s.id); if (n) sk = n;
       }
       assert.ok(S.spent(sk) <= S.earned(h), 'run ' + run + ' level ' + h);
-      assert.ok(S.spent(sk) <= 22);
+      assert.ok(S.spent(sk) <= S.totalPoints());
       assert.ok(S.validate(sk, h).ok, JSON.stringify(S.validate(sk, h)));
-      assert.ok(!(S.rank(sk, 'handyhelpers') && S.rank(sk, 'chainreaction')), 'pick one endgame skill');
     }
   }
 });
@@ -121,27 +117,23 @@ test('tier gates: a row opens once enough points are spent in the rows below it 
   assert.ok(S.validate({ overload: 3, heavyink: 3, undercover: 1, hazard: 2 }, 17).ok);
 });
 
-test('endgame: pick one, by rule and by budget; first affordable after the level 15 boss', () => {
+test('endgame: both can be owned; however the points went in, the top opens and is affordable at max level', () => {
   const route = ['overload', 'overload', 'overload', 'heavyink', 'heavyink', 'heavyink', 'rapid', 'rapid', 'rapid',
     'electrify', 'healthy', 'healthy', 'healthy', 'undercover'];   // 14 points: every row is open
-  const sk = buyAll({}, 17, route);
+  const sk = buyAll({}, 16, route);
   assert.ok(S.tierUnlocked(sk, 6));
-  assert.equal(S.available(sk, 17), 8);
-  const hh = buyAll(sk, 17, ['handyhelpers']);
-  assert.equal(S.canBuy(hh, 17, 'chainreaction').reason, 'exclusive');
-  assert.equal(S.canBuy(hh, 99, 'chainreaction').reason, 'exclusive', 'more points do not help');
-  assert.equal(S.canBuy(hh, 17, 'chainreaction').owner, 'handyhelpers');
-  assert.equal(S.spent(hh), 19);
-  // budget: the cheapest way to own both is gate + both costs, more than the whole campaign pays
+  const both = buyAll(sk, 16, ['handyhelpers', 'chainreaction']);
+  assert.ok(S.rank(both, 'handyhelpers') && S.rank(both, 'chainreaction'));
+  assert.ok(S.validate(both, 16).ok);
+  // a player who pours everything into the low rows first still reaches and buys the top at max level
+  const low = IB.SKILLS.filter((s) => s.kind !== 'capstone').flatMap((s) => Array(s.max).fill(s.id));
+  const all = buyAll(buyAll({}, 16, low), 16, ['handyhelpers', 'chainreaction']);
+  assert.equal(S.spent(all), 43);
+  assert.equal(S.available(all, 16), 0);
+  // the earliest clear that can afford one is level 9
   const caps = IB.SKILLS.filter((s) => s.kind === 'capstone');
-  const gate = IB.SKILL_TIERS[5].gate;
-  assert.ok(gate + caps[0].cost + caps[1].cost > S.totalPoints());
-  assert.ok(gate + caps[0].cost <= S.totalPoints());
-  // the earliest clear that can afford one is level 15
-  const first = [...Array(18).keys()].find((L) => S.earned(L) >= gate + caps[0].cost);
-  assert.equal(first, 15);
-  assert.equal(S.canBuy(sk, 14, 'chainreaction').reason, 'points');
-  assert.ok(!S.validate(Object.assign({}, hh, { chainreaction: 1 }), 99).ok);
+  const first = [...Array(17).keys()].find((L) => S.earned(L) >= IB.SKILL_TIERS[5].gate + caps[0].cost);
+  assert.equal(first, 9);
 });
 
 test('old saves: trees with the retired skill ids are refunded in full, never crash', () => {
@@ -153,7 +145,7 @@ test('old saves: trees with the retired skill ids are refunded in full, never cr
     const r = S.sanitize(sk, 17);
     assert.deepEqual(r.skills, {}, JSON.stringify(sk));
     assert.equal(r.reset, true);
-    assert.equal(S.available(r.skills, 17), 22, 'every point back');
+    assert.equal(S.available(r.skills, 17), 43, 'every point back');
     assert.doesNotThrow(() => S.effects(r.skills));
   }
   // effects() of a raw old tree (before sanitize) ignores what it does not know instead of throwing

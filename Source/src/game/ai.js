@@ -169,9 +169,9 @@
     var A = IB.Assets, bake = A.BAKED.bots;
     AI.mat = IB.Render.toonMaterial({ fx: true, map: A.palette.bots, baked: bake, uni: IB.Render.robotOutline });   // own ink colour (Undercover)
     tintMaterial(AI.mat);
-    AI.lightMat = IB.Render.toonMaterial({ map: A.palette.bots, baked: bake });
+    AI.lightMat = IB.Render.toonMaterial({ map: A.palette.bots, baked: bake, uni: IB.Render.robotOutline });
     // armour recolour (Soldier variants): the palette's key armour texels take a per-instance colour (aTint)
-    AI.keyMat = IB.Render.toonMaterial({ fx: true, map: A.palette.bots, baked: bake });
+    AI.keyMat = IB.Render.toonMaterial({ fx: true, map: A.palette.bots, baked: bake, uni: IB.Render.robotOutline });
     tintMaterial(AI.keyMat); keyTintMaterial(AI.keyMat);
     Object.keys(VIS).forEach(function (id) {
       var v = VIS[id], T = { id: id, vis: v, parts: {}, partList: [], slots: [], corpse: null, hi: -1 };
