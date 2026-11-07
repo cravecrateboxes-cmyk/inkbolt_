@@ -582,9 +582,10 @@
     var def = IB.ENEMIES[r.type];
     var drop = IB.Gems ? IB.Gems.robotDrop(r.type, G.plan.level, up('press')) : { chip: 1, shard: 0, core: 0, total: 1 };
     var k;
-    for (k = 0; k < drop.chip; k++) FX.dropGem('chip', r.x, 0.4, r.z, r.zone);
-    for (k = 0; k < drop.shard; k++) FX.dropGem('shard', r.x, 0.4, r.z, r.zone);
-    for (k = 0; k < drop.core; k++) FX.dropGem('core', r.x, 0.4, r.z, r.zone);
+    var gy = (r.fy || 0) + 0.4;   // from the floor the robot stood on (a deck on levels with walkable surfaces)
+    for (k = 0; k < drop.chip; k++) FX.dropGem('chip', r.x, gy, r.z, r.zone);
+    for (k = 0; k < drop.shard; k++) FX.dropGem('shard', r.x, gy, r.z, r.zone);
+    for (k = 0; k < drop.core; k++) FX.dropGem('core', r.x, gy, r.z, r.zone);
     var w = W.current(G.ws);
     HUD.feed(G.lastKillCls || (w ? w.def.cls : 'pistol'), def ? def.name : r.type, drop.total);
     G.lastKillCls = null;

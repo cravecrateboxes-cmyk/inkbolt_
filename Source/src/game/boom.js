@@ -491,7 +491,9 @@
   function explode(x, y, z, f, sMul, flags, partColor) {
     if (!B.ready) return;
     var I = B.I, S = f.S * (sMul || 1), sz = S * (0.88 + 0.12 * I), red = reduce(), i, c, p, a, e;
-    var ground = y < 1.7, big = S * I >= 1.6;
+    // the floor under the blast: a deck or stair top on levels with walkable surfaces (zones.js), else the ground (0)
+    var fy = IB.Zones && IB.Zones.floorY ? IB.Zones.floorY(x, z, y) : 0;
+    var ground = y - fy < 1.7, big = S * I >= 1.6;
     // 1. flash: amber starburst, red cloud behind, speed lines and halftone dots for the big ones
     flash(x, y, z, sz * 1.8, PAL.amber, 0.16);
     c = flash(x, y, z, sz * 2.25, PAL.red, 0.17, C.cloud); c.t = -0.02;
@@ -530,13 +532,13 @@
     if (f.binList) for (i = 0; i < f.nParts; i++) debris(f.binList[i % f.binList.length], x, y, z, pw * 0.8, 0xFFFFFF, 1);
     // 6. shock ring along the floor (an air ring when it blows up high)
     if (flags & F_RING) {
-      if (ground) { c = card(C.ring, M_GROUND, x, 0.05, z, 0.32, sz * 0.5, sz * 3.4, 0xFFF1D6); c.fd = 0.45; }
+      if (ground) { c = card(C.ring, M_GROUND, x, fy + 0.05, z, 0.32, sz * 0.5, sz * 3.4, 0xFFF1D6); c.fd = 0.45; }
       else { c = card(C.ring, M_BILL, x, y, z, 0.26, sz * 0.4, sz * 2.8, 0xFFF1D6); c.fd = 0.4; }
       // dust kicked out along the floor
-      if (ground) { var nk = cnt(3 + 2 * S); for (i = 0; i < nk; i++) { a = Math.random() * TAU; c = card(C.dust, M_BILL, x + Math.cos(a) * 0.4 * S, 0.25, z + Math.sin(a) * 0.4 * S, rnd(0.6, 0.9), 0.3 * S, rnd(0.7, 1.1) * S, B.dustCol); c.vx = Math.cos(a) * 3.2 * S; c.vz = Math.sin(a) * 3.2 * S; c.vy = 0.4; c.drag = 3.5; c.fd = 0.45; c.a0 = 0.9; } }
+      if (ground) { var nk = cnt(3 + 2 * S); for (i = 0; i < nk; i++) { a = Math.random() * TAU; c = card(C.dust, M_BILL, x + Math.cos(a) * 0.4 * S, fy + 0.25, z + Math.sin(a) * 0.4 * S, rnd(0.6, 0.9), 0.3 * S, rnd(0.7, 1.1) * S, B.dustCol); c.vx = Math.cos(a) * 3.2 * S; c.vz = Math.sin(a) * 3.2 * S; c.vy = 0.4; c.drag = 3.5; c.fd = 0.45; c.a0 = 0.9; } }
     }
     // 7. scorch on the floor
-    if ((flags & F_SCORCH) && ground && FX.decal) FX.decal(x, 0.012, z, 0, 1, 0, 'scorch', 1.3 * sz + 0.3);
+    if ((flags & F_SCORCH) && ground && FX.decal) FX.decal(x, fy + 0.012, z, 0, 1, 0, 'scorch', 1.3 * sz + 0.3);
     // 8. the word
     if ((flags & F_WORD) && !(flags & F_QUIET) && f.words && Math.random() < B.wordChance(B.lvl, f.big))
       B.word(f.words[(Math.random() * f.words.length) | 0], x, y + 0.6 * S + 0.55, z, 1.2 + 0.6 * S + 0.12 * (I - 1), f.big);
@@ -614,7 +616,7 @@
       sparkBurst(r.x, y, r.z, cnt(10 * B.I), 6, 0, 0.2, 0, 1, undefined, 0.35);
       var pf = puff(P_SMOKE, r.x, y, r.z, 0.35, 0.8, 0); pf.vy = 0.5;
       if (!quiet && Math.random() < 0.6) B.word(2, r.x, y + 0.6, r.z, 1.4);
-      for (var i = 0; i < FALL_CAP; i++) { var fa = fallers[i]; if (fa.on) continue; fa.on = true; fa.x = r.x; fa.y = y; fa.z = r.z; fa.vy = 0; fa.t = 0; fa.smoke = 0; fa.quiet = !!quiet; fa.base = r.y; break; }
+      for (var i = 0; i < FALL_CAP; i++) { var fa = fallers[i]; if (fa.on) continue; fa.on = true; fa.x = r.x; fa.y = y; fa.z = r.z; fa.vy = 0; fa.t = 0; fa.smoke = 0; fa.quiet = !!quiet; fa.base = r.fy || 0; break; }
       return;
     }
     if (r.type === 'bomber' && !quiet) { flash(r.x, y, r.z, 1.2, PAL.paper, 0.08, C.cloud); return; }   // its own blast (projectiles) does the rest
@@ -1072,9 +1074,9 @@
         var p = puff(P_SMOKE, fa.x + rnd(-0.1, 0.1), fa.y + 0.15, fa.z + rnd(-0.1, 0.1), rnd(0.16, 0.26), 0.7, 0); p.vy = 0.4;
         if (Math.random() < 0.5) { var c = card(C.streak, M_STREAK, fa.x, fa.y, fa.z, 0.25, 0.05, 0.02, PAL.amber); c.vx = rnd(-3, 3); c.vy = rnd(0, 3); c.vz = rnd(-3, 3); c.g = 12; c.w = 0.05; c.st = 0.04; c.ease = E_LIN; }
       }
-      if (fa.y <= 0.3 || fa.t > 3) {
+      if (fa.y <= fa.base + 0.3 || fa.t > 3) {   // base: the floor it falls onto (a deck, or the ground)
         fa.on = false;
-        explode(fa.x, 0.35, fa.z, FLAV.drone, 1, F_WORD | F_SCORCH | F_RING | (fa.quiet ? F_QUIET : 0));
+        explode(fa.x, fa.base + 0.35, fa.z, FLAV.drone, 1, F_WORD | F_SCORCH | F_RING | (fa.quiet ? F_QUIET : 0));
       }
     }
   }

@@ -353,7 +353,7 @@
         g.x += dxp / d * sp; g.y += dyp / d * sp; g.z += dzp / d * sp;
       } else {
         g.vy -= 18 * dt; g.x += g.vx * dt; g.y += g.vy * dt; g.z += g.vz * dt;
-        var rest = 0.3;
+        var rest = 0.3 + (IB.Zones && IB.Zones.floorY ? IB.Zones.floorY(g.x, g.z, g.y) : 0);   // rest on a deck / stair top
         if (g.y < rest) {
           g.y = rest;
           if (!g.bounced) { g.vy = Math.abs(g.vy) * 0.35; g.bounced = true; g.vx *= 0.5; g.vz *= 0.5; }
