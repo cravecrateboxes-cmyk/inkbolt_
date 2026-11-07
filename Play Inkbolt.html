@@ -8287,7 +8287,9 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       'x': { pieces: ['GasCart', 'WeldScreen'], rotate: 'random90', sequence: true, kind: 'cover' },
       'z': { size: [2, 2], pieces: ['Hazard_A', 'Hazard_B'], collide: false },
       // the test track: a finished bruiser laps the lane (a closed loop in the prefab's own metres)
-      'T': { size: [16, 12], pieces: ['TestTrack'], kind: 'wall',
+      // fence: the 1.55 m track fence is a 4 m movement bound (from a spawn can or a crate the player could hop in, but
+      // never back out: tests/e2e/bounds.spec.js)
+      'T': { size: [16, 12], pieces: ['TestTrack'], kind: 'wall', fence: 4,
              conveyor: { path: loop(5.9, 3.9, 1.5, 6), speed: 2.4, n: 2, y: 0, items: ['Mech_Bruiser_Test'] } },
       'D': { size: [10, 8], pieces: ['Landmark_Titan'], kind: 'wall' }
     },
@@ -13480,6 +13482,12 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     }
     return b;
   };
+  /* an invisible movement-only boundary (kind 'bound'): players, robots and bouncing grenades collide with it, rays
+     (shots, line of sight) and projectiles pass through, so nothing ever hits a surface that is not drawn */
+  var BOUND_TOP = 400;
+  World.prototype.bound = function (x0, y0, z0, x1, y1, z1, zone) {
+    var b = this.add(x0, y0, z0, x1, y1 === undefined ? BOUND_TOP : y1, z1, 'bound', zone); b.noRay = true; return b;
+  };
   var _q = [], _stamp = 1, _seen = new Uint32Array(8192);
   World.prototype.query = function (x0, z0, x1, z1, out) {
     out.length = 0; _stamp++;
@@ -13512,7 +13520,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       var a = this.grid.get(cx * 73856 + cz);
       if (a) for (var j = 0; j < a.length; j++) {
         var id = a[j]; if (_seen[id] === _stamp) continue; _seen[id] = _stamp;
-        var b = this.boxes[id]; if (!b.on || (skipKind && b.kind === skipKind)) continue;
+        var b = this.boxes[id]; if (!b.on || b.noRay || (skipKind && b.kind === skipKind)) continue;
         // slab test
         var t0 = 0, t1 = best, n = 0, s = 0, tt, ta, tb, inv;
         inv = 1 / (dx || 1e-12); ta = (b.x0 - ox) * inv; tb = (b.x1 - ox) * inv; if (ta > tb) { tt = ta; ta = tb; tb = tt; } if (ta > t0) { t0 = ta; n = 0; } if (tb < t1) t1 = tb; if (t0 > t1) continue;
@@ -13960,7 +13968,11 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
           : d.sequence ? d.pieces[(ri + i + k) % L] : pick(d.pieces, h);
         var y0 = baseY(world, yb, x, zz, tw / 2 * 0.8, td / 2 * 0.8), py = (d.y || 0) + y0;
         P.add(name, x, py, zz, y, null, paintFor(d, z.idx, yb, hash(R.c * 7 + i * 13 + 5, R.r * 3 + k * 17 + 1)));
+        var nb0 = world.boxes.length;
         if (d.collide !== false) addColsY(world, d.cols || colsOf(IB.themePiece(theme, name)) || boxCols(sw, sd, d.h || 1), x, py, zz, y, d.kind || 'cover', z.idx);
+        // fence: m (opt-in): the piece's collision runs on up to m above its base as a movement-only bound -- a low fence
+        // round a sunken or closed-off area (a test track) the player could jump into from a crate but not out of
+        if (d.fence) for (var fb = nb0, nb1 = world.boxes.length; fb < nb1; fb++) { var FB = world.boxes[fb]; if (FB.y1 < py + d.fence) world.bound(FB.x0, FB.y1, FB.z0, FB.x1, py + d.fence, FB.z1, z.idx); }
         addWith(P, world, theme, d, name, x, py, zz, y, z.idx);
         if (d.elevator) z.elevators.push(makeElevator(P, z, theme, world, d.elevator, x, y0, zz, y));
         if (d.mounts) d.mounts.forEach(function (m) {   // pickup mounts inside the prefab (guns on a wall rack), prefab-local
@@ -14233,6 +14245,27 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     var box = world.add(cx - width / 2, 0, cz - 0.3, cx + width / 2, GT.height || 3.2, cz + 0.3, 'gate', zoneIdx);
     return { group: grp, shutter: shutter, box: box, open: 1, target: 1, x: cx, z: cz, w: width, kind: kind, speed: 1 / 1.2, h: GT.shutterHeight || 3.05 };
   }
+  /* The zone's outer ring of cells is solid at every height (tools: tests/e2e/bounds.spec.js). Wall collision stops
+     at the wall height and a gate's at the gate height, so without this a player on a deck, a tree platform or a
+     crate (Spring Boots double jump) could hop over the perimeter wall, or walk off a mezzanine through the wall
+     drawn above a gate into the sky-bridge / trail behind it -- and never get back in. Per ring cell the boundary
+     starts at the top of what stands there ('#': the wall height, a gate: its shutter box, anything else: the floor)
+     and runs up out of reach; movement-only, so shots and sight lines are unchanged. */
+  function addZoneBounds(zone, grid, theme, world) {
+    var wallH = (theme.wall && theme.wall.height) || 3, gateH = (theme.gate && theme.gate.height) || 3.2, w = grid.w, h = grid.h;
+    function bottom(c, r) { var ch = grid.at(c, r); return ch === '#' ? wallH : (ch === 'G' || ch === 'E') ? gateH : 0; }
+    function run(c0, r0, dc, dr, n) {   // merge equal bottoms along one side of the ring
+      var s = 0;
+      for (var k = 1; k <= n; k++) {
+        if (k < n && bottom(c0 + dc * k, r0 + dr * k) === bottom(c0 + dc * s, r0 + dr * s)) continue;
+        var ca = c0 + dc * s, ra = r0 + dr * s, cb = c0 + dc * (k - 1), rb = r0 + dr * (k - 1);
+        world.bound(zone.ox + ca, bottom(ca, ra), zone.oz + ra, zone.ox + cb + 1, undefined, zone.oz + rb + 1, zone.idx);
+        s = k;
+      }
+    }
+    run(0, 0, 1, 0, w); run(0, h - 1, 1, 0, w);
+    run(0, 1, 0, 1, h - 2); run(w - 1, 1, 0, 1, h - 2);
+  }
   Z.setGate = function (gate, open, instant) {
     gate.target = open ? 1 : 0;
     gate.speed = open ? 1 / 1.2 : 1 / 0.6;
@@ -14265,6 +14298,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       var wx = x + sgn * (w / 2 + 0.75);
       for (var k = 0; k < len; k++) P.add(trailPiece(T, Math.round(z1 + k) * 3 + idx * 31, sgn), wx, 0, z1 + k + 0.5, sgn > 0 ? Math.PI : 0);
       world.add(wx - 0.25, 0, z1, wx + 0.25, wallH, z0, 'wall', idx);
+      world.bound(wx - 0.25, wallH, z1, wx + 0.25, undefined, z0, idx);   // and out of reach above it (addZoneBounds)
     });
     var grp = new THREE.Group();
     grp.add(new THREE.Mesh(g.build(), Z.mat));
@@ -14537,6 +14571,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       if (E.length) zone.entryGate = makeGate(P, ox + ecx, oz + grid.h - 0.5, E.length, theme, idx, world, 'entry');
       var gcx = (G[0].c + G[G.length - 1].c + 1) / 2;
       zone.exitGate = makeGate(P, ox + gcx, oz + 0.5, G.length, theme, idx, world, 'exit');
+      addZoneBounds(zone, grid, theme, world);
       zone.ground = new THREE.Mesh(g.build(), Z.mat);
       zone.group.add(zone.ground);
       zone.meshes = meshesFor(P, zone.group);
@@ -14581,6 +14616,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     world.add(exit.x - 3.25, 0, hz - 3.2, exit.x + 3.25, wallH, hz - 2.7, 'wall', -1);
     world.add(exit.x - 3.25, 0, hz - 2.75, exit.x - 2.75, wallH, hz + 2.75, 'wall', -1);
     world.add(exit.x + 2.75, 0, hz - 2.75, exit.x + 3.25, wallH, hz + 2.75, 'wall', -1);
+    world.bound(exit.x - 3.25, wallH, hz - 3.2, exit.x + 3.25, undefined, hz + 2.75, -1);   // the hatch room has no way out over its walls
     P.add(theme.hatch || 'Hatch', exit.x, 0, hz, 0);
     var grp = new THREE.Group(); grp.add(new THREE.Mesh(g.build(), Z.mat));
     meshesFor(P, grp);
@@ -17736,7 +17772,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       else {
         world.query(nx - HIT_R, nz - HIT_R, nx + HIT_R, nz + HIT_R, _tmp);
         for (var k = 0; k < _tmp.length; k++) {
-          var bx = _tmp[k];
+          var bx = _tmp[k]; if (bx.noRay) continue;   // movement-only zone bounds (zones.js World.bound)
           if (Pj.sphereBox(nx, ny, nz, HIT_R, bx)) { hit = true; hx = nx; hy = ny; hz = nz; nnx = -ux; nny = -uy; nnz = -uz; hbox = bx; break; }
         }
       }
