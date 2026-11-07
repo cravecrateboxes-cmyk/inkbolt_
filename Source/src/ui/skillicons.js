@@ -150,23 +150,27 @@
         p('M27 27C27 22 30 20 32 20C34 20 37 22 37 27Z', '#FFC23A', O2) +
         ink('M44 50l4 5M50 46l6 3', 2.6);
     },
-    // Handy Helpers: a small friendly rogue robot waving, wrench in the other hand
+    // Handy Helpers: a turned (ally) Crawler, no face: a teal tin can on spring legs with its gold core dome and amber
+    // antenna light, an ally chevron painted on its side, a wrench over its shoulder and a little spark of help
     helper: function () {
-      return ink('M32 6V13', 3) + c(32, 6, 3.6, '#F0443A', O2) +
-        p('M13 42C9 40 6 34 8 30', 'none', ' stroke="' + K + '" stroke-width="7" stroke-linecap="round"') +
-        p('M13 42C9 40 6 34 8 30', 'none', ' stroke="#12C7B6" stroke-width="3.4" stroke-linecap="round"') +
-        c(8, 28, 3.8, '#FFFDF7', O2) +
-        p('M17 38H47V57C47 59 45 61 43 61H21C19 61 17 59 17 57Z', '#12C7B6', O) +
-        p('M40 38H47V57C47 59 45 61 43 61H40Z', '#0B8F83') +
-        p('M27 45C27 43 29 42 30.5 43.5L32 45L33.5 43.5C35 42 37 43 37 45C37 47 32 51 32 51C32 51 27 47 27 45Z', '#FF7FB0', O2) +
-        p('M12 14H52C55 14 57 16 57 19V33C57 36 55 38 52 38H12C9 38 7 36 7 33V19C7 16 9 14 12 14Z', '#3FDECF', O) +
-        p('M48 14H52C55 14 57 16 57 19V33C57 36 55 38 52 38H48Z', '#12C7B6') +
-        p('M14 19H50V33H14Z', '#15121C') +
-        c(24, 26, 5, '#FFFDF7') + c(40, 26, 5, '#FFFDF7') + c(25.5, 27, 2.4, '#15121C') + c(41.5, 27, 2.4, '#15121C') + c(23, 24, 1.1, '#FFFDF7') + c(39, 24, 1.1, '#FFFDF7') +
-        p('M28 31C30 33 34 33 36 31', 'none', ' stroke="#8BEA4F" stroke-width="2" stroke-linecap="round"') +
-        hl('M11 19V28', '.85') +
-        p('M51 44L58 51', 'none', ' stroke="' + K + '" stroke-width="7" stroke-linecap="round"') + p('M51 44L58 51', 'none', ' stroke="#9AA6BE" stroke-width="3.4" stroke-linecap="round"') +
-        p('M57 48C60 46 63 48 63 51L60 52L59 55C56 55 54 52 56 49Z', '#9AA6BE', O2);
+      var leg = function (x, k) {
+        return p('M' + x + ' 48l' + (-3 * k) + ' 3l' + (6 * k) + ' 2.5l' + (-6 * k) + ' 2.5l' + (3 * k) + ' 2', 'none', ' stroke="' + K + '" stroke-width="5.4" stroke-linecap="round" stroke-linejoin="round"') +
+          p('M' + x + ' 48l' + (-3 * k) + ' 3l' + (6 * k) + ' 2.5l' + (-6 * k) + ' 2.5l' + (3 * k) + ' 2', 'none', ' stroke="#9AA6BE" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"') +
+          p('M' + (x - 4) + ' 60.5C' + (x - 4) + ' 58 ' + (x + 4) + ' 58 ' + (x + 4) + ' 60.5Z', '#5C6B8A', O2);
+      };
+      return p('M37 33L52 13', 'none', ' stroke="' + K + '" stroke-width="8" stroke-linecap="round"') +
+        p('M37 33L52 13', 'none', ' stroke="#9AA6BE" stroke-width="4" stroke-linecap="round"') +
+        p('M49 8C52 3 59 3 61 8L56 10L57 15L52 16C49 13 48 11 49 8Z', '#9AA6BE', O2) +
+        leg(17, 1) + leg(26, -1) + leg(38, 1) + leg(47, -1) +
+        ink('M22 18V8', 3) + c(22, 6.5, 3.6, '#FFB21E', O2) + c(21, 5.4, 1.1, '#FFFDF7') +
+        p('M22 22C22 15 42 15 42 22Z', '#FFC23A', O) + p('M35 16.4C39 17.4 42 19.4 42 22H36Z', '#D98A12') + hl('M26 19.5C27.5 18.5 29.5 18 31.5 18', '.9') +
+        p('M10 22H54V44C54 47 52 49 49 49H15C12 49 10 47 10 44Z', '#12C7B6', O) +
+        p('M45 23.5H52.5V44C52.5 46 51 47.5 49 47.5H45Z', '#0B8F83') +
+        p('M10 22H54V28H10Z', '#3FDECF', O2) +
+        p('M23 44L32 35.5L41 44L41 38.5L32 30L23 38.5Z', '#FFFDF7', O2) +
+        hl('M14.5 32V43', '.85') +
+        p('M5 12l1.6 3.4 3.4 1.6-3.4 1.6L5 22l-1.6-3.4L0 17l3.4-1.6z', '#FFD23F', O2) +
+        ink('M58 30l4-2M58 36l5 1', 2.4);
     },
     // Chain Reaction: a big comic blast and two smaller ones going off from it
     burst: function () {
