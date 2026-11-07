@@ -79,10 +79,10 @@ async function watch(pg, list, secs, zi, goal) {
   console.log('# walkable surfaces: robots climb the playgrounds (plan garden)');
   const pg = await open(browser, base, 'garden');
   const nav = await pg.evaluate(() => IB.Game.level.zones.map(z => {
-    const N = z.nav, NC = N.nx * N.nz; let deck = 0; for (let k = 0; k < NC * 2; k++) if (!N.blocked[k] && N.h[k] > 1.0) deck++;
+    const N = z.nav, NC = N.nx * N.nz; let deck = 0; for (let k = 0; k < NC * (N.layers || 1); k++) if (!N.blocked[k] && N.h[k] > 1.0) deck++;
     return { layers: N.layers || 1, deckCells: deck };
   }));
-  check('garden zones have a layered nav with walkable deck cells', nav.every(n => n.layers === 2 && n.deckCells > 20), JSON.stringify(nav));
+  check('garden zones have a layered nav with walkable deck cells', nav.every(n => n.layers >= 2 && n.deckCells > 20), JSON.stringify(nav));
   const walk = await pg.evaluate(() => IB.Game.level.world.boxes.filter(b => b.walk).length);
   check('playground pieces bring walkable collision boxes', walk > 100, String(walk));
   // the player walks up the play tower's stairs (from the south) and up its climbing wall (from the east)
