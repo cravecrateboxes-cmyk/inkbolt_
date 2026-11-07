@@ -21,13 +21,16 @@ WHAT IS HERE
 
 CONTROLS
   Desktop: click to lock the mouse. WASD move, mouse look, left click fire, right click aim,
-           Space jump, Shift sprint, R reload, 1-3 or mouse wheel switch carried guns, V shove,
+           Space jump, Shift sprint, R reload, 1-3 or mouse wheel switch carried guns,
+           V melee strike with the equipped melee weapon (a shove until you own one; quick presses chain a combo),
+           B next melee weapon, G throw a frag can,
            F Undercover (skill: 5 s invisible, 30 s cooldown; badge above the bottom edge), Esc pause.
            Tab opens the field kit (pauses): Inventory, Skills, Character. Q / E (or the yellow chevrons) switch
            tabs, arrows move, Enter selects (Enter again spends a skill point; in the inventory Enter equips),
            pointing at an item shows its card, Tab or Esc resumes.
   Phone:   left thumb moves (push far forward to sprint), right thumb looks, Fire / Aim / Reload /
-           Swap / Jump buttons on the right (plus an eye button for Undercover once learned, its ring is the cooldown),
+           Swap / Jump buttons on the right (plus an eye button for Undercover once learned, its ring is the cooldown;
+           a blade button (tap: strike, hold: next melee weapon) and a can button once you own them),
            pause button top right, field kit (grid) button next to it.
 
 PROGRESSION
@@ -40,6 +43,19 @@ PROGRESSION
   Respec: resets the tree for gems (40% of a level's expected income at your progress).
   Loadout: carry 2 guns from your arsenal (3 after clearing level 10); weapon stands add guns to the arsenal.
   Robots get a little tougher every level (health, damage, fire rate, aim, speed; src/core/damage.js).
+
+MELEE, GRENADES AND NEW GUNS
+  Melee weapons (V, src/game/weapons.js W.meleeStart + game.js meleeHit): KN-3 Stinger dagger (fast stab, x2.5 on a
+  robot that has not seen you or is struck from behind), NC-2 Twin Strikers nunchucks (two hits per swing in a wide arc,
+  staggers), Mk-1 Ronin Blade katana (two-handed, 3-cut combo, the third cut x1.6), VX-7 Voltaxe electric axe (two-handed
+  heavy chop, shock damage over time, arcs to 2 robots nearby). The gun goes away for the swing and is drawn again.
+  Frag cans (G, src/game/throwables.js): carry 3, thrown from the support hand; they bounce, a red ring shows the blast
+  reach in the last second, and the blast hurts robots (and you, capped at 35). Ammo boxes give one back.
+  Unlocks (src/data/unlocks.js, stands at the start of the level): dagger L3, frag cans + nunchucks L4, katana + Voltaxe
+  L5 (every melee weapon and grenades by level 5); SG-9 Scrapper pump shotgun L7 (loads shell by shell), AR-40 Vanguard
+  battle rifle L8, SG-12 Thunderclap auto shotgun L9, SR-9 Railspike rail rifle L11 (3x scope, pierces 4 robots).
+  A save that already cleared a level gets what stood at its start when the next level loads.
+  Models and arm actions: blender/fam_weapons.py (MELEE_SWINGS, THROW_L, pump_fire, shell_reload).
 
 LOOT AND GEAR
   About one robot in twenty drops an item: a drop pod with a beam in its rarity colour (Common / Rare / Epic),
