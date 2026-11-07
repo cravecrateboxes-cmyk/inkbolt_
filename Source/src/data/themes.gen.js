@@ -1256,6 +1256,87 @@
   });
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
 
+/* ---- themes/grove.js ---- */
+/* Theme: Redwood Hollow (kit-grove) -- an overgrown garden valley on bumpy ground.
+   Rolling mounds and diagonal ridges (theme.terrain: a heightfield the player, robots, bullets, pickups and props all
+   follow), mossy rock ridges for walls, and giant redwoods ('Z') whose broken, split-down branches spiral up the trunk
+   like stairs (0.45 m steps, collision kind 'step') to a ring of limbs at 9 m. Two redwoods on the same rows are
+   joined by a rope bridge ('=' in the zone file's "@layer 9" grid). Robots climb the branch stairs too: the nav grid
+   holds every walkable surface (ground, steps, limbs, bridge) and the flow field leads them up to a player in a tree.
+   Built by blender/fam_kit_grove.py; zone layouts by tools/grove_zones.py (src/data/zones/grove_*.txt).
+
+   Symbols: Z redwood [6,6]  o oak  t fruit tree (apple / orange / pear)  b bush  B berry bush  s sunflowers
+            V vegetable bed [2,4]  U pumpkins [2,2]  W lily pond [4,4]  L fallen log [3,1]  r boulder  f fence (runs)
+            c fruit crate  g tall grass  l reeds  n fern  w flowers (walk-through)  = bridge (layer 9) */
+(function (IB) {
+  'use strict';
+  function hgt(c, r, zi) {
+    var k = zi * 1.7;
+    var mounds = 1.15 * Math.sin(0.19 * c + 1.3 + k) * Math.sin(0.17 * r + 0.6 + k) + 0.6 * Math.sin(0.41 * c - 0.27 * r + k);
+    var band = ((r + 0.35 * c + 7 * zi) % 18 + 18) % 18, ridge = 1.7 * Math.max(0, 1 - Math.abs(band - 9) / 3.6);
+    return Math.max(0, 0.72 * (1.0 + mounds + ridge));   // slopes stay under the robots' 0.4 m step per nav cell
+  }
+  function chooseWall(c, r, horiz, corner, hash, grid, face) {
+    if (face === 'corner' || face === 'none') return 'Ridge_Pillar';
+    var s = (face === 'S' || face === 'N') ? c : r, line = (face === 'S' || face === 'N') ? r : c;
+    var v = 1 + 1.1 * Math.sin(0.33 * s + line * 0.7) + 0.6 * Math.sin(0.9 * s + 1.7);
+    return ['Ridge_A', 'Ridge_B', 'Ridge_C'][Math.max(0, Math.min(2, Math.round(v)))];
+  }
+  var PIECES = ['Ridge_A', 'Ridge_B', 'Ridge_C', 'Ridge_Pillar', 'Landmark_Redwood_A', 'Landmark_Redwood_B', 'Oak_A', 'Oak_B',
+    'Fruit_Apple', 'Fruit_Orange', 'Fruit_Pear', 'Grass_A', 'Grass_B', 'Reeds', 'Fern', 'Flowers_A', 'Flowers_B', 'Flowers_C',
+    'Sunflowers', 'Bush_A', 'Bush_B', 'Berry', 'VeggieBed', 'Pumpkins', 'Rock_A', 'Rock_B', 'Log', 'Pond', 'Fence', 'Crate',
+    'Bridge', 'GateFrame', 'GateShutter', 'TrailWall', 'Hatch', 'Backdrop_HillA', 'Backdrop_HillB'];
+
+  IB.registerTheme({
+    id: 'grove', name: 'Redwood Hollow', family: 'kit-grove', prefix: 'KIT_GROVE_',
+    palette: ['#7CC05E', '#A9583A', '#FFC928', '#B4DD8E'],
+    env: { sky: ['#7EC8F0', '#EAF6E4'], fog: { color: '#D9EEDB', near: 44, far: 125 }, sun: [0.45, 0.8, 0.4], clouds: true, ceiling: null },
+    floor: { color: '#86C466', trail: '#CDB894', outside: '#86C266' },
+    terrain: { height: hgt, flat: 'ZVWULf', ramp: [1, 5], low: '#7DBE5C', high: '#B4DD8E', patch: '#93CC70', top: 3 },
+    wall: { height: 6, roof: '#7CC05E', facing: 'open', choose: chooseWall },
+    symbols: {
+      'Z': { size: [6, 6], pieces: ['Landmark_Redwood_A', 'Landmark_Redwood_B'], face: 0, kind: 'step' },
+      'o': { pieces: ['Oak_A', 'Oak_B'], rotate: 'random90', sink: true, kind: 'cover' },
+      't': { pieces: ['Fruit_Apple', 'Fruit_Orange', 'Fruit_Pear'], rotate: 'random90', sink: true, kind: 'cover' },
+      'b': { pieces: ['Bush_A', 'Bush_B'], rotate: 'random90', sink: true, kind: 'cover' },
+      'B': { pieces: ['Berry'], rotate: 'random90', sink: true, kind: 'cover' },
+      's': { pieces: ['Sunflowers'], rotate: 'random90', sink: true, kind: 'cover' },
+      'V': { size: [2, 4], pieces: ['VeggieBed'], kind: 'cover' },
+      'U': { size: [2, 2], pieces: ['Pumpkins'], kind: 'cover' },
+      'W': { size: [4, 4], pieces: ['Pond'], collide: false },
+      'L': { size: [3, 1], pieces: ['Log'], kind: 'cover' },
+      'r': { pieces: ['Rock_A', 'Rock_B'], rotate: 'random90', sink: true, kind: 'cover' },
+      'f': { pieces: ['Fence'], rotate: 'run', kind: 'cover' },
+      'c': { pieces: ['Crate'], rotate: 'random90', sink: true, kind: 'cover' },
+      'g': { pieces: ['Grass_A', 'Grass_B'], rotate: 'random90', sink: true, collide: false },
+      'l': { pieces: ['Reeds'], rotate: 'random90', sink: true, collide: false },
+      'n': { pieces: ['Fern'], rotate: 'random90', sink: true, collide: false },
+      'w': { pieces: ['Flowers_A', 'Flowers_B', 'Flowers_C'], rotate: 'random90', sink: true, collide: false },
+      '=': { pieces: ['Bridge'], rotate: 'edge', kind: 'deck' }
+    },
+    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.5, shutterHeight: 3.05 },
+    trail: { wall: 'TrailWall', height: 2.6 },
+    hatch: 'Hatch', stand: 'Crate',
+    backdrop: { ring: [
+      { piece: 'Backdrop_HillA', count: 6, radius: [62, 84], scale: [1.0, 1.4], squeezeX: 0.85, face: true },
+      { piece: 'Backdrop_HillB', count: 8, radius: [48, 66], scale: [0.9, 1.3], squeezeX: 0.7, face: true }
+    ] },
+    budget: { prop: 1600, landmark: 6000, total: 60000 },
+    allPieces: function () { return PIECES; },
+    levels: {
+      grove: {
+        name: 'Redwood Hollow',
+        intro: 'Climb the broken branches up the giant redwoods. The robots will climb after you.',
+        zones: [
+          { map: 'grove_1', waves: [[['crawler', 20], ['gunner', 5]], [['crawler', 5], ['bomber', 4], ['gunner', 4], ['blader', 6]], [['crawler', 4], ['drone', 5], ['gunner', 4], ['soldier', 6]], [['crawler', 4], ['bomber', 4], ['gunner', 5], ['soldier', 7]]] },
+          { map: 'grove_2', waves: [[['crawler', 20], ['gunner', 5], ['drone', 3]], [['crawler', 5], ['bomber', 5], ['gunner', 5], ['blader', 7]], [['crawler', 5], ['drone', 5], ['gunner', 5], ['soldier', 6]], [['crawler', 4], ['bomber', 4], ['gunner', 5], ['blader', 6]]] },
+          { map: 'grove_3', waves: [[['crawler', 20], ['gunner', 8]], [['crawler', 5], ['bomber', 5], ['drone', 5], ['soldier', 7]], [['crawler', 7], ['gunner', 7], ['drone', 5], ['blader', 6]], [['crawler', 8], ['gunner', 8], ['bomber', 7], ['drone', 4], ['soldier', 12]]] }
+        ]
+      }
+    }
+  });
+})(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
+
 /* ---- themes/island.js ---- */
 /* Theme: Lagoon Island (kit-island). A wide tropical island on a bright day with open ocean all around it: sandy
    beaches and grassy dunes, palm groves and jungle thickets, warm basalt rocks, tide pools, freshwater ponds with
@@ -1714,6 +1795,97 @@
   });
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
 
+/* ---- themes/mall.js ---- */
+/* Theme: Galleria Mall (kit-mall) -- a two-storey shopping mall under skylights.
+   Each zone is an atrium: shop fronts on two storeys (9.5 m walls), a 7 m mezzanine ring at 4.5 m ('u' in the
+   "@layer 4.5" grid of the zone file) with glass rails ('r') over the open atrium, two escalators ('N' rises north,
+   'V' rises south) and an automatic glass elevator ('L' door west, 'J' door east) that shuttles between the floors.
+   Robots spawn on both floors and climb the escalators (stair-block collision, kind 'step') to reach the player.
+   Built by blender/fam_kit_mall.py; zone layouts by tools/mall_zones.py (src/data/zones/mall_*.txt).
+
+   Symbols (floor plan)                                       Symbols (mezzanine layer)
+     N / V  escalator [2,10] rising north / south               u  deck   r  glass rail (links into runs)
+     L / J  glass elevator [3,3], door west / east              o  planter  B  bench  c  bin  S a h
+     F  fountain [4,4]   Q  Guest Services desk [4,4]
+     O  big planter [2,2]  o  planter  B  bench [2,1]  c  bin  d  ad pillar
+     K  kiosk [3,2]  T  food-court table [2,2]  D  display stand [2,1] */
+(function (IB) {
+  'use strict';
+  var SHOPS = ['rose', 'mint', 'gold', 'sky', 'violet', 'orange'];
+  function shopAt(s, line) { var h = Math.sin((Math.floor((s + 2) / 6) + line * 7.13) * 12.9898) * 43758.5453; return SHOPS[Math.floor((h - Math.floor(h)) * SHOPS.length)]; }
+  // shop fronts in 6 m bays: a pilaster at each bay edge, a door mid-bay, glass between; corners get a pillar
+  function chooseWall(c, r, horiz, corner, hash, grid, face) {
+    if (face === 'corner' || face === 'none') return 'Corner';
+    var s = (face === 'S' || face === 'N') ? c : r, line = (face === 'S' || face === 'N') ? r : c + 100;
+    var k = ((s + 2) % 6 + 6) % 6;
+    if (k === 0) return 'Pilaster';
+    if ((face === 'E' || face === 'W') && hash(c * 3 + 1, r * 7 + 2) < 0.18) return 'Blank';
+    return (k === 3 ? 'ShopDoor_' : 'Shop_') + shopAt(s, line);
+  }
+  var WALLS = ['Pilaster', 'Corner', 'Blank'];
+  SHOPS.forEach(function (c) { WALLS.push('Shop_' + c, 'ShopDoor_' + c); });
+  var OTHER = ['Rail', 'RailFull', 'RailPost', 'Escalator', 'Landmark_ElevatorShaft', 'Elevator_Cab', 'Planter', 'BigPlanter', 'Bench', 'Bin',
+    'AdPillar', 'Kiosk_A', 'Kiosk_B', 'FoodTable', 'Display', 'Skylight', 'Landmark_Fountain', 'Landmark_GuestDesk',
+    'GateFrame', 'GateShutter', 'TrailWall', 'Hatch'];
+  var LIFT = { top: 4.5, wait: 3.2, speed: 1.5, cab: 'Elevator_Cab', inner: [2.5, 2.5], floor: 0.06 };
+
+  IB.registerTheme({
+    id: 'mall', name: 'Galleria Mall', family: 'kit-mall', prefix: 'KIT_MALL_',
+    palette: ['#F27D8E', '#62C9AE', '#F2BE48', '#EFE6D6'],
+    env: {
+      sky: null, clear: '#F4EDE2', fog: { color: '#F4EDE2', near: 46, far: 130 }, clouds: false,
+      // low southern light (like the office): floors and south faces lit, the ceiling in the light 0.9 band, not the shadow band
+      sun: [0.3, 0.45, 0.84],
+      ceiling: { height: 9.5, color: '#FBF6EE', light: 'Skylight', every: 6, clear: '#LJ', clearR: 2 }
+    },
+    // polished cream stone tiles, 2 m grid
+    floor: {
+      color: '#EFE6D6', trail: '#E8DECD', outside: '#EFE6D6',
+      lines: [{ dir: 'x', every: 2, width: 0.035, color: '#E2D5C0', y: 0.008 }, { dir: 'z', every: 2, width: 0.035, color: '#E2D5C0', y: 0.0105 }]
+    },
+    wall: { height: 9.5, roof: '#E9E0D2', facing: 'open', choose: chooseWall },
+    symbols: {
+      'N': { size: [2, 10], pieces: ['Escalator'], face: 0, kind: 'step' },
+      'V': { size: [2, 10], pieces: ['Escalator'], face: Math.PI, kind: 'step' },
+      'L': { size: [3, 3], pieces: ['Landmark_ElevatorShaft'], face: -Math.PI / 2, kind: 'wall', elevator: LIFT },
+      'J': { size: [3, 3], pieces: ['Landmark_ElevatorShaft'], face: Math.PI / 2, kind: 'wall', elevator: LIFT },
+      'F': { size: [4, 4], pieces: ['Landmark_Fountain'], kind: 'cover' },
+      'Q': { size: [4, 4], pieces: ['Landmark_GuestDesk'], kind: 'cover' },
+      'O': { size: [2, 2], pieces: ['BigPlanter'], kind: 'cover' },
+      'o': { pieces: ['Planter'], rotate: 'random90', kind: 'cover' },
+      'B': { size: [2, 1], pieces: ['Bench'], flip: true, kind: 'cover' },
+      'c': { pieces: ['Bin'], rotate: 'random90', kind: 'cover' },
+      'd': { pieces: ['AdPillar'], kind: 'cover' },
+      'K': { size: [3, 2], pieces: ['Kiosk_A', 'Kiosk_B'], flip: true, kind: 'cover' },
+      'T': { size: [2, 2], pieces: ['FoodTable'], kind: 'cover' },
+      'D': { size: [2, 1], pieces: ['Display'], flip: true, kind: 'cover' },
+      // mezzanine
+      'u': { deck: { thick: 0.4, color: '#F1E8DA', edge: '#E6DACA', under: '#F6F0E6', with: '*' } },
+      'r': { pieces: ['Rail'], full: 'RailFull', links: 'r', post: 'RailPost', kind: 'wall' }
+    },
+    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.5, shutterHeight: 3.05 },
+    trail: { wall: 'TrailWall', height: 9.5 },
+    hatch: 'Hatch', stand: 'Planter',
+    backdrop: null,
+    budget: { prop: 3200, landmark: 4000, total: 70000 },
+    allPieces: function () { return WALLS.concat(OTHER); },
+    levels: {
+      mall: {
+        name: 'Galleria Mall',
+        intro: 'Robots have taken both floors. The escalators and the glass lift go up to the mezzanine.',
+        zones: [
+          // Grand Atrium: fountain court; Gunners hold the mezzanine rails from the second wave
+          { map: 'mall_1', waves: [[['crawler', 19], ['gunner', 4]], [['crawler', 4], ['bomber', 4], ['gunner', 4], ['blader', 5]], [['crawler', 4], ['drone', 4], ['gunner', 3], ['soldier', 5]], [['crawler', 4], ['bomber', 4], ['gunner', 4], ['soldier', 5]]] },
+          // Food Court: tables for cover, Drones over the atrium
+          { map: 'mall_2', waves: [[['crawler', 19], ['gunner', 4], ['drone', 3]], [['crawler', 5], ['bomber', 5], ['gunner', 4], ['blader', 5]], [['crawler', 5], ['drone', 5], ['gunner', 4], ['soldier', 5]], [['crawler', 4], ['bomber', 4], ['gunner', 4], ['blader', 5]]] },
+          // Department Store: displays, the lift on the east side, a heavy last wave
+          { map: 'mall_3', waves: [[['crawler', 19], ['gunner', 7]], [['crawler', 5], ['bomber', 5], ['drone', 4], ['soldier', 6]], [['crawler', 7], ['gunner', 7], ['drone', 4], ['blader', 5]], [['crawler', 7], ['gunner', 7], ['bomber', 7], ['drone', 3], ['soldier', 10]]] }
+        ]
+      }
+    }
+  });
+})(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
+
 /* ---- themes/mountains.js ---- */
 /* Theme: Mountains (kit-mountains) -- campaign level 1, "Pine Ridge".
    An alpine valley chain: slate-blue cliff ridges with snow ledges, snowy pines and spruce stands, a log cabin,
@@ -1993,6 +2165,92 @@
             [['drone', 2], ['bomber', 2], ['crawler', 5], ['blader', 1]],
             [['gunner', 3], ['crawler', 6], ['drone', 1]],
             [['crawler', 4], ['bomber', 3], ['gunner', 2], ['drone', 2], ['soldier', 1]]] }
+        ]
+      }
+    }
+  });
+})(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
+
+/* ---- themes/police.js ---- */
+/* Theme: Strike Team HQ (kit-police) -- a police / special-forces base.
+   Painted-block rooms under strip lights: a lobby with the star emblem, a briefing room, the armory, a vehicle bay and
+   a firing range. Weapon wall racks ('R') carry REAL guns: about 60 % of a rack's four mounts are filled at level
+   start, each with a gun unlocked so far at a weapon tier rolled from `armory.tiers` (gray / green / blue common, purple
+   very rare, orange never). Workbenches ('b') hold gun attachments and gear shelves ('g') shield cells and vests, made
+   by the gear loot system at `armory.gear` odds. Look at one and press E (touch: USE) to take it.
+   Built by blender/fam_kit_police.py; zone layouts by tools/police_zones.py (src/data/zones/police_*.txt).
+
+   Symbols: R weapon rack [3,1] (turns to face the room)  b workbench [2,1]  g gear shelf [2,1]  l locker  f cabinet
+            k sandbags (runs)  x ammo crate  d desk [2,1]  T briefing table [4,2]  p plant  V SWAT van [3,6]
+            J holding cells [4,3]  y range booth (runs)  Y paper target  M floor emblem [4,4] */
+(function (IB) {
+  'use strict';
+  function chooseWall(c, r, horiz, corner, hash, grid, face) {
+    if (face === 'corner' || face === 'none') return 'Corner';
+    var inner = c > 0 && r > 0 && c < grid.w - 1 && r < grid.h - 1;
+    if (inner) return 'Wall_A';
+    var h = hash(c * 5 + 3, r * 9 + 1);
+    if (h < 0.1) return 'Wall_Badge';
+    if (h < 0.24) return 'Wall_Board';
+    if (h < 0.4) return 'Wall_Window';
+    return 'Wall_A';
+  }
+  // mount points in prefab-local game coordinates: [x, height, z (toward the room = +), yaw offset, kind]
+  var RACK = [[-0.7, 1.55, -0.28, 0, 'gun'], [0.7, 1.55, -0.28, 0, 'gun'], [-0.7, 0.95, -0.28, 0, 'gun'], [0.7, 0.95, -0.28, 0, 'gun']];
+  var BENCH = [[-0.55, 0.9, 0.05, 0, 'mod'], [0.55, 0.9, 0.05, 0, 'mod']];
+  var SHELF = [[-0.5, 1.02, -0.22, 0, 'item'], [0.5, 1.02, -0.22, 0, 'item']];
+  var MODS = ['extmag', 'speedmag', 'suppressor', 'compensator', 'longbarrel', 'reddot', 'laser', 'grip'].map(function (m) { return 'Mod_' + m; });
+  var ITEMS = ['vest', 'medkit', 'ammobox'].map(function (m) { return 'Item_' + m; });
+  var PIECES = ['Wall_A', 'Wall_Board', 'Wall_Badge', 'Wall_Window', 'Corner', 'WeaponRack', 'Workbench', 'GearShelf', 'Locker',
+    'Sandbags', 'Crate', 'Desk', 'BriefTable', 'Plant', 'Cabinet', 'Booth', 'Target', 'CeilLight', 'Emblem',
+    'Landmark_Van', 'Landmark_Cells', 'GateFrame', 'GateShutter', 'TrailWall', 'Hatch'];
+
+  IB.registerTheme({
+    id: 'police', name: 'Strike Team HQ', family: 'kit-police', prefix: 'KIT_POLICE_',
+    palette: ['#2F4B7C', '#E8B83A', '#BFCCDD', '#C9CDD3'],
+    env: {
+      sky: null, clear: '#E6EAF0', fog: { color: '#E6EAF0', near: 40, far: 120 }, clouds: false,
+      sun: [0.25, 0.45, 0.86],   // low light: the ceiling stays in the light band
+      ceiling: { height: 4.0, color: '#EEF1F5', light: 'CeilLight', every: 4, clear: '#', clearR: 1 }
+    },
+    floor: {
+      color: '#C9CDD3', trail: '#D3D6DB', outside: '#C9CDD3',
+      lines: [{ dir: 'x', every: 2, width: 0.03, color: '#BBC0C7', y: 0.008 }, { dir: 'z', every: 2, width: 0.03, color: '#BBC0C7', y: 0.0105 }]
+    },
+    wall: { height: 4.0, roof: '#C2C8D0', facing: 'open', choose: chooseWall },
+    symbols: {
+      'R': { size: [3, 1], pieces: ['WeaponRack'], orient: 'wall', kind: 'cover', mounts: RACK, fill: 0.6 },
+      'b': { size: [2, 1], pieces: ['Workbench'], flip: true, kind: 'cover', mounts: BENCH },
+      'g': { size: [2, 1], pieces: ['GearShelf'], orient: 'wall', kind: 'cover', mounts: SHELF },
+      'l': { pieces: ['Locker'], rotate: 'edge', kind: 'cover' },
+      'f': { pieces: ['Cabinet'], rotate: 'edge', kind: 'cover' },
+      'k': { pieces: ['Sandbags'], rotate: 'run', kind: 'cover' },
+      'x': { pieces: ['Crate'], rotate: 'random90', h: 0.75, stack: { piece: 'Crate', chance: 0.3, h: 0.75 }, kind: 'cover' },
+      'd': { size: [2, 1], pieces: ['Desk'], flip: true, kind: 'cover' },
+      'T': { size: [4, 2], pieces: ['BriefTable'], kind: 'cover' },
+      'p': { pieces: ['Plant'], rotate: 'random90', kind: 'cover' },
+      'V': { size: [3, 6], pieces: ['Landmark_Van'], flip: true, kind: 'wall' },
+      'J': { size: [4, 3], pieces: ['Landmark_Cells'], orient: 'wall', kind: 'wall' },
+      'y': { pieces: ['Booth'], rotate: 'run', kind: 'cover' },
+      'Y': { pieces: ['Target'], rotate: 0, kind: 'cover' },
+      'M': { size: [4, 4], pieces: ['Emblem'], collide: false }
+    },
+    // armory odds (game.js placeLoot): rack guns by weapon tier (src/game/wdrops.js TIERS), bench / shelf gear by rarity
+    armory: { tiers: { gray: 46, green: 34, blue: 19.25, purple: 0.75, orange: 0 }, gear: { common: 62, rare: 33, epic: 5, legendary: 0 } },
+    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.5, shutterHeight: 3.05 },
+    trail: { wall: 'TrailWall', height: 4.0 },
+    hatch: 'Hatch', stand: 'Crate',
+    backdrop: null,
+    budget: { prop: 1200, landmark: 4000, total: 60000 },
+    allPieces: function () { return PIECES.concat(MODS, ITEMS); },
+    levels: {
+      police: {
+        name: 'Strike Team HQ',
+        intro: 'The armory is open: take real guns off the wall racks and fit mods at the benches (E / USE).',
+        zones: [
+          { map: 'police_1', waves: [[['crawler', 18], ['gunner', 6]], [['crawler', 4], ['bomber', 4], ['gunner', 5], ['blader', 6]], [['crawler', 4], ['drone', 3], ['gunner', 4], ['soldier', 6]], [['crawler', 4], ['bomber', 4], ['gunner', 5], ['soldier', 6]]] },
+          { map: 'police_2', waves: [[['crawler', 19], ['gunner', 6], ['drone', 2]], [['crawler', 5], ['bomber', 5], ['gunner', 5], ['blader', 6]], [['crawler', 5], ['drone', 4], ['gunner', 5], ['soldier', 6]], [['crawler', 4], ['bomber', 4], ['gunner', 5], ['blader', 5]]] },
+          { map: 'police_3', waves: [[['crawler', 19], ['gunner', 8]], [['crawler', 5], ['bomber', 5], ['drone', 4], ['soldier', 6]], [['crawler', 7], ['gunner', 7], ['drone', 4], ['blader', 6]], [['crawler', 7], ['gunner', 8], ['bomber', 7], ['drone', 3], ['soldier', 11]]] }
         ]
       }
     }

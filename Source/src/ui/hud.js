@@ -245,6 +245,21 @@
     }
   };
   var toastT = 0;
+  /* "E  Take ..." prompt for armory loot within reach (touch: the USE button shows instead of the key) */
+  var USE = { on: false, text: '', color: '' };
+  H.use = function (d) {
+    var el = H.el.use || (H.el.use = document.getElementById('usePrompt')), tb = H.el.tUse || (H.el.tUse = document.getElementById('tUse'));
+    if (!el) return;
+    var on = !!d;
+    if (on !== USE.on) { USE.on = on; el.hidden = !on; if (tb) tb.hidden = !on; }
+    if (on && (d.text !== USE.text || d.color !== USE.color)) {
+      USE.text = d.text; USE.color = d.color;
+      el.querySelector('.key').textContent = ('ontouchstart' in window) ? 'USE' : d.key;
+      el.querySelector('.ut').textContent = d.text;
+      el.querySelector('.us').textContent = d.sub || '';
+      el.style.setProperty('--rar', d.color || '#12C7B6');
+    }
+  };
   H.toast = function (text, secs) { H.el.toast.textContent = text; H.el.toast.hidden = false; toastT = secs || 2.5; H.el.toast.style.animation = 'none'; void H.el.toast.offsetWidth; H.el.toast.style.animation = ''; };
   H.elim = function (show, name, count, retries) {
     H.el.elim.hidden = !show;

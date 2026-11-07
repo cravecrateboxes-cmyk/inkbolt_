@@ -18,7 +18,8 @@
       switch (e.code) {
         case 'Space': I.jumpPressed = true; break;
         case 'KeyR': I.reloadPressed = true; break;
-        case 'KeyV': I.meleePressed = true; break;   // melee strike (a shove without a melee weapon)
+        case 'KeyV': I.meleePressed = true; break;
+        case 'KeyE': I.usePressed = true; break;   // take what you look at (armory racks, benches, shelves)   // melee strike (a shove without a melee weapon)
         case 'KeyG': I.grenadePressed = true; break;   // throw a frag can
         case 'KeyB': I.meleeCyclePressed = true; break;   // next melee weapon
         case 'KeyF': I.cloakPressed = true; break;   // Undercover skill
@@ -69,7 +70,7 @@
   };
   I.endFrame = function () {
     I.lookDX = 0; I.lookDY = 0; I.jumpPressed = false; I.firePressed = false; I.reloadPressed = false;
-    I.meleePressed = false; I.cloakPressed = false; I.grenadePressed = false; I.meleeCyclePressed = false; I.pausePressed = false; I.slotPressed = 0; I.wheel = 0; I.swapPressed = false; I.slidePressed = false; I.menuPressed = false;
+    I.meleePressed = false; I.usePressed = false; I.cloakPressed = false; I.grenadePressed = false; I.meleeCyclePressed = false; I.pausePressed = false; I.slotPressed = 0; I.wheel = 0; I.swapPressed = false; I.slidePressed = false; I.menuPressed = false;
   };
   I.reset = function () { I.fire = I.aim = false; I.mx = I.mz = 0; I.keys = {}; I.endFrame(); if (I.stick) I.stick.id = null; };
 
@@ -83,6 +84,7 @@
       '<button class="tbtn treload" id="tReload" aria-label="Reload">R</button>' +
       '<button class="tbtn tswap" id="tSwap" aria-label="Swap weapon">' + svgSwap() + '</button>' +
       '<button class="tbtn tjump" id="tJump" aria-label="Jump">' + svgJump() + '</button>' +
+      '<button class="tbtn tuse" id="tUse" aria-label="Use" hidden>USE</button>' +
       '<button class="tbtn tslide" id="tSlide" aria-label="Slide or crouch" style="width:56px;height:56px;right:calc(var(--sar) + 200px);bottom:calc(var(--sab) + 140px)">' + svgSlide() + '</button>' +
       // Undercover (skill): shown by ui/skillhud.js only while the skill is owned; the ring is its cooldown
       '<button class="tbtn tcloak" id="tCloak" aria-label="Undercover" hidden style="width:52px;height:52px;right:calc(var(--sar) + 270px);bottom:calc(var(--sab) + 112px)">' + svgCloak() + '</button>' +
@@ -109,6 +111,7 @@
     hold('tReload', function () { I.reloadPressed = true; });
     hold('tSwap', function () { I.swapPressed = true; I.wheel += 1; });
     hold('tJump', function () { I.jumpPressed = true; });
+    hold('tUse', function () { I.usePressed = true; });
     hold('tCloak', function () { I.cloakPressed = true; });
     var meleeHold = null;
     hold('tMelee', function () { I.meleePressed = true; meleeHold = setTimeout(function () { I.meleeCyclePressed = true; }, 520); }, function () { clearTimeout(meleeHold); });

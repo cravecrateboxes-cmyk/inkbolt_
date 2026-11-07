@@ -292,7 +292,8 @@
     r.maxHp = r.hp = stat(type, 'hp', 30) * (AI.hpMul || 1);
     r.sx = x; r.sz = z; r.x = x; r.z = z; r.tx = tx; r.tz = tz;
     r.hy = v.flying ? stat(type, 'hover', 3) - v.centre : 0;
-    r.y = opts.pose ? r.hy : 1.0;
+    r.sy = opts.y || 0;   // the floor the spawn can stands on (a mezzanine spawn stands on the deck)
+    r.y = r.sy + (opts.pose ? r.hy : 1.0);
     r.vx = r.vz = 0; r.kx = r.kz = 0; r.flash = 0; r.crouch = 0; r.token = false; r.alert = 0; r.blind = 0;
     r.cool = 0.6 + Math.random() * 1.2; r.thinkT = 0; r.mode = 'approach'; r.sdir = Math.random() < 0.5 ? -1 : 1; r.bump = 0; r.lost = 0;
     r.tilt = 0; r.wob = 0; r.lid = 0; r.aim = -0.45; r.gunOut = 0; r.kick = 0; r.bankX = r.bankZ = 0; r.fuse = 0; r.capPop = 0;
@@ -836,11 +837,11 @@
         case 'spawn': {
           var k = Math.min(1, r.st / 0.8);
           r.x = r.sx + (r.tx - r.sx) * k; r.z = r.sz + (r.tz - r.sz) * k;
-          if (fly) r.y = 1.0 + (r.hy - 1.0) * k * k * (3 - 2 * k) + Math.sin(k * Math.PI) * 0.6;
-          else r.y = Math.max(0, (1 - k) * 1.0 + Math.sin(k * Math.PI) * 0.8);
+          if (fly) r.y = (r.sy || 0) + 1.0 + (r.hy - 1.0) * k * k * (3 - 2 * k) + Math.sin(k * Math.PI) * 0.6;
+          else r.y = (r.sy || 0) + Math.max(0, (1 - k) * 1.0 + Math.sin(k * Math.PI) * 0.8);
           r.walk += dt * 6;
           if (r.st >= 0.8) {
-            r.fy = r.gy = world.floorAt(r.x, r.z, STEP_UP); r.fvy = 0; r.hop = 0;   // spawn cans stand on the ground (0)
+            r.fy = r.gy = world.floorAt(r.x, r.z, (r.sy || 0) + STEP_UP); r.fvy = 0; r.hop = 0;   // the floor at the spawn can (ground or deck)
             r.y = fly ? r.hy : r.gy;
             if (!fly && IB.FX) IB.FX.puff(r.x, 0.1, r.z, 4, PAL.ink, 0.15, 0.45, 2);
             setState(r, zone && r.zone === ctx.activeZone ? 'alert' : 'idle');
