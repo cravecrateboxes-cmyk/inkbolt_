@@ -1071,7 +1071,7 @@
 
   // ---------------- terrain (bumpy ground) ----------------
   /* theme.terrain = { height(c, r, zoneIdx) -> m (cell-corner coords), flat: 'symbols kept level', ramp: [a, b] cells,
-     low: '#hex', high: '#hex', top: m (height that maps to 'high') }. Walls, gates, the entry, spawns and every symbol
+     low: '#hex', high: '#hex', top: m (height that maps to 'high'), paint: fn (optional, see below) }. Walls, gates, the entry, spawns and every symbol
      listed in `flat` stand on level ground; the bumps ease in over `ramp` cells around them. */
   function buildTerrain(g, z, grid, theme, world) {
     var T = theme.terrain, W = grid.w + 1, H = grid.h + 1, dist = new Float32Array(W * H).fill(1e9), q = [], flat = '#GEPS' + (T.flat || '');
@@ -1096,7 +1096,8 @@
     z.terrain = hf;
     // mesh: one shared vertex per corner, smooth normals, colour from height plus a soft patch pattern
     var lo = col(T.low || (theme.floor && theme.floor.color), '#8CC46A'), hi = col(T.high, '#B8DE8A'), alt = col(T.patch || T.high, '#A6D27C'), cc2 = new THREE.Color();
-    var b0 = g.pos.length / 3, tp = T.top || 3;
+    // T.paint (optional): fn(c, r, zoneIdx, grid) -> ['#hex', amount] tints that corner vertex (trails, mud, duff)
+    var b0 = g.pos.length / 3, tp = T.top || 3, pcol = {}, pv;
     for (r = 0; r < H; r++) for (c = 0; c < W; c++) {
       var hh = hf[r * W + c];
       var hx = hf[r * W + Math.min(W - 1, c + 1)] - hf[r * W + Math.max(0, c - 1)], hz = hf[Math.min(H - 1, r + 1) * W + c] - hf[Math.max(0, r - 1) * W + c];
@@ -1104,6 +1105,7 @@
       cc2.copy(lo).lerp(hi, Math.min(1, hh / tp));
       var pt = Math.sin(c * 0.43 + r * 0.21) + Math.sin(c * 0.17 - r * 0.37 + 1.3);
       if (pt > 0.9) cc2.lerp(alt, 0.55);
+      if (T.paint && (pv = T.paint(c, r, z.idx, grid))) cc2.lerp(pcol[pv[0]] || (pcol[pv[0]] = col(pv[0])), pv[1]);
       g._vert(z.ox + c, hh + 0.004, z.oz + r, n.x, n.y, n.z, cc2.clone());
     }
     for (r = 0; r < grid.h; r++) for (c = 0; c < grid.w; c++) {
