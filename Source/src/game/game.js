@@ -998,7 +998,7 @@
   var acc = 0, tAll = 0;
   function frame(now) {
     requestAnimationFrame(frame);
-    var dtRaw = Math.min(0.1, (now - G.last) / 1000); G.last = now;
+    var dtRaw = Math.max(0, Math.min(0.1, (now - G.last) / 1000)); G.last = now;   // never negative (a rAF stamp can predate a slow boot)
     perfGuard(dtRaw);
     var dt = dtRaw;
     if (G.hitstop > 0) { G.hitstop -= dt; dt = 0; }
