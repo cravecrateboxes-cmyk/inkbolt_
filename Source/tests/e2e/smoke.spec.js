@@ -481,6 +481,86 @@ async function round4Run(browser, base) {
   await pg.context().close();
 }
 
+/* armory mounts (themes with `mounts`, e.g. Strike Team HQ): every rack gun clear of the rack and level geometry, of
+   the other guns and of the tier plates, its back on or in front of the mount plane and its front reachable by rays
+   from the room (never behind a board); bench / shelf gear resting on the surface under it and clear of it. Bounding
+   boxes use the visible surface (outline-shell vertices left out). Runs in the page. */
+function armoryCheck() {
+  const T = THREE, G = IB.Game, gun = [], item = [], m4 = new T.Matrix4(), v = new T.Vector3();
+  function worldBox(im, idx) {
+    im.getMatrixAt(idx, m4);
+    const p = im.geometry.attributes.position, hl = im.geometry.attributes.aHull, b = new T.Box3();
+    for (let i = 0; i < p.count; i++) {
+      if (hl && (hl.getX(i) || hl.getY(i) || hl.getZ(i))) continue;
+      b.expandByPoint(v.fromBufferAttribute(p, i).applyMatrix4(m4));
+    }
+    return b;
+  }
+  const cache = new Map();
+  function tris(zi) {
+    if (cache.has(zi)) return cache.get(zi);
+    const z = G.level.zones[zi], out = [];
+    [z.ground].concat(z.meshes).forEach(m => {
+      const g = m.geometry, pos = g.attributes.position.array, hull = g.attributes.aHull ? g.attributes.aHull.array : null, idx = g.index.array;
+      for (let t = 0; t < idx.length; t += 3) {
+        const a = idx[t], b = idx[t + 1], c = idx[t + 2];
+        if (hull && (hull[a * 3] || hull[a * 3 + 1] || hull[a * 3 + 2])) continue;
+        out.push([a, b, c].map(i => new T.Vector3(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2])));
+      }
+    });
+    cache.set(zi, out); return out;
+  }
+  function triBox(t, box) {   // separating-axis test
+    const c = box.getCenter(new T.Vector3()), h = box.getSize(new T.Vector3()).multiplyScalar(0.5);
+    const p = t.map(q => q.clone().sub(c)), e = [p[1].clone().sub(p[0]), p[2].clone().sub(p[1]), p[0].clone().sub(p[2])];
+    const ax = [new T.Vector3(1, 0, 0), new T.Vector3(0, 1, 0), new T.Vector3(0, 0, 1)];
+    const sep = a => { if (a.lengthSq() < 1e-12) return false; const d = p.map(q => q.dot(a)), r = h.x * Math.abs(a.x) + h.y * Math.abs(a.y) + h.z * Math.abs(a.z); return Math.min(...d) > r || Math.max(...d) < -r; };
+    if (ax.some(sep) || sep(e[0].clone().cross(e[1]))) return false;
+    for (const a of ax) for (const ed of e) if (sep(a.clone().cross(ed))) return false;
+    return true;
+  }
+  function hits(zi, box) {
+    for (const t of tris(zi)) {
+      if (Math.max(t[0].x, t[1].x, t[2].x) < box.min.x || Math.min(t[0].x, t[1].x, t[2].x) > box.max.x) continue;
+      if (Math.max(t[0].y, t[1].y, t[2].y) < box.min.y || Math.min(t[0].y, t[1].y, t[2].y) > box.max.y) continue;
+      if (Math.max(t[0].z, t[1].z, t[2].z) < box.min.z || Math.min(t[0].z, t[1].z, t[2].z) > box.max.z) continue;
+      if (triBox(t, box)) return true;
+    }
+    return false;
+  }
+  const rc = new T.Raycaster();
+  function ray(zi, from, dir) { const z = G.level.zones[zi]; rc.set(from, dir); rc.far = 5; const h = rc.intersectObjects([z.ground].concat(z.meshes), false); return h.length ? h[0].distance : Infinity; }
+  const guns = G.loot.filter(L => L.kind === 'gun'), boxes = guns.map(L => worldBox(L.im, L.idx));
+  guns.forEach((L, i) => {
+    const b = boxes[i], nm = L.id + '@' + [L.x, L.y, L.z].map(q => q.toFixed(2)).join(',');
+    if (hits(L.zone, b.clone().expandByScalar(-0.002))) gun.push(nm + ' cuts into the rack / level');
+    const n = new T.Vector3(Math.sin(L.yaw), 0, Math.cos(L.yaw)), side = new T.Vector3(n.z, 0, -n.x);
+    const along = q => (q.x - L.x) * n.x + (q.z - L.z) * n.z, back = Math.min(along(b.min), along(b.max)), front = Math.max(along(b.min), along(b.max));
+    if (back < -0.002) gun.push(nm + ' reaches ' + (-back).toFixed(3) + ' m behind its mount plane');
+    const c = b.getCenter(new T.Vector3()), half = Math.abs(side.x) * (b.max.x - b.min.x) / 2 + Math.abs(side.z) * (b.max.z - b.min.z) / 2;
+    [-0.3, 0, 0.3].forEach(k => {
+      const from = c.clone().addScaledVector(side, k * half).addScaledVector(n, front - along(c) + 0.8);
+      if (ray(L.zone, from, n.clone().negate()) < 0.79) gun.push(nm + ' hidden behind level geometry');
+    });
+    for (let j = i + 1; j < guns.length; j++) if (b.intersectsBox(boxes[j])) gun.push(nm + ' overlaps ' + guns[j].id);
+  });
+  G.loot.forEach(L => {
+    if (!L.tag) return;
+    const tb = worldBox(L.tag, L.tagIdx), nm = (L.id || L.kind) + '@' + [L.x, L.y, L.z].map(q => q.toFixed(2)).join(',');
+    boxes.forEach((b, j) => { if (b.intersectsBox(tb)) gun.push('tier plate of ' + nm + ' overlaps ' + guns[j].id); });
+    if (hits(L.zone, tb.clone().expandByScalar(-0.002))) (L.kind === 'gun' ? gun : item).push('tier plate of ' + nm + ' cuts into the level');
+  });
+  G.loot.filter(L => L.kind !== 'gun').forEach(L => {
+    const b = worldBox(L.im, L.idx), nm = L.kind + '@' + [L.x, L.y, L.z].map(q => q.toFixed(2)).join(',');
+    const sb = b.clone(); sb.min.y += 0.004; sb.expandByScalar(-0.002);
+    if (hits(L.zone, sb)) item.push(nm + ' cuts into the level');
+    const c = b.getCenter(new T.Vector3()); c.y = b.min.y + 0.02;
+    const d = ray(L.zone, c, new T.Vector3(0, -1, 0));
+    if (!(d < 0.03)) item.push(nm + ' floats ' + (d - 0.02).toFixed(3) + ' m');
+  });
+  return { guns: guns.length, items: G.loot.length - guns.length, gun, item };
+}
+
 async function campaignRun(browser, base) {
   console.log('\n# campaign: big levels, no z-fighting, waypath -> loading -> next level');
   // PLANS=castle,city2 checks a subset (the full level-1 flow runs only when mountains is in the list);
@@ -493,6 +573,24 @@ async function campaignRun(browser, base) {
     check(plan + ' has no coplanar overlapping pieces', z.length === 0, z.slice(0, 3).join(' | '));
     const big = await pg.evaluate(() => IB.Game.level.zones.map(z => z.w * z.h));
     check(plan + ' zones are big (>= 2,000 m2 each)', big.every(a => a >= 2000), big.join(','));
+    if (await pg.evaluate(() => (IB.Game.loot || []).length)) {
+      const ar = await pg.evaluate(armoryCheck);
+      check(plan + ' armory: every rack gun clear of its rack, neighbours and tier plate, visible in front of the board', ar.guns > 0 && ar.gun.length === 0, ar.guns + ' guns ' + ar.gun.slice(0, 4).join(' | '));
+      check(plan + ' armory: bench / shelf gear rests on its surface, clear of it', ar.items > 0 && ar.item.length === 0, ar.items + ' items ' + ar.item.slice(0, 4).join(' | '));
+      // look at a rack gun from 1 m in front of it: the E prompt names it, E takes it into the arsenal
+      const tk = await pg.evaluate(() => {
+        const G = IB.Game, L = G.loot.find(l => l.kind === 'gun' && l.zone === 0 && !l.taken), p = G.player;
+        p.protect = 1e9; p.x = L.x + Math.sin(L.yaw); p.z = L.z + Math.cos(L.yaw); p.vx = p.vz = 0;
+        p.yaw = L.yaw; p.pitch = Math.atan2(L.y + 0.05 - (p.y + 1.5), 1);
+        const before = (G.slot.arsenal || []).length, gems = G.slot.gems || 0;
+        return { id: L.id, near: G.nearestLoot() === L, before, gems, i: G.loot.indexOf(L) };
+      });
+      check(plan + ' armory: looking at a rack gun within reach selects it', tk.near, tk.id);
+      await pg.keyboard.press('KeyE');
+      const got = await until(pg, i => IB.Game.loot[i].taken, tk.i, 3000);
+      const after = await pg.evaluate(id => ({ has: (IB.Game.slot.arsenal || []).indexOf(id) >= 0, gems: IB.Game.slot.gems || 0, prompt: !document.getElementById('usePrompt').hidden }), tk.id);
+      check(plan + ' armory: E takes it (into the arsenal, or as gems / an upgrade)', got && (after.has || after.gems > tk.gems), JSON.stringify(after));
+    }
     // moving lines (theme conveyor symbols): the first zone's items travel; a player standing on a belt rides it
     const lineAt = () => pg.evaluate(() => {
       const z = IB.Game.level.zones[0]; if (!z.lines) return null;
