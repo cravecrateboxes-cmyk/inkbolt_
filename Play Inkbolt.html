@@ -9444,6 +9444,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
      - The next wave drops in when 6 or fewer are left (game.js WAVE_NEXT), so there is little dead time. */
   IB.MIN_LEVEL = { soldier: 4, blader: 7 };
   var LIGHT = { crawler: 1, drone: 1, bomber: 1, gunner: 1 };
+  var ELITE_MUL = 2.5;   // Soldiers and Blade Bots: 2.5x the theme files' counts, light robots make room
   IB.WAVE_MUL = function (L) { return 1.15 + 0.45 * Math.min(1, Math.max(0, (L - 1) / 12)); };
   function total(p) { var t = 0; p.zones.forEach(function (z) { z.waves.forEach(function (w) { w.forEach(function (e) { t += e[1]; }); }); }); return t; }
   // a steady climb: each level has at least 5% more robots than the one before (the extra are light robots)
@@ -9468,6 +9469,19 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
           if (IB.MIN_LEVEL[id] && L < IB.MIN_LEVEL[id]) id = id === 'blader' ? 'crawler' : 'gunner';
           if (LIGHT[id]) n = Math.round(n * m);
           out[id] = (out[id] || 0) + n;
+        });
+        // elites x2.5 (Soldiers, Blade Bots), paid for by light robots from the same wave; elites stay at most half
+        var tot = 0; Object.keys(out).forEach(function (k) { tot += out[k]; });
+        ['soldier', 'blader'].forEach(function (k) {
+          if (!out[k]) return;
+          var add = Math.round(out[k] * ELITE_MUL) - out[k];
+          for (var n = 0; n < add; n++) {
+            var el = (out.soldier || 0) + (out.blader || 0);
+            if (el + 1 > Math.floor(tot / 2)) break;
+            var big = null; Object.keys(LIGHT).forEach(function (l) { if (out[l] > 1 && (!big || out[l] > out[big])) big = l; });
+            if (!big) break;
+            out[big]--; out[k]++;
+          }
         });
         return Object.keys(out).map(function (k) { return [k, out[k]]; });
       });

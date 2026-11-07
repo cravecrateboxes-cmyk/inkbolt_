@@ -73,8 +73,8 @@ test('campaign waves: Soldiers from level 4, Blade Bots from level 7, growing wi
     const p = IB.LEVEL_PLANS[id], L = p.level, s = count(p, 'soldier'), b = count(p, 'blader');
     if (L < 7) assert.equal(b, 0, id + ' bladers');
     if (L < 4) assert.equal(s, 0, id + ' soldiers');
-    if (L === 7) assert.ok(b >= 1 && b <= 6, id + ' a first taste of Blade Bots');
-    if (L === 4) assert.ok(s >= 1 && s <= 3, id + ' a first taste of Soldiers');
+    if (L === 7) assert.ok(b >= 5 && b <= 16, id + ' a first taste of Blade Bots (x2.5 elites)');
+    if (L === 4) assert.ok(s >= 3 && s <= 8, id + ' a first taste of Soldiers (x2.5 elites)');
     if (L >= 4) assert.ok(s >= lastS && b >= lastB, id + ' grows');
     const all = p.zones.reduce((a, z) => a + z.waves.reduce((b2, w) => b2 + w.reduce((c, e) => c + e[1], 0), 0), 0);
     assert.ok(all >= (globalThis.__lastAll || 0), id + ' has at least as many robots as the level before');
@@ -88,5 +88,5 @@ test('campaign waves: Soldiers from level 4, Blade Bots from level 7, growing wi
     lastS = s; lastB = b;
   });
   const last = IB.LEVEL_PLANS[IB.CAMPAIGN[IB.CAMPAIGN.length - 1]];
-  assert.ok(count(last, 'soldier') >= 10 && count(last, 'blader') >= 6);
+  assert.ok(count(last, 'soldier') >= 25 && count(last, 'blader') >= 15);
 });
