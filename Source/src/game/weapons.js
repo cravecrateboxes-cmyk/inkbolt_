@@ -432,10 +432,13 @@
     x -= s.strafe * 0.012 * hip; rz -= s.strafe * 0.05; y += s.vert * hip;
     y -= player.dip * 0.45 + (player.landKick || 0) * 0.03;
     rx += s.swayY * 1.4; ry += s.swayX * 1.6;
-    // slide carry (procedural until a Slide action exists for the weapon)
+    // slide carry: the Slide action (gun tucked low and canted in, support arm out for balance) plus a small lean
+    // into the slide on top; procedural only for a weapon without a Slide action. Aiming while sliding keeps the
+    // two-hand hold (no Slide clip under the sights).
     var slideClip = g && W.clips[W.models[g.id].key + '_Slide'];
     s.slideK = (s.slideK || 0) + ((player.sliding ? 1 : 0) - (s.slideK || 0)) * Math.min(1, dt * 12);
     if (!slideClip) { rz += 0.5 * s.slideK; x -= 0.03 * s.slideK; y -= 0.035 * s.slideK; }
+    else { rz += 0.05 * s.slideK * hip; y -= 0.008 * s.slideK * hip; rx -= 0.02 * s.slideK * hip; }
     // aim down sights: blend toward the pose that puts the sight point on the screen centre
     if (g && a > 0.001) {
       var sp = W.sightOf(g.id);
@@ -446,9 +449,9 @@
     // arm animation: once-clips (draw, fire, reload, holster) fall back to the Idle / Sprint / Slide loop
     if (s.melee && W.mixer) W.mixer.update(dt);
     if (g && W.mixer) {
-      var want = player.sliding && slideClip ? 'Slide' : (player.sprinting ? 'Sprint' : 'Idle');
+      var want = player.sliding && slideClip && a < 0.5 ? 'Slide' : (player.sprinting ? 'Sprint' : 'Idle');
       var busy = W.animOnce && W.action && W.action.isRunning();
-      if (!busy && W.animName !== want && s.state !== 'holster') W.anim(s, want, { fade: want === 'Slide' ? 0.08 : (want === 'Sprint' || W.animName === 'Sprint' ? vc.fade : 0.14) });
+      if (!busy && W.animName !== want && s.state !== 'holster') W.anim(s, want, { fade: want === 'Slide' || W.animName === 'Slide' ? 0.12 : (want === 'Sprint' || W.animName === 'Sprint' ? vc.fade : 0.14) });
       W.mixer.update(dt);
     }
     // recoil kick (spring) on top
