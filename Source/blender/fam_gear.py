@@ -7,8 +7,12 @@ world loot drop (a capsule pedestal; the game adds the rarity beam).
   GEAR_Acid         acid muzzle: silencer can with a green glass window and a side vial; origin = rear face on the
                     bore axis (rides the gun's MUZZLE socket, extends +Y); GEAR_Acid_TIP = the new muzzle point;
                     GEAR_Acid_Glow = the glass core (no outline; the game pulses it unlit)
-  GEAR_ShieldCell   hex shield battery (pickup look)
-  LOOT_Capsule      drop pod pedestal (world size); LOOT_Glow = its light ring + emitter (recoloured per rarity in game)
+  GEAR_ShieldCell   hex shield battery (pickup look), one variant per rarity: GEAR_ShieldCell (common),
+                    GEAR_ShieldCell_Rare, GEAR_ShieldCell_Epic, GEAR_ShieldCell_Legendary (SHIELD_TIERS)
+  GEAR_Mag          extended magazine sleeve; origin = the centre of the gun magazine's bottom face (hangs down -Z;
+                    the game scales it to the magazine's footprint and parents it to the magazine)
+  GEAR_Vest         armour vest (pickup look, front faces +X)
+  LOOT_Capsule     drop pod pedestal (world size); LOOT_Glow = its light ring + emitter (recoloured per rarity in game)
 
 Same conventions as fps-weapons: +Y forward, +Z up, origin where the part mounts; exact primitives with chamfers;
 small inner details carry no outline shell; ib_lib.check_zfight runs strict on every object.
@@ -36,7 +40,12 @@ ib_lib.PALETTES[FAM] = [(n, _LIFT.get(n, h)) for n, h in BASE] + [
     ('rubber', '#3B3A4A'), ('lens', '#86EAF2'), ('lens2', '#4FC3D6'),
     ('acid', '#7BE34A'), ('acid2', '#3FAE2A'), ('acid3', '#C8FF8A'),
     ('cell', '#5FD0FF'), ('cell2', '#2F8FD8'), ('cell3', '#BDF0FF'),
-    ('pod', '#5A586D'), ('pod2', '#48475A'), ('pod3', '#6E6B85'), ('glow', '#FFFDF7')]
+    ('pod', '#5A586D'), ('pod2', '#48475A'), ('pod3', '#6E6B85'), ('glow', '#FFFDF7'),
+    # rarity accents (data/loot.js colours): rare blue, epic purple, legendary orange + gold trim
+    ('rar', '#4A9BFF'), ('rar2', '#2E6FD6'), ('rar3', '#B9DAFF'),
+    ('epc', '#B77BFF'), ('epc2', '#7E4BD8'), ('epc3', '#E6D2FF'),
+    ('leg', '#FF9A2E'), ('leg2', '#D8661A'), ('leg3', '#FFDDA6'), ('gold', '#FFC94A'),
+    ('brass', '#E0A93A'), ('strap', '#4A4636'), ('strap2', '#5E5946'), ('plate', '#7C8597'), ('plate2', '#9AA3B5')]
 
 
 # ================================================================ geometry kit (same primitives as fam_weapons)
@@ -346,32 +355,152 @@ def build_acid(pal):
     return o
 
 
-def build_shield_cell(pal):
-    """Hex shield battery: blue energy core seen between six ribs, gunmetal end caps, amber terminal, bolt emblem."""
+# one look per rarity, so a cell reads at a glance (pickup + inventory picture); data/loot.js TYPES.shield.models
+#   common     Tin Cell    cyan core, gunmetal caps, one amber terminal
+#   rare       Volt Cell   blue core, steel caps with raised collars, twin terminals
+#   epic       Storm Cell  purple core, three lightning fins, a crown of spikes round the terminal
+#   legendary  Nova Cell   orange core, gold ribs + trim rings, six fins, an orb emitter in a halo ring
+SHIELD_TIERS = {
+    'common': dict(name='GEAR_ShieldCell', H=0.105, core='cell', band='cell3', rib='gun2', cap='gunmetal', term='amber'),
+    'rare': dict(name='GEAR_ShieldCell_Rare', H=0.108, core='rar', band='rar3', rib='gun2', cap='gun3', term='amber', collars='steel', twin=True),
+    'epic': dict(name='GEAR_ShieldCell_Epic', H=0.112, core='epc', band='epc3', rib='gunmetal', cap='gun2', term='epc2', fins=(3, 'epc2'), crown='epc3'),
+    'legendary': dict(name='GEAR_ShieldCell_Legendary', H=0.112, core='leg', band='leg3', rib='gold', cap='gunmetal', term='gold', fins=(6, 'leg2'),
+                      trim='gold', halo=True),
+}
+
+
+def build_shield_cell(pal, tier='common'):
+    """Hex shield battery: energy core seen between six ribs, end caps, terminal, bolt emblem; extras per tier."""
+    t = SHIELD_TIERS[tier]
     k = Kit(pal)
-    H, R = 0.105, 0.040
+    H, R = t['H'], 0.040
     hexp = ngon(R, 6, 30)
     # end caps (chamfered hex prisms)
-    k.ext_z(hexp, 0.0, 0.020, 'gunmetal', ch0=0.004, ch1=0.002)
-    k.ext_z(hexp, H - 0.020, H, 'gunmetal', ch0=0.002, ch1=0.004)
+    k.ext_z(hexp, 0.0, 0.020, t['cap'], ch0=0.004, ch1=0.002)
+    k.ext_z(hexp, H - 0.020, H, t['cap'], ch0=0.002, ch1=0.004)
     # core: glowing hex prism, slightly smaller
-    k.ext_z(ngon(R * 0.80, 6, 30), 0.020, H - 0.020, 'cell', hull=True)
+    k.ext_z(ngon(R * 0.80, 6, 30), 0.020, H - 0.020, t['core'], hull=True)
     # six ribs on the hex corners
     for i in range(6):
         a = D(30 + 60 * i)
-        k.cbox((math.cos(a) * R * 0.86, math.sin(a) * R * 0.86, H / 2), (0.011, 0.011, H - 0.031), 'gun2', ch=0.002, rot=(0, 0, 30 + 60 * i), axis='z')
+        k.cbox((math.cos(a) * R * 0.86, math.sin(a) * R * 0.86, H / 2), (0.011, 0.011, H - 0.031), t['rib'], ch=0.002, rot=(0, 0, 30 + 60 * i), axis='z')
     # energy bands on the core faces
     for z in (0.034, H - 0.034):
-        k.ring('z', (0, 0, 0), z - 0.003, z + 0.003, R * 0.60, R * 0.80 + 0.0032, 'cell3', seg=6, hull=False, a0=30)
-    # terminal on top + amber cap, bottom foot ring
-    k.lathe([(H, 0), (H, 0.012), (H + 0.010, 0.012), (H + 0.014, 0.008), (H + 0.014, 0)], 'amber', 'z', (0, 0, 0), 8, bands=[None, None, None, 'ink'])
+        k.ring('z', (0, 0, 0), z - 0.003, z + 0.003, R * 0.60, R * 0.80 + 0.0032, t['band'], seg=6, hull=False, a0=30)
+    # terminal(s) on top, bottom foot ring
+    term = [(H, 0), (H, 0.012), (H + 0.010, 0.012), (H + 0.014, 0.008), (H + 0.014, 0)]
+    if t.get('twin'):
+        for x in (-0.015, 0.015):
+            k.lathe([(H, 0), (H, 0.0065), (H + 0.012, 0.0065), (H + 0.016, 0.0042), (H + 0.016, 0)], t['term'], 'z', (0, x, 0), 8, bands=[None, None, None, 'ink'])
+        k.cbox((0, 0, H + 0.006), (0.018, 0.036, 0.005), 'gun2', ch=0.0015)                       # bridge between the posts
+    elif t.get('halo'):
+        k.lathe([(H, 0), (H, 0.010), (H + 0.008, 0.010), (H + 0.012, 0.006), (H + 0.020, 0.006), (H + 0.020, 0)], t['term'], 'z', (0, 0, 0), 8)
+        k.sphere((0, 0, H + 0.030), 0.0115, 'leg3', seg=(10, 6), hull=True)                         # orb emitter
+        k.ring('z', (0, 0, 0), H + 0.027, H + 0.033, 0.024, 0.0295, t['trim'], seg=12, hull=True)   # halo ring round the orb
+        for i in range(3):                                                                          # spokes orb -> halo
+            a = D(90 + 120 * i)
+            k.cbox((math.cos(a) * 0.0178, math.sin(a) * 0.0178, H + 0.030), (0.0145, 0.0035, 0.012), t['trim'], ch=0.0, rot=(0, 0, 90 + 120 * i))
+    else:
+        k.lathe(term, t['term'], 'z', (0, 0, 0), 8, bands=[None, None, None, 'ink'])
     k.ring('z', (0, 0, 0), -0.004, 0.0, R * 0.55, R * 0.82, 'ink', seg=6, hull=False, a0=30)
     # bolt emblem on the front face (paper, 3 mm proud of the core)
     bolt = [(0.004, 0.030), (-0.010, 0.002), (0.0, 0.002), (-0.005, -0.030), (0.011, 0.006), (0.001, 0.006)]
     fx = R * 0.80 * math.cos(D(30))
     k.ext(bolt, 'paper', (fx, 0, H / 2), (0, 1, 0), (0, 0, 1), (1, 0, 0), -0.0005, 0.0065, hull=False)
     k.ext(bolt, 'paper', (-fx, 0, H / 2), (0, -1, 0), (0, 0, 1), (-1, 0, 0), -0.0005, 0.0065, hull=False)
-    return finish('GEAR_ShieldCell', k)
+    # rare: raised collars round both caps (3.5 mm proud of the cap faces)
+    if t.get('collars'):
+        for z0 in (0.007, H - 0.015):
+            k.ring('z', (0, 0, 0), z0, z0 + 0.008, R * 0.9, R + 0.0040, t['collars'], seg=6, hull=False, a0=30)
+    # legendary: gold trim rings just inside the caps
+    if t.get('trim'):
+        for z0 in (0.0235, H - 0.0275):
+            k.ring('z', (0, 0, 0), z0, z0 + 0.004, R * 0.70, R * 0.80 + 0.0045, t['trim'], seg=6, hull=False, a0=30)
+    # epic / legendary: lightning fins standing off the rib corners
+    if t.get('fins'):
+        n, col = t['fins']
+        fin = [(0.036, -0.026), (0.047, -0.020), (0.044, -0.004), (0.053, 0.002), (0.049, 0.022), (0.036, 0.030)]
+        for i in range(n):
+            a = D(30 + (360 / n) * i)
+            u, w = V((math.cos(a), math.sin(a), 0)), V((-math.sin(a), math.cos(a), 0))
+            k.ext(fin, col, (0, 0, H / 2), u, (0, 0, 1), w, -0.002, 0.002, ch0=0.0006, ch1=0.0006)
+    # epic: a crown of spikes round the terminal
+    if t.get('crown'):
+        for i in range(5):
+            a = D(72 * i)
+            k.cbox((math.cos(a) * 0.022, math.sin(a) * 0.022, H + 0.004), (0.006, 0.006, 0.016), t['crown'], ch=0.001,
+                   rot=(-22 * math.sin(a), 22 * math.cos(a), 0))                                  # tilted outward
+    return finish(t['name'], k)
+
+
+# ================================================================ new gear: extended mag, armour vest
+def build_mag(pal):
+    """Extended magazine sleeve: a collar that wraps the bottom of the gun's own magazine (origin = the magazine's
+    bottom face, centre; the game scales x / y to the magazine's footprint), a ridged extension body with witness
+    slots and an amber band, a wide steel baseplate. Three rounds peek out of the collar (hidden inside the gun's
+    magazine in play, they make the picture read as a magazine)."""
+    k = Kit(pal)
+    W, Dp = 0.026, 0.036            # inner footprint (x = width, y = depth) the collar wraps
+    wall = 0.003
+    # collar: open rectangular tube round the magazine's bottom, 9 mm up, 3 mm walls
+    out = [(-W / 2 - wall, -Dp / 2 - wall), (W / 2 + wall, -Dp / 2 - wall), (W / 2 + wall, Dp / 2 + wall), (-W / 2 - wall, Dp / 2 + wall)]
+    inn = [(-W / 2 - 0.0004, -Dp / 2 - 0.0004), (W / 2 + 0.0004, -Dp / 2 - 0.0004), (W / 2 + 0.0004, Dp / 2 + 0.0004), (-W / 2 - 0.0004, Dp / 2 + 0.0004)]
+    z0, z1 = -0.006, 0.009
+    rings = [[(x, y, z0) for x, y in out], [(x, y, z1) for x, y in out], [(x, y, z1) for x, y in inn], [(x, y, z0) for x, y in inn]]
+    k.loft(rings, 'gun2', hull=True, closed=True)
+    # extension body below, the magazine's own footprint (top face 3 mm under the magazine's bottom: never touches it)
+    k.cbox((0, 0, -0.0215), (W, Dp, 0.037), 'gunmetal', ch=0.003, axis='z')
+    # amber band, 4 mm proud all round
+    k.cbox((0, 0, -0.012), (W + 0.008, Dp + 0.008, 0.005), 'amber', ch=0.0008, hull=False)
+    # witness slots on both sides (ink, 3 mm proud)
+    for s in (-1, 1):
+        for j in range(3):
+            k.box((s * W / 2, -0.009 + j * 0.009, -0.026), (0.006, 0.0042, 0.010), 'ink')
+    # grip ridges on the front face (+y), 3 mm proud
+    for j in range(3):
+        k.box((0, Dp / 2, -0.031 + j * 0.0055), (W * 0.6, 0.006, 0.0024), 'gun3')
+    # baseplate: wider, chamfered, with an ink pad 3 mm under it
+    k.cbox((0, 0.002, -0.0425), (W + 0.014, Dp + 0.016, 0.007), 'steel2', ch=0.002)
+    k.box((0, 0.002, -0.047), (W * 0.5, Dp * 0.5, 0.004), 'ink')
+    # three rounds peeking out of the collar (brass cases, paper tips)
+    for j, y in enumerate((-0.011, 0.0, 0.011)):
+        zt = 0.016 + (0.002 if j == 1 else 0.0)
+        k.lathe([(0.001, 0), (0.001, 0.0058), (zt - 0.004, 0.0058), (zt - 0.001, 0.0042), (zt + 0.004, 0.0022), (zt + 0.005, 0)], 'brass', 'z', (0, y, 0), 8, hull=False,
+                bands=[None, None, None, 'paper', 'paper'])
+    return finish('GEAR_Mag', k)
+
+
+def build_vest(pal):
+    """Armour vest (pickup scale, front faces +X): front and back plates on a strap carrier, shoulder straps,
+    side cummerbund, three magazine pouches with ink flaps, an amber chevron on the chest, steel rivets."""
+    k = Kit(pal)
+    # plate outline in (y, z): shoulders, neck scoop, tapered waist
+    plate = [(-0.040, 0.000), (0.040, 0.000), (0.042, 0.050), (0.036, 0.078), (0.024, 0.088), (0.014, 0.088), (0.009, 0.078),
+             (-0.009, 0.078), (-0.014, 0.088), (-0.024, 0.088), (-0.036, 0.078), (-0.042, 0.050)]
+    # carrier body (strap fabric) between the plates
+    k.ext_x(inset2d(plate, 0.004), -0.028, 0.006, 'strap', ch=0.003)
+    # front plate (proud of the carrier) and back plate
+    k.ext_x(plate, 0.006, 0.016, 'plate', ch=0.0035)
+    k.ext_x(plate, -0.036, -0.026, 'plate2', ch=0.003)
+    # shoulder straps over the top
+    for y in (-0.019, 0.019):
+        k.cbox((-0.010, y, 0.0895), (0.040, 0.012, 0.007), 'strap2', ch=0.002, axis='x')
+        k.box((0.0175, y, 0.083), (0.005, 0.009, 0.006), 'steel')                                   # buckle on the front plate
+    # cummerbund round the waist (sides), 3 mm proud of the carrier
+    for s in (-1, 1):
+        k.cbox((-0.011, s * 0.0405, 0.026), (0.030, 0.007, 0.030), 'strap2', ch=0.002)
+    # three magazine pouches across the lower front, with ink flaps (3.5 mm proud) and snaps
+    for y in (-0.026, 0.0, 0.026):
+        k.cbox((0.0225, y, 0.019), (0.013, 0.018, 0.028), 'strap2', ch=0.003)
+        k.cbox((0.030, y, 0.0325), (0.009, 0.024, 0.008), 'strap', ch=0.0015)
+        k.box((0.030, y, 0.0255), (0.006, 0.005, 0.004), 'ink')
+    # amber chevron on the chest (4 mm proud of the front plate)
+    chev = [(-0.017, 0.054), (0.0, 0.040), (0.017, 0.054), (0.017, 0.063), (0.0, 0.049), (-0.017, 0.063)]
+    k.ext(chev, 'amber', (0, 0, 0), (0, 1, 0), (0, 0, 1), (1, 0, 0), 0.014, 0.020, hull=False)
+    # steel rivets on the upper plate corners
+    for (y, z) in ((-0.030, 0.068), (0.030, 0.068)):
+        k.lathe([(0.0145, 0), (0.0145, 0.0032), (0.0195, 0.0028), (0.0205, 0)], 'steel', 'x', (0, y, z), 6, hull=False)
+    return finish('GEAR_Vest', k)
 
 
 # ================================================================ world loot drop
@@ -402,7 +531,7 @@ def build_capsule(pal):
 
 def build_gear(ao):
     pal = Palette(FAM)
-    objs = [build_grip(pal), build_scope(pal), build_acid(pal), build_shield_cell(pal), build_capsule(pal)]
+    objs = [build_grip(pal), build_scope(pal), build_acid(pal)] + [build_shield_cell(pal, t) for t in SHIELD_TIERS] + [build_mag(pal), build_vest(pal), build_capsule(pal)]
     for o in objs:
         print('%-16s %5d tris (incl. outline)' % (o.name, tris(o)))
     export(FAM)

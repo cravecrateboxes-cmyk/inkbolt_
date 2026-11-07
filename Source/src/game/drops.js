@@ -1,7 +1,8 @@
 /* INKBOLT world loot drops: a drop pod (fps-gear LOOT_Capsule) with a rarity-coloured light ring, ground ring and
    beam, the item model turning above it. Walking over it puts the item in the bag (slot.gear) with a HUD card;
-   an empty shield / attachment slot on the current gun is filled automatically. Drops show on the radar.
-     Drops.onKill(robot)       roll the 5 % drop for a player kill (IB.Loot.rollDrop)
+   an empty shield / vest slot or attachment slot on the current gun is filled automatically. Drops show on the radar;
+   the beam grows taller and brighter with the rarity (Legendary: orange, tallest).
+     Drops.onKill(robot)       roll the 5 % drop for a player kill (IB.Loot.rollDrop: rarity odds by campaign level)
      Drops.spawn(item, x, z)   place a drop
      Drops.update(dt, t, G)    animation + pickup
    Pooled: LOOT.maxWorld drops (the oldest is recycled). */
@@ -9,7 +10,10 @@
   'use strict';
   var PAL = IB.PAL;
   var D = IB.Drops = { pool: [], ready: false };
-  var ITEM_MESH = { shield: 'GEAR_ShieldCell', grip: 'GEAR_Grip', scope: 'GEAR_Scope', acid: 'GEAR_Acid' };
+  // fallback meshes per type (IB.Loot.modelOf picks the rarity's own model: shield cells have four)
+  var ITEM_MESH = { shield: 'GEAR_ShieldCell', grip: 'GEAR_Grip', scope: 'GEAR_Scope', acid: 'GEAR_Acid', mag: 'GEAR_Mag', armor: 'GEAR_Vest' };
+  // beam per rarity: [opacity, height, width]: the rarer, the taller and brighter
+  var BEAM = { common: [0.42, 0.8, 1], rare: [0.58, 1.05, 1], epic: [0.7, 1.25, 1.1], legendary: [0.82, 1.55, 1.3] };
   var _tmp = [];
 
   function beamTexture() {
@@ -82,14 +86,16 @@
     d.on = true; d.it = item; d.x = pos[0]; d.z = pos[1]; d.t = 0; d.born = performance.now(); d.fullT = 0;
     var rc = IB.LOOT.rarityById[item.rarity], col = new THREE.Color(rc.color);
     d.glow.color.copy(col); d.beamMat.color.copy(col); d.ringMat.color.copy(col);
-    d.beamMat.opacity = item.rarity === 'epic' ? 0.7 : item.rarity === 'rare' ? 0.58 : 0.42;
-    d.beam.scale.set(1, item.rarity === 'epic' ? 1.25 : item.rarity === 'rare' ? 1.05 : 0.8, 1);
-    var A = IB.Assets, geo = A.get(ITEM_MESH[item.type]);
+    var bs = BEAM[item.rarity] || BEAM.common;
+    d.beamMat.opacity = bs[0];
+    d.beam.scale.set(bs[2], bs[1], bs[2]);
+    var A = IB.Assets, node = IB.Loot.modelOf(item);
+    var geo = A.get(node && A.geo[node] ? node : ITEM_MESH[item.type]);
     d.item.geometry = geo;
     if (!geo.boundingBox) geo.computeBoundingBox();
     var bb = geo.boundingBox, c = new THREE.Vector3(); bb.getCenter(c);
     var sz = new THREE.Vector3(); bb.getSize(sz);
-    var k = item.type === 'shield' ? 2.6 : 2.4;
+    var k = item.type === 'shield' || item.type === 'armor' ? 2.6 : item.type === 'mag' ? 2.8 : 2.4;
     d.item.scale.setScalar(k);
     d.item.position.set(-c.x * k, -c.y * k, -c.z * k);
     // long attachments lie along the turn axis a bit tilted so their side profile reads
@@ -117,7 +123,8 @@
     }
     // fill an empty slot right away: shield, or a compatible attachment slot on the gun in hand
     var note = 'In your bag';
-    if (item.type === 'shield' && !g.shield) { IB.Loot.equipShield(g, item.id); note = 'Shield equipped'; }
+    var worn = IB.Loot.isWorn(item) ? IB.Loot.slotOf(item) : null;
+    if (worn && !g[worn]) { IB.Loot.equipWorn(g, worn, item.id); note = worn === 'shield' ? 'Shield equipped' : 'Vest equipped'; }
     else if (IB.Loot.isAttachment(item) && G.ws && G.ws.cur) {
       var wid = G.ws.cur, def = IB.WEAPONS[wid], sl = IB.Loot.slotOf(item);
       if (IB.Loot.compatible(item, wid, def) && !IB.Loot.weaponItems(g, wid)[sl]) { IB.Loot.attach(g, wid, def, item.id); note = 'Fitted to ' + def.name; }

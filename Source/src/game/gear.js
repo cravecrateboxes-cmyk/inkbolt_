@@ -1,10 +1,14 @@
 /* INKBOLT gear runtime: the loot inventory in play.
      Gear.refresh(G, fill)    weapon defs with attachments applied (stats), attachment meshes on the first-person
                               guns (MUZZLE socket: acid muzzle, SIGHT/SCOPE: scope, under the barrel: grip), ADS
-                              through the scope's eye point, and the equipped shield (fill: start it full)
-     Gear.absorb(G, dmg)      player damage hits the shield first; returns what goes through to health
+                              through the scope's eye point, under the magazine: extended mag), the equipped shield
+                              (fill: start it full) and the worn vest's extra max health
+     Gear.absorb(G, dmg)      player damage hits the shield first, the vest cuts what goes on; returns what reaches
+                              health (an armed Nova cell that breaks queues its shock burst)
      Gear.onHit(...)          bullet hit glue from game.js shoot(): damage number + acid DoT
-     Gear.update(dt, G)       shield recharge, HUD shield bar, acid glass pulse
+     Gear.onKill(G, r)        a player kill: Overcharge cells start recharging at once, faster
+     Gear.vestHp(G)           the worn vest's extra max health (game.js adds it in applySkillStats)
+     Gear.update(dt, G)       shield recharge, Nova burst, HUD shield bar, acid glass pulse
    Models come from fps-gear.glb (blender/fam_gear.py). */
 (function (IB) {
   'use strict';
@@ -32,6 +36,9 @@
       shieldUp: function () { var o = new Float32Array(len(0.55)); var t = env(tone(len(0.5), 220, 880, true), 0.06, 0.48, 0.7); lp(t, 1800); mix(o, t, 0.4); mix(o, env(tone(len(0.5), 440, 1760), 0.06, 0.48, 0.8), 0.25); return norm(o, 0.32); },
       // topped up: two-note chime
       shieldFull: function () { var o = new Float32Array(len(0.35)); mix(o, env(tone(len(0.18), 1320, 1320), 0.002, 0.17, 3), 0.6); mix(o, env(tone(len(0.2), 1980, 1980), 0.002, 0.19, 3), 0.6, 0.09); return norm(o, 0.3); },
+      // Nova: a fat electric whump (low sweep + crackle); Overcharge: a quick rising zing
+      shieldNova: function () { var o = new Float32Array(len(0.7)); var t = env(tone(len(0.6), 900, 70, true), 0.002, 0.6, 1.3); lp(t, 2200); mix(o, t, 0.5); mix(o, env(lp(n(len(0.4)), 300), 0.001, 0.38, 1.6), 0.9); mix(o, env(hp(n(len(0.5)), 3000), 0.002, 0.48, 1.8), 0.6); for (var i = 0; i < 6; i++) mix(o, env(hp(n(len(0.02)), 4500), 0.0005, 0.018, 3), 0.45, 0.04 + i * 0.07); return norm(o, 0.7); },
+      overcharge: function () { var o = new Float32Array(len(0.4)); mix(o, env(tone(len(0.32), 330, 1320, true), 0.01, 0.3, 1.2), 0.3); lp(o, 2600); mix(o, env(tone(len(0.3), 660, 2640), 0.01, 0.28, 1.4), 0.3); return norm(o, 0.32); },
       // loot drops: thunk + sparkle; picked up: rising arpeggio
       lootDrop: function () { var o = new Float32Array(len(0.6)); mix(o, env(lp(n(len(0.12)), 500), 0.001, 0.11, 2), 0.9); mix(o, env(tone(len(0.1), 160, 80), 0.001, 0.1, 2), 0.6); [1568, 2093, 2637].forEach(function (f, i) { mix(o, env(tone(len(0.18), f, f), 0.002, 0.17, 3), 0.28, 0.12 + i * 0.07); }); return norm(o, 0.55); },
       loot: function () { var o = new Float32Array(len(0.5)); [784, 1175, 1568, 2349].forEach(function (f, i) { mix(o, env(tone(len(0.16), f, f), 0.002, 0.15, 3), 0.4, i * 0.055); }); mix(o, env(hp(n(len(0.3)), 6000), 0.01, 0.28, 2), 0.12); return norm(o, 0.45); },
@@ -107,20 +114,74 @@
     return m.gearMounts;
   }
   Gear.mounts = function (id) { var m = IB.Weapons.models && IB.Weapons.models[id]; return m ? mounts(m, id) : null; };
-  var MESH = { grip: 'GEAR_Grip', scope: 'GEAR_Scope', muzzle: 'GEAR_Acid' };
+  /* extended mag: where it rides on the gun's own magazine mesh (mag-local): the magazine's base plate, i.e. its biggest
+     downward face near the bottom (raked pistol mags and curved rifle mags lean, so its normal gives the axis), the
+     plate's centre and its footprint (x width, depth across the axis) */
+  var MAG_W = 0.026, MAG_D = 0.036;   // GEAR_Mag's inner footprint (fam_gear.py build_mag)
+  function magMount(m) {
+    if (m.magMount !== undefined) return m.magMount;
+    m.magMount = null;
+    var mg = m.mag, geo = mg && mg.geometry; if (!geo || !geo.index) return null;
+    var pos = geo.attributes.position, hull = geo.attributes.aHull, idx = geo.index, i;
+    function solid(i) { return !hull || (hull.getX(i) === 0 && hull.getY(i) === 0 && hull.getZ(i) === 0); }
+    function P(i) { return new THREE.Vector3(pos.getX(i), pos.getY(i), pos.getZ(i)); }
+    var y0 = Infinity, pts = [];
+    for (i = 0; i < pos.count; i++) if (solid(i)) { var p = P(i); pts.push(p); y0 = Math.min(y0, p.y); }
+    if (pts.length < 8) return null;
+    // downward faces within 2 cm of the lowest point, merged by normal: the largest group is the base plate
+    var groups = [], e1 = new THREE.Vector3(), e2 = new THREE.Vector3(), nrm = new THREE.Vector3();
+    for (i = 0; i < idx.count; i += 3) {
+      var a = idx.getX(i), b = idx.getX(i + 1), c = idx.getX(i + 2);
+      if (!solid(a) || !solid(b) || !solid(c)) continue;
+      var A = P(a), B = P(b), C = P(c);
+      nrm.crossVectors(e1.subVectors(B, A), e2.subVectors(C, A));
+      var area = nrm.length() / 2; if (area < 1e-7) continue;
+      nrm.normalize();
+      if (nrm.y > -0.6 || Math.abs(nrm.x) > 0.3 || Math.min(A.y, B.y, C.y) > y0 + 0.02) continue;
+      var gr = null;
+      for (var k = 0; k < groups.length; k++) if (groups[k].n.dot(nrm) > 0.995) { gr = groups[k]; break; }
+      if (!gr) { gr = { n: nrm.clone(), area: 0 }; groups.push(gr); }
+      gr.area += area;
+    }
+    if (!groups.length) return null;
+    groups.sort(function (p, q) { return q.area - p.area; });
+    var axis = groups[0].n.clone().negate(); axis.x = 0; axis.normalize();
+    var wv = new THREE.Vector3(0, -axis.z, axis.y);   // depth direction, square to the axis and to x
+    var tmin = Infinity;
+    pts.forEach(function (p) { tmin = Math.min(tmin, p.dot(axis)); });
+    var x0 = Infinity, x1 = -Infinity, s0 = Infinity, s1 = -Infinity;
+    pts.forEach(function (p) { if (p.dot(axis) < tmin + 0.003) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); var s = p.dot(wv); s0 = Math.min(s0, s); s1 = Math.max(s1, s); } });
+    var w = x1 - x0, d = s1 - s0;
+    m.magMount = { pos: new THREE.Vector3((x0 + x1) / 2, 0, 0).addScaledVector(wv, (s0 + s1) / 2).addScaledVector(axis, tmin),
+      quat: new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), axis),
+      scale: new THREE.Vector3(Math.max(0.5, w / MAG_W), Math.max(0.7, Math.min(1.05, (w / MAG_W + d / MAG_D) / 2)), Math.max(0.5, d / MAG_D)) };
+    return m.magMount;
+  }
+  var MESH = { grip: 'GEAR_Grip', scope: 'GEAR_Scope', muzzle: 'GEAR_Acid', mag: 'GEAR_Mag' };
+  var MAG_VISUAL = { pistol: true, smg: true, rifle: true, sniper: true };   // shotgun tubes / cylinders: stats only
   var ADS_DIST = { pistol: 0.34, smg: 0.22, rifle: 0.17, sniper: 0.13 };   // weapons.js defaults
   function vmPart(m, slot) {
     m.gearParts = m.gearParts || {};
-    if (m.gearParts[slot]) return m.gearParts[slot];
-    var A = IB.Assets, mesh = new THREE.Mesh(A.get(MESH[slot]), Gear.vmMat);
+    if (m.gearParts[slot] !== undefined) return m.gearParts[slot];
+    var A = IB.Assets;
+    if (!MESH[slot] || !A.geo[MESH[slot]]) { m.gearParts[slot] = null; return null; }
+    var mesh = new THREE.Mesh(A.get(MESH[slot]), Gear.vmMat);
     mesh.frustumCulled = false; mesh.name = 'VM_' + MESH[slot];
     if (slot === 'muzzle') {
       var glow = new THREE.Mesh(A.get('GEAR_Acid_Glow'), Gear.glowMat); glow.frustumCulled = false; mesh.add(glow);
       var tip = new THREE.Object3D(); tip.position.copy(A.node.GEAR_Acid_TIP.position); tip.scale.setScalar(0.6); tip.name = 'VM_ACID_TIP'; mesh.add(tip);
       mesh.userData.tip = tip;
     }
-    mesh.position.copy(mounts(m)[slot]);
-    m.mesh.add(mesh);
+    if (slot === 'mag') {
+      // rides the magazine (so it drops out and comes back with it on a reload)
+      var mm = magMount(m), def = IB.WEAPONS[m.id];
+      if (!mm || !def || !MAG_VISUAL[def.cls]) { m.gearParts[slot] = null; return null; }
+      mesh.position.copy(mm.pos); mesh.quaternion.copy(mm.quat); mesh.scale.copy(mm.scale);
+      m.mag.add(mesh);
+    } else {
+      mesh.position.copy(mounts(m)[slot]);
+      m.mesh.add(mesh);
+    }
     m.gearParts[slot] = mesh;
     return mesh;
   }
@@ -128,10 +189,10 @@
   function dressViewmodel(id, items, isCur) {
     var W = IB.Weapons, m = W.models && W.models[id];
     if (!m || !Gear.ready) return;
+    m.id = m.id || id;
     IB.LOOT.slots.forEach(function (sl) {
-      var on = !!items[sl];
-      if (on) vmPart(m, sl).visible = true;
-      else if (m.gearParts && m.gearParts[sl]) m.gearParts[sl].visible = false;
+      var on = !!items[sl], part = on ? vmPart(m, sl) : m.gearParts && m.gearParts[sl];
+      if (part) part.visible = on;
     });
     // muzzle flash rides the acid can's tip
     if (!m.muzzle0) m.muzzle0 = m.muzzle || null;
@@ -152,6 +213,9 @@
     owned.forEach(function (id) {
       var gun = G.ws.guns[id], items = L().weaponItems(g, id);
       gun.def = L().applyMods(IB.WEAPONS[id], items);
+      // a mag taken off: the rounds that no longer fit go back to the spare ammo
+      var size = IB.Weapons.magSize(G.ws, gun.def);
+      if (gun.mag > size) { if (gun.reserve !== Infinity) gun.reserve += gun.mag - size; gun.mag = size; }
       // ADS keeps the camera where the iron sights put it (the eye point is further forward), so the arms never clip
       if (items.scope) { var mt = Gear.mounts(id); gun.def.adsDist = (ADS_DIST[gun.def.cls] || 0.25) + (mt ? (mt.sightZ - mt.scope.z) * 0.85 : 0); }
       dressViewmodel(id, items, G.ws.cur === id);
@@ -160,23 +224,64 @@
     if (!it) { p.shield = null; }
     else if (!p.shield || p.shield.id !== it.id || fill) {
       var st = L().shieldState(it); st.id = it.id;
-      if (p.shield && p.shield.id === it.id && !fill) st.cur = Math.min(st.max, p.shield.cur);
+      if (p.shield && p.shield.id === it.id && !fill) { st.cur = Math.min(st.max, p.shield.cur); st.nova = p.shield.nova && st.nova; st.since = p.shield.since; }
       p.shield = st;
     }
+    // vest: extra max health (game.js applySkillStats counts it in; a vest put on / taken off here moves the cap,
+    // health itself never goes up from swapping vests)
+    var hp = Gear.vestHp(G), dv = hp - (p.vestHp || 0);
+    if (dv) { p.maxHp = Math.max(1, (p.maxHp || 100) + dv); p.vestHp = hp; p.health = Math.min(p.maxHp, fill && dv > 0 ? p.health + dv : p.health); }
     if (IB.LootHUD) IB.LootHUD.shield(p.shield);
   };
-  Gear.startLevel = function (G) { if (IB.LootHUD) IB.LootHUD.reset(); Gear.refresh(G, true); };
-  Gear.fillShield = function (G) { var s = G.player && G.player.shield; if (s) { s.cur = s.max; s.since = 99; s.charging = false; } };
+  Gear.vestHp = function (G) { var g = Gear.gear(G); return g ? L().armorOf(L().worn(g, 'armor')).hp : 0; };
+  Gear.startLevel = function (G) { if (IB.LootHUD) IB.LootHUD.reset(); Gear.novaQ = 0; Gear.refresh(G, true); };
+  Gear.fillShield = function (G) { var s = G.player && G.player.shield; if (s) { s.cur = s.max; s.since = 99; s.charging = false; s.boostT = 0; if (s.perk && s.perk.id === 'nova') s.nova = true; } };
 
   // ---------------- damage in / out ----------------
   Gear.absorb = function (G, dmg) {
-    var p = G.player, st = p.shield; if (!st) return dmg;
-    var r = L().absorb(st, dmg);
-    if (r.absorbed > 0) {
-      play(r.broke ? 'shieldBreak' : 'shieldHit', { gain: 0.9 });
-      if (IB.LootHUD) IB.LootHUD.shieldHit(r.broke);
+    var p = G.player, st = p.shield, through = dmg;
+    if (st) {
+      var r = L().absorb(st, dmg);
+      if (r.absorbed > 0) {
+        play(r.broke ? 'shieldBreak' : 'shieldHit', { gain: 0.9 });
+        if (IB.LootHUD) IB.LootHUD.shieldHit(r.broke);
+      }
+      // the burst goes off next frame (this runs inside a robot's attack)
+      if (r.nova) Gear.novaQ = 0.05;
+      through = r.through;
     }
-    return r.through;
+    var g = Gear.gear(G), vest = g && L().worn(g, 'armor');
+    if (vest && through > 0) through = L().armorCut(vest, through);
+    return through;
+  };
+  /* Nova: shock burst round the player: damage + stagger + a short shock burn on every robot in reach */
+  Gear.nova = function (G) {
+    var p = G.player, st = p && p.shield, pk = st && st.perk;
+    if (!pk || pk.id !== 'nova' || !p.alive) return 0;
+    var R = pk.radius || 5, n = 0, B = IB.Boom && IB.Boom.ready ? IB.Boom : null;
+    (IB.AI.robots || []).forEach(function (r) {
+      if (!r.on || r.state === 'spawn' || r.state === 'pose' || r.rogue > 0) return;
+      var dx = r.x - p.x, dz = r.z - p.z, d = Math.hypot(dx, dz); if (d > R) return;
+      var k = d > 0.01 ? 1 / d : 0, ry = (r.y || 0) + 0.6;
+      if (B) B.arc(p.x, 1.0, p.z, r.x, ry, r.z, 0x5FC2FF, 0.3, 0.9);
+      var killed = IB.AI.damage(r, pk.v, { stagger: true, kx: dx * k * 6, kz: dz * k * 6 }, G.onKill);
+      if (!killed && IB.Status) IB.Status.apply(r, 'shock', pk.v * 0.08, 2.5);
+      if (IB.FX.damageNumber) { var v = IB.AI.VIS && IB.AI.VIS[r.type]; IB.FX.damageNumber(r.x, (r.y || 0) + (v ? v.y1 : 0.9) + 0.22, r.z, pk.v, 'shock'); }
+      n++;
+    });
+    if (B) { B.zap(p.x, 1.0, p.z, 1.6, 0x5FC2FF); B.zap(p.x, 0.5, p.z, 1.1, 0xFFFDF7); }
+    if (IB.FX && IB.FX.puff) { for (var i = 0; i < 10; i++) { var a = i / 10 * Math.PI * 2; IB.FX.puff(p.x + Math.cos(a) * R * 0.5, 0.4, p.z + Math.sin(a) * R * 0.5, 1, 0x5FC2FF, 0.12, 0.4, 4); } }
+    play('shieldNova', { gain: 1 });
+    if (G.addTrauma) G.addTrauma(0.3);
+    if (IB.LootHUD) IB.LootHUD.perk('nova');
+    Gear.novaCount = (Gear.novaCount || 0) + 1; Gear.novaLast = n;
+    return n;
+  };
+  /* a player kill: Overcharge starts the recharge at once and speeds it up */
+  Gear.onKill = function (G) {
+    var st = G.player && G.player.shield;
+    if (st && L().shieldKill(st)) { play('overcharge', { gain: 0.7 }); if (IB.LootHUD) IB.LootHUD.perk('overcharge'); return true; }
+    return false;
   };
   /* res: IB.Damage.hit result; zone 'core'|'body'; killed: AI.damage returned true */
   Gear.onHit = function (r, res, zone, def, killed) {
@@ -194,6 +299,7 @@
       else if (ev === 'full') play('shieldFull', { gain: 0.6 });
       if (ev && IB.LootHUD) IB.LootHUD.shieldEvent(ev);
     }
+    if (Gear.novaQ > 0) { Gear.novaQ -= dt; if (Gear.novaQ <= 0) { Gear.novaQ = 0; Gear.nova(G); } }
     if (IB.LootHUD) { IB.LootHUD.shield(st); IB.LootHUD.tick(dt); }
     // a mounted scope: past ~70 % aim the comic scope view fades in and the viewmodel steps aside
     var w = G.ws && IB.Weapons.current(G.ws), k = w && w.def.optic && p.alive ? Math.max(0, Math.min(1, (G.ws.aim - 0.7) / 0.22)) : 0;
@@ -202,25 +308,44 @@
     if (Gear.glowMat) { var k = 0.5 + 0.5 * Math.sin(performance.now() * 0.006); Gear.glowMat.color.setRGB(0.48 + 0.3 * k, 0.89 + 0.1 * k, 0.29 + 0.25 * k); }
   };
 
+  /* an item for the test hooks: a given perk is forced by re-rolling (epic / legendary shields) */
+  Gear.testItem = function (type, rarity, level, perk) {
+    var G = IB.Game, lv = level || (G.plan && G.plan.level) || 1, it = null;
+    for (var i = 0; i < 64; i++) { it = L().makeItem(type || 'grip', rarity || 'rare', lv, Math.random); if (!perk || (it.perk && it.perk.id === perk)) break; }
+    return it;
+  };
+
   // ---------------- test hooks (merged into window.__TEST__ by game.js) ----------------
   IB.GearTest = {
-    // force a world drop in front of the player: type 'shield'|'grip'|'scope'|'acid', rarity, distance (m)
-    forceDrop: function (type, rarity, dist) {
+    // force a world drop in front of the player: type 'shield'|'grip'|'scope'|'acid'|'mag'|'armor', rarity, distance (m),
+    // level (default: the level played), perk id for a shield ('overcharge'|'nova', epic / legendary only)
+    forceDrop: function (type, rarity, dist, level, perk) {
       var G = IB.Game, p = G.player, d = dist === undefined ? 4 : dist;
-      var item = L().makeItem(type || 'grip', rarity || 'rare', G.plan.level, Math.random);
+      var item = Gear.testItem(type, rarity, level, perk);
       return IB.Drops.spawn(item, p.x - Math.sin(p.yaw) * d, p.z - Math.cos(p.yaw) * d) ? item : null;
+    },
+    // put an item straight into the bag (no drop): returns its id
+    giveItem: function (type, rarity, level, perk) {
+      var G = IB.Game, g = Gear.gear(G), it = L().addItem(g, Gear.testItem(type, rarity, level, perk));
+      Gear.save(G); return it ? it.id : null;
     },
     drops: function () { return IB.Drops.list(); },
     gearState: function () {
       var G = IB.Game, g = Gear.gear(G), p = G.player, w = IB.Weapons.current(G.ws);
-      return { inv: g ? g.inv.map(function (i) { return { id: i.id, type: i.type, rarity: i.rarity, name: i.name }; }) : [], shield: g && g.shield, attach: g ? JSON.parse(JSON.stringify(g.attach)) : {},
-        playerShield: p.shield ? { cur: p.shield.cur, max: p.shield.max } : null, health: p.health,
-        weapon: w ? { id: w.id, recoil: w.def.recoil, spreadHip: w.def.spreadHip, spreadAim: w.def.spreadAim, aimZoom: w.def.aimZoom, acid: w.def.acid || 0, baseRecoil: IB.WEAPONS[w.id].recoil, baseAimZoom: IB.WEAPONS[w.id].aimZoom } : null,
-        vm: w && IB.Weapons.models[w.id] && IB.Weapons.models[w.id].gearParts ? Object.keys(IB.Weapons.models[w.id].gearParts).filter(function (k) { return IB.Weapons.models[w.id].gearParts[k].visible; }) : [],
+      return { inv: g ? g.inv.map(function (i) { return { id: i.id, type: i.type, rarity: i.rarity, name: i.name, perk: i.perk ? i.perk.id : null }; }) : [], shield: g && g.shield, armor: g && g.armor,
+        attach: g ? JSON.parse(JSON.stringify(g.attach)) : {},
+        playerShield: p.shield ? { cur: p.shield.cur, max: p.shield.max, rarity: p.shield.rarity, perk: p.shield.perk ? p.shield.perk.id : null, nova: p.shield.nova, boostT: p.shield.boostT, charging: p.shield.charging } : null,
+        health: p.health, maxHp: p.maxHp, vestHp: p.vestHp || 0, novas: Gear.novaCount || 0, novaHit: Gear.novaLast || 0,
+        weapon: w ? { id: w.id, recoil: w.def.recoil, spreadHip: w.def.spreadHip, spreadAim: w.def.spreadAim, aimZoom: w.def.aimZoom, acid: w.def.acid || 0, baseRecoil: IB.WEAPONS[w.id].recoil, baseAimZoom: IB.WEAPONS[w.id].aimZoom,
+          mag: w.def.mag, baseMag: IB.WEAPONS[w.id].mag, magSize: IB.Weapons.magSize(G.ws, w.def), reload: w.def.reload, baseReload: IB.WEAPONS[w.id].reload } : null,
+        vm: w && IB.Weapons.models[w.id] && IB.Weapons.models[w.id].gearParts ? Object.keys(IB.Weapons.models[w.id].gearParts).filter(function (k) { var q = IB.Weapons.models[w.id].gearParts[k]; return q && q.visible; }) : [],
         numbers: IB.FX.numbersList ? IB.FX.numbersList() : [], statuses: IB.Status ? IB.Status.active() : 0 };
     },
     attach: function (id, wid) { var G = IB.Game, g = Gear.gear(G); wid = wid || G.ws.cur; var ok = L().attach(g, wid, IB.WEAPONS[wid], id); Gear.refresh(G); Gear.save(G); return ok; },
     equipShield: function (id) { var G = IB.Game, ok = L().equipShield(Gear.gear(G), id); Gear.refresh(G, true); Gear.save(G); return ok; },
+    equipWorn: function (slot, id) { var G = IB.Game, ok = L().equipWorn(Gear.gear(G), slot, id); Gear.refresh(G, slot === 'shield'); Gear.save(G); return ok; },
+    // a player kill for Overcharge (no robot needed)
+    gearKill: function () { return Gear.onKill(IB.Game); },
     gear: function () { IB.GearUI.open(IB.Game); },
     status: function (kind, dps, dur) { var r = IB.AI.robots.find(function (x) { return x.on && x.state !== 'pose' && x.state !== 'spawn'; }); return r ? !!IB.Status.apply(r, kind, dps, dur) : false; }
   };

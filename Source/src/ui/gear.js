@@ -1,8 +1,8 @@
 /* INKBOLT inventory: guns carried, shield, gun attachments and the backpack, in one screen.
      IB.GearUI.render(containerEl, G)   fills containerEl (the Inventory tab of the field kit): the item card (rarity
                                         title bar, stat rows, compare marks, the item's picture) + ammo on the left, EQUIPPED in the middle (weapon slots 1-3, slot 3 locked until level 10
-                                        is cleared, the attachment slots under each carried gun, the shield slot, gems),
-                                        BACKPACK on the right (weapons, attachments, shields). Changes apply at once
+                                        is cleared, the attachment slots under each carried gun, the worn slots: shield and
+                                        armour vest, gems), BACKPACK on the right (weapons, attachments, shields, armour). Changes apply at once
                                         (IB.Gear.refresh) and are saved.
      IB.GearUI.open(G)                  the same screen in the overlay, paused (tests, or a menu without tabs).
      IB.GearUI.reset(G)                 cursor back to the first free weapon slot (the field kit calls it on open).
@@ -35,7 +35,9 @@
     cap: '<path d="M12 2 21 6v6c0 5-4 8.5-9 10-5-1.5-9-5-9-10V6z" fill="currentColor"/>',
     delay: '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="3"/><path d="M12 6.5V12l4 2.5" fill="none" stroke="currentColor" stroke-width="2.4"/>',
     zoom: '<circle cx="10" cy="10" r="6.5" fill="none" stroke="currentColor" stroke-width="3"/><path d="M15 15l6 6" stroke="currentColor" stroke-width="3.4"/>',
-    acid: ACIDI, noise: '<path d="M3 9h4l5-5v16l-5-5H3z" fill="currentColor"/><path d="M16 9l5 6M21 9l-5 6" stroke="currentColor" stroke-width="2.4"/>'
+    acid: ACIDI, noise: '<path d="M3 9h4l5-5v16l-5-5H3z" fill="currentColor"/><path d="M16 9l5 6M21 9l-5 6" stroke="currentColor" stroke-width="2.4"/>',
+    armor: '<path d="M4 3h5l2 3h2l2-3h5l1 7-2 2v10H5V12l-2-2z" fill="currentColor"/><path d="M8 13l4 3 4-3" fill="none" stroke="var(--ink)" stroke-width="2"/>',
+    hp: '<path d="M12 21C5 15.5 2 12.3 2 8.4A5 5 0 0 1 12 6a5 5 0 0 1 10 2.4c0 3.9-3 7.1-10 12.6z" fill="currentColor"/><path d="M12 9v7M8.5 12.5h7" stroke="var(--ink)" stroke-width="2.4"/>'
   };
 
   // ---------- gun presentation: grade colour (by when it unlocks) ----------
@@ -45,7 +47,15 @@
   function clsIcon(c) { return IB.HUD && IB.HUD.icon ? IB.HUD.icon(c) : ''; }
   // pictures: the real model rendered by IB.Thumbs, else the class / type glyph
   function gunPic(w, cls) { var d = IB.WEAPONS[w], fb = '<span class="pic-fb">' + clsIcon(d && d.cls) + '</span>'; return IB.Thumbs ? IB.Thumbs.pic('gun', w, cls || 'gpic', fb) : '<span class="' + (cls || 'gpic') + '">' + fb + '</span>'; }
-  function gearPic(type, cls) { var fb = '<span class="pic-fb">' + icon(type) + '</span>'; return IB.Thumbs ? IB.Thumbs.pic('gear', type, cls || 'gpic', fb) : '<span class="' + (cls || 'gpic') + '">' + fb + '</span>'; }
+  // rarity: types with a model per rarity (shield cells) draw that rarity's own model
+  function perRarity(type) { var td = IB.LOOT.types[type], m = td && td.models; if (!m) return false; var k = Object.keys(m); return k.some(function (r) { return m[r] !== m[k[0]]; }); }
+  function gearPic(type, cls, rar) {
+    var fb = '<span class="pic-fb">' + icon(type) + '</span>', id = rar && perRarity(type) ? type + '.' + rar : type;
+    return IB.Thumbs ? IB.Thumbs.pic('gear', id, cls || 'gpic', fb) : '<span class="' + (cls || 'gpic') + '">' + fb + '</span>';
+  }
+  function itemPic(it, cls) { return gearPic(it.type, cls, it.rarity); }
+  function slotName(sl) { return IB.LOOT.slotNames[sl] || sl; }
+  var WORN_EMPTY = { shield: 'No shield', armor: 'No vest' };
   var FR = '<i class="fr" aria-hidden="true"><i></i></i>';
   function rarity(it) { return IB.LOOT.rarityById[it.rarity]; }
 
@@ -56,9 +66,10 @@
   function maxSlots(G) { return G.progress ? G.progress().loadoutMax : IB.Skills.loadoutMax((G.slot && G.slot.highest) || 0); }
   function skillFx(G) { return IB.Skills.effects((G.slot && G.slot.skills) || {}); }
   function modsDef(g, w) { return IB.Loot.applyMods(IB.WEAPONS[w], g ? IB.Loot.weaponItems(g, w) : {}); }
-  // where an item is: {worn} | {w, slot, carried} | null (loose in the backpack)
+  // where an item is: {worn, slot} | {w, slot, carried} | null (loose in the backpack)
   function placeOf(g, it, lo) {
-    if (g.shield === it.id) return { worn: true };
+    var ws = IB.Loot.wornSlot(g, it.id);
+    if (ws) return { worn: true, slot: ws };
     var at = IB.Loot.attachedTo(g, it.id);
     return at ? { w: at.weapon, slot: at.slot, carried: lo.indexOf(at.weapon) >= 0 } : null;
   }
@@ -79,8 +90,22 @@
     if (d.recoil > 0) out.push({ key: 'recoil', label: 'Recoil', icon: 'recoil', v: d.recoil, txt: d.recoil.toFixed(2), better: 'low' });
     return { lines: out, def: d, fx: fx };
   }
+  // per item type: the statLines rows in order as [stat key, glyph, which way is better] (for the compare marks)
   var ITEM_KEYS = { shield: [['capacity', 'cap', 'high'], ['rate', 'rate', 'high'], ['delay', 'delay', 'low']], grip: [['recoil', 'recoil', 'high'], ['spread', 'acc', 'high']],
-    scope: [['zoom', 'zoom', 'high'], ['aimSpread', 'acc', 'high']], acid: [['acid', 'acid', 'high'], [null, 'noise']] };
+    scope: [['zoom', 'zoom', 'high'], ['aimSpread', 'acc', 'high']], acid: [['acid', 'acid', 'high'], [null, 'noise']],
+    mag: [['mag', 'mag', 'high'], ['reload', 'reload', 'high']], armor: [['dr', 'armor', 'high'], ['hp', 'hp', 'high']] };
+  // the perk of a shield cell as a highlighted card row
+  function perkRow(it) {
+    var pl = IB.Loot.perkLine(it); if (!pl) return '';
+    return '<div class="ic-perk ' + pl.id + '">' + (IB.LootHUD ? IB.LootHUD.perkIcon(pl.id) : '') + '<b>' + esc(pl.name) + '</b><span>' + esc(pl.text) + '</span></div>';
+  }
+  // what an attachment fits, from its type's data
+  function fitsNote(td) {
+    var t = 'Fits ' + td.classes.map(clsName).join(', ');
+    if (td.noScoped) t += ' without optics';
+    if (td.noActions) t += ' (not ' + td.noActions.map(function (a) { return a + 's'; }).join(', ') + ')';
+    return t;
+  }
   function itemStats(it) {
     var keys = ITEM_KEYS[it.type] || [];
     return IB.Loot.statLines(it).map(function (l, i) { var k = keys[i] || []; return { key: k[0], label: l.k, icon: k[1] || 'dmg', v: k[0] ? it.stats[k[0]] : 0, txt: l.v, better: k[2] }; });
@@ -115,14 +140,13 @@
       return cardShell('#5FD0FF', 'Weapon slot ' + (spec.i + 1), 'Empty slot',
         note(touch() ? 'Tap a gun in the backpack to carry it here.' : 'Pick a gun from the backpack. Keys 1–' + max + ' switch guns.'), '', '', '', 'empty');
     }
-    if (spec.k === 'empty' || spec.k === 'emptyshield') {
-      var slotName = spec.k === 'emptyshield' ? 'Shield' : IB.LOOT.slotNames[spec.slot];
-      var fits = g.inv.filter(function (it) { return spec.k === 'emptyshield' ? it.type === 'shield' && g.shield !== it.id : IB.Loot.slotOf(it) === spec.slot && IB.Loot.compatible(it, spec.w, IB.WEAPONS[spec.w]); });
-      var minC = IB.LOOT.types.shield.minCleared, cleared = (G.slot && G.slot.highest) || 0;
-      var t = spec.k === 'emptyshield' && cleared < minC ? 'Shield cells drop after level ' + minC + '.' :
+    if (spec.k === 'empty' || spec.k === 'emptyworn') {
+      var worn = spec.k === 'emptyworn', type = IB.Loot.typeForSlot(spec.slot);
+      var fits = g.inv.filter(function (it) { return worn ? IB.Loot.slotOf(it) === spec.slot && g[spec.slot] !== it.id : IB.Loot.slotOf(it) === spec.slot && IB.Loot.compatible(it, spec.w, IB.WEAPONS[spec.w]); });
+      var minC = (IB.LOOT.types[type] && IB.LOOT.types[type].minCleared) || 0, cleared = (G.slot && G.slot.highest) || 0;
+      var t = worn && cleared < minC ? IB.LOOT.types[type].name + 's drop after level ' + minC + '.' :
         fits.length ? fits.length + ' in your backpack fit' + (fits.length === 1 ? 's' : '') + '. They glow yellow.' : 'Nothing in the backpack fits. Robots drop gear now and then.';
-      var type = spec.k === 'emptyshield' ? 'shield' : spec.slot === 'muzzle' ? 'acid' : spec.slot;
-      return cardShell('#5FD0FF', spec.w ? esc(IB.WEAPONS[spec.w].name) : 'Equipped', 'Empty ' + esc(slotName), note(t), gearPic(type, 'ic-pic ghost'), '', '', 'empty');
+      return cardShell('#5FD0FF', spec.w ? esc(IB.WEAPONS[spec.w].name) : 'Equipped', 'Empty ' + esc(slotName(spec.slot)), note(t), gearPic(type, 'ic-pic ghost'), '', '', 'empty');
     }
     var acts = '', req = '', body = '', pic = '', tag = '', color = '#E4DFD3', title = '';
     if (spec.k === 'gun') {
@@ -135,10 +159,11 @@
       if (st.def.acid) notes.push('Acid +' + Math.round(st.def.acid * 100) + '% of each hit over ' + st.def.acidDur.toFixed(1) + ' s');
       if (st.fx.shock) notes.push('Shock rounds');
       if (st.def.optic) notes.push('Scope ' + (1 / st.def.aimZoom).toFixed(1) + 'x zoom');
+      if (st.def.mods && st.def.mods.mag) notes.push('Extended mag: +' + (st.def.mag - def.mag) + ' rounds, ' + Math.round(st.def.mods.mag.stats.reload * 100) + '% faster reload');
       if (def.scopeZoom) notes.push('Built-in ' + def.scopeZoom + 'x scope');
       if (def.splash) notes.push('Splash damage, ' + def.radius + ' m');
       if (def.reserve === Infinity) notes.push('Unlimited spare ammo');
-      var mods = Object.keys(items).map(function (sl) { return '<li style="--rar:' + rarity(items[sl]).color + '">' + gearPic(items[sl].type, 'ic-modpic') + '<b>' + esc(items[sl].name) + '</b></li>'; }).join('');
+      var mods = Object.keys(items).map(function (sl) { return '<li style="--rar:' + rarity(items[sl]).color + '">' + itemPic(items[sl], 'ic-modpic') + '<b>' + esc(items[sl].name) + '</b></li>'; }).join('');
       body = (vs ? '<div class="ic-vs">vs ' + esc(IB.WEAPONS[cmpW].name) + '</div>' : '') + statList(st.lines, vs) +
         (notes.length ? '<ul class="ic-notes">' + notes.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul>' : '') +
         (mods ? '<ul class="ic-mods">' + mods + '</ul>' : '');
@@ -156,17 +181,21 @@
       var it = IB.Loot.find(g, spec.id); if (!it) return cardFor(G, g, null);
       var rc = rarity(it), pl = placeOf(g, it, lo), L = IB.Loot;
       color = rc.color; title = esc(it.name);
-      var other = null;
-      if (it.type === 'shield' && !pl && g.shield) other = L.find(g, g.shield);
-      if (it.type !== 'shield' && !(pl && pl.w)) { var tw = S.target ? S.target.w : lo[S.slot]; var cur = tw && L.weaponItems(g, tw)[L.slotOf(it)]; if (cur && cur.id !== it.id) other = cur; }
+      var other = null, isWorn = L.isWorn(it), wsl = L.slotOf(it);
+      if (isWorn && !pl && g[wsl]) other = L.find(g, g[wsl]);
+      if (!isWorn && !(pl && pl.w)) { var tw = S.target ? S.target.w : lo[S.slot]; var cur = tw && L.weaponItems(g, tw)[wsl]; if (cur && cur.id !== it.id) other = cur; }
       req = (pl ? svg(CHECK, 'g24 ic-check') : '') + '<span>' + rc.name + ' ' + esc(IB.LootHUD.typeName(it.type)) + '</span><span>Lv ' + it.level + '</span>';
-      body = (other ? '<div class="ic-vs">vs ' + esc(other.name) + '</div>' : '') + statList(itemStats(it), other ? itemStats(other) : null) +
-        (it.type !== 'shield' ? '<ul class="ic-notes"><li>Fits ' + esc(IB.LOOT.types[it.type].classes.map(clsName).join(', ')) + (IB.LOOT.types[it.type].noScoped ? ' without optics' : '') + '</li></ul>' : '');
-      pic = gearPic(it.type, 'ic-pic gear');
+      var inotes = [];
+      if (!isWorn) inotes.push(fitsNote(IB.LOOT.types[it.type]));
+      if (it.type === 'armor') inotes.push('Cuts the damage that gets past your shield');
+      if (other && other.perk && !it.perk) inotes.push('No perk (yours: ' + L.perkLine(other).name + ')');
+      body = (other ? '<div class="ic-vs">vs ' + esc(other.name) + '</div>' : '') + statList(itemStats(it), other ? itemStats(other) : null) + perkRow(it) +
+        (inotes.length ? '<ul class="ic-notes">' + inotes.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul>' : '');
+      pic = itemPic(it, 'ic-pic gear');
       tag = pl ? (pl.worn ? 'Equipped' : 'On ' + shortName(IB.WEAPONS[pl.w])) : 'Backpack';
-      if (it.type === 'shield') {
+      if (isWorn) {
         acts += pl ? '<button class="btn gu-btn" data-gact="unequip" data-id="' + it.id + '">Unequip</button>'
-          : '<button class="btn gu-btn primary" data-gact="equip" data-id="' + it.id + '">Equip</button>';
+          : '<button class="btn gu-btn primary" data-gact="equip" data-id="' + it.id + '">' + (other ? 'Swap in' : 'Equip') + '</button>';
       } else {
         var fitsW = lo.filter(function (x) { return L.compatible(it, x, IB.WEAPONS[x]); });
         if (fitsW.length) {
@@ -189,12 +218,29 @@
   // big framed slots with the gun picture; each carried gun's attachment slots as small framed boxes under it
   function chipHtml(G, g, w, sl) {
     var it = IB.Loot.weaponItems(g, w)[sl], selE = S.sel && S.sel.k === 'empty' && S.sel.w === w && S.sel.slot === sl;
-    var type = sl === 'muzzle' ? 'acid' : sl;
-    if (!it) return '<button class="tile inv-chip empty' + (selE ? ' sel' : '') + '" data-gact="chip" data-w="' + w + '" data-sl="' + sl + '" data-k="c_' + w + '_' + sl + '" data-nav aria-label="' + IB.LOOT.slotNames[sl] + ' slot on ' + esc(IB.WEAPONS[w].name) + ': empty">' + FR +
-      gearPic(type, 'chip-pic ghost') + '<span class="chip-plus" aria-hidden="true">+</span><span class="chip-l">' + IB.LOOT.slotNames[sl] + '</span></button>';
+    var type = IB.Loot.typeForSlot(sl);
+    if (!it) return '<button class="tile inv-chip empty' + (selE ? ' sel' : '') + '" data-gact="chip" data-w="' + w + '" data-sl="' + sl + '" data-k="c_' + w + '_' + sl + '" data-nav aria-label="' + slotName(sl) + ' slot on ' + esc(IB.WEAPONS[w].name) + ': empty">' + FR +
+      gearPic(type, 'chip-pic ghost') + '<span class="chip-plus" aria-hidden="true">+</span><span class="chip-l">' + slotName(sl) + '</span></button>';
     var rc = rarity(it), sel = S.sel && S.sel.k === 'item' && S.sel.id === it.id;
-    return '<button class="tile inv-chip filled' + (sel ? ' sel' : '') + '" style="--rar:' + rc.color + '" data-gact="item" data-item="' + it.id + '" data-w="' + w + '" data-k="i_' + it.id + '" data-nav aria-label="' + IB.LOOT.slotNames[sl] + ': ' + esc(it.name) + '">' + FR +
-      gearPic(it.type, 'chip-pic') + '<span class="chip-l">' + esc(it.name) + '</span></button>';
+    return '<button class="tile inv-chip filled ' + it.rarity + (sel ? ' sel' : '') + '" style="--rar:' + rc.color + '" data-gact="item" data-item="' + it.id + '" data-w="' + w + '" data-k="i_' + it.id + '" data-nav aria-label="' + slotName(sl) + ': ' + esc(it.name) + '">' + FR +
+      itemPic(it, 'chip-pic') + '<span class="chip-l">' + esc(it.name) + '</span></button>';
+  }
+  /* a worn slot (shield, armour) in the EQUIPPED column: picture, name, the key number on the right */
+  function wornTile(G, g, sl) {
+    var it = IB.Loot.worn(g, sl), type = IB.Loot.typeForSlot(sl), td = IB.LOOT.types[type];
+    var sel = S.sel && ((S.sel.k === 'item' && it && S.sel.id === it.id) || (S.sel.k === 'emptyworn' && S.sel.slot === sl));
+    if (!it) {
+      var open = !td.minCleared || ((G.slot && G.slot.highest) || 0) >= td.minCleared;
+      return '<button class="tile inv-shield inv-worn empty' + (sel ? ' sel' : '') + '" data-gact="wornslot" data-sl="' + sl + '" data-k="w_' + sl + '" data-nav aria-label="' + slotName(sl) + ' slot: empty">' + FR +
+        gearPic(type, 'sh-pic ghost') + '<span class="ws-name">' + (open ? WORN_EMPTY[sl] || 'Empty' : td.name + 's after level ' + td.minCleared) + '</span></button>';
+    }
+    var big;
+    if (sl === 'shield') { var ps = G.player && G.player.shield; big = ps && ps.id === it.id ? Math.ceil(ps.cur) + '<small>/' + ps.max + '</small>' : String(it.stats.capacity); }
+    else { var a = IB.Loot.armorOf(it); big = '-' + Math.round(a.dr * 100) + '%<small>+' + a.hp + ' hp</small>'; }
+    var pl = IB.Loot.perkLine(it);
+    return '<button class="tile inv-shield inv-worn filled ' + it.rarity + (sel ? ' sel' : '') + '" style="--rar:' + rarity(it).color + '" data-gact="item" data-item="' + it.id + '" data-k="i_' + it.id + '" data-nav aria-label="' + slotName(sl) + ': ' + esc(it.name) + '">' + FR +
+      itemPic(it, 'sh-pic') + '<span class="ws-name">' + esc(it.name) + (pl ? '<i class="ws-perk ' + pl.id + '">' + (IB.LootHUD ? IB.LootHUD.perkIcon(pl.id) : '') + esc(pl.name) + '</i>' : '') + '</span>' +
+      '<b class="sh-cap' + (sl === 'shield' ? '' : ' vest') + '">' + big + '</b></button>';
   }
   function equippedCol(G, g) {
     var lo = loadout(G), max = maxSlots(G), rows = '';
@@ -213,18 +259,11 @@
           (def ? gunPic(w, 'ws-pic') + '<span class="ws-name">' + esc(def.name) + '</span>' : '<span class="ws-plus" aria-hidden="true">+</span><span class="ws-name">' + (touch() ? 'Tap' : 'Pick') + ' a gun</span>') +
         '</button>' + (chips ? '<div class="inv-chips n' + slots.length + '">' + chips + '</div>' : '') + '</div>';
     }
-    var sh = g.shield ? IB.Loot.find(g, g.shield) : null, ps = G.player && G.player.shield;
-    var shSel = S.sel && ((S.sel.k === 'item' && sh && S.sel.id === sh.id) || S.sel.k === 'emptyshield');
-    var shield = sh ? '<button class="tile inv-shield filled' + (shSel ? ' sel' : '') + '" style="--rar:' + rarity(sh).color + '" data-gact="item" data-item="' + sh.id + '" data-k="i_' + sh.id + '" data-nav aria-label="Shield: ' + esc(sh.name) + '">' + FR +
-        gearPic('shield', 'sh-pic') + '<span class="ws-name">' + esc(sh.name) + '</span>' +
-        '<b class="sh-cap">' + (ps ? Math.ceil(ps.cur) + '<small>/' + ps.max + '</small>' : sh.stats.capacity) + '</b></button>'
-      : '<button class="tile inv-shield empty' + (shSel ? ' sel' : '') + '" data-gact="shieldslot" data-k="shield" data-nav aria-label="Shield slot: empty">' + FR + gearPic('shield', 'sh-pic ghost') +
-        '<span class="ws-name">' + ((G.slot && G.slot.highest || 0) >= IB.LOOT.types.shield.minCleared ? 'No shield' : 'Shields after level ' + IB.LOOT.types.shield.minCleared) + '</span></button>';
+    var worn = IB.LOOT.worn.map(function (sl) { return '<div class="inv-gear"><span class="inv-gl">' + svg(sl === 'shield' ? SI.cap : SI[sl] || SI.cap) + '</span>' + wornTile(G, g, sl) + '</div>'; }).join('');
     var gems = String((G.slot && G.slot.gems) || 0);
     return '<section class="ep inv-eq" aria-label="Equipped">' + FR +
       '<h3 class="ep-h">' + IB.Menus.glyph('emblem') + 'Equipped<span>' + lo.length + '/' + max + '</span></h3>' +
-      '<div class="inv-eqbody tm-scroll" data-pane="eq"><div class="inv-wslots">' + rows + '</div>' +
-      '<div class="inv-gear"><span class="inv-gl">' + svg(SI.cap) + '</span>' + shield + '</div></div>' +
+      '<div class="inv-eqbody tm-scroll" data-pane="eq"><div class="inv-wslots">' + rows + '</div>' + worn + '</div>' +
       '<div class="inv-bar"><span class="inv-gems" aria-label="' + gems + ' gems"><i class="gem-glyph" aria-hidden="true"></i><b aria-hidden="true">' + gems.split('').map(function (c) { return '<i>' + c + '</i>'; }).join('') + '</b></span>' +
         '<span class="inv-bag">Bag <b>' + g.inv.length + '/' + IB.LOOT.invCap + '</b></span></div>' +
       '</section>';
@@ -236,8 +275,8 @@
     var guns = arsenal(G).filter(function (w) { return lo.indexOf(w) < 0 && IB.WEAPONS[w]; });
     var loose = g.inv.filter(function (it) { var p = placeOf(g, it, lo); return !p || (p.w && !p.carried); });
     loose.sort(function (a, b) { return L.rarityRank(b.rarity) - L.rarityRank(a.rarity) || b.level - a.level || (a.id < b.id ? -1 : 1); });
-    var tgt = S.sel && (S.sel.k === 'empty' || S.sel.k === 'emptyshield') ? S.sel : null;
-    function fits(it) { if (!tgt) return false; if (tgt.k === 'emptyshield') return it.type === 'shield'; return L.slotOf(it) === tgt.slot && L.compatible(it, tgt.w, IB.WEAPONS[tgt.w]); }
+    var tgt = S.sel && (S.sel.k === 'empty' || S.sel.k === 'emptyworn') ? S.sel : null;
+    function fits(it) { if (!tgt) return false; if (tgt.k === 'emptyworn') return L.slotOf(it) === tgt.slot; return L.slotOf(it) === tgt.slot && L.compatible(it, tgt.w, IB.WEAPONS[tgt.w]); }
     var gunT = guns.map(function (w) {
       var def = IB.WEAPONS[w], gr = grade(def), sel = S.sel && S.sel.k === 'gun' && S.sel.id === w, n = Object.keys(L.weaponItems(g, w)).length;
       return '<button class="tile lo-card inv-item gun' + (sel ? ' sel' : '') + (tgt ? ' faded' : '') + '" style="--rar:' + gr.color + '" data-gact="gun" data-gun="' + w + '" data-k="g_' + w + '" data-nav aria-label="' + esc(def.name) + ', ' + clsName(def.cls) + '">' + FR +
@@ -246,16 +285,24 @@
     function itemTile(it) {
       var rc = rarity(it), sel = S.sel && S.sel.k === 'item' && S.sel.id === it.id, f = fits(it);
       return '<button class="tile inv-item gu-item ' + it.rarity + (sel ? ' sel' : '') + (f ? ' fits' : tgt ? ' faded' : '') + '" style="--rar:' + rc.color + '" data-gact="item" data-item="' + it.id + '" data-k="i_' + it.id + '" data-nav aria-label="' + esc(it.name) + ', ' + rc.name + ' ' + IB.LootHUD.typeName(it.type) + '">' + FR +
-        gearPic(it.type, 'it-pic') + '<span class="it-name">' + esc(it.name) + '</span>' + (f ? '<span class="it-fit" aria-hidden="true">+</span>' : '') + '</button>';
+        itemPic(it, 'it-pic') + '<span class="it-name">' + esc(it.name) + '</span>' + (it.perk ? '<span class="it-perk ' + it.perk.id + '" aria-hidden="true">' + (IB.LootHUD ? IB.LootHUD.perkIcon(it.perk.id) : '') + '</span>' : '') +
+        (f ? '<span class="it-fit" aria-hidden="true">+</span>' : '') + '</button>';
     }
-    var mods = loose.filter(function (it) { return it.type !== 'shield'; }), shields = loose.filter(function (it) { return it.type === 'shield'; });
     function cat(name, n, html, empty, cls) { return '<h4 class="inv-cat"><span>' + name + '</span></h4>' + (html ? '<div class="inv-grid ' + cls + '">' + html + '</div>' : '<p class="inv-none">' + empty + '</p>'); }
+    var mods = loose.filter(function (it) { return L.isAttachment(it); }), cleared = (G.slot && G.slot.highest) || 0;
+    var attNames = Object.keys(IB.LOOT.types).filter(function (k) { return IB.LOOT.slots.indexOf(IB.LOOT.types[k].slot) >= 0; }).map(function (k) { return IB.LOOT.types[k].name.toLowerCase() + 's'; });
+    // one backpack shelf per worn slot (shields, armour)
+    var wornCats = IB.LOOT.worn.map(function (sl) {
+      var type = L.typeForSlot(sl), td = IB.LOOT.types[type], list = loose.filter(function (it) { return L.slotOf(it) === sl; });
+      var empty = !td.minCleared || cleared >= td.minCleared ? 'No spare ' + td.name.toLowerCase() + 's.' : td.name + 's drop after level ' + td.minCleared + '.';
+      return cat(sl === 'shield' ? 'Shields' : 'Armour', list.length, list.map(itemTile).join(''), empty, 'gear');
+    }).join('');
     return '<section class="ep inv-bp" aria-label="Backpack">' + FR +
       '<h3 class="ep-h">' + svg(SI.mag) + 'Backpack<span>' + (guns.length + loose.length) + '</span></h3>' +
       '<div class="inv-bplist tm-scroll" data-pane="bp">' +
         cat('Weapons', guns.length, gunT, 'Every gun you own is carried.', 'guns') +
-        cat('Attachments', mods.length, mods.map(itemTile).join(''), 'Grips, scopes and acid muzzles drop from robots.', 'gear') +
-        cat('Shields', shields.length, shields.map(itemTile).join(''), (G.slot && G.slot.highest || 0) >= IB.LOOT.types.shield.minCleared ? 'No spare shield cells.' : 'Shield cells drop after level ' + IB.LOOT.types.shield.minCleared + '.', 'gear') +
+        cat('Attachments', mods.length, mods.map(itemTile).join(''), attNames.slice(0, -1).join(', ').replace(/^./, function (c) { return c.toUpperCase(); }) + ' and ' + attNames[attNames.length - 1] + ' drop from robots.', 'gear') +
+        wornCats +
       '</div></section>';
   }
 
@@ -280,7 +327,7 @@
     if (d.gact === 'gun') return { k: 'gun', id: d.gun };
     if (d.gact === 'item') return { k: 'item', id: d.item };
     if (d.gact === 'chip') return { k: 'empty', w: d.w, slot: d.sl };
-    if (d.gact === 'shieldslot') return { k: 'emptyshield' };
+    if (d.gact === 'wornslot') return { k: 'emptyworn', slot: d.sl };
     return null;
   }
   function selSpec(G) {
@@ -337,11 +384,11 @@
     root._G = G;
   };
 
-  /* act: slot | gun | equipgun | moveslot | unequipgun | item | chip | shieldslot | lock | equip | unequip | fit | detach | discard
+  /* act: slot | gun | equipgun | moveslot | unequipgun | item | chip | wornslot | lock | equip | unequip | fit | detach | discard
      how: the pointer type of the click ('touch' selects first; anything else acts at once) */
   GU.act = function (root, G, act, id, w, el, how) {
     var L = IB.Loot, g = IB.Gear.gear(G); if (!g) return false;
-    var ok = false, fill = false, gearChanged = false, d = (el && el.dataset) || {};
+    var ok = false, fill = false, gearChanged = false, d = (el && el.dataset) || {}, wornSl = null;
     var lo = loadout(G), max = maxSlots(G), soft = how === 'touch';
     if (act !== 'discard') S.confirm = null;
     function select(sel) { S.sel = sel; sfx('ui'); }
@@ -361,7 +408,7 @@
         if (lo.length > 1) { G.slot.loadout = lo.filter(function (x) { return x !== w; }); S.sel = { k: 'gun', id: w }; S.slot = Math.min(S.slot, G.slot.loadout.length); ok = true; sfx('uiBack'); }
         break;
       case 'chip': S.target = { w: d.w, slot: d.sl }; select({ k: 'empty', w: d.w, slot: d.sl }); break;
-      case 'shieldslot': S.target = null; select({ k: 'emptyshield' }); break;
+      case 'wornslot': S.target = null; select({ k: 'emptyworn', slot: d.sl }); break;
       case 'item': {
         var it = L.find(g, id); if (!it) break;
         var pl = placeOf(g, it, lo);
@@ -369,15 +416,15 @@
         // fitted / worn items and touch first taps just select; a loose item acts at once (mouse, keys) or on the second tap
         if (pl && (pl.worn || pl.carried)) { select({ k: 'item', id: id }); break; }
         if (soft && !again) { select({ k: 'item', id: id }); break; }
-        if (it.type === 'shield') { ok = L.equipShield(g, id); gearChanged = ok; fill = false; if (ok) { S.sel = { k: 'item', id: id }; act = 'equip'; } break; }
+        if (L.isWorn(it)) { ok = L.equipWorn(g, L.slotOf(it), id); gearChanged = ok; fill = false; if (ok) { S.sel = { k: 'item', id: id }; act = 'equip'; wornSl = L.slotOf(it); } break; }
         var tw = defaultTarget(G, g, it, lo);
         if (tw) { ok = L.attach(g, tw, IB.WEAPONS[tw], id); gearChanged = ok; act = 'fit'; S.target = null; }
         S.sel = { k: 'item', id: id };
         if (!tw) sfx('dry');
         break;
       }
-      case 'equip': ok = L.equipShield(g, id); gearChanged = ok; break;
-      case 'unequip': ok = L.equipShield(g, null); gearChanged = ok; break;
+      case 'equip': { var ei = L.find(g, id); wornSl = ei && L.slotOf(ei); ok = !!ei && L.equipWorn(g, wornSl, id); gearChanged = ok; break; }
+      case 'unequip': { var ws = L.wornSlot(g, id); ok = !!ws && L.equipWorn(g, ws, null); gearChanged = ok; break; }
       case 'fit': ok = L.attach(g, w, IB.WEAPONS[w], id); gearChanged = ok; S.sel = { k: 'item', id: id }; S.target = null; break;
       case 'detach': { var at = L.attachedTo(g, id); ok = !!at && L.detach(g, at.weapon, at.slot); gearChanged = ok; S.sel = { k: 'item', id: id }; break; }
       case 'discard':
@@ -387,7 +434,7 @@
     if (ok && gearChanged) {
       // a newly equipped shield starts empty and charges up (no free refill from swapping cells mid-fight)
       IB.Gear.refresh(G, fill);
-      if (act === 'equip' && G.player.shield) { G.player.shield.cur = 0; G.player.shield.since = G.player.shield.delay; }
+      if (act === 'equip' && wornSl === 'shield' && G.player.shield) { G.player.shield.cur = 0; G.player.shield.since = G.player.shield.delay; }
       sfx(act === 'discard' ? 'uiBack' : act === 'fit' || act === 'equip' ? 'magIn' : 'ui');
     }
     if (ok) IB.Gear.save(G);

@@ -15,8 +15,9 @@
   function isObj(o) { return o !== null && typeof o === 'object' && !Array.isArray(o); }
 
   function slotKey(id) { return PREFIX + 'slot' + id; }
-  // loot inventory (core/loot.js repairs items deeply; this only guarantees the shape)
-  function defaultGear() { return { inv: [], shield: null, attach: {}, next: 1, found: 0 }; }
+  // loot inventory (core/loot.js repairs items deeply; this only guarantees the shape). armor: the worn vest
+  // (saves from before vests have none: it is added empty)
+  function defaultGear() { return { inv: [], shield: null, armor: null, attach: {}, next: 1, found: 0 }; }
 
   function defaultSlot(id, seed, savedAt) {
     return {

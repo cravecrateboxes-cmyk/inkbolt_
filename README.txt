@@ -36,21 +36,42 @@ PROGRESSION
   Skill tree: six rows, trunk at the bottom (gates 2 / 5 / 8 / 11 / 14 points in the rows below), two pick-one endgame
   skills on top. Runtime: src/game/skillfx.js (procs, acid pools, wet coats, Undercover), ai.js (cloak search, rogue
   robots), ui/skillhud.js (Undercover badge + comic black-and-white look). Saves with the old tree are refunded on load.
-  Damage over time lasts: Electrify 5 s, Hazard / Hydrate burns 5 s, acid muzzles 5 / 6 / 7 s by rarity.
+  Damage over time lasts: Electrify 5 s, Hazard / Hydrate burns 5 s, acid muzzles 5 / 6 / 7 / 8 s by rarity.
   Respec: resets the tree for gems (40% of a level's expected income at your progress).
   Loadout: carry 2 guns from your arsenal (3 after clearing level 10); weapon stands add guns to the arsenal.
   Robots get a little tougher every level (health, damage, fire rate, aim, speed; src/core/damage.js).
 
 LOOT AND GEAR
-  About one robot in twenty drops an item: a drop pod with a beam in its rarity colour (Common / Rare / Epic),
-  also marked on the radar as a diamond. Walk over it to bag it; an empty slot is filled right away.
-  Shield cells (after level 3 is cleared) soak damage before health and recharge after a short delay.
-  Gun attachments: Grip (less recoil and spread), Scope (zoom and a tighter aim; aim to look through it),
-  Acid muzzle (silenced; part of each hit burns on as acid). The Inventory tab of the field kit (IB.GearUI, ui/gear.js)
-  shows the item card (rarity title bar, stats, compare, the item's picture) + ammo, EQUIPPED (weapon slots 1-3, slot 3
-  locked until level 10 is cleared, the attachment slots of each carried gun, the shield) and the BACKPACK (weapons,
-  attachments, shields), every item as its real model drawn into a framed picture;
-  it equips, fits, moves and scraps them. Tables: src/data/loot.js; logic: src/core/loot.js; models: blender/fam_gear.py.
+  About one robot in twenty drops an item: a drop pod with a beam in its rarity colour, also marked on the radar as a
+  diamond. Walk over it to bag it; an empty slot is filled right away. Bag: 40 items (worn and fitted ones included).
+  Rarities: Common (white), Rare (blue), Epic (purple), Legendary (orange, only from campaign level 6). Rarer gear
+  drops more often the further you get (LOOT.rarityOdds in src/data/loot.js; levels 1-3 roll as they always did):
+      level      1-3   4    5    6    7    8    9    10   11   12   13   15   17+
+      Common      70   66   62   56   52   48   44   40   36   33   30   27   24
+      Rare        24   26   28   29   30   31   32   33   34   34   35   35   35
+      Epic         6    8   10   12   14   16   18   20   22   24   25   26   27
+      Legendary    0    0    0    3    4    5    6    7    8    9   10   12   14
+  Stats roll inside the rarity's range, then grow with the campaign level (LOOT.levelScale): levels 1-3 as before,
+  past level 3 shields (capacity, recharge, vest health, Nova damage) grow about as fast as the robots' pressure
+  (x1.35 on level 6, x1.71 on 10, x1.98 on 13, cap x2.8) and attachments a little (x1.12 / 1.24 / 1.33, cap x1.5).
+  Shield cells (after level 3 is cleared; a common one is handed out then) soak damage before health and recharge
+  after a short delay. Each rarity has its own cell model and HUD bar colour: Tin Cell (cyan), Volt Cell (blue,
+  twin terminals), Storm Cell (purple, lightning fins), Nova Cell (orange, gold trim and an orb in a halo). Epic and
+  Legendary cells carry one perk (a pip on the shield bar): Overcharge (a kill starts the recharge at once and speeds
+  it up 40-100% for 4 s) or Nova (when the cell breaks: a shock burst that hits and staggers robots within 4.5 / 6 m,
+  once per charge, re-armed when the cell is full again).
+  Armour vests (after level 5 is cleared; a common one is handed out then): worn like the shield, they cut the damage
+  that gets past the shield (4-17%) and add max health (5-32, grows with the level).
+  Gun attachments: Grip (less recoil and spread; SMG, rifle, sniper, shotgun), Scope (zoom and a tighter aim; aim to
+  look through it), Acid muzzle (silenced; part of each hit burns on as acid), Extended mag (more rounds, at least +1,
+  and a faster reload; pistol, SMG, rifle, sniper, shotgun, not revolvers; it rides the gun's magazine in first person).
+  Slots are data: LOOT.slots (per gun: grip, scope, muzzle, mag) and LOOT.worn (player: shield, armor).
+  The Inventory tab of the field kit (IB.GearUI, ui/gear.js) shows the item card (rarity title bar, stats, compare,
+  the perk, the item's picture) + ammo, EQUIPPED (weapon slots 1-3, slot 3 locked until level 10 is cleared, the
+  attachment slots of each carried gun, the shield and the vest) and the BACKPACK (weapons, attachments, shields,
+  armour), every item as its real model drawn into a framed picture; it equips, fits, moves and scraps them.
+  Tables: src/data/loot.js; logic: src/core/loot.js; runtime: src/game/gear.js (effects, perks, viewmodel parts),
+  src/game/drops.js; models: blender/fam_gear.py. Review shots: node tests/e2e/gear-shots.js (tests/e2e/review/gear-*.png).
 
 HUD (src/ui/hud.js, hud.css)
   Tactical look (Call of Duty / Titanfall 2 vein) over the comic world: translucent glass panels with cut corners in the
