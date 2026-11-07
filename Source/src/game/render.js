@@ -310,8 +310,18 @@
     R.scene.fog.color.set(fog.color || '#FFF0DC');
     R.scene.fog.near = fog.near || 45;
     R.envFogFar = fog.far || 120;
-    R.scene.fog.far = Math.min(R.envFogFar, R.tierFogFar || 999);
+    R.envFogScale = !!fog.tierScale;
+    R.applyFogFar();
+    // env.far (optional): the camera's far plane for levels that look a long way out (a city hundreds of metres down)
+    R.camera.far = env.far || 420; R.camera.updateProjectionMatrix();
     var s = env.sun || [0.42, 0.82, 0.38]; R.sun.position.set(s[0], s[1], s[2]);
+  };
+  // fog end: the theme's, capped by the graphics tier (120 m on high); a theme with fog.tierScale (a skyline far out
+  // that must stay readable) scales its own distance by the tier instead (high = 120 = x1)
+  R.applyFogFar = function () {
+    if (!R.scene.fog) return;
+    var t = R.tierFogFar || 999, e = R.envFogFar || 120;
+    R.scene.fog.far = R.envFogScale && t < 999 ? e * t / 120 : Math.min(e, t);
   };
   R.setSky = function (top, horizon) { R.sky.material.uniforms.top.value.set(top); R.sky.material.uniforms.horizon.value.set(horizon); };
 

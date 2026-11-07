@@ -94,7 +94,7 @@
     R.tier = t; var T = TIERS[t];
     FX.decalLimit = T.decals; FX.particleScale = T.particles;
     R.tierFogFar = T.fog;
-    if (R.scene.fog) R.scene.fog.far = Math.min(T.fog, R.envFogFar || 999);
+    R.applyFogFar();
     R.resize();
   };
   G.applySettings = function () {
