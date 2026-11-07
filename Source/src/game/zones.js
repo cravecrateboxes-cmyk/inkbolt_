@@ -200,17 +200,38 @@
   function Parts(theme) { this.lists = {}; this.roof = []; this.theme = theme; }
   var PID = 0;
   Z.pidNames = {};
-  Parts.prototype.add = function (name, x, y, z, yaw, m) {
+  Parts.prototype.add = function (name, x, y, z, yaw, m, paint) {
     name = IB.themePiece(this.theme, name);
     var fam = IB.Assets.family[name];
     if (!fam || !IB.Assets.geo[name]) throw new Error('INKBOLT kit piece missing: ' + name);
     var g = IB.Assets.placed(name, m || M(x, y, z, yaw));
+    if (paint) repaint(g, paint);
     if (Z.ZCHECK) {   // tag each placed piece so the cross-piece z-fighting check can tell pieces apart
       var n = g.attributes.position.count, a = new Float32Array(n); a.fill(++PID);
       g.setAttribute('pid', new THREE.BufferAttribute(a, 1)); Z.pidNames[PID] = name;
     }
     (this.lists[fam] || (this.lists[fam] = [])).push(g);
   };
+  /* Symbol option `paint` (generic): one model in many paint jobs. Kit pieces colour their faces by palette cell (an
+     8 x 8 grid on the family's 64 px palette texture; cell index = row * 8 + column, the order the Blender palette lists
+     them), so a placed copy is repainted by moving the UVs of its `from` cells onto other cells:
+       paint: { from: [cell, ...], to: [[cell, ...], ...] }   one paint job per placed piece, picked by hash
+       paint: { from: [cell, ...], to: function (zoneIdx, layerY, hash) -> [cell, ...] | null }   (per zone / level)
+     Used by kit-parking for car colours and the per-level colour bands on columns and ramps. */
+  function cellUV(i) { return [((i % 8) + 0.5) / 8, 1 - (Math.floor(i / 8) + 0.5) / 8]; }
+  function repaint(g, map) {
+    var uv = g.attributes.uv.array;
+    for (var i = 0; i < uv.length; i += 2) {
+      var cell = Math.floor(uv[i] * 8) + 8 * Math.floor((1 - uv[i + 1]) * 8);
+      for (var k = 0; k < map.length; k++) if (map[k][0] === cell) { var t = cellUV(map[k][1]); uv[i] = t[0]; uv[i + 1] = t[1]; break; }
+    }
+  }
+  function paintFor(d, zi, yb, h) {
+    var P = d.paint; if (!P) return null;
+    var to = typeof P.to === 'function' ? P.to(zi, yb || 0, h) : P.to[Math.min(P.to.length - 1, Math.floor(h * P.to.length))];
+    return to ? P.from.map(function (f, i) { return [f, to[i]]; }) : null;
+  }
+  Z.repaint = repaint;
   function meshesFor(P, group) {
     var out = [];
     Object.keys(P.lists).forEach(function (fam) {
@@ -518,7 +539,7 @@
       else if (typeof d.rotate === 'number') yaw = d.rotate;
       var name = d.sequence ? d.pieces[i % d.pieces.length] : d.alternate ? d.pieces[(p.c + p.r) % d.pieces.length] : pick(d.pieces, hash(p.c * 3 + 1, p.r * 5 + 2));
       var y0 = baseY(world, yb || 0, x, zz, d.sink ? 0.45 : 0, d.sink ? 0.45 : 0), py = (d.y || 0) + y0;
-      P.add(name, x, py, zz, yaw);
+      P.add(name, x, py, zz, yaw, null, paintFor(d, z.idx, yb, hash(p.c * 11 + 3, p.r * 13 + 7)));
       if (d.collide !== false) addColsY(world, d.cols || colsOf(IB.themePiece(theme, name)) || boxCols(1, 1, d.h || 1), x, py, zz, yaw, d.kind || 'cover', z.idx);
       addWith(P, world, theme, d, name, x, py, zz, yaw, z.idx);
       if (d.mount && z.mounts) z.mounts.push({ x: x, y: y0, z: zz, yaw: yaw, kind: d.mount, piece: name, fill: d.fill === undefined ? 1 : d.fill });
@@ -577,7 +598,7 @@
         var L = d.pieces.length, name = d.sequence === 'run' ? d.pieces[seq === 0 ? 0 : seq === nRun - 1 ? L - 1 : 1 + (seq - 1) % Math.max(1, L - 2)]
           : d.sequence ? d.pieces[(ri + i + k) % L] : pick(d.pieces, h);
         var y0 = baseY(world, yb, x, zz, tw / 2 * 0.8, td / 2 * 0.8), py = (d.y || 0) + y0;
-        P.add(name, x, py, zz, y);
+        P.add(name, x, py, zz, y, null, paintFor(d, z.idx, yb, hash(R.c * 7 + i * 13 + 5, R.r * 3 + k * 17 + 1)));
         if (d.collide !== false) addColsY(world, d.cols || colsOf(IB.themePiece(theme, name)) || boxCols(sw, sd, d.h || 1), x, py, zz, y, d.kind || 'cover', z.idx);
         addWith(P, world, theme, d, name, x, py, zz, y, z.idx);
         if (d.elevator) z.elevators.push(makeElevator(P, z, theme, world, d.elevator, x, y0, zz, y));

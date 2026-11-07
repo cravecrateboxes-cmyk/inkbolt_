@@ -4,7 +4,7 @@
   var MOVE = IB.MOVE = {
     walk: 6.0, sprint: 9.0, stamina: 4, staminaRefill: 2, staminaRest: 1,
     accel: 60, friction: 10, airControl: 0.35, jumpVel: 6.2, gravity: 18,
-    coyote: 0.10, jumpBuffer: 0.12, stepUp: 0.35, stepUpStair: 0.5, radius: 0.35, height: 1.7, eye: 1.55,
+    coyote: 0.10, jumpBuffer: 0.12, stepUp: 0.35, stepUpStair: 0.5, snapDown: 0.2, radius: 0.35, height: 1.7, eye: 1.55,
     dipPerM: 0.04, dipMax: 0.12, dipReturn: 0.2, bobWalk: 0.012, bobSprint: 0.020,
     lookRad: 0.0022, pitchClamp: 88 * Math.PI / 180,
     // slide / crouch (added for a modern-shooter feel)
@@ -45,6 +45,7 @@
         if (d2 >= r * r) continue;
         var rise = b.y1 - p.y;
         if (rise > 0 && rise <= (b.walk ? MOVE.stepUpStair : MOVE.stepUp) && (p.onGround || p.coyote > 0) && canStand(p, world, b.y1, r, H)) {
+          p.ease = Math.min(0.5, (p.ease || 0) + rise);   // the eye follows a step up over a few frames
           p.y = b.y1; p.vy = Math.max(p.vy, 0); moved = true; continue;
         }
         if (d2 > 1e-8) {
@@ -172,6 +173,13 @@
       var gd = world.groundAt(p.x, p.z);
       if (p.y - gd < 0.3 && p.y >= gd) { p.y = gd; p.vy = 0; p.onGround = true; }
     }
+    // walkable steps (stairs, car ramps made of fine stair blocks): walking down a drop of at most snapDown keeps
+    // the feet on the next step instead of hopping off each one (no landing dip or thud per step); the eye eases down
+    if (!p.onGround && wasGround && p.vy <= 0 && world.walkN) {
+      var fy = world.floorAt(p.x, p.z, p.y);
+      if (p.y > fy && p.y - fy <= MOVE.snapDown) { p.ease = Math.max(-0.5, (p.ease || 0) - (p.y - fy)); p.y = fy; p.vy = 0; p.onGround = true; }
+    }
+    p.ease = (p.ease || 0) * Math.max(0, 1 - dt * 16);
     if (p.onGround && !wasGround) {
       var fell = Math.max(0, p.fallStartY - p.y);
       p.dip = Math.min(MOVE.dipMax, fell * MOVE.dipPerM + 0.02);
@@ -203,6 +211,6 @@
   };
   P.eyeY = function (p, headBob) {
     var eye = MOVE.eye + (MOVE.eyeSlide - MOVE.eye) * p.low;
-    return p.y + eye - p.dip + (headBob && !p.sliding ? p.bob : 0);
+    return p.y + eye - p.dip - (p.ease || 0) + (headBob && !p.sliding ? p.bob : 0);
   };
 })(window.IB = window.IB || {});
