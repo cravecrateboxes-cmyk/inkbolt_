@@ -1,0 +1,4 @@
+Universal Animation Library (Standard, free) by Quaternius -- https://quaternius.com
+Source: https://quaternius.itch.io/universal-animation-library (mirror: github.com/J-Ponzo/gltf-universal-animation-library)
+License: CC0 1.0 Universal (Public Domain Dedication) -- https://creativecommons.org/publicdomain/zero/1.0/
+Used by fam_trooper.py: the mannequin mesh, its rig and a subset of its animations (the INKBOLT Soldier).

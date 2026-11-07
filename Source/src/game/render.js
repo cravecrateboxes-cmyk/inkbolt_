@@ -44,6 +44,9 @@
     'vHull = 0.0;',
     'if ( dot( aHull, aHull ) > 0.0 ) {',
     '  vec4 hd = vec4( aHull, 0.0 );',
+    '  #ifdef USE_SKINNING',
+    '   hd = skinMatrix * hd;',   // the outline follows the bones (skinMatrix: skinnormal_vertex)
+    '  #endif',
     '  #ifdef USE_INSTANCING',
     '   hd = instanceMatrix * hd;',
     '  #endif',

@@ -46,7 +46,7 @@
     // Blender GLBs: common, weapons, bots and the first level's theme kit (brief 4.2 boot order); other kits load per level
     var saved0 = G.store.newest();
     G.plan = IB.LEVEL_PLANS[params.get('plan') || (saved0 && saved0.plan) || IB.CAMPAIGN[0]] || IB.LEVEL_PLANS[IB.CAMPAIGN[0]];
-    IB.Assets.load(['common', 'weapons', 'bots', 'gear', Z.themeOf(G.plan).family], function (f) { bootProgress(0.2 + f * 0.7); })
+    IB.Assets.load(['common', 'weapons', 'bots', 'gear', 'troopers', Z.themeOf(G.plan).family], function (f) { bootProgress(0.2 + f * 0.7); })
       .then(bootAfterAssets)
       .catch(function (e) {
         G.errors.push(String(e && e.message || e));

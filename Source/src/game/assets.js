@@ -5,7 +5,7 @@
   'use strict';
   var A = IB.Assets = { gltf: {}, geo: {}, node: {}, mat: {}, skinMat: {}, family: {}, palette: {} };
   // baked outline shell thickness per family (m), mirrored from blender/build_assets.py CFG
-  A.BAKED = { common: 0.02, weapons: 0.0035, bots: 0.015, 'kit-toytown': 0.02 };
+  A.BAKED = { common: 0.02, weapons: 0.0035, bots: 0.015, troopers: 0.011, 'kit-toytown': 0.02 };
   A.FILES = IB.ASSET_FILES;
 
   function b64ToBuffer(s) {

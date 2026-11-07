@@ -1,0 +1,286 @@
+/* INKBOLT trooper rig: the Soldier drawn as a skinned, animated character in SWAT / military kit
+   (fps-troopers.glb, built by blender/fam_trooper.py on Quaternius' CC0 Universal Animation Library).
+   The Soldier's brain stays in troops.js; this file replaces only its look:
+     - one skinned clone per live soldier (pooled), one of four kit colourways (palette recolour), the robot ink
+       outline (and the Undercover stealth-blue glow), a hit flash and the rogue teal through per-soldier uniforms
+     - layered animation: the legs play idle / walk / jog / sprint / crouch cycles matched to the ground speed (backwards
+       when backing off), facing the way the soldier moves; the spine twists the chest back onto the target, and the
+       upper body holds the carbine at low ready, or aims (up / level / down blended by pitch); one-shots for hit
+       flinches, rifle-butt strikes, grenade throws and reloads; procedural recoil on every round
+     - death: the Death animation plays out, the body lies for a moment and sinks (no ink corpse for soldiers)
+     - r.muzzleW / r.handLW: world positions of the carbine muzzle and the left hand, used by troops.js for rounds and
+       grenade throws
+   IB.TrooperRig.init(scene) runs from AI.init; sync() from AI.sync; clear() from AI.clear / despawn. */
+(function (IB) {
+  'use strict';
+  var AI = IB.AI, VIS = AI.VIS;
+  var TR = IB.TrooperRig = { live: {}, pool: [], dying: [], ready: false, count: 0 };
+  // kit colourways: palette colours swapped per soldier (defaults = the first one, as built in Blender)
+  var KEYS = ['uniform', 'uniform2', 'vest', 'vest2', 'helmet', 'pad'];
+  var BASEC = ['#2B3445', '#222937', '#1E2128', '#2D323C', '#23262D', '#2F333C'];
+  TR.VARIANTS = [
+    { name: 'SWAT', c: BASEC },
+    { name: 'Black ops', c: ['#2A2C31', '#202126', '#17181C', '#2B2D33', '#1B1C20', '#33353B'] },
+    { name: 'Woodland', c: ['#56613F', '#475133', '#8C7A55', '#77684A', '#5D6745', '#6B5E44'] },
+    { name: 'Urban', c: ['#4C525B', '#3E444C', '#2E3238', '#3B4047', '#3A3F46', '#555B64'] }
+  ];
+  var UPPER = /spine00[23]|neck|head|shoulder|upper_arm|forearm|hand|f_(index|middle|pinky|ring)|thumb/;
+  var LOW = { idle: 'Idle_Loop', walk: 'Walk_Loop', jog: 'Jog_Fwd_Loop', sprint: 'Sprint_Loop', cidle: 'Crouch_Idle_Loop', cwalk: 'Crouch_Fwd_Loop' };
+  var UP = { ready: 'Pistol_Idle_Loop', aimN: 'Pistol_Aim_Neutral', aimU: 'Pistol_Aim_Up', aimD: 'Pistol_Aim_Down' };
+  var ONE = { hit: 'Hit_Chest', hitH: 'Hit_Head', punch: 'Punch_Cross', toss: 'Spell_Simple_Shoot', reload: 'Pistol_Reload' };
+  var clips = null, src = null, mats = [], scene = null;
+  var _v = new THREE.Vector3(), _q = new THREE.Quaternion(), _qp = new THREE.Quaternion(), _ax = new THREE.Vector3(0, 1, 0);
+
+  function boneName(trackName) { return trackName.slice(0, trackName.lastIndexOf('.')); }
+  function part(clip, upper, name) {
+    var tr = clip.tracks.filter(function (t) { var b = boneName(t.name); return /^root/.test(b) ? false : UPPER.test(b) === upper; });
+    return new THREE.AnimationClip(name, clip.duration, tr);
+  }
+  function prepClips(list) {
+    var by = {}; list.forEach(function (c) { by[c.name] = c; });
+    var out = { low: {}, up: {}, one: {}, death: null };
+    Object.keys(LOW).forEach(function (k) { if (by[LOW[k]]) out.low[k] = part(by[LOW[k]], false, k); });
+    Object.keys(UP).forEach(function (k) { if (by[UP[k]]) out.up[k] = part(by[UP[k]], true, k); });
+    Object.keys(ONE).forEach(function (k) { if (by[ONE[k]]) out.one[k] = part(by[ONE[k]], true, k); });
+    if (by.Death01) out.death = new THREE.AnimationClip('death', by.Death01.duration, by.Death01.tracks.filter(function (t) { return !/^root/.test(boneName(t.name)); }));
+    return out;
+  }
+
+  // palette recolour: every texel of a key colour becomes the colourway's colour
+  function hexRGB(h) { var n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+  function recolour(img, to) {
+    var w = img.width, h = img.height, cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    var g = cv.getContext('2d'); g.drawImage(img, 0, 0);
+    var d = g.getImageData(0, 0, w, h), px = d.data, from = BASEC.map(hexRGB), dst = to.map(hexRGB);
+    for (var i = 0; i < px.length; i += 4) {
+      for (var k = 0; k < from.length; k++) {
+        var f = from[k];
+        if (Math.abs(px[i] - f[0]) < 3 && Math.abs(px[i + 1] - f[1]) < 3 && Math.abs(px[i + 2] - f[2]) < 3) { px[i] = dst[k][0]; px[i + 1] = dst[k][1]; px[i + 2] = dst[k][2]; break; }
+      }
+    }
+    g.putImageData(d, 0, 0);
+    var t = new THREE.CanvasTexture(cv);
+    t.flipY = false; t.encoding = THREE.LinearEncoding; t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false;
+    return t;
+  }
+  // a per-soldier material: the robot toon material (skinned) + flash / rogue uniforms
+  function soldierMat(tex) {
+    var U = { value: new THREE.Vector3() };
+    var m = IB.Render.toonMaterial({ map: tex, skinning: true, uni: IB.Render.robotOutline, baked: IB.Assets.BAKED.troopers });
+    var base = m.onBeforeCompile;
+    m.onBeforeCompile = function (sh) {
+      base(sh);
+      sh.uniforms.uTrFx = U;
+      sh.fragmentShader = sh.fragmentShader
+        .replace('uniform vec3 uInk;', 'uniform vec3 uInk;\nuniform vec3 uTrFx;')
+        .replace('if ( vHull > 0.5 ) gl_FragColor = vec4( uInk, 1.0 );',
+          'gl_FragColor.rgb = mix( gl_FragColor.rgb, vec3( 1.0 ), uTrFx.x );\n' +
+          'gl_FragColor.rgb = mix( gl_FragColor.rgb, vec3( 0.07, 0.78, 0.71 ), uTrFx.y );\n' +
+          'if ( vHull > 0.5 ) gl_FragColor = vec4( uInk, 1.0 );');
+    };
+    var key = m.customProgramCacheKey;
+    m.customProgramCacheKey = function () { return key() + 'trp'; };
+    m.userData.fx = U.value;
+    return m;
+  }
+  // clone the rig with its own skeleton (SkeletonUtils.clone)
+  function cloneRig(root) {
+    var c = root.clone(true), sl = [], cl = [];
+    root.traverse(function (o) { sl.push(o); }); c.traverse(function (o) { cl.push(o); });
+    var map = new Map(); sl.forEach(function (o, i) { map.set(o, cl[i]); });
+    cl.forEach(function (o, i) {
+      if (!o.isSkinnedMesh) return;
+      var s = sl[i];
+      o.bind(new THREE.Skeleton(s.skeleton.bones.map(function (b) { return map.get(b); }), s.skeleton.boneInverses), s.bindMatrix);
+    });
+    return c;
+  }
+
+  function makeRig() {
+    var root = cloneRig(src), mesh = null, bones = {};
+    root.traverse(function (o) { if (o.isSkinnedMesh) mesh = o; if (o.isBone) bones[o.name.replace(/[.:\/\[\]]/g, '')] = o; });
+    var R = { root: root, mesh: mesh, muzzle: root.getObjectByName('TROOPER_MUZZLE'), handL: bones['DEF-handL'],
+      spine: [bones['DEF-spine001'], bones['DEF-spine002'], bones['DEF-spine003']], var: -1, mixer: new THREE.AnimationMixer(root),
+      low: {}, up: {}, one: {}, death: null, os: null, osT: 0, osDur: 0, r: null, t: 0, sink: 0 };
+    mesh.frustumCulled = false; mesh.material = mats[0];
+    Object.keys(clips.low).forEach(function (k) { var a = R.mixer.clipAction(clips.low[k]); a.play(); a.setEffectiveWeight(0); R.low[k] = a; });
+    Object.keys(clips.up).forEach(function (k) { var a = R.mixer.clipAction(clips.up[k]); a.play(); a.setEffectiveWeight(0); R.up[k] = a; });
+    Object.keys(clips.one).forEach(function (k) { var a = R.mixer.clipAction(clips.one[k]); a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; R.one[k] = a; });
+    if (clips.death) { R.death = R.mixer.clipAction(clips.death); R.death.setLoop(THREE.LoopOnce, 1); R.death.clampWhenFinished = true; }
+    R.w = {}; R.root.visible = false; scene.add(root);
+    TR.count++;
+    return R;
+  }
+  function take(r) {
+    var R = TR.pool.pop() || makeRig();
+    R.r = r; R.t = 0; R.sink = 0; R.os = null; R.root.visible = true; R.root.position.set(r.x, r.y, r.z);
+    var v = r.trVariant; if (v === undefined) v = r.trVariant = (Math.random() * TR.VARIANTS.length) | 0;
+    if (!R.mats) R.mats = [];
+    if (!R.mats[v]) R.mats[v] = soldierMat(mats.tex[v]);
+    R.mesh.material = R.mats[v];
+    if (R.death) R.death.stop();
+    Object.keys(R.one).forEach(function (k) { R.one[k].stop(); });
+    R.w = {};
+    TR.live[r.slot] = R;
+    return R;
+  }
+  function release(R) { R.root.visible = false; R.r = null; R.mixer.stopAllAction(); restart(R); TR.pool.push(R); }
+  function restart(R) {
+    Object.keys(R.low).forEach(function (k) { R.low[k].play(); R.low[k].setEffectiveWeight(0); });
+    Object.keys(R.up).forEach(function (k) { R.up[k].play(); R.up[k].setEffectiveWeight(0); });
+  }
+
+  TR.init = function (sc) {
+    var A = IB.Assets, g = A.gltf && A.gltf.troopers;
+    TR.ready = false; TR.live = {}; TR.pool = []; TR.dying = []; scene = sc;
+    if (!g || !A.node.TROOPER_Rig) return;
+    src = A.node.TROOPER_Rig; clips = prepClips(g.animations);
+    var img = A.palette.troopers.image;
+    mats = []; mats.tex = TR.VARIANTS.map(function (V, i) { return i === 0 ? A.palette.troopers : recolour(img, V.c); });
+    mats.push(soldierMat(mats.tex[0]));
+    A.node.TROOPER.geometry.computeBoundingSphere();
+    // the Soldier is drawn by this rig: its rigid parts never draw, its ink corpse is replaced by the death animation
+    VIS.soldier.pose = function () {};
+    // core (power cell on the back) for weak-spot hits, measured on the rig
+    var core = src.getObjectByName('TROOPER_CORE');
+    if (core) { src.updateMatrixWorld(true); core.getWorldPosition(_v); src.worldToLocal(_v); VIS.soldier.coreY = _v.y; VIS.soldier.coreZ = _v.z; }
+    TR.ready = true;
+  };
+
+  function weight(R, act, key, target, rate, dt) {
+    var w = R.w[key] === undefined ? 0 : R.w[key];
+    w += (target - w) * Math.min(1, dt * rate);
+    R.w[key] = w; act.setEffectiveWeight(w);
+    return w;
+  }
+  // rotate a bone about a world axis (after the mixer): parent^-1 * Q * parent * local
+  function turnBone(b, axis, ang) {
+    if (!b || !ang) return;
+    b.parent.getWorldQuaternion(_qp);
+    _q.setFromAxisAngle(axis, ang);
+    var inv = _qp.clone().invert();
+    b.quaternion.premultiply(inv.multiply(_q).multiply(_qp));
+    b.updateMatrixWorld(true);
+  }
+  function oneShot(R, key, speed) {
+    var a = R.one[key]; if (!a) return;
+    if (R.os && R.os !== a) R.os.fadeOut(0.12);
+    a.reset(); a.timeScale = speed || 1; a.setEffectiveWeight(1); a.fadeIn(0.1); a.play();
+    R.os = a; R.osT = 0; R.osDur = a.getClip().duration / (speed || 1);
+  }
+
+  function animate(R, r, dt) {
+    var hs = Math.hypot(r.vx || 0, r.vz || 0), crouch = (r.crouch || 0) > 0.3 ? 1 : 0, back = r.legDir < 0;
+    // legs: the cycle that matches the speed, played at a matching rate
+    var wIdle = hs < 0.3 ? 1 : 0, wWalk = 0, wJog = 0, wSprint = 0;
+    if (!wIdle) {
+      if (hs < 2.0) wWalk = 1; else if (hs < 2.8) { wJog = (hs - 2.0) / 0.8; wWalk = 1 - wJog; } else if (hs < 5) wJog = 1; else wSprint = 1;
+    }
+    var sgn = back ? -1 : 1;
+    if (R.low.walk) R.low.walk.timeScale = sgn * Math.max(0.6, hs / 1.5);
+    if (R.low.jog) R.low.jog.timeScale = sgn * Math.max(0.7, hs / 3.4);
+    if (R.low.sprint) R.low.sprint.timeScale = sgn * Math.max(0.8, hs / 5.6);
+    if (R.low.cwalk) R.low.cwalk.timeScale = sgn * Math.max(0.6, hs / 1.4);
+    var c = crouch, s = 1 - c;
+    weight(R, R.low.idle, 'idle', wIdle * s, 8, dt); weight(R, R.low.walk, 'walk', wWalk * s, 8, dt);
+    weight(R, R.low.jog, 'jog', wJog * s, 8, dt); weight(R, R.low.sprint, 'sprint', wSprint * s, 8, dt);
+    if (R.low.cidle) weight(R, R.low.cidle, 'cidle', wIdle * c, 8, dt);
+    if (R.low.cwalk) weight(R, R.low.cwalk, 'cwalk', (1 - wIdle) * c, 8, dt);
+    // upper body: low ready while it patrols; aiming (pitch blend) once it is in the fight
+    var fight = r.state !== 'idle' && (r.seesPlayer || r.state === 'windup' || r.state === 'attack' || r.state === 'recover' || r.lost < 3);
+    // one-shots: flinch on a stagger, rifle butt, grenade toss, a reload after some bursts
+    if (r.state !== R.lastState) {
+      if (r.state === 'stagger') oneShot(R, Math.random() < 0.5 ? 'hit' : 'hitH', 1.4);
+      else if (r.state === 'windup' && r.act === 'melee') oneShot(R, 'punch', 1.5);
+      else if (r.state === 'windup' && r.act === 'nade') oneShot(R, 'toss', 1.25);
+      else if (r.state === 'recover' && R.lastAct === 'fire' && Math.random() < 0.35) oneShot(R, 'reload', 2.2);
+      R.lastState = r.state;
+    }
+    R.lastAct = r.act;
+    var osW = 0;
+    if (R.os) { R.osT += dt; var left = R.osDur - R.osT; osW = Math.min(1, R.osT / 0.1, Math.max(0, left / 0.15)); R.os.setEffectiveWeight(osW); if (left <= 0) { R.os.stop(); R.os = null; osW = 0; } }
+    var aim = r.aim || 0, up = Math.max(0, Math.min(1, aim / 0.6)), dn = Math.max(0, Math.min(1, -(aim + 0.05) / 0.6)), nt = Math.max(0, 1 - up - dn);
+    var f = (fight ? 1 : 0) * (1 - osW), rd = (fight ? 0 : 1) * (1 - osW);
+    weight(R, R.up.ready, 'ready', rd, 6, dt);
+    weight(R, R.up.aimN, 'aimN', f * nt, 10, dt); weight(R, R.up.aimU, 'aimU', f * up, 10, dt); weight(R, R.up.aimD, 'aimD', f * dn, 10, dt);
+    R.mixer.update(dt);
+    // the legs face the way it walks; the spine twists the chest back onto the aim, recoil kicks it
+    var legRel = r.legRel || 0;
+    R.root.rotation.set(0, r.yaw + legRel, 0);
+    R.root.updateMatrixWorld(true);
+    for (var i = 0; i < 3; i++) turnBone(R.spine[i], _ax, -legRel * (i === 2 ? 0.4 : 0.3));
+    if (r.kick > 0.01) {
+      _v.set(Math.cos(r.yaw), 0, -Math.sin(r.yaw));   // the soldier's right
+      turnBone(R.spine[2], _v, -r.kick * 0.12);
+    }
+  }
+
+  TR.sync = function (dt) {
+    if (!TR.ready) return;
+    var slots = AI.types.soldier ? AI.types.soldier.slots : [];
+    for (var s = 0; s < slots.length; s++) {
+      var r = slots[s], R = TR.live[s];
+      if (R && R.r !== r) { delete TR.live[s]; R = null; }
+      if (!r.on) { if (R) { delete TR.live[s]; release(R); } continue; }
+      if (!R) R = take(r);
+      R.root.position.set(r.x, r.y, r.z);
+      animate(R, r, dt);
+      var fx = R.mesh.material.userData.fx;
+      fx.x = Math.min(1, (r.flash || 0) * 9) * 0.85;
+      fx.y = r.rogue > 0 ? (r.rogue < 3 && Math.sin(r.rogue * 16) > 0 ? 0.25 : 0.55) : r.wet > 0 ? 0 : 0;
+      R.root.updateMatrixWorld(true);
+      if (R.muzzle) { R.muzzle.getWorldPosition(_v); r.muzzleW = r.muzzleW || {}; r.muzzleW.x = _v.x; r.muzzleW.y = _v.y; r.muzzleW.z = _v.z; }
+      if (R.handL) { R.handL.getWorldPosition(_v); r.handLW = r.handLW || {}; r.handLW.x = _v.x; r.handLW.y = _v.y; r.handLW.z = _v.z; }
+    }
+    // the fallen: the death animation, a moment on the ground, then it sinks away
+    for (var i = TR.dying.length - 1; i >= 0; i--) {
+      var D = TR.dying[i]; D.t += dt;
+      D.mixer.update(dt);
+      if (D.t > 2.4) { D.sink += dt * 0.7; D.root.position.y = D.y0 - D.sink; }
+      D.root.updateMatrixWorld(true);
+      if (D.t > 3.4) { TR.dying.splice(i, 1); release(D); }
+    }
+  };
+  // a soldier went down: its rig plays the death and stays behind as the body
+  TR.die = function (r) {
+    var R = TR.live[r.slot]; if (!R || !R.death) return false;
+    delete TR.live[r.slot];
+    Object.keys(R.low).forEach(function (k) { R.low[k].fadeOut(0.15); });
+    Object.keys(R.up).forEach(function (k) { R.up[k].fadeOut(0.15); });
+    if (R.os) R.os.fadeOut(0.1);
+    R.death.reset(); R.death.timeScale = 1.25; R.death.setEffectiveWeight(1); R.death.fadeIn(0.1); R.death.play();
+    R.mesh.material.userData.fx.set(0, 0, 0);
+    R.t = 0; R.sink = 0; R.y0 = r.fy || r.y || 0; R.r = null;
+    TR.dying.push(R);
+    return true;
+  };
+  TR.clear = function () {
+    Object.keys(TR.live).forEach(function (s) { release(TR.live[s]); });
+    TR.live = {};
+    TR.dying.forEach(release); TR.dying = [];
+  };
+
+  // ---- hooks: after troops.js (which already wraps the AI runtime)
+  var bInit = AI.init, bSync = AI.sync, bClear = AI.clear, bDespawn = AI.despawn, bKill = AI.kill;
+  var _last = 0;
+  AI.init = function (sc) { bInit.apply(AI, arguments); TR.init(sc); };
+  AI.sync = function () {
+    bSync.apply(AI, arguments);
+    var now = performance.now(), dt = _last ? Math.min(0.1, (now - _last) / 1000) : 0.016; _last = now;
+    if (IB.Game && IB.Game.paused) dt = 0;
+    var T = AI.types.soldier;
+    if (TR.ready && T) T.partList.forEach(function (P) { P.mesh.visible = false; });
+    TR.sync(dt);
+  };
+  AI.clear = function () { bClear.apply(AI, arguments); TR.clear(); };
+  AI.despawn = function () { bDespawn.apply(AI, arguments); TR.clear(); };
+  AI.kill = function (r) {
+    var soldier = r && r.on && r.type === 'soldier' && TR.ready;
+    var x = r && r.x, z = r && r.z;
+    bKill.apply(AI, arguments);
+    if (!soldier) return;
+    if (TR.die(r)) {   // no ink corpse: the rig is the body
+      AI.types.soldier.corpses.forEach(function (c) { if (c.on && c.t === 0 && c.x === x && c.z === z) c.on = false; });
+    }
+  };
+})(window.IB = window.IB || {});

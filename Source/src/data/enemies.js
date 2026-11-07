@@ -78,9 +78,10 @@
        meleeRange. armour: per-instance plate colours; torso / helmet shape sets. weaponDrops: chances per rarity on a
        player kill (read by IB.WeaponDrops.roll). */
     soldier: {
-      id: 'soldier', name: 'Soldier', built: 'Robot trooper in full armour with a bolt rifle', first: 4,
+      id: 'soldier', name: 'Soldier', built: 'Trooper in SWAT / military kit with a carbine', first: 4,
       hp: 80, shield: 60, shieldPool: true, shieldDelay: 3.5, shieldRate: 24, speed: 3.2, chargeSpeed: 0,
-      attack: '4-bolt burst, frag grenades, rifle-butt strike', damage: 6, bolts: 4, boltSpeed: 26,
+      attack: '4-round bursts (some explosive, shock or acid rounds), frag grenades, rifle-butt strike', damage: 6, bolts: 4, boltSpeed: 58,
+      specialRounds: { boom: 0.035, shock: 0.035, acid: 0.035 },
       windup: 0.45, recover: 0.7, range: 24, keepDistance: [7, 15], usesCover: true,
       grenades: 3, grenadeDamage: 30, grenadeRobotDamage: 20, grenadeRadius: 3.4, grenadeFuse: 2.1, grenadeEvery: [6, 10],
       grenadeRange: [6, 19], grenadeWindup: 0.6,

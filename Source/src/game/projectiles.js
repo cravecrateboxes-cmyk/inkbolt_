@@ -4,7 +4,9 @@
      IB.Projectiles.clear()
      IB.Projectiles.update(dt, ctx)  ctx = {player, world, hurt(source, dmg), shake(trauma), onKill(robot)}
    Used by ai.js:
-     IB.Projectiles.fire(x, y, z, dx, dy, dz, speed, dmg, sourceRobot)       one bolt (dir normalised)
+     IB.Projectiles.fire(x, y, z, dx, dy, dz, speed, dmg, sourceRobot)       one bolt (dir normalised); returns it
+       b.kind = 'bullet' (Soldier rounds: a thin fast tracer) or a special round that also hurts over time on a hit:
+       'boom' (explosive: a small blast), 'shock' (electric DoT), 'acid' (acid DoT) -- IB.Troops.dot()
      IB.Projectiles.explode(x, y, z, radius, dmgPlayer, dmgRobots, sourceRobot)  queued blast (60 ms later, so chains ripple)
    Pools (brief 4.5): 96 bolts, 8 blasts (5 lobes each), 16 queued blasts; everything is drawn by ONE InstancedMesh:
    an unlit sphere with a baked inverted-hull ink outline; a bolt = Amber head + a stretched Alert-red trail,
@@ -62,6 +64,9 @@
   var PAL = IB.PAL;
   var ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
   var _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _v = new THREE.Vector3(), _s = new THREE.Vector3(), _d = new THREE.Vector3(), _z = new THREE.Vector3(0, 0, 1), _c = new THREE.Color(), _tmp = [];
+  var KIND = {   // head, trail colours per round kind (bolt = the robots' ink bolts)
+    bullet: [new THREE.Color(0xFFF1B8), new THREE.Color(0xFFD86A)], boom: [new THREE.Color(0xFFB04A), new THREE.Color(0xFF5A1E)],
+    shock: [new THREE.Color(0xC8F6FF), new THREE.Color(0x3FC8FF)], acid: [new THREE.Color(0xD6FF8A), new THREE.Color(0x5BE03A)] };
   var C_HEAD = new THREE.Color(0xFFC83A), C_TRAIL = new THREE.Color(PAL.red), C_HOT = new THREE.Color(PAL.paper), C_AMBER = new THREE.Color(PAL.amber), C_RED = new THREE.Color(PAL.red);
 
   // unlit sphere + inverted hull (aHull = outward dir, 0 on the solid), one geometry, one draw call
@@ -140,6 +145,16 @@
 
   /* vs: 0 a bolt at the player; 1 a rogue's bolt (Handy Helpers): hits robots that are not rogue, never the player;
      2 a bolt at a rogue: hits rogue robots, and the player if he is in the way */
+  /* special rounds: explosive = a small blast where it lands; shock / acid = a burst of colour, and on the player a
+     short damage-over-time (IB.Troops.dot) */
+  function special(b, x, y, z, onPlayer) {
+    var k = b.kind; if (!k || k === 'bullet') return;
+    if (k === 'boom') { Pj.explode(x, y, z, 1.7, b.dmg * 0.8, 0, null); return; }
+    var c = KIND[k][1].getHex();
+    if (IB.Boom && IB.Boom.ready) { if (k === 'shock') IB.Boom.zap(x, y, z, 0.6, c); else IB.Boom.sparks(x, y, z, 0, 0.6, 0, 8, c); }
+    if (FX) FX.puff(x, y, z, 5, c, 0.12, 0.4, 2.2);
+    if (onPlayer && IB.Troops && IB.Troops.dot) IB.Troops.dot(k, b.src, k === 'shock' ? 3 : 2.5, k === 'shock' ? 2 : 3.5);
+  }
   Pj.fire = function (x, y, z, dx, dy, dz, speed, dmg, src, vs) {
     if (!Pj.mesh) return null;
     var b = null, i, oldest = 0;
@@ -152,7 +167,7 @@
     b.on = true; b.t = 0; b.x = x; b.y = y; b.z = z; b.sp = speed;
     b.vx = dx / L * speed; b.vy = dy / L * speed; b.vz = dz / L * speed; b.dmg = dmg;
     b.src.x = src ? src.x : x; b.src.z = src ? src.z : z; b.src.type = src ? src.type : 'gunner';
-    b.vs = vs || 0;
+    b.vs = vs || 0; b.kind = '';
     return b;
   };
 
@@ -260,6 +275,7 @@
       if (b.vs !== 1 && p && p.alive && Pj.segHitsCapsule(b.x, b.y, b.z, nx, ny, nz, p.x, p.y + PLAYER_R, p.y + PLAYER_H - PLAYER_R, p.z, PLAYER_R, HIT_R)) {
         b.on = false;
         if (ctx.hurt) ctx.hurt(b.src, b.dmg);
+        special(b, nx, ny, nz, true);
         if (FX) { FX.puff(nx, ny, nz, 3, PAL.amber, 0.1, 0.3, 2.5); FX.puff(nx, ny, nz, 2, PAL.ink, 0.12, 0.35, 2); }
         if (IB.Boom) IB.Boom.boltHit(nx, ny, nz, -b.vx / b.sp, -b.vy / b.sp, -b.vz / b.sp);
         sfx('boltHit', nx, nz, 0.9);
@@ -281,6 +297,7 @@
         b.on = false;
         if (FX) { FX.impact(hx, hy, hz, nnx, nny, nnz, false); FX.puff(hx + nnx * 0.05, hy + nny * 0.05, hz + nnz * 0.05, 2, PAL.amber, 0.08, 0.22, 2); }
         if (IB.Boom) { IB.Boom.boltHit(hx, hy, hz, nnx, nny, nnz); if (hbox && hbox.kind === 'canister') IB.Boom.hitCan(hbox, b.dmg * 2); }   // robot fire sets canisters off too
+        special(b, hx + nnx * 0.1, hy + nny * 0.1, hz + nnz * 0.1, false);
         sfx('boltHit', hx, hz, 0.45);
         continue;
       }
@@ -312,12 +329,14 @@
       _d.set(bb.vx, bb.vy, bb.vz).divideScalar(bb.sp);
       _q.setFromUnitVectors(_z, _d);
       // head: a hot ball, a touch long along its flight
-      _v.set(bb.x, bb.y, bb.z); _s.set(VIS_R, VIS_R, VIS_R * 1.35);
-      _m.compose(_v, _q, _s); im.setMatrixAt(o, _m); im.setColorAt(o, C_HEAD);
+      // bullets: a small slug and a long thin tracer; special rounds a little fatter and in their colour
+      var KC = bb.kind ? KIND[bb.kind] : null, hr = KC ? (bb.kind === 'bullet' ? 0.38 : 0.6) * VIS_R : VIS_R;
+      _v.set(bb.x, bb.y, bb.z); _s.set(hr, hr, hr * (KC ? 2.2 : 1.35));
+      _m.compose(_v, _q, _s); im.setMatrixAt(o, _m); im.setColorAt(o, KC ? KC[0] : C_HEAD);
       // trail: stretched red streak behind it, grows out of the muzzle
-      var L = Math.min(TRAIL, bb.t * bb.sp) * 0.5;
-      _v.set(bb.x - _d.x * (L + 0.04), bb.y - _d.y * (L + 0.04), bb.z - _d.z * (L + 0.04)); _s.set(VIS_R * 0.55, VIS_R * 0.55, Math.max(0.01, L));
-      _m.compose(_v, _q, _s); im.setMatrixAt(o + 1, _m); im.setColorAt(o + 1, C_TRAIL);
+      var L = Math.min(KC ? TRAIL * 1.6 : TRAIL, bb.t * bb.sp) * 0.5, tr = KC ? hr * 0.45 : VIS_R * 0.55;
+      _v.set(bb.x - _d.x * (L + 0.04), bb.y - _d.y * (L + 0.04), bb.z - _d.z * (L + 0.04)); _s.set(tr, tr, Math.max(0.01, L));
+      _m.compose(_v, _q, _s); im.setMatrixAt(o + 1, _m); im.setColorAt(o + 1, KC ? KC[1] : C_TRAIL);
     }
     Pj.boltCount = hi + 1;
     im.count = BASE + 2 * (hi + 1);

@@ -281,8 +281,8 @@ async function skillsRun(browser, base) {
   check('F turns Undercover on', await until(pg, () => __TEST__.skillState().cloak.active, null, 3000));
   ss = await pg.evaluate(() => __TEST__.skillState());
   check('cloak: 5 s, then a 30 s cooldown; the AI is told', ss.cloaked && ss.cloak.t <= 5 && ss.cloak.t > 3 && ss.cloak.cd === 30, JSON.stringify(ss.cloak));
-  check('after a quick flicker the world sinks into the dark-blue stealth look (halftone screen, robots outlined blue)', await until(pg, () => document.body.classList.contains('cloak-on') &&
-    /saturate/.test(getComputedStyle(document.getElementById('c')).filter) && +getComputedStyle(document.getElementById('cloakFx')).opacity > 0.9 &&
+  check('after a quick flicker the world sinks into the ink-black stealth look (robots glow a bright stealth blue)', await until(pg, () => document.body.classList.contains('cloak-on') &&
+    IB.Render.cloak.value > 0.9 && IB.Render.robotHull.value > 2 && +getComputedStyle(document.getElementById('cloakFx')).opacity > 0.9 &&
     IB.Render.robotOutline.uInk.value.b > 0.5, null, 5000));
   check('HUD cooldown badge shows the cloak', await pg.evaluate(() => !document.getElementById('cloakHud').hidden && /HIDDEN/.test(document.getElementById('cloakHud').textContent)));
   let worst = 0;

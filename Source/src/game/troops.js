@@ -2,7 +2,9 @@
    data/enemies.js, models in blender/fam_bots.py). Health, shields and damage scale with the campaign level through
    the same multipliers as every robot (AI.hpMul / r.dmgMul from core/damage.js, tempo for windups and cooldowns).
 
-   Soldier: an armoured robot trooper. Shield pool (r.shield / r.maxShield, the health bar's shield row) soaks damage
+   Soldier: a trooper in SWAT / military kit, drawn as a skinned, animated character by trooperrig.js (the rigid parts
+     below are its fallback). Fires carbine rounds: fast tracer bullets, now and then an explosive, shock or acid round
+     (def.specialRounds) that also hurts over time on a hit (Tr.dot). Shield pool (r.shield / r.maxShield, the health bar's shield row) soaks damage
      first, recharges after def.shieldDelay; keeps 7-15 m, strafes and takes cover (Gunner planner), fires 4-bolt
      bursts from its rifle, throws up to 3 frag grenades (arc, bounce, blinking fuse, red ring, Projectiles.explode),
      rifle-butts the player inside def.meleeRange after a pull-back tell. Rigid parts: hips + legs face the way it
@@ -197,9 +199,9 @@
           K.move(-dz * r.sdir, dx * r.sdir, speed * 0.3);
           r.shotT -= dt;
           if (r.shots < (def.bolts || 4) && r.shotT <= 0) {
-            var m = armPoint(r, 0, VIS.soldier.muzzle, -r.aim + r.rigPitch, r.rigPush);
-            K.fireFrom(r, m, p, def.boltSpeed || 26, (def.damage || 6) * r.dmgMul, 0.4, r.shots ? 0.04 : 0.01);
-            r.shots++; r.shotT = 0.11;
+            var m = r.muzzleW || armPoint(r, 0, VIS.soldier.muzzle, -r.aim + r.rigPitch, r.rigPush);   // the carbine's muzzle (trooperrig.js)
+            fireRound(r, m, p, def.boltSpeed || 58, (def.damage || 6) * r.dmgMul, 0.4, r.shots ? 0.04 : 0.01);
+            r.shots++; r.shotT = 0.1;
           }
           if (r.shots >= (def.bolts || 4) && r.shotT <= -0.08) K.setState(r, 'recover');
         }
@@ -226,6 +228,34 @@
   }
   BEH.soldier = { think: thinkSoldier, tick: tickSoldier };
 
+  /* a carbine round: a fast tracer bullet; now and then (def.specialRounds odds) an explosive, shock or acid round,
+     which also hurts over time on a hit (projectiles.js special(), Tr.dot) */
+  function fireRound(r, m, p, speed, dmg, lead, spread) {
+    var T = K.tempo(), tx = p.x, ty = p.y + 1.15, tz = p.z;
+    var dx = tx - m.x, dy = ty - m.y, dz = tz - m.z, d = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+    lead = (lead || 0) + T.leadAdd; spread = (spread || 0) * T.aimMul;
+    if (lead) { var tt = d / speed; tx += (p.vx || 0) * tt * lead; tz += (p.vz || 0) * tt * lead; dx = tx - m.x; dz = tz - m.z; d = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1; }
+    dx /= d; dy /= d; dz /= d;
+    if (spread) { dx += (Math.random() - 0.5) * spread; dy += (Math.random() - 0.5) * spread * 0.6; dz += (Math.random() - 0.5) * spread; }
+    var Pj = IB.Projectiles, b = Pj && Pj.fire ? Pj.fire(m.x, m.y, m.z, dx, dy, dz, speed, r.rogue > 0 ? dmg * AI.rogueDmgMul : dmg, r, r.rogue > 0 ? 1 : p.robot ? 2 : 0) : null;
+    if (b) {
+      var sp = r.def.specialRounds || {}, x = Math.random(), acc = 0, kind = 'bullet';
+      for (var k in sp) { acc += sp[k]; if (x < acc) { kind = k; break; } }
+      b.kind = kind;
+    }
+    if (IB.Boom) IB.Boom.muzzle(m.x, m.y, m.z, 0.3);
+    if (IB.FX) IB.FX.puff(m.x, m.y, m.z, 1, PAL.paper, 0.06, 0.18, 1.4);
+    sfx('gun', r, 0.45, 1.25 + Math.random() * 0.15);
+    r.kick = 1;
+  }
+  // damage over time on the player from special rounds: 'shock' (shares the Voltaxe's shock) or 'acid'
+  Tr.acid = { left: 0, tick: 0, dps: 0, src: { x: 0, z: 0, type: 'soldier', proj: true } };
+  Tr.dot = function (kind, src, dps, time) {
+    var S = kind === 'acid' ? Tr.acid : Tr.shock;
+    S.dps = Math.max(S.left > 0 ? S.dps : 0, dps * (src && src.type ? 1 : 1)); S.left = Math.max(S.left, time); if (S.tick <= 0) S.tick = 0.4;
+    if (src) { S.src.x = src.x; S.src.z = src.z; }
+  };
+
   // ---------------- enemy grenades ----------------
   var NR = 0.07;
   function throwNade(r, p) {
@@ -235,7 +265,7 @@
     r.holdNade = false;
     if (!g) return;
     r.nades--;
-    var h = armPoint(r, 1, VIS.soldier.handL, -r.aim + r.throwL, 0);
+    var h = r.handLW ? { x: r.handLW.x, y: r.handLW.y + 0.1, z: r.handLW.z } : armPoint(r, 1, VIS.soldier.handL, -r.aim + r.throwL, 0);
     var dx = p.x - h.x, dz = p.z - h.z, d = Math.hypot(dx, dz);
     var t = K.clamp(0.55 + d * 0.05, 0.7, 1.4), lead = 0.5;
     // aim a little short: the grenade skids on to the player's feet (plus a little scatter)
@@ -518,12 +548,22 @@
       sfx('boltHit', p, 0.4, 1.6);
     }
   }
-  function clearRuntime() { Tr.grenades.forEach(function (g) { g.on = false; }); Tr.shock.left = 0; Tr.shock.tick = 0; }
+  function updateAcid(dt, ctx) {
+    var S = Tr.acid; if (S.left <= 0) return;
+    var p = ctx.player; if (!p || !p.alive || p.robot) { S.left = 0; return; }
+    S.left -= dt; S.tick -= dt;
+    if (S.tick <= 0) {
+      S.tick = 0.5; ctx.hurt(S.src, S.dps * 0.5);
+      if (IB.FX) IB.FX.puff(p.x + rnd(-0.3, 0.3), p.y + 0.6 + rnd(0, 0.6), p.z + rnd(-0.3, 0.3), 3, 0x6BE03A, 0.08, 0.3, 1.2);
+      sfx('hit', p, 0.3, 0.7);
+    }
+  }
+  function clearRuntime() { Tr.grenades.forEach(function (g) { g.on = false; }); Tr.shock.left = 0; Tr.shock.tick = 0; Tr.acid.left = 0; Tr.acid.tick = 0; }
 
   // ---- hook into the robot runtime (init / update / sync / clear)
   var baseInit = AI.init, baseUpdate = AI.update, baseSync = AI.sync, baseClear = AI.clear, baseDespawn = AI.despawn;
   AI.init = function (scene) { baseInit.apply(AI, arguments); _e = new THREE.Euler(); initRuntime(scene); };
-  AI.update = function (dt, ctx) { baseUpdate.apply(AI, arguments); updateNades(dt, ctx.world); updateShock(dt, ctx); };
+  AI.update = function (dt, ctx) { baseUpdate.apply(AI, arguments); updateNades(dt, ctx.world); updateShock(dt, ctx); updateAcid(dt, ctx); };
   AI.sync = function () { baseSync.apply(AI, arguments); syncRuntime(); };
   AI.clear = function () { baseClear.apply(AI, arguments); clearRuntime(); };
   AI.despawn = function () { baseDespawn.apply(AI, arguments); clearRuntime(); };
