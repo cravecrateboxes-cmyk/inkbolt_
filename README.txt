@@ -44,6 +44,18 @@ PROGRESSION
   Loadout: carry 2 guns from your arsenal (3 after clearing level 10); weapon stands add guns to the arsenal.
   Robots get a little tougher every level (health, damage, fire rate, aim, speed; src/core/damage.js).
 
+CAMPAIGN (src/data/levelplans.js ORDER)
+  1 Mountains, 2 Small City, 3 Classroom, 4 Office Tower, 5 Big Bedroom, 6 Coal Mine, 7 Castle, 8 Downtown at Dusk,
+  9 Robot Works, 10 Living Room, 11 Wide Garden Playground, 12 Heavy Works, 13 Lagoon Island.
+  Wide Garden Playground (garden): a park with big climbable play forts, bridges, a pirate ship; walkable decks
+    (Blender boxes named <Piece>_WCOL<n>) give the zone a two-layer nav grid, so robots climb stairs and cross
+    bridges after you (zones.js floorAt / layered flow field, ai.js foot heights).
+  Heavy Works (factory2): giant walkers and tread bruisers built along moving lines (bare chassis, drivetrain, armour,
+    paint), overhead cranes, a test track. Moving lines (theme symbol option `conveyor`, zones.js updateLines,
+    one instanced mesh per moving symbol) run in both factories; standing on a belt carries you.
+  Lagoon Island (island): a wide island with wadeable ponds, tide pools and a lagoon, sea walls on the shore and open
+    ocean to the horizon all round (theme backdrop.build paints the island ground and the sea).
+
 MELEE, GRENADES AND NEW GUNS
   Melee weapons (V, src/game/weapons.js W.meleeStart + game.js meleeHit): KN-3 Stinger dagger (fast stab, x2.5 on a
   robot that has not seen you or is struck from behind), NC-2 Twin Strikers nunchucks (two hits per swing in a wide arc,
