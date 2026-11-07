@@ -17,19 +17,27 @@
   // weapons that have a Blender model + arm actions: WPN_<ID> (gun), WPN_<ID>_Mag (detachable mag; revolver: the
   // cylinder) and sockets WPN_<ID>_MUZZLE / _MAG / _EJECT / _SIGHT (a point on the sight line just behind the rear
   // sight or optic) plus _SCOPE (eyepiece centre) on the scoped rifles
-  IB.MODELLED_WEAPONS = ['pip', 'handcannon', 'twintap', 'buzz', 'whisk', 'hornet', 'rivet', 'triplet', 'longtom', 'brick', 'needle'];
-  IB.SCOPED_WEAPONS = ['longtom', 'needle'];
+  IB.MODELLED_WEAPONS = ['pip', 'handcannon', 'twintap', 'buzz', 'whisk', 'hornet', 'rivet', 'triplet', 'longtom', 'brick', 'needle',
+    'scrapper', 'vanguard', 'thunder', 'railspike'];
+  IB.SCOPED_WEAPONS = ['longtom', 'needle', 'railspike'];
+  // melee weapons: WPN_<ID> (the nunchucks also WPN_NUNCHUCKS_Mag, the swinging stick) + actions <ID>_<clip> (weapons.js
+  // clips), <ID>_Idle; every gun also has <GUN>_Throw (the support hand throws a frag can held on the HOLD_L socket)
+  IB.MODELLED_MELEE = ['dagger', 'nunchucks', 'katana', 'eaxe'];
+  IB.HELD_ITEMS = ['HOLD_L', 'HELD_Frag', 'HELD_Shell'];
+  IB.ASSET_NAMES.weapons = IB.ASSET_NAMES.weapons.concat(IB.HELD_ITEMS, IB.MODELLED_MELEE.map(function (id) { return 'WPN_' + id.toUpperCase(); }));
   IB.MODELLED_WEAPONS.forEach(function (id) {
     var k = 'WPN_' + id.toUpperCase();
     ['', '_Mag', '_MUZZLE', '_MAG', '_EJECT', '_SIGHT'].concat(IB.SCOPED_WEAPONS.indexOf(id) >= 0 ? ['_SCOPE'] : [])
       .forEach(function (s) { IB.ASSET_NAMES.weapons.push(k + s); });
   });
-  IB.ARM_ACTIONS = ['Idle', 'Draw', 'Holster', 'Fire', 'Reload', 'Sprint', 'Slide'];
+  IB.ARM_ACTIONS = ['Idle', 'Draw', 'Holster', 'Fire', 'Reload', 'Sprint', 'Slide', 'Throw'];
   // triangle budgets incl. outline hull (brief 3.2); robots count body + legs + light. A weapon's budget covers
   // the gun and its WPN_<ID>_Mag together.
   IB.TRI_BUDGET = {
     meshes: { WPN_PIP: 1500, WPN_HANDCANNON: 1500, WPN_TWINTAP: 1500, WPN_BUZZ: 2000, WPN_WHISK: 2000, WPN_HORNET: 2000,
       WPN_RIVET: 2500, WPN_TRIPLET: 2500, WPN_LONGTOM: 2500, WPN_BRICK: 2500, WPN_NEEDLE: 3000,
+      WPN_SCRAPPER: 2500, WPN_THUNDER: 2500, WPN_VANGUARD: 2600, WPN_RAILSPIKE: 3800,
+      WPN_DAGGER: 1000, WPN_NUNCHUCKS: 1400, WPN_KATANA: 1200, WPN_EAXE: 2000, HELD_Frag: 700, HELD_Shell: 300,
       ARMS: 5500, PICKUP_Gem: 60, PICKUP_Ammo: 300, PICKUP_Health: 300,
       Cloud_A: 300, Cloud_B: 300, Cloud_C: 300, Hill: 300, Tree: 300, SpawnCan: 300, TrailArrow: 300,
       KIT_TOYTOWN_Landmark_WaterTower: 4000 },

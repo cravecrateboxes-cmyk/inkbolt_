@@ -159,16 +159,16 @@ test('boss shell and core multipliers', () => {
 });
 
 test('melee damage', () => {
-  near(D.melee({ weapon: W.katana, combo: 0 }), 45);
-  near(D.melee({ weapon: W.katana, combo: 1 }), 45);
-  near(D.melee({ weapon: W.katana, combo: 2 }), 72);
-  near(D.melee({ weapon: W.katana, combo: 0, first: false }), 27);
-  near(D.melee({ weapon: W.katana, combo: 0, edgeLevel: 2 }), 63);
-  near(D.melee({ weapon: W.fireaxe, combo: 0 }), 75);
-  near(D.melee({ weapon: W.fireaxe, charged: true }), 150);
-  near(D.melee({ weapon: W.fireaxe, charged: true, edgeLevel: 1 }), 180);
-  near(D.melee({ weapon: W.fireaxe, charged: true, first: false }), 90);
-  near(D.melee({ weapon: W.katana, charged: true }), 45, 'katana has no charge');
+  near(D.melee({ weapon: W.katana, combo: 0 }), 62);
+  near(D.melee({ weapon: W.katana, combo: 1 }), 62);
+  near(D.melee({ weapon: W.katana, combo: 2 }), 99.2);
+  near(D.melee({ weapon: W.katana, combo: 0, first: false }), 37.2);
+  near(D.melee({ weapon: W.katana, combo: 0, edgeLevel: 2 }), 86.8);
+  near(D.melee({ weapon: W.eaxe, combo: 0 }), 95);
+  near(D.melee({ weapon: W.eaxe, charged: true }), 150);
+  near(D.melee({ weapon: W.eaxe, charged: true, edgeLevel: 1 }), 180);
+  near(D.melee({ weapon: W.eaxe, charged: true, first: false }), 90);
+  near(D.melee({ weapon: W.katana, charged: true }), 62, 'katana has no charge');
   assert.equal(D.staggers(25, 100), true);
   assert.equal(D.staggers(24, 100), false);
   assert.equal(D.staggers(1, 100, true), true);

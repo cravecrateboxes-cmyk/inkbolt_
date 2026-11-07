@@ -35,7 +35,9 @@
   // levels whose theme is not built yet are skipped by the filter below
   var ORDER = ['mountains', 'smallcity', 'classroom', 'office', 'bedroom', 'coalmine', 'castle', 'city2', 'factory', 'livingroom'];
   // new weapons waiting at the start of each campaign level (index = level - 1)
-  var WEAPONS = [['buzz'], ['rivet', 'handcannon'], ['triplet', 'whisk'], ['longtom', 'hornet'], ['brick', 'twintap'], ['needle'], [], [], [], []];
+  // (melee weapons and the frag cans stand there too: every melee weapon and grenades are in hand by level 5)
+  var WEAPONS = [];
+  Object.keys(IB.UNLOCKS || {}).forEach(function (lv) { WEAPONS[lv - 1] = IB.UNLOCKS[lv].filter(function (id) { return lv > 1 || id !== 'pip'; }); });
   IB.CAMPAIGN = ORDER.filter(function (id) { return P[id]; });
   IB.CAMPAIGN.forEach(function (id, i) {
     var p = P[id];

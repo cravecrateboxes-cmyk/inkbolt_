@@ -6,7 +6,8 @@
   var W = IB.Weapons = {};
   var D2R = Math.PI / 180;
   var FIRE_SND = { pistol: ['pip', 1], smg: ['buzz', 1], rifle: ['gun', 1.05], sniper: ['gun', 0.62], handcannon: ['gun', 0.78], twintap: ['pip', 1.12],
-    whisk: ['buzz', 1.18], hornet: ['buzz', 0.9], longtom: ['gun', 0.82], brick: ['gun', 0.88], triplet: ['gun', 1.12] };
+    whisk: ['buzz', 1.18], hornet: ['buzz', 0.9], longtom: ['gun', 0.82], brick: ['gun', 0.88], triplet: ['gun', 1.12],
+    shotgun: ['gun', 0.66], scrapper: ['gun', 0.6], thunder: ['gun', 0.7], vanguard: ['gun', 0.92], railspike: ['gun', 1.3] };
   var _dir = new THREE.Vector3(), _right = new THREE.Vector3(), _up = new THREE.Vector3(), _fwd = new THREE.Vector3();
 
   // ---------------- viewmodel: Blender arms rig (22 bones) + weapon meshes from fps-weapons.glb ----------------
@@ -70,7 +71,18 @@
     W.flashCone.renderOrder = 9; W.flash.add(W.flashCone);
     W.flashCore = W.flashStar;
     W.flash.visible = false;
+    // things the support hand holds (frag can for a throw, a shell while loading the pump gun) ride the HOLD_L socket
+    // on the left hand bone (blender/fam_weapons.py hold_socket)
+    W.held = {};
+    var hold = rig.getObjectByName('HOLD_L');
+    ['Frag', 'Shell'].forEach(function (n) {
+      var src = A.node['HELD_' + n]; if (!hold || !src) return;
+      var m = new THREE.Mesh(src.geometry, W.vmMat); m.frustumCulled = false; m.visible = false;
+      if (n === 'Frag') m.scale.setScalar(0.75);   // read at arm's length right in front of the lens: a little smaller
+      hold.add(m); W.held[n] = m;
+    });
   };
+  function showHeld(n, on) { var m = W.held && W.held[n]; if (m) m.visible = !!on; }
   // flash size per class (pistol 1); and which classes get side flares
   var FLASH_SCALE = { pistol: 0.95, smg: 1.0, rifle: 1.2, sniper: 1.55, shotgun: 1.7, rocket: 1.4, handcannon: 1.45 };
   var FLASH_SIDE = { smg: true, rifle: true, sniper: true, shotgun: true };
@@ -92,13 +104,21 @@
     W.models[id] = { mesh: gun, mag: mag, muzzle: muzzle, key: id.toUpperCase() };
     return W.models[id];
   }
-  function showModel(id, on) { var m = W.models[id]; if (!m) return; m.mesh.visible = on; if (m.mag) m.mag.visible = on; if (on && m.muzzle) m.muzzle.add(W.flash); }
+  function showModel(id, on) {
+    var m = W.models[id]; if (!m) return; m.mesh.visible = on; if (m.mag) m.mag.visible = on;
+    if (on && m.muzzle && IB.WEAPONS[id].cls !== 'melee') m.muzzle.add(W.flash);
+  }
 
   // ---------------- arm animation (Blender actions <WEAPON>_<Action>) ----------------
   W.anim = function (s, name, opts) {
     opts = opts || {};
     var m = s.cur && W.models[s.cur]; if (!m) return;
-    var clip = W.clips[m.key + '_' + name]; if (!clip) return;
+    W.play(m.key, name, opts);
+  };
+  // play <KEY>_<name> on the arms rig (KEY: a gun or a melee weapon); false when there is no such clip
+  W.play = function (key, name, opts) {
+    opts = opts || {};
+    var clip = W.clips[key + '_' + name]; if (!clip) return false;
     var act = W.mixer.clipAction(clip);
     act.reset(); act.enabled = true; act.setEffectiveWeight(1);
     act.setLoop(opts.once ? THREE.LoopOnce : THREE.LoopRepeat, Infinity);
@@ -107,6 +127,7 @@
     act.play();
     if (W.action && W.action !== act) act.crossFadeFrom(W.action, opts.fade === undefined ? 0.08 : opts.fade, false);
     W.action = act; W.animName = name; W.animOnce = !!opts.once;
+    return true;
   };
 
   // ---------------- state ----------------
@@ -114,7 +135,7 @@
   W.create = function (owned, fx) {
     var s = { guns: {}, slots: {}, cur: null, state: 'idle', t: 0, next: 0, burst: 0, sinceShot: 9, shotsInRow: 0,
       recoilP: 0, recoilY: 0, kickZ: 0, kickZv: 0, kickR: 0, kickRv: 0, swayX: 0, swayY: 0, flashT: 0, reloadT: 0, drawT: 0,
-      aim: 0, shoveT: 0, fx: fx || {}, triggerWas: false, pending: null };
+      aim: 0, shoveT: 0, fx: fx || {}, triggerWas: false, pending: null, melee: null, throwing: null, combo: 0, comboT: 9 };
     owned.forEach(function (id) { W.give(s, id); });
     return s;
   };
@@ -174,8 +195,65 @@
     s.state = 'reload'; s.t = 0; s.reloadT = g.def.reload * (s.fx.reloadMul || 1); s.burst = 0;
     var rc = W.clips[W.models[s.cur].key + '_Reload'];
     W.anim(s, 'Reload', { once: true, timeScale: rc ? rc.duration / s.reloadT : 1 });   // Fast Fingers rescales the clip
-    IB.Audio && IB.Audio.play('magOut');
+    IB.Audio && IB.Audio.play(g.def.reloadPerShell ? 'magIn' : 'magOut', g.def.reloadPerShell ? { pitch: 1.3, gain: 0.7 } : undefined);
   };
+  W.busy = function (s) { return !!(s.melee || s.throwing); };
+
+  // ---------------- melee (V): the gun goes away for one swing of the melee weapon, then comes back ----------------
+  /* id: melee weapon id. Swings chain into a combo (each swing plays the next clip) when V comes again inside the
+     weapon's comboWindow. ctx.melee(def, comboIndex, hitNo) is called when a blow lands. */
+  // V cuts into a reload, a draw or a holster (the swap finishes after the swing); never into another swing or a throw
+  W.meleeReady = function (s) { return !s.melee && !s.throwing; };
+  W.meleeStart = function (s, id) {
+    var def = IB.WEAPONS[id], m = def && model(id);
+    if (!m || !W.meleeReady(s)) return false;
+    if (s.state === 'reload') { s.state = 'idle'; s._magIn = false; showHeld('Shell', false); }
+    if (s.state === 'holster' && s.pending) { s.cur = s.pending; s.pending = null; }   // the swap target comes out after the swing
+    s.state = 'idle';
+    var clips = def.clips || ['Strike'];
+    s.combo = s.comboT < (def.comboWindow || 0.5) ? (s.combo + 1) % clips.length : 0;
+    var dur = W.clips[m.key + '_' + clips[s.combo]] ? W.clips[m.key + '_' + clips[s.combo]].duration : def.swing;
+    Object.keys(W.models).forEach(function (k) { showModel(k, false); });
+    showModel(id, true);
+    W.play(m.key, clips[s.combo], { once: true, fade: 0, timeScale: dur / (def.swing / (s.fx.meleeRate || 1)) });
+    s.melee = { id: id, def: def, t: 0, dur: def.swing / (s.fx.meleeRate || 1), hits: 0, combo: s.combo };
+    s.burst = 0; s.aim = 0;
+    IB.Audio && IB.Audio.play('shove', { pitch: id === 'eaxe' ? 0.7 : id === 'dagger' ? 1.35 : 1.05, gain: 1.1 });
+    return true;
+  };
+  function meleeUpdate(s, dt, ctx) {
+    var mm = s.melee; mm.t += dt;
+    var f = mm.t / mm.dur, d = mm.def;
+    if (mm.hits === 0 && f >= d.hit) { mm.hits = 1; if (ctx.melee) ctx.melee(d, mm.combo, 0); }
+    if (mm.hits === 1 && d.hit2 && f >= d.hit2) { mm.hits = 2; if (ctx.melee) ctx.melee(d, mm.combo, 1); }
+    if (mm.t >= mm.dur) {
+      s.melee = null; s.comboT = 0;
+      showModel(mm.id, false);
+      var cur = s.cur; s.cur = null;
+      if (cur) W.equip(s, cur, false);   // the gun is drawn again
+    }
+  }
+
+  // ---------------- grenade (G): the support hand throws a frag can while the gun dips ----------------
+  // the throw clip is generated per gun (<GUN>_Throw, 0.62 s, release at 52 %): ctx.onThrow() spawns the grenade
+  var THROW_RELEASE = 0.52, THROW_SHOW = 0.16;
+  W.throwStart = function (s) {
+    var g = W.current(s); if (!g || s.melee || s.throwing || s.state === 'holster') return false;
+    if (s.state === 'draw') s.state = 'idle';
+    if (s.state === 'reload') { s.state = 'idle'; s._magIn = false; showHeld('Shell', false); }
+    var key = W.models[s.cur].key, clip = W.clips[key + '_Throw'];
+    W.play(key, 'Throw', { once: true, fade: 0.05 });
+    s.throwing = { t: 0, dur: clip ? clip.duration : 0.62, released: false };
+    s.burst = 0;
+    return true;
+  };
+  function throwUpdate(s, dt, ctx) {
+    var th = s.throwing; th.t += dt;
+    var f = th.t / th.dur;
+    showHeld('Frag', f >= THROW_SHOW && !th.released);
+    if (!th.released && f >= THROW_RELEASE) { th.released = true; showHeld('Frag', false); if (ctx.onThrow) ctx.onThrow(); IB.Audio && IB.Audio.play('shove', { pitch: 1.4, gain: 0.8 }); }
+    if (th.t >= th.dur) s.throwing = null;
+  }
 
   // spread cone half-angle (deg) right now
   W.spread = function (s, player) {
@@ -202,7 +280,10 @@
     // springs (stiffness 220, damping 18)
     s.kickZv += (-220 * s.kickZ - 18 * s.kickZv) * dt; s.kickZ += s.kickZv * dt;
     s.kickRv += (-220 * s.kickR - 18 * s.kickRv) * dt; s.kickR += s.kickRv * dt;
-    var wantAim = inp.aim && s.state !== 'reload' && !p.sprinting;
+    s.comboT += dt;
+    if (s.melee) { meleeUpdate(s, dt, ctx); p.aiming = false; s.aim = Math.max(0, s.aim - dt * 14); return; }
+    if (s.throwing) throwUpdate(s, dt, ctx);
+    var wantAim = inp.aim && s.state !== 'reload' && !p.sprinting && !s.throwing;
     s.aim += ((wantAim ? 1 : 0) - s.aim) * Math.min(1, dt * 14);
     p.aiming = s.aim > 0.5;
     if (!g) return;
@@ -215,6 +296,19 @@
         if (s.t >= 0.3 * (s.fx.swapMul || 1)) s.state = 'idle';
         return;
       case 'reload':
+        if (g.def.reloadPerShell) {
+          // one shell per cycle (the clip loops); fire with a shell in the tube stops loading
+          showHeld('Shell', s.t >= s.reloadT * 0.22 && s.t < s.reloadT * 0.72);
+          if (inp.firePressed && g.mag > 0) { s.state = 'idle'; showHeld('Shell', false); break; }
+          if (s.t >= s.reloadT) {
+            g.mag++; if (g.reserve !== Infinity) g.reserve--;
+            IB.Audio && IB.Audio.play('magIn', { pitch: 1.3, gain: 0.7 });
+            showHeld('Shell', false);
+            if (g.mag < W.magSize(s, g.def) && g.reserve > 0) { s.t = 0; W.anim(s, 'Reload', { once: true, fade: 0, timeScale: (W.clips[W.models[s.cur].key + '_Reload'].duration) / s.reloadT }); }
+            else { s.state = 'idle'; IB.Audio && IB.Audio.play('slide'); }
+          }
+          return;
+        }
         if (s.t >= s.reloadT * 0.55 && !s._magIn) { s._magIn = true; IB.Audio && IB.Audio.play('magIn'); }
         if (s.t >= s.reloadT) {
           s._magIn = false;
@@ -224,7 +318,7 @@
         }
         return;
     }
-    if (p.sprinting) { s.burst = 0; return; }
+    if (p.sprinting || s.throwing) { s.burst = 0; return; }
     var d = g.def;
     var trig = d.fire === 'auto' ? inp.fire : inp.firePressed;
     var rm = s.fx.rateMul || 1;   // Rapid skill: shorter gaps between shots
@@ -314,6 +408,7 @@
   var VM_SCALE = 0.85;
   W.pose = function (s, dt, player, lookDX, lookDY, headBob, t) {
     var g = W.current(s), k = Math.min(1, dt * 10), vc = W.vmClass(g ? g.def.cls : 'rifle');
+    if (s.melee) g = null;   // melee swing: the arms play the swing clip; no gun handling, no flash
     s.sprintK = (s.sprintK || 0) + ((player.sprinting ? 1 : 0) - (s.sprintK || 0)) * Math.min(1, dt * 8);
     // look sway lags the camera; clamp so fast flicks don't throw the gun off screen
     s.swayX += ((-lookDX * 0.0007) - s.swayX) * k; s.swayY += ((lookDY * 0.0007) - s.swayY) * k;
@@ -349,6 +444,7 @@
       rx *= hip * 0.6 + 0.4 * (1 - a); ry *= hip; rz *= hip * 0.7 + 0.3;
     }
     // arm animation: once-clips (draw, fire, reload, holster) fall back to the Idle / Sprint / Slide loop
+    if (s.melee && W.mixer) W.mixer.update(dt);
     if (g && W.mixer) {
       var want = player.sliding && slideClip ? 'Slide' : (player.sprinting ? 'Sprint' : 'Idle');
       var busy = W.animOnce && W.action && W.action.isRunning();
@@ -360,7 +456,8 @@
     W.vmRoot.position.set(x + s.swayX * hip, y + s.swayY * hip, z);
     W.vmRoot.rotation.set(rx, ry, rz);
     W.vmRoot.scale.setScalar(VM_SCALE);
-    W.vmRoot.visible = !!g && !s.hidden;
+    W.vmRoot.visible = (!!g || !!s.melee) && !s.hidden;
+    if (!g) W.flash.visible = false;
     if (g) {
       W.flash.visible = s.flashT > 0 && s.aim < 0.3;   // never over the sights when aiming
       if (W.flash.visible) {

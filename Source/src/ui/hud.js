@@ -172,6 +172,24 @@
   var AMMO = { mag: 0, reserve: 0, magSize: 0 };
   H.ammo = function (mag, res) { AMMO.mag = mag; AMMO.reserve = res; AMMO.magSize = Math.max(H.wpn.magSize || 0, mag); H.weapon(AMMO); };
 
+  /* equipment row over the weapon plate: the melee weapon on V and the frag cans on G (count; -1 = not owned yet).
+     The phone melee / grenade buttons show with them. */
+  var KL = { m: undefined, g: undefined };
+  H.kit = function (meleeName, grenades) {
+    if (meleeName === KL.m && grenades === KL.g) return;
+    KL.m = meleeName; KL.g = grenades;
+    var k = $('kit'); if (!k) return;
+    k.hidden = !meleeName && grenades < 0;
+    $('kitMelee').hidden = !meleeName;
+    if (meleeName) { $('kitMeleeName').textContent = String(meleeName).toUpperCase(); $('kitMeleeIc').innerHTML = ICONS.melee; }
+    $('kitGren').hidden = grenades < 0;
+    if (grenades >= 0) { $('kitGrenN').textContent = '\u00D7' + grenades; $('kitGrenIc').innerHTML = ICONS.grenade; $('kitGren').classList.toggle('none', grenades === 0); }
+    var tm = $('tMelee'), tg = $('tGren'), tn = $('tGrenN');
+    if (tm) tm.hidden = !meleeName;
+    if (tg) { tg.hidden = grenades < 0; tg.classList.toggle('none', grenades === 0); }
+    if (tn) tn.textContent = grenades > 0 ? grenades : '';
+  };
+
   /* list: [{slot, cls, name?, on}] */
   H.slots = function (list) {
     var key = list.map(function (s) { return s.slot + s.cls + (s.on ? '*' : ''); }).join(',');
@@ -243,7 +261,9 @@
     slot = slot || CLS_SLOT[cls];
     H.el.pickupIcon.innerHTML = H.icon(cls);
     H.el.pickupName.textContent = String(name).toUpperCase();
-    var how = touch() ? 'tap swap to equip' : (slot ? 'press ' + slot + ' to equip' : 'equipped');
+    var how = cls === 'melee' ? (touch() ? 'tap the blade button' : 'press V to strike · B: next melee') :
+      cls === 'grenade' ? (touch() ? 'tap the can button to throw' : 'press G to throw') :
+      touch() ? 'tap swap to equip' : (slot ? 'press ' + slot + ' to equip' : 'equipped');
     H.el.pickupLine.textContent = 'New ' + H.clsName(cls).toLowerCase().replace('smg', 'SMG') + ' · ' + how;
     H.el.toast.hidden = true; toastT = 0;
     H.el.hud.classList.add('picking');

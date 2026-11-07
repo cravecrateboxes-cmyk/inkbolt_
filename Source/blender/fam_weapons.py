@@ -1066,16 +1066,337 @@ def build_needle(pal):
                    'bolt': (0.046, -0.082, bz - 0.020)}
 
 
+# ================================================================ more guns (round 3): shotguns, battle rifle, rail rifle
+def build_scrapper(pal):
+    """SG-9 Scrapper: pump shotgun. Tube magazine under the barrel; the pump forend is the 'Mag' part (it slides on
+    the tube when the gun is worked); shells go in through the loading port under the receiver."""
+    rake = 20
+    k = Kit(pal)
+    bz = 0.040
+    k.ext_y(rrect(0.046, 0.058, ct=0.010, cb=0.004, cy=0.036), -0.110, 0.120, 'gunmetal', ch0=0.005, ch1=0.004)   # receiver
+    k.box((0.0225, 0.020, 0.044), (0.008, 0.070, 0.022), 'ink', skip=('-x',))                                   # ejection port
+    k.box((0.0, 0.052, 0.0045), (0.024, 0.080, 0.006), 'ink')                                                 # loading port
+    k.box((0, 0.052, -0.0005), (0.016, 0.056, 0.006), 'red')                                                  # shell lifter
+    stripe(k, -0.100, 0.100, 0.012, 0.019, 0.0265)
+    k.ext_y(rrect(0.040, 0.020, c=0.003, cy=-0.004), -0.080, 0.002, 'gun2', ch0=0.004, ch1=0.004)            # trigger plate
+    barrel(k, 0.118, 0.560, 0.0125, bz + 0.004, seg=12)
+    k.lathe([(0.118, 0), (0.118, 0.0100), (0.500, 0.0100), (0.500, 0)], 'steel2', 'y', (0, 0, bz - 0.024), 10)    # magazine tube
+    k.cbox((0, 0.506, bz - 0.012), (0.034, 0.016, 0.048), 'gunmetal', ch=0.004, axis='y')                     # tube cap / barrel clamp
+    muzzle(k, 0.556, 0.574, 0.0162, bz + 0.004, rb=0.0095, seg=12)
+    k.ext_y(rrect(0.010, 0.006, c=0.002, cy=bz + 0.019), 0.130, 0.546, 'ink')                                # vent rib
+    k.cbox((0, 0.548, bz + 0.026), (0.006, 0.006, 0.008), 'red', ch=0.0015)                                   # bead sight
+    sz = iron_rear(k, -0.070, 0.066, w=0.026, h=0.010)
+    trigger_guard(k, rake, front=0.066, depth=-0.048, w=0.012, top=-0.010, hook=False)
+    trigger(k, rake)
+    grip(k, rake, 'ar', w=0.034, top=-0.006, ptop=-0.036, grooves=2)
+    k.pin(-0.0295, 0.0295, -0.060, 0.012, 0.003)
+    k.pin(-0.0295, 0.0295, 0.090, 0.012, 0.003)
+    # stock: wood-tone polymer with a recoil pad
+    k.ext_x([(-0.106, 0.064), (-0.330, 0.050), (-0.332, -0.050), (-0.300, -0.056), (-0.160, -0.004), (-0.106, 0.010)], -0.021, 0.021, 'amber', ch=0.005)
+    k.ext_x([(-0.328, 0.056), (-0.348, 0.056), (-0.350, -0.056), (-0.330, -0.060)], -0.025, 0.025, 'ink', ch=0.003)
+    for i in range(3):
+        k.box((0, -0.200 - i * 0.030, 0.0560 - i * 0.002), (0.050, 0.010, 0.006), 'gun3')
+    # the pump (Mag part): ribbed forend round the tube, origin = its rear end on the tube axis
+    mk = Kit(pal)
+    mk.ext_y(rrect(0.046, 0.040, c=0.010, cy=0.002), 0.0, 0.130, 'gun2', ch0=0.006, ch1=0.006)
+    for i in range(6):
+        mk.box((0, 0.020 + i * 0.018, -0.0185), (0.050, 0.008, 0.006), 'ink')
+    for s in (-1, 1):
+        mk.box((s * 0.0235, 0.065, 0.006), (0.006, 0.090, 0.008), 'gun3', skip=('-x' if s > 0 else '+x',))
+    return k, mk, {'rake': rake, 'mrake': 0, 'mag': (0, 0.300, bz - 0.024), 'muzzle': (0, 0.576, bz + 0.004), 'eject': (0.03, 0.020, 0.050),
+                   'sight': (0, -0.070, sz), 'cls': 'shotgun', 'fore': (0.365, bz - 0.044), 'port': (0, 0.052, -0.004)}
+
+
+def build_thunder(pal):
+    """SG-12 Thunderclap: box-fed auto shotgun, square shroud, carry handle sight, big drum."""
+    rake = 18
+    k = Kit(pal)
+    bz = 0.040
+    k.ext_y(rrect(0.054, 0.072, ct=0.010, cb=0.004, cy=0.036), -0.120, 0.150, 'gunmetal', ch0=0.005, ch1=0.004)   # receiver
+    k.box((0.0265, 0.030, 0.048), (0.008, 0.060, 0.020), 'ink', skip=('-x',))
+    k.ext_y(rrect(0.046, 0.026, c=0.003, cy=-0.002), -0.090, 0.140, 'gun2', ch0=0.004, ch1=0.004)
+    k.ext_x([(0.070, 0.006), (0.140, 0.006), (0.142, -0.030), (0.134, -0.040), (0.070, -0.040), (0.066, -0.028)], -0.0265, 0.0265, 'gun2', ch=0.003)
+    k.ext_y(rrect(0.058, 0.060, c=0.008, cy=bz), 0.148, 0.400, 'gun3', ch0=0.003, ch1=0.006)                    # square shroud
+    for s in (-1, 1):
+        for i in range(4):
+            k.box((s * 0.0290, 0.180 + i * 0.052, bz + 0.004), (0.006, 0.030, 0.026), 'ink', skip=('-x' if s > 0 else '+x',))
+    k.box((0, 0.214, bz - 0.0305), (0.062, 0.100, 0.006), 'amber')
+    barrel(k, 0.390, 0.450, 0.0140, bz, seg=12)
+    k.lathe([(0.446, 0), (0.446, 0.0200), (0.488, 0.0200), (0.488, 0.0110), (0.478, 0.0110), (0.478, 0)], 'steel2', 'y', (0, 0, bz), 12)   # brake
+    for i in range(4):
+        a = D(45 + 90 * i)
+        k.box((0.0205 * math.cos(a), 0.470, bz + 0.0205 * math.sin(a)), (0.006, 0.020, 0.008), 'ink', rot=(0, -math.degrees(a), 0), skip=('-x',))
+    # carry handle with a peep sight
+    k.tube([((0, -0.060, 0.072), 0.014, 0.010), ((0, -0.050, 0.098), 0.014, 0.010), ((0, 0.100, 0.098), 0.014, 0.010), ((0, 0.110, 0.072), 0.014, 0.010)],
+           'gunmetal', sides=6, up=(1, 0, 0))
+    k.ring('y', (0, 0, 0.112), -0.064, -0.054, 0.004, 0.009, 'ink', seg=8, hull=False)
+    k.box((0, 0.380, bz + 0.046), (0.006, 0.010, 0.040), 'ink', hull=True)
+    trigger_guard(k, rake, front=0.062, depth=-0.050, hook=False, top=-0.004)
+    trigger(k, rake)
+    grip(k, rake, 'ar', w=0.034, top=0.000, ptop=-0.032)
+    vgrip(k, 0.300, bz - 0.030, length=0.070, seg=8)
+    k.ext_x([(-0.116, 0.074), (-0.300, 0.060), (-0.302, -0.048), (-0.276, -0.054), (-0.170, -0.004), (-0.116, 0.006)], -0.023, 0.023, 'gun2', ch=0.005)
+    k.ext_x([(-0.298, 0.066), (-0.318, 0.066), (-0.320, -0.054), (-0.300, -0.058)], -0.027, 0.027, 'ink', ch=0.003)
+    # drum magazine (Mag): round drum with a feed neck
+    mk = Kit(pal)
+    mk.cbox((0, 0.0, -0.012), (0.040, 0.050, 0.030), 'gun2', ch=0.004, axis='x')
+    mk.lathe([(-0.034, 0), (-0.034, 0.060), (-0.026, 0.064), (0.026, 0.064), (0.034, 0.060), (0.034, 0)], 'gun3', 'x', (0, 0.010, -0.080), 14)
+    mk.ring('x', (0, 0.010, -0.080), 0.034, 0.040, 0.018, 0.030, 'red', seg=12, hull=False)
+    mk.ring('x', (0, 0.010, -0.080), -0.040, -0.034, 0.018, 0.030, 'red', seg=12, hull=False)
+    for i in range(6):
+        a = D(60 * i)
+        mk.box((0, 0.010 + 0.0665 * math.cos(a), -0.080 + 0.0665 * math.sin(a)), (0.050, 0.006, 0.006), 'ink', rot=(-math.degrees(a), 0, 0))
+    return k, mk, {'rake': rake, 'mrake': 0, 'mag': (0, 0.105, -0.040), 'muzzle': (0, 0.490, bz), 'eject': (0.03, 0.030, 0.050),
+                   'sight': (0, -0.090, 0.112), 'cls': 'shotgun', 'fore': (0.300, bz - 0.030)}
+
+
+def build_vanguard(pal):
+    """AR-40 Vanguard: heavy battle rifle, long free-float rail, red-dot over a tall riser, straight 20-round box."""
+    rake = 20
+    k = Kit(pal)
+    bz = 0.036
+    k.ext_y(rrect(0.050, 0.050, ct=0.006, cb=0.002, cy=0.036), -0.118, 0.150, 'gunmetal', ch0=0.004, ch1=0.003)
+    k.box((0.0195, 0.052, 0.044), (0.020, 0.064, 0.018), 'ink')
+    k.cbox((-0.032, 0.090, 0.046), (0.016, 0.012, 0.012), 'gun3', ch=0.002, hull=False)                    # side charging handle
+    k.ext_y(rrect(0.044, 0.036, c=0.003, cy=-0.004), -0.110, 0.150, 'gun2', ch0=0.004, ch1=0.004)
+    k.ext_x([(0.074, 0.004), (0.146, 0.004), (0.148, -0.044), (0.140, -0.054), (0.072, -0.054), (0.070, -0.040)], -0.025, 0.025, 'gun2', ch=0.003)
+    rail(k, -0.112, 0.146, 0.0625, w=0.022, pitch=0.016, clear=[(-0.060, -0.020)])
+    k.ext_y(rrect(0.052, 0.054, c=0.006, cy=bz), 0.146, 0.420, 'gun3', ch0=0.003, ch1=0.006)                 # rail handguard
+    for s in (-1, 1):
+        for i in range(6):
+            k.box((s * 0.0260, 0.170 + i * 0.040, bz), (0.006, 0.026, 0.014), 'ink', skip=('-x' if s > 0 else '+x',))
+    k.box((0, 0.280, bz - 0.0285), (0.056, 0.240, 0.006), 'red')
+    rail(k, 0.150, 0.412, bz + 0.0285, w=0.020, pitch=0.018, clear=[(0.380, 0.396)])
+    barrel(k, 0.410, 0.520, 0.0100, bz)
+    k.cbox((0, 0.540, bz), (0.030, 0.048, 0.030), 'steel2', ch=0.005, axis='y')                              # brake
+    for i in range(2):
+        k.box((0, 0.530 + i * 0.020, bz), (0.036, 0.010, 0.014), 'ink')
+    muzzle(k, 0.566, 0.578, 0.0080, bz, hull=False, rb=0.0050, seg=8)
+    # red dot on a tall riser
+    k.cbox((0, -0.040, 0.074), (0.026, 0.040, 0.020), 'gunmetal', ch=0.003, axis='y')
+    sz = red_dot(k, -0.040, 0.094, L=0.056, r=0.018)
+    iron_front(k, 0.392, bz + 0.056, post=0.016)
+    trigger_guard(k, rake, front=0.068, depth=-0.052, w=0.012, top=-0.012, hook=False)
+    trigger(k, rake)
+    grip(k, rake, 'ar', w=0.034, top=-0.008, ptop=-0.038, grooves=2)
+    k.lathe([(-0.116, 0), (-0.116, 0.015), (-0.260, 0.015), (-0.264, 0.011), (-0.264, 0)], 'steel2', 'y', (0, 0, 0.030), 8)
+    k.ext_x([(-0.170, 0.056), (-0.300, 0.058), (-0.304, -0.046), (-0.282, -0.052), (-0.240, -0.014), (-0.180, 0.012)], -0.020, 0.020, 'gun2', ch=0.004)
+    k.ext_x([(-0.300, 0.062), (-0.316, 0.062), (-0.318, -0.050), (-0.302, -0.054)], -0.024, 0.024, 'ink')
+    k.cbox((0, -0.236, 0.066), (0.030, 0.080, 0.014), 'gun3', ch=0.003, axis='y')                         # cheek riser
+    mk = Kit(pal)
+    mag_box(mk, 2, 0.052, -0.110, 0.058, 0.028, curve=0.010)
+    return k, mk, {'rake': rake, 'mrake': 2, 'mag': (0, 0.110, -0.054), 'muzzle': (0, 0.580, bz), 'eject': (0.03, 0.052, 0.044),
+                   'sight': (0, -0.040, sz), 'cls': 'rifle', 'guard': (0, 0.330, bz)}
+
+
+def build_railspike(pal):
+    """SR-9 Railspike: semi-auto rail rifle. Twin copper rails in an open frame, glowing coil rings, a battery
+    magazine, long scope."""
+    rake = 22
+    k = Kit(pal)
+    bz = 0.034
+    k.ext_y(rrect(0.052, 0.060, ct=0.010, cb=0.004, cy=0.030), -0.120, 0.140, 'gunmetal', ch0=0.005, ch1=0.004)   # receiver
+    k.ext_y(rrect(0.044, 0.024, c=0.003, cy=-0.004), -0.100, 0.130, 'gun2', ch0=0.004, ch1=0.004)
+    k.ext_x([(0.060, 0.002), (0.130, 0.002), (0.132, -0.034), (0.124, -0.044), (0.060, -0.044), (0.056, -0.032)], -0.0255, 0.0255, 'gun2', ch=0.003)
+    # open rail frame: two rails (top / bottom) with coil rings between, an ink core
+    for zz in (bz + 0.020, bz - 0.020):
+        k.cbox((0, 0.392, zz), (0.020, 0.496, 0.012), 'amber', ch=0.003, axis='y')
+    k.lathe([(0.140, 0), (0.140, 0.0060), (0.640, 0.0060), (0.640, 0)], 'ink', 'y', (0, 0, bz), 8, hull=False)
+    for i in range(5):
+        y = 0.180 + i * 0.090
+        k.ring('y', (0, 0, bz), y, y + 0.022, 0.024, 0.034, 'gun3', seg=12)
+        k.ring('y', (0, 0, bz), y + 0.004, y + 0.018, 0.0335, 0.0375, 'lens', seg=12, hull=False)
+    k.cbox((0, 0.640, bz), (0.040, 0.020, 0.064), 'gunmetal', ch=0.005, axis='y')                         # muzzle block
+    k.box((0, 0.6515, bz), (0.012, 0.006, 0.012), 'lens')
+    stripe(k, -0.100, 0.120, 0.010, 0.016, 0.0290)
+    for s in (-1, 1):
+        k.screw((s * 0.026, -0.090, 0.050), (s, 0, 0))
+    sz = bz + 0.066
+    scope(k, -0.160, 0.170, sz, rt=0.0125, ro=0.024, re=0.019, lo=0.055, le=0.048, seg=12)
+    for yy in (-0.064, 0.060):
+        k.cbox((0, yy, bz + 0.0375), (0.024, 0.016, 0.022), 'gunmetal', ch=0.002, axis='y')
+        k.ring('y', (0, 0, sz), yy - 0.007, yy + 0.007, 0.011, 0.0165, 'gunmetal', seg=10, hull=False)
+    turret(k, (0, -0.004, sz + 0.010), 'z', r=0.010, h=0.016)
+    turret(k, (0.010, -0.004, sz), 'x', r=0.009, h=0.012)
+    trigger_guard(k, rake, front=0.066, depth=-0.052, w=0.012, top=-0.016, hook=False)
+    trigger(k, rake)
+    grip(k, rake, 'ar', w=0.033, top=-0.016, ptop=-0.040)
+    k.cbox((0, -0.205, 0.024), (0.022, 0.180, 0.022), 'gun3', ch=0.004, axis='y')
+    k.bar((0, -0.110, -0.022), (0, -0.290, -0.052), 0.020, 0.016, 'gun3', hull=True)
+    k.ext_x([(-0.290, 0.044), (-0.312, 0.044), (-0.314, -0.072), (-0.292, -0.072)], -0.022, 0.022, 'ink', ch=0.003)
+    k.cbox((0, -0.226, 0.044), (0.026, 0.090, 0.016), 'gun2', ch=0.004, axis='y')
+    mk = Kit(pal)
+    mk.cbox((0, 0.0, -0.036), (0.030, 0.056, 0.072), 'gun2', ch=0.004, axis='x')                            # battery pack
+    mk.box((0, 0.0, -0.036), (0.037, 0.030, 0.040), 'lens')
+    mk.cbox((0, 0.0, -0.076), (0.036, 0.062, 0.010), 'gun3', ch=0.003, axis='z')
+    return k, mk, {'rake': rake, 'mrake': 0, 'mag': (0, 0.096, -0.044), 'muzzle': (0, 0.656, bz), 'eject': (0.03, 0.010, 0.040),
+                   'sight': (0, -0.175, sz), 'scope': (0, -0.160, sz), 'cls': 'sniper', 'guard': (0, 0.300, bz - 0.020)}
+
+
+# ================================================================ melee (round 3): struck with V; the gun is put away for the swing
+# Weapon space for a melee weapon: the handle runs along the grip axis (+Z up), the hand's web at the origin (top of the
+# handle, under the guard), the edge faces +Y. rake 0, so the hand frame IS the weapon frame. Two-handed weapons
+# (katana, axe) carry a 'hold2' z: the support hand grips the handle that far below the right hand. The nunchucks'
+# second stick is the weapon's 'Mag' part, hanging from the chain end (MAG socket) so the Mag bone can swing it.
+def blade(k, st, color, edge='steel'):
+    """Blade along +Z from stations (z, y_back, y_edge, half_thick, y_bevel): a flat body (spine at the back, flat
+    faces to the bevel line) and a separate edge wedge (bevel line to the sharp edge, toward +Y) in its own colour.
+    The last station may have y_back == y_edge: the tip apex."""
+    body, wedge = [], []
+    for z, yb, ye, t, ys in st:
+        if abs(ye - yb) < 1e-6:
+            body.append([(0.0, ye, z)])
+            wedge.append([(0.0, ye, z)])
+            continue
+        body.append([(t, ys, z), (t, yb + 0.6 * t, z), (0.6 * t, yb, z), (-0.6 * t, yb, z), (-t, yb + 0.6 * t, z), (-t, ys, z)])
+        wedge.append([(0.0, ye, z), (t, ys, z), (-t, ys, z)])
+    k.loft(body, color, hull=True)
+    k.loft(wedge, edge, hull=True)
+
+
+def wrap_handle(k, z0, z1, rx, ry, color='ink', diamond='paper', n=6):
+    """Wrapped handle: oval core, diamond peeks of the under-layer on the edge sides (y), ink binding."""
+    k.lathe([(z0, 0), (z0, 1.0), (z1, 1.0), (z1, 0)], color, 'z', (0, 0, 0), 10, sc=(rx, ry))
+    step = (z1 - z0) / n
+    for i in range(n):
+        z = z0 + step * (i + 0.5)
+        for s in (-1, 1):
+            k.box((0, s * (ry + 0.0010), z), (rx * 0.9, 0.006, step * 0.42), diamond, rot=(0, 45, 0), skip=('-y' if s > 0 else '+y',))
+
+
+def build_katana(pal):
+    """Mk-1 Ronin Blade: katana. Ink-wrapped two-hand handle, round steel guard, brass collar, curved blade with a
+    pale temper line along the edge."""
+    k = Kit(pal)
+    wrap_handle(k, -0.215, 0.010, 0.015, 0.0195, 'ink', 'sleeve', n=7)
+    k.lathe([(-0.235, 0), (-0.235, 0.0120), (-0.228, 0.0170), (-0.215, 0.0170), (-0.215, 0)], 'steel2', 'z', (0, 0, 0), 10, sc=(1.0, 1.25))   # end cap
+    k.lathe([(0.010, 0), (0.010, 0.0360), (0.022, 0.0360), (0.022, 0)], 'gunmetal', 'z', (0, 0, 0), 16, sc=(0.85, 1.15))      # guard
+    k.lathe([(0.022, 0), (0.022, 0.0260), (0.026, 0.0240), (0.026, 0)], 'amber', 'z', (0, 0, 0), 16, hull=False, sc=(0.85, 1.15))   # seppa washer
+    k.cbox((0, 0.0, 0.038), (0.016, 0.036, 0.022), 'brass', ch=0.002)                                         # collar
+    st = []
+    n = 9
+    for i in range(n):
+        t = i / (n - 1)
+        z = 0.046 + 0.600 * t
+        sori = -0.030 * t * t                                       # the blade curves back toward the tip
+        w = 0.030 - 0.006 * t
+        st.append((z, -0.014 + sori, -0.014 + sori + w, 0.0040 - 0.0012 * t, -0.014 + sori + w * 0.62))
+    st.append((0.690, -0.050, -0.050, 0, 0))
+    blade(k, st, 'steel', 'paper')
+    return k, None, {'rake': 0, 'mrake': 0, 'mag': (0, 0, -0.30), 'muzzle': (0, -0.050, 0.690), 'eject': (0, 0, 0), 'sight': (0, 0, 0),
+                     'cls': 'melee', 'hold2': -0.098, 'len': 0.69}
+
+
+def build_eaxe(pal):
+    """VX-7 Voltaxe: electric axe. Long steel shaft with a rubber grip, a heavy head with a battery and teal coils, a
+    back spike, glowing edge."""
+    k = Kit(pal)
+    k.lathe([(-0.300, 0), (-0.300, 0.0150), (0.300, 0.0150), (0.300, 0)], 'steel2', 'z', (0, 0, 0), 10, sc=(1.0, 1.2))     # shaft
+    for z0, z1 in ((-0.290, -0.110), (-0.080, 0.016)):
+        k.lathe([(z0, 0), (z0, 0.0178), (z1, 0.0178), (z1, 0)], 'gun2', 'z', (0, 0, 0), 10, sc=(1.0, 1.2))                    # rubber grips
+        for z in [z0 + 0.012 + j * 0.022 for j in range(int((z1 - z0 - 0.012) / 0.022))]:
+            k.ring('z', (0, 0, 0), z, z + 0.006, 0.0172, 0.0210, 'gun3', seg=10, hull=False)
+    k.lathe([(-0.316, 0), (-0.316, 0.0200), (-0.300, 0.0220), (-0.292, 0.0160), (-0.292, 0)], 'gunmetal', 'z', (0, 0, 0), 10)  # pommel
+    # head (z 0.20 .. 0.32): core block, battery on the back, axe blade forward with a glowing edge, back spike
+    k.cbox((0, 0.000, 0.262), (0.044, 0.056, 0.090), 'gunmetal', ch=0.006)
+    k.cbox((0, -0.040, 0.262), (0.036, 0.030, 0.060), 'gun3', ch=0.004)
+    k.box((0, -0.0565, 0.262), (0.024, 0.006, 0.036), 'lens')
+    k.ext_x([(0.026, 0.226), (0.090, 0.180), (0.120, 0.196), (0.130, 0.262), (0.120, 0.330), (0.090, 0.346), (0.026, 0.298)], -0.006, 0.006, 'steel', ch=0.002)
+    k.ext_x([(0.116, 0.198), (0.126, 0.192), (0.137, 0.262), (0.126, 0.332), (0.116, 0.326), (0.125, 0.262)], -0.0095, 0.0095, 'lens', hull=False)  # glowing edge
+    k.ext_x([(-0.020, 0.248), (-0.090, 0.262), (-0.020, 0.278)], -0.008, 0.008, 'steel2', ch=0.002)   # back spike (through the battery)
+    for z in (0.236, 0.262, 0.288):
+        k.ring('y', (0, 0, z), 0.031, 0.048, 0.009, 0.0135, 'lens', seg=8, hull=False)                   # coils on the neck
+    k.lathe([(0.300, 0), (0.300, 0.012), (0.318, 0.008), (0.326, 0)], 'amber', 'z', (0, 0, 0), 8)
+    for s in (-1, 1):
+        k.box((s * 0.0255, 0.0, 0.262), (0.006, 0.030, 0.050), 'amber', skip=('-x' if s > 0 else '+x',))   # warning plates
+        k.box((s * 0.0255, 0.0, 0.262), (0.013, 0.010, 0.010), 'ink', skip=('-x' if s > 0 else '+x',))
+    return k, None, {'rake': 0, 'mrake': 0, 'mag': (0, 0, -0.40), 'muzzle': (0, 0.130, 0.262), 'eject': (0, 0, 0), 'sight': (0, 0, 0),
+                     'cls': 'melee', 'hold2': -0.200, 'len': 0.33}
+
+
+def build_dagger(pal):
+    """KN-3 Stinger: combat dagger. Ribbed grip, cross guard, a dark clip-point blade with a bright edge."""
+    k = Kit(pal)
+    k.lathe([(-0.100, 0), (-0.100, 0.0150), (-0.090, 0.0175), (0.006, 0.0175), (0.006, 0)], 'gun2', 'z', (0, 0, 0), 10, sc=(1.0, 1.25))
+    for i in range(4):
+        z = -0.078 + i * 0.022
+        k.ring('z', (0, 0, 0), z, z + 0.007, 0.0170, 0.0205, 'gun3', seg=10, hull=False)
+    k.lathe([(-0.112, 0), (-0.112, 0.012), (-0.100, 0.016), (-0.100, 0)], 'steel2', 'z', (0, 0, 0), 8)          # pommel
+    k.cbox((0, 0.0, 0.013), (0.020, 0.090, 0.012), 'gunmetal', ch=0.003)                                      # cross guard
+    k.box((0, 0.0, 0.013), (0.027, 0.012, 0.006), 'amber')
+    st = []
+    n = 5
+    for i in range(n):
+        t = i / (n - 1)
+        z = 0.020 + 0.150 * t
+        st.append((z, -0.016 + 0.004 * t, 0.018 - 0.006 * t * t, 0.0042 - 0.0012 * t, 0.006 - 0.004 * t))
+    st.append((0.205, -0.004, -0.004, 0, 0))
+    blade(k, st, 'gun3', 'steel')
+    return k, None, {'rake': 0, 'mrake': 0, 'mag': (0, 0, -0.30), 'muzzle': (0, -0.004, 0.205), 'eject': (0, 0, 0), 'sight': (0, 0, 0),
+                     'cls': 'melee', 'len': 0.205}
+
+
+def stick(k, z0, z1, color):
+    """Nunchuck stick along Z: octagonal hardwood with ink end bands and an amber grip wrap."""
+    k.lathe([(z0, 0), (z0, 0.0145), (z1, 0.0145), (z1, 0)], color, 'z', (0, 0, 0), 8)
+    for z in (z0 + 0.004, z1 - 0.012):
+        k.ring('z', (0, 0, 0), z, z + 0.008, 0.0090, 0.0180, 'ink', seg=8, hull=False)
+    for i in range(3):
+        z = z0 + 0.050 + i * 0.030
+        k.ring('z', (0, 0, 0), z, z + 0.012, 0.0090, 0.0176, 'amber', seg=8, hull=False)
+
+
+def build_nunchucks(pal):
+    """NC-2 Twin Strikers: nunchucks. The held stick (top cap and swivel at the hand's web side), a short chain; the
+    second stick (the 'Mag' part) hangs from the chain's far end, which is its origin."""
+    k = Kit(pal)
+    stick(k, -0.205, 0.075, 'amber')
+    k.lathe([(0.075, 0), (0.075, 0.0120), (0.088, 0.0060), (0.094, 0)], 'steel', 'z', (0, 0, 0), 8)          # swivel cap
+    for i in range(2):                                                                                       # chain links (held half)
+        z = 0.104 + i * 0.020
+        k.ring('x' if i % 2 else 'y', (0, 0, z), -0.003, 0.003, 0.004, 0.0090, 'steel2', seg=6, hull=True)
+    mk = Kit(pal)
+    for i in range(2):                                                                                       # chain links (far half)
+        z = -0.010 - i * 0.020
+        mk.ring('y' if i % 2 else 'x', (0, 0, z), -0.003, 0.003, 0.004, 0.0090, 'steel2', seg=6, hull=True)
+    mk.lathe([(-0.060, 0), (-0.060, 0.0060), (-0.054, 0.0120), (-0.046, 0)], 'steel', 'z', (0, 0, 0), 8)
+    with mk.at((0, 0, -0.046)):
+        stick(mk, -0.280, 0.0, 'amber')
+    return k, mk, {'rake': 0, 'mrake': 0, 'mag': (0.042, 0, 0.150), 'muzzle': (0, 0, -0.33), 'eject': (0, 0, 0), 'sight': (0, 0, 0),
+                   'cls': 'melee', 'len': 0.33}
+
+
+def build_held(pal):
+    """Things the support hand holds (ride the HOLD_L socket on the left hand bone): the frag can and a shotgun shell."""
+    k = Kit(pal)                                                    # M-15 Frag Can: tin can grenade, red band, lever, pin ring
+    k.lathe([(-0.044, 0), (-0.044, 0.028), (-0.040, 0.032), (0.036, 0.032), (0.040, 0.028), (0.040, 0)], 'gun3', 'z', (0, 0, 0), 12)
+    k.ring('z', (0, 0, 0), -0.012, 0.012, 0.030, 0.0350, 'red', seg=12, hull=False)
+    k.lathe([(0.040, 0), (0.040, 0.014), (0.054, 0.012), (0.058, 0)], 'gunmetal', 'z', (0, 0, 0), 10)        # fuse head
+    k.bar((0.0, 0.010, 0.050), (0.0, 0.036, -0.020), 0.010, 0.004, 'steel2', up=(1, 0, 0))                   # spoon lever
+    k.ring('x', (0.012, -0.010, 0.054), -0.0015, 0.0015, 0.007, 0.0105, 'amber', seg=8, hull=False)          # pin ring
+    for z in (-0.036, 0.018):
+        k.ring('z', (0, 0, 0), z, z + 0.004, 0.0315, 0.0350, 'ink', seg=12, hull=False)
+    finish('HELD_Frag', k)
+    s = Kit(pal)                                                    # 12-gauge shell: red hull, brass head
+    s.lathe([(-0.036, 0), (-0.036, 0.0110), (-0.032, 0.0110), (-0.032, 0.0098), (0.034, 0.0098), (0.036, 0.0080), (0.036, 0)], 'red', 'z', (0, 0, 0), 10,
+            bands=[None, 'brass', 'brass', None, None, None])
+    s.ring('z', (0, 0, 0), -0.030, -0.018, 0.0050, 0.0128, 'brass', seg=10, hull=False)
+    finish('HELD_Shell', s)
+
+
 GUNS = {'PIP': build_pip, 'HANDCANNON': build_handcannon, 'TWINTAP': build_twintap, 'BUZZ': build_buzz, 'WHISK': build_whisk,
         'HORNET': build_hornet, 'RIVET': build_rivet, 'TRIPLET': build_triplet, 'LONGTOM': build_longtom, 'BRICK': build_brick,
-        'NEEDLE': build_needle}
+        'NEEDLE': build_needle, 'SCRAPPER': build_scrapper, 'THUNDER': build_thunder, 'VANGUARD': build_vanguard,
+        'RAILSPIKE': build_railspike, 'KATANA': build_katana, 'EAXE': build_eaxe, 'DAGGER': build_dagger, 'NUNCHUCKS': build_nunchucks}
+MELEE = [w for w in ('KATANA', 'EAXE', 'DAGGER', 'NUNCHUCKS')]
 
 
 def build_weapon_meshes(pal):
     for wid, fn in GUNS.items():
         k, mk, info = fn(pal)
         try:
-            zcheck_together('WPN_%s+Mag' % wid, [(k, (0, 0, 0)), (mk, info['mag'])])
+            if mk is not None:
+                zcheck_together('WPN_%s+Mag' % wid, [(k, (0, 0, 0)), (mk, info['mag'])])
         except ib_lib.ZFightError as e:
             print(e)
             explain(e, [k, mk])
@@ -1085,7 +1406,8 @@ def build_weapon_meshes(pal):
         except ib_lib.ZFightError as e:
             explain(e, [k])
             raise
-        finish('WPN_%s_Mag' % wid, mk)
+        if mk is not None:
+            finish('WPN_%s_Mag' % wid, mk)
         WEAPONS.setdefault(wid, {}).update(info)
         socket('WPN_%s_MUZZLE' % wid, o, info['muzzle'])
         socket('WPN_%s_MAG' % wid, o, info['mag'])
@@ -1972,6 +2294,11 @@ ANIM = {
     'LONGTOM': {'fire': 60 / 240, 'reload': 2.4, 'style': 'rifle', 'heavy': 0.6, 'charge': ((0, -0.120, 0.054), (0, -0.045, 0))},
     'BRICK': {'fire': 60 / 500, 'reload': 3.4, 'style': 'rifle', 'heavy': 0.5, 'charge': ((0.036, -0.010, 0.030), (0, -0.060, 0))},
     'NEEDLE': {'fire': 60 / 45, 'reload': 3.0, 'style': 'bolt', 'heavy': 1.4},
+    # round 3: Reload of a 'shell' gun is ONE shell (the game loops it per shell); 'pump' fire works the forend
+    'SCRAPPER': {'fire': 60 / 70, 'reload': 0.5, 'style': 'shell', 'heavy': 1.2},
+    'THUNDER': {'fire': 60 / 240, 'reload': 2.6, 'style': 'rifle', 'heavy': 0.9, 'charge': ((-0.030, -0.010, 0.050), (0, -0.060, 0))},
+    'VANGUARD': {'fire': 60 / 480, 'reload': 2.3, 'style': 'rifle', 'heavy': 0.5, 'charge': ((-0.036, 0.090, 0.046), (0, -0.050, 0))},
+    'RAILSPIKE': {'fire': 60 / 70, 'reload': 2.6, 'style': 'rifle', 'heavy': 1.0, 'charge': ((0, -0.120, 0.050), (0, -0.040, 0))},
 }
 
 # ---------------------------------------------------------------- handling: data-driven per weapon class
@@ -2029,6 +2356,8 @@ HANDLING = {
                    'idx': -6, 'lift': 13},
     },
     'rifle': {},
+    'shotgun': {'kick': {'loc': (0.0, -0.024, 0.006), 'rot': (7.0, 1.0, 0.0), 'recover': ((0.0, 0.003, -0.001), (-1.4, 0.0, 0.0))}},
+    'melee': {'carry': (0.0, -0.02, 0.0)},
     'sniper': {'carry': (0.0, -0.17, -0.010), 'kick': {'loc': (0.0, -0.022, 0.004), 'rot': (5.0, 0.8, 0.0), 'recover': ((0.0, 0.003, -0.001), (-1.0, 0.0, 0.0))}},
 }
 HANDLING_FALLBACK = 'rifle'
@@ -2091,6 +2420,8 @@ def left_hold(wid):
     if info['cls'] == 'pistol':
         o = PISTOL_LEFT
         return mat_trs(o[:3], (-info['rake'] + o[3], o[4], o[5]))
+    if info['cls'] == 'melee':        # two-handed: the support hand on the handle below the right one (else: free)
+        return mat_trs((0, 0, info['hold2']), (0, 0, 0)) if 'hold2' in info else None
     if 'fore' in info:
         y, z = info['fore']
         return hold_frame((0, y, z - 0.004), (0, 0, 1), (-1, 0, 0))
@@ -2101,7 +2432,7 @@ def fit_support():
     """Slide each long gun's support frame onto its foregrip / handguard; curl fingers and thumb to the gap."""
     G = ANAT['L']['grip']
     for wid, info in WEAPONS.items():
-        if info['cls'] == 'pistol':
+        if info['cls'] in ('pistol', 'melee'):
             continue
         F = left_hold(wid)
         o, x, y, z = F.translation.copy(), F.col[0].xyz, F.col[1].xyz, F.col[2].xyz
@@ -2160,7 +2491,7 @@ class Poser:
     """Builds pose dicts for one weapon: W = carry @ offset @ rotation about the grip."""
 
     def __init__(self, wid):
-        self.wid, self.info, self.a = wid, WEAPONS[wid], ANIM[wid]
+        self.wid, self.info, self.a = wid, WEAPONS[wid], ANIM.get(wid, {})
         self.H = handling(wid)
         self.carry = V(self.H['carry'])
         self.GR = mat_trs((0, 0, 0), (-self.info['rake'], 0, 0))
@@ -2169,12 +2500,17 @@ class Poser:
         self.magS = V(self.info['mag'])
         self.magT = self.magS - RIG['mag0']
 
+    spin = 0.0     # melee: turn about the handle (deg) so the flat of the blade faces the camera and the edge leads
+
     def wm(self, wl=(0, 0, 0), wr=(0, 0, 0)):
-        return T(self.carry) @ mat_trs(wl, wr)
+        R = wr.to_4x4() if isinstance(wr, Matrix) else mat_trs((0, 0, 0), wr)     # melee keys give the rotation itself
+        return T(self.carry) @ T(wl) @ R @ mat_trs((0, 0, 0), (0, 0, self.spin))
 
     def __call__(self, wl=(0, 0, 0), wr=(0, 0, 0), trig=0.0, FL=None, FR=None, mag=None, curlL=0.0, curlR=0.0, idx=0.0, thumbL=0.0, thumbR=0.0,
                  lift=0.0):
         W = self.wm(wl, wr)
+        if FL is None and self.GL is None:                   # one-handed melee: support fist up in a guard, low left
+            FL, curlL, thumbL = MELEE_GUARD, curlL + 30, thumbL - 15
         if FL is None and self.info['cls'] == 'pistol':      # two-hand pistol hold
             thumbL, curlL = thumbL + PISTOL_LEFT[6], curlL + PISTOL_LEFT[7]
         elif FL is None:                                     # foregrip / handguard: close on the part
@@ -2199,6 +2535,120 @@ class Poser:
     def mag_at(self, W, extra=Matrix.Identity(4)):
         """Mag bone delta for the magazine placed at its socket of weapon pose W (extra: motion in mag space)."""
         return W @ T(self.magS) @ extra @ T(-RIG['mag0'])
+
+
+# ---------------------------------------------------------------- melee swings and grenade throws (round 3)
+# A swing is a list of keys (fraction of the swing, weapon loc m, weapon rot deg (pitch, roll, yaw) as in HANDLING,
+# extras). The swing starts and ends out of view (low right / low left): the game hides the gun, plays the whole swing,
+# then draws the gun again. The hit lands at the weapon's 'hit' fraction (src/data/weapons.js windup / length).
+# Nunchucks: 'swing' turns the second stick about the chain end (deg, weapon space).
+MELEE_GUARD = mat_trs((-0.30, -0.06, -0.22), (-20, 0, -30))       # free support fist, rig space (one-handed weapons)
+
+
+def bdir(theta, fwd=0.55, ccw=True):
+    """Blade pointing at screen angle theta (deg, 0 = right, 90 = up), tipped forward by fwd; the edge leads the swing
+    (ccw: the blade turns counter-clockwise on screen). Returns the rotation (weapon +Z = blade, +Y = edge)."""
+    t = math.radians(theta)
+    d = V((math.cos(t), fwd, math.sin(t))).normalized()
+    e = V((-math.sin(t), 0.0, math.cos(t))) * (1 if ccw else -1)
+    return frame(d, e)
+
+
+def frame(d, e):
+    z = V(d).normalized()
+    y = (V(e) - z * V(e).dot(z)).normalized()
+    x = y.cross(z)
+    return Matrix((x, y, z)).transposed()
+
+
+# The sword arcs read like a clock hand sweeping across the screen (the swing plane faces the camera, tipped forward):
+# DIAG cuts from up-right down to the left (counter-clockwise), BACK rises from low left to up right (clockwise),
+# CHOP comes straight down, STAB thrusts forward and in. Keys: (fraction, hand loc (rig m), rotation[, second stick deg]).
+DIAG = [(0.00, (0.16, -0.20, -0.36), bdir(80)), (0.20, (0.10, -0.12, 0.10), bdir(55)), (0.42, (-0.04, 0.08, 0.02), bdir(140)),
+        (0.60, (-0.24, 0.04, -0.14), bdir(195)), (1.00, (-0.30, -0.16, -0.44), bdir(225))]
+BACK = [(0.00, (-0.28, -0.18, -0.38), bdir(230, ccw=False)), (0.22, (-0.24, -0.04, -0.14), bdir(205, ccw=False)),
+        (0.45, (0.00, 0.10, 0.02), bdir(115, ccw=False)), (0.62, (0.16, 0.05, 0.10), bdir(45, ccw=False)),
+        (1.00, (0.22, -0.16, -0.36), bdir(20, ccw=False))]
+CHOP = [(0.00, (0.04, -0.18, -0.36), frame((0, 0.3, 1), (0, 1, 0))), (0.24, (-0.04, -0.10, 0.16), frame((0.1, -0.35, 1), (0, 1, 0.3))),
+        (0.46, (-0.07, 0.14, 0.02), frame((-0.05, 0.75, 0.6), (0, 0.6, -0.8))), (0.62, (-0.07, 0.12, -0.18), frame((-0.05, 0.6, -0.8), (0, -0.8, -0.6))),
+        (1.00, (-0.05, -0.12, -0.44), frame((0, 0.3, -1), (0, -1, 0)))]
+STAB = [(0.00, (0.12, -0.18, -0.34), frame((-0.2, 0.6, 0.7), (0, 0, 1))), (0.28, (0.07, -0.12, -0.06), frame((-0.35, 0.75, 0.5), (0, -0.3, 1))),
+        (0.46, (-0.07, 0.20, 0.02), frame((-0.45, 0.8, 0.35), (0, -0.2, 1))), (0.64, (-0.05, 0.12, -0.02), frame((-0.45, 0.8, 0.3), (0, -0.2, 1))),
+        (1.00, (0.08, -0.16, -0.36), frame((-0.2, 0.6, 0.7), (0, 0, 1)))]
+WHIRL = [(0.00, (0.12, -0.16, -0.32), bdir(80), (0, 0, 0)), (0.20, (0.10, -0.10, 0.08), bdir(60), (-90, 0, 0)),
+         (0.42, (-0.04, 0.10, 0.02), bdir(140), (-190, 0, 0)), (0.60, (-0.22, 0.05, -0.12), bdir(195), (-290, 0, 0)),
+         (1.00, (-0.28, -0.14, -0.40), bdir(225), (-360, 0, 0))]
+WHIRL2 = [(0.00, (-0.26, -0.16, -0.34), bdir(230, ccw=False), (0, 0, 0)), (0.22, (-0.22, -0.04, -0.10), bdir(205, ccw=False), (90, 0, 0)),
+          (0.44, (0.00, 0.10, 0.02), bdir(115, ccw=False), (190, 0, 0)), (0.62, (0.16, 0.05, 0.08), bdir(45, ccw=False), (290, 0, 0)),
+          (1.00, (0.20, -0.14, -0.36), bdir(20, ccw=False), (360, 0, 0))]
+# the rotation already carries the edge direction, so no extra spin about the handle
+SPIN = {}
+MELEE_SWINGS = {
+    'KATANA': {'Strike': (0.46, DIAG), 'Strike2': (0.46, BACK), 'Strike3': (0.50, CHOP)},
+    'EAXE': {'Strike': (0.75, DIAG), 'Strike2': (0.75, CHOP)},
+    'DAGGER': {'Strike': (0.32, STAB), 'Strike2': (0.34, DIAG)},
+    'NUNCHUCKS': {'Strike': (0.30, WHIRL), 'Strike2': (0.30, WHIRL2)},
+}
+# grenade throw (every gun): the gun dips right, the support hand fetches the can from low, winds back by the left
+# shoulder, throws forward (release at THROW_RELEASE: the game spawns the grenade then), follows through, comes back
+THROW_LEN, THROW_RELEASE = 0.62, 0.52
+THROW_L = [(0.20, (-0.16, -0.10, -0.32), (-30, 0, 0)), (0.36, (-0.42, -0.18, 0.02), (50, 0, -30)),
+           (0.52, (-0.20, 0.14, 0.15), (-10, 0, -10)), (0.70, (-0.10, 0.10, -0.15), (-60, 0, 10))]
+THROW_DIP = ((0.03, -0.03, -0.09), (-22, 12, -14))
+
+
+def melee_actions(p, action):
+    wid = p.wid
+    for name, (dur, keys) in MELEE_SWINGS[wid].items():
+        n = max(6, round(dur * FPS))
+        p.spin = SPIN.get(id(keys), 0.0)
+        frames = []
+        for key in keys:
+            f, wl, wr = key[0], key[1], key[2]
+            kw = {'curlR': 10}
+            if len(key) > 3:
+                kw['mag'] = p.mag_at(p.wm(wl, wr), mat_trs((0, 0, 0), key[3]))
+            frames.append((round(f * n), p(wl, wr, **kw)))
+        action(wid + '_' + name, frames)
+    rest = DIAG[-1]
+    action(wid + '_Idle', [(0, p(rest[1], rest[2], curlR=10)), (30, p(rest[1], rest[2], curlR=10))])
+    p.spin = 0.0
+
+
+def throw_action(p, action):
+    n = round(THROW_LEN * FPS)
+    dl, dr = THROW_DIP
+    keys = [(0, p())]
+    p.off()
+    for f, loc, rot in THROW_L:
+        keys.append((round(f * n), p(dl, dr, FL=mat_trs(loc, rot), curlL=12, thumbL=-6)))
+    p.off(0)
+    keys.append((round(0.88 * n), p((0.0, 0.002, 0.002), (-1.0, 0.0, 0.5))))
+    keys.append((n, p()))
+    action(p.wid + '_Throw', keys)
+
+
+def pump_fire(p, n, kick):
+    """Shot, then the support hand racks the pump (forend = the Mag part) back and forward."""
+    back = T((0, -0.070, 0))
+    W = p.wm()
+    Wk = p.wm(*kick)
+    f = lambda t: max(1, round(n * t))
+    return [(0, p(trig=1)), (1, p(*kick, trig=1)), (f(0.25), p()),
+            (f(0.45), p(FL=W @ back @ p.GL, mag=p.mag_at(W, back))), (f(0.62), p(FL=W @ back @ p.GL, mag=p.mag_at(W, back))),
+            (f(0.80), p()), (n, p())]
+
+
+def shell_reload(p, r):
+    """One shell: tilt the gun, the support hand drops to the belt, brings a shell (HOLD_L socket, shown by the game)
+    up to the loading port and thumbs it in, back to the forend."""
+    fr = lambda t: round(r * t)
+    tl, tr = (-0.010, -0.010, 0.040), (12, 34, -14)
+    W = p.wm(tl, tr)
+    port = W @ T(V(p.info['port']) + V((0.0, 0.0, -0.035))) @ mat_trs((0, 0, 0), (0, 180, 0))
+    low = T((-0.16, -0.06, -0.40)) @ mat_trs((0, 0, 0), (-40, 0, 0))
+    return [(0, p(tl, tr)), (fr(0.25), p(tl, tr, FL=low)), (fr(0.55), p(tl, tr, FL=port @ T((0, 0, -0.03)))),
+            (fr(0.72), p(tl, tr, FL=port)), (r, p(tl, tr))]
 
 
 def build_actions(rig):
@@ -2229,8 +2679,13 @@ def build_actions(rig):
 
     for wid in GUNS:
         p = Poser(wid)
+        if WEAPONS[wid]['cls'] == 'melee':
+            melee_actions(p, action)
+            continue
         info, a, H = p.info, p.a, p.H
         heavy = a.get('heavy', 0.0)
+        throw_action(p, action)
+        p.off(0)
         # Idle: 2 s breathing loop, rest -> a -> rest -> b -> rest (a slow figure-8 under the game's own sway)
         ia, ib = H['idle']
         action(wid + '_Idle', [(0, p()), (15, p(*ia)), (30, p()), (45, p(*ib)), (60, p())])
@@ -2257,6 +2712,8 @@ def build_actions(rig):
             action(wid + '_Fire', keys)
         elif a['style'] == 'bolt':
             action(wid + '_Fire', bolt_cycle(p, n, kick))
+        elif a['style'] == 'shell':
+            action(wid + '_Fire', pump_fire(p, n, kick))
         else:
             keys = [(0, p(trig=1)), (1, p(*kick, trig=1))]
             if n >= 4:
@@ -2267,6 +2724,8 @@ def build_actions(rig):
         r = round(a['reload'] * FPS)
         if a['style'] == 'revolver':
             action(wid + '_Reload', revolver_reload(p, r))
+        elif a['style'] == 'shell':
+            action(wid + '_Reload', shell_reload(p, r))
         else:
             action(wid + '_Reload', mag_reload(p, r))
         p.off(0)
@@ -2433,12 +2892,27 @@ def build_pickups(pal):
     finish('PICKUP_Health', k, ht=0.018)
 
 
+def hold_socket(rig):
+    """HOLD_L: an empty on the left hand bone where held things sit (the frag can, a shotgun shell): on the support
+    glove's grip axis, in the closed fist, upright along the grip axis."""
+    e = bpy.data.objects.new('HOLD_L', None)
+    e.empty_display_size = 0.02
+    bpy.context.scene.collection.objects.link(e)
+    e.parent = rig
+    e.parent_type = 'BONE'
+    e.parent_bone = 'HAND_L'
+    bpy.context.view_layer.update()
+    e.matrix_world = rig.matrix_world @ RIG['F0']['L'] @ T((0.0, HAND['cy'], -0.046))
+
+
 def build_scene():
     """Everything in the weapons GLB, in the current (fresh) scene; returns (palette, rig, arms)."""
     pal = Palette('weapons')
     build_weapon_meshes(pal)
     build_pickups(pal)
+    build_held(pal)
     rig, arms = build_arms(pal)
+    hold_socket(rig)
     fit_support()
     for wid, info in WEAPONS.items():
         if 'curl_L' in info:

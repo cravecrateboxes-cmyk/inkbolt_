@@ -319,3 +319,18 @@ body.touch-on .hud .arcs { width: 300px; height: 300px; margin: -150px; }
 @media (prefers-reduced-motion: reduce) {
   .hud .lv-pts, .hud .health.low::before, .hud .shieldbar.charging .sh-fill { animation: none; }
 }
+
+/* equipment row (melee on V, frag cans on G) over the weapon plate */
+.hud .kit { display: flex; gap: 8px; justify-content: flex-end; margin-bottom: 6px; }
+.hud .kit[hidden], .hud .kit-chip[hidden] { display: none; }
+.hud .kit-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 4px; background: rgba(20, 18, 28, 0.62);
+  border: 1px solid rgba(255, 253, 247, 0.22); clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  font: 600 13px/1 'Barlow Condensed', 'Archivo', sans-serif; letter-spacing: 0.06em; color: #FFFDF7; text-transform: uppercase; }
+.hud .kit-chip .key { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 3px; background: #FFFDF7; color: #15121C;
+  font-weight: 700; font-size: 12px; }
+.hud .kit-ic { display: inline-flex; width: 26px; height: 13px; color: #FFC23A; }
+.hud .kit-ic svg { width: 100%; height: 100%; }
+.hud .kit-chip.none { opacity: 0.45; }
+body.touch-on .hud .kit { display: none; }
+.touch .tbtn .tcount { position: absolute; right: 4px; bottom: 2px; font: 700 12px/1 'Barlow Condensed', sans-serif; font-style: normal; }
+.touch .tbtn.none { opacity: 0.4; }

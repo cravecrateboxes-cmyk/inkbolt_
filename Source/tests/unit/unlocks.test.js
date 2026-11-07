@@ -6,53 +6,44 @@ const assert = require('node:assert/strict');
   .forEach((f) => require('../../src/' + f + '.js'));
 const IB = globalThis.IB;
 
-const L1 = ['pip'];
-const L3 = [...L1, 'buzz'];
-const L4 = [...L3, 'frag'];
-const L5 = [...L4, 'rivet'];
-const L6 = [...L5, 'popflash'];
-const L7 = [...L6, 'katana'];
-const L8 = [...L7, 'handcannon'];
-const L9 = [...L8, 'needle'];
-const L10 = [...L9, 'whisk'];
-const L11 = [...L10, 'triplet'];
-const L12 = [...L11, 'cancannon'];
-const L13 = [...L12, 'longtom'];
-const L14 = [...L13, 'fireaxe'];
-const L16 = [...L14, 'twintap'];
-const L17 = [...L16, 'hornet'];
-const L18 = [...L17, 'brick'];
-const L25 = [...L18, 'scrapper'];
-const EXPECTED = {
-  1: L1, 2: L1, 3: L3, 4: L4, 5: L5, 6: L6, 7: L7, 8: L8, 9: L9, 10: L10, 11: L11, 12: L12, 13: L13,
-  14: L14, 15: L14, 16: L16, 17: L17, 18: L18, 19: L18, 20: L18, 21: L18, 22: L18, 23: L18, 24: L18, 25: L25
-};
+// campaign level -> weapons on stands at its start; melee weapons and frag cans are all in hand by level 5
+const TABLE = {1: ['pip', 'buzz'], 2: ['rivet', 'handcannon'], 3: ['triplet', 'whisk', 'dagger'], 4: ['longtom', 'hornet', 'frag', 'nunchucks'],
+  5: ['brick', 'twintap', 'katana', 'eaxe'], 6: ['needle'], 7: ['scrapper'], 8: ['vanguard'], 9: ['thunder'], 11: ['railspike']};
 
-test('unlock table matches the brief exactly', () => {
-  assert.deepEqual(IB.UNLOCKS, {1: ['pip'], 3: ['buzz'], 4: ['frag'], 5: ['rivet'], 6: ['popflash'], 7: ['katana'],
-    8: ['handcannon'], 9: ['needle'], 10: ['whisk'], 11: ['triplet'], 12: ['cancannon'], 13: ['longtom'],
-    14: ['fireaxe'], 16: ['twintap'], 17: ['hornet'], 18: ['brick'], 25: ['scrapper']});
+test('unlock table: the campaign plan', () => {
+  assert.deepEqual(IB.UNLOCKS, TABLE);
 });
 
-test('owned weapons for each level 1 to 25', () => {
+test('by level 5 every melee weapon and the frag cans are unlocked', () => {
+  const at5 = IB.ownedWeapons(5);
+  for (const id of IB.MELEE_WEAPONS) assert.ok(at5.includes(id), id);
+  assert.ok(at5.includes('frag'));
+  assert.equal(IB.MELEE_WEAPONS.length, 4);
+  assert.deepEqual(IB.MELEE_WEAPONS.map((id) => IB.WEAPONS[id].cls), ['melee', 'melee', 'melee', 'melee']);
+});
+
+test('owned weapons grow level by level', () => {
   assert.deepEqual(IB.ownedWeapons(0), []);
-  for (let l = 1; l <= 25; l++) assert.deepEqual(IB.ownedWeapons(l), EXPECTED[l], 'level ' + l);
-  assert.deepEqual(IB.ownedWeapons(99), L25);
-  assert.equal(L25.length, 17);
+  let prev = [];
+  for (let l = 1; l <= 13; l++) {
+    const o = IB.ownedWeapons(l);
+    assert.deepEqual(o.slice(0, prev.length), prev, 'level ' + l + ' keeps what came before');
+    assert.deepEqual(o.slice(prev.length), TABLE[l] || [], 'level ' + l);
+    prev = o;
+  }
 });
 
 test('unlocksAt', () => {
-  assert.deepEqual(IB.unlocksAt(1), ['pip']);
-  assert.deepEqual(IB.unlocksAt(2), []);
-  assert.deepEqual(IB.unlocksAt(25), ['scrapper']);
-  assert.deepEqual(IB.unlocksAt(15), []);
+  assert.deepEqual(IB.unlocksAt(1), ['pip', 'buzz']);
+  assert.deepEqual(IB.unlocksAt(10), []);
   IB.unlocksAt(1).push('x');
-  assert.deepEqual(IB.unlocksAt(1), ['pip'], 'returns a copy');
-  assert.equal(IB.unlockLevelOf('needle'), 9);
+  assert.deepEqual(IB.unlocksAt(1), ['pip', 'buzz'], 'returns a copy');
+  assert.equal(IB.unlockLevelOf('needle'), 6);
+  assert.equal(IB.unlockLevelOf('katana'), 5);
   assert.equal(IB.unlockLevelOf('nope'), null);
 });
 
-test('no weapon unlocks twice; ids exist in weapon table and GLB name list', () => {
+test('no weapon unlocks twice; ids exist in the weapon table; unlock fields match', () => {
   const all = Object.values(IB.UNLOCKS).flat();
   assert.equal(new Set(all).size, all.length);
   for (const id of all) {
@@ -60,5 +51,5 @@ test('no weapon unlocks twice; ids exist in weapon table and GLB name list', () 
     assert.ok(IB.GLB_WEAPON_NAMES.includes('WPN_' + id.toUpperCase()), id + ' in GLB names');
     assert.equal(IB.WEAPONS[id].unlock, IB.unlockLevelOf(id), id + ' unlock field matches table');
   }
-  assert.deepEqual(new Set(all), new Set(Object.keys(IB.WEAPONS)), 'every weapon is unlockable');
+  for (const w of Object.values(IB.WEAPONS)) if (!all.includes(w.id)) assert.equal(w.unlock, 0, w.id + ' not in the campaign');
 });

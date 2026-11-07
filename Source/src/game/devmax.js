@@ -19,7 +19,10 @@
     slot.plan = slot.plan && IB.LEVEL_PLANS[slot.plan] ? slot.plan : plans[0];
     var guns = IB.WEAPON_ORDER.filter(function (id) { return IB.Weapons.playable(id); });
     slot.arsenal = guns.slice(); slot.owned = guns.slice();
-    var pref = ['brick', 'hornet', 'needle', 'longtom', 'triplet', 'rivet', 'handcannon'];
+    slot.melee = (IB.MELEE_WEAPONS || []).filter(function (id) { return IB.Assets.node['WPN_' + id.toUpperCase()]; });   // every melee weapon (V, B)
+    slot.meleeSel = slot.melee.indexOf('katana') >= 0 ? 'katana' : slot.melee[0];
+    slot.frag = true;                                                                     // frag cans (G)
+    var pref = ['vanguard', 'scrapper', 'railspike', 'brick', 'hornet', 'needle', 'longtom', 'triplet', 'rivet', 'handcannon'];
     slot.loadout = pref.filter(function (id) { return guns.indexOf(id) >= 0; }).slice(0, 3);
     // gear: a fresh bag of the best items, one set per gun
     var L = IB.Loot, g = L.defaultGear();

@@ -2,9 +2,10 @@
 (function (IB) {
   'use strict';
 
-  IB.UNLOCKS = {1: ['pip'], 3: ['buzz'], 4: ['frag'], 5: ['rivet'], 6: ['popflash'], 7: ['katana'],
-    8: ['handcannon'], 9: ['needle'], 10: ['whisk'], 11: ['triplet'], 12: ['cancannon'], 13: ['longtom'],
-    14: ['fireaxe'], 16: ['twintap'], 17: ['hornet'], 18: ['brick'], 25: ['scrapper']};
+  // campaign level -> weapons waiting on stands at its start (mirrors src/data/levelplans.js): melee and grenades are all
+  // in hand by level 5
+  IB.UNLOCKS = {1: ['pip', 'buzz'], 2: ['rivet', 'handcannon'], 3: ['triplet', 'whisk', 'dagger'], 4: ['longtom', 'hornet', 'frag', 'nunchucks'],
+    5: ['brick', 'twintap', 'katana', 'eaxe'], 6: ['needle'], 7: ['scrapper'], 8: ['vanguard'], 9: ['thunder'], 11: ['railspike']};
 
   function unlockLevels() {
     return Object.keys(IB.UNLOCKS).map(Number).sort(function (a, b) { return a - b; });

@@ -55,6 +55,7 @@
   };
   function bootAfterAssets() {
     FX.init(R.scene); AI.init(R.scene); W.init(R.vmScene); IB.Projectiles.init(R.scene);
+    if (IB.Throwables) IB.Throwables.init(R.scene);   // frag cans (G)
     if (IB.Gear) { IB.Gear.init(); IB.Drops.init(R.scene); }   // loot: fps-gear models, world drops
     G.buildLevel();
     G.player = IB.Player.create();
@@ -132,6 +133,7 @@
   function resetLevelState() {
     var L = G.level;
     AI.clear(); FX.clear(); IB.Projectiles.clear(); if (IB.SkillFX) IB.SkillFX.clear();
+    if (IB.Throwables) IB.Throwables.clear();
     if (IB.Drops) IB.Drops.clear();
     if (IB.Status) IB.Status.clear();
     L.zones.forEach(function (z, i) {
@@ -148,28 +150,56 @@
   }
 
   // ---------------- new weapons waiting at the start of a level ----------------
+  // stand mesh per kind: a gun leans on its stock; a melee weapon stands on its pommel; frag cans sit in a little pyramid
+  function standItem(id) {
+    var A = IB.Assets, def = IB.WEAPONS[id];
+    if (def.cls === 'grenade') {
+      var g = new THREE.Group(), geo = A.get('HELD_Frag');
+      [[-0.17, 0, 0], [0.17, 0, 0], [0, 0.2, 0]].forEach(function (o) { var m = new THREE.Mesh(geo, G.worldWpnMat); m.scale.setScalar(2.2); m.position.set(o[0], o[1] + 0.1, 0); g.add(m); });
+      g.position.set(0, 1.02, 0.1);
+      return g;
+    }
+    var gun = new THREE.Mesh(A.get('WPN_' + id.toUpperCase()), G.worldWpnMat);
+    if (def.cls === 'melee') {
+      gun.scale.setScalar(1.6);
+      gun.rotation.set(-0.42, 0.5, 0);                               // standing on its pommel, leaning back on the crate
+      gun.position.set(0, 0.5 + (def.id === 'katana' ? 0.36 : def.id === 'eaxe' ? 0.5 : def.id === 'nunchucks' ? 0.35 : 0.18), 0.82);
+      return gun;
+    }
+    gun.scale.setScalar(1.35);
+    return gun;
+  }
   function placeWeaponStands(ids) {
     (G.weaponStands || []).forEach(function (w) { R.scene.remove(w.group); });
     G.weaponStands = [];
     if (G.mode === 'title') return;
     var z0 = G.level.zones[0], theme = G.level.theme, A = IB.Assets, standName = IB.themePiece(theme, theme.stand || 'Crate');
     if (!G.worldWpnMat) G.worldWpnMat = R.toonMaterial({ map: A.palette.weapons, baked: A.BAKED.weapons });
-    ids = ids.filter(function (id) { return A.node['WPN_' + id.toUpperCase()] && IB.WEAPONS[id]; });
+    ensureSlot();
+    ids = ids.filter(function (id) {
+      var def = IB.WEAPONS[id]; if (!def) return false;
+      if (def.cls === 'grenade') return !!A.geo.HELD_Frag && !G.slot.frag;
+      if (def.cls === 'melee') return !!A.node['WPN_' + id.toUpperCase()] && (G.slot.melee || []).indexOf(id) < 0;
+      return !!A.node['WPN_' + id.toUpperCase()];
+    });
+    var n = ids.length, gap = n > 3 ? 1.5 : 1.6;
     ids.forEach(function (id, i) {
-      var side = ids.length === 1 ? 0 : (i === 0 ? -1.6 : 1.6);
-      var x = z0.entry.x + side, zc = z0.entry.z - 3.8;
+      // one row of crates across the start area, centred on the entry (wider rows step back a little at the ends)
+      var side = (i - (n - 1) / 2) * 2 * gap;
+      var x = z0.entry.x + side, zc = z0.entry.z - 3.8 - (n > 3 && (i === 0 || i === n - 1) ? 0.6 : 0);
       var grp = new THREE.Group(); grp.position.set(x, 0, zc);
       if (A.geo[standName]) grp.add(new THREE.Mesh(A.get(standName), A.mat[A.family[standName]]));
-      var gun = new THREE.Mesh(A.get('WPN_' + id.toUpperCase()), G.worldWpnMat);
-      gun.scale.setScalar(1.35);
-      gun.rotation.set(70 * Math.PI / 180, 0.35 * (side > 0 ? -1 : 1), 0);   // standing on its stock, leaning back on the crate
-      gun.position.set(0, 0.32, 0.72);
-      grp.add(gun);
-      var ring = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.72, 28), new THREE.MeshBasicMaterial({ color: PAL.teal, transparent: true, opacity: 0.85 }));
+      var item = standItem(id), def = IB.WEAPONS[id];
+      if (def.cls !== 'melee' && def.cls !== 'grenade') {
+        item.rotation.set(70 * Math.PI / 180, 0.35 * (side > 0 ? -1 : 1), 0);   // standing on its stock, leaning back on the crate
+        item.position.set(0, 0.32, 0.72);
+      }
+      grp.add(item);
+      var ring = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.72, 28), new THREE.MeshBasicMaterial({ color: def.cls === 'melee' ? PAL.amber : def.cls === 'grenade' ? PAL.red : PAL.teal, transparent: true, opacity: 0.85 }));
       ring.rotation.x = -Math.PI / 2; ring.position.set(0, 0.02, 0.85); grp.add(ring);
       R.scene.add(grp);
       G.level.world.add(x - 0.5, 0, zc - 0.5, x + 0.5, 1, zc + 0.5, 'cover', 0);
-      G.weaponStands.push({ id: id, group: grp, gun: gun, ring: ring, x: x, z: zc + 0.85, taken: false });
+      G.weaponStands.push({ id: id, group: grp, gun: item, ring: ring, x: x, z: zc + 0.85, taken: false });
     });
   }
   function updateWeaponStands(t) {
@@ -183,6 +213,15 @@
   function takeWeapon(w) {
     var def = IB.WEAPONS[w.id], ws = G.ws;
     ensureSlot();
+    if (def.cls === 'melee' || def.cls === 'grenade') {
+      if (def.cls === 'melee') { grantMelee(w.id); G.slot.meleeSel = w.id; }
+      else { G.slot.frag = true; G.grenades = def.carry; }
+      w.taken = true; w.group.remove(w.gun); w.ring.visible = false;
+      G.store.save(G.slot);
+      if (HUD.pickup) HUD.pickup(def.name, def.cls, def.cls === 'melee' ? 'V' : 'G'); else HUD.toast('New: ' + def.name, 2.2);
+      A.play('pickup');
+      return;
+    }
     // the gun joins the arsenal; it is carried at once (taking the place of the gun in hand when the loadout is full)
     var r = IB.Loadout.pickup(G.slot.loadout || [], G.slot.arsenal || [], IB.Skills.loadoutMax(G.slot.highest), w.id, ws.cur);
     G.slot.arsenal = r.arsenal; G.slot.owned = r.arsenal.slice(); G.slot.loadout = r.loadout;
@@ -208,6 +247,25 @@
     return s.loadout;
   }
   G.syncArmory = syncArmory;
+  function grantMelee(id) { var m = G.slot.melee || (G.slot.melee = []); if (m.indexOf(id) < 0) m.push(id); }
+  /* a save that already cleared a level gets what stood at its start (saves from before these weapons existed, or a
+     stand walked past): guns join the arsenal, melee weapons the melee rack, frag cans the belt */
+  function grantCleared() {
+    ensureSlot();
+    var s = G.slot, h = s.highest || 0;
+    Object.keys(IB.UNLOCKS || {}).forEach(function (lv) {
+      if (+lv > h) return;
+      IB.UNLOCKS[lv].forEach(function (id) {
+        var def = IB.WEAPONS[id]; if (!def) return;
+        if (def.cls === 'melee') { if (IB.Assets.node['WPN_' + id.toUpperCase()]) grantMelee(id); }
+        else if (def.cls === 'grenade') s.frag = true;
+        else if (W.playable(id) && s.arsenal && s.arsenal.indexOf(id) < 0) s.arsenal.push(id);
+      });
+    });
+    if (s.melee && s.melee.length && s.melee.indexOf(s.meleeSel) < 0) s.meleeSel = s.melee[s.melee.length - 1];
+  }
+  G.grantCleared = grantCleared;
+  G.meleeId = function () { return G.slot && G.slot.melee && G.slot.melee.length ? (G.slot.melee.indexOf(G.slot.meleeSel) >= 0 ? G.slot.meleeSel : G.slot.melee[0]) : null; };
   // stat skills on top of the Upgrade Bench effects; fresh = level start (full health), else keep the damage taken
   function applySkillStats(fresh) {
     var p = G.player, fx = G.fx || {}, sk = IB.SkillFX.fx;
@@ -283,8 +341,10 @@
     IB.SkillFX.begin(G.slot.skills);
     p.speedMul = fx.speedMul || 1; p.jumpMul = fx.jumpMul || 1; p.doubleJump = !!fx.doubleJump;
     p.x = z0.entry.x; p.z = z0.entry.z; p.y = 0; p.yaw = 0; p.pitch = 0;
+    grantCleared();
     var owned = syncArmory();
     G.bank = {};
+    G.grenades = G.slot.frag ? IB.WEAPONS.frag.carry : 0;
     G.ws = W.create(owned, { magLevel: (G.slot.upgrades && G.slot.upgrades.mag) || 0, magMul: IB.SkillFX.fx.magMul });
     applySkillStats(true);
     var first = Object.keys(G.ws.guns).sort(function (a, b) { return IB.WEAPONS[b].slot - IB.WEAPONS[a].slot; })[0] || 'pip';
@@ -534,7 +594,12 @@
       FX.blob(pk.x, 0, pk.z, 0.35);
       if (Math.hypot(p.x - pk.x, p.z - pk.z) < 0.9 && p.y < 1) {
         if (pk.kind === 'health') { if (p.health >= p.maxHp) return; var heal = healAmount(); p.health = Math.min(p.maxHp, p.health + heal); HUD.toast('+' + heal + ' health', 1.2); }
-        else { W.addAmmo(G.ws, 0.5); HUD.toast('Ammo', 1.0); }
+        else {
+          W.addAmmo(G.ws, 0.5);
+          var gotCan = G.slot && G.slot.frag && G.grenades < IB.WEAPONS.frag.carry;
+          if (gotCan) G.grenades++;
+          HUD.toast(gotCan ? 'Ammo + frag can' : 'Ammo', 1.0);
+        }
         pk.on = false; pk.mesh.visible = false; A.play('pickup');
       }
     });
@@ -550,6 +615,22 @@
     var whit = wh ? { t: wh.t, box: wh.box, nx: wh.nx, ny: wh.ny, nz: wh.nz } : null;
     var rh = AI.raycast(ox, oy, oz, dx, dy, dz, wt);
     var endT = rh ? rh.t : wt;
+    // piercing guns (Needle, Railspike): the round goes on through each robot it hits, weaker each time
+    if (rh && def.pierce > 0) {
+      rh = { robot: rh.robot, t: rh.t, zone: rh.zone };   // AI.raycast reuses one result object
+      var skip = [rh.robot], mul = 1;
+      for (var pi = 0; pi < def.pierce; pi++) {
+        var nx = AI.raycast(ox, oy, oz, dx, dy, dz, wt, skip);
+        if (!nx) break;
+        mul *= def.pierceMul || 0.7;
+        var nt = nx.t, hr = nx.robot, nz = nx.zone; skip.push(hr);
+        var res2 = IB.Damage.hit({ weapon: def, dist: nt, zone: nz, dmgLevel: up('dmg'), coreLevel: up('core'), critLevel: up('crit'), rng: Math.random });
+        var pd = res2.damage * mul, ex = ox + dx * nt, ey = oy + dy * nt, ez = oz + dz * nt;
+        var pk = AI.damage(hr, pd, { kx: dx * 3, kz: dz * 3 }, onKill);
+        if (IB.Boom) IB.Boom.robotHit(hr, ex, ey, ez, dx, dy, dz, nz, pk);
+        if (IB.Gear) IB.Gear.onHit(hr, { damage: pd }, nz, def, pk);
+      }
+    }
     _end.set(ox + dx * endT, oy + dy * endT, oz + dz * endT);
     W.muzzleWorld(R.camera, _mz);
     if (def.fire !== 'auto' || G.run.shots % 2 === 0) { if (IB.Boom) IB.Boom.tracer(_mz.x, _mz.y, _mz.z, _end.x, _end.y, _end.z, def); else FX.tracer(_mz.x, _mz.y, _mz.z, _end.x, _end.y, _end.z); }
@@ -795,7 +876,10 @@
       if (Inp.slotPressed) W.slot(G.ws, Inp.slotPressed);
       if (Inp.wheel) W.cycle(G.ws, Inp.wheel > 0 ? 1 : -1);
       if (Inp.reloadPressed) W.reload(G.ws);
-      if (Inp.meleePressed && W.shove(G.ws)) doShove();   // V
+      // V: strike with the melee weapon (a shove until one is picked up); B: next melee weapon; G: throw a frag can
+      if (Inp.meleePressed && G.run.started) { var mid = G.meleeId(); if (mid) W.meleeStart(G.ws, mid); else if (W.shove(G.ws)) doShove(); }
+      if (Inp.meleeCyclePressed) cycleMelee();
+      if (Inp.grenadePressed && G.run.started) { if (G.grenades > 0) W.throwStart(G.ws); else if (G.slot && G.slot.frag) HUD.toast('No frag cans · ammo boxes give one back', 1.4); }
       if (Inp.cloakPressed) IB.SkillFX.tryCloak(p);       // F: Undercover
     }
     // fixed-step simulation
@@ -812,6 +896,7 @@
         var actx = { player: p, world: G.level.world, level: G.level, activeZone: G.level.zones[G.zone].state === 'active' ? G.zone : -1, hurt: G.hurt, shake: G.addTrauma, onKill: onKill };
         AI.update(STEP, actx);
         IB.Projectiles.update(STEP, actx);
+        if (IB.Throwables) IB.Throwables.update(STEP, G.level.world);
       }
       if (G.run.started && !G.dead) updateZones(STEP);
     }
@@ -824,6 +909,7 @@
     if (G.run.started) IB.SkillFX.update(dt, onKill, p);   // acid pools, wet coats, Undercover timer
     // weapons
     W.update(G.ws, dt, { player: p, cam: R.camera, input: { fire: Inp.fire && p.alive && G.run.started, firePressed: Inp.firePressed && p.alive && G.run.started, aim: Inp.aim && p.alive }, shoot: shoot,
+      melee: meleeHit, onThrow: throwFrag,
       onFire: function (d) { if (s.shake && (d.cls === 'smg' || d.cls === 'rifle')) G.shake = Math.max(G.shake, 0.15); } });
     // FOV: aim zoom, plus a small widen at sprint and a kick while sliding
     var cw = W.current(G.ws), aimZoom = cw ? (cw.def.scopeZoom ? 1 / cw.def.scopeZoom : (cw.def.aimZoom || 0.85)) : 0.85;
@@ -856,6 +942,7 @@
     AI.sync(); AI.updateCorpses(dtRaw);
     IB.SkillFX.syncMesh(tAll);   // acid pool decals
     updatePickups(dtRaw, tAll);
+    if (IB.Throwables) IB.Throwables.sync(tAll);
     if (IB.Drops) { IB.Drops.update(dtRaw, tAll, G); IB.Gear.update(dtRaw, G); }
     var magnet = 2.5 * (1 + 0.5 * up('magnet')) * IB.SkillFX.fx.magnetMul;   // Scrap Magnet
     FX.update(dtRaw, R.camera, p, magnet, collectGem);
@@ -888,6 +975,7 @@
         (G.level.zones[G.level.zones.length - 1].state === 'cleared' ? 'Walk the exit path' : 'Follow the arrows to the next gate');
       HUD.objective(obj);
     }
+    if (HUD.kit) { var mk = G.meleeId(); HUD.kit(mk ? IB.WEAPONS[mk].name : null, G.slot && G.slot.frag ? G.grenades : -1); }
     HUD.slots(W.ownedSlots(G.ws).map(function (sl) { var id = G.ws.slots[sl]; return { slot: sl, cls: IB.WEAPONS[id].cls, name: IB.WEAPONS[id].name, on: id === G.ws.cur }; }));
     HUD.score(G.zone + 1, G.level.zones.length, G.run.time, zn.state === 'active' ? AI.alive(G.zone) + zn.queue.length + remainingInWaves(zn) : 0);
     HUD.gems(G.slot ? G.slot.gems : G.run.gems, false);
@@ -917,6 +1005,91 @@
       FX.puff(r.x, 0.6, r.z, 4, PAL.ink, 0.15, 0.4, 2);
     });
     if (hitAny) { G.hitstop = 0.035; HUD.hit('hit'); A.play('hit'); }
+  }
+
+  // ---------------- melee hits, melee rack, frag cans ----------------
+  var _mv = new THREE.Vector3();
+  /* a melee blow lands (weapons.js calls this at the swing's 'hit' fraction): every robot in range inside the arc, in
+     sight; the nearest takes the full blow, the rest x0.6 (nunchucks: all full). Katana: the third swing x comboMul.
+     Dagger: x backstab on a robot that has not seen the player or is struck from behind. Voltaxe: shock DoT, then arcs to
+     the nearest robots. */
+  function meleeHit(def, combo, hitNo) {
+    var p = G.player, yaw = p.yaw, fx = -Math.sin(yaw), fz = -Math.cos(yaw), cosArc = Math.cos(def.arc * Math.PI / 360);
+    var eyeY = IB.Player.eyeY(p, false), hits = [];
+    AI.robots.forEach(function (r) {
+      if (!r.on || r.state === 'pose' || r.state === 'spawn' || r.rogue > 0) return;
+      var v = AI.VIS[r.type], dx = r.x - p.x, dz = r.z - p.z, d = Math.hypot(dx, dz), reach = d - v.radius;
+      if (reach > def.range) return;
+      if (r.y + v.y1 < p.y - 0.4 || r.y + v.y0 > p.y + 2.4) return;
+      if (d > 0.6 && (dx * fx + dz * fz) / d < cosArc) return;
+      if (!G.level.world.los(p.x, eyeY, p.z, r.x, r.y + (v.y0 + v.y1) / 2, r.z)) return;
+      hits.push({ r: r, d: reach, dx: dx / (d || 1), dz: dz / (d || 1) });
+    });
+    hits.sort(function (a, b) { return a.d - b.d; });
+    var base = def.damage * ((G.fx && G.fx.meleeMul) || 1) * (IB.SkillFX && IB.SkillFX.hitMul ? IB.SkillFX.hitMul('body') : 1);
+    if (def.combo > 1 && combo >= def.combo - 1) base *= def.comboMul || 1;
+    var landed = 0;
+    hits.forEach(function (h, i) {
+      var r = h.r, dmg = base * (i === 0 || def.id === 'nunchucks' ? 1 : 0.6);
+      if (def.backstab) {
+        var behind = (Math.sin(r.yaw) * -h.dx + Math.cos(r.yaw) * -h.dz) < -0.2;   // the robot faces away from the player
+        if (!r.seesPlayer || r.state === 'idle' || behind) dmg *= def.backstab;
+      }
+      G.lastKillCls = 'melee';
+      var kb = (def.knockback || 3) + (combo === 2 ? 3 : 0);
+      var killed = AI.damage(r, dmg, { stagger: !!def.stagger || combo === 2 || def.id === 'eaxe', kx: h.dx * kb, kz: h.dz * kb }, onKill);
+      landed++;
+      var v = AI.VIS[r.type], hy = r.y + (v.y0 + v.y1) / 2;
+      if (IB.Boom) IB.Boom.robotHit(r, r.x - h.dx * v.radius, hy, r.z - h.dz * v.radius, h.dx, 0, h.dz, 'body', killed);
+      if (IB.Gear && IB.Gear.onHit) IB.Gear.onHit(r, { damage: dmg }, 'body', def, killed);   // damage number
+      if (def.shock && !killed && IB.Status) IB.Status.apply(r, 'shock', def.shock.dps * ((AI.hpMul) || 1), def.shock.dur);
+      if (def.shock && i === 0) chainZap(r, dmg * def.shock.chainMul, def.shock);
+    });
+    if (landed) {
+      G.hitstop = def.id === 'eaxe' ? 0.07 : 0.045; HUD.hit('hit'); A.play('hit', { pitch: def.id === 'eaxe' ? 0.7 : 1 });
+      if (def.id === 'eaxe') { A.play('boltHit'); G.addTrauma(0.25); } else G.addTrauma(0.1);
+      AI.hear(p.x, p.z, 8);
+    } else {
+      // a swing into a wall or cover: chips and a clank
+      R.camera.getWorldDirection(_mv);
+      var wh = G.level.world.ray(R.camera.position.x, R.camera.position.y, R.camera.position.z, _mv.x, _mv.y, _mv.z, def.range);
+      if (wh && hitNo === 0) {
+        var ex = R.camera.position.x + _mv.x * wh.t, ey = R.camera.position.y + _mv.y * wh.t, ez = R.camera.position.z + _mv.z * wh.t;
+        if (wh.box && wh.box.kind === 'canister' && IB.Boom) IB.Boom.hitCan(wh.box, def.damage);
+        else { FX.impact(ex, ey, ez, wh.nx, wh.ny, wh.nz, false); if (IB.Boom) IB.Boom.impact(ex, ey, ez, wh.nx, wh.ny, wh.nz, wh.box); }
+        A.play('hit', { pitch: 0.6, gain: 0.6 });
+      }
+    }
+    return landed;
+  }
+  function chainZap(src, dmg, sh) {
+    var near = AI.robots.filter(function (r) { return r.on && r !== src && r.state !== 'spawn' && r.state !== 'pose' && !(r.rogue > 0) && Math.hypot(r.x - src.x, r.z - src.z) < sh.chainRange; })
+      .sort(function (a, b) { return Math.hypot(a.x - src.x, a.z - src.z) - Math.hypot(b.x - src.x, b.z - src.z); }).slice(0, sh.chain);
+    near.forEach(function (r) {
+      var va = AI.VIS[src.type], vb = AI.VIS[r.type];
+      if (IB.Boom && IB.Boom.lightning) IB.Boom.lightning(src.x, src.y + (va.y0 + va.y1) / 2, src.z, r.x, r.y + (vb.y0 + vb.y1) / 2, r.z);
+      G.lastKillCls = 'melee';
+      if (!AI.damage(r, dmg, { stagger: true }, onKill) && IB.Status) IB.Status.apply(r, 'shock', sh.dps * (AI.hpMul || 1), sh.dur);
+    });
+  }
+  G.meleeHit = meleeHit;
+  function cycleMelee() {
+    var list = G.slot && G.slot.melee; if (!list || list.length < 2) return;
+    var i = list.indexOf(G.meleeId());
+    G.slot.meleeSel = list[(i + 1) % list.length];
+    HUD.toast('Melee: ' + IB.WEAPONS[G.slot.meleeSel].name + ' (V)', 1.4); A.play('draw');
+  }
+  // the frag can leaves the support hand (weapons.js throw clip, release frame): from by the left shoulder, along the view
+  function throwFrag() {
+    if (G.grenades <= 0) return;
+    G.grenades--;
+    var def = IB.WEAPONS.frag, c = R.camera, p = G.player;
+    c.getWorldDirection(_mv);
+    var rx = Math.cos(p.yaw), rz = -Math.sin(p.yaw);
+    var sp = def.speed || 18, lift = def.throwUp || 4;
+    var hpMul = (AI.hpMul || 1) * (1 + 0.2 * up('blast'));
+    IB.Throwables.throw(c.position.x - rx * 0.25 + _mv.x * 0.5, c.position.y - 0.1 + _mv.y * 0.5, c.position.z - rz * 0.25 + _mv.z * 0.5,
+      _mv.x * sp * 0.68 + p.vx * 0.5, _mv.y * sp * 0.68 + lift * 0.8, _mv.z * sp * 0.68 + p.vz * 0.5, def, hpMul);   // ~12 m on the flat
   }
 
   // ---------------- performance guard ----------------
