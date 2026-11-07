@@ -319,6 +319,7 @@
       var nOpen = oS + oN + oE + oW, face = nOpen === 0 ? 'none' : nOpen === 1 ? (oS ? 'S' : oN ? 'N' : oE ? 'E' : 'W') : ((oS || oN) && (oE || oW) ? 'corner' : (oS ? 'S' : 'E'));
       var name = W.choose ? W.choose(p.c, p.r, horiz, horiz && vert, hash, grid, face) : pick(W.pieces, hash(p.c * 13, p.r * 17));
       if (!name) return;   // the chooser leaves cells a gate built-in covers empty (their collision stays)
+      // a list of names: parts stacked in one cell with one transform (a storefront per storey over a shared shell)
       // wall modules face +/-Z; rotate for vertical runs. faceOpen: turn the module's +Z face (Blender -Y) to the open side
       var yaw = (!horiz && vert) ? Math.PI / 2 : 0;
       if (W.facing === 'open' && face !== 'none' && face !== 'corner') yaw = { S: 0, N: Math.PI, E: Math.PI / 2, W: -Math.PI / 2 }[face];
@@ -326,7 +327,7 @@
         if (yaw === 0 && !solid(p.c, p.r - 1) && solid(p.c, p.r + 1)) yaw = Math.PI;
         if (yaw !== 0 && !solid(p.c - 1, p.r) && solid(p.c + 1, p.r)) yaw = -Math.PI / 2;   // +Z face toward the open (west) side
       }
-      P.add(name, z.ox + p.c + 0.5, 0, z.oz + p.r + 0.5, yaw);
+      [].concat(name).forEach(function (n) { P.add(n, z.ox + p.c + 0.5, 0, z.oz + p.r + 0.5, yaw); });
     });
   }
   // height a piece stands at: the layer height, or (floor plan) the terrain under it; prefabs sink to their lowest corner
@@ -372,59 +373,110 @@
   }
 
   // ---------------- elevators ----------------
-  /* E = { top, wait, speed, cab: piece, inner: [w, d] (cab floor, prefab-local), open: 'S' }: the cab (its own mesh)
-     shuttles between y0 and y0 + top, waiting `wait` s at each stop. Riders (player, robots) standing on the cab floor
-     ride with it. Barriers: across the cab's open side while it moves, and across the shaft opening of any stop the cab
-     is not at, so nobody walks into an empty shaft. */
+  /* E = { top, wait, speed, cab: piece, inner: [w, d] (cab floor, prefab-local), floor: cab floor top, wall: cab wall
+     height (1.1), doors: optional { cab: leaf piece, landing: leaf piece, width: doorway (1.3), slide: leaf travel (0.6),
+     time: open / close seconds (0.7), cabZ: cab door line, landZ: [z0, z1] landing door line, half: shaft half width,
+     sill: true (a walkable sill bridges the cab and an upper landing) } }.
+     The cab (its own mesh) shuttles between y0 and y0 + top, waiting `wait` s at each stop. Everyone inside the cab
+     (player, robots) rides with it. The open side (local +Z) is closed while the cab moves, and the shaft opening of
+     every stop the cab is not standing at is closed, so nobody walks into an empty shaft. With doors, two leaves
+     part on the cab and on the landing of the stop it stands at; they stay open while someone stands in the doorway. */
   function makeElevator(P, z, theme, world, E, x, y0, zz, yaw) {
     var name = IB.themePiece(theme, E.cab), mesh = new THREE.Mesh(IB.Assets.get(name), IB.Assets.material(name));
     mesh.position.set(x, y0, zz); mesh.rotation.y = yaw;
+    var group = new THREE.Group(); group.add(mesh);
     var c = Math.round(Math.cos(yaw)), s = Math.round(Math.sin(yaw));
     function rot(lx, lz) { return [x + lx * c + lz * s, zz - lx * s + lz * c]; }
     function box(lx0, lz0, lx1, lz1, ya, yb2, kind) {
       var A = rot(lx0, lz0), B = rot(lx1, lz1);
       return world.add(Math.min(A[0], B[0]), ya, Math.min(A[1], B[1]), Math.max(A[0], B[0]), yb2, Math.max(A[1], B[1]), kind, z.idx);
     }
-    var iw = E.inner[0] / 2, id = E.inner[1] / 2, ft = 0.2, rail = 1.1, fy = E.floor || 0.06;
-    var L = { mesh: mesh, x: x, z: zz, c: c, s: s, y0: y0, top: E.top, wait: E.wait || 3, speed: E.speed || 1.5, h: 0, dir: 1, t: E.wait || 3, state: 'wait', fy: fy, rot: rot,
-      iw: iw, id: id, moving: [], stop: [] };
-    // cab boxes (local offsets from the cab floor top) move with the cab
+    var iw = E.inner[0] / 2, id = E.inner[1] / 2, ft = 0.2, wh = E.wall || 1.1, fy = E.floor || 0.06, D = E.doors || null;
+    var dw = D ? (D.width || 1.3) / 2 : iw + 0.1, half = D ? (D.half || iw + 0.25) : iw + 0.1;
+    var lz = D && D.landZ ? D.landZ : [id + 0.05, id + 0.2];
+    var L = { mesh: mesh, group: group, x: x, z: zz, c: c, s: s, y0: y0, top: E.top, wait: E.wait || 3, speed: E.speed || 1.5, h: 0, dir: 1, t: E.wait || 3, state: 'wait', fy: fy, rot: rot,
+      iw: iw, id: id, wh: wh, dw: dw, lz: lz, open: 1, hold: 0, doorT: D ? (D.time || 0.7) : 0, slide: D ? (D.slide || 0.6) : 0, moving: [], stop: [], leaves: [] };
+    function leaf(piece, parent, lzc, ly) {   // a pair of door leaves (one piece, centred on its own origin)
+      var nm = IB.themePiece(theme, piece);
+      [-1, 1].forEach(function (sg) {
+        var m = new THREE.Mesh(IB.Assets.get(nm), IB.Assets.material(nm));
+        m.position.set(sg * dw / 2, ly, lzc); parent.add(m); L.leaves.push({ m: m, sg: sg });
+      });
+    }
+    // cab boxes (local offsets from the cab floor top) move with the cab: floor, sides, back, front jambs and the door
     var fl = box(-iw, -id, iw, id, y0 + fy - ft, y0 + fy, 'step'); fl.walk = true; world.walkN++;
     L.moving.push({ b: fl, lo: -ft, hi: 0 });
-    L.moving.push({ b: box(-iw - 0.08, -id, -iw, id, y0 + fy, y0 + fy + rail, 'wall'), lo: 0, hi: rail });
-    L.moving.push({ b: box(iw, -id, iw + 0.08, id, y0 + fy, y0 + fy + rail, 'wall'), lo: 0, hi: rail });
-    L.moving.push({ b: box(-iw, -id - 0.08, iw, -id, y0 + fy, y0 + fy + rail, 'wall'), lo: 0, hi: rail });
-    L.door = box(-iw, id, iw, id + 0.08, y0 + fy, y0 + fy + rail, 'wall'); L.door.on = false;
-    L.moving.push({ b: L.door, lo: 0, hi: rail });
-    // shaft openings at each stop (cab-floor-relative); on while the cab is elsewhere
-    [0, E.top].forEach(function (hh, k) { var b = box(-iw - 0.1, id + 0.05, iw + 0.1, id + 0.2, y0 + hh, y0 + hh + 2.4, 'wall'); b.on = k === 1; L.stop.push({ b: b, h: hh }); });
+    L.moving.push({ b: box(-iw - 0.08, -id, -iw, id, y0 + fy, y0 + fy + wh, 'wall'), lo: 0, hi: wh });
+    L.moving.push({ b: box(iw, -id, iw + 0.08, id, y0 + fy, y0 + fy + wh, 'wall'), lo: 0, hi: wh });
+    L.moving.push({ b: box(-iw, -id - 0.08, iw, -id, y0 + fy, y0 + fy + wh, 'wall'), lo: 0, hi: wh });
+    if (dw < iw) [-1, 1].forEach(function (sg) { L.moving.push({ b: box(sg * dw, id, sg * iw, id + 0.08, y0 + fy, y0 + fy + wh, 'wall'), lo: 0, hi: wh }); });
+    L.door = box(-Math.min(dw, iw), id, Math.min(dw, iw), id + 0.08, y0 + fy, y0 + fy + wh, 'wall');
+    L.moving.push({ b: L.door, lo: 0, hi: wh });
+    if (D && D.cab) leaf(D.cab, mesh, D.cabZ || id + 0.04, fy);
+    // stops: the shaft opening (a door across the doorway, fixed jambs beside it), shut unless the cab stands there open
+    [0, E.top].forEach(function (hh) {
+      var st = { h: hh, b: box(-dw, lz[0], dw, lz[1], y0 + hh, y0 + hh + Math.max(wh, 2.4), 'wall'), leaves: [] };
+      if (D) {
+        [-1, 1].forEach(function (sg) { box(sg * dw, lz[0], sg * half, lz[1], y0 + hh, y0 + hh + 2.4, 'wall'); });
+        if (hh > 0 && D.sill !== false) { var sl = box(-half, id + 0.09, half, lz[1], y0 + hh - 0.25, y0 + hh, 'step'); sl.walk = true; world.walkN++; }
+        if (D.landing) {
+          var lg = new THREE.Group(); lg.position.set(x, y0 + hh, zz); lg.rotation.y = yaw; group.add(lg);
+          var n0 = L.leaves.length; leaf(D.landing, lg, (lz[0] + lz[1]) / 2, 0); st.leaves = L.leaves.splice(n0, 2);
+        }
+      }
+      L.stop.push(st);
+    });
+    doorState(L);
     return L;
+  }
+  // door boxes and leaves from the cab's state: the cab door and the landing it stands at follow L.open
+  function doorState(L) {
+    var atStop = L.state === 'wait';
+    L.door.on = !(atStop && L.open > 0.85);
+    L.stop.forEach(function (st) {
+      var here = atStop && Math.abs(st.h - L.h) < 0.01, o = here ? L.open : 0;
+      st.b.on = !(here && L.open > 0.85);
+      st.leaves.forEach(function (lv) { lv.m.position.x = lv.sg * (L.dw / 2 + o * L.slide); });
+    });
+    L.leaves.forEach(function (lv) { lv.m.position.x = lv.sg * (L.dw / 2 + (atStop ? L.open : 0) * L.slide); });
   }
   /* advance every elevator; riders: [{x, z, y (feet), set(dy)}] */
   Z.updateElevators = function (level, dt, riders) {
     (level.elevators || []).forEach(function (L) {
-      var dh = 0;
+      var dh = 0, T = L.doorT;
       if (L.state === 'wait') {
         L.t -= dt;
-        if (L.t <= 0) { L.state = 'move'; L.door.on = true; L.stop.forEach(function (s) { s.b.on = true; }); }
+        if (L.t > T) L.open = T ? Math.min(1, L.open + dt / T) : 1;
+        else {
+          // someone in the doorway (between the cab and the landing): hold the doors (up to 8 s), like a real lift
+          var busy = false, floorY = L.y0 + L.fy + L.h;
+          if (T && L.hold < 8) riders.forEach(function (R) {
+            var wx = R.x - L.x, wz = R.z - L.z, lx = wx * L.c - wz * L.s, lz = wx * L.s + wz * L.c;
+            if (Math.abs(lx) < L.dw + 0.4 && lz > L.id - 0.5 && lz < L.lz[1] + 0.5 && R.y > floorY - 0.4 && R.y < floorY + 1.5) busy = true;
+          });
+          if (busy && L.open > 0) { L.hold += dt; L.t = T; L.open = Math.min(1, L.open + dt / T); }
+          else L.open = T ? Math.max(0, L.open - dt / T) : 0;
+          if (L.t <= 0 && L.open <= 0) { L.state = 'move'; L.hold = 0; }
+        }
       } else {
         var nh = Math.max(0, Math.min(L.top, L.h + L.dir * L.speed * dt));
         dh = nh - L.h; L.h = nh;
         if ((L.dir > 0 && nh >= L.top) || (L.dir < 0 && nh <= 0)) {
-          L.state = 'wait'; L.t = L.wait; L.dir = -L.dir; L.door.on = false;
-          L.stop.forEach(function (s) { s.b.on = Math.abs(s.h - L.h) > 0.01; });
+          L.state = 'wait'; L.t = L.wait + T; L.dir = -L.dir; L.open = T ? 0 : 1;
           if (IB.Audio) IB.Audio.play('pickup', { pos: { x: L.x, z: L.z } });
         }
       }
       if (dh) {
-        var floorY = L.y0 + L.fy + L.h - dh;
+        // everyone inside the cab rides: standing, jumping or crouching (feet between the floor and the cab roof)
+        var fY = L.y0 + L.fy + L.h - dh;
         riders.forEach(function (R) {
           var wx = R.x - L.x, wz = R.z - L.z, lx = wx * L.c - wz * L.s, lz = wx * L.s + wz * L.c;
-          if (Math.abs(lx) < L.iw + 0.05 && Math.abs(lz) < L.id + 0.05 && Math.abs(R.y - floorY) < 0.25) R.set(dh);
+          if (Math.abs(lx) < L.iw + 0.05 && Math.abs(lz) < L.id + 0.1 && R.y > fY - 0.3 && R.y < fY + L.wh) R.set(dh);
         });
         L.moving.forEach(function (m) { m.b.y0 = L.y0 + L.fy + L.h + m.lo; m.b.y1 = L.y0 + L.fy + L.h + m.hi; });
         L.mesh.position.y = L.y0 + L.h;
       }
+      doorState(L);
     });
   };
 
@@ -714,12 +766,13 @@
       });
     });
   };
-  function buildSymbols(P, z, grid, theme, world, g, yb) {
+  // overlay: an upper-layer grid ("@layer <y>"); "@layer 0" overlays the floor plan (inlays, rugs) without its walls
+  function buildSymbols(P, z, grid, theme, world, g, yb, overlay) {
     yb = yb || 0;
-    if (!yb) buildWalls(P, z, grid, theme, world);
+    if (!yb && !overlay) buildWalls(P, z, grid, theme, world);
     Object.keys(theme.symbols || {}).forEach(function (ch) {
       var d = theme.symbols[ch];
-      if (d.deck) buildDeck(g, z, grid, world, ch, d, yb);
+      if (d.deck) { if (find(grid, ch).length) buildDeck(g, z, grid, world, ch, d, yb); }   // only on grids that hold the deck symbol itself (with: '*' would claim every non-empty cell of any layer)
       else if (d.size) buildPrefabs(P, z, grid, theme, world, ch, d, yb);
       else buildCells(P, z, grid, theme, world, ch, d, yb);
     });
@@ -1083,7 +1136,7 @@
       if (theme.terrain) buildTerrain(g, zone, grid, theme, world);
       else paintFloor(g, ox, oz, grid.w, grid.h, theme, false);
       buildSymbols(P, zone, grid, theme, world, g, 0);
-      grid.layers.forEach(function (lg) { buildSymbols(P, zone, lg, theme, world, g, lg.y); });
+      grid.layers.forEach(function (lg) { buildSymbols(P, zone, lg, theme, world, g, lg.y, true); });
       var roofCol = col(theme.wall && theme.wall.roof, '#D9D2E6'), roofY = ((theme.wall && theme.wall.height) || 3) + 0.04;
       P.roof.forEach(function (p) {
         var x = ox + p.c, zz = oz + p.r;
@@ -1100,7 +1153,7 @@
       zone.tris = zone.meshes.reduce(function (t, m) { return t + m.geometry.index.count / 3; }, 0);
       level.tris += zone.tris;
       if (zone.entryGate) zone.group.add(zone.entryGate.group);
-      zone.elevators.forEach(function (L) { zone.group.add(L.mesh); level.elevators.push(L); });
+      zone.elevators.forEach(function (L) { zone.group.add(L.group || L.mesh); level.elevators.push(L); });
       Z.setGate(zone.exitGate, false, true);
       zone.group.add(zone.exitGate.group);
       level.root.add(zone.group);
