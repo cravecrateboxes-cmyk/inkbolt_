@@ -289,7 +289,7 @@
       else {
         world.query(nx - HIT_R, nz - HIT_R, nx + HIT_R, nz + HIT_R, _tmp);
         for (var k = 0; k < _tmp.length; k++) {
-          var bx = _tmp[k];
+          var bx = _tmp[k]; if (bx.noRay) continue;   // movement-only zone bounds (zones.js World.bound)
           if (Pj.sphereBox(nx, ny, nz, HIT_R, bx)) { hit = true; hx = nx; hy = ny; hz = nz; nnx = -ux; nny = -uy; nnz = -uz; hbox = bx; break; }
         }
       }
