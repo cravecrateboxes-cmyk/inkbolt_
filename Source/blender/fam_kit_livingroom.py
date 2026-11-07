@@ -919,7 +919,12 @@ def build_gate(ao):
         m.bx(-HW + 0.025, y - 0.1, 14.0, HW - 0.025, -0.33, FRAME_H - 0.03, 'wains', flat=True)   # soffit panel, proud of every wall trim
         m.bx(-HW - 0.05, y - 0.14, 17.15, HW + 0.05, -0.34, 17.65, 'trim', flat=True)
         # the door slab: six raised panels, a brass knob, hinges on one side
-        m.bx(-3.05, y + 0.06, 0.0, 3.05, -0.3, 13.0, 'mustard')     # in front of every wall trim (skirting 0.2 proud)
+        # in front of every wall trim (skirting 0.2 proud); built around the flap opening (|x| < OW, z < OH) so the
+        # opening is see-through once the flap rolls up (a solid slab here hid the open gate)
+        for sx in (-1, 1):
+            a, b = sorted((sx * (OW + 0.004), sx * 3.046))
+            m.bx(a, y + 0.06, 0.0, b, -0.304, 13.0, 'mustard')
+        m.bx(-OW - 0.004, y + 0.06, OH + 0.02, OW + 0.004, -0.304, 13.0, 'mustard')
         for (z0, z1) in ((OH + 0.6, 4.2), (4.6, 7.8), (8.4, 12.4)):     # raised panels (the flap replaces the bottom pair)
             for sx in (-1, 1):
                 a, b = sorted((sx * 0.35, sx * 2.6))

@@ -64,7 +64,7 @@
       'x': { pieces: ['Target'], rotate: 0, kind: 'cover' },
       'i': { pieces: ['Brazier'], kind: 'prop' },
       'n': { pieces: ['BannerPoleR', 'BannerPoleB'], alternate: true, kind: 'prop' },
-      'Y': { size: [2, 2], pieces: ['HayStack'], flip: true, kind: 'cover' },
+      'Y': { size: [2, 2], pieces: ['HayStack'], flip: true, kind: 'cover', y: 0.03 },
       'M': { size: [3, 2], pieces: ['Stall_A', 'Stall_B', 'Stall_C'], sequence: true, flip: true, kind: 'cover' },
       'K': { size: [2, 3], pieces: ['Cart_Hay', 'Cart_Barrels'], flip: true, kind: 'cover' },
       'W': { size: [3, 3], pieces: ['Landmark_Well'], kind: 'wall' },

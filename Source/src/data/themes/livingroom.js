@@ -76,7 +76,7 @@
       'g': { size: [2, 2], pieces: ['Mug'], kind: 'cover' },
       'b': { size: [3, 2], pieces: ['BookPile'], kind: 'cover', flip: true },
       'v': { size: [4, 2], pieces: ['ToyTruck'], kind: 'cover', flip: true },
-      'o': { size: [3, 3], pieces: ['Ball'], kind: 'cover' },
+      'o': { size: [3, 3], pieces: ['Ball'], kind: 'cover', y: 0.07 },
       'W': { size: [9, 1], pieces: ['Window'], kind: 'wall' },
       'w': { size: [9, 1], pieces: ['Window_R'], kind: 'wall' },
       'u': { size: [2, 2], pieces: ['SunPatch'], collide: false },

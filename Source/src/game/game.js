@@ -529,7 +529,8 @@
     G.pickups.forEach(function (pk, i) {
       if (!pk.on) return;
       pk.mesh.rotation.y = t * 1.5 + i;
-      pk.mesh.position.y = 0.05 + Math.sin(t * 3 + i) * 0.04;
+      // hover clear of the floor (its lowest point stays ~14 cm up, so the base and its ink outline never sink in)
+      pk.mesh.position.y = 0.2 + Math.sin(t * 3 + i) * 0.05;
       FX.blob(pk.x, 0, pk.z, 0.35);
       if (Math.hypot(p.x - pk.x, p.z - pk.z) < 0.9 && p.y < 1) {
         if (pk.kind === 'health') { if (p.health >= p.maxHp) return; var heal = healAmount(); p.health = Math.min(p.maxHp, p.health + heal); HUD.toast('+' + heal + ' health', 1.2); }

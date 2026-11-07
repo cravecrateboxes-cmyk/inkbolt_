@@ -155,7 +155,7 @@
       'O': { size: [3, 3], pieces: BEANS, flip: true, kind: 'cover' },
       'R': { size: [12, 10], pieces: ['Rug'], collide: false },
       'p': { size: [2, 2], pieces: PAPERS, flip: true, collide: false },
-      'l': { size: [3, 1], pieces: FLOORSTUFF, flip: true, kind: 'cover' },
+      'l': { size: [3, 1], pieces: FLOORSTUFF, flip: true, kind: 'cover', y: 0.035 },
       'e': { pieces: ['Eraser'], rotate: 'random90', kind: 'cover' },
       'T': { size: [10, 5], pieces: ['Landmark_TeacherDesk'], kind: 'wall' },
       'Q': { size: [4, 4], pieces: ['Landmark_Globe'], kind: 'wall' },
