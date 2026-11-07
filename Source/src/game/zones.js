@@ -578,7 +578,7 @@
         if (d.elevator) z.elevators.push(makeElevator(P, z, theme, world, d.elevator, x, y0, zz, y));
         if (d.mounts) d.mounts.forEach(function (m) {   // pickup mounts inside the prefab (guns on a wall rack), prefab-local
           var c = Math.round(Math.cos(y)), s2 = Math.round(Math.sin(y));
-          z.mounts.push({ x: x + m[0] * c + m[2] * s2, y: y0 + m[1], z: zz - m[0] * s2 + m[2] * c, yaw: y + (m[3] || 0), kind: m[4] || 'gun', piece: name, fill: d.fill === undefined ? 1 : d.fill });
+          z.mounts.push({ x: x + m[0] * c + m[2] * s2, y: y0 + m[1], z: zz - m[0] * s2 + m[2] * c, yaw: y + (m[3] || 0), kind: m[4] || 'gun', piece: name, fill: d.fill === undefined ? 1 : d.fill, opt: m[5] || null });
         });
         if (lanes) {
           if (d.conveyor.path) addLine(P, z, theme, world, ch, d, x, zz, y, 0, [{ at: 0, name: name }]);   // a loop per prefab

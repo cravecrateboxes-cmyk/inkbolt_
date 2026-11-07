@@ -158,13 +158,33 @@
     G._gunGeo[id] = geo;
     return geo;
   };
-  // a gun's transform on its mount: barrel along the rack, side toward the room, bounding box centred, at most 0.86 m
-  function gunLocal(id, out) {
+  /* a gun's transform on its mount: barrel along the rack, right side toward the room, centred along the rack and in
+     height, scaled to at most 1.2 and to fit the slot (mount option len x h, default 0.86 m long). With option `back`
+     the gun's bounding box rests its back on the mount plane (the theme puts that plane in front of the rack board and
+     its pegs), otherwise the box is centred on the mount. Every gun model has its own size and origin. */
+  function gunLocal(id, out, fit) {
     var geo = G.gunGeo(id); if (!geo.boundingBox) geo.computeBoundingBox();
-    var bb = geo.boundingBox, len = Math.max(0.2, bb.max.z - bb.min.z), sc = Math.min(1.2, 0.86 / len);
+    fit = fit || {};
+    var bb = geo.boundingBox, len = Math.max(0.2, bb.max.z - bb.min.z), ht = Math.max(0.05, bb.max.y - bb.min.y);
+    var sc = Math.min(1.2, (fit.len || 0.86) / len, fit.h ? fit.h / ht : 1.2);
     _lq.setFromAxisAngle(_ly, -Math.PI / 2);
-    _lp.set(((bb.max.z + bb.min.z) / 2) * sc, -((bb.max.y + bb.min.y) / 2) * sc, -((bb.max.x + bb.min.x) / 2) * sc);
+    _lp.set(((bb.max.z + bb.min.z) / 2) * sc, -((bb.max.y + bb.min.y) / 2) * sc, (fit.back ? -bb.min.x : -(bb.max.x + bb.min.x) / 2) * sc);
     return out.compose(_lp, _lq, _ls.set(sc, sc, sc));
+  }
+  var _lt = new THREE.Matrix4();
+  // gear on a bench / shelf (GEAR_* models have their origin where they mount on a gun): 0.8 scale, the visible
+  // surface's bounding box (outline shell left out) standing on the mount point, centred on it
+  function itemLocal(geo, out) {
+    var b = geo.userData.restBox;
+    if (!b) {
+      var p = geo.attributes.position, hl = geo.attributes.aHull, v = new THREE.Vector3();
+      b = geo.userData.restBox = new THREE.Box3();
+      for (var i = 0; i < p.count; i++) {
+        if (hl && (hl.getX(i) || hl.getY(i) || hl.getZ(i))) continue;
+        b.expandByPoint(v.fromBufferAttribute(p, i));
+      }
+    }
+    return out.makeScale(0.8, 0.8, 0.8).setPosition(-(b.min.x + b.max.x) / 2 * 0.8, -b.min.y * 0.8, -(b.min.z + b.max.z) / 2 * 0.8);
   }
   function rackGuns() {
     var out = (IB.ownedWeapons ? IB.ownedWeapons(G.plan.level) : []).filter(function (id) { var d = IB.WEAPONS[id]; return d && d.cls !== 'melee' && IB.Assets.geo['WPN_' + id.toUpperCase()]; });
@@ -181,7 +201,7 @@
       var groups = {}, tags = [];
       (z.mounts || []).forEach(function (m) {
         if (m.fill < 1 && Math.random() > m.fill) return;   // an empty peg
-        var L = { x: m.x, y: m.y, z: m.z, yaw: m.yaw, zone: zi, kind: m.kind, taken: false }, key;
+        var L = { x: m.x, y: m.y, z: m.z, yaw: m.yaw, zone: zi, kind: m.kind, opt: m.opt || null, taken: false }, key;
         if (m.kind === 'gun') {
           L.id = guns[(Math.random() * guns.length) | 0]; L.tier = rollW(TIERS);
           var T = WD.tier(L.tier), def = IB.WEAPONS[L.id];
@@ -204,8 +224,9 @@
         var geo = isGun ? G.gunGeo(list[0].id) : A.get(key), mat = isGun ? G.worldWpnMat : A.material(key);
         var im = new THREE.InstancedMesh(geo, mat, list.length);
         im.frustumCulled = false;
-        var local = isGun ? gunLocal(list[0].id, new THREE.Matrix4()) : new THREE.Matrix4().makeScale(0.8, 0.8, 0.8);
+        var local = isGun ? null : itemLocal(geo, new THREE.Matrix4());
         list.forEach(function (L, i) {
+          if (isGun) local = gunLocal(L.id, _lt, L.opt);   // per mount: slots may differ in size
           _lq.setFromAxisAngle(_ly, L.yaw);
           _lm.compose(_lp.set(L.x, L.y, L.z), _lq, _ls.set(1, 1, 1)).multiply(local);
           im.setMatrixAt(i, _lm); L.im = im; L.idx = i;
@@ -217,7 +238,10 @@
         tg.frustumCulled = false; tg.userData.ownGeo = true;
         tags.forEach(function (L, i) {
           _lq.setFromAxisAngle(_ly, L.yaw);
-          _lm.compose(_lp.set(L.x, L.y - (L.kind === 'gun' ? 0.2 : -0.01), L.z), _lq, _ls.set(1, 1, 1));
+          var t = L.opt && L.opt.tag, cy = Math.cos(L.yaw), sy = Math.sin(L.yaw);   // mount option tag: [dx, dy, dz] mount-local
+          if (t) _lp.set(L.x + t[0] * cy + t[2] * sy, L.y + t[1], L.z - t[0] * sy + t[2] * cy);
+          else _lp.set(L.x, L.y - (L.kind === 'gun' ? 0.2 : -0.01), L.z);
+          _lm.compose(_lp, _lq, _ls.set(1, 1, 1));
           tg.setMatrixAt(i, _lm); tg.setColorAt(i, _lc.set(L.color)); L.tag = tg; L.tagIdx = i;
         });
         z.group.add(tg); G.lootMeshes.push(tg);
