@@ -30,7 +30,7 @@ ib_lib.PALETTES['weapons'] = [(n, _LIFT.get(n, h)) for n, h in BASE] + [
     ('brass', '#EDBE5C'),    # cartridges
     ('lens', '#86EAF2'),     # optics glass
     ('glove', '#7C7894'), ('glove2', '#938FAD'), ('glove3', '#625F78'),
-    ('sleeve', '#8273C4'), ('sleeve2', '#9B8EDB'),
+    ('sleeve', '#8273C4'), ('sleeve2', '#9B8EDB'), ('sleeve3', '#6A5CAA'),
     ('chip', '#FFFFFF'), ('chip2', '#DCDCE6'), ('ammo', '#2F7BEA'), ('ammo2', '#1E559F'), ('ammo3', '#5C98F0'),
     ('health', '#5BCF4A'), ('health2', '#3E9C33'), ('health3', '#86E078'),
     ('glove4', '#4A465E')]   # moulded glove armour: knuckle / thumb pads, reinforced fingertips
@@ -1104,7 +1104,7 @@ def build_scrapper(pal):
     for s in (-1, 1):
         mk.box((s * 0.0235, 0.065, 0.006), (0.006, 0.090, 0.008), 'gun3', skip=('-x' if s > 0 else '+x',))
     return k, mk, {'rake': rake, 'mrake': 0, 'mag': (0, 0.300, bz - 0.024), 'muzzle': (0, 0.576, bz + 0.004), 'eject': (0.03, 0.020, 0.050),
-                   'sight': (0, -0.070, sz), 'cls': 'shotgun', 'fore': (0.365, bz - 0.044), 'port': (0, 0.052, -0.004)}
+                   'sight': (0, -0.070, sz), 'cls': 'shotgun', 'guard': (0, 0.365, bz - 0.022), 'port': (0, 0.052, -0.004)}   # pump: palm under the forend
 
 
 def build_thunder(pal):
@@ -1428,12 +1428,17 @@ def build_weapon_meshes(pal):
 #  * fingers and the thumb's phalanges are clean lofted digits (Body.digit), each rigid on its own bone (fingers
 #    are one bone each, so a digit never deforms) and outlined by its own ink shell, which draws the gaps between
 #    fingers. Colour bands segment them: padded first segment (glove2), dark stretch creases at the joints
-#    (glove3), reinforced fingertips (glove4). Hard moulded pads (glove4) sit over every knuckle and the thumb
-#    knuckle (Body.pad, own shells). Each digit's root sinks into its stub in the palm union.
-# Forearm (rigid on FOREARM): gauntlet with a raised wrist strap + amber tab, a rolled sleeve cuff, a sleeve
-# tapering out to the elbow with ink seams, and an armoured bracer plate (amber spine) on the side the game
-# camera sees. The palm's rounded wrist turns inside the gauntlet's open mouth (ball and socket), so wrist bends
-# never stretch or cut the cuff. Triangle split is printed by the build (ARMS: ... digits / pads / gloves ...).
+#    (glove3), reinforced fingertips (glove4). Hard moulded armour (glove4, own shells): one knuckle guard across
+#    the four knuckles (Body.knuckle_guard), a plate on the back of the hand and a thumb knuckle pad (Body.pad).
+#    Each digit's root sinks into its stub in the palm union.
+# Forearm (rigid on FOREARM, see forearm_shells): an anatomical taper (flat narrow wrist, muscle belly toward the
+# elbow) under a sleeve pushed up into diagonal folds, a wrist lame, a vambrace lame and raised armour plates.
+# The palm's rounded wrist turns inside the wrist lame's open mouth (ball and socket), so wrist bends never
+# stretch or cut the cuff. Posing (solve): the forearm rolls with the hand (forearm_delta: the wrist only bends,
+# never twists) and the elbow swings round the shoulder-wrist axis to line the forearm up with the hand
+# (two_bone pref); free hands (slide, sprint pump) are built from their forearm (free_hand). IB_POSE_REPORT=1
+# prints per action the wrist bend range and where the muzzle points on screen (0 = straight up).
+# Triangle split is printed by the build (ARMS: ... digits / pads / gloves ...).
 from mathutils.bvhtree import BVHTree
 
 FINGERS = ('INDEX', 'MIDDLE', 'RING', 'PINKY')
@@ -1574,6 +1579,27 @@ class Body:
         rings = [ring(-sink, 0.0), ring(h - ch, 0.0), ring(h, ch)]
         Xm = self.X
         self.hard.append(([[Xm @ p for p in r] for r in rings], [color, color, color], bone, False, (False, True)))   # base hidden
+
+    def knuckle_guard(self, K, bone, h=0.0066, sink=0.0042, color='glove4'):
+        """One moulded knuckle guard across the four knuckles (K: (centre, outward normal, finger direction, radius)
+        index to pinky): a hard band with a raised bump over each knuckle and shallow valleys between, its own shell."""
+        st = []
+        for i, (c, n, d, r) in enumerate(K):
+            st.append((c, n, d, r * 1.62, h))
+            if i + 1 < len(K):
+                c2, n2, d2, r2 = K[i + 1]
+                st.append(((c + c2) / 2 + ((n + n2) / 2) * -0.0006, ((n + n2) / 2).normalized(), ((d + d2) / 2).normalized(), (r + r2) * 0.70, h * 0.62))
+        (c0, n0, d0, w0, h0), (c1, *_) = st[0], st[1]
+        (cz, nz, dz, wz, hz), (cy, *_) = st[-1], st[-2]
+        st = [(c0 + (c0 - c1).normalized() * 0.0042, n0, d0, w0 * 0.82, h0 * 0.55)] + st + \
+             [(cz + (cz - cy).normalized() * 0.0040, nz, dz, wz * 0.82, hz * 0.55)]
+        rings = []
+        for c, n, d, w, hh in st:
+            n = V(n)
+            d = (V(d) - n * V(d).dot(n)).normalized()
+            q = [(-sink, 0.5), (hh * 0.62, 0.5), (hh, 0.22), (hh, -0.22), (hh * 0.62, -0.5), (-sink, -0.5)]
+            rings.append([self.X @ (V(c) + n * a + d * (b * w)) for a, b in q])
+        self.hard.append((rings, [color] * len(rings), bone, False, (True, True)))
 
     def digit(self, J, r, bone, bands, sides=DIGIT_SIDES, flat=FLAT, up=(0, 0, 1)):
         """A finger (or the thumb's phalanges) as one clean lofted tube through its joints J, radii r at the
@@ -1732,6 +1758,10 @@ def glove_body(side, X):
         v = (q.z - (z0 + z1) / 2) / ((z1 - z0) / 2)
         return u ** 4 + v ** 4 < 1.0
     b.parts[-1]['paint'] = panel_paint
+    # hard armour plate on the back of the hand, over the padded panel (own shell)
+    th = (t0 + t1) / 2
+    zt, zb, T = palm_at(an['palm'], th)
+    b.pad(gpt(G, th, (zt + zb) / 2 + 0.002, g0 + T + 0.0026), nrm(th), Z, 0.030, 0.034, 0.0046, hb, 'glove4', ch=0.0016, sink=0.0030)
     # heel (hypothenar) and wrist; the wrist ends in a ball round the wrist joint
     th, z, g, rad = an['heel']
     n = nrm(th)
@@ -1743,6 +1773,7 @@ def glove_body(side, X):
     # the gaps between fingers); banded like a tactical glove: padded first segment (glove2), dark stretch
     # creases at the joints, reinforced tip (glove3). Its root sinks into a stub in the palm union. A hard
     # moulded knuckle pad covers each knuckle (own shell, rigid on the hand).
+    knuckles = []
     for fn in FINGERS:
         z, r, L = FING[fn]
         J = finger_joints(side, fn)
@@ -1753,7 +1784,8 @@ def glove_body(side, X):
         n0 = (d0.cross(Z)).normalized()                         # back of the finger: outward, away from the grip
         if fn == 'INDEX' and an['trigger']:
             n0 = (n0 + Z * 0.35).normalized()
-        b.pad(J[0] + n0 * (r[0] * 0.82) - d0 * 0.0010, n0, d0, r[0] * 1.75, r[0] * 1.50, 0.0068, hb, 'glove4', sink=0.0040)
+        knuckles.append((J[0] + n0 * (r[0] * 0.80) - d0 * 0.0012, n0, d0, r[0]))
+    b.knuckle_guard(knuckles, hb)
     # thumb: metacarpal inside the thenar mass (union), the two phalanges one lofted digit, knuckle pad
     T = thumb_joints(side, X)
     b.capsule(T[0], T[1], THUMB_R[0] + 0.004, THUMB_R[1], 'THUMB1_' + side, 'glove', up=(0, 0, 1), flat=0.95)
@@ -1873,14 +1905,7 @@ def classify(bm, body, parents, sigma=0.0022):
     return weights
 
 
-# ---------------------------------------------------------------- forearm: gauntlet + stripe + sleeve (one shell)
-# profile along the forearm from the wrist joint (t, half width, half height, colour of the band that starts here)
-CUFF = [(0.016, 0.0215, 0.0200, 'glove3'), (-0.002, 0.0242, 0.0226, 'glove2'), (-0.0035, 0.0288, 0.0270, 'glove'),
-        (0.034, 0.0306, 0.0288, 'amber'), (0.050, 0.0313, 0.0295, 'glove'), (0.062, 0.0318, 0.0300, 'sleeve2'),
-        (0.064, 0.0412, 0.0396, 'sleeve2'), (0.084, 0.0412, 0.0396, 'sleeve'), (0.290, 0.0440, 0.0420, 'sleeve'),
-        (0.304, 0.0300, 0.0285, 'sleeve'), (0.308, 0.0, 0.0, 'sleeve')]
-
-
+# ---------------------------------------------------------------- loft helpers (forearm pieces, upper sleeves)
 def ring_pts(c, d, up, a, b, seg, a0=0.0):
     u = up - d * up.dot(d)
     u.normalize()
@@ -1957,95 +1982,130 @@ def rigid_loft(bm, rings, colors, pal, dl, gi, sl, sid, caps=(True, True), fcol=
     return faces
 
 
-# ---------------------------------------------------------------- forearm shell (rigid on FOREARM)
-# Profile along the forearm from the wrist joint toward the elbow: (t, half width, half height, colour of the
-# band that starts at this ring). Gauntlet mouth (the wrist ball turns inside it) -> lip -> raised wrist strap
-# -> gauntlet edge -> rolled sleeve cuff -> sleeve tapering out to the elbow.
-CUFF = [(0.017, 0.0200, 0.0188, 'glove3'), (-0.002, 0.0226, 0.0212, 'glove3'), (-0.0045, 0.0262, 0.0247, 'glove2'),
-        (0.008, 0.0277, 0.0261, 'glove3'), (0.009, 0.0301, 0.0285, 'glove3'), (0.025, 0.0304, 0.0288, 'glove3'),
-        (0.026, 0.0282, 0.0266, 'glove2'), (0.042, 0.0290, 0.0273, 'sleeve2'), (0.045, 0.0326, 0.0306, 'sleeve2'),
-        (0.056, 0.0346, 0.0326, 'sleeve2'), (0.068, 0.0334, 0.0314, 'sleeve2'), (0.072, 0.0316, 0.0297, 'sleeve'),
-        (0.160, 0.0386, 0.0356, 'sleeve'), (0.290, 0.0440, 0.0405, 'sleeve'), (0.304, 0.0300, 0.0280, 'sleeve'),
-        (0.308, 0.0, 0.0, 'sleeve')]
-FORE_SEG = 10
-STRAP_TAB = (0.0175, 0.012, 0.0145, 0.0035)       # wrist strap tab: centre t, width, length (along the arm), height
-BRACER = {'t': (0.084, 0.212), 'arc': (-58, -34, -6, 6, 34, 58), 'lift': (0.0016, 0.0062), 'ch': 0.004, 'spine': 2}
-SEAMS = ((0.078, 0.286, 112), (0.078, 0.286, 248))     # ink seams (t0, t1, angle off the bracer centre)
+# ---------------------------------------------------------------- forearm v3 (rigid on FOREARM, rolls with the hand)
+# The forearm is laid out in the hand's own frame: t runs from the wrist joint to the elbow, the section is an
+# ellipse whose wide axis spans thumb side (radial) to little-finger side, its dorsal axis the back of the hand.
+# Layers, each a closed piece with its own ink shell:
+#   * the arm: an anatomical taper, flat and narrow at the wrist, a muscle belly two thirds of the way up
+#     (pushed toward the thumb side and the back), easing in again at the elbow; a sleeve pushed up behind the
+#     gauntlet that bunches into diagonal folds (dark crease bands) toward the elbow.
+#   * gauntlet: a wrist lame (rolled lip round the glove's wrist, strap tab) under a vambrace lame (wider,
+#     overlapping it, strap band near its end), and a raised armour plate with an amber spine on the side the
+#     game camera sees at rest.
+FORE_SEG = 14
+# arm section stations: (t, half width (radial-ulnar), half height (dorsal-volar), shift to the thumb side, shift to the back)
+FORE_PROF = [(-0.020, 0.0236, 0.0186, 0.0, 0.0), (0.000, 0.0240, 0.0190, 0.0, 0.0), (0.050, 0.0270, 0.0210, 0.0, 0.0005),
+             (0.100, 0.0312, 0.0248, 0.0012, 0.0012), (0.150, 0.0370, 0.0300, 0.0026, 0.0024), (0.195, 0.0425, 0.0352, 0.0040, 0.0032),
+             (0.235, 0.0458, 0.0388, 0.0042, 0.0032), (0.268, 0.0450, 0.0394, 0.0030, 0.0020), (0.300, 0.0410, 0.0372, 0.0, 0.0)]
+# sleeve rings (t) from under the vambrace to the elbow; the cloth stands off the arm by SLEEVE_EX and bunches into
+# FOLDS: (t, bulge m, angle of the deepest side, wrap: how far round it goes (1 = all round)) that run diagonally
+SLEEVE_T = (0.118, 0.150, 0.163, 0.172, 0.181, 0.192, 0.204, 0.214, 0.224, 0.236, 0.248, 0.260, 0.272, 0.286, 0.300)
+SLEEVE_EX = 0.0028
+FOLDS = ((0.176, 0.0042, 200, 0.55), (0.208, 0.0050, 150, 0.45), (0.240, 0.0046, 230, 0.60), (0.268, 0.0040, 120, 0.50))
+FOLD_W, FOLD_SLANT = 0.0105, 0.010       # fold half width along the arm, diagonal (t shift across the arm)
+# gauntlet lames: (t, extra radius over the arm, colour of the band that starts here)
+WRIST_LAME = [(-0.017, 0.0010, 'glove3'), (-0.015, 0.0046, 'glove3'), (-0.010, 0.0064, 'glove2'), (-0.004, 0.0060, 'glove3'),
+              (0.034, 0.0056, 'glove3'), (0.040, 0.0030, 'glove3')]
+VAMBRACE = [(0.030, 0.0050, 'glove3'), (0.034, 0.0090, 'glove2'), (0.106, 0.0086, 'glove4'), (0.124, 0.0088, 'glove2'),
+            (0.150, 0.0090, 'glove3'), (0.160, 0.0090, 'glove3'), (0.168, 0.0052, 'glove3')]
+STRAP_TAB = (0.012, 0.010, 0.013, 0.0030)        # amber strap tab on the wrist lame: centre t, width, length, height
+PLATE = {'t': (0.046, 0.142), 'arc': (-62, -40, -18, -5, 5, 18, 40, 62), 'lift': (0.0012, 0.0062), 'ch': 0.0042, 'spine': 3}
 CAM_RIG = V((-0.224, -0.588, 0.153))                    # game viewmodel camera in rig space (weapons.js vmRoot)
 
 
-def cuff_radius(t):
-    """Sleeve half width / height at t (linear between CUFF rings, past the rolled cuff)."""
-    pts = [(p[0], p[1], p[2]) for p in CUFF if p[1] > 0 and p[0] >= 0.071]
-    for (t0, a0, b0), (t1, a1, b1) in zip(pts, pts[1:]):
-        if t0 <= t <= t1:
-            k = (t - t0) / (t1 - t0)
-            return a0 + (a1 - a0) * k, b0 + (b1 - b0) * k
-    return pts[-1][1], pts[-1][2]
+def fore_prof(t):
+    P = FORE_PROF
+    if t <= P[0][0]:
+        return P[0][1:]
+    for p0, p1 in zip(P, P[1:]):
+        if p0[0] <= t <= p1[0]:
+            k = (t - p0[0]) / (p1[0] - p0[0])
+            k = k * k * (3 - 2 * k)
+            return tuple(a + (b - a) * k for a, b in zip(p0[1:], p1[1:]))
+    return P[-1][1:]
 
 
-def forearm_shells(bm, pal, dl, gi, sl, sid, wr, fd, up, side):
-    """Gauntlet + sleeve lathe, strap tab, armoured bracer and ink seams on one forearm. Returns (next sid, nohull sids)."""
-    nohull = set()
-    sid += 1
-    lathe_shell(bm, CUFF, wr, fd, up, FORE_SEG, pal, dl, gi, sl, sid)
-    u = (up - fd * up.dot(fd)).normalized()
-    s = fd.cross(u)
+def forearm_shells(bm, pal, dl, gi, sl, sid, wr, fd, rad, dor, side, views=(CAM_RIG,)):
+    """Arm + sleeve, wrist lame, vambrace, strap tab and armour plates on one forearm (frame: fd wrist -> elbow,
+    rad thumb side, dor back of the hand; views: the game camera in rest space for the holds that matter, a
+    plate faces each). Returns (next sid, nohull sids)."""
 
-    def at(t, phi, lift, a_b=None):
-        a, b = a_b or cuff_radius(t)
+    def at(t, phi, extra=0.0, lift=0.0):
+        a, b, ds, du = fore_prof(t)
+        a, b = a + extra, b + extra
         ph = D(phi)
-        p = V((math.cos(ph) * a, math.sin(ph) * b))
-        n = V((math.cos(ph) * b, math.sin(ph) * a)).normalized()         # ellipse normal
-        return wr + fd * t + s * (p.x + n.x * lift) + u * (p.y + n.y * lift)
-    # the bracer faces the game camera (rest pose): angle of the camera seen from the forearm axis
-    c = wr + fd * 0.15
-    dc = CAM_RIG - c
-    dc -= fd * dc.dot(fd)
-    phc = math.degrees(math.atan2(dc.dot(u), dc.dot(s))) + (-22 if side == 'R' else 22)
-    # wrist strap tab (amber velcro tab) on the strap, toward the camera
+        n = V((math.cos(ph) * b, math.sin(ph) * a)).normalized()        # ellipse normal
+        x, y = math.cos(ph) * a + n.x * lift + ds, math.sin(ph) * b + n.y * lift + du
+        return wr + fd * t + rad * x + dor * y
+
+    angles = [360.0 * (k + 0.5) / FORE_SEG for k in range(FORE_SEG)]
+    # the side the game camera sees at rest (angle from the thumb side toward the back of the hand)
+    def view_angle(cam):
+        dc = cam - (wr + fd * 0.12)
+        dc -= fd * dc.dot(fd)
+        return math.degrees(math.atan2(dc.dot(dor), dc.dot(rad)))
+    phc = view_angle(views[0])
+    plates = [phc]
+    for cam in views[1:]:
+        a = view_angle(cam)
+        if abs((a - phc + 180) % 360 - 180) > 75:
+            plates.append(a)
+    # arm + sleeve: starts hidden under the vambrace, bunches into diagonal folds toward the elbow; the shaded
+    # underside of each fold (toward the elbow, where it is deep) takes the dark crease colour
+    def fold(t, phi):
+        h, slope = 0.0, 0.0
+        for tc, amp, pc, wrap in FOLDS:
+            dp = math.cos(D(phi - pc))
+            wa = max(0.0, (dp + wrap) / (1 + wrap)) ** 1.5
+            u = (t - tc - FOLD_SLANT * math.sin(D(phi - pc + 90))) / FOLD_W
+            if abs(u) < 1:
+                b = 0.5 + 0.5 * math.cos(math.pi * u)
+                h += amp * wa * b
+                slope += -amp * wa * math.sin(math.pi * u) * (u > 0)
+        return h, slope
+    sid += 1
+    rings = [[at(t, phi, SLEEVE_EX * min(1.0, (t - SLEEVE_T[0]) / 0.03) + fold(t, phi)[0]) for phi in angles] for t in SLEEVE_T]
+    te = SLEEVE_T[-1] + 0.010
+    rings.append([wr + fd * te + rad * fore_prof(te)[2] + dor * fore_prof(te)[3]])
+    crease = lambda i, j: 'sleeve3' if i < len(SLEEVE_T) - 1 and fold((SLEEVE_T[i] + SLEEVE_T[i + 1]) / 2, angles[j] + 180 / FORE_SEG)[1] < -0.0022 else None
+    rigid_loft(bm, rings, ['sleeve'] * len(rings), pal, dl, gi, sl, sid, fcol=crease)
+    # wrist lame: rolled lip round the glove's wrist
+    sid += 1
+    rings = [[at(t, phi, ex) for phi in angles] for t, ex, _ in WRIST_LAME]
+    rigid_loft(bm, rings, [c for _, _, c in WRIST_LAME], pal, dl, gi, sl, sid)
+    # vambrace lame over it, strap band near its end
+    sid += 1
+    rings = [[at(t, phi, ex) for phi in angles] for t, ex, _ in VAMBRACE]
+    rigid_loft(bm, rings, [c for _, _, c in VAMBRACE], pal, dl, gi, sl, sid)
+    # amber strap tab on the wrist lame, toward the camera
     tt, tw, tl, th = STRAP_TAB
-    ab = (0.0303, 0.0287)
+    ex = 0.0060
     sid += 1
     tab = []
+    a0 = fore_prof(tt)[0] + ex
     for lift in (-0.002, th - 0.0012, th):
         ins = 0.0012 if lift == th else 0.0
-        r = []
-        for (x, y) in rrect(tw - 2 * ins, tl - 2 * ins):
-            r.append(at(tt + y, phc + math.degrees(x / ab[0]), lift, ab))
-        tab.append(r)
+        tab.append([at(tt + y, phc + math.degrees(x / a0), ex, lift) for (x, y) in rrect(tw - 2 * ins, tl - 2 * ins, c=0.002)])
     rigid_loft(bm, tab, ['amber', 'amber', 'amber'], pal, dl, gi, sl, sid)
-    # bracer: a curved plate (chamfered all round) with an amber spine, standing on the sleeve
-    B = BRACER
-    t0, t1 = B['t']
+    # raised armour plate on the vambrace (chamfered all round, amber spine)
+    B = PLATE
     l0, l1 = B['lift']
     ch = B['ch']
-    arc = [phc + a for a in B['arc']]
+    vex = 0.0088
+    for k, pc in enumerate(plates):
+        t0, t1 = B['t'] if k == 0 else (B['t'][0] + 0.010, B['t'][1] - 0.022)       # a second, shorter plate (no spine)
+        arc = [pc + a * (1.0 if k == 0 else 0.8) for a in B['arc']]
 
-    def section(t, ins):
-        """Closed plate section at t: outer arc (lift l1) then inner arc (lift l0); ins chamfers the end faces."""
-        a0, a1 = arc[0] + (3 if ins else 0), arc[-1] - (3 if ins else 0)
-        outer = [at(t, a, l1 - ins) for a in [a0] + arc[1:-1] + [a1]]
-        inner = [at(t, a, l0) for a in [a1] + list(reversed(arc[1:-1])) + [a0]]
-        return outer + inner
-    rings = [section(t0, ch * 0.6), section(t0 + ch, 0.0), section(t1 - ch, 0.0), section(t1, ch * 0.6)]
-    sp = B['spine']
-    sid += 1
-    rigid_loft(bm, rings, ['glove3', 'glove3', 'glove3'], pal, dl, gi, sl, sid, fcol=lambda i, j: 'amber' if i == 1 and j == sp else None)
-    # ink seams along the sleeve (no shell): a thin bar half sunk into the cloth, following its taper
-    for (a0, a1, off) in SEAMS:
+        def section(t, ins):
+            a0, a1 = arc[0] + (3 if ins else 0), arc[-1] - (3 if ins else 0)
+            outer = [at(t, a, vex, l1 - ins) for a in [a0] + arc[1:-1] + [a1]]
+            inner = [at(t, a, vex, l0) for a in [a1] + list(reversed(arc[1:-1])) + [a0]]
+            return outer + inner
+        rings = [section(t0, ch * 0.6), section(t0 + ch, 0.0), section(t1 - ch, 0.0), section(t1, ch * 0.6)]
+        sp = B['spine'] if k == 0 else -1
         sid += 1
-        nohull.add(sid)
-        n = 4
-        rings = []
-        for k in range(n + 1):
-            t = a0 + (a1 - a0) * k / n
-            p = at(t, phc + off, 0.0)
-            rad = (p - (wr + fd * t)).normalized()
-            w = fd.cross(rad).normalized()
-            rings.append([p + w * 0.0009 + rad * 0.0012, p - w * 0.0009 + rad * 0.0012, p - w * 0.0009 - rad * 0.0012, p + w * 0.0009 - rad * 0.0012])
-        rigid_loft(bm, rings, ['ink'] * n, pal, dl, gi, sl, sid)
-    return sid, nohull
+        rigid_loft(bm, rings, ['glove4', 'glove4', 'glove4'], pal, dl, gi, sl, sid, fcol=lambda i, j: 'amber' if i == 1 and j == sp else None)
+    return sid, set()
 
 
 def arms_hull(obj, pal, t, nohull=()):
@@ -2105,7 +2165,7 @@ def arms_hull(obj, pal, t, nohull=()):
     bm.free()
 
 
-def two_bone(s, w, hint, U=UPPER_LEN, F=FORE_LEN):
+def two_bone(s, w, hint, U=UPPER_LEN, F=FORE_LEN, pref=None):
     """Elbow for shoulder s and wrist w; an out-of-reach wrist pulls the (off-screen) shoulder in."""
     d = w - s
     if d.length > U + F - 0.002:
@@ -2116,7 +2176,22 @@ def two_bone(s, w, hint, U=UPPER_LEN, F=FORE_LEN):
     a = (U * U - F * F + L * L) / (2 * L)
     h = math.sqrt(max(U * U - a * a, 0))
     sd = (hint - dn * hint.dot(dn)).normalized()
-    return s, s + dn * a + sd * h
+    if pref is None or h < 1e-4:
+        return s, s + dn * a + sd * h
+    # the elbow swings round the shoulder-wrist axis to line the forearm up with the hand (pref: the hand's
+    # wrist -> knuckles axis) without leaving the hint's side: no snapped wrists, elbows stay down and out
+    c, sv = s + dn * a, dn.cross(sd)
+    best = None
+    for i in range(-40, 41):
+        t = D(i * 2.0)
+        e = c + (sd * math.cos(t) + sv * math.sin(t)) * h
+        cost = (w - e).normalized().angle(pref) ** 2 + ELBOW_K * t * t
+        if best is None or cost < best[0]:
+            best = (cost, e)
+    return s, best[1]
+
+
+ELBOW_K = 0.45          # how hard the elbow keeps to its hint side vs. lining the forearm up with the hand
 
 
 HINT = {'R': V((0.7, -0.2, -1)), 'L': V((-0.8, -0.2, -1))}
@@ -2157,7 +2232,8 @@ def build_arms(pal):
     for side in ('R', 'L'):
         Xs = X[side]
         wr = Xs @ WRIST
-        s, e = two_bone(SH[side], wr, HINT[side])
+        RIG.setdefault('X', {})[side] = Xs
+        s, e = two_bone(SH[side], wr, HINT[side], pref=hand_axes(side)[0])
         RIG['S0'][side], RIG['E0'][side], RIG['W0'][side] = s, e, wr
         bone('UPPERARM_' + side, s, e, 'Weapon')
         bone('FOREARM_' + side, e, wr, 'Weapon')
@@ -2214,8 +2290,15 @@ def build_arms(pal):
         s, e, wr = RIG['S0'][side], RIG['E0'][side], RIG['W0'][side]
         fd = (e - wr).normalized()
         up = V((0, 0, 1))
+        _, n0, l0 = hand_axes(side)
+        dor = (-n0 - fd * (-n0).dot(fd)).normalized()
+        rad = (-l0 - fd * (-l0).dot(fd) - dor * (-l0).dot(dor)).normalized()
         s0 = sid
-        sid, nh = forearm_shells(bm, pal, dl, gi['FOREARM_' + side], sl, sid, wr, fd, up, side)
+        # the camera as the forearm sees it in a long-gun hold (the forearm rolls with the hand): a plate there too
+        Wl = Matrix.Translation(V(CARRY['rifle']))
+        Fl = Wl @ (left_hold('RIVET') if side == 'L' else grip_frame('RIVET'))
+        cam_l = (Fl @ RIG['F0'][side].inverted()).inverted() @ CAM_RIG
+        sid, nh = forearm_shells(bm, pal, dl, gi['FOREARM_' + side], sl, sid, wr, fd, rad, dor, side, (CAM_RIG, cam_l))
         group.update({i: 'forearms' for i in range(s0 + 1, sid + 1)})
         nohull |= nh
         ud = (s - e).normalized()
@@ -2319,8 +2402,9 @@ ANIM = {
 #   sprint    style 'high' (pistols: muzzle up near the face, support arm pumping) or 'low' (long guns: canted
 #             across the chest, both hands on); a / b: the two poses of the 0.6 s loop (footfalls);
 #             idx / lift: trigger finger off the trigger (curl about the grip axis / lift along the frame);
-#             pump: support-hand frames (rig space) for the 'high' style
-#   slide     the tucked pose while sliding (support hand out for balance)
+#             pump: the free support fist for the 'high' style ((NDC x, y, depth m), palm direction, wrist bend)
+#   slide     a / b: the tucked, canted gun; hand: the free support hand out for balance (as pump); curl / thumb
+#             open its fingers; hint: where its elbow points
 HANDLING_BASE = {
     'carry': (0.0, -0.17, -0.010),
     'idle': (((0.0005, 0.0015, 0.0035), (1.0, 0.4, -0.5)), ((-0.0005, 0.0010, 0.0020), (0.6, -0.4, 0.3))),
@@ -2332,7 +2416,11 @@ HANDLING_BASE = {
                'low': (-0.14, -0.08, -0.46)},
     'sprint': {'style': 'low', 'a': ((-0.030, 0.000, 0.035), (-24, -34, 50)), 'b': ((-0.024, 0.002, 0.022), (-27, -31, 53)),
                'idx': -6, 'lift': 13},
-    'slide': {'a': ((0.02, -0.05, -0.11), (-4, -30, 8)), 'b': ((0.02, -0.05, -0.117), (-5, -33, 9))},
+    # slide: gun poses a / b; hand: the free support hand at both ends of the loop ((NDC x, y, depth m), palm
+    # direction (rig space), (wrist flex, deviation) deg); curl / thumb open the fingers
+    'slide': {'a': ((-0.030, -0.010, 0.000), (8, -28, 6)), 'b': ((-0.028, -0.014, -0.006), (7, -30, 7)),
+              'hand': (((-0.56, -0.62, 0.52), (-0.25, 0.30, -1.0), (-10, 6)), ((-0.54, -0.58, 0.52), (-0.25, 0.35, -1.0), (-12, 6))),
+              'curl': -72, 'thumb': -40, 'hint': (-1.0, 0.0, -0.5)},
 }
 HANDLING = {
     'pistol': {
@@ -2344,10 +2432,12 @@ HANDLING = {
         'kick': {'loc': (0.0, -0.013, 0.004), 'rot': (6.5, 0.0, 0.0), 'recover': ((0.0, 0.002, -0.001), (-1.2, 0.0, 0.0))},
         'reload': {'tilt': ((0.0, -0.030, 0.030), (14, 28, -18)), 'seat': ((0.0, -0.027, 0.036), (18, 28, -20)),
                    'low': (-0.12, -0.10, -0.42)},
-        # high ready: pistol raised muzzle-up beside the face, slightly canted in; the free arm pumps low left
-        'sprint': {'style': 'high', 'a': ((0.014, -0.095, 0.045), (64, -16, 32)), 'b': ((0.018, -0.090, 0.033), (61, -18, 34)),
+        # high ready: pistol raised beside the face, muzzle straight up (12 o'clock: pitch 90, no roll; the yaw turns
+        # it about the barrel to show its left side); the free fist pumps at the lower left ((NDC x, y, depth), palm, bend)
+        'sprint': {'style': 'high', 'a': ((0.030, -0.080, 0.020), (90, 0, 18)), 'b': ((0.032, -0.076, 0.010), (88, 0, 20)),
                    'idx': -6, 'lift': 14,
-                   'pump': (((-0.27, 0.02, -0.17), (40, 10, -30)), ((-0.25, -0.12, -0.36), (10, 10, -40))), 'fist': 26},
+                   'pump': (((-0.62, -0.78, 0.46), (0.6, 0.2, -0.4), (10, 0)), ((-0.72, -1.25, 0.44), (0.6, -0.2, -0.4), (10, 0))), 'fist': 26},
+        'slide': {'a': ((0.000, -0.060, -0.045), (4, -30, 8)), 'b': ((0.002, -0.064, -0.051), (3, -32, 9))},
     },
     'smg': {
         'carry': (0.0, -0.13, -0.006),
@@ -2458,6 +2548,91 @@ def seg_delta(a0, b0, a, b):
     return T(a) @ q.to_matrix().to_4x4() @ T(-a0)
 
 
+def hand_axes(side):
+    """Rest hand axes in rig space: a (wrist -> middle knuckle), n (palm normal, back of the hand -> palm),
+    l (across the wrist, thumb side -> little finger side). The left set is mirrored (left-handed basis)."""
+    if side in RIG.get('axes', {}) and RIG['axes'].get('X' + side) is RIG['X'][side]:
+        return RIG['axes'][side]
+    G = ANAT[side]['grip']
+    a = (finger_joints(side, 'MIDDLE')[0] - WRIST).normalized()
+    n = V((0.0, G['cy'], PALM_C.z)) - PALM_C
+    n = (n - a * n.dot(a)).normalized()
+    l = n.cross(a)
+    X3 = RIG['X'][side].to_3x3()
+    out = tuple((X3 @ v).normalized() for v in (a, n, l))
+    RIG.setdefault('axes', {})[side] = out
+    RIG['axes']['X' + side] = RIG['X'][side]
+    return out
+
+
+def basis(c0, c1, c2):
+    return Matrix((c0, c1, c2)).transposed()
+
+
+def forearm_delta(side, MH, e, wr):
+    """FOREARM bone motion: the segment goes from its rest place to (e, wr) and rolls about its own axis with
+    the hand (pronation / supination), so the wrist only bends and never shows a twist."""
+    E0, W0 = RIG['E0'][side], RIG['W0'][side]
+    f0, f = (W0 - E0).normalized(), (wr - e).normalized()
+    l0 = hand_axes(side)[2]
+    l = MH.to_3x3() @ l0
+
+    def frame3(f, l):
+        r = l - f * l.dot(f)
+        r = r.normalized() if r.length > 1e-4 else f.orthogonal().normalized()
+        return basis(f, r, f.cross(r))
+    R = frame3(f, l) @ frame3(f0, l0).inverted()
+    return T(wr) @ R.to_4x4() @ T(-W0)
+
+
+def free_hand(side, wrist, palm, bend=(0.0, 0.0), hint=None):
+    """Hand frame (rig space, as Poser's FL / FR) for a hand with its wrist at `wrist`, the palm facing `palm`
+    and the hand lined up with the forearm the arm IK gives there, bent by (flex toward the palm, deviation
+    toward the little finger) degrees: a free hand never snaps at the wrist."""
+    wrist = V(wrist)
+    s, e = two_bone(SH[side], wrist, V(hint) if hint is not None else HINT[side])
+    f = (wrist - e).normalized()
+    a0, n0, l0 = hand_axes(side)
+    sg = 1.0 if l0.dot(n0.cross(a0)) > 0 else -1.0
+    pn = V(palm).normalized()
+    pn = (pn - f * pn.dot(f)).normalized()
+    lat = sg * pn.cross(f)
+    a = Matrix.Rotation(D(bend[0]), 3, lat) @ f
+    a = Matrix.Rotation(D(bend[1]), 3, pn) @ a
+    n = (pn - a * pn.dot(a)).normalized()
+    l = sg * n.cross(a)
+    Rh = basis(a, n, l) @ basis(a0, n0, l0).inverted()
+    MH = T(wrist) @ Rh.to_4x4() @ T(-RIG['W0'][side])
+    return MH @ RIG['F0'][side]
+
+
+REPORT = None
+VM_POS, VM_YAW, VM_S, TAN_V, ASPECT = V((0.19, -0.13, -0.5)), 0.06, 0.85, math.tan(D(29)), 16 / 9
+
+
+def ndc(p):
+    """Rig point -> the game's viewmodel screen (NDC x, y; desktop 16:9) and depth (m)."""
+    q = V((p.x, p.z, -p.y)) * VM_S
+    c, sn = math.cos(VM_YAW), math.sin(VM_YAW)
+    q = V((c * q.x + sn * q.z, q.y, -sn * q.x + c * q.z)) + VM_POS
+    d = -q.z
+    return V((q.x / (d * TAN_V * ASPECT), q.y / (d * TAN_V))), d
+
+
+def at_ndc(x, y, d):
+    """Inverse of ndc: the rig point seen at NDC (x, y), d metres in front of the eye."""
+    q = V((x * d * TAN_V * ASPECT, y * d * TAN_V, -d)) - VM_POS
+    c, sn = math.cos(VM_YAW), math.sin(VM_YAW)
+    q = V((c * q.x - sn * q.z, q.y, sn * q.x + c * q.z)) / VM_S
+    return V((q.x, -q.z, q.y))
+
+
+def wrist_bend(side, MH, e, wr):
+    """Angle (deg) between the forearm and the hand's axis (0 = straight wrist)."""
+    a = MH.to_3x3() @ hand_axes(side)[0]
+    return math.degrees(a.angle((wr - e).normalized()))
+
+
 def solve(rig, P):
     """P: W (weapon delta), FR / FL (hand frames, rig space), curl {bone: deg}, mag (Mag bone delta).
     Returns {bone: pose basis}: each bone gets the rigid motion that takes its rest place to the target."""
@@ -2467,9 +2642,11 @@ def solve(rig, P):
         MH = P['F' + side] @ F0.inverted()
         M['HAND_' + side] = MH
         wr = MH @ RIG['W0'][side]
-        s, e = two_bone(SH[side], wr, HINT[side])
+        s, e = two_bone(SH[side], wr, P.get('hint', {}).get(side, HINT[side]), pref=MH.to_3x3() @ hand_axes(side)[0])
         M['UPPERARM_' + side] = seg_delta(RIG['S0'][side], RIG['E0'][side], s, e)
-        M['FOREARM_' + side] = seg_delta(RIG['E0'][side], RIG['W0'][side], e, wr)
+        M['FOREARM_' + side] = forearm_delta(side, MH, e, wr)
+        if REPORT is not None:
+            REPORT.setdefault(side, []).append(wrist_bend(side, MH, e, wr))
         ax = (F0.to_3x3() @ V((0, 0, 1))).normalized()
         lx = (F0.to_3x3() @ V((1, 0, 0))).normalized()     # hand's lateral axis: lifts a finger along the frame
         sg = 1 if side == 'R' else -1
@@ -2507,7 +2684,7 @@ class Poser:
         return T(self.carry) @ T(wl) @ R @ mat_trs((0, 0, 0), (0, 0, self.spin))
 
     def __call__(self, wl=(0, 0, 0), wr=(0, 0, 0), trig=0.0, FL=None, FR=None, mag=None, curlL=0.0, curlR=0.0, idx=0.0, thumbL=0.0, thumbR=0.0,
-                 lift=0.0):
+                 lift=0.0, hintL=None):
         W = self.wm(wl, wr)
         if FL is None and self.GL is None:                   # one-handed melee: support fist up in a guard, low left
             FL, curlL, thumbL = MELEE_GUARD, curlL + 30, thumbL - 15
@@ -2523,7 +2700,8 @@ class Poser:
             curl[fn + '_R'] = curlR
             curl[fn + '_L'] = curlL
         return {'W': W, 'FR': FR if FR is not None else W @ self.GR, 'FL': FL if FL is not None else W @ self.GL,
-                'mag': mag if mag is not None else W @ T(self.magT), 'curl': curl, 'lift': {'INDEX_R': lift}}
+                'mag': mag if mag is not None else W @ T(self.magT), 'curl': curl, 'lift': {'INDEX_R': lift},
+                'hint': {'L': V(hintL)} if hintL is not None else {}}
 
     offk = 0.0
 
@@ -2661,10 +2839,21 @@ def build_actions(rig):
     last = {}
 
     def action(name, keys):
+        global REPORT
         act = bpy.data.actions.new(name)
         act.use_fake_user = True
         rig.animation_data.action = act
         last.clear()
+        if os.environ.get('IB_POSE_REPORT'):
+            REPORT = {}
+            wid = name.rsplit('_', 1)[0]
+            mz = V(WEAPONS[wid]['muzzle'])
+            scr = []
+            for f, P in keys:
+                (a, _), (b, _) = ndc(P['W'] @ (mz - V((0, 0.1, 0)))), ndc(P['W'] @ mz)
+                h = {sd: ndc(P['F' + sd].translation)[0] for sd in ('R', 'L')}
+                scr.append('%d:%+.0f%s' % (f, math.degrees(math.atan2(b.x - a.x, b.y - a.y)),
+                                           ''.join(' %s(%+.2f,%+.2f)' % (sd, h[sd].x, h[sd].y) for sd in 'RL') if '_S' in name or '_Th' in name else ''))
         for f, P in keys:
             for bn, Bm in solve(rig, P).items():
                 loc, q, _ = Bm.decompose()
@@ -2675,6 +2864,10 @@ def build_actions(rig):
                 pb[bn].rotation_quaternion = q
                 pb[bn].keyframe_insert('location', frame=f)
                 pb[bn].keyframe_insert('rotation_quaternion', frame=f)
+        if REPORT is not None:
+            print('POSE %-20s wrist R %3.0f..%3.0f  L %3.0f..%3.0f  barrel %s' % (
+                name, min(REPORT['R']), max(REPORT['R']), min(REPORT['L']), max(REPORT['L']), ' '.join(scr)))
+            REPORT = None
         return act
 
     for wid in GUNS:
@@ -2734,16 +2927,17 @@ def build_actions(rig):
         S = H['sprint']
         p.off()
         if S['style'] == 'high':
-            fa, fb = mat_trs(*S['pump'][0]), mat_trs(*S['pump'][1])
+            fa, fb = (free_hand('L', at_ndc(*q[0]), q[1], q[2]) for q in S['pump'])
             fist = dict(curlL=S['fist'], thumbL=-18)
             action(wid + '_Sprint', [(0, p(*S['a'], FL=fa, **fist)), (9, p(*S['b'], FL=fb, **fist)), (18, p(*S['a'], FL=fa, **fist))])
         else:
             action(wid + '_Sprint', [(0, p(*S['a'])), (9, p(*S['b'])), (18, p(*S['a']))])
-        # Slide loop 0.5 s: tucked low, canted ~30 deg, support hand out to the left for balance
-        sl, sl2 = H['slide']['a'], H['slide']['b']
-        hb1, hb2 = mat_trs((-0.34, 0.12, -0.12), (-75, 0, -65)), mat_trs((-0.345, 0.135, -0.105), (-72, 0, -60))
-        action(wid + '_Slide', [(0, p(*sl, FL=hb1, curlL=-35, thumbL=-25)), (7, p(*sl2, FL=hb2, curlL=-35, thumbL=-25)),
-                                (15, p(*sl, FL=hb1, curlL=-35, thumbL=-25))])
+        # Slide loop 0.5 s: the gun tucked low and canted in, the support arm out to the lower left for balance,
+        # palm to the ground, fingers relaxed open; the free hand follows its forearm (free_hand: no snapped wrist)
+        Sl = H['slide']
+        h1, h2 = (free_hand('L', at_ndc(*q[0]), q[1], q[2], Sl['hint']) for q in Sl['hand'])
+        o = dict(curlL=Sl['curl'], thumbL=Sl['thumb'], hintL=Sl['hint'])
+        action(wid + '_Slide', [(0, p(*Sl['a'], FL=h1, **o)), (7, p(*Sl['b'], FL=h2, **o)), (15, p(*Sl['a'], FL=h1, **o))])
         p.off(0)
     rig.animation_data.action = bpy.data.actions['PIP_Idle']
     for act in bpy.data.actions:
