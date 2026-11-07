@@ -80,12 +80,13 @@
   /* gun card stats with skills applied: [{key, label, icon, v, txt, better}] */
   function gunStats(G, w, g) {
     var d = modsDef(g, w), fx = skillFx(G), wfx = (G.ws && G.ws.fx) || {};
-    var dmg = d.damage * (d.pellets || 1) * fx.dmgMul;
+    var lvMul = IB.WeaponDrops && IB.WeaponDrops.dmgMul ? IB.WeaponDrops.dmgMul(w) : 1;   // tier x item level
+    var dmg = (IB.GunLevel ? IB.GunLevel.shotDamage(d) : d.damage * (d.pellets || 1)) * fx.dmgMul * lvMul;
     var rate = d.cycle > 0 ? (d.burst > 1 ? d.burst / d.cycle : 1 / d.cycle) * fx.rateMul : 0;
     var mag = IB.Weapons.magSize({ fx: { magMul: fx.magMul, magLevel: wfx.magLevel || 0 } }, d);
     var rl = d.reload * fx.reloadMul * ((G.fx && G.fx.reloadMul) || 1);
     var acc = Math.max(5, Math.min(99.5, 100 - d.spreadHip * 12));
-    var out = [{ key: 'dmg', label: 'Damage', icon: 'dmg', v: dmg, txt: (d.pellets > 1 ? Math.round(d.damage * fx.dmgMul) + ' x' + d.pellets : String(Math.round(dmg))), better: 'high' }];
+    var out = [{ key: 'dmg', label: 'Damage', icon: 'dmg', v: dmg, txt: (d.pellets > 1 ? Math.round(d.damage * fx.dmgMul * lvMul) + ' x' + d.pellets : d.missiles > 1 ? Math.round(dmg / d.missiles) + ' x' + d.missiles : String(Math.round(dmg))), better: 'high' }];
     if (d.spreadHip > 0) out.push({ key: 'acc', label: 'Accuracy', icon: 'acc', v: acc, txt: acc.toFixed(1), better: 'high' });
     if (rate > 0) out.push({ key: 'rate', label: 'Fire rate', icon: 'rate', v: rate, txt: rate.toFixed(1) + '/s', better: 'high' });
     if (d.reload > 0) out.push({ key: 'reload', label: 'Reload', icon: 'reload', v: rl, txt: rl.toFixed(1) + ' s', better: 'low' });
@@ -157,10 +158,19 @@
     if (spec.k === 'gun') {
       var w = spec.id, def = IB.WEAPONS[w]; if (!def) return cardFor(G, g, null);
       var at = lo.indexOf(w), st = gunStats(G, w, g), gr = grade(def), items = IB.Loot.weaponItems(g, w);
-      color = gr.color; title = esc(def.name);
+      var WDg = IB.WeaponDrops, lvE = WDg && WDg.levelOf ? WDg.levelOf(w) : 1, lvO = WDg && WDg.ownLevel ? WDg.ownLevel(w) : lvE;
+      color = gr.color; title = esc(WDg && WDg.nameOf ? WDg.nameOf(w) : def.name);
       var cmpW = at < 0 ? lo[Math.min(S.slot, lo.length - 1)] : null, vs = cmpW && cmpW !== w ? gunStats(G, cmpW, g).lines : null;
-      req = (at >= 0 ? svg(CHECK, 'g24 ic-check') : '') + '<span>' + gr.name + ' ' + esc(clsName(def.cls)) + '</span><span>Lv ' + (def.unlock || 1) + '</span>';
+      req = (at >= 0 ? svg(CHECK, 'g24 ic-check') : '') + '<span>' + gr.name + ' ' + esc(clsName(def.cls)) + '</span><span>Lv ' + lvE + '</span>';
       var notes = [];
+      if (lvE > lvO) notes.push('Kept in step: counts as Lv ' + lvE + ' (found at Lv ' + lvO + ')');
+      if (def.ammo) {
+        var rl0 = WDg && WDg.rollOf ? WDg.rollOf(w) : null, el0 = rl0 && def.elements && IB.GunLevel ? IB.GunLevel.element(rl0.elem) : null;
+        if (el0) notes.push(el0.name ? el0.name + ' rockets: ' + ({ boom: 'bigger blast + bomblets', shock: 'shock over time, arcs to 2-3 robots', acid: 'acid over time + an acid pool' }[el0.id] || '') : 'Plain rockets (no element)');
+        if (def.launcher === 'homing') notes.push('Locks up to ' + def.locks + ' targets in front, ' + def.missiles + ' homing missiles a salvo');
+        notes.push('Rocket ammo: ' + (def.ammoPer || 1) + ' a ' + (def.missiles ? 'salvo' : 'shot') + ' · soldiers drop rocket crates');
+        notes.push('Launchers take no mods');
+      }
       if (st.def.acid) notes.push('Acid +' + Math.round(st.def.acid * 100) + '% of each hit over ' + st.def.acidDur.toFixed(1) + ' s');
       if (st.fx.shock) notes.push('Shock rounds');
       if (st.def.optic) notes.push('Scope ' + (1 / st.def.aimZoom).toFixed(1) + 'x zoom');
@@ -274,7 +284,7 @@
       rows += '<div class="inv-wrow' + (sel ? ' cur' : '') + '"><span class="inv-num">' + (i + 1) + '</span>' +
         '<button class="tile lo-slot inv-wslot' + (def ? '' : ' empty') + (sel ? ' sel' : '') + '"' + (gr ? ' style="--rar:' + gr.color + '"' : '') + ' data-gact="slot" data-slot="' + i + '" data-k="s' + i + '" data-nav aria-pressed="' + sel + '" aria-label="Slot ' + (i + 1) + ': ' + (def ? esc(def.name) : 'empty') + '">' + FR +
           (def ? gunPic(w, 'ws-pic') + '<span class="ws-name">' + esc(def.name) + '</span>' : '<span class="ws-plus" aria-hidden="true">+</span><span class="ws-name">' + (touch() ? 'Tap' : 'Pick') + ' a gun</span>') +
-        '</button>' + (chips ? '<div class="inv-chips n' + slots.length + '">' + chips + '</div>' : '') + '</div>';
+        '</button>' + (chips ? '<div class="inv-chips n' + slots.length + '">' + chips + '</div>' : def && def.noMods ? '<div class="inv-chips n1"><span class="gu-nofit">Launchers take no mods</span></div>' : '') + '</div>';
     }
     var worn = IB.LOOT.worn.map(function (sl) { return '<div class="inv-gear"><span class="inv-gl">' + svg(sl === 'shield' ? SI.cap : SI[sl] || SI.cap) + '</span>' + wornTile(G, g, sl) + '</div>'; }).join('');
     var gems = String((G.slot && G.slot.gems) || 0);

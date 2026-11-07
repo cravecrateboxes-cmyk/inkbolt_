@@ -280,6 +280,8 @@
     if (AI()) AI().cloaked = false;
     if (SF.mesh) { SF.mesh.count = 0; SF.mesh.visible = false; }
   };
+  // a launcher's Acid rocket (game/launchers.js): an acid pool of its own size and life, whatever the skills
+  SF.acidPool = function (x, z, dps, life, R) { if (!SF.fx) return null; var q = addPool(x, z, dps); if (life) q.life = q.t + life; if (R) q.R = R; return q; };
   SF.activePools = function () { return SF.pools.filter(function (p) { return p.on; }).length; };
   SF.activeCoats = function () { return SF.coats.filter(function (c) { return c.on; }).length; };
 

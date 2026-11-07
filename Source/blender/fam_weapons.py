@@ -33,7 +33,8 @@ ib_lib.PALETTES['weapons'] = [(n, _LIFT.get(n, h)) for n, h in BASE] + [
     ('sleeve', '#8273C4'), ('sleeve2', '#9B8EDB'), ('sleeve3', '#6A5CAA'),
     ('chip', '#FFFFFF'), ('chip2', '#DCDCE6'), ('ammo', '#2F7BEA'), ('ammo2', '#1E559F'), ('ammo3', '#5C98F0'),
     ('health', '#5BCF4A'), ('health2', '#3E9C33'), ('health3', '#86E078'),
-    ('glove4', '#4A465E')]   # moulded glove armour: knuckle / thumb pads, reinforced fingertips
+    ('glove4', '#4A465E'),   # moulded glove armour: knuckle / thumb pads, reinforced fingertips
+    ('olive', '#7C8A3E'), ('olive2', '#5C672C'), ('olive3', '#A2B060')]   # rocket ammo crate
 
 import os
 DEBUG = {} if os.environ.get('IB_DEBUG') else None
@@ -1233,6 +1234,107 @@ def build_railspike(pal):
                    'sight': (0, -0.175, sz), 'scope': (0, -0.160, sz), 'cls': 'sniper', 'guard': (0, 0.300, bz - 0.020)}
 
 
+# ================================================================ launchers (round 5): no mods fit them (src/data/weapons.js noMods)
+def launcher_frame(k, rake, fore_y, fore_top):
+    """Shared lower: frame block under the tube / housing, AR grip, guard, trigger, a vertical foregrip on a lug."""
+    k.cbox((0, 0.040, 0.012), (0.040, 0.190, 0.044), 'gun2', ch=0.004, axis='y')                     # frame, z -0.010..0.034
+    trigger_guard(k, rake, front=0.066, depth=-0.052, w=0.012, top=-0.004, hook=False)
+    trigger(k, rake, ext=0.006)
+    grip(k, rake, 'ar', w=0.034, top=0.000, ptop=-0.036, grooves=2)
+    k.cbox((0, fore_y, fore_top + 0.003), (0.040, 0.044, 0.014), 'gun2', ch=0.003, axis='y')         # foregrip lug
+    vgrip(k, fore_y, fore_top, length=0.074, r=0.016, seg=8)
+
+
+def build_hothead(pal):
+    """RL-3 Hothead: a fat comic rocket tube on a pistol-grip frame. Flared red muzzle bell, venturi exhaust, hazard
+    rings, flip-up ring sights, a caged element canister on the left (the game lights its core in the element's
+    colour at the ELEM socket) and a 3-rocket cassette (the Mag) under the tube."""
+    rake = 18
+    k = Kit(pal)
+    bz, R = 0.074, 0.046
+    k.lathe([(-0.262, 0), (-0.262, R - 0.006), (-0.254, R), (0.296, R), (0.296, 0)], 'gun3', 'y', (0, 0, bz), 16)        # tube
+    k.lathe([(-0.240, 0), (-0.240, 0.034), (-0.300, 0.040), (-0.336, 0.054), (-0.344, 0.054), (-0.344, 0.045), (-0.304, 0.030), (-0.304, 0)],
+            'gunmetal', 'y', (0, 0, bz), 14, bands=[None, None, None, None, 'ink', 'ink', 'ink'])                            # venturi
+    k.lathe([(0.286, 0), (0.286, 0.051), (0.326, 0.055), (0.366, 0.063), (0.378, 0.063), (0.378, 0.051), (0.334, 0.040), (0.334, 0)],
+            'red', 'y', (0, 0, bz), 16, bands=[None, None, None, None, 'ink', 'ink', 'ink'])                                 # muzzle bell
+    for y in (0.196, 0.226, -0.214):
+        k.ring('y', (0, 0, bz), y, y + 0.016, R - 0.010, R + 0.0045, 'amber', seg=16, hull=False)
+    k.ring('y', (0, 0, bz), 0.150, 0.162, R - 0.010, R + 0.0040, 'ink', seg=16, hull=False)
+    # caged element canister (left side): dark core, three bars, two end caps; ELEM socket at its centre
+    cx, cz = -(R + 0.010), bz - 0.004
+    k.lathe([(-0.082, 0), (-0.082, 0.023), (-0.066, 0.023), (-0.066, 0)], 'gunmetal', 'y', (cx, 0, cz), 10)
+    k.lathe([(0.066, 0), (0.066, 0.023), (0.082, 0.023), (0.082, 0)], 'gunmetal', 'y', (cx, 0, cz), 10)
+    k.lathe([(-0.068, 0), (-0.068, 0.008), (0.068, 0.008), (0.068, 0)], 'ink', 'y', (cx, 0, cz), 8, hull=False)
+    for a in (100, 180, 260):
+        aa = D(a)
+        k.cbox((cx + 0.0168 * math.cos(aa), 0.0, cz + 0.0168 * math.sin(aa)), (0.004, 0.134, 0.004), 'steel2', ch=0, hull=True)
+    k.cbox((cx + 0.010, 0.0, cz), (0.014, 0.120, 0.014), 'gunmetal', ch=0.002, axis='y', hull=False)                    # saddle onto the tube
+    # sights: rear aperture, front ring on posts
+    zs = bz + R + 0.028
+    k.cbox((0, -0.150, 0.12825), (0.022, 0.032, 0.0245), 'gunmetal', ch=0.003, axis='y')
+    k.ring('y', (0, 0, zs), -0.156, -0.148, 0.0040, 0.0085, 'gunmetal', seg=8, hull=True)
+    k.cbox((0, 0.120, 0.1278), (0.012, 0.018, 0.0235), 'gunmetal', ch=0.002, axis='y')
+    k.ring('y', (0, 0, zs), 0.116, 0.124, 0.0120, 0.0165, 'amber', seg=12, hull=True)
+    # arming lever (rear left) and a shoulder pad under the rear of the tube
+    k.cbox((-0.034, -0.110, bz - 0.040), (0.012, 0.036, 0.012), 'gun3', ch=0.002, axis='y')
+    k.cbox((0, -0.190, 0.025), (0.034, 0.090, 0.020), 'gun2', ch=0.005, axis='y')
+    launcher_frame(k, rake, 0.205, 0.024)
+    stripe(k, -0.020, 0.090, 0.012, 0.018, 0.023)
+    # 3-rocket cassette: box with three red warheads peeking out of its nose
+    mk = Kit(pal)
+    mk.cbox((0, 0.0, -0.026), (0.046, 0.074, 0.070), 'gun2', ch=0.004, axis='x')
+    mk.box((0, 0.0, -0.022), (0.052, 0.056, 0.012), 'amber')
+    mk.cbox((0, 0.0, -0.064), (0.052, 0.082, 0.010), 'gun3', ch=0.003, axis='z')
+    for i in (-1, 0, 1):
+        mk.lathe([(0.030, 0), (0.030, 0.0062), (0.044, 0.0058), (0.052, 0)], 'red', 'y', (i * 0.0140, 0, -0.044), 8, hull=False)
+    return k, mk, {'rake': rake, 'mrake': 0, 'mag': (0, 0.110, -0.010), 'muzzle': (0, 0.384, bz), 'eject': (-0.03, -0.10, bz),
+                   'sight': (0, -0.165, zs), 'elem': (cx, 0.0, cz), 'cls': 'rocket', 'fore': (0.205, 0.024)}
+
+
+def build_murmur(pal):
+    """ML-6 Murmur: a boxy homing launcher. Six missile tubes in the nose (red tips inside), a seeker dome and antenna
+    on top, amber stripes and vents down the sides, a missile cassette (the Mag) under the housing."""
+    rake = 18
+    k = Kit(pal)
+    bz = 0.076
+    k.cbox((0, 0.060, bz), (0.092, 0.420, 0.088), 'gun3', ch=0.008, axis='y')                          # housing x +-0.046, z .032-.120
+    k.cbox((0, 0.274, bz), (0.084, 0.012, 0.080), 'gunmetal', ch=0.004, axis='y')                      # nose plate, front y .280
+    for x in (-0.026, 0.0, 0.026):
+        for z in (bz - 0.019, bz + 0.019):
+            k.ring('y', (x, 0, z), 0.272, 0.292, 0.0082, 0.0118, 'steel2', seg=8)
+            k.lathe([(0.283, 0), (0.283, 0.0090), (0.285, 0.0090), (0.285, 0.0055), (0.291, 0)], 'ink', 'y', (x, 0, z), 8, hull=False,
+                    bands=[None, None, None, 'red'])                                                       # bore + missile tip
+    k.box((0, 0.120, bz - 0.026), (0.098, 0.120, 0.010), 'amber')                                       # side stripes
+    k.box((0, -0.060, bz - 0.026), (0.098, 0.040, 0.010), 'ink')
+    for i in range(4):
+        k.box((-0.0465, -0.100 + i * 0.026, bz + 0.020), (0.008, 0.012, 0.030), 'ink', skip=('+x',))   # vents (left)
+    k.box((0, -0.152, bz), (0.070, 0.008, 0.060), 'ink', skip=('+y',))                                 # rear exhaust grille
+    for z in (bz - 0.018, bz, bz + 0.018):
+        k.box((0, -0.159, z), (0.064, 0.010, 0.006), 'steel2')
+    # seeker dome (top right) and antenna (top left rear)
+    k.lathe([(0, 0), (0, 0.024), (0.006, 0.024), (0.006, 0)], 'gunmetal', 'z', (0.020, 0.150, 0.118), 10)
+    k.lathe([(0.004, 0.019), (0.014, 0.016), (0.021, 0.009), (0.024, 0)], 'lens', 'z', (0.020, 0.150, 0.118), 10, hull=True)
+    k.bar((-0.030, -0.120, 0.118), (-0.030, -0.120, 0.170), 0.004, 0.004, 'ink', hull=True)
+    k.cbox((-0.030, -0.120, 0.172), (0.009, 0.009, 0.009), 'red', ch=0.002)
+    # sights on the housing top
+    zs = 0.120 + 0.024
+    k.cbox((0, -0.120, 0.12575), (0.022, 0.028, 0.0235), 'gunmetal', ch=0.003, axis='y')
+    k.ring('y', (0, 0, zs), -0.126, -0.118, 0.0040, 0.0085, 'gunmetal', seg=8, hull=True)
+    k.cbox((0, 0.240, 0.12625), (0.012, 0.016, 0.0205), 'gunmetal', ch=0.002, axis='y')
+    k.ring('y', (0, 0, zs), 0.236, 0.244, 0.0110, 0.0155, 'amber', seg=12, hull=True)
+    launcher_frame(k, rake, 0.200, 0.026)
+    # missile cassette: a flat box with an amber label band and a pull tab
+    mk = Kit(pal)
+    mk.cbox((0, 0.0, -0.022), (0.050, 0.080, 0.064), 'gun2', ch=0.004, axis='x')
+    mk.box((0, 0.0, -0.024), (0.056, 0.060, 0.014), 'amber')
+    for i in (-1, 1):
+        mk.box((0, i * 0.018, -0.024), (0.062, 0.006, 0.020), 'ink')
+    mk.cbox((0, 0.0, -0.058), (0.056, 0.086, 0.010), 'gun3', ch=0.003, axis='z')
+    mk.cbox((0, 0.0, -0.066), (0.022, 0.040, 0.010), 'red', ch=0.002, axis='y')
+    return k, mk, {'rake': rake, 'mrake': 0, 'mag': (0, 0.110, -0.010), 'muzzle': (0, 0.292, bz), 'eject': (-0.03, -0.10, bz),
+                   'sight': (0, -0.135, zs), 'cls': 'rocket', 'fore': (0.200, 0.026)}
+
+
 # ================================================================ melee (round 3): struck with V; the gun is put away for the swing
 # Weapon space for a melee weapon: the handle runs along the grip axis (+Z up), the hand's web at the origin (top of the
 # handle, under the guard), the edge faces +Y. rake 0, so the hand frame IS the weapon frame. Two-handed weapons
@@ -1387,7 +1489,7 @@ def build_held(pal):
 GUNS = {'PIP': build_pip, 'HANDCANNON': build_handcannon, 'TWINTAP': build_twintap, 'BUZZ': build_buzz, 'WHISK': build_whisk,
         'HORNET': build_hornet, 'RIVET': build_rivet, 'TRIPLET': build_triplet, 'LONGTOM': build_longtom, 'BRICK': build_brick,
         'NEEDLE': build_needle, 'SCRAPPER': build_scrapper, 'THUNDER': build_thunder, 'VANGUARD': build_vanguard,
-        'RAILSPIKE': build_railspike, 'KATANA': build_katana, 'EAXE': build_eaxe, 'DAGGER': build_dagger, 'NUNCHUCKS': build_nunchucks}
+        'RAILSPIKE': build_railspike, 'HOTHEAD': build_hothead, 'MURMUR': build_murmur, 'KATANA': build_katana, 'EAXE': build_eaxe, 'DAGGER': build_dagger, 'NUNCHUCKS': build_nunchucks}
 MELEE = [w for w in ('KATANA', 'EAXE', 'DAGGER', 'NUNCHUCKS')]
 
 
@@ -1415,6 +1517,8 @@ def build_weapon_meshes(pal):
         socket('WPN_%s_SIGHT' % wid, o, info['sight'])
         if 'scope' in info:
             socket('WPN_%s_SCOPE' % wid, o, info['scope'])
+        if 'elem' in info:
+            socket('WPN_%s_ELEM' % wid, o, info['elem'])
 
 
 # ================================================================ arms: gloves, sleeves, 22-bone rig
@@ -2382,6 +2486,9 @@ ANIM = {
     'THUNDER': {'fire': 60 / 240, 'reload': 2.6, 'style': 'rifle', 'heavy': 0.9, 'charge': ((-0.030, -0.010, 0.050), (0, -0.060, 0))},
     'VANGUARD': {'fire': 60 / 480, 'reload': 2.3, 'style': 'rifle', 'heavy': 0.5, 'charge': ((-0.036, 0.090, 0.046), (0, -0.050, 0))},
     'RAILSPIKE': {'fire': 60 / 70, 'reload': 2.6, 'style': 'rifle', 'heavy': 1.0, 'charge': ((0, -0.120, 0.050), (0, -0.040, 0))},
+    # round 5 launchers: the support hand swaps the cassette under the frame, then works the arming lever / housing latch
+    'HOTHEAD': {'fire': 60 / 120, 'reload': 3.2, 'style': 'rifle', 'heavy': 1.3, 'charge': ((-0.034, -0.110, 0.034), (0, -0.040, 0))},
+    'MURMUR': {'fire': 1.0, 'reload': 3.4, 'style': 'rifle', 'heavy': 1.6, 'charge': ((-0.046, -0.040, 0.090), (0, -0.040, 0))},
 }
 
 # ---------------------------------------------------------------- handling: data-driven per weapon class
@@ -2448,6 +2555,7 @@ HANDLING = {
     'rifle': {},
     'shotgun': {'kick': {'loc': (0.0, -0.024, 0.006), 'rot': (7.0, 1.0, 0.0), 'recover': ((0.0, 0.003, -0.001), (-1.4, 0.0, 0.0))}},
     'melee': {'carry': (0.0, -0.02, 0.0)},
+    'rocket': {'carry': (0.0, -0.08, -0.010), 'kick': {'loc': (0.0, -0.030, 0.008), 'rot': (8.0, 1.2, 0.0), 'recover': ((0.0, 0.004, -0.001), (-1.6, 0.0, 0.0))}},
     'sniper': {'carry': (0.0, -0.17, -0.010), 'kick': {'loc': (0.0, -0.022, 0.004), 'rot': (5.0, 0.8, 0.0), 'recover': ((0.0, 0.003, -0.001), (-1.0, 0.0, 0.0))}},
 }
 HANDLING_FALLBACK = 'rifle'
@@ -3084,6 +3192,34 @@ def build_pickups(pal):
     plus = [(b, -a), (b, -b), (a, -b), (a, b), (b, b), (b, a), (-b, a), (-b, b), (-a, b), (-a, -b), (-b, -b), (-b, -a)]
     k.ext_y(plus, -0.20, -0.17, 'paper', z=0.25, hull=False)
     finish('PICKUP_Health', k, ht=0.018)
+    # rocket ammo crate (launchers only; soldiers drop it): olive crate, rope handles, a stencilled rocket on the
+    # front, two red-tipped rockets strapped on the lid
+    k = Kit(pal)
+    k.cbox((0, 0, 0.17), (0.66, 0.40, 0.34), 'olive', ch=0.03, axis='z')
+    k.cbox((0, 0, 0.355), (0.70, 0.44, 0.06), 'olive2', ch=0.02, axis='z')
+    k.box((0, 0, 0.10), (0.72, 0.46, 0.05), 'olive2')
+    for x in (-0.24, 0.24):
+        k.box((x, 0, 0.21), (0.05, 0.47, 0.25), 'olive2')
+    k.box((0, -0.205, 0.21), (0.30, 0.03, 0.16), 'paper', hull=False)
+    k.box((-0.02, -0.225, 0.21), (0.16, 0.02, 0.04), 'red', hull=False)          # stencil: rocket body
+    k.box((0.075, -0.225, 0.21), (0.04, 0.03, 0.025), 'ink', hull=False)         # nose
+    k.box((-0.11, -0.225, 0.21), (0.03, 0.026, 0.08), 'ink', hull=False)         # fins
+    for y in (-0.08, 0.08):
+        k.lathe([(-0.26, 0), (-0.26, 0.042), (0.16, 0.042), (0.21, 0.030), (0.25, 0)], 'paper', 'x', (0, y, 0.425), 8,
+                bands=[None, None, 'red', 'red'])
+        k.ring('x', (0, y, 0.425), -0.20, -0.17, 0.038, 0.048, 'amber', seg=8, hull=False)
+    k.box((0, 0, 0.425), (0.06, 0.32, 0.10), 'ink')                                 # strap
+    finish('PICKUP_Rockets', k, ht=0.018)
+    # launcher round in flight (game/launchers.js scales it per launcher): paper body, red warhead, ink fins, amber band
+    k = Kit(pal)
+    k.lathe([(-0.22, 0), (-0.22, 0.050), (0.14, 0.055), (0.20, 0.050), (0.29, 0)], 'paper', 'y', (0, 0, 0), 8,
+            bands=[None, None, 'red', 'red'])
+    k.ring('y', (0, 0, 0), -0.06, -0.02, 0.040, 0.056, 'amber', seg=8, hull=False)
+    for a in (45, 135, 225, 315):
+        with k.at((0, 0, 0), (0, a, 0)):
+            k.box((0.055, -0.16, 0), (0.07, 0.10, 0.012), 'ink', hull=True)
+    k.lathe([(-0.26, 0), (-0.26, 0.032), (-0.21, 0.036), (-0.21, 0)], 'gunmetal', 'y', (0, 0, 0), 8, bands=['ink', None, None])
+    finish('PROJ_Rocket', k, ht=0.012)
 
 
 def hold_socket(rig):

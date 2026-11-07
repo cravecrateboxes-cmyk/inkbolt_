@@ -451,7 +451,8 @@ async function round4Run(browser, base) {
   // a purple Vanguard lands in front: walking over it adds it to the arsenal at that tier
   await pg.evaluate(() => { IB.WeaponDrops.testDrop('vanguard', 'purple'); const d = IB.WeaponDrops.live()[0], p = IB.Game.player; setTimeout(() => { p.x = d.x; p.z = d.z; }, 900); });
   check('a dropped gun joins the arsenal at its tier', await until(pg, () => IB.Game.slot.arsenal.includes('vanguard') && IB.Game.slot.gunTier.vanguard === 'purple', null, 30000));
-  check('its tier raises its damage (purple x1.22)', await pg.evaluate(() => Math.abs(IB.WeaponDrops.dmgMul('vanguard') - 1.22) < 1e-9));
+  check('its tier raises its damage (purple x1.22, x its item level)', await pg.evaluate(() => IB.WeaponDrops.tierOf('vanguard').dmg === 1.22 && IB.WeaponDrops.ownLevel('vanguard') === IB.Game.plan.level &&
+    Math.abs(IB.WeaponDrops.dmgMul('vanguard') - 1.22 * IB.GunLevel.mul(IB.WeaponDrops.levelOf('vanguard'))) < 1e-9));
   await pg.evaluate(() => { IB.Game.slot.melee = ['dagger']; IB.Game.slot.meleeSel = 'dagger'; IB.WeaponDrops.testDrop('katana', null, true); const d = IB.WeaponDrops.live()[0], p = IB.Game.player; setTimeout(() => { p.x = d.x; p.z = d.z; }, 900); });
   const kat = await until(pg, () => IB.Game.slot.melee.includes('katana') && IB.Game.meleeId() === 'katana', null, 30000);
   check('a dropped katana goes on V', kat, kat ? '' : await pg.evaluate(() => JSON.stringify({ live: IB.WeaponDrops.live(), p: [IB.Game.player.x, IB.Game.player.y, IB.Game.player.z], m: IB.Game.slot.melee, sel: IB.Game.slot.meleeSel })));
@@ -917,6 +918,125 @@ async function vfxRun(browser, base) {
   await pg.context().close();
 }
 
+// launchers (round 5): gun levels on drops, both launchers fire, Murmur locks, splash, capped self damage, rocket ammo
+// pool + Murmur's 2-rocket salvos, the director's crates from soldiers, no mods, saves
+async function launcherRun(browser, base) {
+  const pg = await newPage(browser, base + '?autotest=1&plan=mall');
+  await until(pg, () => IB.Game.run.started, null, 8000);
+  const wait = ms => pg.waitForTimeout(ms);
+  // gun levels: a gray Lv 14 pistol beats the Lv 1 starter and replaces it; a worse one turns into gems
+  const lv = await pg.evaluate(() => {
+    const G = IB.Game, WD = IB.WeaponDrops; G.player.protect = 999;
+    const before = WD.ownLevel('pip');
+    WD.testDrop('pip', 'gray', false, 14); const d = WD.live().pop(); G.player.x = d.x; G.player.z = d.z; return { before, lvl: G.plan.level };
+  });
+  await until(pg, () => IB.WeaponDrops.live().length === 0, null, 8000);
+  const lv2 = await pg.evaluate(() => ({ own: IB.WeaponDrops.ownLevel('pip'), eff: IB.WeaponDrops.levelOf('pip'), mul: IB.WeaponDrops.dmgMul('pip') }));
+  check('a Lv 14 gun drop replaces a Lv 1 one (damage x level)', lv.before === 1 && lv2.own === 14 && Math.abs(lv2.mul - IB_mul(14)) < 1e-6, JSON.stringify([lv, lv2]));
+  // a launcher drop: joins the backpack with its roll and a magazine of rockets
+  await pg.evaluate(() => { IB.WeaponDrops.testDrop('hothead', 'blue', false, 14, { mag: 5, elem: 'acid' }); const d = IB.WeaponDrops.live().pop(), p = IB.Game.player; p.x = d.x; p.z = d.z; });
+  await until(pg, () => IB.WeaponDrops.live().length === 0, null, 8000);
+  const got = await pg.evaluate(() => { const s = IB.Game.slot; return { has: s.arsenal.includes('hothead'), roll: s.gunRoll.hothead, lv: s.gunLevel.hothead, rockets: s.rockets }; });
+  check('a launcher drop joins the arsenal with its magazine roll, element, level and rockets', got.has && got.roll.mag === 5 && got.roll.elem === 'acid' && got.lv === 14 && got.rockets >= 5, JSON.stringify(got));
+  // in-page wait for a condition (the headless GPU runs the game well below real time)
+  await pg.evaluate(() => { window.__poll = (f, ms) => new Promise(done => { const t0 = performance.now(); (function k() { let v = false; try { v = f(); } catch (e) { v = false; } if (v || performance.now() - t0 > ms) return done(!!v); setTimeout(k, 100); })(); }); });
+  // Hothead: direct hit + splash on the robot next to it
+  const hh = await pg.evaluate(async () => {
+    const T = __TEST__, p = IB.Game.player; T.giveLauncher('hothead', { mag: 4, elem: 'none', rockets: 8 });
+    const a = T.spawnRobot('gunner', p.x, p.z - 11), b = T.spawnRobot('gunner', p.x + 1.6, p.z - 11);
+    T.look(0, -0.06);
+    await __poll(() => false, 300);
+    // gunners keep their distance: aim straight at the first one just before the shot
+    const ra = IB.AI.types.gunner.slots[a], v = IB.AI.VIS.gunner, eye = IB.Render.camera.position;
+    T.look(Math.atan2(-(ra.x - p.x), -(ra.z - p.z)), Math.atan2(ra.y + (v.y0 + v.y1) / 2 - eye.y, Math.hypot(ra.x - p.x, ra.z - p.z)));
+    await __poll(() => false, 200);
+    const ha = T.robot('gunner', a).hp, hb = T.robot('gunner', b).hp, fired = T.fireLauncher(), mag = T.launcherState().mag;
+    await __poll(() => T.launcherState().stats.blasts >= 1 && T.launcherState().inFlight === 0, 25000);
+    if (T.launcherState().stats.robotHits < 2 && T.robot('gunner', a).on) {   // it walked out of the way: one more, aimed again
+      const rb = IB.AI.types.gunner.slots[a];
+      T.look(Math.atan2(-(rb.x - p.x), -(rb.z - p.z)), Math.atan2(rb.y + (v.y0 + v.y1) / 2 - eye.y, Math.hypot(rb.x - p.x, rb.z - p.z)));
+      await __poll(() => false, 200); T.fireLauncher();
+      await __poll(() => T.launcherState().stats.blasts >= 2 && T.launcherState().inFlight === 0, 25000);
+    }
+    return { fired, ha, hb, mag, a: T.robot('gunner', a), b: T.robot('gunner', b), s: T.launcherState(), p: [p.x, p.y, p.z, p.yaw, p.pitch] };
+  });
+  check('Hothead fires a rocket that blasts: direct hit + splash (2+ robot hits)', hh.fired && hh.s.stats.blasts >= 1 && (!hh.a.on || hh.a.hp < hh.ha) && hh.s.stats.robotHits >= 2 && hh.mag === 3,
+    JSON.stringify({ ha: hh.ha, a: hh.a, hb: hh.hb, b: hh.b, st: hh.s.stats, mag: hh.mag, p: hh.p }));
+  // self damage: a rocket into the floor at the feet costs at most a frag's 35
+  const self = await pg.evaluate(async () => {
+    const T = __TEST__, G = IB.Game; G.player.protect = 0; G.player.health = G.player.maxHp; const h0 = G.player.health;
+    if (G.player.shield) G.player.shield.cur = 0;
+    T.look(0, -1.45); await __poll(() => false, 500); T.fireLauncher();
+    await __poll(() => T.launcherState().stats.selfDamage > 0, 20000);
+    const d = h0 - G.player.health; G.player.protect = 999; G.player.health = G.player.maxHp;
+    return { d, self: T.launcherState().stats.selfDamage };
+  });
+  check('self damage from your own rocket is capped (<= 35)', self.self > 0 && self.self <= 35.01 && self.d <= 35.01, JSON.stringify(self));
+  // Murmur: locks on the robots in front, six missiles, all blow up
+  const mm = await pg.evaluate(async () => {
+    const T = __TEST__, G = IB.Game, p = G.player; T.look(0, -0.04);
+    await __poll(() => T.launcherState().inFlight === 0, 20000);
+    IB.AI.robots.forEach(r => { if (r.on) IB.AI.kill(r, null, true); });
+    T.giveLauncher('murmur', { mag: 3, rockets: 4 });
+    [['gunner', -4], ['gunner', 0], ['gunner', 4]].forEach(([t, dx]) => T.spawnRobot(t, p.x + dx, p.z - 15));
+    await __poll(() => false, 500);
+    const locks = T.computeLocks(), s0 = T.launcherState().stats.blasts, fired = T.fireLauncher(), s1 = T.launcherState();
+    await __poll(() => T.launcherState().stats.blasts - s0 >= 6 && T.launcherState().inFlight === 0, 30000);
+    return { locks, fired, live: s1.locks, inFlight: s1.inFlight, blasts: T.launcherState().stats.blasts - s0 };
+  });
+  check('Murmur locks every robot in front (spots fill the rest to 5)', mm.locks.length === 5 && mm.locks.filter(k => k.robot).length >= 2, JSON.stringify(mm.locks.map(k => k.type)));
+  check('Murmur fires 6 homing missiles with lock brackets; they all blow up', mm.fired && mm.live >= 5 && mm.inFlight === 6 && mm.blasts >= 6, JSON.stringify({ live: mm.live, inFlight: mm.inFlight, blasts: mm.blasts }));
+  // a Murmur salvo takes 2 rockets: 4 spare rockets reload 2 salvos
+  const rl = await pg.evaluate(async () => {
+    const T = __TEST__, G = IB.Game, g = IB.Weapons.current(G.ws); g.mag = 0; T.setRockets(4); G.ws.state = 'idle';
+    IB.Weapons.reload(G.ws);
+    await __poll(() => G.ws.state !== 'reload', 40000);
+    return { mag: g.mag, pool: T.launcherState().pool, state: G.ws.state };
+  });
+  check('Murmur reload: 2 rockets a salvo, from the shared rocket pool', rl.mag === 2 && rl.pool === 0, JSON.stringify(rl));
+  // ammo boxes never give rockets
+  const box = await pg.evaluate(() => { const T = __TEST__; T.setRockets(1); IB.Weapons.addAmmo(IB.Game.ws, 0.5); IB.Weapons.refill(IB.Game.ws); return T.launcherState().pool; });
+  check('normal ammo boxes and respawn refills never give rockets', box === 1, String(box));
+  // director: carried launcher, almost no rockets -> soldiers drop a crate within a few kills; walking over it fills the pool
+  const dir = await pg.evaluate(() => {
+    const T = __TEST__, G = IB.Game; T.clearCrates(); T.setRockets(0);
+    Object.keys(G.ws.guns).forEach(id => { if (G.ws.guns[id].def.ammo) G.ws.guns[id].mag = 0; });
+    Object.keys(G.bank || {}).forEach(id => { if (IB.WEAPONS[id] && IB.WEAPONS[id].ammo) G.bank[id].mag = 0; });
+    let k = 0; while (T.launcherState().crates.length === 0 && k < 12) { T.soldierKill(); k++; }
+    return { kills: k, s: T.launcherState() };
+  });
+  check('rocket ammo director: a starving launcher gets a rocket crate from soldiers', dir.s.crates.length === 1 && dir.kills <= IB_pity() && dir.s.crates[0].n >= 2, JSON.stringify({ kills: dir.kills, crates: dir.s.crates, need: dir.s.need }));
+  await pg.evaluate(() => { const c = __TEST__.launcherState().crates[0], p = IB.Game.player; p.x = c.x; p.z = c.z; });
+  await wait(1200);
+  const pick = await pg.evaluate(() => __TEST__.launcherState());
+  check('walking over a rocket crate adds its rockets', pick.pool >= 2 && pick.crates.length === 0, JSON.stringify({ pool: pick.pool, crates: pick.crates }));
+  const none = await pg.evaluate(() => {
+    const T = __TEST__, G = IB.Game, s = G.slot; T.clearCrates();
+    const keep = s.arsenal.slice(); s.arsenal = s.arsenal.filter(id => !IB.WEAPONS[id].ammo);
+    const lo = s.loadout.slice(); s.loadout = s.loadout.filter(id => !IB.WEAPONS[id].ammo); if (!s.loadout.length) s.loadout = ['pip'];
+    IB.Weapons.setLoadout(G.ws, s.loadout, G.bank);
+    for (let k = 0; k < 40; k++) T.soldierKill();
+    const n = T.launcherState().crates.length; s.arsenal = keep; s.loadout = lo; IB.Weapons.setLoadout(G.ws, lo, G.bank); return n;
+  });
+  check('no rocket crates without a launcher', none === 0, String(none));
+  // no mods on launchers, and the card says so
+  const mods = await pg.evaluate(() => { const it = IB.Loot.makeItem('grip', 'epic', 14, Math.random); return { slots: IB.Loot.slotsFor('hothead', IB.WEAPONS.hothead).length, fit: IB.Loot.compatible(it, 'murmur', IB.WEAPONS.murmur) }; });
+  check('launchers take no mods (no slots, nothing fits)', mods.slots === 0 && mods.fit === false, JSON.stringify(mods));
+  await pg.evaluate(() => { __TEST__.giveLauncher('hothead', { mag: 5, elem: 'acid', rockets: 6 }); __TEST__.tabMenu(); });
+  await wait(500);
+  const card = await pg.evaluate(() => { const b = document.querySelector('[data-k="s0"]'); if (b) b.click(); return new Promise(d => setTimeout(() => d({ txt: (document.querySelector('.inv-card') || {}).textContent || '', nomods: /no mods/i.test(document.querySelector('.inv-eq') ? document.querySelector('.inv-eq').textContent : '') }), 300)); });
+  check('the launcher card shows its level and element, and the slot says no mods', /Lv 14/.test(card.txt) && /Acid/.test(card.txt) && /no mods/i.test(card.txt) && card.nomods, card.txt.slice(0, 200));
+  await pg.evaluate(() => __TEST__.closeTabMenu());
+  // switching still works, the HUD shows the level, the save keeps rockets and levels
+  await pg.evaluate(async () => { const ws = IB.Game.ws; IB.Weapons.slot(ws, 2); await __poll(() => ws.cur !== 'hothead' && ws.state === 'idle', 15000); IB.Weapons.slot(ws, 1); await __poll(() => ws.cur === 'hothead' && ws.state === 'idle', 15000); });
+  const sv = await pg.evaluate(() => { const G = IB.Game; G.store.save(G.slot); const s = G.store.load(G.slot.id); return { cur: G.ws.cur, hud: document.getElementById('wpnCls').textContent, rockets: s.rockets, total: __TEST__.launcherState().total, lv: s.gunLevel.hothead, roll: s.gunRoll.hothead }; });
+  check('weapon switching with a launcher; HUD shows "Lv"; the save keeps rockets, levels and rolls', sv.cur === 'hothead' && /Lv 14/.test(sv.hud) && sv.rockets === sv.total && sv.lv === 14 && sv.roll.mag === 5, JSON.stringify(sv));
+  check('no console errors or warnings', pg.logs.length === 0, pg.logs.join(' | '));
+  await pg.context().close();
+}
+function IB_mul(L) { return 1 + 0.055 * (L - 1); }
+function IB_pity() { return 4; }
+
 (async () => {
   const server = await serve();
   const base = 'http://localhost:' + server.address().port + '/' + encodeURI(TARGET);
@@ -924,7 +1044,7 @@ async function vfxRun(browser, base) {
   const browser = await chromium.launch({ args: ARGS });
   try {
     // ONLY=lootRun,tabMenuRun runs a subset
-    const runs = { hookRun, deathRun, inputRun, touchRun, tabMenuRun, skillsRun, slideRun, hudRun, lootRun, meleeRun, round4Run, campaignRun, vfxRun };
+    const runs = { hookRun, deathRun, inputRun, touchRun, tabMenuRun, skillsRun, slideRun, hudRun, lootRun, meleeRun, round4Run, campaignRun, vfxRun, launcherRun };
     for (const [name, fn] of Object.entries(runs)) if (!process.env.ONLY || process.env.ONLY.split(',').includes(name)) await fn(browser, base);
   } catch (e) { console.log('FAIL exception ' + e.stack); failures++; }
   await browser.close(); server.close();

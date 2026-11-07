@@ -85,6 +85,35 @@ WEAPON DROPS, MELEE STAMINA, MUZZLE CANS (round 4)
   level 7). Shotguns take the Arc / Boom / Void cans.
   Undercover (F): a quick fade-flicker in, then a dark blue stealth look with every robot outlined in glowing blue.
 
+GUN LEVELS AND LAUNCHERS (round 5; src/core/gunlevel.js, src/game/launchers.js, tests/unit/gunlevel.test.js)
+  Gun levels: every gun has an item level (Lv N on the drop's beam label, the rack prompt, the gun card and the HUD
+  weapon panel). A drop is the campaign level it dropped on; a rack or stand gun the level it was taken on; guns from
+  older saves get the highest level cleared (saved per gun in slot.gunLevel). Damage x (1 + 0.055 (Lv - 1)): x1.72 on
+  14, x2.60 on 30, a little under the robots' health growth (x1.78 / x2.74), so a fresh gray gun kills a robot of its
+  level in about as many hits as on level 1; tier, Upgrade Bench and skills put it ahead. A gun never counts below
+  (player level - 4, the player level capped at the level being played), so old favourites stay usable but new drops
+  are ~8-20% better. Melee weapons ride that floor. A pickup of a gun you own replaces it when tier x level (launchers:
+  also x (mag / base)^0.35) beats yours now; otherwise it is broken down into gems (tier value).
+  Launchers (no mods fit them; from campaign level 14 on, i.e. after level 13 is beaten):
+    RL-3 Hothead: rapid-fire rockets (0.5 s), 3-5 per cassette (rolled per drop), 220 direct + 140 splash (3.2 m),
+      reload 3.2 s, 42 m/s. Element rolled per drop: none (34%), Blast (22%: +30% radius, +10% splash, 3 bomblets),
+      Volt (22%: shock over 3 s, arcs to 3 robots nearby), Acid (22%: acid over 5 s, an acid pool). The element shows in
+      the name (Volt Hothead), the card, the canister glow on the gun and the rocket's trail.
+    ML-6 Murmur: 2-4 salvos per cassette, 2 rockets a salvo; each salvo locks up to 5 robots in a 26 degree cone in
+      front within 60 m (centre of view, close and threatening first; the aim point and spots around it fill the rest),
+      shows red LOCK brackets (dim previews while the Murmur is up), then ripples out 6 homing missiles (48 direct +
+      44 splash, 2.2 m) over the locks; reload 3.4 s.
+    Both: splash x0.5 behind cover, self damage like a frag can (35% of the splash, at most 35). Drops: 0.6% per soldier
+    kill, 0.08% per other robot kill (Hothead 60 / Murmur 40), 3% of armory rack guns; tiers 50/28/15/5.5/1.5%.
+  Rocket ammo: one pool for both (slot.rockets, loaded magazines included; 16 max), never from ammo boxes or respawns.
+    Only soldiers drop rocket crates, through a director: need = how far rockets (plus crates on the map) are below
+    70% of the cap with a launcher carried (30% with one only in the backpack, nothing without one), weighted by rockets
+    fired in the last 90 s; a soldier kill drops a crate with chance 0.4 x need holding 2-5 rockets, a carried launcher
+    short of one shot gets one after at most 4 dry soldier kills, and a level never hands out more than a quarter of
+    its soldiers' count (at least 12). A new launcher comes with one magazine of rockets.
+  Balance (unit-tested): the highest damage per shot of any gun; single-target damage over a magazine + reload
+  1.4-2.2x the best rifle / SMG; a level's rockets (pool + budget) at 2.5 robots per rocket stay under 25% of its robots.
+
 SOLDIERS AND BLADE BOTS (src/game/troops.js, rows in src/data/enemies.js, models in blender/fam_bots.py)
   Soldier (from level 4): an armoured robot trooper. Its shield (the blue row on its health bar, 75% of its health)
   takes damage first and recharges after 3.5 s without a hit. It keeps 7-15 m, strafes and uses cover, fires 4-bolt

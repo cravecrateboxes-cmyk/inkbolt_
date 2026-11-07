@@ -57,6 +57,7 @@
     FX.init(R.scene); AI.init(R.scene); W.init(R.vmScene); IB.Projectiles.init(R.scene);
     if (IB.Throwables) IB.Throwables.init(R.scene);   // frag cans (G)
     if (IB.WeaponDrops) IB.WeaponDrops.init(R.scene);   // tiered gun / melee drops (soldiers, blade bots)
+    if (IB.Launchers) IB.Launchers.init(R.scene);       // launcher rockets, lock markers, rocket crates
     if (IB.Gear) { IB.Gear.init(); IB.Drops.init(R.scene); }   // loot: fps-gear models, world drops
     G.buildLevel();
     G.player = IB.Player.create();
@@ -203,9 +204,10 @@
         if (m.fill < 1 && Math.random() > m.fill) return;   // an empty peg
         var L = { x: m.x, y: m.y, z: m.z, yaw: m.yaw, zone: zi, kind: m.kind, opt: m.opt || null, taken: false }, key;
         if (m.kind === 'gun') {
-          L.id = guns[(Math.random() * guns.length) | 0]; L.tier = rollW(TIERS);
-          var T = WD.tier(L.tier), def = IB.WEAPONS[L.id];
-          L.label = 'Take ' + def.name; L.sub = T.name + ' · x' + T.dmg.toFixed(2) + ' damage'; L.color = T.color;
+          L.id = guns[(Math.random() * guns.length) | 0]; L.tier = rollW(TIERS); L.level = G.plan.level;
+          if (IB.Launchers) IB.Launchers.rackPick(L);   // levels 14+: now and then a launcher on the rack
+          var T = WD.tier(L.tier), def = IB.WEAPONS[L.id], nm = IB.GunLevel ? IB.GunLevel.displayName(def, L.roll) : def.name;
+          L.label = 'Take ' + nm; L.sub = T.name + ' · Lv ' + L.level + ' · x' + (T.dmg * (IB.GunLevel ? IB.GunLevel.mul(L.level) : 1)).toFixed(2) + ' damage'; L.color = T.color;
           key = 'WPN:' + L.id; tags.push(L);
         } else {
           var types = m.kind === 'mod' ? attach : worn;
@@ -261,14 +263,10 @@
     });
     return best;
   }
-  // a rack gun joins the arsenal like a weapon drop: new gun at its tier, a better tier upgrades yours, else gems
-  function takeRackGun(id, tier) {
-    var s = G.slot, WD = IB.WeaponDrops, def = IB.WEAPONS[id], line;
-    s.gunTier = s.gunTier || {}; s.arsenal = s.arsenal || [];
-    var have = s.arsenal.indexOf(id) >= 0, cur = WD.tierOf(id), nt = WD.tier(tier);
-    if (!have) { s.arsenal.push(id); s.owned = s.arsenal.slice(); s.gunTier[id] = nt.id; line = nt.name + ' ' + def.name + ' · in your backpack (Tab)'; }
-    else if (nt.rank > cur.rank) { s.gunTier[id] = nt.id; line = def.name + ' upgraded to ' + nt.name + ' (x' + nt.dmg.toFixed(2) + ' damage)'; }
-    else { s.gems = (s.gems || 0) + nt.gems; line = nt.name + ' ' + def.name + ' · broken down for ' + nt.gems + ' gems'; }
+  // a rack gun joins the arsenal like a weapon drop (IB.WeaponDrops.acquire): new gun at its tier and level, a better
+  // one replaces yours, else gems
+  function takeRackGun(id, tier, level, roll) {
+    var s = G.slot, line = IB.WeaponDrops.acquire(id, tier, level || G.plan.level, roll);
     HUD.toast(line, 2.4);
     if (HUD.gems) HUD.gems(s.gems || 0, true);
     A.play('pickup');
@@ -277,7 +275,7 @@
   }
   function takeLoot(L) {
     var ok;
-    if (L.kind === 'gun') ok = takeRackGun(L.id, L.tier);
+    if (L.kind === 'gun') ok = takeRackGun(L.id, L.tier, L.level, L.roll);
     else ok = IB.Drops && IB.Drops.collect ? IB.Drops.collect({ it: L.item, x: L.x, z: L.z, on: true, fullT: 0, grp: { visible: true } }, G) : false;
     if (!ok) return false;
     L.taken = true; L.im.setMatrixAt(L.idx, _lZ); L.im.instanceMatrix.needsUpdate = true;
@@ -297,6 +295,7 @@
     AI.clear(); FX.clear(); IB.Projectiles.clear(); if (IB.SkillFX) IB.SkillFX.clear();
     if (IB.Throwables) IB.Throwables.clear();
     if (IB.WeaponDrops) IB.WeaponDrops.clear();
+    if (IB.Launchers) IB.Launchers.clear();
     if (IB.Drops) IB.Drops.clear();
     if (IB.Status) IB.Status.clear();
     L.zones.forEach(function (z, i) {
@@ -387,6 +386,7 @@
       return;
     }
     // the gun joins the arsenal; it is carried at once (taking the place of the gun in hand when the loadout is full)
+    if ((G.slot.arsenal || []).indexOf(w.id) < 0) (G.slot.gunLevel = G.slot.gunLevel || {})[w.id] = G.plan.level;   // a stand gun: this level's
     var r = IB.Loadout.pickup(G.slot.loadout || [], G.slot.arsenal || [], IB.Skills.loadoutMax(G.slot.highest), w.id, ws.cur);
     G.slot.arsenal = r.arsenal; G.slot.owned = r.arsenal.slice(); G.slot.loadout = r.loadout;
     if (G.bank) delete G.bank[w.id];   // a fresh gun off the stand comes fully loaded
@@ -534,10 +534,12 @@
     p.speedMul = fx.speedMul || 1; p.jumpMul = fx.jumpMul || 1; p.doubleJump = !!fx.doubleJump;
     p.x = z0.entry.x; p.z = z0.entry.z; p.y = 0; p.yaw = 0; p.pitch = 0;
     grantCleared();
+    if (IB.GunLevel) IB.GunLevel.fill(G.slot);   // guns without an item level (older saves, granted guns) get one
     var owned = syncArmory();
     G.bank = {};
     G.grenades = G.slot.frag ? IB.WEAPONS.frag.carry : 0;
     G.ws = W.create(owned, { magLevel: (G.slot.upgrades && G.slot.upgrades.mag) || 0, magMul: IB.SkillFX.fx.magMul });
+    if (IB.Launchers) IB.Launchers.startLevel(G);   // rocket pool from the save, rolled magazines, ammo director
     applySkillStats(true);
     var first = Object.keys(G.ws.guns).sort(function (a, b) { return IB.WEAPONS[b].slot - IB.WEAPONS[a].slot; })[0] || 'pip';
     W.equip(G.ws, first, true);
@@ -892,6 +894,7 @@
     else if (G.player.health < G.player.maxHp * 0.4 && Math.random() < 0.25) G.spawnPickup('health', r.x, r.z, r.fy || r.y || 0);
     if (G.fx && G.fx.leech) G.player.health = Math.min(G.player.maxHp, G.player.health + G.fx.leech);
     if (IB.Drops) IB.Drops.onKill(r);   // ~5 % loot drop
+    if (IB.Launchers) IB.Launchers.onKill(r);   // launcher drops (levels 14+) and rocket crates (soldiers, when needed)
     if (IB.Gear && IB.Gear.onKill) IB.Gear.onKill(G, r);   // Overcharge shield cells
   }
   G.onKill = onKill;
@@ -921,7 +924,7 @@
   function die(robot) {
     var p = G.player;
     p.health = 0; p.alive = false; G.dead = true; G.deathT = 0; G.run.deaths++; G.run.retries--;
-    G.killer = (IB.ENEMIES[robot.type] || {}).name || 'Robot';
+    G.killer = robot.killer || (IB.ENEMIES[robot.type] || {}).name || 'Robot';
     document.body.classList.add('dead');
     IB.Plat.stop();
     if (G.run.retries < 0) {
@@ -1119,6 +1122,7 @@
         AI.update(STEP, actx);
         IB.Projectiles.update(STEP, actx);
         if (IB.Throwables) IB.Throwables.update(STEP, G.level.world);
+        if (IB.Launchers) IB.Launchers.update(STEP, actx);   // rockets and homing missiles in flight
       }
       if (G.run.started && !G.dead) updateZones(STEP);
     }
@@ -1131,7 +1135,7 @@
     if (G.run.started) IB.SkillFX.update(dt, onKill, p);   // acid pools, wet coats, Undercover timer
     // weapons
     W.update(G.ws, dt, { player: p, cam: R.camera, input: { fire: Inp.fire && p.alive && G.run.started, firePressed: Inp.firePressed && p.alive && G.run.started, aim: Inp.aim && p.alive }, shoot: shoot,
-      melee: meleeHit, onThrow: throwFrag,
+      melee: meleeHit, onThrow: throwFrag, rocket: IB.Launchers ? IB.Launchers.fire : null,
       onFire: function (d) { if (s.shake && (d.cls === 'smg' || d.cls === 'rifle')) G.shake = Math.max(G.shake, 0.15); } });
     // FOV: aim zoom, plus a small widen at sprint and a kick while sliding
     var cw = W.current(G.ws), aimZoom = cw ? (cw.def.scopeZoom ? 1 / cw.def.scopeZoom : (cw.def.aimZoom || 0.85)) : 0.85;
@@ -1167,6 +1171,7 @@
     if (IB.Throwables) IB.Throwables.sync(tAll);
     if (IB.Drops) { IB.Drops.update(dtRaw, tAll, G); IB.Gear.update(dtRaw, G); }
     if (IB.WeaponDrops) IB.WeaponDrops.update(dtRaw, tAll, G);
+    if (IB.Launchers) IB.Launchers.sync(dtRaw, tAll, G);   // rocket meshes, lock brackets, rocket crates
     if (G.mode === 'play') updateLoot();
     var magnet = 2.5 * (1 + 0.5 * up('magnet')) * IB.SkillFX.fx.magnetMul;   // Scrap Magnet
     FX.update(dtRaw, R.camera, p, magnet, collectGem);
@@ -1177,7 +1182,8 @@
     HUD.health(p.health, p.maxHp);
     if (w) {
       HUD.ammo(w.mag, w.reserve);
-      if (HUD.weapon) HUD.weapon({ id: w.id, name: w.def.name, cls: w.def.cls, mag: w.mag, magSize: W.magSize(G.ws, w.def), reserve: w.reserve,
+      var WDp = IB.WeaponDrops;
+      if (HUD.weapon) HUD.weapon({ id: w.id, name: WDp ? WDp.nameOf(w.id) : w.def.name, cls: w.def.cls, level: WDp ? WDp.levelOf(w.id) : 0, mag: w.mag, magSize: W.magSize(G.ws, w.def), reserve: w.reserve,
         reloading: G.ws.state === 'reload', reloadFrac: G.ws.state === 'reload' ? Math.min(1, G.ws.t / G.ws.reloadT) : 0 });
     }
     if (HUD.stamina) HUD.stamina(p.stamina / (p.staminaMax || 4), p.sliding);
@@ -1191,7 +1197,7 @@
       HUD.radar({ px: p.x, pz: p.z, yaw: p.yaw, range: 30, robots: rob, gates: gates,
         pickups: (G.weaponStands || []).filter(function (w2) { return !w2.taken; }).map(function (w2) { return { x: w2.x, z: w2.z, kind: 'weapon' }; })
           .concat(G.pickups.filter(function (pk) { return pk.on; }).map(function (pk) { return { x: pk.x, z: pk.z, kind: pk.kind }; }))
-          .concat(IB.Drops ? IB.Drops.radar() : []).concat(IB.WeaponDrops ? IB.WeaponDrops.radar() : []),
+          .concat(IB.Drops ? IB.Drops.radar() : []).concat(IB.WeaponDrops ? IB.WeaponDrops.radar() : []).concat(IB.Launchers ? IB.Launchers.radar() : []),
         exit: last.state === 'cleared' ? { x: G.level.hatch.x, z: G.level.hatch.z } : null });
     }
     if (HUD.objective) {
@@ -1407,6 +1413,7 @@
     setRogueTime: function (t) { AI.robots.forEach(function (r) { if (r.on && r.rogue > 0) r.rogue = t; }); }
   };
   if (IB.GearTest) Object.keys(IB.GearTest).forEach(function (k) { window.__TEST__[k] = IB.GearTest[k]; });   // loot hooks (game/gear.js)
+  if (IB.LauncherTest) Object.keys(IB.LauncherTest).forEach(function (k) { window.__TEST__[k] = IB.LauncherTest[k]; });   // launchers.js
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', G.boot); else G.boot();
 })(window.IB = window.IB || {});

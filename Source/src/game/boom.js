@@ -781,7 +781,7 @@
   B.onFire = function (ws, def) {
     if (!B.ready || !ws || !def) return;
     var Wp = IB.Weapons, m = ws.cur && Wp.models && Wp.models[ws.cur];
-    if (m && !CASE_SKIP[def.id] && def.action !== 'revolver') {
+    if (m && !CASE_SKIP[def.id] && def.action !== 'revolver' && def.cls !== 'rocket') {
       if (m.eject === undefined) m.eject = m.mesh.getObjectByName('WPN_' + m.key + '_EJECT') || null;
       if (m.eject && Wp.vmRoot && Wp.vmRoot.visible) {
         m.eject.getWorldPosition(_v);

@@ -58,9 +58,9 @@ test('every weapon has the required fields and names', () => {
   const names = ['P-12 Warden', 'R-50 Ironjaw', 'P-16 Twinfire', 'KV-9 Buzzsaw', 'KV-4 Whiplash', 'KV-7 Hornet', 'AR-22 Rivet',
     'AR-3 Tribolt', 'DMR-60 Longtom', 'LMG-26 Bricklayer', 'SR-160 Needle', 'RL-1 Canister', 'M-15 Frag Can', 'FX-2 Pop Flash',
     'Stinger', 'Twin Strikers', 'Ronin Blade', 'Voltaxe', 'SG-9 Scrapper', 'AR-40 Vanguard', 'SG-12 Thunderclap',
-    'SR-9 Railspike'];
+    'SR-9 Railspike', 'RL-3 Hothead', 'ML-6 Murmur'];
   assert.deepEqual(IB.WEAPON_ORDER.map((id) => W[id].name), names);
-  assert.equal(Object.keys(W).length, 22);
+  assert.equal(Object.keys(W).length, 24);
   for (const w of Object.values(W)) {
     for (const f of ['id', 'name', 'cls', 'slot', 'fire', 'damage', 'pellets', 'burst', 'rpm', 'cycle', 'spreadHip', 'spreadAim',
       'recoil', 'recoilH', 'reload', 'mag', 'reserve', 'unlock', 'aimZoom', 'moveMul', 'pierce', 'coreMul', 'sound']) {
@@ -70,7 +70,7 @@ test('every weapon has the required fields and names', () => {
     assert.ok(Number.isFinite(w.reload), w.id + ' reload finite');
   }
   assert.deepEqual(IB.WEAPON_CLASSES, ['pistol', 'smg', 'rifle', 'sniper', 'shotgun', 'rocket', 'melee']);
-  assert.equal(IB.GLB_WEAPON_NAMES.length, 22);
+  assert.equal(IB.GLB_WEAPON_NAMES.length, 24);
   assert.ok(IB.GLB_WEAPON_NAMES.includes('WPN_PIP') && IB.GLB_WEAPON_NAMES.includes('WPN_FRAG'));
 });
 

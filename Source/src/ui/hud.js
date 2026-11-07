@@ -128,16 +128,17 @@
     if (d.id !== undefined) w.id = d.id;
     if (d.name !== undefined) w.name = d.name;
     if (d.cls !== undefined) w.cls = d.cls;
+    if (d.level !== undefined) w.level = d.level;
     if (d.mag !== undefined) w.mag = d.mag;
     if (d.magSize !== undefined) w.magSize = d.magSize;
     if (d.reserve !== undefined) w.reserve = d.reserve;
     if (d.reloading !== undefined) w.reloading = d.reloading;
     if (d.reloadFrac !== undefined) w.reloadFrac = d.reloadFrac;
-    if (w.id !== L.id || w.name !== L.name || w.cls !== L.cls) {
-      L.id = w.id; L.name = w.name; L.cls = w.cls;
+    if (w.id !== L.id || w.name !== L.name || w.cls !== L.cls || w.level !== L.level) {
+      L.id = w.id; L.name = w.name; L.cls = w.cls; L.level = w.level;
       el.wpnName.textContent = String(w.name || CLS_NAME[w.cls] || '').toUpperCase();
       el.wpnIcon.innerHTML = H.icon(w.cls);
-      el.wpnCls.textContent = H.clsName(w.cls);
+      el.wpnCls.textContent = H.clsName(w.cls) + (w.level > 0 && w.cls !== 'melee' && w.cls !== 'shove' ? ' · Lv ' + w.level : '');   // gun item level (core/gunlevel.js)
     }
     var melee = w.cls === 'melee' || w.cls === 'shove';
     if (melee !== L.melee) { L.melee = melee; el.weapon.classList.toggle('melee', melee); L.mag = -1; }
@@ -321,7 +322,7 @@
   // d: {px, pz, yaw, range, robots:[{x,z,alert}], gates:[{x,z,open}], pickups:[{x,z,kind}], exit:{x,z}|null}
   // yaw 0 faces -Z; positive yaw turns left. Up on the radar is the view direction.
   var PT = { x: 0, y: 0, edge: false };
-  var PICK = { health: '#5BCF4A', ammo: '#5B9BF5', weapon: '#FFB21E', gem: '#2EEAD8' };
+  var PICK = { health: '#5BCF4A', ammo: '#5B9BF5', weapon: '#FFB21E', gem: '#2EEAD8', rockets: '#FF7A2E' };
   H.radar = function (d) {
     var cv = H.el.radarCv, ctx = H.radarCtx; if (!ctx || !d) return;
     if (H.el.radar.hidden) H.el.radar.hidden = false;

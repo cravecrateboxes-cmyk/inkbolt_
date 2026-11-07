@@ -77,6 +77,8 @@
     if (!out.loadout.length && out.arsenal.length) out.loadout = [out.arsenal[0]];
     // skills: spent must never exceed what the progress has earned; a broken tree is reset (points refunded)
     // (a save from before the six-row tree holds old skill ids: the whole tree is refunded and the game says so once)
+    // gun item levels (core/gunlevel.js): guns from before levels existed get the highest level cleared; rocket pool
+    if (IB.GunLevel) IB.GunLevel.fill(out);
     if (!isObj(out.skills)) out.skills = {};
     // player XP: a save from before XP levelling starts at the LV its progress gave (1 + highest level cleared)
     if (IB.Skills && !(typeof obj.xp === 'number' && obj.xp >= 0)) out.xp = IB.Skills.xpForLevel(1 + (out.highest || 0));

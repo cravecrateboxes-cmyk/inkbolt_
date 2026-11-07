@@ -7,7 +7,8 @@
   var D2R = Math.PI / 180;
   var FIRE_SND = { pistol: ['pip', 1], smg: ['buzz', 1], rifle: ['gun', 1.05], sniper: ['gun', 0.62], handcannon: ['gun', 0.78], twintap: ['pip', 1.12],
     whisk: ['buzz', 1.18], hornet: ['buzz', 0.9], longtom: ['gun', 0.82], brick: ['gun', 0.88], triplet: ['gun', 1.12],
-    shotgun: ['gun', 0.66], scrapper: ['gun', 0.6], thunder: ['gun', 0.7], vanguard: ['gun', 0.92], railspike: ['gun', 1.3] };
+    shotgun: ['gun', 0.66], scrapper: ['gun', 0.6], thunder: ['gun', 0.7], vanguard: ['gun', 0.92], railspike: ['gun', 1.3],
+    hothead: ['rocket', 1.05], murmur: ['rocket', 0.82] };
   var _dir = new THREE.Vector3(), _right = new THREE.Vector3(), _up = new THREE.Vector3(), _fwd = new THREE.Vector3();
 
   // ---------------- viewmodel: Blender arms rig (22 bones) + weapon meshes from fps-weapons.glb ----------------
@@ -135,11 +136,13 @@
   W.create = function (owned, fx) {
     var s = { guns: {}, slots: {}, cur: null, state: 'idle', t: 0, next: 0, burst: 0, sinceShot: 9, shotsInRow: 0,
       recoilP: 0, recoilY: 0, kickZ: 0, kickZv: 0, kickR: 0, kickRv: 0, swayX: 0, swayY: 0, flashT: 0, reloadT: 0, drawT: 0,
-      aim: 0, shoveT: 0, fx: fx || {}, triggerWas: false, pending: null, melee: null, throwing: null, combo: 0, comboT: 9 };
+      aim: 0, shoveT: 0, fx: fx || {}, triggerWas: false, pending: null, melee: null, throwing: null, combo: 0, comboT: 9,
+      ammo: { rocket: 0 } };   // shared ammo pools: every launcher draws on ammo.rocket (game/launchers.js keeps it saved)
     owned.forEach(function (id) { W.give(s, id); });
     return s;
   };
-  // hitscan guns with a Blender model are playable (grenades, melee and the launcher are not yet)
+  // guns with a Blender model are playable: hitscan guns and the launchers (fire 'rocket'); not grenades, melee or the
+  // old RL-1 Canister ('projectile', no model)
   W.playable = function (id) {
     var def = IB.WEAPONS[id]; if (!def || def.fire === 'throw' || def.fire === 'melee' || def.fire === 'projectile') return false;
     return !!IB.Assets.node['WPN_' + id.toUpperCase()];
@@ -149,6 +152,10 @@
     if (!W.playable(id) || !model(id)) return;
     var def = IB.WEAPONS[id];
     s.guns[id] = { id: id, def: def, mag: W.magSize(s, def), reserve: (def.reserve === null || def.reserve === undefined || def.reserve === Infinity) ? Infinity : def.reserve };
+    if (def.ammo) {   // launchers: the spare ammo is the shared pool (s.ammo.rocket), not per gun
+      var pool = s.ammo || (s.ammo = {}), kind = def.ammo; if (!(pool[kind] >= 0)) pool[kind] = 0;
+      Object.defineProperty(s.guns[id], 'reserve', { enumerable: true, get: function () { return pool[kind]; }, set: function (v) { pool[kind] = Math.max(0, v); } });
+    }
     if (W.slotOf(s, id) < 0) { var n = 1; while (s.slots[n]) n++; s.slots[n] = id; }
   };
   W.slotOf = function (s, id) { for (var k in s.slots) if (s.slots[k] === id) return +k; return -1; };
@@ -159,16 +166,18 @@
     Object.keys(s.guns).forEach(function (k) { bank[k] = { mag: s.guns[k].mag, reserve: s.guns[k].reserve }; });
     var cur = s.cur;
     s.guns = {}; s.slots = {};
-    ids.forEach(function (id) { W.give(s, id); var b = bank[id], g = s.guns[id]; if (g && b) { g.mag = Math.min(b.mag, W.magSize(s, g.def)); g.reserve = b.reserve; } });
+    ids.forEach(function (id) { W.give(s, id); var b = bank[id], g = s.guns[id]; if (g && b) { g.mag = Math.min(b.mag, W.magSize(s, g.def)); if (!g.def.ammo) g.reserve = b.reserve; else g._fromBank = true; } });
     if (!s.guns[cur]) { var first = s.slots[1]; s.cur = null; if (first) W.equip(s, first, true); else Object.keys(W.models).forEach(function (k) { showModel(k, false); }); }
     return bank;
   };
   W.magSize = function (s, def) {
+    if (def.ammo) return IB.Launchers && IB.Launchers.magOf ? IB.Launchers.magOf(def) : def.mag;   // a launcher's rolled magazine; no bench / skill bonus
     var m = IB.Upgrades ? IB.Upgrades.magSize(def.mag, s.fx.magLevel || 0) : def.mag;
     return s.fx.magMul && m !== Infinity ? Math.ceil(m * s.fx.magMul - 1e-9) : m;   // Overload skill
   };
-  W.refill = function (s) { Object.keys(s.guns).forEach(function (k) { var g = s.guns[k]; g.mag = W.magSize(s, g.def); g.reserve = (g.def.reserve == null || g.def.reserve === Infinity) ? Infinity : g.def.reserve; }); };
-  W.addAmmo = function (s, frac) { Object.keys(s.guns).forEach(function (k) { var g = s.guns[k]; if (g.reserve !== Infinity) g.reserve = Math.min(g.def.reserve * 1.5, g.reserve + Math.ceil(g.def.reserve * frac)); }); };
+  // refill (respawn) and ammo boxes leave the launchers alone: rocket ammo only comes in rocket crates
+  W.refill = function (s) { Object.keys(s.guns).forEach(function (k) { var g = s.guns[k]; if (g.def.ammo) return; g.mag = W.magSize(s, g.def); g.reserve = (g.def.reserve == null || g.def.reserve === Infinity) ? Infinity : g.def.reserve; }); };
+  W.addAmmo = function (s, frac) { Object.keys(s.guns).forEach(function (k) { var g = s.guns[k]; if (g.reserve !== Infinity && !g.def.ammo) g.reserve = Math.min(g.def.reserve * 1.5, g.reserve + Math.ceil(g.def.reserve * frac)); }); };
   W.current = function (s) { return s.cur ? s.guns[s.cur] : null; };
   W.ownedSlots = function (s) { return Object.keys(s.slots).map(Number).sort(); };
 
@@ -191,7 +200,7 @@
   };
   W.reload = function (s) {
     var g = W.current(s); if (!g || s.state !== 'idle') return;
-    if (g.mag >= W.magSize(s, g.def) || g.reserve <= 0) return;
+    if (g.mag >= W.magSize(s, g.def) || g.reserve < (g.def.ammoPer || 1)) return;
     s.state = 'reload'; s.t = 0; s.reloadT = g.def.reload * (s.fx.reloadMul || 1); s.burst = 0;
     var rc = W.clips[W.models[s.cur].key + '_Reload'];
     W.anim(s, 'Reload', { once: true, timeScale: rc ? rc.duration / s.reloadT : 1 });   // Fast Fingers rescales the clip
@@ -278,8 +287,11 @@
       if (s.sinceShot > 0.3) s.shotsInRow = 0;
     }
     // springs (stiffness 220, damping 18)
-    s.kickZv += (-220 * s.kickZ - 18 * s.kickZv) * dt; s.kickZ += s.kickZv * dt;
-    s.kickRv += (-220 * s.kickR - 18 * s.kickRv) * dt; s.kickR += s.kickRv * dt;
+    // (sub-stepped: one long frame must not blow the explicit spring up, e.g. a launcher's big kick on a slow phone)
+    for (var sn = Math.max(1, Math.ceil(dt / 0.016)), sh = dt / sn, si = 0; si < sn; si++) {
+      s.kickZv += (-220 * s.kickZ - 18 * s.kickZv) * sh; s.kickZ += s.kickZv * sh;
+      s.kickRv += (-220 * s.kickR - 18 * s.kickRv) * sh; s.kickR += s.kickRv * sh;
+    }
     s.comboT += dt;
     if (s.melee) { meleeUpdate(s, dt, ctx); p.aiming = false; s.aim = Math.max(0, s.aim - dt * 14); return; }
     if (s.throwing) throwUpdate(s, dt, ctx);
@@ -312,8 +324,8 @@
         if (s.t >= s.reloadT * 0.55 && !s._magIn) { s._magIn = true; IB.Audio && IB.Audio.play('magIn'); }
         if (s.t >= s.reloadT) {
           s._magIn = false;
-          var need = W.magSize(s, g.def) - g.mag, take = Math.min(need, g.reserve);
-          g.mag += take; if (g.reserve !== Infinity) g.reserve -= take;
+          var per = g.def.ammoPer || 1, need = W.magSize(s, g.def) - g.mag, take = Math.min(need, Math.floor(g.reserve / per));   // a Murmur salvo takes 2 rockets
+          g.mag += take; if (g.reserve !== Infinity) g.reserve -= take * per;
           s.state = 'idle'; IB.Audio && IB.Audio.play('slide');
         }
         return;
@@ -338,7 +350,8 @@
     s.sinceShot = 0; s.shotsInRow++;
     cam.getWorldDirection(_fwd);
     _right.set(1, 0, 0).applyQuaternion(cam.quaternion); _up.set(0, 1, 0).applyQuaternion(cam.quaternion);
-    for (var k = 0; k < (d.pellets || 1); k++) {
+    if (d.fire === 'rocket' && ctx.rocket) ctx.rocket(d, cam, spread);   // launchers: game/launchers.js flies the rockets
+    else for (var k = 0; k < (d.pellets || 1); k++) {
       var a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * Math.tan(spread);
       _dir.copy(_fwd).addScaledVector(_right, Math.cos(a) * r).addScaledVector(_up, Math.sin(a) * r).normalize();
       ctx.shoot(cam.position, _dir, d, k);
@@ -398,7 +411,7 @@
     smg: { ads: 0.27, sprintBob: 1.6, sprintRoll: 1, fade: 0.16 },
     rifle: { ads: 0.29, sprintBob: 1.7, sprintRoll: 1, fade: 0.2 },
     sniper: { ads: 0.13, fade: 0.22 },
-    shotgun: { ads: 0.2 }, rocket: { ads: 0.2 }
+    shotgun: { ads: 0.2 }, rocket: { ads: 0.34 }
   };
   W.vmClass = function (cls) {
     var c = VM_CLASS[cls] || {}, r = VM_CLASS.rifle, out = {};

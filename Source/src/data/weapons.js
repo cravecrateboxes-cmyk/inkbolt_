@@ -161,8 +161,38 @@
       spreadHip: 3.0, spreadAim: 0, recoil: 4.0, recoilH: 0.2, reload: 2.6, mag: 6, reserve: 36,
       unlock: 11, aimZoom: 1 / 3, scopeZoom: 3, scopeTime: 0.22, pierce: 4, pierceMul: 0.85, coreMul: 2.2,
       sound: 'electric whine, sharp crack, coil hum'
+    }),
+    // ---- round 5 launchers (game/launchers.js; Blender models in fam_weapons.py). They take NO mods (noMods), drop from
+    // robots from campaign level 14 on (core/gunlevel.js), and use rocket ammo (ammo: 'rocket'): one pool for both,
+    // dropped only by soldiers (rocket ammo director). magRoll: the magazine is rolled per drop. damage = direct hit,
+    // splash = blast at the centre (x (1 - d/R)^exponent, x0.5 behind cover), self damage like a frag (35% capped at 35).
+    hothead: W({
+      // rapid-fire elemental launcher: 0.5 s between rockets, 3-5 per cassette; element per drop (IB.LAUNCHER_ELEMENTS)
+      id: 'hothead', name: 'RL-3 Hothead', cls: 'rocket', slot: 5, fire: 'rocket', launcher: 'elemental', ammo: 'rocket', ammoPer: 1,
+      noMods: true, elements: true, damage: 220, splash: 140, radius: 3.2, exponent: 0.8, rpm: 120, spreadHip: 0.7, spreadAim: 0.15,
+      recoil: 3.4, recoilH: 0.5, reload: 3.2, mag: 3, magRoll: [3, 5], reserve: 0, unlock: 0, speed: 42, projRadius: 0.12, life: 2.4,
+      selfMul: 0.35, selfCap: 35, knockback: 7, moveMul: 0.92, aimZoom: 0.8, coreMul: 1,
+      blurb: 'Rapid-fire rockets. Each one carries its element.', sound: 'thump launch, hiss trail, boom on hit'
+    }),
+    murmur: W({
+      // homing salvo: locks up to 5 robots (or spots) in front, 6 missiles split over the locks; 2 rockets a salvo
+      id: 'murmur', name: 'ML-6 Murmur', cls: 'rocket', slot: 5, fire: 'rocket', launcher: 'homing', ammo: 'rocket', ammoPer: 2,
+      noMods: true, damage: 48, splash: 44, radius: 2.2, exponent: 0.8, missiles: 6, locks: 5, lockRange: 60, lockCone: 26,
+      rpm: 60, spreadHip: 0.5, spreadAim: 0.2, recoil: 4.2, recoilH: 0.6, reload: 3.4, mag: 2, magRoll: [2, 4], reserve: 0, unlock: 0,
+      speed: 30, turn: 6.5, projRadius: 0.1, life: 3.2, selfMul: 0.35, selfCap: 35, knockback: 4, moveMul: 0.9, aimZoom: 0.8, coreMul: 1,
+      blurb: 'Locks up to 5 targets and fires 6 homing missiles.', sound: 'servo chirps, rippled launch, six booms'
     })
   };
+  /* Hothead elements: none (plain rocket), Blast (bigger blast + bomblets), Volt (shock over time + arcs to robots
+     nearby), Acid (acid over time + an acid pool). weight = drop odds; splashMul / radiusMul on the blast; dot = share
+     of the blast damage dealt again over dur seconds; colour of the rocket, its trail and the canister glow. */
+  var LAUNCHER_ELEMENTS = {
+    none: { id: 'none', name: '', weight: 34, color: '#FFB21E', splashMul: 1, radiusMul: 1 },
+    boom: { id: 'boom', name: 'Blast', weight: 22, color: '#FF6A2A', splashMul: 1.1, radiusMul: 1.3, bomblets: 3, bombletMul: 0.25, bombletR: 1.6 },
+    shock: { id: 'shock', name: 'Volt', weight: 22, color: '#5FC2FF', splashMul: 0.85, radiusMul: 1, dot: 0.4, dur: 3, arcs: 3, arcRange: 6, arcMul: 0.35 },
+    acid: { id: 'acid', name: 'Acid', weight: 22, color: '#7BE34A', splashMul: 0.85, radiusMul: 1, dot: 0.5, dur: 5, pool: 2.0, poolLife: 5 }
+  };
+  IB.LAUNCHER_ELEMENTS = LAUNCHER_ELEMENTS;
 
   // Global weapon feel rules (5.2, 5.4).
   var WEAPON_RULES = {
@@ -174,7 +204,7 @@
 
   var ORDER = ['pip', 'handcannon', 'twintap', 'buzz', 'whisk', 'hornet', 'rivet', 'triplet', 'longtom',
     'brick', 'needle', 'cancannon', 'frag', 'popflash', 'dagger', 'nunchucks', 'katana', 'eaxe', 'scrapper', 'vanguard', 'thunder',
-    'railspike'];
+    'railspike', 'hothead', 'murmur'];
   // the four melee weapons in unlock order (struck with V)
   var MELEE = ['dagger', 'nunchucks', 'katana', 'eaxe'];
 
