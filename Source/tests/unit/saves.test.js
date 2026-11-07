@@ -182,17 +182,21 @@ test('skills are validated against progress on load (spent <= earned, gates; bot
   assert.deepEqual(store.load(1).skills, { overload: 2 });
   be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 1, skills: { overload: 3 } }));
   assert.deepEqual(store.load(1).skills, {}, 'overspent tree is reset (points refunded)');
-  // a row-3 skill without the 5 points below it, unknown (or retired) ids, bad ranks, non-objects: all reset
+  // a row-3 skill without the 3 points below it, unknown (or retired) ids, bad ranks, non-objects: all reset
   for (const bad of [{ hazard: 1 }, { nope: 1 }, { overboard: 2 }, { overload: 4 }, { overload: -1 }, { overload: 1.5 }, [1, 2], 'x']) {
     be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 17, skills: bad }));
     assert.deepEqual(store.load(1).skills, {}, JSON.stringify(bad));
   }
-  // both capstones are kept once they are paid for (24 points: after level 11)
-  const both = { overload: 3, heavyink: 3, rapid: 3, electrify: 1, healthy: 3, undercover: 1, handyhelpers: 1, chainreaction: 1 };
+  // both capstones are kept once they are paid for (19 points: after level 16)
+  const both = { overload: 3, heavyink: 2, electrify: 1, healthy: 2, undercover: 1, handyhelpers: 1, chainreaction: 1 };
   be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 99, skills: both }));
   assert.deepEqual(store.load(1).skills, both);
-  be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 9, skills: both }));
+  be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 15, skills: both }));
   assert.deepEqual(store.load(1).skills, {}, 'not enough points yet');
+  // a tree from the old 43-point economy is over the 22-point cap: reset, every point back
+  const old = { overload: 3, heavyink: 3, stream: 3, electrify: 1, rapid: 3, hazard: 3, ricochet: 3, healthy: 3, undercover: 1 };
+  be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 19, skills: old }));
+  assert.deepEqual(store.load(1).skills, {}, '23 points spent > 22');
 });
 
 test('settings v2: old 85 default becomes 100, a chosen field of view is kept, range 60-130', () => {

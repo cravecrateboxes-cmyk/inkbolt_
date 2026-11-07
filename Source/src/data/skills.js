@@ -2,15 +2,15 @@
 
    ECONOMY (see tests/unit/skills.test.js)
    Skill points come from campaign progress only: completing level L for the first time pays POINTS_AT[L]
-   (2 a level, 3 on levels 5, 10, 15, 18 and 19). Level 19 (the last campaign level) pays the last points.
+   (1 a level, 2 on levels 1, 10 and 15). Level 19 (the last campaign level) pays the last point.
      after level   1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19
-     points        2  4  6  8 11 13 15 17 19 22 24 26 28 30 33 35 37 40 43   -> 43 in total = the whole tree
-   The tree holds 33 points of normal skills plus two 5-point endgame skills (43). However the points are spent,
-   the top is always reachable: by the last level every skill, both endgame ones included, can be owned.
+     points        2  3  4  5  6  7  8  9 10 12 13 14 15 16 18 19 20 21 22   -> 22 in total, never more
+   The tree holds 43 points, so 22 buys a build, not the whole tree (respec to change it). The gates are low so the
+   top is always reachable: any 9 points below open the endgame row, and 9 + 5 + 5 = 19 owns both endgame skills.
 
-   PLAYER LEVEL = 1 + highest campaign level completed, capped at 20 (LEVEL_CAP): level 19 makes you LV 20 and
-   the level 20 finale (Compactor Prime) is fought at max level, so every completion that leads somewhere
-   raises the level by one. */
+   PLAYER LEVEL = 1 + highest campaign level completed, capped at 30 (LEVEL_CAP). Levels 20-30 (the Second Tour,
+   levelplans.js) keep raising it: no more skill points, but more health (core/damage.js playerMaxHp) and better gear.
+   Level 29 makes you LV 30, so every completion that leads somewhere raises the level by one. */
 (function (IB) {
   'use strict';
 
@@ -29,15 +29,15 @@
        4                  3     Hazard | Ricochet | Healthy
        5                  2     Stream | Electrify (special) | Rapid
        6                  1     Overload | Heavy Ink
-     Normal skills hold 30 + 3 = 33 points; an endgame skill needs 14 below it + 5 = 19 (first affordable after
-     level 9); the whole tree (43) is paid for by level 16. */
+     Normal skills hold 30 + 3 = 33 points; an endgame skill needs 9 below it + 5 = 14 (first affordable after
+     level 12); the 22 points of the whole campaign buy a build (the tree costs 43). */
   IB.SKILL_TIERS = [
     { tier: 1, name: 'Trunk', gate: 0 },
-    { tier: 2, name: 'Rounds', gate: 2 },
-    { tier: 3, name: 'Hazards', gate: 5 },
-    { tier: 4, name: 'Tricks', gate: 8 },
-    { tier: 5, name: 'Grit', gate: 11 },
-    { tier: 6, name: 'Endgame', gate: 14, capstone: true }
+    { tier: 2, name: 'Rounds', gate: 1 },
+    { tier: 3, name: 'Hazards', gate: 3 },
+    { tier: 4, name: 'Tricks', gate: 5 },
+    { tier: 5, name: 'Grit', gate: 7 },
+    { tier: 6, name: 'Endgame', gate: 9, capstone: true }
   ];
 
   // params: the numbers the runtime uses (per rank where an array); text is the player-facing description
@@ -60,7 +60,7 @@
       'Increases your max health and slowly regenerates 0.5% of it per second per rank after 4 s without damage.', 'heart'),
     // tier 4
     S('stamina', 4, 0, 'Stamina', 'special', [1], '', 'Marathon',
-      'You move 15% faster, sprint 50% faster, your running lasts 2.5x longer, and stamina recharges in half the time.', 'run'),
+      'You move 15% faster, sprint 30% faster, your running lasts 2.5x longer, and stamina recharges in half the time.', 'run'),
     S('hydrate', 4, 1, 'Hydrate', 'rank', [6, 12, 18], '%', 'Coat chance',
       'Your bullets have a chance to coat a robot in electrified liquid for 6 s. Robots that come within 3 m of it take shock damage over time.', 'water'),
     S('undercover', 4, 2, 'Undercover', 'special', [1], '', 'Cloak (F)',
@@ -80,9 +80,9 @@
   IB.SKILLS.forEach(function (s) { IB.SKILL_BY_ID[s.id] = s; });
 
   // points paid the first time a campaign level is completed; levels past 19 pay nothing
-  IB.SKILL_POINTS_AT = { 1: 2, 2: 2, 3: 2, 4: 2, 5: 3, 6: 2, 7: 2, 8: 2, 9: 2, 10: 3, 11: 2, 12: 2, 13: 2, 14: 2, 15: 3, 16: 2, 17: 2, 18: 3, 19: 3 };
+  IB.SKILL_POINTS_AT = { 1: 2, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 1, 10: 2, 11: 1, 12: 1, 13: 1, 14: 1, 15: 2, 16: 1, 17: 1, 18: 1, 19: 1 };
   IB.SKILL_LAST_LEVEL = 19;
-  IB.PLAYER_LEVEL_CAP = 20;
+  IB.PLAYER_LEVEL_CAP = 30;
   // loadout size: 2 guns, 3 once level 10 (the Dumpster Tank) is beaten
   IB.LOADOUT_RULES = { base: 2, extra: 3, extraAfter: 10 };
 
@@ -91,5 +91,7 @@
     'Tin Rookie', 'Can Kicker', 'Bolt Botherer', 'Scrap Rat', 'Junk Jockey',
     'Rivet Rattler', 'Gear Grinder', 'Spring Snapper', 'Cog Crusher', 'Bin Breaker',
     'Ink Slinger', 'Wire Wrangler', 'Dent Dealer', 'Piston Puncher', 'Chrome Cracker',
-    'Circuit Smasher', 'Scrapyard Sheriff', 'Tin Terror', 'Robot Wrecker', 'Inkbolt Legend'];
+    'Circuit Smasher', 'Scrapyard Sheriff', 'Tin Terror', 'Robot Wrecker', 'Inkbolt Legend',
+    'Iron Inker', 'Steel Scribbler', 'Titan Tagger', 'Mech Marker', 'Chassis Chaser',
+    'Gantry Ghost', 'Foundry Phantom', 'Core Cracker', 'Overlord Breaker', 'Inkbolt Eternal'];
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));

@@ -44,7 +44,7 @@
     HUD.init(); M.init(); wireMenus();
     // Blender GLBs: common, weapons, bots and the title/level-1 kit (brief 4.2 boot order)
     // Blender GLBs: common, weapons, bots and the first level's theme kit (brief 4.2 boot order); other kits load per level
-    var saved0 = G.store.newest();
+    var saved0 = tourMigrate(G.store.newest());
     G.plan = IB.LEVEL_PLANS[params.get('plan') || (saved0 && saved0.plan) || IB.CAMPAIGN[0]] || IB.LEVEL_PLANS[IB.CAMPAIGN[0]];
     IB.Assets.load(['common', 'weapons', 'bots', 'gear', 'troopers', Z.themeOf(G.plan).family], function (f) { bootProgress(0.2 + f * 0.7); })
       .then(bootAfterAssets)
@@ -538,6 +538,16 @@
     Inp.enabled = true; Inp.reset();
     if (!AUTOTEST) Inp.requestLock();
   };
+  /* Saves that finished the campaign before levels 20-30 (the Second Tour) existed were sent back to level 1; move
+     them on to level 20 once, so the player level can keep climbing. */
+  function tourMigrate(slot) {
+    var first = IB.CAMPAIGN[IB.MAIN_CAMPAIGN];
+    if (slot && first && !slot.tourMoved && (slot.highest || 0) >= IB.MAIN_CAMPAIGN && slot.plan === IB.CAMPAIGN[0]) {
+      slot.plan = first; slot.level = IB.LEVEL_PLANS[first].level; slot.tourMoved = true;
+      try { G.store.save(slot); } catch (e) { /* keep playing; the move happens again next boot */ }
+    }
+    return slot;
+  }
   function ensureSlot() {
     if (G.slot) return;
     var newest = G.store.newest();
@@ -937,7 +947,7 @@
     G.mode = 'title'; Inp.enabled = false; Inp.releaseLock(); IB.Plat.stop();
     HUD.show(false); document.getElementById('touch').hidden = true; document.body.classList.remove('dead');
     resetLevelStateForTitle();
-    var slot = G.store.newest();
+    var slot = tourMigrate(G.store.newest());
     G.slot = slot || null;
     M.title({ slot: slot, levelName: G.plan.name });
   };

@@ -52,7 +52,9 @@
     { from: 12, w: [33, 34, 24, 9] },
     { from: 13, w: [30, 35, 25, 10] },
     { from: 15, w: [27, 35, 26, 12] },
-    { from: 17, w: [24, 35, 27, 14] }
+    { from: 17, w: [24, 35, 27, 14] },
+    { from: 20, w: [20, 34, 30, 16] },   // the Second Tour (levels 20-30): better finds as the robots get stronger
+    { from: 25, w: [16, 33, 32, 19] }
   ];
 
   // lo/hi per rarity. `better: 'low'` means a smaller number is the better roll (recharge delay).
@@ -169,7 +171,7 @@
          L        1     3     6    10    13    20
          shield 1.00  1.08  1.35  1.71  1.98  2.61
          mod    1.00  1.03  1.12  1.24  1.33  1.50      */
-    levelScale: { shield: { k: 0.04, knee: 3, k2: 0.09, cap: 2.8 }, mod: { k: 0.015, knee: 3, k2: 0.03, cap: 1.5 } },
+    levelScale: { shield: { k: 0.04, knee: 3, k2: 0.1, cap: 3.8 }, mod: { k: 0.015, knee: 3, k2: 0.03, cap: 1.85 } },   // caps reached at level 30
     rarities: RARITIES,
     rarityById: RARITIES.reduce(function (m, r) { m[r.id] = r; return m; }, {}),
     rarityOdds: RARITY_ODDS,

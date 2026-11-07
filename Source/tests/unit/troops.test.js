@@ -75,6 +75,11 @@ test('campaign waves: Soldiers from level 4, Blade Bots from level 7, growing wi
     if (L < 4) assert.equal(s, 0, id + ' soldiers');
     if (L === 7) assert.ok(b >= 5 && b <= 16, id + ' a first taste of Blade Bots (x2.5 elites)');
     if (L === 4) assert.ok(s >= 3 && s <= 8, id + ' a first taste of Soldiers (x2.5 elites)');
+    if (p.tour) {   // levels 20-30: the Second Tour holds TOUR_ROBOTS(L), elites throughout
+      const t = p.zones.reduce((a, z) => a + z.waves.reduce((b2, w) => b2 + w.reduce((c, e) => c + e[1], 0), 0), 0);
+      assert.ok(Math.abs(t - IB.TOUR_ROBOTS(L)) <= 20 && s >= 10 && b >= 10, id + ' tour size ' + t);
+      return;
+    }
     if (L >= 4) assert.ok(s >= lastS && b >= lastB, id + ' grows');
     const all = p.zones.reduce((a, z) => a + z.waves.reduce((b2, w) => b2 + w.reduce((c, e) => c + e[1], 0), 0), 0);
     assert.ok(all >= (globalThis.__lastAll || 0), id + ' has at least as many robots as the level before');

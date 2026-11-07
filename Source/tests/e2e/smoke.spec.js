@@ -181,10 +181,10 @@ async function tabMenuRun(browser, base) {
   console.log('\n# field kit (Tab): pause, inventory, spend a skill point, character, change the loadout, respec, resume');
   const pg = await newPage(browser, base + '?autotest=1&plan=greybox');
   await until(pg, () => IB.Game.run.started, null, 5000);
-  // progress as if levels 1-3 were cleared (6 skill points) and a rifle was picked up earlier
+  // progress as if levels 1-3 were cleared (4 skill points) and a rifle was picked up earlier
   await pg.evaluate(() => { const G = IB.Game; G.slot.highest = 3; G.slot.gems = 100; G.slot.arsenal.push('rivet'); G.slot.owned = G.slot.arsenal.slice(); G.applyProgress(); });
   const p0 = await pg.evaluate(() => __TEST__.progress());
-  check('progress derived from the save', p0.level === 4 && p0.points === 6 && p0.loadoutMax === 2, JSON.stringify(p0));
+  check('progress derived from the save', p0.level === 4 && p0.points === 4 && p0.loadoutMax === 2, JSON.stringify(p0));
   check('HUD shows the level tag', await pg.evaluate(() => /LV\s*4/.test(document.getElementById('lvTag').textContent) && !document.getElementById('lvPts').hidden));
   await pg.mouse.move(640, 360);
   await pg.keyboard.press('Tab');
@@ -200,11 +200,11 @@ async function tabMenuRun(browser, base) {
   await pg.click('[data-skill="overload"]');
   await pg.click('[data-act="buy"]');
   let pr = await pg.evaluate(() => __TEST__.progress());
-  check('Spend buys Overload rank 1', pr.skills.overload === 1 && pr.points === 5, JSON.stringify(pr.skills) + ' points=' + pr.points);
+  check('Spend buys Overload rank 1', pr.skills.overload === 1 && pr.points === 3, JSON.stringify(pr.skills) + ' points=' + pr.points);
   await pg.focus('[data-skill="overload"]'); await pg.keyboard.press('Enter');
   pr = await pg.evaluate(() => __TEST__.progress());
-  check('Enter on the selected skill spends again', pr.skills.overload === 2 && pr.points === 4, JSON.stringify(pr.skills));
-  check('locked tier refuses (Hazard needs 5 points below)', await pg.evaluate(() => { document.querySelector('[data-skill="hazard"]').click(); return document.querySelector('[data-act="buy"]').disabled; }));
+  check('Enter on the selected skill spends again', pr.skills.overload === 2 && pr.points === 2, JSON.stringify(pr.skills));
+  check('locked tier refuses (Hazard needs 3 points below)', await pg.evaluate(() => { document.querySelector('[data-skill="hazard"]').click(); return document.querySelector('[data-act="buy"]').disabled; }));
   const saved1 = await pg.evaluate(() => JSON.parse(localStorage.getItem('inkbolt.slot1')).skills);
   check('skills saved at once', saved1 && saved1.overload === 2, JSON.stringify(saved1));
   await pg.keyboard.press('KeyE');
@@ -236,7 +236,7 @@ async function tabMenuRun(browser, base) {
   await pg.click('[data-act="respec"]'); await pg.click('[data-act="respec"]');
   pr = await pg.evaluate(() => __TEST__.progress());
   const gems = await pg.evaluate(() => IB.Game.slot.gems);
-  check('respec resets the tree for ' + 40 + ' gems', Object.keys(pr.skills).length === 0 && pr.points === 6 && gems === 60, JSON.stringify(pr.skills) + ' gems=' + gems);
+  check('respec resets the tree for ' + 40 + ' gems', Object.keys(pr.skills).length === 0 && pr.points === 4 && gems === 60, JSON.stringify(pr.skills) + ' gems=' + gems);
   await pg.keyboard.press('Escape');
   check('Esc closes it too', await until(pg, () => IB.Game.mode === 'play', null, 3000));
   check('respec applied (magazine back to 12)', await pg.evaluate(() => IB.Weapons.magSize(IB.Game.ws, IB.WEAPONS.pip) === 12));
@@ -251,9 +251,9 @@ async function skillsRun(browser, base) {
   // a made-up tree straight into the save (the test hook skips gates, the budget and pick-one)
   await pg.evaluate(() => __TEST__.setSkills({ undercover: 1, stream: 3, ricochet: 3, hazard: 3, hydrate: 3, healthy: 3, stamina: 1, fastfingers: 3, tank: 3, electrify: 1, handyhelpers: 1, chainreaction: 1 }));
   let ss = await pg.evaluate(() => __TEST__.skillState());
-  check('stat skills apply (Healthy 124 max health, Stamina x1.3 sprint + x1.15 move / 10 s, Fast Fingers 1/1.3 reload + swap)',
-    ss.maxHp === 124 && ss.sprintMul === 1.3 && Math.abs(ss.staminaMax - 10) < 1e-6 && Math.abs(ss.swapMul - 1 / 1.3) < 1e-6 && Math.abs(ss.reloadMul - 1 / 1.3) < 1e-6, JSON.stringify(ss));
-  // Stamina: x1.5 sprint straight at the far wall for a while: fast, and never inside or through a wall
+  check('stat skills apply (Healthy 124 max health, Stamina x1.15 sprint + x1.15 move / 10 s, Fast Fingers 1/1.3 reload + swap)',
+    ss.maxHp === 124 && ss.sprintMul === 1.15 && Math.abs(ss.staminaMax - 10) < 1e-6 && Math.abs(ss.swapMul - 1 / 1.3) < 1e-6 && Math.abs(ss.reloadMul - 1 / 1.3) < 1e-6, JSON.stringify(ss));
+  // Stamina: x1.32 sprint straight at the far wall for a while: fast, and never inside or through a wall
   await pg.evaluate(() => { IB.Game.player.protect = 999; __TEST__.look(0, 0); });
   await pg.mouse.move(640, 360);
   await pg.keyboard.down('ShiftLeft'); await pg.keyboard.down('KeyW');
@@ -271,7 +271,7 @@ async function skillsRun(browser, base) {
     vmax = Math.max(vmax, m[0]); if (m[1]) inside++;
   }
   await pg.keyboard.up('KeyW'); await pg.keyboard.up('ShiftLeft');
-  check('Stamina: sprint reaches ~13 m/s, the player never ends up inside a wall', vmax > 11.5 && inside === 0, 'vmax=' + vmax.toFixed(1) + ' inside=' + inside);
+  check('Stamina: sprint reaches ~11 m/s (8.4 x 1.15 x 1.15), the player never ends up inside a wall', vmax > 10.5 && vmax < 11.6 && inside === 0, 'vmax=' + vmax.toFixed(1) + ' inside=' + inside);
   // Undercover: robots must have noticed the player first
   await pg.evaluate(() => { IB.Game.player.protect = 999; __TEST__.teleport(0); });
   await until(pg, () => __TEST__.state().alive > 0, null, 10000);

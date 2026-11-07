@@ -130,7 +130,7 @@
       // tier 4
       // Stamina: sprint x1.3 on top of the +15% move speed (x1.5 in all; it was a too-fast x2), runs last 2.5x longer,
       // stamina refills in half the time
-      sprintMul: stamina ? 1.3 : 1, moveMul: stamina ? 1.15 : 1, staminaMul: stamina ? 2.5 : 1, staminaRechargeMul: stamina ? 0.5 : 1,
+      sprintMul: stamina ? 1.15 : 1, moveMul: stamina ? 1.15 : 1, staminaMul: stamina ? 2.5 : 1, staminaRechargeMul: stamina ? 0.5 : 1,
       coat: v('hydrate') / 100, coatTime: 6, coatRadius: 3, coatFrac: 0.3, coatMin: 2, coatMax: 18, coatBurn: 5,   // Hydrate
       cloak: has('undercover'), cloakTime: 5, cloakCooldown: 30,   // Undercover (F)
       // tier 5

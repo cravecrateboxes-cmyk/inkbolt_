@@ -37,19 +37,19 @@ test('data: 15 skills in 6 tiers (trunk at the bottom), 3-rank skills, 1-rank sp
   assert.equal(caps.length, 2);
   assert.ok(caps.every((s) => s.tier === IB.SKILL_TIERS.length && !s.group && s.cost === 5));
   assert.deepEqual(IB.SKILLS.filter((s) => s.kind === 'special').map((s) => s.id), ['electrify', 'stamina', 'undercover']);
-  assert.deepEqual(IB.SKILL_TIERS.map((t) => t.gate), [0, 2, 5, 8, 11, 14]);
+  assert.deepEqual(IB.SKILL_TIERS.map((t) => t.gate), [0, 1, 3, 5, 7, 9]);
   assert.ok(IB.SKILL_TIERS[5].capstone && IB.SKILL_TIERS.slice(0, 5).every((t) => !t.capstone));
 });
 
-test('economy: 43 points from levels 1-19 only, enough for the whole tree by the last level', () => {
+test('economy: 22 points from levels 1-19 only, never more; a build, not the whole tree', () => {
   // the schedule documented in data/skills.js
-  const after = [0, 2, 4, 6, 8, 11, 13, 15, 17, 19, 22, 24, 26, 28, 30, 33, 35, 37, 40, 43];
+  const after = [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 18, 19, 20, 21, 22];
   for (let L = 0; L <= 19; L++) assert.equal(S.earned(L), after[L], 'after level ' + L);
-  assert.equal(S.totalPoints(), 43);
-  for (let L = 20; L <= 60; L++) assert.equal(S.earned(L), 43, 'nothing after level 19 (' + L + ')');
+  assert.equal(S.totalPoints(), 22);
+  for (let L = 20; L <= 60; L++) assert.equal(S.earned(L), 22, 'nothing after level 19 (' + L + ')');
   assert.equal(S.earned(-3), 0); assert.equal(S.earned(NaN), 0); assert.equal(S.earned('19'), 0);
   assert.equal(treeCost(), 43);
-  assert.equal(treeCost(), S.totalPoints(), 'max level buys every skill');
+  assert.ok(IB.SKILL_TIERS[5].gate + 10 <= S.totalPoints(), 'both endgame skills fit in a max-level build');
 });
 
 test('available points are derived from progress, never stored; buying is the only way to spend them', () => {
@@ -60,7 +60,7 @@ test('available points are derived from progress, never stored; buying is the on
   assert.equal(S.available(sk, 1), 0);
   assert.equal(S.buy(sk, 1, 'overload'), null);
   assert.equal(S.canBuy(sk, 1, 'overload').reason, 'points');
-  assert.equal(S.available(sk, 2), 2, 'the next clear pays two more');
+  assert.equal(S.available(sk, 2), 1, 'the next clear pays one more');
   // buy() never mutates its input
   const before = JSON.stringify(sk); S.buy(sk, 5, 'overload'); assert.equal(JSON.stringify(sk), before);
   // ranks stop at max; specials have one rank
@@ -87,53 +87,54 @@ test('random players can never spend more than they earned, and every reachable 
   }
 });
 
-test('tier gates: a row opens once enough points are spent in the rows below it (2 / 5 / 8 / 11 / 14)', () => {
-  const h = 17;
+test('tier gates: a row opens once enough points are spent in the rows below it (1 / 3 / 5 / 7 / 9)', () => {
+  const h = 19;
+  assert.equal(S.canBuy({}, h, 'stream').reason, 'tier');
+  assert.equal(S.canBuy({}, h, 'stream').need, 1);
   let sk = buyAll({}, h, ['overload']);
-  assert.equal(S.canBuy(sk, h, 'stream').reason, 'tier');
-  assert.equal(S.canBuy(sk, h, 'stream').need, 1);
-  sk = buyAll(sk, h, ['heavyink']);
   assert.ok(S.tierUnlocked(sk, 2));
   assert.ok(S.canBuy(sk, h, 'stream').ok && S.canBuy(sk, h, 'electrify').ok && S.canBuy(sk, h, 'rapid').ok);
-  assert.equal(S.canBuy(sk, h, 'hazard').reason, 'tier', 'row 3 needs 5');
-  sk = buyAll(sk, h, ['electrify', 'stream', 'rapid']);
+  assert.equal(S.canBuy(sk, h, 'hazard').reason, 'tier', 'row 3 needs 3');
+  sk = buyAll(sk, h, ['electrify', 'stream']);
   assert.ok(S.canBuy(sk, h, 'hazard').ok && S.canBuy(sk, h, 'ricochet').ok && S.canBuy(sk, h, 'healthy').ok);
-  assert.equal(S.canBuy(sk, h, 'undercover').reason, 'tier', 'row 4 needs 8');
-  sk = buyAll(sk, h, ['healthy', 'healthy', 'ricochet']);
+  assert.equal(S.canBuy(sk, h, 'undercover').reason, 'tier', 'row 4 needs 5');
+  sk = buyAll(sk, h, ['healthy', 'ricochet']);
   assert.ok(S.canBuy(sk, h, 'stamina').ok && S.canBuy(sk, h, 'hydrate').ok && S.canBuy(sk, h, 'undercover').ok);
-  assert.equal(S.canBuy(sk, h, 'tank').reason, 'tier', 'row 5 needs 11');
-  sk = buyAll(sk, h, ['undercover', 'stamina', 'hydrate']);
+  assert.equal(S.canBuy(sk, h, 'tank').reason, 'tier', 'row 5 needs 7');
+  sk = buyAll(sk, h, ['undercover', 'stamina']);
   assert.ok(S.canBuy(sk, h, 'tank').ok && S.canBuy(sk, h, 'fastfingers').ok);
-  assert.equal(S.canBuy(sk, h, 'handyhelpers').reason, 'tier', 'endgame needs 14');
-  assert.equal(S.spentAbove(sk, 6), 11);
+  assert.equal(S.canBuy(sk, h, 'handyhelpers').reason, 'tier', 'endgame needs 9');
+  assert.equal(S.spentAbove(sk, 6), 7);
   // the gate counts the rows below only
-  sk = buyAll(sk, h, ['tank', 'tank', 'tank']);
-  assert.equal(S.spentAbove(sk, 6), 14);
-  assert.equal(S.spentAbove(sk, 5), 11);
+  sk = buyAll(sk, h, ['tank', 'tank']);
+  assert.equal(S.spentAbove(sk, 6), 9);
+  assert.equal(S.spentAbove(sk, 5), 7);
   assert.ok(S.canBuy(sk, h, 'handyhelpers').ok);
   // a hand-made tree that skips a gate is invalid
-  assert.ok(!S.validate({ stream: 1 }, 17).ok);
-  assert.ok(!S.validate({ overload: 3, heavyink: 3, undercover: 1 }, 17).ok);
-  assert.ok(S.validate({ overload: 3, heavyink: 3, undercover: 1, hazard: 2 }, 17).ok);
+  assert.ok(!S.validate({ stream: 1 }, 19).ok);
+  assert.ok(!S.validate({ overload: 2, heavyink: 2, undercover: 1 }, 19).ok);
+  assert.ok(S.validate({ overload: 2, heavyink: 2, hazard: 1, undercover: 1 }, 19).ok);
 });
 
 test('endgame: both can be owned; however the points went in, the top opens and is affordable at max level', () => {
-  const route = ['overload', 'overload', 'overload', 'heavyink', 'heavyink', 'heavyink', 'rapid', 'rapid', 'rapid',
-    'electrify', 'healthy', 'healthy', 'healthy', 'undercover'];   // 14 points: every row is open
+  const route = ['overload', 'overload', 'overload', 'heavyink', 'heavyink', 'electrify', 'healthy', 'healthy',
+    'undercover'];   // 9 points: every row is open
   const sk = buyAll({}, 19, route);
   assert.ok(S.tierUnlocked(sk, 6));
   const both = buyAll(sk, 19, ['handyhelpers', 'chainreaction']);
   assert.ok(S.rank(both, 'handyhelpers') && S.rank(both, 'chainreaction'));
   assert.ok(S.validate(both, 19).ok);
-  // a player who pours everything into the low rows first still reaches and buys the top at max level
-  const low = IB.SKILLS.filter((s) => s.kind !== 'capstone').flatMap((s) => Array(s.max).fill(s.id));
-  const all = buyAll(buyAll({}, 19, low), 19, ['handyhelpers', 'chainreaction']);
-  assert.equal(S.spent(all), 43);
-  assert.equal(S.available(all, 19), 0);
-  // the earliest clear that can afford one is level 9
+  assert.equal(S.available(both, 19), 3);
+  // a player who pours 17 points into the low rows first still reaches and buys an endgame skill at max level
+  const low = IB.SKILLS.filter((s) => s.kind !== 'capstone').flatMap((s) => Array(s.max).fill(s.id)).slice(0, 17);
+  const one = buyAll(buyAll({}, 19, low), 19, ['handyhelpers']);
+  assert.equal(S.spent(one), 22);
+  assert.equal(S.available(one, 19), 0);
+  assert.equal(S.buy(one, 99, 'chainreaction'), null, 'never more than 22 points');
+  // the earliest clear that can afford one is level 12
   const caps = IB.SKILLS.filter((s) => s.kind === 'capstone');
   const first = [...Array(20).keys()].find((L) => S.earned(L) >= IB.SKILL_TIERS[5].gate + caps[0].cost);
-  assert.equal(first, 9);
+  assert.equal(first, 12);
 });
 
 test('old saves: trees with the retired skill ids are refunded in full, never crash', () => {
@@ -145,7 +146,7 @@ test('old saves: trees with the retired skill ids are refunded in full, never cr
     const r = S.sanitize(sk, 17);
     assert.deepEqual(r.skills, {}, JSON.stringify(sk));
     assert.equal(r.reset, true);
-    assert.equal(S.available(r.skills, 20), 43, 'every point back');
+    assert.equal(S.available(r.skills, 20), 22, 'every point back');
     assert.doesNotThrow(() => S.effects(r.skills));
   }
   // effects() of a raw old tree (before sanitize) ignores what it does not know instead of throwing
@@ -186,7 +187,7 @@ test('effects: every skill changes the runtime numbers its text promises', () =>
   const hl = S.effects({ healthy: 3 }); near(hl.maxHpMul, 1.24); near(hl.regenPct, 1.5); assert.equal(hl.regenDelay, 4);
   near(S.regenRate(hl, 200), 3, '0.5% per rank per second');
   // row 4
-  const sm = S.effects({ stamina: 1 }); assert.deepEqual([sm.sprintMul, sm.moveMul, sm.staminaMul, sm.staminaRechargeMul], [1.3, 1.15, 2.5, 0.5]);
+  const sm = S.effects({ stamina: 1 }); assert.deepEqual([sm.sprintMul, sm.moveMul, sm.staminaMul, sm.staminaRechargeMul], [1.15, 1.15, 2.5, 0.5]);
   const hy = S.effects({ hydrate: 3 }); near(hy.coat, 0.18); assert.equal(hy.coatTime, 6); assert.equal(hy.coatRadius, 3); assert.ok(hy.coatBurn >= 5 && hy.coatBurn <= 7);
   const uc = S.effects({ undercover: 1 }); assert.ok(uc.cloak); assert.equal(uc.cloakTime, 5); assert.equal(uc.cloakCooldown, 30);
   // row 5
@@ -243,13 +244,13 @@ test('respec: cost scales with progress (40% of EXPECTED_INCOME), never free, ab
   assert.equal(S.respec(poor).reason, 'gems'); assert.equal(poor.gems, 89); assert.deepEqual(poor.skills, { overload: 1 });
 });
 
-test('player level: +1 per completed campaign level, capped at 20, with a rank title each', () => {
+test('player level: +1 per completed campaign level, capped at 30, with a rank title each', () => {
   assert.equal(S.playerLevel(0), 1);
   for (let h = 0; h <= 19; h++) assert.equal(S.playerLevel(h), h + 1);
-  assert.equal(S.playerLevel(20), 20); assert.equal(S.playerLevel(45), 20);
-  for (let lv = 1; lv <= 20; lv++) assert.ok(typeof S.rankTitle(lv) === 'string' && S.rankTitle(lv).length > 3, 'title ' + lv);
-  assert.equal(new Set(IB.RANK_TITLES.slice(1)).size, 20, 'titles are unique');
-  assert.equal(S.rankTitle(99), S.rankTitle(20));
+  assert.equal(S.playerLevel(20), 21); assert.equal(S.playerLevel(29), 30); assert.equal(S.playerLevel(45), 30);
+  for (let lv = 1; lv <= 30; lv++) assert.ok(typeof S.rankTitle(lv) === 'string' && S.rankTitle(lv).length > 3, 'title ' + lv);
+  assert.equal(new Set(IB.RANK_TITLES.slice(1)).size, 30, 'titles are unique');
+  assert.equal(S.rankTitle(99), S.rankTitle(30));
 });
 
 test('loadout: 2 guns until level 10 is cleared, then 3; assign / pickup rules', () => {

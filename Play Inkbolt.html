@@ -6884,15 +6884,15 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
 
    ECONOMY (see tests/unit/skills.test.js)
    Skill points come from campaign progress only: completing level L for the first time pays POINTS_AT[L]
-   (2 a level, 3 on levels 5, 10, 15, 18 and 19). Level 19 (the last campaign level) pays the last points.
+   (1 a level, 2 on levels 1, 10 and 15). Level 19 (the last campaign level) pays the last point.
      after level   1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19
-     points        2  4  6  8 11 13 15 17 19 22 24 26 28 30 33 35 37 40 43   -> 43 in total = the whole tree
-   The tree holds 33 points of normal skills plus two 5-point endgame skills (43). However the points are spent,
-   the top is always reachable: by the last level every skill, both endgame ones included, can be owned.
+     points        2  3  4  5  6  7  8  9 10 12 13 14 15 16 18 19 20 21 22   -> 22 in total, never more
+   The tree holds 43 points, so 22 buys a build, not the whole tree (respec to change it). The gates are low so the
+   top is always reachable: any 9 points below open the endgame row, and 9 + 5 + 5 = 19 owns both endgame skills.
 
-   PLAYER LEVEL = 1 + highest campaign level completed, capped at 20 (LEVEL_CAP): level 19 makes you LV 20 and
-   the level 20 finale (Compactor Prime) is fought at max level, so every completion that leads somewhere
-   raises the level by one. */
+   PLAYER LEVEL = 1 + highest campaign level completed, capped at 30 (LEVEL_CAP). Levels 20-30 (the Second Tour,
+   levelplans.js) keep raising it: no more skill points, but more health (core/damage.js playerMaxHp) and better gear.
+   Level 29 makes you LV 30, so every completion that leads somewhere raises the level by one. */
 (function (IB) {
   'use strict';
 
@@ -6911,15 +6911,15 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
        4                  3     Hazard | Ricochet | Healthy
        5                  2     Stream | Electrify (special) | Rapid
        6                  1     Overload | Heavy Ink
-     Normal skills hold 30 + 3 = 33 points; an endgame skill needs 14 below it + 5 = 19 (first affordable after
-     level 9); the whole tree (43) is paid for by level 16. */
+     Normal skills hold 30 + 3 = 33 points; an endgame skill needs 9 below it + 5 = 14 (first affordable after
+     level 12); the 22 points of the whole campaign buy a build (the tree costs 43). */
   IB.SKILL_TIERS = [
     { tier: 1, name: 'Trunk', gate: 0 },
-    { tier: 2, name: 'Rounds', gate: 2 },
-    { tier: 3, name: 'Hazards', gate: 5 },
-    { tier: 4, name: 'Tricks', gate: 8 },
-    { tier: 5, name: 'Grit', gate: 11 },
-    { tier: 6, name: 'Endgame', gate: 14, capstone: true }
+    { tier: 2, name: 'Rounds', gate: 1 },
+    { tier: 3, name: 'Hazards', gate: 3 },
+    { tier: 4, name: 'Tricks', gate: 5 },
+    { tier: 5, name: 'Grit', gate: 7 },
+    { tier: 6, name: 'Endgame', gate: 9, capstone: true }
   ];
 
   // params: the numbers the runtime uses (per rank where an array); text is the player-facing description
@@ -6942,7 +6942,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       'Increases your max health and slowly regenerates 0.5% of it per second per rank after 4 s without damage.', 'heart'),
     // tier 4
     S('stamina', 4, 0, 'Stamina', 'special', [1], '', 'Marathon',
-      'You move 15% faster, sprint 50% faster, your running lasts 2.5x longer, and stamina recharges in half the time.', 'run'),
+      'You move 15% faster, sprint 30% faster, your running lasts 2.5x longer, and stamina recharges in half the time.', 'run'),
     S('hydrate', 4, 1, 'Hydrate', 'rank', [6, 12, 18], '%', 'Coat chance',
       'Your bullets have a chance to coat a robot in electrified liquid for 6 s. Robots that come within 3 m of it take shock damage over time.', 'water'),
     S('undercover', 4, 2, 'Undercover', 'special', [1], '', 'Cloak (F)',
@@ -6962,9 +6962,9 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   IB.SKILLS.forEach(function (s) { IB.SKILL_BY_ID[s.id] = s; });
 
   // points paid the first time a campaign level is completed; levels past 19 pay nothing
-  IB.SKILL_POINTS_AT = { 1: 2, 2: 2, 3: 2, 4: 2, 5: 3, 6: 2, 7: 2, 8: 2, 9: 2, 10: 3, 11: 2, 12: 2, 13: 2, 14: 2, 15: 3, 16: 2, 17: 2, 18: 3, 19: 3 };
+  IB.SKILL_POINTS_AT = { 1: 2, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 1, 10: 2, 11: 1, 12: 1, 13: 1, 14: 1, 15: 2, 16: 1, 17: 1, 18: 1, 19: 1 };
   IB.SKILL_LAST_LEVEL = 19;
-  IB.PLAYER_LEVEL_CAP = 20;
+  IB.PLAYER_LEVEL_CAP = 30;
   // loadout size: 2 guns, 3 once level 10 (the Dumpster Tank) is beaten
   IB.LOADOUT_RULES = { base: 2, extra: 3, extraAfter: 10 };
 
@@ -6973,7 +6973,9 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     'Tin Rookie', 'Can Kicker', 'Bolt Botherer', 'Scrap Rat', 'Junk Jockey',
     'Rivet Rattler', 'Gear Grinder', 'Spring Snapper', 'Cog Crusher', 'Bin Breaker',
     'Ink Slinger', 'Wire Wrangler', 'Dent Dealer', 'Piston Puncher', 'Chrome Cracker',
-    'Circuit Smasher', 'Scrapyard Sheriff', 'Tin Terror', 'Robot Wrecker', 'Inkbolt Legend'];
+    'Circuit Smasher', 'Scrapyard Sheriff', 'Tin Terror', 'Robot Wrecker', 'Inkbolt Legend',
+    'Iron Inker', 'Steel Scribbler', 'Titan Tagger', 'Mech Marker', 'Chassis Chaser',
+    'Gantry Ghost', 'Foundry Phantom', 'Core Cracker', 'Overlord Breaker', 'Inkbolt Eternal'];
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
 
 /* ---- src/data/unlocks.js ---- */
@@ -10730,6 +10732,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   // a steady climb: each level has at least 5% more robots than the one before (the extra are light robots)
   var prevTotal = 0;
   function smooth(p) {
+    if (p.tour) return;
     var t = total(p), want = Math.round(prevTotal * 1.05);
     for (var pass = 0; pass < 4 && t < want; pass++, t = total(p)) {
       var light = 0; p.zones.forEach(function (z) { z.waves.forEach(function (w) { w.forEach(function (e) { if (LIGHT[e[0]]) light += e[1]; }); }); });
@@ -10767,15 +10770,40 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       });
     });    smooth(p);
   }
+  /* Levels 20-30: the Second Tour. After Deep Park the campaign goes on through eleven of its best maps again, as new
+     levels: robots at that level's strength (health / damage / tempo by level, core/damage.js) and the player level
+     keeps rising to LV 30 (health, gear and gun levels with it; skill points stop at level 19). The robot count does
+     not keep inflating: each tour level is the map's own waves scaled to TOUR_ROBOTS(L) (280 on level 20 rising to 360
+     on level 30, below the 400-500 of levels 15-19), so the late game gets tougher through stronger robots, not ever
+     bigger crowds. */
+  var TOUR = ['city2', 'castle', 'factory2', 'mall', 'island', 'police', 'office', 'grove', 'spire', 'foundry', 'parking'];
+  IB.TOUR_ROBOTS = function (L) { return 280 + 8 * Math.max(0, L - 20); };
+  function cloneWaves(p) { return p.zones.map(function (z) { var o = {}; for (var k in z) o[k] = z[k]; o.waves = z.waves.map(function (w) { return w.map(function (e) { return e.slice(); }); }); return o; }); }
+  var tourIds = [];
+  TOUR.forEach(function (id) {
+    var b = P[id]; if (!b) return;
+    var t = {}; for (var k in b) t[k] = b[k];
+    t.id = 'tour_' + id; t.tour = id; t.zones = cloneWaves(b); t.weapons = []; t.tuned = false; delete t.start;
+    t.name = b.name + ' II'; t.intro = 'Second Tour: the robots are stronger here now. ' + (b.intro || '');
+    P[t.id] = t; tourIds.push(t.id);
+  });
   IB.CAMPAIGN = ORDER.filter(function (id) { return P[id]; });
+  IB.MAIN_CAMPAIGN = IB.CAMPAIGN.length;   // levels 1..19; the tour follows
+  IB.CAMPAIGN = IB.CAMPAIGN.concat(tourIds);
   IB.CAMPAIGN.forEach(function (id, i) {
     var p = P[id];
     p.level = i + 1;
     p.next = IB.CAMPAIGN[i + 1] || null;
     p.weapons = p.weapons || WEAPONS[i] || [];
     if (i === 0) p.start = p.start || ['pip'];
-    tuneWaves(p, i + 1);
+    if (p.tour) tuneTour(p, i + 1); else tuneWaves(p, i + 1);
   });
+  // tour waves: the normal tuning (elites, no +5% climb), then every entry scaled so the level holds TOUR_ROBOTS(L)
+  function tuneTour(p, L) {
+    var keep = prevTotal; tuneWaves(p, L); prevTotal = keep;
+    var k = IB.TOUR_ROBOTS(L) / total(p);
+    p.zones.forEach(function (z) { z.waves.forEach(function (w) { w.forEach(function (e) { e[1] = Math.max(1, Math.round(e[1] * k)); }); }); });
+  }
 
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
 
@@ -10834,7 +10862,9 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     { from: 12, w: [33, 34, 24, 9] },
     { from: 13, w: [30, 35, 25, 10] },
     { from: 15, w: [27, 35, 26, 12] },
-    { from: 17, w: [24, 35, 27, 14] }
+    { from: 17, w: [24, 35, 27, 14] },
+    { from: 20, w: [20, 34, 30, 16] },   // the Second Tour (levels 20-30): better finds as the robots get stronger
+    { from: 25, w: [16, 33, 32, 19] }
   ];
 
   // lo/hi per rarity. `better: 'low'` means a smaller number is the better roll (recharge delay).
@@ -10951,7 +10981,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
          L        1     3     6    10    13    20
          shield 1.00  1.08  1.35  1.71  1.98  2.61
          mod    1.00  1.03  1.12  1.24  1.33  1.50      */
-    levelScale: { shield: { k: 0.04, knee: 3, k2: 0.09, cap: 2.8 }, mod: { k: 0.015, knee: 3, k2: 0.03, cap: 1.5 } },
+    levelScale: { shield: { k: 0.04, knee: 3, k2: 0.1, cap: 3.8 }, mod: { k: 0.015, knee: 3, k2: 0.03, cap: 1.85 } },   // caps reached at level 30
     rarities: RARITIES,
     rarityById: RARITIES.reduce(function (m, r) { m[r.id] = r; return m; }, {}),
     rarityOdds: RARITY_ODDS,
@@ -11166,15 +11196,15 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     };
   }
 
-  /* Player health per player level (LV = 1 + highest level cleared, cap 20): 100 + 8k + 0.2k^2 (k = LV - 1), so
-     LV 20 has 324 base (+ Armor Plating, Tin Hide, Tin Titan and a shield on top). Tuned against the robots'
+  /* Player health per player level (LV = 1 + highest level cleared, cap 30): 100 + 9k + 0.3k^2 (k = LV - 1), so
+     LV 20 has 379 base and LV 30 has 613 (+ Healthy, Tank, the vest and a shield on top). Tuned against the robots'
      pressure at the campaign level he is playing (damage x enemyDmgMul, volleys / coolMul, hits / sqrt(aimMul)):
-       LV / L      1     5    10    15    20
-       health    100   135   188   251   324
-       pressure 1.00  1.30  1.79  2.45  3.03
-     Health keeps pace with pressure (ratio 1.00-1.07, unit tested); the shield (15-100 by level and rarity) and
-     skills supply the margin, so later levels ask for better gear and skills without becoming a wall. */
-  function playerMaxHp(lv) { var k = Math.max(1, Math.min(20, lv || 1)) - 1; return Math.round(100 + 8 * k + 0.2 * k * k); }
+       LV / L      1     5    10    15    20    25    30
+       health    100   141   205   285   379   488   613
+       pressure 1.00  1.30  1.79  2.45  3.03  3.40  3.73
+     Health stays ahead of pressure and pulls further ahead late (ratio 1.0 at LV 1, ~1.15 by LV 10, ~1.25 at LV 20,
+     ~1.6 at LV 30, unit tested): later levels throw more robots at once, so the margin grows with them. */
+  function playerMaxHp(lv) { var k = Math.max(1, Math.min(30, lv || 1)) - 1; return Math.round(100 + 9 * k + 0.3 * k * k); }
   function enemyPressure(L) { var t = enemyTempo(L); return enemyDmgMul(L) / t.coolMul / Math.sqrt(t.aimMul); }
 
   // 4.4: at most 3 + floor(L/5) robots in Windup or Attack.
@@ -11603,7 +11633,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       // tier 4
       // Stamina: sprint x1.3 on top of the +15% move speed (x1.5 in all; it was a too-fast x2), runs last 2.5x longer,
       // stamina refills in half the time
-      sprintMul: stamina ? 1.3 : 1, moveMul: stamina ? 1.15 : 1, staminaMul: stamina ? 2.5 : 1, staminaRechargeMul: stamina ? 0.5 : 1,
+      sprintMul: stamina ? 1.15 : 1, moveMul: stamina ? 1.15 : 1, staminaMul: stamina ? 2.5 : 1, staminaRechargeMul: stamina ? 0.5 : 1,
       coat: v('hydrate') / 100, coatTime: 6, coatRadius: 3, coatFrac: 0.3, coatMin: 2, coatMax: 18, coatBurn: 5,   // Hydrate
       cloak: has('undercover'), cloakTime: 5, cloakCooldown: 30,   // Undercover (F)
       // tier 5
@@ -14903,7 +14933,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
 (function (IB) {
   'use strict';
   var MOVE = IB.MOVE = {
-    walk: 6.0, sprint: 9.0, stamina: 4, staminaRefill: 2, staminaRest: 1,
+    walk: 6.0, sprint: 8.4, stamina: 4, staminaRefill: 2, staminaRest: 1,
     accel: 60, friction: 10, airControl: 0.35, jumpVel: 6.2, gravity: 18,
     coyote: 0.10, jumpBuffer: 0.12, stepUp: 0.35, stepUpStair: 0.5, snapDown: 0.2, radius: 0.35, height: 1.7, eye: 1.55,
     dipPerM: 0.04, dipMax: 0.12, dipReturn: 0.2, bobWalk: 0.012, bobSprint: 0.020,
@@ -23724,7 +23754,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     HUD.init(); M.init(); wireMenus();
     // Blender GLBs: common, weapons, bots and the title/level-1 kit (brief 4.2 boot order)
     // Blender GLBs: common, weapons, bots and the first level's theme kit (brief 4.2 boot order); other kits load per level
-    var saved0 = G.store.newest();
+    var saved0 = tourMigrate(G.store.newest());
     G.plan = IB.LEVEL_PLANS[params.get('plan') || (saved0 && saved0.plan) || IB.CAMPAIGN[0]] || IB.LEVEL_PLANS[IB.CAMPAIGN[0]];
     IB.Assets.load(['common', 'weapons', 'bots', 'gear', 'troopers', Z.themeOf(G.plan).family], function (f) { bootProgress(0.2 + f * 0.7); })
       .then(bootAfterAssets)
@@ -24218,6 +24248,16 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     Inp.enabled = true; Inp.reset();
     if (!AUTOTEST) Inp.requestLock();
   };
+  /* Saves that finished the campaign before levels 20-30 (the Second Tour) existed were sent back to level 1; move
+     them on to level 20 once, so the player level can keep climbing. */
+  function tourMigrate(slot) {
+    var first = IB.CAMPAIGN[IB.MAIN_CAMPAIGN];
+    if (slot && first && !slot.tourMoved && (slot.highest || 0) >= IB.MAIN_CAMPAIGN && slot.plan === IB.CAMPAIGN[0]) {
+      slot.plan = first; slot.level = IB.LEVEL_PLANS[first].level; slot.tourMoved = true;
+      try { G.store.save(slot); } catch (e) { /* keep playing; the move happens again next boot */ }
+    }
+    return slot;
+  }
   function ensureSlot() {
     if (G.slot) return;
     var newest = G.store.newest();
@@ -24617,7 +24657,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     G.mode = 'title'; Inp.enabled = false; Inp.releaseLock(); IB.Plat.stop();
     HUD.show(false); document.getElementById('touch').hidden = true; document.body.classList.remove('dead');
     resetLevelStateForTitle();
-    var slot = G.store.newest();
+    var slot = tourMigrate(G.store.newest());
     G.slot = slot || null;
     M.title({ slot: slot, levelName: G.plan.name });
   };

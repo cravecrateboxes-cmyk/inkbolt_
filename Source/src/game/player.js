@@ -2,7 +2,7 @@
 (function (IB) {
   'use strict';
   var MOVE = IB.MOVE = {
-    walk: 6.0, sprint: 9.0, stamina: 4, staminaRefill: 2, staminaRest: 1,
+    walk: 6.0, sprint: 8.4, stamina: 4, staminaRefill: 2, staminaRest: 1,
     accel: 60, friction: 10, airControl: 0.35, jumpVel: 6.2, gravity: 18,
     coyote: 0.10, jumpBuffer: 0.12, stepUp: 0.35, stepUpStair: 0.5, snapDown: 0.2, radius: 0.35, height: 1.7, eye: 1.55,
     dipPerM: 0.04, dipMax: 0.12, dipReturn: 0.2, bobWalk: 0.012, bobSprint: 0.020,
