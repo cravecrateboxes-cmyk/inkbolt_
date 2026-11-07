@@ -807,15 +807,17 @@
     }
   }
   // indoor ceiling over a rectangle (faces down), with optional light fixtures every N metres
-  function addCeiling(g, P, x0, z0, w, h, theme, grid) {
-    var C = theme.env && theme.env.ceiling; if (!C) return;
+  // mode (a zone plan's `ceiling`): false = no ceiling over this zone (a glass roof from its own layer grid),
+  // 'plain' = the ceiling without the theme's light fittings (the zone's roof layer places them)
+  function addCeiling(g, P, x0, z0, w, h, theme, grid, mode) {
+    var C = theme.env && theme.env.ceiling; if (!C || mode === false) return;
     var y = C.height, c = col(C.color, '#F2F2F2');
     g.flat([[x0, z0], [x0, z0 + h], [x0 + w, z0 + h], [x0 + w, z0]].reverse(), y, c);   // winding chosen by flat(); flipped below
     var pos = g.nor, n0 = pos.length - 12;
     for (var i = n0; i < pos.length; i += 3) pos[i + 1] = -1;
     // flip the last quad's triangles so it faces down
     var idx = g.idx; for (var t = idx.length - 6; t < idx.length; t += 3) { var tmp = idx[t + 1]; idx[t + 1] = idx[t + 2]; idx[t + 2] = tmp; }
-    if (C.light) {
+    if (C.light && mode !== 'plain') {
       var ev = C.every || 4;
       // light: one piece, or a list mixed per bay (e.g. roof bays with and without an overhead crane)
       var clr = C.clear || '', rad = C.clearR || 2;   // keep fittings off walls and tall pieces (symbols within clearR cells)
@@ -1144,7 +1146,7 @@
         var x = ox + p.c, zz = oz + p.r;
         g.flat([[x, zz], [x + 1, zz], [x + 1, zz + 1], [x, zz + 1]], roofY, roofCol);
       });
-      addCeiling(g, P, ox, oz, grid.w, grid.h, theme, grid);
+      addCeiling(g, P, ox, oz, grid.w, grid.h, theme, grid, zp.ceiling);
       if (E.length) zone.entryGate = makeGate(P, ox + ecx, oz + grid.h - 0.5, E.length, theme, idx, world, 'entry');
       var gcx = (G[0].c + G[G.length - 1].c + 1) / 2;
       zone.exitGate = makeGate(P, ox + gcx, oz + 0.5, G.length, theme, idx, world, 'exit');
@@ -1205,39 +1207,79 @@
   //   * tall shafts under the skyline rows (the printed skyline pieces stop at z = -25)
   //   * a block grid of mid and low buildings with banded window floors, parapets, water tanks and roof boxes
   //   * streets, avenues with lane marks, and a park block or two
-  function buildCityBelow(level, theme, cz, rad, ring) {
+  // Options beyond the office tower's defaults (all optional; the office uses none of them):
+  //   facade / glass: our tower's skin colours; diagrid: [bay, height] draws that skin as a diagonal steel lattice
+  //   towerTop: [m above the floor per zone (+ one for the exit's core when bridges)]: each zone's tower is drawn as a
+  //     closed outside skin from the street to that height, faces turned outward (invisible from inside the zone, so a
+  //     zone that is not being drawn still stands there seen from the others), with openings where bridges join
+  //   bridges: true: the trails are sky-bridges (no set-back blocks between the towers; a core tower under the exit
+  //     room); bridgeHole: [half width, bottom, top] of the openings
+  //   skyline: { piece: [[x, front, w, d, colour, window], ...] } footprints per skyline piece (any ring, any copy);
+  //     shaftTop: where the shafts under them stop (the pieces' base)
+  //   hazeDist: [start, range, max] distance haze; hazeMax: the haze cap (1 = the horizon colour itself)
+  //   detail: radius of the detailed blocks (simple ones beyond, to `extent`); horizon: flat painted blocks and the
+  //     street out to here, so the city runs into the horizon haze; far: { count, radius, height, width } hazy towers
+  //     on the horizon
+  function buildCityBelow(level, theme, cz, rad, B) {
     var C = theme.below, D = C.depth || 170;
     var pos = [], colr = [], win = [], fac = [], edge = [], idx = [];
-    // fac: (u along the face in m, floor height in m (0 = plain), light factor); win: window colour
+    // fac: (u along the face in m, floor height in m (0 = plain, < 0 = diagrid), light factor); win: window colour
     // edge: (u, v, width, height) of the quad in metres, so the shader can ink every outer edge at a constant
     // screen width (the comic outline the rest of the game has); width < 0 = no outline (streets, lane marks)
+    // E (optional): [[u, v] x 4, width, height]: the quad's corners inside a larger face (a face split round an opening
+    // is inked on the whole face's outline only)
     var NOWIN = new THREE.Color(0, 0, 0);
-    function quad(a, b, c2, d, c, w, fh, k, ua, ub, noInk) {
+    function quad(a, b, c2, d, c, w, fh, k, ua, ub, noInk, E) {
       var n = pos.length / 3, U = [ua || 0, ub || 0, ub || 0, ua || 0];
       var Lu = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]), Lv = Math.hypot(d[0] - a[0], d[1] - a[1], d[2] - a[2]);
-      var E = [[0, 0], [Lu, 0], [Lu, Lv], [0, Lv]];
+      var EE = E ? E[0] : [[0, 0], [Lu, 0], [Lu, Lv], [0, Lv]], eu = E ? E[1] : Lu, ev = E ? E[2] : Lv;
       [a, b, c2, d].forEach(function (p, i) {
         pos.push(p[0], p[1], p[2]); colr.push(c.r, c.g, c.b); var ww = w || NOWIN; win.push(ww.r, ww.g, ww.b); fac.push(U[i], fh || 0, k);
-        edge.push(E[i][0], E[i][1], noInk ? -1 : Lu, Lv);
+        edge.push(EE[i][0], EE[i][1], noInk ? -1 : eu, ev);
       });
       idx.push(n, n + 1, n + 2, n, n + 2, n + 3);
     }
     var LIGHT = [0.86, 0.72, 0.96, 0.64];       // +x, -x, +z, -z (low southern sun)
     var INK = col('#2A2735'), ROOF = col(C.roof || '#8C8A93');
-    // box walls (no bottom) with an optional window grid drawn by the shader; roof cap + dark parapet rim
-    function tower(x0, z0, x1, z1, y0, y1, base, winC, fh, roof) {
-      var faces = [[[x1, z1], [x1, z0], 0], [[x0, z0], [x0, z1], 1], [[x0, z1], [x1, z1], 2], [[x1, z0], [x0, z0], 3]];
-      faces.forEach(function (F) {
-        var a = F[0], b = F[1], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
-        quad([a[0], y0, a[1]], [b[0], y0, b[1]], [b[0], y1, b[1]], [a[0], y1, a[1]], base, winC, fh, LIGHT[F[2]], 0, L);
-      });
-      if (roof === false) return;
+    var FACES = function (x0, z0, x1, z1) { return [[[x1, z1], [x1, z0], 0], [[x0, z0], [x0, z1], 1], [[x0, z1], [x1, z1], 2], [[x1, z0], [x0, z0], 3]]; };
+    function roofCap(x0, z0, x1, z1, y1, roof) {
       var rc = roof || ROOF, r = Math.min(0.6, (x1 - x0) * 0.08), y = y1 + 0.03;
       quad([x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0], rc, null, 0, 1);
       quad([x0, y, z1], [x1, y, z1], [x1, y, z1 - r], [x0, y, z1 - r], INK, null, 0, 1, 0, 0, true);
       quad([x0, y, z0 + r], [x1, y, z0 + r], [x1, y, z0], [x0, y, z0], INK, null, 0, 1, 0, 0, true);
       quad([x0, y, z1], [x0 + r, y, z1], [x0 + r, y, z0], [x0, y, z0], INK, null, 0, 1, 0, 0, true);
       quad([x1 - r, y, z1], [x1, y, z1], [x1, y, z0], [x1 - r, y, z0], INK, null, 0, 1, 0, 0, true);
+    }
+    // box walls (no bottom) with an optional window grid drawn by the shader; roof cap + dark parapet rim
+    function tower(x0, z0, x1, z1, y0, y1, base, winC, fh, roof) {
+      FACES(x0, z0, x1, z1).forEach(function (F) {
+        var a = F[0], b = F[1], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        quad([a[0], y0, a[1]], [b[0], y0, b[1]], [b[0], y1, b[1]], [a[0], y1, a[1]], base, winC, fh, LIGHT[F[2]], 0, L);
+      });
+      if (roof === false) return;
+      roofCap(x0, z0, x1, z1, y1, roof);
+    }
+    // a tower's outside skin with openings: holes = [{ face: 2 (south) | 3 (north), x0, x1, y0, y1 }]; node = [x, z]
+    // a point the facade pattern is aligned to (a diagrid node of the curtain wall modules)
+    function skin(x0, z0, x1, z1, y0, y1, base, winC, fh, holes, node) {
+      FACES(x0, z0, x1, z1).forEach(function (F) {
+        var a = F[0], b = F[1], f = F[2], L = Math.hypot(b[0] - a[0], b[1] - a[1]), Hh = y1 - y0;
+        var u0 = node ? -(f < 2 ? Math.abs(a[1] - node[1]) : Math.abs(a[0] - node[0])) : 0;
+        var P = function (s, y) { return [a[0] + (b[0] - a[0]) * s / L, y, a[1] + (b[1] - a[1]) * s / L]; };
+        var piece = function (s0, s1, ya, yb) {
+          if (s1 - s0 < 0.01 || yb - ya < 0.01) return;
+          quad(P(s0, ya), P(s1, ya), P(s1, yb), P(s0, yb), base, winC, fh, LIGHT[f], u0 + s0, u0 + s1, false,
+            [[[s0, ya - y0], [s1, ya - y0], [s1, yb - y0], [s0, yb - y0]], L, Hh]);
+        };
+        var hs = (holes || []).filter(function (h) { return h.face === f; }).map(function (h) {
+          var s0 = f === 2 ? h.x0 - a[0] : a[0] - h.x1, s1 = f === 2 ? h.x1 - a[0] : a[0] - h.x0;
+          return [Math.max(0, s0), Math.min(L, s1), Math.max(y0, h.y0), Math.min(y1, h.y1)];
+        }).sort(function (p, q) { return p[0] - q[0]; });
+        var s = 0;
+        hs.forEach(function (h) { piece(s, h[0], y0, y1); piece(h[0], h[1], y0, h[2]); piece(h[0], h[1], h[3], y1); s = h[1]; });
+        piece(s, L, y0, y1);
+      });
+      roofCap(x0, z0, x1, z1, y1, col('#8F8A86'));
     }
     function tank(x, z, y, s) {                 // rooftop water tank: legs, barrel, cone roof (octagon)
       var seg = 8, r = 1.3 * s, h = 2.6 * s, yb = y + 1.6 * s, wood = col('#9A6B4A'), cone = col('#6E4B38');
@@ -1258,49 +1300,73 @@
     var hz = level.hatch ? level.hatch.z : minZ;
     minZ = Math.min(minZ, hz - 6);
     minX -= 0.6; maxX += 0.6; minZ -= 4; maxZ += 4;
-    var Y0 = -D, facade = col('#7E93AA'), glass = col(C.glass || '#5F7FA2'), setback = col('#6C7F95');
+    var Y0 = -D, facade = col(C.facade || '#7E93AA'), glass = col(C.glass || '#5F7FA2'), setback = col('#6C7F95');
     // the tower: each zone is a wing with its own curtain wall down to the street; between wings (where the trail
     // corridors run) a lower set-back block with a roof 4 m down, so every floor plate stands on a building
     var wings = level.zones.map(function (z) { return [z.ox - 0.6, z.oz - 0.3, z.ox + z.w + 0.6, z.oz + z.h + 0.3]; });
-    wings.forEach(function (w) { tower(w[0], w[1], w[2], w[3], Y0, -0.06, facade, glass, 4, false); });
-    for (var wi = 0; wi < wings.length; wi++) {
+    var TT = C.towerTop, FH = C.diagrid ? -1 : 4, BH = C.bridgeHole || [2.6, -1.2, ((theme.wall && theme.wall.height) || 4) + 0.5];
+    function hole(face, x, top) { return { face: face, x0: x - BH[0], x1: x + BH[0], y0: BH[1], y1: top === undefined ? BH[2] : top }; }
+    wings.forEach(function (w, i) {
+      if (!TT) { tower(w[0], w[1], w[2], w[3], Y0, -0.06, facade, glass, 4, false); return; }
+      var z = level.zones[i], holes = [hole(3, z.exitGate.x)];
+      if (i > 0 && z.entryGate) holes.push(hole(2, z.entryGate.x));
+      skin(w[0], w[1], w[2], w[3], Y0, TT[i], facade, glass, FH, holes, [z.ox + 1, z.oz + 1]);
+    });
+    if (C.bridges && level.hatch) {   // the exit room stands on (and in) a slender core tower
+      var hx = level.hatch.x, hz0 = hz - 3.55, hz1 = hz + 3.1;
+      skin(hx - 3.65, hz0, hx + 3.65, hz1, Y0, TT ? TT[level.zones.length] || 30 : -0.8, facade, glass, FH, [hole(2, hx)], [hx, hz1]);
+    }
+    for (var wi = 0; wi < wings.length && !C.bridges; wi++) {
       var lo = wings[wi], next = wings[wi + 1];
       var gz0 = next ? next[3] : minZ, gz1 = lo[1];
       if (gz1 - gz0 < 0.2) continue;
       var gx0 = Math.max(lo[0], next ? next[0] : lo[0]) + 3, gx1 = Math.min(lo[2], next ? next[2] : lo[2]) - 3;
       tower(gx0, gz0, gx1, gz1, Y0, -4, setback, glass, 4, col('#9AA3AE'));
     }
-    // skyline rows: shafts carry the printed skyline down to the street (its pieces stop at z = -25). They start
-    // just behind the skyline's front blocks (6 m back) and run under its mid and far towers (to ~58 m back), stopping
-    // under its base; the dark roofs only show in the gaps between skyline blocks.
-    var RR = rad - 70 + (ring ? ring.radius[0] : 52), X = RR * (ring ? ring.squeezeX || 0.6 : 0.6);
     var keep = [[minX - 7, minZ - 7, maxX + 7, maxZ + 7]];
     function used(x0, z0, x1, z1) { for (var i = 0; i < keep.length; i++) { var k = keep[i]; if (x0 < k[2] && x1 > k[0] && z0 < k[3] && z1 > k[1]) return true; } return false; }
-    // one shaft under every skyline building (theme.below.skyline mirrors the blocks in fam_kit_office.py:
-    // [x, front depth, width, depth, colour]); the gaps between them look down into the streets
-    var SK = C.skyline || [], _c = new THREE.Vector3();
-    if (ring) for (var ri = 0; ri < ring.count; ri++) {
-      var an = ri / ring.count * Math.PI * 2, px = Math.cos(an) * RR * (ring.squeezeX || 0.6), pz = cz + Math.sin(an) * RR;
-      var pm = M(px, 0, pz, Math.atan2(-px, -(pz - cz)));
-      SK.forEach(function (bk, j) {
-        var lx0 = bk[0] - bk[2] / 2 + 0.4, lx1 = bk[0] + bk[2] / 2 - 0.4, ly0 = bk[1] + 0.4, ly1 = bk[1] + bk[3] - 0.4;
-        var ax0 = 1e9, ax1 = -1e9, az0 = 1e9, az1 = -1e9;
-        [[lx0, ly0], [lx1, ly0], [lx0, ly1], [lx1, ly1]].forEach(function (q) {
-          _c.set(q[0], 0, -q[1]).applyMatrix4(pm); ax0 = Math.min(ax0, _c.x); ax1 = Math.max(ax1, _c.x); az0 = Math.min(az0, _c.z); az1 = Math.max(az1, _c.z);
+    // skyline rows: shafts carry the printed skyline down to the street (its pieces stop at shaftTop). They start
+    // just behind the skyline's front blocks and run under its towers, stopping under its base; the dark roofs only
+    // show in the gaps between skyline blocks. One shaft under every skyline building (theme.below.skyline mirrors the
+    // blocks in the kit: [x, front depth, width, depth, colour, window colour]); the gaps between them look down into
+    // the streets. A plain list is ring 0's piece; an object lists the footprints of each skyline piece.
+    var SKY = C.skyline || [], _c = new THREE.Vector3(), STOP = C.shaftTop !== undefined ? C.shaftTop : -24;
+    ((B && B.ring) || []).forEach(function (ring, ri) {
+      if (Array.isArray(SKY) && ri > 0) return;
+      for (var i = 0; i < ring.count; i++) {
+        var list = Array.isArray(SKY) ? SKY : SKY[ring.pieces ? ring.pieces[i % ring.pieces.length] : ring.piece] || [];
+        if (!list.length) continue;
+        var pl = ringPlace(ring, ri, i, cz, rad), pm = M(pl.x, 0, pl.z, pl.yaw);
+        list.forEach(function (bk, j) {
+          var lx0 = bk[0] - bk[2] / 2 + 0.4, lx1 = bk[0] + bk[2] / 2 - 0.4, ly0 = bk[1] + 0.4, ly1 = bk[1] + bk[3] - 0.4;
+          var ax0 = 1e9, ax1 = -1e9, az0 = 1e9, az1 = -1e9;
+          [[lx0, ly0], [lx1, ly0], [lx0, ly1], [lx1, ly1]].forEach(function (q) {
+            _c.set(q[0], 0, -q[1]).applyMatrix4(pm); ax0 = Math.min(ax0, _c.x); ax1 = Math.max(ax1, _c.x); az0 = Math.min(az0, _c.z); az1 = Math.max(az1, _c.z);
+          });
+          if (used(ax0 + 0.5, az0 + 0.5, ax1 - 0.5, az1 - 0.5)) return;   // corners where two rows cross: first one wins
+          keep.push([ax0, az0, ax1, az1]);
+          var pc = col(bk[4]), wc = col(bk[5] || '#64798E');
+          tower(ax0, az0, ax1, az1, Y0, STOP, pc, wc, 3.4 + (j % 3) * 0.3, col('#4A4756'));
         });
-        if (used(ax0 + 0.5, az0 + 0.5, ax1 - 0.5, az1 - 0.5)) return;   // corners where two rows cross: first one wins
-        keep.push([ax0, az0, ax1, az1]);
-        var pc = col(bk[4]), wc = col(bk[5] || '#64798E');
-        tower(ax0, az0, ax1, az1, Y0, -24, pc, wc, 3.4 + (j % 3) * 0.3, col('#4A4756'));
-      });
-    }
-    // street grid out to the haze; blocks of 1, 2 or 4 buildings
+      }
+    });
+    // street grid out to the haze; blocks of 1, 2 or 4 buildings (simple single blocks beyond `detail`, flat painted
+    // ones out to `horizon`)
     var ext = C.extent || 250, BLK = 26, ST = 9, street = col(C.street || '#5B616D'), walk = col('#A9A69D'), lane = col('#E8D47C'), park = col('#7FAA66');
-    ground(-ext, cz - ext, ext, cz + ext, Y0, street);
+    var DET = C.detail || 1e9, HOR = C.horizon || 0, EXT = Math.max(ext, HOR);
+    ground(-EXT, cz - EXT, EXT, cz + EXT, Y0, street);
     var BPAL = (C.blocks || ['#CDB89A', '#B39C86', '#9DB0C2', '#C9C3B6', '#AC8F78', '#8E9FB2', '#D2A58C']).map(function (h) { return col(h); });
     var bc = 0;
-    for (var gx = -ext; gx < ext; gx += BLK + ST) for (var gz = cz - ext; gz < cz + ext; gz += BLK + ST) {
+    for (var gx = -EXT; gx < EXT; gx += BLK + ST) for (var gz = cz - EXT; gz < cz + EXT; gz += BLK + ST) {
       var bx0 = gx + ST / 2, bz0 = gz + ST / 2, bx1 = bx0 + BLK, bz1 = bz0 + BLK, hh = hash(Math.round(gx) + 999, Math.round(gz) + 999);
+      var dc = Math.hypot((bx0 + bx1) / 2, (bz0 + bz1) / 2 - cz), inner = gx >= -ext && gx < ext && gz >= cz - ext && gz < cz + ext;
+      if (!inner || dc > DET) {   // far blocks: one plain building (inside `extent`), a flat painted block beyond
+        if (used(bx0, bz0, bx1, bz1) || (!inner && dc > HOR)) continue;
+        var fc = BPAL[Math.floor(hh * 97) % BPAL.length];
+        if (inner && hh >= 0.06) tower(bx0 + 1, bz0 + 1, bx1 - 1, bz1 - 1, Y0, Y0 + 14 + hh * hh * 40, fc, fc.clone().multiplyScalar(0.55), 3.6, ROOF.clone().lerp(fc, 0.3));
+        else ground(bx0, bz0, bx1, bz1, Y0 + 0.3, hh < 0.06 ? park : fc);
+        continue;
+      }
       ground(gx + ST / 2 - 0.14, gz, gx + ST / 2 + 0.14, gz + BLK + ST, Y0 + 0.05, lane);     // avenue centre line
       ground(gx, gz + ST / 2 - 0.14, gx + BLK + ST, gz + ST / 2 + 0.14, Y0 + 0.06, lane);     // street centre line
       ground(bx0 - 0.8, bz0 - 0.8, bx1 + 0.8, bz1 + 0.8, Y0 + 0.15, walk, true);                    // sidewalk slab
@@ -1320,6 +1386,13 @@
         bc++;
       }
     }
+    // a far horizon of tall towers in the haze
+    if (C.far) for (var fi = 0; fi < C.far.count; fi++) {
+      var FA = C.far, an2 = (fi + hash(fi, 71) * 0.7) / FA.count * Math.PI * 2, fr = FA.radius[0] + hash(fi, 72) * (FA.radius[1] - FA.radius[0]);
+      var fxx = Math.cos(an2) * fr, fzz = cz + Math.sin(an2) * fr, fw = FA.width[0] + hash(fi, 73) * (FA.width[1] - FA.width[0]);
+      var ftop = FA.height[0] + hash(fi, 74) * (FA.height[1] - FA.height[0]), ftc = BPAL[fi % BPAL.length];
+      tower(fxx - fw / 2, fzz - fw / 2, fxx + fw / 2, fzz + fw / 2, Y0, ftop, ftc, ftc.clone().multiplyScalar(0.6), 4, ROOF.clone().lerp(ftc, 0.3));
+    }
     var geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     geo.setAttribute('color', new THREE.Float32BufferAttribute(colr, 3));
@@ -1328,26 +1401,44 @@
     geo.setAttribute('aEdge', new THREE.Float32BufferAttribute(edge, 4));
     geo.setIndex(pos.length / 3 > 65535 ? new THREE.Uint32BufferAttribute(idx, 1) : new THREE.Uint16BufferAttribute(idx, 1));
     geo.computeBoundingSphere();
-    // window grid (floor bands + mullions) and the depth haze are drawn per pixel: one quad per facade
+    // window grid (floor bands + mullions) or diagrid, and the depth + distance haze are drawn per pixel: one quad
+    // per facade
+    var HD = C.hazeDist || [120, 260, 0.3], DG = C.diagrid || [6, 9];
     var mat = new THREE.ShaderMaterial({
-      uniforms: { uInk: { value: col('#221E2C') }, uHaze: { value: col(C.haze || '#CCDCE8') }, uDepth: { value: D }, uTop: { value: C.hazeTop || 0.18 }, uBot: { value: C.hazeBottom || 0.6 } },
+      uniforms: { uInk: { value: col('#221E2C') }, uHaze: { value: col(C.haze || '#CCDCE8') }, uDepth: { value: D }, uTop: { value: C.hazeTop || 0.18 }, uBot: { value: C.hazeBottom || 0.6 },
+        uHz: { value: new THREE.Vector3(HD[0], HD[1], HD[2]) }, uMaxH: { value: C.hazeMax || 0.92 }, uDia: { value: new THREE.Vector2(DG[0], DG[1]) } },
       extensions: { derivatives: true },
       vertexShader: 'attribute vec3 color; attribute vec3 aWin; attribute vec3 aFac; attribute vec4 aEdge; varying vec3 vC; varying vec3 vW; varying vec3 vF; varying vec4 vE; varying float vY; varying float vDist;\n' +
         'void main(){ vC = color; vW = aWin; vF = aFac; vE = aEdge; vY = position.y; vec4 mv = modelViewMatrix * vec4(position, 1.0); vDist = length(mv.xyz); gl_Position = projectionMatrix * mv; }',
-      fragmentShader: 'uniform vec3 uHaze; uniform float uDepth; uniform float uTop; uniform float uBot; uniform vec3 uInk; varying vec3 vC; varying vec3 vW; varying vec3 vF; varying vec4 vE; varying float vY; varying float vDist;\n' +
+      fragmentShader: 'uniform vec3 uHaze; uniform float uDepth; uniform float uTop; uniform float uBot; uniform vec3 uInk; uniform vec3 uHz; uniform float uMaxH; uniform vec2 uDia;\n' +
+        'varying vec3 vC; varying vec3 vW; varying vec3 vF; varying vec4 vE; varying float vY; varying float vDist;\n' +
         'void main(){ vec3 c = vC;\n' +
         '  if (vF.y > 0.0) { float fy = fract(vY / vF.y); float fu = fract(vF.x / 2.6);\n' +
         '    if (fy > 0.38 && fy < 0.9 && fu > 0.14) c = vW; }\n' +
+        '  else if (vF.y < 0.0) {\n' +   // diagrid: steel diagonals (bay uDia.x wide, climbing uDia.y per half diamond) and floor beams over glass
+        '    float sl = uDia.x / uDia.y, kk = inversesqrt(1.0 + sl * sl), s1 = vF.x - vY * sl, s2 = vF.x + vY * sl;\n' +
+        '    float d = min(abs(s1 - uDia.x * floor(s1 / uDia.x + 0.5)), abs(s2 - uDia.x * floor(s2 / uDia.x + 0.5))) * kk;\n' +
+        '    float fb = abs(vY - uDia.y * 0.5 * floor(vY / (uDia.y * 0.5) + 0.5));\n' +
+        '    float aa = fwidth(d) + 1e-4, ab = fwidth(fb) + 1e-4;\n' +
+        '    vec3 gl = mix(vW, vC * 0.8, (1.0 - smoothstep(0.22 - ab, 0.22 + ab, fb)) * 0.8);\n' +
+        '    vec3 cc = mix(gl, vC, 1.0 - smoothstep(0.17 - aa, 0.17 + aa, d));\n' +
+        '    c = mix(cc, mix(vW, vC, 0.2), clamp(aa * 5.0 - 0.25, 0.0, 1.0)); }\n' +
         '  c *= vF.z;\n' +
         '  if (vE.z > 0.0) { vec2 d = min(vE.xy, vE.zw - vE.xy); vec2 px = fwidth(vE.xy) * 1.7;\n' +
         '    if (d.x < px.x || d.y < px.y) c = uInk; }\n' +
-        '  float h = mix(uTop, uBot, clamp(-vY / uDepth, 0.0, 1.0)) + clamp((vDist - 120.0) / 260.0, 0.0, 0.3);\n' +
-        '  gl_FragColor = vec4(mix(c, uHaze, clamp(h, 0.0, 0.92)), 1.0); }'
+        '  float h = mix(uTop, uBot, clamp(-vY / uDepth, 0.0, 1.0)) + clamp((vDist - uHz.x) / uHz.y, 0.0, uHz.z);\n' +
+        '  gl_FragColor = vec4(mix(c, uHaze, clamp(h, 0.0, uMaxH)), 1.0); }'
     });
     var mesh = new THREE.Mesh(geo, mat);
     mesh.frustumCulled = false; mesh.name = 'CityBelow';
     level.root.add(mesh);
     level.cityTris = idx.length / 3;
+  }
+  // where copy i of backdrop ring ri stands (and faces): shared by the ring placement and the city's skyline shafts
+  function ringPlace(ring, ri, i, cz, rad) {
+    var a = (i + ri * 0.37) / ring.count * Math.PI * 2, rr = rad - 70 + ring.radius[0] + (ring.radius[1] - ring.radius[0]) * hash(i, 3 + ri);
+    var x = Math.cos(a) * rr * (ring.squeezeX || 0.6), z = cz + Math.sin(a) * rr;
+    return { x: x, z: z, a: a, rr: rr, yaw: ring.face ? Math.atan2(-x, -(z - cz)) : a };
   }
 
   // backdrop beyond the playable area (printed, fogged): rings of theme/common pieces; outlined puff clouds outdoors.
@@ -1374,27 +1465,35 @@
       level.root.add(new THREE.Mesh(g.build(), Z.mat));
     }
     var B = theme.backdrop, P = new Parts(theme);
-    if (theme.below) buildCityBelow(level, theme, cz, rad, B && B.ring && B.ring[0]);
+    if (theme.below) buildCityBelow(level, theme, cz, rad, B);
     if (B && B.ring) B.ring.forEach(function (ring, ri) {
       for (var i = 0; i < ring.count; i++) {
-        var a = (i + ri * 0.37) / ring.count * Math.PI * 2, rr = rad - 70 + ring.radius[0] + (ring.radius[1] - ring.radius[0]) * hash(i, 3 + ri);
-        var x = Math.cos(a) * rr * (ring.squeezeX || 0.6), z = cz + Math.sin(a) * rr;
+        var pl = ringPlace(ring, ri, i, cz, rad);
         var sc = ring.scale[0] + (ring.scale[1] - ring.scale[0]) * hash(i, 7 + ri), sq = ring.squash ? ring.squash[0] + (ring.squash[1] - ring.squash[0]) * hash(i, 8) : 1;
-        var m = M(x, ring.y || 0, z, ring.face ? Math.atan2(-x, -(z - cz)) : a);
+        var m = M(pl.x, ring.y || 0, pl.z, pl.yaw);
         m.multiply(new THREE.Matrix4().makeScale(sc, sc * sq, sc));
-        P.add(ring.piece, 0, 0, 0, 0, m);
+        P.add(ring.pieces ? ring.pieces[i % ring.pieces.length] : ring.piece, 0, 0, 0, 0, m);   // pieces: one per copy, in turn
       }
     });
     meshesFor(P, level.root);
     level.clouds = []; level.cloudMeshes = [];
     if (!(theme.env && theme.env.clouds)) return;
     if (!Z.cloudMat) { Z.cloudMat = IB.Render.toonMaterial({ map: IB.Assets.palette.common, baked: 0.06 }); Z.cloudMat.emissive = new THREE.Color(0x7A7468); Z.cloudMat.fog = false; }
+    /* env.clouds: true (puffs 44-66 m up drifting east) or { y: [lo, hi], count (per cloud shape), scale: [lo, hi],
+       lanes: [near, far] (|x| band on both sides of the level, kept clear of the buildings), span (m along z, centred
+       on the level), speed, axis: 'z' (drift north along the lanes, wrapping inside the span) } */
+    var CO = typeof theme.env.clouds === 'object' ? theme.env.clouds : null;
     ['Cloud_A', 'Cloud_B', 'Cloud_C'].forEach(function (name, si) {
-      var N = 4, im = new THREE.InstancedMesh(IB.Assets.get(name), Z.cloudMat, N);
+      var N = CO ? CO.count || 4 : 4, im = new THREE.InstancedMesh(IB.Assets.get(name), Z.cloudMat, N);
       im.frustumCulled = false;
       for (var k = 0; k < N; k++) {
-        var j = si * 4 + k;
-        level.clouds.push({ mesh: im, i: k, x: (hash(j, 11) - 0.5) * 260, y: 44 + hash(j, 12) * 22, z: cz + (hash(j, 13) - 0.5) * 260, s: 1.6 + hash(j, 14) * 1.4, yaw: hash(j, 15) * 6.28 });
+        var j = si * N + k;
+        if (CO) {
+          var sp = CO.span || 260, ln = CO.lanes || [60, 90], yr = CO.y || [44, 66], sr = CO.scale || [1.6, 3];
+          level.clouds.push({ mesh: im, i: k, x: (j % 2 ? 1 : -1) * (ln[0] + hash(j, 11) * (ln[1] - ln[0])), y: yr[0] + hash(j, 12) * (yr[1] - yr[0]),
+            z: cz + (hash(j, 13) - 0.5) * sp, s: sr[0] + hash(j, 14) * (sr[1] - sr[0]), yaw: hash(j, 15) * 6.28,
+            axis: CO.axis, v: CO.speed || 0.6, lo: cz - sp / 2, hi: cz + sp / 2 });
+        } else level.clouds.push({ mesh: im, i: k, x: (hash(j, 11) - 0.5) * 260, y: 44 + hash(j, 12) * 22, z: cz + (hash(j, 13) - 0.5) * 260, s: 1.6 + hash(j, 14) * 1.4, yaw: hash(j, 15) * 6.28 });
       }
       level.cloudMeshes.push(im); level.root.add(im);
     });
@@ -1405,7 +1504,8 @@
     if (level && level.ticks) { level.tickT = (level.tickT || 0) + dt; for (var ti = 0; ti < level.ticks.length; ti++) level.ticks[ti](dt, level.tickT); }
     if (!level || !level.clouds || !level.clouds.length) return;
     for (var k = 0; k < level.clouds.length; k++) {
-      var cl = level.clouds[k]; cl.x += dt * 0.6; if (cl.x > 140) cl.x = -140;
+      var cl = level.clouds[k];
+      if (cl.axis === 'z') { cl.z -= dt * cl.v; if (cl.z < cl.lo) cl.z = cl.hi; } else { cl.x += dt * 0.6; if (cl.x > 140) cl.x = -140; }
       _cq.setFromAxisAngle(_up, cl.yaw); _cp.set(cl.x, cl.y, cl.z); _cs.set(cl.s, cl.s, cl.s);
       cl.mesh.setMatrixAt(cl.i, _cm.compose(_cp, _cq, _cs));
     }
