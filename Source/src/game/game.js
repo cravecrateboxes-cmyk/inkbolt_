@@ -273,6 +273,8 @@
     // base health grows with the player level (IB.Damage.playerMaxHp); bench and skills add on top
     var lvHp = IB.Damage.playerMaxHp(IB.Skills.playerLevel(G.slot ? G.slot.highest : 0));
     p.maxHp = Math.round(((fx.maxHp || 100) - 100 + lvHp) * sk.maxHpMul);   // Healthy: +% max health
+    p.vestHp = IB.Gear && IB.Gear.vestHp ? IB.Gear.vestHp(G) : 0;           // a worn armour vest adds flat health
+    p.maxHp += p.vestHp;
     p.health = fresh ? p.maxHp : Math.max(1, Math.min(p.maxHp, p.maxHp - hurt));
     var stWas = p.staminaMax || 4;
     p.staminaMax = 4 * (fx.staminaMul || 1) * sk.staminaMul;   // Stamina: runs last 2.5x longer, 2x faster, half the recharge
@@ -284,17 +286,22 @@
       wf.spreadMul = (fx.spreadMul || 1) * sk.spreadMul; wf.magMul = sk.magMul; wf.rateMul = sk.rateMul; wf.swapMul = sk.swapMul;
     }
   }
-  // shields unlock with level 3: the first time a save has cleared it, a common cell is put in the bag and worn
-  // (shield drops start at the same point), so every player sees the shield bar from level 4 on
+  // starter gear (IB.LOOT.starters): shields unlock with level 3, armour vests with level 5. The first time a save has
+  // cleared that level a common item is put in the bag and worn (drops of that type start at the same point), so
+  // every player sees the shield bar from level 4 on and wears a vest from level 6 on. Older saves past those levels
+  // get theirs at the next level start.
   function grantStarterShield() {
-    if (!IB.Gear || !IB.Loot || !G.slot || (G.slot.highest || 0) < 3) return;
-    var g = IB.Gear.gear(G);
-    if (!g || g.starter) return;
-    g.starter = true;
-    var item = IB.Loot.makeItem('shield', 'common', 3, Math.random);
-    if (IB.Loot.addItem(g, item) && !g.shield) IB.Loot.equipShield(g, item.id);
-    G.store.save(G.slot);
-    G.starterShieldNote = item;
+    if (!IB.Gear || !IB.Loot || !G.slot) return;
+    var g = IB.Gear.gear(G), h = G.slot.highest || 0, given = false;
+    if (!g) return;
+    IB.LOOT.starters.forEach(function (s) {
+      if (h < s.cleared || g[s.flag]) return;
+      g[s.flag] = true; given = true;
+      var item = IB.Loot.makeItem(s.type, 'common', s.cleared, Math.random), slot = IB.Loot.slotOf(item);
+      if (IB.Loot.addItem(g, item) && !g[slot]) IB.Loot.equipWorn(g, slot, item.id);
+      (G.starterNotes = G.starterNotes || []).push({ item: item, note: s.note });
+    });
+    if (given) G.store.save(G.slot);
   }
   G.grantStarterShield = grantStarterShield;
   G.progress = function () {
@@ -356,7 +363,7 @@
     G.fade = opts && opts.fadeIn ? { t: 0, dur: 1.3 } : null;
     setDim(G.fade ? 1 : 0);
     HUD.reset(); HUD.show(true); document.getElementById('touch').hidden = !Inp.touch;
-    if (G.starterShieldNote && IB.LootHUD) { IB.LootHUD.loot(G.starterShieldNote, 'Shields unlocked'); G.starterShieldNote = null; }
+    if (G.starterNotes && IB.LootHUD) { G.starterNotes.forEach(function (n) { IB.LootHUD.loot(n.item, n.note); }); G.starterNotes = null; }   // queued one after another
     // a save from before the new skill tree: its points were refunded on load; say so once
     if (G.slot.skillsRefunded) { delete G.slot.skillsRefunded; HUD.toast('New skill tree: your skill points were refunded (Tab)', 4); }
     HUD.pips(G.level.zones.length, 0, 0);
@@ -674,6 +681,7 @@
     else if (G.player.health < G.player.maxHp * 0.4 && Math.random() < 0.25) G.spawnPickup('health', r.x, r.z);
     if (G.fx && G.fx.leech) G.player.health = Math.min(G.player.maxHp, G.player.health + G.fx.leech);
     if (IB.Drops) IB.Drops.onKill(r);   // ~5 % loot drop
+    if (IB.Gear && IB.Gear.onKill) IB.Gear.onKill(G, r);   // Overcharge shield cells
   }
   G.onKill = onKill;
   function collectGem(kind) {

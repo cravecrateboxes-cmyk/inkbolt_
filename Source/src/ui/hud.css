@@ -143,11 +143,23 @@
 .hud .sh-glyph { width: 15px; height: 15px; }
 .hud .sh-glyph polygon { fill: none; stroke: var(--hx-cell); stroke-width: 2.4; }
 .hud .sh-glyph path { fill: var(--hx-cell); }
-.hud .sh-bar { height: 7px; background: rgba(95, 208, 255, .14); box-shadow: none; transform: skewX(-20deg); }
-.hud .sh-fill { background: linear-gradient(180deg, #CFF3FF, var(--hx-cell)); box-shadow: 0 0 8px var(--hx-cell-g); }
+.hud .sh-bar { height: 7px; background: var(--hx-cell-bg, rgba(95, 208, 255, .14)); box-shadow: none; transform: skewX(-20deg); }
+.hud .sh-fill { background: linear-gradient(180deg, #F2FBFF, var(--hx-cell)); box-shadow: 0 0 8px var(--hx-cell-g); }
 .hud .sh-ticks { background: repeating-linear-gradient(90deg, transparent 0 calc(100% / var(--ticks, 4) - 2px), rgba(9, 12, 22, .9) calc(100% / var(--ticks, 4) - 2px) calc(100% / var(--ticks, 4))); }
 .hud .shieldbar b { font-size: 19px; font-weight: 700; color: var(--hx-cell); text-shadow: 0 0 8px var(--hx-cell-g), 0 1px 1px rgba(0, 0, 0, .6); }
-.hud .shieldbar.charging .sh-fill { background: repeating-linear-gradient(-45deg, var(--hx-cell) 0 5px, rgba(95, 208, 255, .45) 5px 10px); background-size: 14.14px 14.14px; animation: shBelt2 .45s linear infinite; }
+.hud .shieldbar.charging .sh-fill { background: repeating-linear-gradient(-45deg, var(--hx-cell) 0 5px, var(--hx-cell-a, rgba(95, 208, 255, .45)) 5px 10px); background-size: 14.14px 14.14px; animation: shBelt2 .45s linear infinite; }
+/* shield tiers (ui/loothud.js sets --hx-cell per rarity): rarer cells get a heavier glyph and a brighter edge */
+.hud .shieldbar.t-epic .sh-glyph polygon, .hud .shieldbar.t-legendary .sh-glyph polygon { fill: var(--hx-cell-bg); stroke-width: 3; }
+.hud .shieldbar.t-legendary::before { width: 4px; box-shadow: 0 0 12px var(--hx-cell-g), 0 0 3px #FFF3D6; }
+.hud .shieldbar.has-perk { grid-template-columns: auto minmax(0, 1fr) auto auto; }
+/* perk pip: Nova (four-point star) lit while armed, Overcharge (double chevron) lit while boosting */
+.hud .sh-perk { width: 16px; height: 16px; display: grid; place-items: center; opacity: .38; transition: opacity .2s; }
+.hud .sh-perk svg { width: 16px; height: 16px; fill: var(--hx-cell); stroke: var(--hx-cell); }
+.hud .sh-perk.overcharge svg { fill: none; }
+.hud .sh-perk.lit { opacity: 1; filter: drop-shadow(0 0 5px var(--hx-cell-g)); }
+.hud .sh-perk.lit.overcharge { animation: hxBlink .5s steps(2) infinite; }
+.hud .shieldbar.pk-nova::after { background: linear-gradient(90deg, rgba(120, 200, 255, .85), rgba(9, 12, 22, .5)); }
+.hud .shieldbar.pk-overcharge .sh-fill { box-shadow: 0 0 14px var(--hx-cell), 0 0 4px #FFFFFF; }
 @keyframes shBelt2 { to { background-position: 14.14px 0; } }
 .hud .shieldbar.empty b { color: var(--hx-faint); text-shadow: none; }
 .hud .shieldbar.empty .sh-glyph polygon { stroke: var(--hx-faint); }
@@ -278,6 +290,7 @@ body.touch-on .hud .hp-glyph { width: 14px; height: 14px; }
 body.touch-on .hud .shieldbar { height: 24px; padding: 0 10px; gap: 8px; }
 body.touch-on .hud .shieldbar b { font-size: 16px; }
 body.touch-on .hud .sh-bar { height: 6px; }
+body.touch-on .hud .sh-perk, body.touch-on .hud .sh-perk svg { width: 13px; height: 13px; }
 body.touch-on .hud .gems { height: 36px; font-size: 20px; padding: 0 16px 0 10px; }
 body.touch-on .hud .score { height: 44px; padding: 0 18px; column-gap: 10px; min-width: 0; }
 body.touch-on .hud .score-time { font-size: 26px; }

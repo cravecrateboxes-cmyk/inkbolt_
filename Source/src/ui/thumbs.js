@@ -4,15 +4,22 @@
                                              cached, else the fallback markup; the picture is then drawn in the
                                              background, one at a time, and swapped into every span still waiting
      IB.Thumbs.url(kind, id)                 the cached data URL, or null (not drawn yet / no model)
-   kind 'gun': WPN_<ID> + its magazine, muzzle to the right. kind 'gear': shield (GEAR_ShieldCell), grip, scope,
-   acid / muzzle (GEAR_Acid).
+   kind 'gun': WPN_<ID> + its magazine, muzzle to the right. kind 'gear': shield (GEAR_ShieldCell; 'shield.epic' etc.
+   draws that rarity's own cell, IB.Loot.modelOf), grip, scope, acid / muzzle (GEAR_Acid), mag (GEAR_Mag),
+   armor (GEAR_Vest).
    Drawn with the game's own renderer (no second GL context, the toon program the viewmodel already uses) into a small
    RGBA render target at 2x, read back asynchronously (WebGL2: pixel-pack buffer + fence, polled; the main thread
    never waits on the GPU), then scaled down on a 2D canvas. WebGL1 falls back to a synchronous read. */
 (function (IB) {
   'use strict';
   var T = IB.Thumbs = { cache: {}, W: 420, H: 210 };
-  var GEAR_NODE = { shield: 'GEAR_ShieldCell', grip: 'GEAR_Grip', scope: 'GEAR_Scope', acid: 'GEAR_Acid', muzzle: 'GEAR_Acid' };
+  var GEAR_NODE = { shield: 'GEAR_ShieldCell', grip: 'GEAR_Grip', scope: 'GEAR_Scope', acid: 'GEAR_Acid', muzzle: 'GEAR_Acid', mag: 'GEAR_Mag', armor: 'GEAR_Vest' };
+  var VIEW = {
+    shield: { yaw: -0.6, pitch: 0, tilt: -0.5, pad: 1.18, outline: 0.02, ink: 3 },
+    armor: { yaw: -0.55, pitch: 0.22, pad: 1.18, outline: 0.02, ink: 3 },
+    mag: { yaw: -0.75, pitch: 0.3, pad: 1.18, outline: 0.02, ink: 3 },
+    def: { yaw: -0.5, pitch: 0.3, pad: 1.15, outline: 0.016, ink: 3 }
+  };
   var SS = 2;   // supersampling: the render target is 2x the picture
   var scene = null, cam = null, uni = null, rt = null, mats = {}, queue = [], timer = 0, busy = false;
   var _v2 = null, _col = null;
@@ -54,7 +61,9 @@
       m.frustumCulled = false; root.add(m);
     });
     root.rotation.set(view.pitch || 0, view.yaw || 0, 0, 'YXZ');
-    scene.add(root); root.updateMatrixWorld(true);
+    // tilt: lean the top toward the camera (a world-space turn about the screen-horizontal axis, after yaw / pitch)
+    var top = new THREE.Group(); top.rotation.z = view.tilt || 0; top.add(root);
+    scene.add(top); top.updateMatrixWorld(true);
     box.setFromObject(root);
     var c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3());
     // camera on +X looking down -X: screen right is -Z (the muzzle), up is +Y
@@ -79,7 +88,7 @@
       }
     } finally {
       r.setRenderTarget(prevRT); r.setClearColor(_col, prevAlpha); r.autoClear = prevAuto;
-      scene.remove(root);
+      scene.remove(top);
     }
     return job;
   }
@@ -125,11 +134,13 @@
       if (A.geo[key + '_Mag'] && sock) list.push({ geo: A.geo[key + '_Mag'], pos: sock.position });
       return { fam: 'weapons', list: list, view: { yaw: -0.22, pitch: 0.1, pad: 1.06, outline: 0.012, ink: 3 } };
     }
-    var n = GEAR_NODE[id];
+    // id: a type ('shield', 'mag'...), a slot ('muzzle'), or 'type.rarity' for a type with a model per rarity
+    var dot = String(id).indexOf('.'), type = dot > 0 ? id.slice(0, dot) : id, n = GEAR_NODE[type];
+    if (dot > 0 && IB.Loot && IB.Loot.modelOf) { var mn = IB.Loot.modelOf({ type: type, rarity: id.slice(dot + 1) }); if (mn && A.geo[mn]) n = mn; }
     if (!n || !A.geo[n]) return null;
     var gl = [{ geo: A.geo[n] }];
-    if ((id === 'acid' || id === 'muzzle') && A.geo.GEAR_Acid_Glow) gl.push({ geo: A.geo.GEAR_Acid_Glow });
-    return { fam: 'gear', list: gl, view: id === 'shield' ? { yaw: -0.9, pitch: 0.35, pad: 1.2, outline: 0.02, ink: 3 } : { yaw: -0.5, pitch: 0.3, pad: 1.15, outline: 0.016, ink: 3 } };
+    if ((type === 'acid' || type === 'muzzle') && A.geo.GEAR_Acid_Glow) gl.push({ geo: A.geo.GEAR_Acid_Glow });
+    return { fam: 'gear', list: gl, view: VIEW[type] || VIEW.def };
   }
   function img(url) { return '<img class="pic" src="' + url + '" alt="" draggable="false">'; }
   function waiting(k) { return document.querySelector('[data-thumb="' + k + '"]'); }

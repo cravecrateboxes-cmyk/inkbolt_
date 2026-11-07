@@ -20,7 +20,7 @@ test('new slot matches the 5.14 schema defaults', () => {
   const s = store.newSlot(2, 918273);
   assert.deepEqual(s, {
     v: 1, id: 2, level: 1, highest: 0, gems: 0, upgrades: {}, arsenal: [], loadout: [], skills: {},
-    stats: { kills: 0, deaths: 0, time: 0, coreHits: 0 }, best: {}, gear: { inv: [], shield: null, attach: {}, next: 1, found: 0 },
+    stats: { kills: 0, deaths: 0, time: 0, coreHits: 0 }, best: {}, gear: { inv: [], shield: null, armor: null, attach: {}, next: 1, found: 0 },
     seed: 918273, saved: now()
   });
   assert.equal(typeof store.newSlot(1).seed, 'number');
@@ -102,7 +102,7 @@ test('version migration from v:1', () => {
   const list = ['pip', 'buzz', 'rivet', 'katana', 'frag'];
   assert.deepEqual(S.migrate(JSON.parse(JSON.stringify(ex))), Object.assign({}, ex, { loadout: list, arsenal: list, skills: {}, gear: S.defaultGear() }));
   // a current save passes through unchanged (gear included)
-  const curGear = { inv: [{ id: 'g1', type: 'grip' }], shield: null, attach: { rivet: ['g1'] }, next: 2, found: 1 };
+  const curGear = { inv: [{ id: 'g1', type: 'grip' }], shield: null, armor: null, attach: { rivet: ['g1'] }, next: 2, found: 1, starter: true, starterVest: true };
   const cur = Object.assign({}, ex, { loadout: ['rivet', 'pip'], arsenal: ['pip', 'rivet', 'buzz'], skills: { overload: 2, heavyink: 1 }, gear: curGear });
   assert.deepEqual(S.migrate(JSON.parse(JSON.stringify(cur))), cur);
   // the old 'owned' list fills the arsenal and the loadout
@@ -112,6 +112,9 @@ test('version migration from v:1', () => {
   const withGear = S.migrate({ v: 1, id: 1, gear: { inv: [{ id: 'g1', type: 'grip' }], shield: 'g1' } });
   assert.equal(withGear.gear.inv.length, 1); assert.equal(withGear.gear.shield, 'g1'); assert.deepEqual(withGear.gear.attach, {});
   assert.deepEqual(S.migrate({ v: 1, id: 1, gear: 'junk' }).gear, S.defaultGear());
+  // a save from before armour vests: the gear keeps everything and gains an empty vest slot
+  const preVest = S.migrate({ v: 1, id: 1, highest: 7, gear: { inv: [{ id: 'g1', type: 'shield', rarity: 'epic', level: 6, stats: { capacity: 40, delay: 3.5, rate: 15 } }], shield: 'g1', attach: {}, next: 2, found: 1, starter: true } });
+  assert.equal(preVest.gear.armor, null); assert.equal(preVest.gear.shield, 'g1'); assert.equal(preVest.gear.starter, true); assert.equal(preVest.gear.starterVest, undefined, 'the starter vest is still to come');
   // no version field -> treated as v1
   assert.equal(S.migrate({ id: 1, level: 3 }).v, 1);
   // unknown future version kept as-is

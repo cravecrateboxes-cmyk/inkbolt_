@@ -286,7 +286,10 @@
     var lvPct = Math.round(Math.min(1, (pr.level - 1) / (cap - 1)) * 100), ptPct = Math.round(pr.earned / IB.Skills.totalPoints() * 100);
     var sh = g && g.shield ? IB.Loot.find(g, g.shield) : null;
     function row(ic, k, v, hl) { return '<li' + (hl ? ' class="hl"' : '') + '>' + skIcon(ic, 'skic sm') + '<span>' + esc(k) + '</span><b>' + esc(v) + '</b></li>'; }
-    var stats = row('heart', 'Health', Math.round(p.maxHp || 100), false) + row('armor', 'Shield', sh ? sh.stats.capacity + ' · ' + sh.stats.rate + '/s' : 'None', !!sh);
+    var vs = g ? IB.Loot.worn(g, 'armor') : null, va = IB.Loot.armorOf(vs), shp = sh && IB.Loot.perkLine(sh);
+    var stats = row('heart', 'Health', Math.round(p.maxHp || 100), false) +
+      row('bolt', 'Shield', sh ? sh.stats.capacity + ' · ' + sh.stats.rate + '/s' + (shp ? ' · ' + shp.name : '') : 'None', !!sh) +
+      row('armor', 'Armour', vs ? '-' + Math.round(va.dr * 100) + '% · +' + va.hp + ' hp' : 'None', !!vs);
     IB.SKILLS.forEach(function (s) {
       var r = IB.Skills.rank(sk, s.id);
       if (s.max > 1) stats += row(s.icon, s.stat, r ? '+' + s.ranks[Math.min(r, s.max) - 1] + (s.unit || '') : '—', r > 0);

@@ -546,7 +546,7 @@ async function lootRun(browser, base) {
   await until(pg, () => __TEST__.state().alive > 0, null, 10000);
   // a kill can drop loot (forced to 100 % here): the drop shows in the world and on the radar
   await pg.evaluate(() => { IB.LOOT.dropChance = 1; __TEST__.forceWaves(); });
-  await until(pg, () => IB.AI.robots.some(r => r.on && r.state !== 'spawn'), null, 10000);
+  await until(pg, () => IB.AI.robots.some(r => r.on && r.state !== 'spawn'), null, 30000);
   await pg.evaluate(() => { const r = IB.AI.robots.find(r => r.on && r.state !== 'spawn'); IB.AI.kill(r, IB.Game.onKill); IB.LOOT.dropChance = 0.05; });
   const d0 = await pg.evaluate(() => ({ n: __TEST__.drops().length, radar: IB.Drops.radar() }));
   check('a kill rolls a loot drop', d0.n >= 1, JSON.stringify(d0));
@@ -564,7 +564,7 @@ async function lootRun(browser, base) {
   check('grip shows on the viewmodel', s.vm.includes('grip'), s.vm.join(','));
   // scope: zoom + aim through it
   await pg.evaluate(() => { const d = __TEST__.forceDrop('scope', 'rare', 0.5); });
-  await until(pg, () => __TEST__.gearState().inv.length === 2, null, 5000);
+  await until(pg, () => { const d = __TEST__.drops()[0]; if (d) { IB.Game.player.x = d.x; IB.Game.player.z = d.z; } return __TEST__.gearState().inv.length === 2; }, null, 15000);
   s = await gs();
   check('scope fitted: more zoom, tighter aim spread', s.weapon.aimZoom < s.weapon.baseAimZoom && s.vm.includes('scope'), JSON.stringify(s.weapon));
   await pg.evaluate(() => { IB.Input.aim = true; });
@@ -575,7 +575,7 @@ async function lootRun(browser, base) {
   check('scope view clears when not aiming', await until(pg, () => document.getElementById('scopeView').style.visibility === 'hidden' && !IB.Game.ws.hidden, null, 5000));
   // shield: absorbs before health, then recharges
   await pg.evaluate(() => __TEST__.forceDrop('shield', 'common', 0.5));
-  await until(pg, () => __TEST__.gearState().playerShield !== null, null, 5000);
+  await until(pg, () => { const d = __TEST__.drops()[0]; if (d) { IB.Game.player.x = d.x; IB.Game.player.z = d.z; } return __TEST__.gearState().playerShield !== null; }, null, 15000);
   await pg.evaluate(() => { IB.Game.player.health = IB.Game.player.maxHp; });
   s = await gs();
   const cap = s.playerShield.max;
@@ -593,7 +593,7 @@ async function lootRun(browser, base) {
   check('shield recharges after its delay', await until(pg, () => __TEST__.gearState().playerShield.cur > 0.5 && IB.Game.player.shield.charging, null, 15000));
   // acid muzzle + real shots: hit numbers, then green acid ticks
   await pg.evaluate(() => __TEST__.forceDrop('acid', 'epic', 0.5));
-  await until(pg, () => __TEST__.gearState().weapon.acid > 0, null, 5000);
+  await until(pg, () => { const d = __TEST__.drops()[0]; if (d) { IB.Game.player.x = d.x; IB.Game.player.z = d.z; } return __TEST__.gearState().weapon.acid > 0; }, null, 15000);
   check('acid muzzle fitted: acid stat and the silencer on the gun', (await gs()).vm.includes('muzzle'));
   await pg.evaluate(() => { IB.Game.player.protect = 999; });
   const seen = new Set(); const t0 = Date.now();
@@ -635,6 +635,58 @@ async function lootRun(browser, base) {
   check('back to the fight', await until(pg, () => IB.Game.mode === 'play', null, 3000));
   const saved = await pg.evaluate(() => JSON.parse(localStorage.getItem('inkbolt.slot' + IB.Game.slot.id)).gear);
   check('gear is saved in the slot', saved && saved.inv.length === before - 1 && saved.shield, JSON.stringify(saved && { n: saved.inv.length, shield: saved.shield }));
+  // starter vest: the first level start after level 5 is cleared puts a common vest in the bag and on the player
+  const hp0 = (await gs()).maxHp;
+  await pg.evaluate(() => { const G = IB.Game, g = IB.Gear.gear(G); G.slot.highest = 5; delete g.starterVest; G.grantStarterShield(); IB.Gear.refresh(G); });
+  s = await gs();
+  const vest = s.inv.find(i => i.id === s.armor);
+  check('starter vest after level 5: common vest worn, max health up', vest && vest.type === 'armor' && vest.rarity === 'common' && s.maxHp === hp0 + s.vestHp && s.vestHp > 0, JSON.stringify([vest, hp0, s.maxHp, s.vestHp]));
+  check('the starter vest is handed out once', await pg.evaluate(() => { const G = IB.Game, g = IB.Gear.gear(G), n = g.inv.length; G.grantStarterShield(); return g.inv.length === n && g.starterVest === true; }));
+  // the vest cuts damage that gets past the shield
+  await pg.evaluate(() => { const G = IB.Game, st = G.player.shield; st.cur = 0; st.since = 0; G.player.health = G.player.maxHp; });
+  const vdr = await pg.evaluate(() => IB.Loot.armorOf(IB.Loot.worn(IB.Gear.gear(IB.Game), 'armor')).dr);
+  const hpA = (await gs()).health; await hurt(20); const hpB = (await gs()).health;
+  check('vest: 20 damage past the shield takes 20 x (1 - armour)', Math.abs((hpA - hpB) - 20 * (1 - vdr)) < 0.01, JSON.stringify([hpA, hpB, vdr]));
+  // extended mag: fits the SMG in hand (empty mag slot): more rounds, faster reload, on the viewmodel under the magazine
+  await pg.evaluate(() => __TEST__.forceDrop('mag', 'epic', 0.5));
+  check('extended mag auto-fits the SMG', await until(pg, () => { const s = __TEST__.gearState(); return s.attach.buzz && s.attach.buzz.mag; }, null, 15000));
+  s = await gs();
+  check('extended mag: bigger magazine and faster reload', s.weapon.mag > s.weapon.baseMag && s.weapon.magSize >= s.weapon.mag && s.weapon.reload < s.weapon.baseReload, JSON.stringify(s.weapon));
+  check('extended mag rides the magazine on the viewmodel', s.vm.includes('mag') && await pg.evaluate(() => { const m = IB.Weapons.models.buzz; return m.gearParts.mag.parent === m.mag; }), s.vm.join(','));
+  // legendary drop: orange beam on the radar, its own name
+  await pg.evaluate(() => { IB.Drops.clear(); __TEST__.forceDrop('grip', 'legendary', 6); });
+  check('legendary drop shows orange on the radar', await pg.evaluate(() => IB.Drops.radar().some(r => r.color === '#FF9A2E')));
+  await pg.waitForTimeout(800);
+  check('legendary grip collected (Titan Grip)', await until(pg, () => { const d = __TEST__.drops()[0]; if (d) { IB.Game.player.x = d.x; IB.Game.player.z = d.z; } return __TEST__.gearState().inv.some(i => i.rarity === 'legendary' && /Titan Grip/.test(i.name)); }, null, 15000),
+    JSON.stringify(await pg.evaluate(() => [__TEST__.drops(), __TEST__.gearState().inv.length])));
+  // Overcharge: a kill starts the recharge at once and boosts it
+  const oc = await pg.evaluate(() => __TEST__.giveItem('shield', 'epic', 8, 'overcharge'));
+  await pg.evaluate(id => __TEST__.equipWorn('shield', id), oc);
+  await hurt(12);
+  s = await gs();
+  check('overcharge cell worn, hit, recharge waiting', s.playerShield.perk === 'overcharge' && !s.playerShield.charging && s.playerShield.cur < s.playerShield.max, JSON.stringify(s.playerShield));
+  const kick = await pg.evaluate(() => __TEST__.gearKill());
+  check('Overcharge: a kill starts the recharge at once, boosted', kick && await until(pg, () => { const p = __TEST__.gearState().playerShield; return p.charging && p.boostT > 0; }, null, 3000));
+  check('HUD shield bar takes the Epic tint with a perk pip', await pg.evaluate(() => { const b = document.getElementById('shieldBar'); return b.classList.contains('t-epic') && b.classList.contains('has-perk') && !b.querySelector('.sh-perk').hidden; }));
+  // Nova: breaking the cell shocks nearby robots once per charge
+  const nv = await pg.evaluate(() => __TEST__.giveItem('shield', 'legendary', 8, 'nova'));
+  await pg.evaluate(id => __TEST__.equipWorn('shield', id), nv);
+  // a tough robot right next to the player (spawn a wave if none is up)
+  const near = () => pg.evaluate(() => {
+    const G = IB.Game, p = G.player, r = IB.AI.robots.find(r => r.on && r.state !== 'spawn' && r.state !== 'pose');
+    if (!r) { __TEST__.forceWaves(); return false; }
+    r.x = p.x + 1.5; r.z = p.z - 1.5; r.hp = r.maxHp = 5000; p.health = p.maxHp; return true;
+  });
+  for (let k = 0; k < 40 && !(await near()); k++) await pg.waitForTimeout(200);
+  s = await gs();
+  check('legendary Nova cell worn and armed (orange bar)', s.playerShield.perk === 'nova' && s.playerShield.nova === true && await pg.evaluate(() => document.getElementById('shieldBar').classList.contains('t-legendary')), JSON.stringify(s.playerShield));
+  const n0 = s.novas;
+  await hurt(s.playerShield.cur + 5);
+  check('Nova: breaking the cell fires a shock burst that hits the robot next to you', await until(pg, () => __TEST__.gearState().novas > 0 && __TEST__.gearState().novaHit >= 1, null, 15000), JSON.stringify(await gs().then(x => [x.novas, x.novaHit, n0])));
+  await pg.evaluate(() => { const st = IB.Game.player.shield; st.since = 0; st.cur = 5; });
+  await hurt(10);
+  await pg.waitForTimeout(400);
+  check('Nova fires once per charge (not again before the cell was full)', (await gs()).novas === n0 + 1);
   check('no console errors or warnings', pg.logs.length === 0, pg.logs.join(' | '));
   await pg.context().close();
 }

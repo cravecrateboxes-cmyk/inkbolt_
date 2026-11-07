@@ -1,5 +1,6 @@
 // INKBOLT viewmodel screenshots (arms + guns in the real game). Not a test: a review tool.
 //   node tests/e2e/viewmodel-shots.js [outdir] [W,H]        (serves the repo, opens Source/dev.html)
+//   WEAPONS=pip,rivet picks the guns; GEAR=1 fits every attachment each gun takes (grip, scope, acid, extended mag)
 // Every shot freezes one frame of one arm action (<WEAPON>_<Action> at a fraction of its length) with the
 // game's own W.pose on top (sprint bob, ADS blend), robots and HUD hidden, so shots are repeatable.
 // Join them into a sheet with: python3 blender/review_arms.py --tiles <outdir>/*.png --out sheet.png
@@ -32,6 +33,7 @@ function serve() {
   pg.on('pageerror', e => logs.push(e.message)); pg.on('console', m => { if (m.type() === 'error') logs.push(m.text()); });
   await pg.goto('http://localhost:' + server.address().port + '/Source/dev.html?autotest=1');
   await pg.waitForFunction(() => window.__TEST__ && IB.Game.mode === 'play', null, { timeout: 60000 });
+  if (process.env.GEAR) await pg.evaluate(() => { window.__GEAR = true; });
   await pg.evaluate((yaw) => {
     const G = IB.Game, W = IB.Weapons;
     G.player.protect = 1e9; G.guard.on = false; __TEST__.setTier('high'); G.player.yaw = yaw; G.player.pitch = 0.05;
@@ -52,6 +54,15 @@ function serve() {
       W.action = act; W.animName = o.sprint ? 'Sprint' : 'Idle'; W.animOnce = false;
       orig.call(this, s, 0, fp, 0, 0, true, 0);
     };
+    // GEAR=1: every gun wears every attachment it takes (legendary grip, scope, acid muzzle, extended mag)
+    if (window.__GEAR) {
+      const L = IB.Loot, g = IB.Gear.gear(G);
+      IB.MODELLED_WEAPONS.forEach(id => Object.keys(IB.LOOT.types).forEach(t => {
+        const it = L.makeItem(t, 'legendary', 12, Math.random);
+        if (L.compatible(it, id, IB.WEAPONS[id])) { L.addItem(g, it) || (it.id = 'x' + Math.random(), g.inv.push(it)); L.attach(g, id, IB.WEAPONS[id], it.id); }
+      }));
+      G.slot.arsenal = IB.MODELLED_WEAPONS.slice(); IB.Gear.refresh(G);
+    }
   }, +(process.env.YAW || 0.9));
   for (const [id, act, at, o] of SHOTS) {
     await pg.evaluate(([id, act, at, o]) => {
