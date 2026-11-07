@@ -1,16 +1,21 @@
 /* INKBOLT - skill tree, player level and rank titles. Pure data, no DOM. Logic: src/core/skills.js.
 
    ECONOMY (see tests/unit/skills.test.js)
-   Skill points come from campaign progress only: completing level L for the first time pays POINTS_AT[L]
-   (1 a level, 2 on levels 1, 10 and 15). Level 19 (the last campaign level) pays the last point.
-     after level   1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19
-     points        2  3  4  5  6  7  8  9 10 12 13 14 15 16 18 19 20 21 22   -> 22 in total, never more
+   PLAYER LEVEL comes from XP, as in a looter shooter: every robot you wreck pays XP (by type, x the level you are
+   playing), and clearing a level pays a bonus (IB.XP). LV 1-30 (PLAYER_LEVEL_CAP); the XP needed for LV n is
+   IB.XP.need(n), tuned so that playing the campaign through (most robots wrecked) puts you around LV N+1 after
+   level N, and maps added later keep carrying you towards LV 30. Replaying earlier maps also pays, just less.
+   Every LV raises max health (core/damage.js playerMaxHp) and better gear keeps dropping (item level = the level
+   you play).
+
+   SKILL POINTS come with player levels, up to LV 20 and never more than 22: reaching LV n pays POINTS_AT[n - 1]
+   (the tables below count level-ups gained, g = LV - 1; 2 on the first level-up and at LV 11 and 16, else 1).
+     LV            2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 (21-30: none)
+     points        2  3  4  5  6  7  8  9 10 12 13 14 15 16 18 19 20 21 22
    The tree holds 43 points, so 22 buys a build, not the whole tree (respec to change it). The gates are low so the
    top is always reachable: any 9 points below open the endgame row, and 9 + 5 + 5 = 19 owns both endgame skills.
-
-   PLAYER LEVEL = 1 + highest campaign level completed, capped at 30 (LEVEL_CAP). Levels 20-30 (the Second Tour,
-   levelplans.js) keep raising it: no more skill points, but more health (core/damage.js playerMaxHp) and better gear.
-   Level 29 makes you LV 30, so every completion that leads somewhere raises the level by one. */
+   In core/skills.js the skill functions take g (level-ups gained, = Skills.gained(slot)).
+*/
 (function (IB) {
   'use strict';
 
@@ -79,10 +84,20 @@
   IB.SKILL_BY_ID = {};
   IB.SKILLS.forEach(function (s) { IB.SKILL_BY_ID[s.id] = s; });
 
-  // points paid the first time a campaign level is completed; levels past 19 pay nothing
+  // points paid on gaining a player level (key = level-ups gained, LV - 1); nothing after LV 20
   IB.SKILL_POINTS_AT = { 1: 2, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 1, 10: 2, 11: 1, 12: 1, 13: 1, 14: 1, 15: 2, 16: 1, 17: 1, 18: 1, 19: 1 };
   IB.SKILL_LAST_LEVEL = 19;
   IB.PLAYER_LEVEL_CAP = 30;
+  /* XP: per robot wrecked = kill[type] x (1 + 0.1 (L - 1)) at campaign level L; clearing level L pays clear(L).
+     need(n) = total XP to reach LV n: 900 (n - 1) + 49.3 (n - 1)^2.73 (LV 2 900, LV 10 ~28k, LV 20 ~170k, LV 30 ~510k). */
+  IB.XP = {
+    kill: { crawler: 10, drone: 10, bomber: 12, gunner: 14, tosser: 14, shieldbot: 18, bruiser: 30, binhive: 30, soldier: 30, blader: 30,
+      skimmer: 400, dumpstertank: 500, cartcolossus: 600, compactorprime: 800 },
+    killDefault: 10,
+    levelMul: 0.1,
+    clear: function (L) { return 150 + 60 * Math.max(1, L); },
+    need: function (n) { var k = Math.max(0, n - 1); return Math.round(900 * k + 49.3 * Math.pow(k, 2.73)); }
+  };
   // loadout size: 2 guns, 3 once level 10 (the Dumpster Tank) is beaten
   IB.LOADOUT_RULES = { base: 2, extra: 3, extraAfter: 10 };
 

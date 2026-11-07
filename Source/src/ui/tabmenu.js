@@ -90,7 +90,7 @@
   }
 
   function firstSuggested() {
-    var sk = G.slot.skills || {}, h = G.slot.highest || 0;
+    var sk = G.slot.skills || {}, h = IB.Skills.gained(G.slot);
     for (var i = 0; i < IB.SKILLS.length; i++) if (IB.Skills.canBuy(sk, h, IB.SKILLS[i].id).ok) return IB.SKILLS[i].id;
     return IB.SKILLS[0].id;
   }
@@ -164,7 +164,7 @@
     return out;
   }
   function skillsPanel(pr) {
-    var sk = G.slot.skills || {}, h = pr.highest, rows = IB.SKILL_TIERS.length;
+    var sk = G.slot.skills || {}, h = pr.gained, rows = IB.SKILL_TIERS.length;
     var nodes = '', lines = '', gates = '', pos = {}, lit = 0;
     IB.SKILL_TIERS.forEach(function (t) {
       var row = rows - t.tier, list = tierSkills(t.tier), X = xs(t.tier, list.length);
@@ -236,7 +236,7 @@
     var ranks = s.max > 1 ? '<div class="sk-ranks">' + s.ranks.map(function (v, i) { return '<span class="' + (i < r ? 'on' : i === r ? 'next' : '') + '">+' + v + (s.unit || '') + '</span>'; }).join('') + '</div>' : '';
     var owner = cb.owner && IB.SKILL_BY_ID[cb.owner];
     var why = { max: '', tier: 'Spend ' + (cb.need || 0) + ' more point' + (cb.need === 1 ? '' : 's') + ' in the rows below', exclusive: 'You picked ' + (owner ? owner.name : 'the other one') + '. Respec to switch.',
-      points: pr.points > 0 ? 'Needs ' + s.cost + ' points' : (pr.earned >= IB.Skills.totalPoints() ? 'Every point is spent' : 'Clear the next level for a point') }[cb.reason] || '';
+      points: pr.points > 0 ? 'Needs ' + s.cost + ' points' : (pr.earned >= IB.Skills.totalPoints() ? 'Every point is spent' : 'Level up for a point (points until LV 20)') }[cb.reason] || '';
     var buyLabel = cb.ok ? 'Spend ' + s.cost + ' point' + (s.cost > 1 ? 's' : '') : (cb.reason === 'max' ? (s.max > 1 ? 'Maxed' : 'Owned') : 'Locked');
     return '<div class="ep hsel sk-card st-' + q.st + '" aria-live="polite">' + FR +
         '<div class="sk-dhead"><span class="sk-dic tile st-' + q.st + '">' + FR + skIcon(s.icon) + '</span><span class="sk-dtxt"><b>' + esc(s.name) + '</b><small>' + esc(kind) + '</small></span>' + rankBadge(s, r) + '</div>' +
@@ -264,7 +264,7 @@
       '<div class="sk-bfoot"><span>Tree</span><b>' + IB.Skills.spent(sk) + '<small>/' + total + '</small></b></div></aside>';
   }
   function buy(id) {
-    var next = IB.Skills.buy(G.slot.skills || {}, G.slot.highest || 0, id);
+    var next = IB.Skills.buy(G.slot.skills || {}, IB.Skills.gained(G.slot), id);
     if (!next) { IB.Audio && IB.Audio.play('dry'); return; }
     G.slot.skills = next; G.store.save(G.slot);
     IB.Audio && IB.Audio.play('pickup', { pitch: 1.2 });
@@ -296,7 +296,7 @@
   function characterPanel(pr) {
     var sk = G.slot.skills || {}, g = IB.Gear && IB.Gear.gear(G), p = G.player || {};
     var cap = IB.PLAYER_LEVEL_CAP, next = pr.level < cap ? IB.Skills.rankTitle(pr.level + 1) : null;
-    var lvPct = Math.round(Math.min(1, (pr.level - 1) / (cap - 1)) * 100), ptPct = Math.round(pr.earned / IB.Skills.totalPoints() * 100);
+    var xpp = IB.Skills.xpProgress(G.slot.xp), lvPct = Math.round(xpp.frac * 100), ptPct = Math.round(pr.earned / IB.Skills.totalPoints() * 100);
     var sh = g && g.shield ? IB.Loot.find(g, g.shield) : null;
     function row(ic, k, v, hl) { return '<li' + (hl ? ' class="hl"' : '') + '>' + skIcon(ic, 'skic sm') + '<span>' + esc(k) + '</span><b>' + esc(v) + '</b></li>'; }
     var vs = g ? IB.Loot.worn(g, 'armor') : null, va = IB.Loot.armorOf(vs), shp = sh && IB.Loot.perkLine(sh);
@@ -314,7 +314,7 @@
     return '<div class="ep hsel ch-id">' + FR +
         lvBadge(pr.level, 'ch-badge') +
         '<b class="ch-title">' + esc(pr.title) + '</b><span class="ch-sub">Scrapper · LV ' + pr.level + ' of ' + cap + '</span>' +
-        '<div class="ch-bar"><span>Rank</span><i><i style="width:' + lvPct + '%"></i></i><b>' + pr.level + '/' + cap + '</b></div>' +
+        '<div class="ch-bar"><span>XP</span><i><i style="width:' + lvPct + '%"></i></i><b>' + (xpp.span ? Math.floor(xpp.into).toLocaleString() + '/' + xpp.span.toLocaleString() : 'Max') + '</b></div>' +
         '<div class="ch-bar"><span>Points</span><i><i style="width:' + ptPct + '%"></i></i><b>' + pr.earned + '/' + IB.Skills.totalPoints() + '</b></div>' +
         '<p class="ch-next">' + (next ? 'Next rank: <b>' + esc(next) + '</b>' : 'Top rank reached.') + '</p>' +
         (perks.length ? '<div class="ch-perks">' + perks.map(function (s) { return '<span>' + skIcon(s.icon, 'skic sm') + esc(s.name) + '</span>'; }).join('') + '</div>' : '') +

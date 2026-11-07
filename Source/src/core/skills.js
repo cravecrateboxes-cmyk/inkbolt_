@@ -162,7 +162,24 @@
     return out;
   }
 
-  function playerLevel(highest) { return Math.min(IB.PLAYER_LEVEL_CAP, 1 + clampLevel(highest)); }
+  // player level from level-ups gained (g = LV - 1); the skill functions above take g as their progress argument
+  function playerLevel(g) { return Math.min(IB.PLAYER_LEVEL_CAP, 1 + clampLevel(g)); }
+  // XP (data/skills.js IB.XP): LV for a total, XP needed for a LV, XP for a kill / a level clear at campaign level L
+  function xpForLevel(lv) { return IB.XP.need(Math.max(1, Math.min(IB.PLAYER_LEVEL_CAP, lv | 0))); }
+  function levelFromXp(xp) {
+    var lv = 1; xp = typeof xp === 'number' && xp > 0 ? xp : 0;
+    while (lv < IB.PLAYER_LEVEL_CAP && xp >= IB.XP.need(lv + 1)) lv++;
+    return lv;
+  }
+  function killXp(type, L) { var b = IB.XP.kill[type] || IB.XP.killDefault; return Math.round(b * (1 + IB.XP.levelMul * (Math.max(1, L || 1) - 1))); }
+  function clearXp(L) { return IB.XP.clear(L); }
+  // a save slot's level-ups gained (what the skill functions take)
+  function gained(slot) { return levelFromXp(slot && slot.xp) - 1; }
+  // {lv, into, span, frac}: progress through the current player level (span 0 at the cap)
+  function xpProgress(xp) {
+    var lv = levelFromXp(xp), a = IB.XP.need(lv), b = lv < IB.PLAYER_LEVEL_CAP ? IB.XP.need(lv + 1) : a;
+    return { lv: lv, into: Math.max(0, (xp || 0) - a), span: b - a, frac: b > a ? Math.min(1, ((xp || 0) - a) / (b - a)) : 1 };
+  }
   function rankTitle(level) { return IB.RANK_TITLES[Math.max(1, Math.min(IB.PLAYER_LEVEL_CAP, level | 0))]; }
   function loadoutMax(highest) { var R = IB.LOADOUT_RULES; return clampLevel(highest) >= R.extraAfter ? R.extra : R.base; }
 
@@ -178,6 +195,7 @@
     spentAbove: spentAbove, tierUnlocked: tierUnlocked, canBuy: canBuy, buy: buy, validate: validate,
     sanitize: sanitize, expectedIncome: expectedIncome, respecCost: respecCost, respec: respec, value: value,
     effects: effects, shockDps: shockDps, poolDps: poolDps, coatDps: coatDps, regenRate: regenRate, chainDamage: chainDamage, playerLevel: playerLevel, rankTitle: rankTitle, loadoutMax: loadoutMax,
+    xpForLevel: xpForLevel, levelFromXp: levelFromXp, killXp: killXp, clearXp: clearXp, gained: gained, xpProgress: xpProgress,
     rankText: rankText, groupOwner: groupOwner
   };
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));

@@ -52,7 +52,6 @@
   // a steady climb: each level has at least 5% more robots than the one before (the extra are light robots)
   var prevTotal = 0;
   function smooth(p) {
-    if (p.tour) return;
     var t = total(p), want = Math.round(prevTotal * 1.05);
     for (var pass = 0; pass < 4 && t < want; pass++, t = total(p)) {
       var light = 0; p.zones.forEach(function (z) { z.waves.forEach(function (w) { w.forEach(function (e) { if (LIGHT[e[0]]) light += e[1]; }); }); });
@@ -90,39 +89,14 @@
       });
     });    smooth(p);
   }
-  /* Levels 20-30: the Second Tour. After Deep Park the campaign goes on through eleven of its best maps again, as new
-     levels: robots at that level's strength (health / damage / tempo by level, core/damage.js) and the player level
-     keeps rising to LV 30 (health, gear and gun levels with it; skill points stop at level 19). The robot count does
-     not keep inflating: each tour level is the map's own waves scaled to TOUR_ROBOTS(L) (280 on level 20 rising to 360
-     on level 30, below the 400-500 of levels 15-19), so the late game gets tougher through stronger robots, not ever
-     bigger crowds. */
-  var TOUR = ['city2', 'castle', 'factory2', 'mall', 'island', 'police', 'office', 'grove', 'spire', 'foundry', 'parking'];
-  IB.TOUR_ROBOTS = function (L) { return 280 + 8 * Math.max(0, L - 20); };
-  function cloneWaves(p) { return p.zones.map(function (z) { var o = {}; for (var k in z) o[k] = z[k]; o.waves = z.waves.map(function (w) { return w.map(function (e) { return e.slice(); }); }); return o; }); }
-  var tourIds = [];
-  TOUR.forEach(function (id) {
-    var b = P[id]; if (!b) return;
-    var t = {}; for (var k in b) t[k] = b[k];
-    t.id = 'tour_' + id; t.tour = id; t.zones = cloneWaves(b); t.weapons = []; t.tuned = false; delete t.start;
-    t.name = b.name + ' II'; t.intro = 'Second Tour: the robots are stronger here now. ' + (b.intro || '');
-    P[t.id] = t; tourIds.push(t.id);
-  });
   IB.CAMPAIGN = ORDER.filter(function (id) { return P[id]; });
-  IB.MAIN_CAMPAIGN = IB.CAMPAIGN.length;   // levels 1..19; the tour follows
-  IB.CAMPAIGN = IB.CAMPAIGN.concat(tourIds);
   IB.CAMPAIGN.forEach(function (id, i) {
     var p = P[id];
     p.level = i + 1;
     p.next = IB.CAMPAIGN[i + 1] || null;
     p.weapons = p.weapons || WEAPONS[i] || [];
     if (i === 0) p.start = p.start || ['pip'];
-    if (p.tour) tuneTour(p, i + 1); else tuneWaves(p, i + 1);
+    tuneWaves(p, i + 1);
   });
-  // tour waves: the normal tuning (elites, no +5% climb), then every entry scaled so the level holds TOUR_ROBOTS(L)
-  function tuneTour(p, L) {
-    var keep = prevTotal; tuneWaves(p, L); prevTotal = keep;
-    var k = IB.TOUR_ROBOTS(L) / total(p);
-    p.zones.forEach(function (z) { z.waves.forEach(function (w) { w.forEach(function (e) { e[1] = Math.max(1, Math.round(e[1] * k)); }); }); });
-  }
 
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));

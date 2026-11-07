@@ -44,7 +44,7 @@
     HUD.init(); M.init(); wireMenus();
     // Blender GLBs: common, weapons, bots and the title/level-1 kit (brief 4.2 boot order)
     // Blender GLBs: common, weapons, bots and the first level's theme kit (brief 4.2 boot order); other kits load per level
-    var saved0 = tourMigrate(G.store.newest());
+    var saved0 = G.store.newest();
     G.plan = IB.LEVEL_PLANS[params.get('plan') || (saved0 && saved0.plan) || IB.CAMPAIGN[0]] || IB.LEVEL_PLANS[IB.CAMPAIGN[0]];
     IB.Assets.load(['common', 'weapons', 'bots', 'gear', 'troopers', Z.themeOf(G.plan).family], function (f) { bootProgress(0.2 + f * 0.7); })
       .then(bootAfterAssets)
@@ -435,7 +435,7 @@
     var p = G.player, fx = G.fx || {}, sk = IB.SkillFX.fx;
     var hpWas = p.maxHp || 100, hurt = Math.max(0, hpWas - p.health);
     // base health grows with the player level (IB.Damage.playerMaxHp); bench and skills add on top
-    var lvHp = IB.Damage.playerMaxHp(IB.Skills.playerLevel(G.slot ? G.slot.highest : 0));
+    var lvHp = IB.Damage.playerMaxHp(IB.Skills.playerLevel(G.slot ? IB.Skills.gained(G.slot) : 0));
     p.maxHp = Math.round(((fx.maxHp || 100) - 100 + lvHp) * sk.maxHpMul);   // Healthy: +% max health
     p.vestHp = IB.Gear && IB.Gear.vestHp ? IB.Gear.vestHp(G) : 0;           // a worn armour vest adds flat health
     p.maxHp += p.vestHp;
@@ -469,10 +469,31 @@
   }
   G.grantStarterShield = grantStarterShield;
   G.progress = function () {
-    var h = G.slot ? G.slot.highest || 0 : 0, lv = IB.Skills.playerLevel(h);
-    return { highest: h, level: lv, title: IB.Skills.rankTitle(lv), points: G.slot ? IB.Skills.available(G.slot.skills || {}, h) : 0,
-      earned: IB.Skills.earned(h), loadoutMax: IB.Skills.loadoutMax(h) };
+    var h = G.slot ? G.slot.highest || 0 : 0, g = G.slot ? IB.Skills.gained(G.slot) : 0, lv = IB.Skills.playerLevel(g);
+    return { highest: h, gained: g, xp: G.slot ? G.slot.xp || 0 : 0, level: lv, title: IB.Skills.rankTitle(lv),
+      points: G.slot ? IB.Skills.available(G.slot.skills || {}, g) : 0, earned: IB.Skills.earned(g), loadoutMax: IB.Skills.loadoutMax(h) };
   };
+  /* Player XP (data/skills.js IB.XP): robots pay as they are wrecked, a level clear pays a bonus. A level-up raises
+     max health at once (the gain is healed), pays skill points up to LV 20, shows a toast and saves. */
+  function addXp(n) {
+    ensureSlot();
+    if (!(n > 0)) return;
+    var before = IB.Skills.levelFromXp(G.slot.xp);
+    G.slot.xp = (G.slot.xp || 0) + n;
+    var after = IB.Skills.levelFromXp(G.slot.xp);
+    if (after > before) {
+      var pts = IB.Skills.earned(after - 1) - IB.Skills.earned(before - 1), hp0 = G.player.maxHp || 100;
+      applySkillStats(false);
+      G.player.health = Math.min(G.player.maxHp, G.player.health + Math.max(0, G.player.maxHp - hp0));
+      if (G.mode === 'play') {
+        HUD.toast('LEVEL UP · LV ' + after + ' ' + IB.Skills.rankTitle(after) + ' · max health ' + Math.round(G.player.maxHp) + (pts ? ' · +' + pts + ' skill point' + (pts > 1 ? 's' : '') + ' (Tab)' : ''), 3.2);
+        A.play('hatch');
+      }
+      hudLevel();
+      G.store.save(G.slot);
+    }
+  }
+  G.addXp = addXp;
   function hudLevel() { if (HUD.level) { var pr = G.progress(); HUD.level(pr.level, pr.title, pr.points); } }
   // after the Tab menu: skills may have changed (stats, effects) and so may the loadout
   G.applyProgress = function () {
@@ -522,7 +543,8 @@
     W.equip(G.ws, first, true);
     grantStarterShield();
     if (IB.Gear) IB.Gear.startLevel(G);   // attachments on the guns, shield full
-    G.run = { time: 0, kills: 0, shots: 0, hits: 0, coreHits: 0, deaths: 0, gems: 0, retries: 3, started: false, introT: AUTOTEST ? 0.05 : 2.3 };
+    G.run = { time: 0, kills: 0, shots: 0, hits: 0, coreHits: 0, deaths: 0, gems: 0, retries: 3, started: false, introT: AUTOTEST ? 0.05 : 2.3,
+      xp: 0, g0: G.slot ? IB.Skills.gained(G.slot) : 0 };   // XP earned this run; level-ups gained when it started
     G.shake = 0; G.trauma = 0; G.hitstop = 0; G.deathT = 0;
     G.fade = opts && opts.fadeIn ? { t: 0, dur: 1.3 } : null;
     setDim(G.fade ? 1 : 0);
@@ -538,16 +560,6 @@
     Inp.enabled = true; Inp.reset();
     if (!AUTOTEST) Inp.requestLock();
   };
-  /* Saves that finished the campaign before levels 20-30 (the Second Tour) existed were sent back to level 1; move
-     them on to level 20 once, so the player level can keep climbing. */
-  function tourMigrate(slot) {
-    var first = IB.CAMPAIGN[IB.MAIN_CAMPAIGN];
-    if (slot && first && !slot.tourMoved && (slot.highest || 0) >= IB.MAIN_CAMPAIGN && slot.plan === IB.CAMPAIGN[0]) {
-      slot.plan = first; slot.level = IB.LEVEL_PLANS[first].level; slot.tourMoved = true;
-      try { G.store.save(slot); } catch (e) { /* keep playing; the move happens again next boot */ }
-    }
-    return slot;
-  }
   function ensureSlot() {
     if (G.slot) return;
     var newest = G.store.newest();
@@ -664,7 +676,10 @@
     G.slot.gems = (G.slot.gems || 0) + clear + nd;
     var h0 = G.slot.highest || 0;
     G.slot.highest = Math.max(h0, L);
-    var lvUp = IB.Skills.playerLevel(G.slot.highest) - IB.Skills.playerLevel(h0), ptsUp = IB.Skills.earned(G.slot.highest) - IB.Skills.earned(h0);
+    var cx = IB.Skills.clearXp(L);   // the level-clear XP bonus (kills paid theirs as they happened)
+    G.run.xp += cx; addXp(cx);
+    var g0 = G.run.g0 || 0, g1 = IB.Skills.gained(G.slot);
+    var lvUp = IB.Skills.playerLevel(g1) - IB.Skills.playerLevel(g0), ptsUp = IB.Skills.earned(g1) - IB.Skills.earned(g0);
     G.slot.stats = G.slot.stats || {};
     G.slot.stats.kills = (G.slot.stats.kills || 0) + G.run.kills;
     G.slot.stats.deaths = (G.slot.stats.deaths || 0) + G.run.deaths;
@@ -675,7 +690,7 @@
     G.slot.owned = (G.slot.arsenal || []).slice();
     G.lastResults = { time: G.run.time, kills: G.run.kills, corePct: G.run.hits ? Math.round(G.run.coreHits / G.run.hits * 100) : 0, deaths: G.run.deaths,
       gemsRobots: robots, gemsClear: clear, gemsNoDeath: nd, gemsTotal: robots + clear + nd,
-      playerLevel: IB.Skills.playerLevel(G.slot.highest), levelUp: lvUp, pointsUp: ptsUp,
+      playerLevel: IB.Skills.playerLevel(g1), levelUp: lvUp, pointsUp: ptsUp, xp: G.run.xp, xpClear: cx,
       slotUp: IB.Skills.loadoutMax(G.slot.highest) > IB.Skills.loadoutMax(h0) };
   }
   function levelExit() {
@@ -861,6 +876,7 @@
   function up(id) { return (G.slot && G.slot.upgrades && G.slot.upgrades[id]) || 0; }
   function onKill(r) {
     G.run.kills++;
+    var kx = IB.Skills.killXp(r.type, G.plan.level); G.run.xp += kx; addXp(kx);
     HUD.hit('kill'); A.play('crunch', { pos: r });
     var def = IB.ENEMIES[r.type];
     var drop = IB.Gems ? IB.Gems.robotDrop(r.type, G.plan.level, up('press')) : { chip: 1, shard: 0, core: 0, total: 1 };
@@ -947,7 +963,7 @@
     G.mode = 'title'; Inp.enabled = false; Inp.releaseLock(); IB.Plat.stop();
     HUD.show(false); document.getElementById('touch').hidden = true; document.body.classList.remove('dead');
     resetLevelStateForTitle();
-    var slot = tourMigrate(G.store.newest());
+    var slot = G.store.newest();
     G.slot = slot || null;
     M.title({ slot: slot, levelName: G.plan.name });
   };

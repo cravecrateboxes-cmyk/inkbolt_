@@ -66,13 +66,15 @@ async function hookRun(browser, base) {
   }
   const g = await st(pg);
   check('gems vacuumed to player', g.runGems > 0, 'runGems=' + g.runGems);
+  // XP levelling: put the player just short of LV 2 so the level-clear XP bonus levels him up on the results screen
+  await pg.evaluate(() => { IB.Game.slot.xp = IB.Skills.xpForLevel(2) - 50; });
   await pg.evaluate(() => __TEST__.teleport('hatch'));
   const done = await until(pg, () => __TEST__.state().complete, null, 6000);
   check('exit hatch ends the level', done);
   const resultsShown = await pg.evaluate(() => /Level cleared/i.test(document.getElementById('overlay').textContent));
   check('results screen shows', resultsShown);
   const lvText = await pg.evaluate(() => document.getElementById('overlay').textContent);
-  check('results show the level-up (LV 2, +2 skill points)', /LV 2/.test(lvText) && /\+2 skill pts/.test(lvText), lvText.slice(-60));
+  check('results show the XP and the level-up (LV 2, +2 skill points)', /XP earned\+\d/.test(lvText) && /LV 2/.test(lvText) && /\+2 skill pts/.test(lvText), lvText.slice(-90));
   const saved =await pg.evaluate(() => { const v = localStorage.getItem('inkbolt.slot1'); return v && JSON.parse(v).highest >= 1; });
   check('save written', !!saved);
   const plat = (await st(pg)).plat;
@@ -181,8 +183,8 @@ async function tabMenuRun(browser, base) {
   console.log('\n# field kit (Tab): pause, inventory, spend a skill point, character, change the loadout, respec, resume');
   const pg = await newPage(browser, base + '?autotest=1&plan=greybox');
   await until(pg, () => IB.Game.run.started, null, 5000);
-  // progress as if levels 1-3 were cleared (4 skill points) and a rifle was picked up earlier
-  await pg.evaluate(() => { const G = IB.Game; G.slot.highest = 3; G.slot.gems = 100; G.slot.arsenal.push('rivet'); G.slot.owned = G.slot.arsenal.slice(); G.applyProgress(); });
+  // progress as if the player reached LV 4 (4 skill points) and a rifle was picked up earlier
+  await pg.evaluate(() => { const G = IB.Game; G.slot.highest = 3; G.slot.xp = IB.Skills.xpForLevel(4); G.slot.gems = 100; G.slot.arsenal.push('rivet'); G.slot.owned = G.slot.arsenal.slice(); G.applyProgress(); });
   const p0 = await pg.evaluate(() => __TEST__.progress());
   check('progress derived from the save', p0.level === 4 && p0.points === 4 && p0.loadoutMax === 2, JSON.stringify(p0));
   check('HUD shows the level tag', await pg.evaluate(() => /LV\s*4/.test(document.getElementById('lvTag').textContent) && !document.getElementById('lvPts').hidden));

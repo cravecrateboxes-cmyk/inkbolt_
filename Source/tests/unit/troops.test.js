@@ -75,11 +75,6 @@ test('campaign waves: Soldiers from level 4, Blade Bots from level 7, growing wi
     if (L < 4) assert.equal(s, 0, id + ' soldiers');
     if (L === 7) assert.ok(b >= 5 && b <= 16, id + ' a first taste of Blade Bots (x2.5 elites)');
     if (L === 4) assert.ok(s >= 3 && s <= 8, id + ' a first taste of Soldiers (x2.5 elites)');
-    if (p.tour) {   // levels 20-30: the Second Tour holds TOUR_ROBOTS(L), elites throughout
-      const t = p.zones.reduce((a, z) => a + z.waves.reduce((b2, w) => b2 + w.reduce((c, e) => c + e[1], 0), 0), 0);
-      assert.ok(Math.abs(t - IB.TOUR_ROBOTS(L)) <= 20 && s >= 10 && b >= 10, id + ' tour size ' + t);
-      return;
-    }
     if (L >= 4) assert.ok(s >= lastS && b >= lastB, id + ' grows');
     const all = p.zones.reduce((a, z) => a + z.waves.reduce((b2, w) => b2 + w.reduce((c, e) => c + e[1], 0), 0), 0);
     assert.ok(all >= (globalThis.__lastAll || 0), id + ' has at least as many robots as the level before');
@@ -94,4 +89,24 @@ test('campaign waves: Soldiers from level 4, Blade Bots from level 7, growing wi
   });
   const last = IB.LEVEL_PLANS[IB.CAMPAIGN[IB.CAMPAIGN.length - 1]];
   assert.ok(count(last, 'soldier') >= 25 && count(last, 'blader') >= 15);
+});
+
+test('XP levelling: playing the campaign through (90% of robots) puts the player around LV N+1 after level N', () => {
+  require('../../src/data/skills.js'); require('../../src/core/skills.js');
+  const S = IB.Skills;
+  let xp = 0;
+  IB.CAMPAIGN.forEach((id) => {
+    const p = IB.LEVEL_PLANS[id], L = p.level;
+    p.zones.forEach((z) => z.waves.forEach((w) => w.forEach((e) => { xp += 0.9 * e[1] * S.killXp(e[0], L); })));
+    xp += S.clearXp(L);
+    const lv = S.levelFromXp(xp);
+    assert.ok(lv >= L && lv <= L + 2, id + ' (level ' + L + ') -> LV ' + lv);
+  });
+  assert.ok(S.levelFromXp(xp) < IB.PLAYER_LEVEL_CAP, 'LV 30 is for the maps still to come');
+  // the XP table climbs, killXp grows with the level, replays of early maps pay less
+  for (let n = 2; n <= 30; n++) assert.ok(S.xpForLevel(n) > S.xpForLevel(n - 1));
+  assert.equal(S.levelFromXp(S.xpForLevel(30) * 5), 30);
+  assert.ok(S.killXp('soldier', 15) > S.killXp('soldier', 3) && S.killXp('soldier', 1) > S.killXp('crawler', 1));
+  // skill points: 22 by LV 20 and none after
+  assert.equal(S.earned(19), 22); assert.equal(S.earned(29), 22);
 });

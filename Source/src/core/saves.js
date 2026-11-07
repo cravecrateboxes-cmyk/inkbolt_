@@ -21,7 +21,7 @@
 
   function defaultSlot(id, seed, savedAt) {
     return {
-      v: 1, id: id, level: 1, highest: 0, gems: 0, upgrades: {},
+      v: 1, id: id, level: 1, highest: 0, xp: 0, gems: 0, upgrades: {},
       // arsenal = every gun owned, loadout = the guns carried in key order, skills = {skillId: rank}
       // (skill points are not stored: they are derived from `highest`, see core/skills.js)
       arsenal: [], loadout: [], skills: {},   // empty arsenal: the level plan's start guns are handed out
@@ -78,7 +78,9 @@
     // skills: spent must never exceed what the progress has earned; a broken tree is reset (points refunded)
     // (a save from before the six-row tree holds old skill ids: the whole tree is refunded and the game says so once)
     if (!isObj(out.skills)) out.skills = {};
-    if (IB.Skills) { var san = IB.Skills.sanitize(out.skills, out.highest); out.skills = san.skills; if (san.reset) out.skillsRefunded = true; }
+    // player XP: a save from before XP levelling starts at the LV its progress gave (1 + highest level cleared)
+    if (IB.Skills && !(typeof obj.xp === 'number' && obj.xp >= 0)) out.xp = IB.Skills.xpForLevel(1 + (out.highest || 0));
+    if (IB.Skills) { var san = IB.Skills.sanitize(out.skills, IB.Skills.gained(out)); out.skills = san.skills; if (san.reset) out.skillsRefunded = true; }
     return out;
   }
 

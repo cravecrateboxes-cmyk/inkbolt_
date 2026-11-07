@@ -154,14 +154,14 @@
       entry('settings', 'Settings');
     var card = '';
     if (s) {
-      var lv = IB.Skills ? IB.Skills.playerLevel(s.highest || 0) : 1, title = IB.Skills ? IB.Skills.rankTitle(lv) : '';
-      var pct = Math.round(Math.min(1, (s.highest || 0) / 20) * 100);
+      var lv = IB.Skills ? IB.Skills.levelFromXp(s.xp) : 1, title = IB.Skills ? IB.Skills.rankTitle(lv) : '';
+      var pct = Math.round(Math.min(1, (s.highest || 0) / Math.max(1, (IB.CAMPAIGN || []).length || 19)) * 100);
       var when = s.saved && IB.Saves ? IB.Saves.ago(Date.now() - s.saved) : '';
       card = '<aside class="holo save-card" aria-label="Save slot ' + s.id + '">' +
         '<div class="sc-head">' + M.glyph('emblem', 'g24 sc-ic') + '<b>Save slot ' + s.id + '</b><span>' + esc(when) + '</span></div>' +
         '<div class="sc-row sel"><span class="lvb"><small>LV</small>' + lv + '</span><b class="sc-name">' + esc(title) + '</b><span class="sc-gems">' + M.glyph('gem') + (s.gems || 0) + '</span></div>' +
         '<div class="sc-row"><span>Next up</span><b>Level ' + s.level + ' · ' + esc(d.levelName) + '</b></div>' +
-        '<div class="sc-row"><span>Campaign</span><i class="sc-bar"><i style="width:' + pct + '%"></i></i><b>' + (s.highest || 0) + '/20</b></div>' +
+        '<div class="sc-row"><span>Campaign</span><i class="sc-bar"><i style="width:' + pct + '%"></i></i><b>' + (s.highest || 0) + '/' + ((IB.CAMPAIGN || []).length || 19) + '</b></div>' +
         '</aside>';
     }
     var tip = TIPS[(Math.random() * TIPS.length) | 0];
@@ -299,7 +299,8 @@
       '<div class="rs-grid">' +
         '<div class="rs-col">' + statRow('clock', 'Time', IB.HUD.mmss(d.time)) + statRow('bot', 'Robots crushed', d.kills) + statRow('core', 'Core hits', d.corePct + '%') + statRow('skull', 'Deaths', d.deaths) + '</div>' +
         '<div class="rs-col rs-gems">' + statRow('bot', 'Robots', d.gemsRobots, 'sub') + statRow('star', 'Clear bonus', d.gemsClear, 'sub') + statRow('heart', 'No-death bonus', d.gemsNoDeath, 'sub') +
-          '<div class="rs-total"><span>Gems earned</span><b><i class="gem-glyph" aria-hidden="true"></i>' + d.gemsTotal + '</b></div>' + lvl + '</div>' +
+          '<div class="rs-total"><span>Gems earned</span><b><i class="gem-glyph" aria-hidden="true"></i>' + d.gemsTotal + '</b></div>' +
+          (d.xp ? '<div class="rs-total rs-xp"><span>XP earned</span><b>+' + Math.round(d.xp).toLocaleString() + '</b></div>' : '') + lvl + '</div>' +
       '</div>' +
       '<div class="row-actions">' + btn('next', 'Continue', 'primary') + btn('replay', 'Replay level') + '</div>' +
       '</section></div>';

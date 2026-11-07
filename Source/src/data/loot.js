@@ -53,7 +53,7 @@
     { from: 13, w: [30, 35, 25, 10] },
     { from: 15, w: [27, 35, 26, 12] },
     { from: 17, w: [24, 35, 27, 14] },
-    { from: 20, w: [20, 34, 30, 16] },   // the Second Tour (levels 20-30): better finds as the robots get stronger
+    { from: 20, w: [20, 34, 30, 16] },   // late game: better finds as the robots get stronger
     { from: 25, w: [16, 33, 32, 19] }
   ];
 
