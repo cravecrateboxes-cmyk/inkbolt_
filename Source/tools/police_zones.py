@@ -389,7 +389,7 @@ def zone3():
     z.run(33, 39, 3, 'k')
     z.block(10, 43, 2, 2, 'X')
     z.block(36, 43, 2, 2, 'X')
-    z.puts([(22, 38), (25, 37), (20, 29), (27, 29)], 'x')
+    z.puts([(18, 37), (30, 38), (19, 29), (29, 29)], 'x')
     z.block(14, 45, 2, 1, 'b')
     z.block(31, 46, 2, 1, 'g')
     z.puts([(20, 21), (28, 21), (11, 30), (38, 30), (14, 33), (34, 33)], 'S')
@@ -403,6 +403,10 @@ def zone3():
             z.f.g[r][c] = '|'
     for c in list(range(4, 17)) + list(range(32, 45)):
         z.f.g[27][c] = '-'
+    for r in range(28, 44):                    # pedestrian walkway from the entry to the range doors
+        for c in (21, 27):
+            if z.at(c, r) == '.' and z.f.g[r][c] in '409%':
+                z.f.g[r][c] = '|'
     z.floor(1, 29, 7, 15, '6')
     z.floor(45, 30, 2, 4, '/')
     z.floor(45, 37, 2, 4, '/')

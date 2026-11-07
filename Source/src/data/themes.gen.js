@@ -2274,7 +2274,7 @@
     'l': { pieces: ['Locker', 'Locker', 'Locker_B'], rotate: 'edge', kind: 'cover' },
     'f': { pieces: ['Cabinet'], rotate: 'edge', kind: 'cover' },
     'k': { pieces: ['Sandbags'], rotate: 'run', kind: 'cover' },
-    'x': { pieces: ['Crate', 'Crate_W', 'AmmoCans'], rotate: 'random90', h: 0.75, stack: { piece: 'Crate', chance: 0.3, h: 0.75 }, kind: 'cover' },
+    'x': { pieces: ['Crate', 'Crate_W', 'AmmoCans'], rotate: 'random90', h: 0.74, stack: { piece: 'Crate', chance: 0.3, h: 0.74 }, kind: 'cover' },
     'K': { size: [2, 2], pieces: ['DeskPod'], flip: true, kind: 'cover' },
     'T': { size: [4, 2], pieces: ['BriefRow'], kind: 'cover' },
     'U': { pieces: ['Lectern'], rotate: 0, kind: 'cover' },
