@@ -287,11 +287,12 @@
       world.add(x - 0.4, 0, zz - 0.4, x + 0.4, 1.0, zz + 0.4, 'cover', z.idx);
     });
   }
-  // floor: flat colour plus optional painted lines (lot lines, planks, carpet tiles, lane marks)
+  // floor: flat colour plus optional painted lines (lot lines, planks, carpet tiles, lane marks);
+  // floor.trailLines (optional) replaces floor.lines on the trails and the exit waypath (e.g. boardwalk planks)
   function paintFloor(g, x0, z0, w, h, theme, isTrail) {
     var F = theme.floor || {};
     g.flat([[x0, z0], [x0 + w, z0], [x0 + w, z0 + h], [x0, z0 + h]], 0.004, col(isTrail && F.trail ? F.trail : F.color, '#E6DCC6'));
-    (F.lines || []).forEach(function (L) {
+    ((isTrail && F.trailLines) || F.lines || []).forEach(function (L) {
       var y = L.y || 0.008, c = col(L.color), half = (L.width || 0.04) / 2, every = L.every || 1;
       if (L.dir === 'x') for (var zz = z0 + every; zz < z0 + h - 0.01; zz += every) g.flat([[x0, zz - half], [x0 + w, zz - half], [x0 + w, zz + half], [x0, zz + half]], y, c);
       else for (var xx = x0 + every; xx < x0 + w - 0.01; xx += every) g.flat([[xx - half, z0], [xx + half, z0], [xx + half, z0 + h], [xx - half, z0 + h]], y, c);
@@ -688,12 +689,26 @@
     level.cityTris = idx.length / 3;
   }
 
-  // backdrop beyond the playable area (printed, fogged): rings of theme/common pieces; outlined puff clouds outdoors
+  // backdrop beyond the playable area (printed, fogged): rings of theme/common pieces; outlined puff clouds outdoors.
+  // backdrop.build (optional): fn(level, api) paints its own ground (instead of the flat outside plane) and places
+  // pieces itself; api = { geo (IB.Geo merged with the world toon material), add(piece, x, y, z, yaw, scale), hash,
+  // tick(fn(dt, t)) (called every frame with the clouds) }
   Z.buildBackdrop = function (level, theme) {
     var g = new IB.Geo(), minZ = 0, maxZ = 0, F = theme.floor || {};
     level.zones.forEach(function (z) { minZ = Math.min(minZ, z.oz - 20); });
     var cz = (minZ + maxZ) / 2, rad = (maxZ - minZ) / 2 + 70;
-    if (theme.backdrop !== null && !theme.below) {
+    var B0 = theme.backdrop;
+    level.ticks = [];
+    if (B0 && B0.build) {
+      var P0 = new Parts(theme);
+      B0.build(level, {
+        geo: g, hash: hash,
+        add: function (n, x, y, z, yaw, s) { var m = M(x, y, z, yaw); if (s && s !== 1) m.multiply(new THREE.Matrix4().makeScale(s, s, s)); P0.add(n, 0, 0, 0, 0, m); },
+        tick: function (fn) { level.ticks.push(fn); }
+      });
+      if (g.count()) level.root.add(new THREE.Mesh(g.build(), Z.mat));
+      meshesFor(P0, level.root);
+    } else if (theme.backdrop !== null && !theme.below) {
       g.flat([[-rad - 60, cz - rad - 60], [rad + 60, cz - rad - 60], [rad + 60, cz + rad + 60], [-rad - 60, cz + rad + 60]], -0.02, col(F.outside || F.color, '#E6DCC6').multiplyScalar(F.outside ? 1 : 0.94));
       level.root.add(new THREE.Mesh(g.build(), Z.mat));
     }
@@ -726,6 +741,7 @@
   };
   var _cm = new THREE.Matrix4(), _cq = new THREE.Quaternion(), _cp = new THREE.Vector3(), _cs = new THREE.Vector3();
   Z.updateClouds = function (level, dt) {
+    if (level && level.ticks) { level.tickT = (level.tickT || 0) + dt; for (var ti = 0; ti < level.ticks.length; ti++) level.ticks[ti](dt, level.tickT); }
     if (!level || !level.clouds || !level.clouds.length) return;
     for (var k = 0; k < level.clouds.length; k++) {
       var cl = level.clouds[k]; cl.x += dt * 0.6; if (cl.x > 140) cl.x = -140;
