@@ -16,6 +16,8 @@ Symbols (src/data/themes/grove.js):
   p pebbles   e sedge   k creek   W pond 5x5   C ranger station 7x6   T tent 3x3   F campfire 3x3   d woodpile 2x1
   i signpost   j lantern   c crate   q barrel   J bridge pier 1x2   : dirt trail (painted ground)   + S P E G a h .
   layer 9: = bridge   ^ _ [ ] platform rail (N S W E edge)   1 2 3 4 rail corner (NW NE SE SW)
+Logs, stumps, snags and boulders are settled onto nearly level ground (a port of the theme's terrain: they would
+otherwise sink deep into a slope), young redwoods keep their crowns clear of the platforms and bridges.
 """
 import sys
 
@@ -193,6 +195,104 @@ def pickups(z, ch, pts):
         z.put(c, r, ch, over='.:')
 
 
+# ---------------------------------------------------------------- terrain (a port of src/data/themes/grove.js hgt() and
+# zones.js buildTerrain()): logs, stumps, snags and boulders go where the ground under them is nearly level
+FLAT = set('ZWkCTFJ#GEPS')
+
+
+def terrain(z, zi):
+    import math
+    Wv, Hv = W + 1, H + 1
+    dist = [1e9] * (Wv * Hv)
+    q = []
+    for r in range(H):
+        for c in range(W):
+            if r == 0 or c == 0 or r == H - 1 or c == W - 1 or z.g[r][c] in FLAT:
+                for v in (r * Wv + c, r * Wv + c + 1, (r + 1) * Wv + c, (r + 1) * Wv + c + 1):
+                    if dist[v] > 0:
+                        dist[v] = 0
+                        q.append(v)
+    i = 0
+    while i < len(q):
+        v = q[i]
+        i += 1
+        vc, vr = v % Wv, v // Wv
+        for dr in (-1, 0, 1):
+            for dc in (-1, 0, 1):
+                nc, nr = vc + dc, vr + dr
+                if nc < 0 or nr < 0 or nc >= Wv or nr >= Hv:
+                    continue
+                nv = nr * Wv + nc
+                nd = dist[v] + (1.41 if dc and dr else 1)
+                if nd < dist[nv]:
+                    dist[nv] = nd
+                    q.append(nv)
+
+    def hgt(c, r):
+        k = zi * 1.7
+        mounds = 1.2 * math.sin(0.19 * c + 1.3 + k) * math.sin(0.17 * r + 0.6 + k) + 0.6 * math.sin(0.41 * c - 0.27 * r + k)
+        band = (r + 0.35 * c + 7 * zi) % 18
+        ridge = 1.8 * max(0.0, 1 - abs(band - 9) / 3.8)
+        return max(0.0, 0.74 * (1.0 + mounds + ridge))
+    hf = []
+    for v in range(Wv * Hv):
+        k = max(0.0, min(1.0, (dist[v] - 1) / 4.0))
+        k = k * k * (3 - 2 * k)
+        hf.append(max(0.0, hgt(v % Wv, v // Wv) * k))
+
+    def ground(x, y):
+        c, r = min(W - 1, max(0, int(x))), min(H - 1, max(0, int(y)))
+        fx, fy = x - c, y - r
+        a, b, cc, d = hf[r * Wv + c], hf[r * Wv + c + 1], hf[(r + 1) * Wv + c], hf[(r + 1) * Wv + c + 1]
+        return (a * (1 - fx) + b * fx) * (1 - fy) + (cc * (1 - fx) + d * fx) * fy
+    return ground
+
+
+def relief(ground, c, r, w, h):
+    vals = [ground(c + 0.5 * i, r + 0.5 * j) for i in range(2 * w + 1) for j in range(2 * h + 1)]
+    return max(vals) - min(vals)
+
+
+def settle(z, zi, kinds='LluxR', limit=None):
+    """move logs, stumps, snags and boulders that would sink deep into a slope to the nearest place that is level enough"""
+    from zonekit import rects as zrects
+    limit = limit or {'L': 0.3, 'l': 0.25, 'u': 0.2, 'x': 0.3, 'R': 0.45}
+    ground = terrain(z, zi)
+    near_s = {(c + dc, r + dr) for r in range(H) for c in range(W) if z.g[r][c] in 'SGEP' for dc in (-3, -2, -1, 0, 1, 2, 3) for dr in (-3, -2, -1, 0, 1, 2, 3)}
+    for (c0, r0) in z.trees:   # the way onto the stairs (south-west corner) stays open
+        near_s |= {(c0 + dc, r0 + 7 + dr) for dc in range(-3, 3) for dr in range(-2, 4)}
+    for ch in kinds:
+        for (c, r, w, h) in zrects(z.g, ch):
+            if relief(ground, c, r, w, h) <= limit[ch]:
+                continue
+            for y in range(r, r + h):
+                for x in range(c, c + w):
+                    z.g[y][x] = '.'
+            best = None
+            for d in range(0, 9):
+                for dc in range(-d, d + 1):
+                    for dr in range(-d, d + 1):
+                        if max(abs(dc), abs(dr)) != d:
+                            continue
+                        nc, nr = c + dc, r + dr
+                        if nc < 2 or nr < 2 or nc + w > W - 2 or nr + h > H - 2:
+                            continue
+                        cells = [(nc + i, nr + j) for i in range(w) for j in range(h)]
+                        if any(z.g[y][x] != '.' or (x, y) in near_s for (x, y) in cells):
+                            continue
+                        if any(z.g[y + dy][x + dx] in 'ZCTFWJ' for (x, y) in cells for dx in (-1, 0, 1) for dy in (-1, 0, 1)):
+                            continue
+                        rl = relief(ground, nc, nr, w, h)
+                        if best is None or rl < best[0]:
+                            best = (rl, nc, nr)
+                if best and best[0] <= limit[ch]:
+                    break
+            rl, nc, nr = best if best else (0, c, r)
+            for y in range(nr, nr + h):
+                for x in range(nc, nc + w):
+                    z.g[y][x] = ch
+
+
 def dress(z, seed, ferns=48, clover=20, shrubs=22, young=10, misc=True):
     """undergrowth: ferns hug trunks, logs and rocks; oxalis carpets; shrubs; young redwoods; small things"""
     hold = keep_clear(z)
@@ -248,7 +348,7 @@ def ranger():
     cells(z, 'c', [(42, 37), (42, 38)])
     cells(z, 'q', [(34, 41)])
     cells(z, "j", [(22, 46), (27, 38), (23, 22), (27, 13)])
-    cells(z, 'i', [(27, 45), (23, 16)])
+    cells(z, "i", [(29, 46), (23, 16)])
     blocks(z, 'Y', [(42, 3), (3, 39), (14, 41)])
     blocks(z, 'L', [(15, 30), (31, 13)])
     blocks(z, 'L', [(45, 26, 'v')])
@@ -257,6 +357,7 @@ def ranger():
     blocks(z, "u", [(16, 36), (40, 33), (4, 9)])
     blocks(z, 'x', [(33, 29)])
     spawns(z, [(4, 3), (24, 4), (46, 9), (3, 21), (20, 23), (46, 22), (16, 15), (34, 15), (4, 32), (46, 34), (31, 34), (13, 26)])
+    settle(z, 0)
     dress(z, 10)
     return finish(z, [(20, 31), (38, 3), (47, 39)], [(29, 23), (7, 14), (13, 46)])
 
@@ -280,6 +381,7 @@ def giants():
     blocks(z, 'u', [(25, 8), (8, 36), (43, 45)])
     blocks(z, 'x', [(36, 25), (2, 18)])
     spawns(z, [(4, 4), (30, 6), (46, 4), (13, 7), (40, 21), (3, 25), (21, 17), (12, 28), (39, 28), (46, 35), (5, 39), (34, 33)])
+    settle(z, 1)
     dress(z, 20, ferns=50, clover=20, shrubs=24, young=11)
     return finish(z, [(29, 23), (11, 16), (44, 46)], [(23, 34), (37, 2), (6, 46)])
 
@@ -303,6 +405,7 @@ def gully():
     blocks(z, 'u', [(35, 8), (12, 2), (27, 34)])
     blocks(z, 'x', [(19, 33), (46, 45)])
     spawns(z, [(4, 12), (21, 3), (34, 3), (46, 9), (11, 9), (2, 28), (13, 31), (29, 29), (46, 27), (40, 44), (8, 34), (21, 39)])
+    settle(z, 2)
     dress(z, 30, ferns=54, clover=20, shrubs=22, young=10)
     return finish(z, [(26, 27), (8, 15), (44, 35)], [(15, 30), (32, 8), (5, 46)])
 
