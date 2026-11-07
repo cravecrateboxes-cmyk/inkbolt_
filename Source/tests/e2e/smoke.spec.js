@@ -169,13 +169,14 @@ async function touchRun(browser, base) {
 
 async function campaignRun(browser, base) {
   console.log('\n# campaign: big levels, no z-fighting, waypath -> loading -> next level');
-  for (const plan of ['tt1', 'mountains', 'smallcity', 'classroom', 'office', 'bedroom', 'tt2', 'tt3']) {
+  for (const plan of ['tt1', 'mountains', 'smallcity', 'classroom', 'office', 'bedroom', 'tt2', 'tt3', 'mall', 'police', 'grove']) {
     const pg = await newPage(browser, base + '?autotest=1&zcheck=1&plan=' + plan);
     const z = await pg.evaluate(() => IB.Game.level.zfight);
     check(plan + ' has no coplanar overlapping pieces', z.length === 0, z.slice(0, 3).join(' | '));
     const big = await pg.evaluate(() => IB.Game.level.zones.map(z => z.w * z.h));
     check(plan + ' zones are big (>= 2,000 m2 each)', big.every(a => a >= 2000), big.join(','));
-    if (plan !== 'tt1') { await pg.context().close(); continue; }
+    if (plan === 'mall' || plan === 'police' || plan === 'grove') await verticalChecks(pg, plan);
+    if (plan !== 'tt1') { check(plan + ' no console errors or warnings', pg.logs.length === 0, pg.logs.join(' | ')); await pg.context().close(); continue; }
     const stands = await pg.evaluate(() => (IB.Game.weaponStands || []).map(w => w.id));
     check('new weapon waits at the start of level 1', stands.length >= 1, stands.join(','));
     await pg.evaluate(() => { const w = IB.Game.weaponStands[0]; IB.Game.player.x = w.x; IB.Game.player.z = w.z; });
@@ -200,6 +201,53 @@ async function campaignRun(browser, base) {
     check('no console errors or warnings', pg.logs.length === 0, pg.logs.join(' | '));
     await pg.context().close();
   }
+}
+
+// levels 9-11: the mezzanine / tree platforms are reachable (player walking, robots by nav), the elevator rides,
+// the armory racks hold real guns of the allowed rarities
+async function verticalChecks(pg, plan) {
+  const r = await pg.evaluate((plan) => {
+    const G = IB.Game, Lv = G.level, Z = IB.Zones, w = Lv.world, out = {};
+    const want = plan === 'grove' ? 9 : plan === 'mall' ? 4.5 : null;
+    if (want !== null) {
+      out.reach = Lv.zones.map(z => {
+        const N = z.nav; let tgt = -1; for (let n = 0; n < N.h.length; n++) if (Math.abs(N.h[n] - want) < 0.03) { tgt = n; break; }
+        if (tgt < 0) return false;
+        const c = N.cellOf[tgt], tx = z.ox + (c % N.nx + 0.5) * 0.5, tz = z.oz + (((c / N.nx) | 0) + 0.5) * 0.5;
+        Z.flowField(z, tx, want, tz);
+        const e = Z.navNode(z, z.entry.x, 0, z.entry.z);
+        return e >= 0 && N.dist[e] < 32767;
+      });
+      // the player walks (no jumping) from the zone-1 entry up to that height by following the flow field
+      const z = Lv.zones[0], N = z.nav; let tgt = -1; for (let n = 0; n < N.h.length; n++) if (Math.abs(N.h[n] - want) < 0.03) { tgt = n; break; }
+      const c = N.cellOf[tgt], tx = z.ox + (c % N.nx + 0.5) * 0.5, tz = z.oz + (((c / N.nx) | 0) + 0.5) * 0.5;
+      const p = IB.Player.create(), dir = { x: 0, z: 0 }; p.x = z.entry.x; p.z = z.entry.z; p.y = w.groundAt(p.x, p.z);
+      for (let t = 0; t < 60 * 90 && !(Math.abs(p.y - want) < 0.2 && Math.hypot(p.x - tx, p.z - tz) < 0.8); t++) {
+        if (t % 15 === 0) Z.flowField(z, tx, want, tz);
+        if (Z.flowDir(z, p.x, p.y, p.z, dir)) p.yaw = Math.atan2(-dir.x, -dir.z);
+        IB.Player.step(p, { mx: 0, mz: -1 }, w, 1 / 60, null);
+      }
+      out.climbed = +p.y.toFixed(2);
+    }
+    if (plan === 'mall') {
+      const L = Lv.elevators[0], p = IB.Player.create(); p.x = L.x; p.z = L.z; p.y = L.y0 + L.fy; let top = 0;
+      for (let i = 0; i < 60 * 8; i++) { Z.updateElevators(Lv, 1 / 60, [{ x: p.x, y: p.y, z: p.z, set: dh => { p.y += dh; } }]); IB.Player.step(p, { mx: 0, mz: 0 }, w, 1 / 60, null); top = Math.max(top, p.y); }
+      out.lifts = Lv.elevators.length; out.liftTop = +top.toFixed(2);
+    }
+    if (plan === 'police') {
+      out.guns = (G.loot || []).filter(l => l.kind === 'gun').length;
+      out.mods = (G.loot || []).filter(l => l.kind === 'mod').length;
+      out.items = (G.loot || []).filter(l => l.kind === 'item').length;
+      out.orange = (G.loot || []).filter(l => l.rarity === 'legendary').length;
+    }
+    if (plan === 'grove') out.terrain = w.terrains.length && w.terrainTop;
+    return out;
+  }, plan);
+  if (r.reach) check(plan + ': every zone entry can reach the upper level (nav)', r.reach.every(Boolean), JSON.stringify(r.reach));
+  if (r.climbed !== undefined) check(plan + ': the player walks up to ' + (plan === 'grove' ? '9 m (branch stairs)' : '4.5 m (escalator)'), r.climbed > (plan === 'grove' ? 8.8 : 4.3), 'y=' + r.climbed);
+  if (plan === 'mall') check('mall: the elevator carries a rider up to the mezzanine', r.lifts === 3 && r.liftTop > 4.5, JSON.stringify(r));
+  if (plan === 'police') check('police: racks hold real guns, benches mods, shelves gear, never orange', r.guns > 20 && r.mods > 4 && r.items > 4 && r.orange === 0, JSON.stringify(r));
+  if (plan === 'grove') check('grove: bumpy terrain', r.terrain > 2, 'top ' + r.terrain);
 }
 
 async function slideRun(browser, base) {

@@ -183,7 +183,8 @@
       bl.lobe[i * 4 + 3] = i ? 0.26 + Math.random() * 0.08 : 0.42;
     }
     if (FX) {
-      FX.decal(x, 0.01, z, 0, 1, 0, 'splat', R * 1.05);
+      var fy = IB.AI && IB.AI.supportY ? IB.AI.supportY(world, x, z, y - 0.3, 0.05) : 0, fn = world.terrains.length && fy === world.groundAt(x, z) ? world.groundNormal(x, z) : { x: 0, y: 1, z: 0 };
+      if (y - fy < R) FX.decal(x, fy + 0.01, z, fn.x, fn.y, fn.z, 'splat', R * 1.05);
       FX.puff(x, y, z, 14, PAL.ink, 0.35, 1.2, 6.5, -2);
       FX.puff(x, y + 0.2, z, 8, PAL.amber, 0.3, 0.85, 5);
       FX.puff(x, y + 0.2, z, 4, PAL.paper, 0.25, 0.6, 4);

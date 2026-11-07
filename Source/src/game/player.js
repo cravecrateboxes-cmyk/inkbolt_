@@ -4,7 +4,7 @@
   var MOVE = IB.MOVE = {
     walk: 6.0, sprint: 9.0, stamina: 4, staminaRefill: 2, staminaRest: 1,
     accel: 60, friction: 10, airControl: 0.35, jumpVel: 6.2, gravity: 18,
-    coyote: 0.10, jumpBuffer: 0.12, stepUp: 0.35, radius: 0.35, height: 1.7, eye: 1.55,
+    coyote: 0.10, jumpBuffer: 0.12, stepUp: 0.35, stepUpStair: 0.5, radius: 0.35, height: 1.7, eye: 1.55,
     dipPerM: 0.04, dipMax: 0.12, dipReturn: 0.2, bobWalk: 0.012, bobSprint: 0.020,
     lookRad: 0.0022, pitchClamp: 88 * Math.PI / 180,
     // slide / crouch (added for a modern-shooter feel)
@@ -17,7 +17,7 @@
     return {
       x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, yaw: 0, pitch: 0,
       onGround: true, coyote: 0, jumpBuf: 0, stamina: MOVE.stamina, staminaRest: 0, sprinting: false,
-      health: 100, maxHp: 100, protect: 0, alive: true, dip: 0, dipV: 0, bobT: 0, bob: 0,
+      health: 100, maxHp: 100, armor: 0, protect: 0, alive: true, dip: 0, dipV: 0, bobT: 0, bob: 0,
       moving: false, aiming: false, speedMul: 1, jumpMul: 1, doubleJump: false, usedDouble: false,
       lastHurt: 99, knockX: 0, knockZ: 0, fallStartY: 0,
       sliding: false, slideT: 0, slideCd: 0, slideDX: 0, slideDZ: 0, crouching: false, low: 0, landKick: 0, vyLast: 0
@@ -43,7 +43,7 @@
         var dx = p.x - cx, dz = p.z - cz, d2 = dx * dx + dz * dz;
         if (d2 >= r * r) continue;
         var rise = b.y1 - p.y;
-        if (rise > 0 && rise <= MOVE.stepUp && (p.onGround || p.coyote > 0) && canStand(p, world, b.y1, r, H)) {
+        if (rise > 0 && rise <= (b.kind === 'step' || b.kind === 'deck' ? MOVE.stepUpStair : MOVE.stepUp) && (p.onGround || p.coyote > 0) && canStand(p, world, b.y1, r, H)) {
           p.y = b.y1; p.vy = Math.max(p.vy, 0); moved = true; continue;
         }
         if (d2 > 1e-8) {
@@ -71,8 +71,8 @@
   var _tmp2 = [];
 
   function resolveY(p, world, r, H, prevY) {
-    var landed = false;
-    if (p.y <= 0) { p.y = 0; if (p.vy < 0) p.vy = 0; landed = true; }
+    var landed = false, gh = world.groundAt(p.x, p.z);
+    if (p.y <= gh) { p.y = gh; if (p.vy < 0) p.vy = 0; landed = true; }
     world.query(p.x - r, p.z - r, p.x + r, p.z + r, _tmp);
     for (var i = 0; i < _tmp.length; i++) {
       var b = _tmp[i];
@@ -82,7 +82,7 @@
     }
     // standing support check (walked off an edge?)
     if (!landed && p.vy <= 0) {
-      if (p.y <= 0.001) landed = true;
+      if (p.y <= gh + 0.001) landed = true;
       else for (var k = 0; k < _tmp.length; k++) {
         var bb = _tmp[k];
         if (Math.abs(p.y - bb.y1) < 0.02 && overlapCircleRect(p.x, p.z, r - 0.02, bb)) { landed = true; break; }
@@ -160,6 +160,11 @@
     resolveXZ(p, world, r, H);
     p.y += p.vy * dt;
     p.onGround = resolveY(p, world, r, H, prevY);
+    // bumpy ground: walking downhill keeps the feet on the slope instead of skipping off it
+    if (!p.onGround && wasGround && p.vy <= 0 && world.terrains.length) {
+      var gd = world.groundAt(p.x, p.z);
+      if (p.y - gd < 0.3 && p.y >= gd) { p.y = gd; p.vy = 0; p.onGround = true; }
+    }
     if (p.onGround && !wasGround) {
       var fell = Math.max(0, p.fallStartY - p.y);
       p.dip = Math.min(MOVE.dipMax, fell * MOVE.dipPerM + 0.02);

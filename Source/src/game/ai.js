@@ -221,12 +221,13 @@
     r.maxHp = r.hp = stat(type, 'hp', 30) * (AI.hpMul || 1);
     r.sx = x; r.sz = z; r.x = x; r.z = z; r.tx = tx; r.tz = tz;
     r.hy = v.flying ? stat(type, 'hover', 3) - v.centre : 0;
-    r.y = opts.pose ? r.hy : 1.0;
+    r.gy = opts.y || 0; r.vy = 0; r.flyH = r.hy;   // gy: the surface under the robot (ground, deck, stair, branch); ly: height above it
+    r.ly = opts.pose ? r.hy : 1.0; r.y = r.gy + r.ly;
     r.vx = r.vz = 0; r.kx = r.kz = 0; r.flash = 0; r.crouch = 0; r.token = false; r.alert = 0; r.blind = 0;
     r.cool = 0.6 + Math.random() * 1.2; r.thinkT = 0; r.mode = 'approach'; r.sdir = Math.random() < 0.5 ? -1 : 1; r.bump = 0; r.lost = 0;
     r.tilt = 0; r.wob = 0; r.lid = 0; r.aim = -0.45; r.gunOut = 0; r.kick = 0; r.bankX = r.bankZ = 0; r.fuse = 0; r.capPop = 0;
     r.yaw = Math.atan2(tx - x, tz - z); r.walk = Math.random() * 3; r.dmgMul = (AI.dmgMul || 1) * (opts.dmgScale || 1);
-    if (!opts.pose && IB.FX) IB.FX.puff(x, 1.0, z, 6, PAL.ink, 0.2, 0.6, 2.5);
+    if (!opts.pose && IB.FX) IB.FX.puff(x, r.gy + 1.0, z, 6, PAL.ink, 0.2, 0.6, 2.5);
     return r;
   };
 
@@ -277,7 +278,7 @@
     var T = AI.types[r.type], c = null, v = VIS[r.type];
     for (var i = 0; i < CORPSE_CAP; i++) if (!T.corpses[i].on) { c = T.corpses[i]; c.idx = i; break; }
     if (!c) { var oldest = 0; for (i = 1; i < CORPSE_CAP; i++) if (T.corpses[i].t > T.corpses[oldest].t) oldest = i; c = T.corpses[oldest]; c.idx = oldest; }
-    c.on = true; c.t = 0; c.x = r.x; c.y = r.y; c.vy = 0; c.z = r.z; c.yaw = r.yaw; c.tip = Math.random() < 0.5 ? 1 : -1;
+    c.on = true; c.t = 0; c.x = r.x; c.y = r.y; c.gy = r.gy || 0; c.vy = 0; c.z = r.z; c.yaw = r.yaw; c.tip = Math.random() < 0.5 ? 1 : -1;
     var my = r.y + 0.5;
     if (IB.FX) { IB.FX.chunk(r.x, my, r.z, 3 + ((Math.random() * 4) | 0), 3); IB.FX.puff(r.x, my, r.z, 6, PAL.ink, 0.25, 0.7, 3); }
     r.fuse = 0;
@@ -328,18 +329,63 @@
   };
 
   // ---------------- movement helpers ----------------
-  // circle vs AABBs on XZ; boxes lower than ylo (or 0.3 m) are stepped over / flown over
-  function collide(r, world, rad, ylo) {
+  // circle vs AABBs on XZ. Ground robots step onto low boxes (stairs, branch steps: up to Zones.CLIMB) and walk under
+  // boxes that start 1.2 m above their feet; flyers pass over what is below them and under what is above them.
+  function collide(r, world, rad, fly) {
     world.query(r.x - rad, r.z - rad, r.x + rad, r.z + rad, _tmp);
-    var lo = Math.max(0.3, ylo || 0);
+    var Zs = IB.Zones;
     for (var i = 0; i < _tmp.length; i++) {
-      var b = _tmp[i]; if (b.y1 < lo || (!ylo && b.y0 > 1.2)) continue;   // ground robots pass under raised boxes
+      var b = _tmp[i];
+      if (fly) { if (b.y1 < r.y - 0.1 || b.y0 > r.y + 0.7) continue; }
+      else if (b.y1 <= r.gy + Zs.stepLimit(b) + 0.02 || b.y0 >= r.gy + 1.2) continue;
       var cx = Math.max(b.x0, Math.min(r.x, b.x1)), cz = Math.max(b.z0, Math.min(r.z, b.z1));
       var dx = r.x - cx, dz = r.z - cz, d2 = dx * dx + dz * dz;
       if (d2 >= rad * rad) continue;
       if (d2 > 1e-8) { var d = Math.sqrt(d2); r.x += dx / d * (rad - d); r.z += dz / d * (rad - d); }
       else { r.x += (r.x < (b.x0 + b.x1) / 2 ? -1 : 1) * 0.05; }
     }
+  }
+  // the surface under a body at (x, z) with feet at gy: the ground or the highest box top it can step onto
+  var _sup = [];
+  function supportY(world, x, z, gy, rad) {
+    var best = world.groundAt(x, z), Zs = IB.Zones;
+    world.query(x - rad, z - rad, x + rad, z + rad, _sup);
+    for (var i = 0; i < _sup.length; i++) {
+      var b = _sup[i]; if (b.kind === 'gate') continue;
+      if (x + rad <= b.x0 || x - rad >= b.x1 || z + rad <= b.z0 || z - rad >= b.z1) continue;
+      if (b.y1 <= gy + Zs.stepLimit(b) + 0.02 && b.y1 > best) best = b.y1;
+    }
+    return best;
+  }
+  AI.supportY = supportY;
+  // highest box top under a flyer (anything below it) and the lowest underside above it
+  function flyBounds(world, r) {
+    var lo = world.groundAt(r.x, r.z), hi = 1e9;
+    world.query(r.x - 0.3, r.z - 0.3, r.x + 0.3, r.z + 0.3, _sup);
+    for (var i = 0; i < _sup.length; i++) {
+      var b = _sup[i]; if (b.kind === 'gate' || r.x + 0.3 <= b.x0 || r.x - 0.3 >= b.x1 || r.z + 0.3 <= b.z0 || r.z - 0.3 >= b.z1) continue;
+      if (b.y1 <= r.y - 0.2 && b.y1 > lo) lo = b.y1;
+      if (b.y0 >= r.y + 0.1 && b.y0 < hi) hi = b.y0;
+    }
+    _fb.lo = lo; _fb.hi = hi; return _fb;
+  }
+  var _fb = { lo: 0, hi: 1e9 };
+  // vertical: ground robots climb onto steps (eased) and fall off edges; flyers keep their hover over whatever is
+  // below, rise toward a player standing higher up and stay under ceilings and decks
+  function settle(r, world, fly, p, dt) {
+    if (fly) {
+      var fb = flyBounds(world, r), oldY = r.y;
+      r.gy += (fb.lo - r.gy) * Math.min(1, dt * 2);
+      var want = r.gy + r.hy;
+      if (p && p.alive && p.y > r.gy + 1) want = Math.max(want, p.y + 1.6);
+      want = Math.min(want, fb.hi - 0.7);
+      r.flyH = Math.max(0.6, want - r.gy);
+      r.ly = oldY - r.gy;   // keep the body where it is; the hover easing moves it toward flyH
+      return;
+    }
+    var sup = supportY(world, r.x, r.z, r.gy, 0.2);
+    if (sup >= r.gy - 0.01) { if (sup > r.gy) r.gy = Math.min(sup, r.gy + dt * 6); r.vy = 0; }
+    else { r.vy -= 18 * dt; r.gy = Math.max(sup, r.gy + r.vy * dt); if (r.gy <= sup) r.vy = 0; }
   }
   function turnTo(r, yaw, rate, dt) {
     var d = wrapAngle(yaw - r.yaw);
@@ -377,7 +423,7 @@
   var _mv = { x: 0, z: 0, s: 0 };
   function move(x, z, s) { var l = Math.hypot(x, z); if (l > 1e-6) { _mv.x = x / l; _mv.z = z / l; _mv.s = s; } }
   function towardPlayer(r, ctx, zone, dx, dz, dist, s) {
-    if (r.seesPlayer || !zone || r.zone !== ctx.activeZone || !IB.Zones.flowDir(zone, r.x, r.z, _dir)) move(dx, dz, s);
+    if ((r.seesPlayer && r.level) || !zone || r.zone !== ctx.activeZone || !IB.Zones.flowDir(zone, r.x, r.gy || 0, r.z, _dir)) move(dx, dz, s);
     else move(_dir.x, _dir.z, s);
   }
 
@@ -387,12 +433,12 @@
     switch (r.state) {
       case 'chase': {
         if (!p.alive) break;
-        if (r.seesPlayer && dist < 14) {
+        if (r.seesPlayer && r.level && dist < 14) {
           var mvx = dx / dist, mvz = dz / dist;
           var zz = Math.sin(r.zig + r.st * 5.5) * Math.min(1, (dist - 2) / 5) * 0.75;
           move(mvx - mvz * zz, mvz + mvx * zz, speed);
         } else towardPlayer(r, ctx, zone, dx, dz, dist, speed);
-        if (dist < (def.reach || 2.3) && r.seesPlayer && takeToken(r)) { setState(r, 'windup'); r.lx = dx / dist; r.lz = dz / dist; }
+        if (dist < (def.reach || 2.3) && r.seesPlayer && r.level && takeToken(r)) { setState(r, 'windup'); r.lx = dx / dist; r.lz = dz / dist; }
         break;
       }
       case 'windup': {
@@ -406,11 +452,11 @@
       }
       case 'attack': {
         _mv.x = r.lx; _mv.z = r.lz; _mv.s = 9.5;
-        r.y = Math.sin(Math.min(1, r.st / 0.24) * Math.PI) * 0.35;
+        r.ly = Math.sin(Math.min(1, r.st / 0.24) * Math.PI) * 0.35;
         if (!r.bit && dist < v.radius + 0.35 + 0.45 && Math.abs(p.y - r.y) < 1.2) {
           r.bit = true; ctx.hurt(r, (def.damage || 8) * r.dmgMul);
         }
-        if (r.st >= 0.24) { r.y = 0; setState(r, 'recover'); }
+        if (r.st >= 0.24) { r.ly = 0; setState(r, 'recover'); }
         break;
       }
       case 'recover':
@@ -428,12 +474,12 @@
       case 'chase': {
         if (!p.alive) break;
         var rush = r.seesPlayer && dist < 7 ? 1.35 : 1;
-        if (r.seesPlayer && dist < 16) {
+        if (r.seesPlayer && r.level && dist < 16) {
           var w = Math.sin(r.zig + r.st * 3.1) * 0.25 * Math.min(1, (dist - 2) / 6);
           move(dx / dist - dz / dist * w, dz / dist + dx / dist * w, speed * rush);
         } else towardPlayer(r, ctx, zone, dx, dz, dist, speed);
         if (r.fuse > 0) move(dx, dz, speed * 0.55);   // fuse already lit (e.g. after a stagger): keep coming
-        else if (dist < reach && r.seesPlayer) {
+        else if (dist < reach && r.seesPlayer && r.level) {
           if (takeToken(r)) { setState(r, 'windup'); r.fuse0 = r.fuse = def.fuse || def.windup || 0.6; play('fuse', r); }
           else move(-dz * r.sdir + dx * (dist - 2.6), dx * r.sdir + dz * (dist - 2.6), speed * 0.5);   // circle until a token frees up
         }
@@ -466,13 +512,13 @@
     var p = ctx.player, v = VIS[r.type], best = null, bs = Infinity;
     ctx.world.query(r.x - 8, r.z - 8, r.x + 8, r.z + 8, _tmp);
     for (var i = 0; i < _tmp.length; i++) {
-      var b = _tmp[i]; if (b.kind !== 'cover' || b.y1 < 0.9) continue;
+      var b = _tmp[i]; if (b.kind !== 'cover' || b.y1 < r.gy + 0.9 || b.y0 > r.gy + 0.4) continue;
       var cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2, hx = (b.x1 - b.x0) / 2, hz = (b.z1 - b.z0) / 2;
       var ux = cx - p.x, uz = cz - p.z, ul = Math.hypot(ux, uz) || 1; ux /= ul; uz /= ul;
       var t = Math.min(Math.abs(ux) > 1e-3 ? hx / Math.abs(ux) : 1e9, Math.abs(uz) > 1e-3 ? hz / Math.abs(uz) : 1e9);
       var sx = cx + ux * (t + v.radius + 0.3), sz = cz + uz * (t + v.radius + 0.3);
       var dp = Math.hypot(sx - p.x, sz - p.z); if (dp < lo - 1 || dp > hi + 2) continue;
-      if (zone && !IB.Zones.isOpen(zone, sx, sz)) continue;
+      if (zone && !IB.Zones.isOpen(zone, sx, sz, r.gy)) continue;
       var dr = Math.hypot(sx - r.x, sz - r.z); if (dr > 10) continue;
       var taken = false;   // one Gunner per cover spot
       for (var j = 0; j < AI.robots.length && !taken; j++) { var o = AI.robots[j]; if (o !== r && o.on && o.type === r.type && (o.mode === 'cover' || o.mode === 'hold') && Math.abs(o.gx - sx) + Math.abs(o.gz - sz) < 1.5) taken = true; }
@@ -612,7 +658,7 @@
     var zone = ctx.level && ctx.activeZone >= 0 ? ctx.level.zones[ctx.activeZone] : null;
     if (zone) {
       zone.nav.t -= dt;
-      if (zone.nav.t <= 0) { zone.nav.t = 0.25; IB.Zones.flowField(zone, p.x, p.z); }
+      if (zone.nav.t <= 0) { zone.nav.t = 0.25; IB.Zones.flowField(zone, p.x, p.y, p.z); }
     }
     for (i = 0; i < AI.robots.length; i++) {
       r = AI.robots[i]; if (!r.on) continue;
@@ -621,6 +667,8 @@
       r.st += dt; r.flash = Math.max(0, r.flash - dt); r.idleT += dt; r.cool -= dt;
       r.kick = Math.max(0, r.kick - dt * 6);
       var dx = p.x - r.x, dz = p.z - r.z, dist = Math.sqrt(dx * dx + dz * dz) || 0.001;
+      // on the player's level (not on a deck above / a branch below): only then rush straight in and bite
+      r.level = fly || Math.abs((p.y || 0) - (r.gy || 0)) < 1.6;
       _mv.x = _mv.z = _mv.s = 0;
       // periodic sight check (staggered)
       r.losT -= dt;
@@ -632,17 +680,17 @@
       switch (r.state) {
         case 'pose':
           r.walk += dt * 0.6; r.crouch = r.type === 'crawler' ? 0.15 + Math.sin(r.idleT * 2.2 + r.slot) * 0.12 : 0;
-          if (fly) r.y = r.hy + Math.sin(r.idleT * 1.7 + r.slot) * 0.08;
+          if (fly) r.ly = r.hy + Math.sin(r.idleT * 1.7 + r.slot) * 0.08;
           break;
         case 'spawn': {
           var k = Math.min(1, r.st / 0.8);
           r.x = r.sx + (r.tx - r.sx) * k; r.z = r.sz + (r.tz - r.sz) * k;
-          if (fly) r.y = 1.0 + (r.hy - 1.0) * k * k * (3 - 2 * k) + Math.sin(k * Math.PI) * 0.6;
-          else r.y = Math.max(0, (1 - k) * 1.0 + Math.sin(k * Math.PI) * 0.8);
+          if (fly) r.ly = 1.0 + (r.hy - 1.0) * k * k * (3 - 2 * k) + Math.sin(k * Math.PI) * 0.6;
+          else r.ly = Math.max(0, (1 - k) * 1.0 + Math.sin(k * Math.PI) * 0.8);
           r.walk += dt * 6;
           if (r.st >= 0.8) {
-            r.y = fly ? r.hy : 0;
-            if (!fly && IB.FX) IB.FX.puff(r.x, 0.1, r.z, 4, PAL.ink, 0.15, 0.45, 2);
+            r.ly = fly ? r.hy : 0;
+            if (!fly && IB.FX) IB.FX.puff(r.x, r.gy + 0.1, r.z, 4, PAL.ink, 0.15, 0.45, 2);
             setState(r, zone && r.zone === ctx.activeZone ? 'alert' : 'idle');
           }
           break;
@@ -666,17 +714,18 @@
           r.x += r.kx * dt; r.z += r.kz * dt; r.kx *= Math.max(0, 1 - 6 * dt); r.kz *= Math.max(0, 1 - 6 * dt);
           if (r.type === 'crawler' || fly) r.yaw += dt * 3;
           r.wob = Math.sin(r.st * 28) * 0.16 * (1 - r.st / 0.6);
-          if (fly) r.y -= dt * 0.8 * (1 - r.st / 0.6);
+          if (fly) r.ly -= dt * 0.8 * (1 - r.st / 0.6);
           if (r.st >= 0.6) { r.wob = 0; setState(r, v.home); r.thinkT = 0; }
           break;
         case 'blinded':
           r.yaw += dt * 1.5;
-          if (fly) r.y += ((r.hy - 0.5) - r.y) * Math.min(1, dt * 2);
+          if (fly) r.ly += ((r.hy - 0.5) - r.ly) * Math.min(1, dt * 2);
           if (r.st >= r.blind) { setState(r, v.home); r.thinkT = 0; }
           break;
         default:
           B.think(r, dt, ctx, zone, dx, dz, dist);
       }
+      r.y = r.gy + r.ly;
       if (r.state === 'spawn' || r.state === 'pose') continue;
       if (B.tick) { B.tick(r, dt, ctx); if (!r.on) continue; }
       // movement: smooth velocity toward the wish, collide, face
@@ -684,7 +733,8 @@
       r.vx += (tvx - r.vx) * blend; r.vz += (tvz - r.vz) * blend;
       var ox = r.x, oz = r.z;
       r.x += r.vx * dt; r.z += r.vz * dt;
-      collide(r, world, v.radius * 0.9, fly ? r.y - 0.1 : 0);
+      collide(r, world, v.radius * 0.9, fly);
+      settle(r, world, fly, p, dt);
       if (fly && ctx.level) {
         var Z = ctx.level.zones[r.zone];
         if (Z) { r.x = clamp(r.x, Z.ox + 1.2, Z.ox + Z.w - 1.2); r.z = clamp(r.z, Z.oz + 1.2, Z.oz + Z.h - 1.2); }
@@ -698,7 +748,7 @@
       if (v.wheelR) r.roll += fwd * dt / v.wheelR;
       if (fly) {
         // hover: altitude bob, bank into the strafe, rotors
-        if (r.state !== 'stagger' && r.state !== 'blinded') r.y += ((r.hy + Math.sin(r.idleT * 1.7 + r.slot) * 0.1) - r.y) * Math.min(1, dt * 3);
+        if (r.state !== 'stagger' && r.state !== 'blinded') r.ly += ((r.flyH + Math.sin(r.idleT * 1.7 + r.slot) * 0.1) - r.ly) * Math.min(1, dt * 3);
         var side = r.vx * Math.cos(r.yaw) - r.vz * Math.sin(r.yaw);
         r.bankX += (clamp(fwd * 0.05, -0.3, 0.3) - r.bankX) * Math.min(1, dt * 5);
         r.bankZ += (clamp(-side * 0.05, -0.3, 0.3) - r.bankZ) * Math.min(1, dt * 5);
@@ -718,12 +768,14 @@
         if (r.state !== 'windup' && r.state !== 'attack') r.crouch = Math.max(0, r.crouch - dt * 4);
       }
       r.alert = Math.max(0, r.alert - dt);
+      r.y = r.gy + r.ly;
     }
     // soft separation (60% of overlap); flyers only separate from flyers
     for (i = 0; i < AI.robots.length; i++) {
       var A = AI.robots[i]; if (!A.on || A.state === 'spawn') continue;
       for (var j = i + 1; j < AI.robots.length; j++) {
         var b = AI.robots[j]; if (!b.on || b.state === 'spawn' || Math.abs(A.y - b.y) > 1.2) continue;
+        if (!VIS[A.type].flying && !VIS[b.type].flying && Math.abs(A.gy - b.gy) > 0.3) continue;   // a step apart on stairs: no shove
         var sx = b.x - A.x, sz = b.z - A.z, rr = VIS[A.type].radius + VIS[b.type].radius, d2 = sx * sx + sz * sz;
         if (d2 < rr * rr && d2 > 1e-6) {
           var d = Math.sqrt(d2), push = (rr - d) * 0.3 / d;
@@ -769,7 +821,7 @@
         _q.setFromAxisAngle(_up, r.yaw); _v.set(r.x, r.y, r.z); _s.set(1, 1, 1);
         _base.compose(_v, _q, _s);
         T.vis.pose(r, P);
-        if (IB.FX) IB.FX.blob(r.x, 0, r.z, T.vis.shadow * (T.vis.flying ? 0.8 : 1 - Math.min(0.5, r.y)));
+        if (IB.FX) IB.FX.blob(r.x, r.gy || 0, r.z, T.vis.shadow * (T.vis.flying ? 0.8 : 1 - Math.min(0.5, r.ly || 0)));
       }
       for (pi = 0; pi < T.partList.length; pi++) {
         var Pt = T.partList[pi]; Pt.mesh.instanceMatrix.needsUpdate = true;
@@ -790,7 +842,7 @@
         var c = T.corpses[i];
         if (!c.on) { T.corpse.setMatrixAt(i, ZERO); continue; }
         c.t += dt;
-        if (c.y > 0) { c.vy -= 16 * dt; c.y = Math.max(0, c.y + c.vy * dt); }
+        if (c.y > c.gy) { c.vy -= 16 * dt; c.y = Math.max(c.gy, c.y + c.vy * dt); }
         var y, tip, alpha = 1;
         if (c.t < 0.12) { y = c.y + Math.sin(c.t / 0.12 * Math.PI / 2) * 0.3; tip = 0; }
         else if (c.t < 0.62) { var k = (c.t - 0.12) / 0.5; y = c.y + 0.3 * (1 - k * k); tip = k * k * (Math.PI / 2); }

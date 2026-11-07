@@ -14,9 +14,20 @@ WHAT IS HERE
     tests/e2e/        Headless Chromium tests: smoke (plays the level), screens (screenshot matrix), perf.
   ROUND-1-REPORT.md   What was built and tested this round, numbers, known issues, next round.
 
+LEVELS 9-11 (round 2 additions)
+  9  Galleria Mall      two-storey atrium: mezzanine ring at 4.5 m, escalators, an automatic glass elevator.
+  10 Strike Team HQ     police / special-forces base: weapon wall racks hold real guns with a rolled rarity
+                        (grey, green, blue common; purple very rare; orange never), workbenches hold mods
+                        (extended / speed mag, suppressor, compensator, long barrel, red dot, laser, grip),
+                        shelves hold gear (Kevlar vest, med kit, ammo box). Look at one and press E (touch: USE).
+  11 Redwood Hollow     bumpy garden valleys; giant redwoods with broken branch stairs up to 9 m limbs and rope
+                        bridges between trees. Robots climb the stairs and branches after you.
+  Kits: Source/blender/fam_kit_mall.py, fam_kit_police.py, fam_kit_grove.py (pip install bpy; python3 build_assets.py).
+  Maps: Source/tools/mall_zones.py, police_zones.py, grove_zones.py write src/data/zones/*.txt.
+
 CONTROLS
   Desktop: click to lock the mouse. WASD move, mouse look, left click fire, right click aim,
-           Space jump, Shift sprint, R reload, 1/2 or mouse wheel switch weapon, F shove, Esc pause.
+           Space jump, Shift sprint, R reload, 1/2 or mouse wheel switch weapon, F shove, E use / take, Esc pause.
   Phone:   left thumb moves (push far forward to sprint), right thumb looks, Fire / Aim / Reload /
            Swap / Jump buttons on the right, pause button top right.
 

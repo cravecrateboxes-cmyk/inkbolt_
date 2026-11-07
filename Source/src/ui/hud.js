@@ -107,11 +107,14 @@
     if (d.reserve !== undefined) w.reserve = d.reserve;
     if (d.reloading !== undefined) w.reloading = d.reloading;
     if (d.reloadFrac !== undefined) w.reloadFrac = d.reloadFrac;
-    if (w.id !== L.id || w.name !== L.name || w.cls !== L.cls) {
-      L.id = w.id; L.name = w.name; L.cls = w.cls;
+    if (d.rarity !== undefined) w.rarity = d.rarity;
+    if (w.id !== L.id || w.name !== L.name || w.cls !== L.cls || w.rarity !== L.rarity) {
+      L.id = w.id; L.name = w.name; L.cls = w.cls; L.rarity = w.rarity;
+      var RR = w.rarity && w.rarity !== 'common' && IB.LOOT ? IB.LOOT.RARITY_BY_ID[w.rarity] : null;
+      if (RR) el.weapon.style.setProperty('--rar', RR.color); el.weapon.classList.toggle('rar', !!RR);
       el.wpnName.textContent = String(w.name || CLS_NAME[w.cls] || '').toUpperCase();
       el.wpnIcon.innerHTML = H.icon(w.cls);
-      el.wpnCls.textContent = H.clsName(w.cls);
+      el.wpnCls.textContent = H.clsName(w.cls) + (RR ? ' · ' + RR.name : '');
     }
     var melee = w.cls === 'melee' || w.cls === 'shove';
     if (melee !== L.melee) { L.melee = melee; el.weapon.classList.toggle('melee', melee); L.mag = -1; }
@@ -211,14 +214,38 @@
     } else H.last.elim = null;
   };
 
+  /* "E  Take ..." prompt for loot within reach (touch: the USE button shows instead of the key) */
+  var USE = { on: false, text: '', color: '' };
+  H.use = function (d) {
+    var el = H.el.use || (H.el.use = document.getElementById('usePrompt')), tb = H.el.tUse || (H.el.tUse = document.getElementById('tUse'));
+    if (!el) return;
+    var on = !!d;
+    if (on !== USE.on) { USE.on = on; el.hidden = !on; if (tb) tb.hidden = !on; }
+    if (on && (d.text !== USE.text || d.color !== USE.color)) {
+      USE.text = d.text; USE.color = d.color;
+      el.querySelector('.key').textContent = touch() ? 'USE' : d.key;
+      el.querySelector('.ut').textContent = d.text;
+      el.querySelector('.us').textContent = d.sub || '';
+      el.style.setProperty('--rar', d.color || '#12C7B6');
+    }
+  };
+  var ARM = -1;
+  H.armor = function (v) {
+    v = Math.ceil(v);
+    if (v === ARM) return; ARM = v;
+    var el = H.el.armor || (H.el.armor = document.getElementById('armorNum'));
+    if (el) { el.hidden = v <= 0; el.textContent = '+' + v; }
+  };
   /* new-weapon banner */
   var pickT = 0;
-  H.pickup = function (name, cls, slot) {
+  H.pickup = function (name, cls, slot, rarity) {
     slot = slot || CLS_SLOT[cls];
+    var RR = rarity && IB.LOOT && IB.LOOT.RARITY_BY_ID[rarity];
+    if (RR) H.el.pickup.style.setProperty('--rar', RR.color); H.el.pickup.classList.toggle('rar', !!RR);
     H.el.pickupIcon.innerHTML = H.icon(cls);
     H.el.pickupName.textContent = String(name).toUpperCase();
     var how = touch() ? 'tap swap to equip' : (slot ? 'press ' + slot + ' to equip' : 'equipped');
-    H.el.pickupLine.textContent = 'New ' + H.clsName(cls).toLowerCase().replace('smg', 'SMG') + ' · ' + how;
+    H.el.pickupLine.textContent = (RR ? RR.name + ' ' : 'New ') + H.clsName(cls).toLowerCase().replace('smg', 'SMG') + ' · ' + how;
     H.el.toast.hidden = true; toastT = 0;
     H.el.hud.classList.add('picking');
     H.el.pickup.hidden = false; H.el.pickup.classList.remove('out', 'on'); void H.el.pickup.offsetWidth; H.el.pickup.classList.add('on');

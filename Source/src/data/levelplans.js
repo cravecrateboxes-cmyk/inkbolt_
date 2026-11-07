@@ -30,10 +30,11 @@
       { map: 'toytown_yard', waves: [[['crawler', 5]], [['crawler', 6]]] }
     ] };
 
-  // campaign order (user's beta plan: mountains, small city, classroom, office tower, big bedroom, ... up to 20)
-  var ORDER = ['mountains', 'smallcity', 'classroom', 'office', 'bedroom', 'tt1', 'tt2', 'tt3'];
+  // campaign order (user's beta plan: mountains, small city, classroom, office tower, big bedroom, ... up to 20);
+  // levels 9-11: Galleria Mall, Strike Team HQ (armory loot), Redwood Hollow (climbable giant trees)
+  var ORDER = ['mountains', 'smallcity', 'classroom', 'office', 'bedroom', 'tt1', 'tt2', 'tt3', 'mall', 'police', 'grove'];
   // new weapons waiting at the start of each campaign level (index = level - 1)
-  var WEAPONS = [['buzz'], ['rivet', 'handcannon'], ['triplet', 'whisk'], ['longtom', 'hornet'], ['brick', 'twintap'], ['needle'], [], []];
+  var WEAPONS = [['buzz'], ['rivet', 'handcannon'], ['triplet', 'whisk'], ['longtom', 'hornet'], ['brick', 'twintap'], ['needle'], [], [], [], [], []];   // the police armory racks hand out guns of their own
   IB.CAMPAIGN = ORDER.filter(function (id) { return P[id]; });
   IB.CAMPAIGN.forEach(function (id, i) {
     var p = P[id];

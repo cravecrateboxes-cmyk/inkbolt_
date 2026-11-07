@@ -33,6 +33,19 @@
    }
    Built-in symbols (all themes): # wall (theme.wall), S spawn can, P entry, E entry gate, G exit gate,
    a ammo, h health, . floor.
+
+   Vertical play (levels 9-11):
+     zone files may add upper layers: a line "@layer <y>" starts a grid of the same size whose symbols stand at height y
+       (spawns and pickups too); '#' and '.' build nothing there
+     'u': { deck: { thick, color, edge, under, with: '*' | 'chars' } }   walkable slab whose top is the layer height
+     'r': { pieces: [half], full: 'Piece', links: 'r', post: 'Piece' }   rails: half modules toward linked neighbours
+     'L': { size, pieces, face: <radians>, elevator: { top, wait, speed, cab, inner: [w, d], floor } }   moving lift
+     symbol extras: kind 'step' (stairs, escalators, branch steps: robots climb 0.6 m, the player 0.5 m) | 'deck';
+       rotate: 'edge' (front away from the closed side), orient: 'wall' (prefab front away from the wall),
+       face: <radians> (fixed prefab yaw), sink: true (stand on the lowest terrain corner),
+       mounts: [[x, height, z, yaw, 'gun' | 'mod' | 'item'], ...] + fill (0..1): loot points (src/data/loot.js)
+     terrain: { height(c, r, zoneIdx), flat: 'symbols kept level', ramp: [a, b], low, high, patch, top }
+     env.ceiling: { ..., clear: 'symbols', clearR: cells }   keeps light fittings off walls and tall pieces
    Collision: a piece node may carry empty children named <Piece>_COL<n> (Blender cube empties; position = box centre,
    scale = half extents); otherwise the cell (or prefab footprint) up to `h` is solid. Boxes may float (e.g. a bed
    frame): robots and the player walk under boxes whose bottom is above 1.2 m. */

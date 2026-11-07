@@ -9,11 +9,27 @@
   var TRAIL_LEN = 12;
 
   // ---------------- parsing ----------------
+  /* A zone file is the floor plan, optionally followed by upper layers: a line "@layer <y>" starts a grid of the same
+     size whose symbols stand at height y (decks, rails, props, spawns and pickups on a mezzanine or a tree platform). */
+  function mkGrid(rows, w0, out) {
+    rows = rows.filter(function (r) { return r.length > 0; });
+    var w = w0 || 0; if (!w0) rows.forEach(function (r) { w = Math.max(w, r.length); });
+    rows = rows.map(function (r) { r = r.slice(0, w); while (r.length < w) r += '.'; return r; });
+    return { w: w, h: rows.length, rows: rows, at: function (c, r) { return (r < 0 || r >= rows.length || c < 0 || c >= w) ? out : rows[r][c]; } };
+  }
   Z.parse = function (text) {
-    var rows = text.replace(/\r/g, '').split('\n').filter(function (r) { return r.length > 0; });
-    var w = 0; rows.forEach(function (r) { w = Math.max(w, r.length); });
-    rows = rows.map(function (r) { while (r.length < w) r += '.'; return r; });
-    return { w: w, h: rows.length, rows: rows, at: function (c, r) { return (r < 0 || r >= rows.length || c < 0 || c >= w) ? '#' : rows[r][c]; } };
+    var lines = text.replace(/\r/g, '').split('\n'), base = [], layers = [], cur = base;
+    lines.forEach(function (l) {
+      var m = /^@layer\s+(-?[\d.]+)/.exec(l);
+      if (m) { cur = []; layers.push({ y: parseFloat(m[1]), rows: cur }); } else cur.push(l);
+    });
+    var g = mkGrid(base, 0, '#');
+    g.layers = layers.map(function (L) {
+      var lg = mkGrid(L.rows, g.w, '.');
+      while (lg.rows.length < g.h) lg.rows.push(new Array(g.w + 1).join('.'));
+      lg.h = g.h; lg.y = L.y; return lg;
+    });
+    return g;
   };
 
   // greedy rectangle merge of cells with char ch -> [{c,r,w,h}]
@@ -50,7 +66,39 @@
   function hash(a, b) { var h = (a * 374761393 + b * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
 
   // ---------------- collision world ----------------
-  function World() { this.boxes = []; this.grid = new Map(); }
+  function World() { this.boxes = []; this.grid = new Map(); this.terrains = []; }
+  /* ground height: 0, or a zone's terrain heightfield (1 m vertex grid, bilinear) for themes with bumpy ground */
+  World.prototype.groundAt = function (x, z) {
+    for (var i = 0; i < this.terrains.length; i++) {
+      var T = this.terrains[i], u = x - T.ox, v = z - T.oz;
+      if (u < 0 || v < 0 || u >= T.w || v >= T.h) continue;
+      var c = Math.floor(u), r = Math.floor(v), fu = u - c, fv = v - r, W = T.w + 1, H = T.hf;
+      var a = H[r * W + c], b = H[r * W + c + 1], d = H[(r + 1) * W + c], e = H[(r + 1) * W + c + 1];
+      return (a * (1 - fu) + b * fu) * (1 - fv) + (d * (1 - fu) + e * fu) * fv;
+    }
+    return 0;
+  };
+  var _gn = { x: 0, y: 1, z: 0 };
+  World.prototype.groundNormal = function (x, z) {
+    var hx = this.groundAt(x + 0.25, z) - this.groundAt(x - 0.25, z), hz = this.groundAt(x, z + 0.25) - this.groundAt(x, z - 0.25);
+    var L = Math.sqrt(hx * hx * 4 + 1 + hz * hz * 4); _gn.x = -hx * 2 / L; _gn.y = 1 / L; _gn.z = -hz * 2 / L; return _gn;
+  };
+  // first t along a ray where it dips under the terrain (march 0.35 m, then bisect), or Infinity
+  World.prototype.rayTerrain = function (ox, oy, oz, dx, dy, dz, maxT) {
+    if (!this.terrains.length) return Infinity;
+    var top = this.terrainTop || 0, step = 0.35, prev = 0;
+    for (var t = 0; t <= maxT; t += step) {
+      var y = oy + dy * t;
+      if (y > top + 0.01 && dy >= 0) return Infinity;
+      if (y < this.groundAt(ox + dx * t, oz + dz * t)) {
+        var lo = prev, hi = t;
+        for (var k = 0; k < 8; k++) { var m = (lo + hi) / 2; if (oy + dy * m < this.groundAt(ox + dx * m, oz + dz * m)) hi = m; else lo = m; }
+        return hi;
+      }
+      prev = t;
+    }
+    return Infinity;
+  };
   World.prototype.add = function (x0, y0, z0, x1, y1, z1, kind, zone) {
     var b = { id: this.boxes.length, x0: Math.min(x0, x1), y0: y0, z0: Math.min(z0, z1), x1: Math.max(x0, x1), y1: y1, z1: Math.max(z0, z1), on: true, kind: kind || 'wall', zone: zone === undefined ? -1 : zone };
     this.boxes.push(b);
@@ -76,6 +124,10 @@
   World.prototype.ray = function (ox, oy, oz, dx, dy, dz, maxT, skipKind) {
     var best = maxT, bb = null, bnx = 0, bny = 0, bnz = 0;
     if (dy < -1e-6) { var tg = -oy / dy; if (tg > 0 && tg < best) { best = tg; bb = null; bnx = 0; bny = 1; bnz = 0; } }
+    if (this.terrains.length) {
+      var tt0 = this.rayTerrain(ox, oy, oz, dx, dy, dz, best);
+      if (tt0 < best) { var tn = this.groundNormal(ox + dx * tt0, oz + dz * tt0); best = tt0; bb = null; bnx = tn.x; bny = tn.y; bnz = tn.z; }
+    }
     _stamp++;
     var cx = Math.floor(ox / CELL), cz = Math.floor(oz / CELL);
     var stepX = dx > 0 ? 1 : -1, stepZ = dz > 0 ? 1 : -1;
@@ -237,27 +289,70 @@
       P.add(name, z.ox + p.c + 0.5, 0, z.oz + p.r + 0.5, yaw);
     });
   }
+  // height a piece stands at: the layer height, or (floor plan) the terrain under it; prefabs sink to their lowest corner
+  function baseY(world, yb, x, z, hw, hd) {
+    if (yb) return yb;
+    if (!world.terrains.length) return 0;
+    var y = world.groundAt(x, z);
+    if (hw) [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (k) { y = Math.min(y, world.groundAt(x + k[0] * hw, z + k[1] * hd)); });
+    return y;
+  }
+  function addColsY(world, cols, x, y0, z, yaw, kind, zi) {
+    addCols(world, cols.map(function (b) { return { x: b.x, y: b.y + y0, z: b.z, hx: b.hx, hy: b.hy, hz: b.hz }; }), x, z, yaw, kind, zi);
+  }
   // a single-cell symbol: one piece per cell
-  function buildCells(P, z, grid, theme, world, ch, d) {
+  function buildCells(P, z, grid, theme, world, ch, d, yb) {
     var pts = find(grid, ch);
+    if (d.links) {   // rails: one half-module from the cell centre toward each linked neighbour (straight, L, T, end)
+      pts.forEach(function (p) {
+        var x = z.ox + p.c + 0.5, zz = z.oz + p.r + 0.5, y0 = baseY(world, yb, x, zz), n = 0, lk = d.links;
+        var L = function (dc, dr) { return lk.indexOf(grid.at(p.c + dc, p.r + dr)) >= 0; };
+        var ns = L(0, 1) && L(0, -1) && !L(1, 0) && !L(-1, 0), ew = L(1, 0) && L(-1, 0) && !L(0, 1) && !L(0, -1);
+        if (d.full && (ns || ew)) {   // straight run: one full module, no post
+          var fy = ns ? 0 : Math.PI / 2;
+          P.add(d.full, x, y0, zz, fy);
+          if (d.collide !== false) addColsY(world, colsOf(IB.themePiece(theme, d.full)) || boxCols(0.2, 1, d.h || 1), x, y0, zz, fy, d.kind || 'cover', z.idx);
+          return;
+        }
+        [[0, 1, 0], [1, 0, Math.PI / 2], [0, -1, Math.PI], [-1, 0, -Math.PI / 2]].forEach(function (k) {
+          if (lk.indexOf(grid.at(p.c + k[0], p.r + k[1])) < 0) return;
+          n++; P.add(d.pieces[0], x, y0, zz, k[2]);
+          if (d.collide !== false) addColsY(world, colsOf(IB.themePiece(theme, d.pieces[0])) || boxCols(0.2, 0.5, d.h || 1), x, y0, zz, k[2], d.kind || 'cover', z.idx);
+        });
+        if (d.post) P.add(d.post, x, y0, zz, 0);
+      });
+      return;
+    }
     pts.forEach(function (p, i) {
       var x = z.ox + p.c + 0.5, zz = z.oz + p.r + 0.5, yaw = 0;
       if (d.rotate === 'run') {
         var vert = !(cellIs(grid, p.c - 1, p.r, ch) || cellIs(grid, p.c + 1, p.r, ch)) && (cellIs(grid, p.c, p.r - 1, ch) || cellIs(grid, p.c, p.r + 1, ch));
         yaw = vert ? Math.PI / 2 : 0;
       } else if (d.rotate === 'random90') yaw = Math.floor(hash(p.c, p.r * 9) * 4) * Math.PI / 2;
+      else if (d.rotate === 'edge') yaw = edgeYaw(grid, p.c, p.r, d.edge || '.');
       else if (typeof d.rotate === 'number') yaw = d.rotate;
       var name = d.sequence ? d.pieces[i % d.pieces.length] : d.alternate ? d.pieces[(p.c + p.r) % d.pieces.length] : pick(d.pieces, hash(p.c * 3 + 1, p.r * 5 + 2));
-      P.add(name, x, d.y || 0, zz, yaw);
-      if (d.collide !== false) addCols(world, d.cols || colsOf(IB.themePiece(theme, name)) || boxCols(1, 1, d.h || 1), x, zz, yaw, d.kind || 'cover', z.idx);
+      var y0 = baseY(world, yb, x, zz, d.sink ? 0.45 : 0, d.sink ? 0.45 : 0);
+      P.add(name, x, (d.y || 0) + y0, zz, yaw);
+      if (d.collide !== false) addColsY(world, d.cols || colsOf(IB.themePiece(theme, name)) || boxCols(1, 1, d.h || 1), x, (d.y || 0) + y0, zz, yaw, d.kind || 'cover', z.idx);
+      if (d.mount && z.mounts) z.mounts.push({ x: x, y: y0, z: zz, yaw: yaw, kind: d.mount, piece: name });
       if (d.stack && hash(p.c * 5, p.r * 3) < d.stack.chance) {
-        P.add(d.stack.piece, x, d.h || 1, zz, Math.floor(hash(p.c * 7, p.r) * 4) * Math.PI / 2);
-        if (d.collide !== false) world.add(x - 0.5, d.h || 1, zz - 0.5, x + 0.5, (d.h || 1) + (d.stack.h || 1), zz + 0.5, d.kind || 'cover', z.idx);
+        P.add(d.stack.piece, x, (d.h || 1) + y0, zz, Math.floor(hash(p.c * 7, p.r) * 4) * Math.PI / 2);
+        if (d.collide !== false) world.add(x - 0.5, (d.h || 1) + y0, zz - 0.5, x + 0.5, (d.h || 1) + y0 + (d.stack.h || 1), zz + 0.5, d.kind || 'cover', z.idx);
       }
     });
   }
+  // yaw that turns a piece's +Z face (Blender -Y) away from the neighbouring wall toward the open side ('edge' rotate)
+  function edgeYaw(grid, c, r, open) {
+    function op(cc, rr) { return open.indexOf(grid.at(cc, rr)) >= 0; }
+    if (!op(c, r - 1) && op(c, r + 1)) return 0;
+    if (!op(c, r + 1) && op(c, r - 1)) return Math.PI;
+    if (!op(c - 1, r) && op(c + 1, r)) return Math.PI / 2;
+    if (!op(c + 1, r) && op(c - 1, r)) return -Math.PI / 2;
+    return 0;
+  }
   // a multi-cell prefab symbol: each connected block is tiled with prefabs of size [w, d] (rotated 90 if that fits)
-  function buildPrefabs(P, z, grid, theme, world, ch, d) {
+  function buildPrefabs(P, z, grid, theme, world, ch, d, yb) {
     var sw = d.size[0], sd = d.size[1];
     rects(grid, ch).forEach(function (R, ri) {
       var yaw = 0, tw = sw, td = sd;
@@ -267,25 +362,134 @@
       for (var i = 0; i < nx; i++) for (var k = 0; k < nz; k++) {
         var x = z.ox + R.c + (i + 0.5) * tw, zz = z.oz + R.r + (k + 0.5) * td, h = hash(R.c + i * 7, R.r + k * 11);
         var y = yaw + (d.flip && hash(R.c * 3 + i, R.r * 5 + k) > 0.5 ? Math.PI : 0);
+        if (typeof d.face === 'number') y = d.face;
+        if (d.orient === 'wall') y = wallYaw(grid, R, y);
         var name = d.sequence ? d.pieces[(ri + i + k) % d.pieces.length] : pick(d.pieces, h);
-        P.add(name, x, d.y || 0, zz, y);
-        if (d.collide !== false) addCols(world, d.cols || colsOf(IB.themePiece(theme, name)) || boxCols(sw, sd, d.h || 1), x, zz, y, d.kind || 'cover', z.idx);
+        var y0 = baseY(world, yb, x, zz, tw / 2 * 0.8, td / 2 * 0.8);
+        P.add(name, x, (d.y || 0) + y0, zz, y);
+        if (d.collide !== false) addColsY(world, d.cols || colsOf(IB.themePiece(theme, name)) || boxCols(sw, sd, d.h || 1), x, (d.y || 0) + y0, zz, y, d.kind || 'cover', z.idx);
+        if (d.elevator) z.elevators.push(makeElevator(P, z, theme, world, d.elevator, x, y0, zz, y));
+        if (d.mounts) d.mounts.forEach(function (m) {   // pickup mounts inside the prefab (e.g. guns on a wall rack), prefab-local
+          var c = Math.round(Math.cos(y)), s2 = Math.round(Math.sin(y));
+          z.mounts.push({ x: x + m[0] * c + m[2] * s2, y: y0 + m[1], z: zz - m[0] * s2 + m[2] * c, yaw: y + (m[3] || 0), kind: m[4] || 'gun', piece: name, fill: d.fill === undefined ? 1 : d.fill });
+        });
       }
     });
   }
-  function buildSymbols(P, z, grid, theme, world) {
-    buildWalls(P, z, grid, theme, world);
+  // prefab against a wall: turn its front (+Z) away from the side of the block with the most wall cells
+  function wallYaw(grid, R, fallback) {
+    function cnt(c0, r0, dc, dr, n) { var k = 0; for (var i = 0; i < n; i++) if (grid.at(c0 + dc * i, r0 + dr * i) === '#') k++; return k; }
+    var N = cnt(R.c, R.r - 1, 1, 0, R.w), S = cnt(R.c, R.r + R.h, 1, 0, R.w), W = cnt(R.c - 1, R.r, 0, 1, R.h), E = cnt(R.c + R.w, R.r, 0, 1, R.h);
+    var m = Math.max(N, S, W, E); if (!m) return fallback;
+    return m === N ? 0 : m === S ? Math.PI : m === W ? Math.PI / 2 : -Math.PI / 2;
+  }
+  // walkable deck (mezzanine floor) over each block of the symbol: slab with fascia, ink edge bands, collision
+  function buildDeck(g, z, grid, world, ch, d, yb) {
+    var D = d.deck, t = D.thick || 0.4, chars = ch + (D.with || '');
+    if (chars.length > 1) { var rows2 = grid.rows.map(function (row) { var o = ''; for (var i = 0; i < row.length; i++) o += (D.with === '*' ? row[i] !== '.' : chars.indexOf(row[i]) >= 0) ? ch : row[i]; return o; }); grid = { w: grid.w, h: grid.h, rows: rows2, at: function (c, r) { return (r < 0 || r >= rows2.length || c < 0 || c >= grid.w) ? '.' : rows2[r][c]; } }; }
+    var top = col(D.color, '#E8E0D0'), side = col(D.edge, '#BFB6A6'), under = col(D.under, '#D9D2C4');
+    rects(grid, ch).forEach(function (R) {
+      var x0 = z.ox + R.c, z0 = z.oz + R.r;
+      g.box(x0 + R.w / 2, yb - t / 2, z0 + R.h / 2, R.w, t, R.h, side, { hull: false, topTint: top, noBottom: true });
+      var bi = g.pos.length / 3;
+      g.flat([[x0, z0], [x0 + R.w, z0], [x0 + R.w, z0 + R.h], [x0, z0 + R.h]], yb - t, under);
+      for (var q = bi; q < g.pos.length / 3; q++) g.nor[q * 3 + 1] = -1;
+      for (var ti = g.idx.length - 6; ti < g.idx.length; ti += 3) { var tmp = g.idx[ti + 1]; g.idx[ti + 1] = g.idx[ti + 2]; g.idx[ti + 2] = tmp; }
+      world.add(x0, yb - t, z0, x0 + R.w, yb, z0 + R.h, 'deck', z.idx);
+    });
+    // ink bands along exposed slab edges (top and bottom of the fascia), 1 cm proud, merged into runs
+    var ink = col(PAL.ink);
+    [[0, -1], [0, 1], [-1, 0], [1, 0]].forEach(function (n) {
+      var along = n[1] ? [1, 0] : [0, 1], seen = {};
+      find(grid, ch).forEach(function (p) {
+        var key = p.c + ',' + p.r;
+        if (seen[key] || grid.at(p.c + n[0], p.r + n[1]) === ch) return;
+        var len = 0, c0 = p.c, r0 = p.r;
+        while (grid.at(c0 + along[0] * len, r0 + along[1] * len) === ch && grid.at(c0 + along[0] * len + n[0], r0 + along[1] * len + n[1]) !== ch) { seen[(c0 + along[0] * len) + ',' + (r0 + along[1] * len)] = 1; len++; }
+        var cx = z.ox + c0 + 0.5 + n[0] * 0.505 + along[0] * (len - 1) / 2, cz = z.oz + r0 + 0.5 + n[1] * 0.505 + along[1] * (len - 1) / 2;
+        var sx = n[0] ? 0.02 : len, sz = n[1] ? 0.02 : len;
+        g.box(cx, yb - 0.0275, cz, sx, 0.045, sz, ink, { hull: false });
+        g.box(cx, yb - t + 0.0275, cz, sx, 0.045, sz, ink, { hull: false });
+      });
+    });
+  }
+  function buildSymbols(P, z, grid, theme, world, g, yb) {
+    yb = yb || 0;
+    if (!yb) buildWalls(P, z, grid, theme, world);
     Object.keys(theme.symbols || {}).forEach(function (ch) {
       var d = theme.symbols[ch];
-      if (d.size) buildPrefabs(P, z, grid, theme, world, ch, d); else buildCells(P, z, grid, theme, world, ch, d);
+      if (d.deck) buildDeck(g, z, grid, world, ch, d, yb);
+      else if (d.size) buildPrefabs(P, z, grid, theme, world, ch, d, yb);
+      else buildCells(P, z, grid, theme, world, ch, d, yb);
     });
     // spawn cans (fps-common) are part of every theme
     find(grid, 'S').forEach(function (p) {
-      var x = z.ox + p.c + 0.5, zz = z.oz + p.r + 0.5;
-      P.add(theme.spawn || 'SpawnCan', x, 0, zz, hash(p.c, p.r) * 6.28);
-      world.add(x - 0.4, 0, zz - 0.4, x + 0.4, 1.0, zz + 0.4, 'cover', z.idx);
+      var x = z.ox + p.c + 0.5, zz = z.oz + p.r + 0.5, y0 = baseY(world, yb, x, zz, 0.4, 0.4);
+      P.add(theme.spawn || 'SpawnCan', x, y0, zz, hash(p.c, p.r) * 6.28);
+      world.add(x - 0.4, y0, zz - 0.4, x + 0.4, y0 + 1.0, zz + 0.4, 'cover', z.idx);
+      z.spawns.push({ x: x, y: y0, z: zz });
+    });
+    ['a', 'h'].forEach(function (k) {
+      find(grid, k).forEach(function (s) { var x = z.ox + s.c + 0.5, zz = z.oz + s.r + 0.5; z.pickups.push({ kind: k === 'a' ? 'ammo' : 'health', x: x, y: baseY(world, yb, x, zz), z: zz }); });
     });
   }
+
+  // ---------------- elevators ----------------
+  /* E = { top, wait, speed, cab: piece, inner: [w, d] (cab floor, prefab-local), open: 'S' }: the cab (its own mesh)
+     shuttles between y0 and y0 + top, waiting `wait` s at each stop. Riders (player, robots) standing on the cab floor
+     ride with it. Barriers: across the cab's open side while it moves, and across the shaft opening of any stop the cab
+     is not at, so nobody walks into an empty shaft. */
+  function makeElevator(P, z, theme, world, E, x, y0, zz, yaw) {
+    var name = IB.themePiece(theme, E.cab), mesh = new THREE.Mesh(IB.Assets.get(name), IB.Assets.material(name));
+    mesh.position.set(x, y0, zz); mesh.rotation.y = yaw;
+    var c = Math.round(Math.cos(yaw)), s = Math.round(Math.sin(yaw));
+    function rot(lx, lz) { return [x + lx * c + lz * s, zz - lx * s + lz * c]; }
+    function box(lx0, lz0, lx1, lz1, ya, yb2, kind) {
+      var A = rot(lx0, lz0), B = rot(lx1, lz1);
+      return world.add(Math.min(A[0], B[0]), ya, Math.min(A[1], B[1]), Math.max(A[0], B[0]), yb2, Math.max(A[1], B[1]), kind, z.idx);
+    }
+    var iw = E.inner[0] / 2, id = E.inner[1] / 2, ft = 0.2, rail = 1.1, fy = E.floor || 0.06;
+    var L = { mesh: mesh, x: x, z: zz, c: c, s: s, y0: y0, top: E.top, wait: E.wait || 3, speed: E.speed || 1.5, h: 0, dir: 1, t: E.wait || 3, state: 'wait', fy: fy, rot: rot,
+      iw: iw, id: id, moving: [], stop: [] };
+    // cab boxes (local offsets from the cab floor top) move with the cab
+    L.moving.push({ b: box(-iw, -id, iw, id, y0 + fy - ft, y0 + fy, 'step'), lo: -ft, hi: 0 });
+    L.moving.push({ b: box(-iw - 0.08, -id, -iw, id, y0 + fy, y0 + fy + rail, 'wall'), lo: 0, hi: rail });
+    L.moving.push({ b: box(iw, -id, iw + 0.08, id, y0 + fy, y0 + fy + rail, 'wall'), lo: 0, hi: rail });
+    L.moving.push({ b: box(-iw, -id - 0.08, iw, -id, y0 + fy, y0 + fy + rail, 'wall'), lo: 0, hi: rail });
+    L.door = box(-iw, id, iw, id + 0.08, y0 + fy, y0 + fy + rail, 'wall'); L.door.on = false;
+    L.moving.push({ b: L.door, lo: 0, hi: rail });
+    // shaft openings at each stop (cab-floor-relative); on while the cab is elsewhere
+    [0, E.top].forEach(function (hh, k) { var b = box(-iw - 0.1, id + 0.05, iw + 0.1, id + 0.2, y0 + hh, y0 + hh + 2.4, 'wall'); b.on = k === 1; L.stop.push({ b: b, h: hh }); });
+    return L;
+  }
+  /* advance every elevator; riders: [{x, z, y (feet), set(dy)}] */
+  Z.updateElevators = function (level, dt, riders) {
+    (level.elevators || []).forEach(function (L) {
+      var dh = 0;
+      if (L.state === 'wait') {
+        L.t -= dt;
+        if (L.t <= 0) { L.state = 'move'; L.door.on = true; L.stop.forEach(function (s) { s.b.on = true; }); }
+      } else {
+        var nh = Math.max(0, Math.min(L.top, L.h + L.dir * L.speed * dt));
+        dh = nh - L.h; L.h = nh;
+        if ((L.dir > 0 && nh >= L.top) || (L.dir < 0 && nh <= 0)) {
+          L.state = 'wait'; L.t = L.wait; L.dir = -L.dir; L.door.on = false;
+          L.stop.forEach(function (s) { s.b.on = Math.abs(s.h - L.h) > 0.01; });
+          if (IB.Audio) IB.Audio.play('pickup', { pos: { x: L.x, z: L.z } });
+        }
+      }
+      if (dh) {
+        var floorY = L.y0 + L.fy + L.h - dh;
+        riders.forEach(function (R) {
+          var wx = R.x - L.x, wz = R.z - L.z, lx = wx * L.c - wz * L.s, lz = wx * L.s + wz * L.c;
+          if (Math.abs(lx) < L.iw + 0.05 && Math.abs(lz) < L.id + 0.05 && Math.abs(R.y - floorY) < 0.25) R.set(dh);
+        });
+        L.moving.forEach(function (m) { m.b.y0 = L.y0 + L.fy + L.h + m.lo; m.b.y1 = L.y0 + L.fy + L.h + m.hi; });
+        L.mesh.position.y = L.y0 + L.h;
+      }
+    });
+  };
+
   // floor: flat colour plus optional painted lines (lot lines, planks, carpet tiles, lane marks)
   function paintFloor(g, x0, z0, w, h, theme, isTrail) {
     var F = theme.floor || {};
@@ -304,7 +508,7 @@
     }
   }
   // indoor ceiling over a rectangle (faces down), with optional light fixtures every N metres
-  function addCeiling(g, P, x0, z0, w, h, theme) {
+  function addCeiling(g, P, x0, z0, w, h, theme, grid) {
     var C = theme.env && theme.env.ceiling; if (!C) return;
     var y = C.height, c = col(C.color, '#F2F2F2');
     g.flat([[x0, z0], [x0, z0 + h], [x0 + w, z0 + h], [x0 + w, z0]].reverse(), y, c);   // winding chosen by flat(); flipped below
@@ -314,7 +518,14 @@
     var idx = g.idx; for (var t = idx.length - 6; t < idx.length; t += 3) { var tmp = idx[t + 1]; idx[t + 1] = idx[t + 2]; idx[t + 2] = tmp; }
     if (C.light) {
       var ev = C.every || 4;
-      for (var lx = x0 + ev / 2; lx < x0 + w; lx += ev) for (var lz = z0 + ev / 2; lz < z0 + h; lz += ev) P.add(C.light, lx, y, lz, 0);
+      var clr = C.clear || '', rad = C.clearR || 2;
+      for (var lx = x0 + ev / 2; lx < x0 + w; lx += ev) for (var lz = z0 + ev / 2; lz < z0 + h; lz += ev) {
+        var ok = true;   // keep fittings off walls and tall pieces (C.clear: symbols within C.clearR cells)
+        if (grid && clr) for (var dr = -rad; dr <= rad && ok; dr++) for (var dc = -rad; dc <= rad && ok; dc++) {
+          if (clr.indexOf(grid.at(Math.floor(lx - x0) + dc, Math.floor(lz - z0) + dr)) >= 0) ok = false;
+        }
+        if (ok) P.add(C.light, lx, y, lz, 0);
+      }
     }
   }
 
@@ -381,67 +592,168 @@
     colA.needsUpdate = true; trail.lit = n;
   };
 
-  // ---------------- nav grid / flow field ----------------
+  // ---------------- nav grid / flow field (2.5D) ----------------
+  /* Each 0.5 m nav cell holds one node per walkable surface in it: the ground (or terrain) and the tops of boxes
+     (decks, stairs, branch steps, cab floors). A node is open when a robot body (1.2 m) fits on it: nothing in its
+     footprint between the surface + its step limit and 1.2 m above it. Robots step up 0.34 m onto anything and up to
+     CLIMB onto 'step' boxes (stairs, escalators, broken branches), and drop down up to DROP. The flow field is a BFS
+     over these nodes from the player's node, so robots follow stairs and branches up to a player on a mezzanine or a
+     tree platform. Gates never block (they are open or the zone is sealed anyway). */
+  var CLIMB = 0.6, LOWSTEP = 0.34, DROP = 2.2, BODY = 1.2;
+  Z.CLIMB = CLIMB; Z.LOWSTEP = LOWSTEP;
+  Z.stepLimit = function (b) { return b.kind === 'step' || b.kind === 'deck' ? CLIMB : LOWSTEP; };
   function buildNav(zone, world) {
-    var nx = Math.ceil(zone.w / NAV), nz = Math.ceil(zone.h / NAV);
-    var blocked = new Uint8Array(nx * nz), tmp = [];
+    var nx = Math.ceil(zone.w / NAV), nz = Math.ceil(zone.h / NAV), NC = nx * nz;
+    var start = new Int32Array(NC + 1), hs = [], tmp = [], tmp2 = [], cand = [];
     for (var j = 0; j < nz; j++) for (var i = 0; i < nx; i++) {
-      var x = zone.ox + (i + 0.5) * NAV, z = zone.oz + (j + 0.5) * NAV, inf = 0.3;
-      world.query(x - inf, z - inf, x + inf, z + inf, tmp);
-      for (var k = 0; k < tmp.length; k++) {
-        var b = tmp[k]; if (b.y1 < 0.35 || b.y0 > 1.2 || b.kind === 'gate') continue;   // walk under raised boxes (desks, beds)
-        if (x + inf > b.x0 && x - inf < b.x1 && z + inf > b.z0 && z - inf < b.z1) { blocked[j * nx + i] = 1; break; }
+      var c = j * nx + i, x = zone.ox + (i + 0.5) * NAV, z = zone.oz + (j + 0.5) * NAV, inf = 0.3;
+      start[c] = hs.length;
+      if (i === 0 || j === 0 || i === nx - 1 || j === nz - 1) continue;
+      var g0 = world.groundAt(x, z);
+      cand.length = 0; cand.push(g0);
+      world.query(x - 0.01, z - 0.01, x + 0.01, z + 0.01, tmp);
+      var k, b;
+      for (k = 0; k < tmp.length; k++) { b = tmp[k]; if (b.kind === 'gate') continue; if (x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1 && b.y1 > g0 + 0.05) cand.push(b.y1); }
+      cand.sort(function (p, q) { return p - q; });
+      world.query(x - inf, z - inf, x + inf, z + inf, tmp2);
+      var last = -1e9;
+      for (var ci = 0; ci < cand.length; ci++) {
+        var h = cand[ci]; if (h - last < 0.08) continue;
+        var ok = true;
+        for (k = 0; k < tmp.length && ok; k++) { b = tmp[k]; if (b.kind !== 'gate' && x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1 && b.y0 <= h + 0.01 && b.y1 > h + 0.05) ok = false; }   // under / inside a box
+        for (k = 0; k < tmp2.length && ok; k++) {
+          b = tmp2[k]; if (b.kind === 'gate') continue;
+          if (x + inf > b.x0 && x - inf < b.x1 && z + inf > b.z0 && z - inf < b.z1 && b.y0 < h + BODY && b.y1 > h + Z.stepLimit(b) + 0.01) ok = false;
+        }
+        if (ok) { hs.push(h); last = h; }
       }
-      if (i === 0 || j === 0 || i === nx - 1 || j === nz - 1) blocked[j * nx + i] = 1;
     }
-    zone.nav = { nx: nx, nz: nz, blocked: blocked, dist: new Int16Array(nx * nz), queue: new Int32Array(nx * nz), t: 0 };
+    start[NC] = hs.length;
+    var N = hs.length;
+    zone.nav = { nx: nx, nz: nz, start: start, h: Float32Array.from(hs), dist: new Int16Array(N), queue: new Int32Array(N), cellOf: new Int32Array(N), t: 0 };
+    for (var cc = 0; cc < NC; cc++) for (var n = start[cc]; n < start[cc + 1]; n++) zone.nav.cellOf[n] = cc;
   }
   Z.navCell = function (zone, x, z) {
     var i = Math.floor((x - zone.ox) / NAV), j = Math.floor((z - zone.oz) / NAV);
     if (i < 0 || j < 0 || i >= zone.nav.nx || j >= zone.nav.nz) return -1;
     return j * zone.nav.nx + i;
   };
-  Z.flowField = function (zone, tx, tz) {
+  // the node a body with feet at y stands on in cell c: the highest surface not above y + CLIMB, else the nearest one
+  function nodeIn(N, c, y) {
+    var best = -1, bh = -1e9, near = -1, nd = 1e9;
+    for (var n = N.start[c]; n < N.start[c + 1]; n++) {
+      var h = N.h[n];
+      if (h <= y + CLIMB + 0.05 && h > bh) { bh = h; best = n; }
+      var d = Math.abs(h - y); if (d < nd) { nd = d; near = n; }
+    }
+    return best >= 0 ? best : near;
+  }
+  Z.navNode = function (zone, x, y, z) { var c = Z.navCell(zone, x, z); return c < 0 ? -1 : nodeIn(zone.nav, c, y === undefined ? 0 : y); };
+  // a body on node a may move to a neighbouring node of height hb
+  function canMove(ha, hb) { return hb - ha <= CLIMB + 0.01 && ha - hb <= DROP; }
+  Z.flowField = function (zone, tx, ty, tz) {
+    if (tz === undefined) { tz = ty; ty = 0; }
     var N = zone.nav, d = N.dist, q = N.queue, nx = N.nx, nz = N.nz;
     d.fill(32767);
-    var s = Z.navCell(zone, tx, tz);
-    if (s < 0) return;
-    if (N.blocked[s]) { // nearest open cell
-      var best = -1, bd = 1e9, si = s % nx, sj = (s / nx) | 0;
-      for (var r = 1; r < 6 && best < 0; r++) for (var dj = -r; dj <= r; dj++) for (var di = -r; di <= r; di++) {
+    var c = Z.navCell(zone, tx, tz); if (c < 0) return;
+    var s = N.start[c] < N.start[c + 1] ? nodeIn(N, c, ty) : -1;
+    if (s < 0 || Math.abs(N.h[s] - ty) > 1.6) {   // nearest open node around the target at about its height
+      var bd = 1e9, si = c % nx, sj = (c / nx) | 0; s = -1;
+      for (var r = 1; r < 7 && s < 0; r++) for (var dj = -r; dj <= r; dj++) for (var di = -r; di <= r; di++) {
         var ii = si + di, jj = sj + dj; if (ii < 0 || jj < 0 || ii >= nx || jj >= nz) continue;
-        var c = jj * nx + ii; if (!N.blocked[c] && di * di + dj * dj < bd) { bd = di * di + dj * dj; best = c; }
+        var cc = jj * nx + ii;
+        for (var n = N.start[cc]; n < N.start[cc + 1]; n++) { var sc = di * di + dj * dj + Math.abs(N.h[n] - ty) * 4; if (Math.abs(N.h[n] - ty) < 1.6 && sc < bd) { bd = sc; s = n; } }
       }
-      if (best < 0) return; s = best;
+      if (s < 0) return;
     }
-    var h = 0, t = 0; q[t++] = s; d[s] = 0;
-    while (h < t) {
-      var cur = q[h++], ci = cur % nx, cj = (cur / nx) | 0, cd = d[cur] + 1;
-      if (ci > 0 && !N.blocked[cur - 1] && d[cur - 1] > cd) { d[cur - 1] = cd; q[t++] = cur - 1; }
-      if (ci < nx - 1 && !N.blocked[cur + 1] && d[cur + 1] > cd) { d[cur + 1] = cd; q[t++] = cur + 1; }
-      if (cj > 0 && !N.blocked[cur - nx] && d[cur - nx] > cd) { d[cur - nx] = cd; q[t++] = cur - nx; }
-      if (cj < nz - 1 && !N.blocked[cur + nx] && d[cur + nx] > cd) { d[cur + nx] = cd; q[t++] = cur + nx; }
+    var hd = 0, tl = 0; q[tl++] = s; d[s] = 0;
+    while (hd < tl) {
+      var cur = q[hd++], cell = N.cellOf[cur], ci = cell % nx, cj = (cell / nx) | 0, cd = d[cur] + 1, hcur = N.h[cur];
+      for (var k = 0; k < 4; k++) {
+        var ni = ci + (k === 0 ? -1 : k === 1 ? 1 : 0), nj = cj + (k === 2 ? -1 : k === 3 ? 1 : 0);
+        if (ni < 0 || nj < 0 || ni >= nx || nj >= nz) continue;
+        var nc = nj * nx + ni;
+        for (var m = N.start[nc]; m < N.start[nc + 1]; m++) if (d[m] > cd && canMove(N.h[m], hcur)) { d[m] = cd; q[tl++] = m; }
+      }
     }
   };
-  // direction toward target along the flow field (writes into out {x,z}); returns false if none
-  Z.flowDir = function (zone, x, z, out) {
+  // direction toward the target along the flow field for a body with feet at y (writes into out {x,z}); false if none
+  Z.flowDir = function (zone, x, y, z, out) {
+    if (out === undefined) { out = z; z = y; y = 0; }
     var N = zone.nav, c = Z.navCell(zone, x, z);
-    if (c < 0) return false;
-    var nx = N.nx, ci = c % nx, cj = (c / nx) | 0, best = N.dist[c], bi = -1, bj = -1;
+    if (c < 0 || N.start[c] === N.start[c + 1]) return false;
+    var a = nodeIn(N, c, y), ha = N.h[a];
+    if (N.dist[a] >= 32767) return false;
+    var nx = N.nx, ci = c % nx, cj = (c / nx) | 0, best = N.dist[a], bi = -1, bj = -1;
+    function step(ii, jj) {   // best reachable node in a neighbouring cell, or -1
+      if (ii < 0 || jj < 0 || ii >= nx || jj >= N.nz) return -1;
+      var cc = jj * nx + ii, bn = -1;
+      for (var m = N.start[cc]; m < N.start[cc + 1]; m++) if (canMove(ha, N.h[m]) && (bn < 0 || N.dist[m] < N.dist[bn])) bn = m;
+      return bn;
+    }
     for (var dj = -1; dj <= 1; dj++) for (var di = -1; di <= 1; di++) {
       if (!di && !dj) continue;
-      var ii = ci + di, jj = cj + dj; if (ii < 0 || jj < 0 || ii >= nx || jj >= N.nz) continue;
-      var k = jj * nx + ii; if (N.blocked[k]) continue;
-      if (di && dj && (N.blocked[cj * nx + ii] || N.blocked[jj * nx + ci])) continue; // no corner cutting
-      var v = N.dist[k] + ((di && dj) ? 0.4 : 0);
-      if (v < best) { best = v; bi = ii; bj = jj; }
+      var m = step(ci + di, cj + dj); if (m < 0) continue;
+      if (di && dj && (step(ci + di, cj) < 0 || step(ci, cj + dj) < 0)) continue;   // no corner cutting
+      var v = N.dist[m] + ((di && dj) ? 0.4 : 0);
+      if (v < best) { best = v; bi = ci + di; bj = cj + dj; }
     }
     if (bi < 0) return false;
     out.x = zone.ox + (bi + 0.5) * NAV - x; out.z = zone.oz + (bj + 0.5) * NAV - z;
     var L = Math.hypot(out.x, out.z) || 1; out.x /= L; out.z /= L;
     return true;
   };
-  Z.isOpen = function (zone, x, z) { var c = Z.navCell(zone, x, z); return c >= 0 && !zone.nav.blocked[c]; };
+  // open ground (or, with y, an open surface near that height) at (x, z)
+  Z.isOpen = function (zone, x, z, y) {
+    var c = Z.navCell(zone, x, z); if (c < 0) return false;
+    var N = zone.nav, want = y === undefined ? (zone.world ? zone.world.groundAt(x, z) : 0) : y, tol = y === undefined ? 0.1 : 0.4;
+    for (var n = N.start[c]; n < N.start[c + 1]; n++) if (Math.abs(N.h[n] - want) < tol) return true;
+    return false;
+  };
+  Z.surfaceAt = function (zone, x, z, y) { var n = Z.navNode(zone, x, y, z); return n < 0 ? null : zone.nav.h[n]; };
+
+  // ---------------- terrain (bumpy ground) ----------------
+  /* theme.terrain = { height(c, r, zoneIdx) -> m (cell-corner coords), flat: 'symbols kept level', ramp: [a, b] cells,
+     low: '#hex', high: '#hex', top: m (height that maps to 'high') }. Walls, gates, the entry, spawns and every symbol
+     listed in `flat` stand on level ground; the bumps ease in over `ramp` cells around them. */
+  function buildTerrain(g, z, grid, theme, world) {
+    var T = theme.terrain, W = grid.w + 1, H = grid.h + 1, dist = new Float32Array(W * H).fill(1e9), q = [], flat = '#GEPS' + (T.flat || '');
+    function seed(c, r) { var v = r * W + c; if (dist[v] > 0) { dist[v] = 0; q.push(v); } }
+    for (var r = 0; r < grid.h; r++) for (var c = 0; c < grid.w; c++) {
+      if (r === 0 || c === 0 || r === grid.h - 1 || c === grid.w - 1 || flat.indexOf(grid.rows[r][c]) >= 0) { seed(c, r); seed(c + 1, r); seed(c, r + 1); seed(c + 1, r + 1); }
+    }
+    for (var h0 = 0; h0 < q.length; h0++) {
+      var v = q[h0], vc = v % W, vr = (v / W) | 0;
+      for (var dr = -1; dr <= 1; dr++) for (var dc = -1; dc <= 1; dc++) {
+        var nc = vc + dc, nr = vr + dr; if (nc < 0 || nr < 0 || nc >= W || nr >= H) continue;
+        var nv = nr * W + nc, nd = dist[v] + ((dc && dr) ? 1.41 : 1); if (nd < dist[nv]) { dist[nv] = nd; q.push(nv); }
+      }
+    }
+    var ramp = T.ramp || [1, 5], hf = new Float32Array(W * H), top = 0;
+    for (var i = 0; i < W * H; i++) {
+      var k = Math.max(0, Math.min(1, (dist[i] - ramp[0]) / (ramp[1] - ramp[0]))); k = k * k * (3 - 2 * k);
+      hf[i] = Math.max(0, T.height(i % W, (i / W) | 0, z.idx) * k); top = Math.max(top, hf[i]);
+    }
+    world.terrains.push({ ox: z.ox, oz: z.oz, w: grid.w, h: grid.h, hf: hf });
+    world.terrainTop = Math.max(world.terrainTop || 0, top);
+    z.terrain = hf;
+    // mesh: one shared vertex per corner, smooth normals, colour from height plus a soft patch pattern
+    var lo = col(T.low || (theme.floor && theme.floor.color), '#8CC46A'), hi = col(T.high, '#B8DE8A'), alt = col(T.patch || T.high, '#A6D27C'), cc2 = new THREE.Color();
+    var b0 = g.pos.length / 3, tp = T.top || 3;
+    for (r = 0; r < H; r++) for (c = 0; c < W; c++) {
+      var hh = hf[r * W + c];
+      var hx = hf[r * W + Math.min(W - 1, c + 1)] - hf[r * W + Math.max(0, c - 1)], hz = hf[Math.min(H - 1, r + 1) * W + c] - hf[Math.max(0, r - 1) * W + c];
+      var n = new THREE.Vector3(-hx / 2, 1, -hz / 2).normalize();
+      cc2.copy(lo).lerp(hi, Math.min(1, hh / tp));
+      var pt = Math.sin(c * 0.43 + r * 0.21) + Math.sin(c * 0.17 - r * 0.37 + 1.3);
+      if (pt > 0.9) cc2.lerp(alt, 0.55);
+      g._vert(z.ox + c, hh + 0.004, z.oz + r, n.x, n.y, n.z, cc2.clone());
+    }
+    for (r = 0; r < grid.h; r++) for (c = 0; c < grid.w; c++) {
+      var a = b0 + r * W + c;
+      g.idx.push(a, a + W, a + 1, a + 1, a + W, a + W + 1);
+    }
+  }
 
   // ---------------- level assembly ----------------
   /* plan: {themeId, zones:[{map:'name', waves:[[['crawler',4]], ...]}]} */
@@ -449,7 +761,7 @@
   Z.buildLevel = function (plan, scene) {
     if (!Z.mat) Z.mat = IB.Render.toonMaterial({});
     var world = new World(), theme = themeOf(plan);
-    var level = { world: world, zones: [], trails: [], plan: plan, root: new THREE.Group(), theme: theme, tris: 0 };
+    var level = { world: world, zones: [], trails: [], plan: plan, root: new THREE.Group(), theme: theme, tris: 0, elevators: [] };
     scene.add(level.root);
     var prevExit = null;
     plan.zones.forEach(function (zp, idx) {
@@ -459,20 +771,20 @@
       var ox, oz;
       if (!prevExit) { ox = -ecx; oz = -grid.h; }
       else { ox = prevExit.x - ecx; oz = prevExit.z - TRAIL_LEN - grid.h; }
-      var zone = { idx: idx, ox: ox, oz: oz, w: grid.w, h: grid.h, grid: grid, plan: zp, group: new THREE.Group(), state: 'idle' };
+      var zone = { idx: idx, ox: ox, oz: oz, w: grid.w, h: grid.h, grid: grid, plan: zp, group: new THREE.Group(), state: 'idle',
+        world: world, spawns: [], pickups: [], elevators: [], mounts: [] };
       zone.entry = { x: ox + Pc.c + 0.5, z: oz + Pc.r + 0.5 };
-      zone.spawns = find(grid, 'S').map(function (s) { return { x: ox + s.c + 0.5, z: oz + s.r + 0.5 }; });
-      zone.pickups = find(grid, 'a').map(function (s) { return { kind: 'ammo', x: ox + s.c + 0.5, z: oz + s.r + 0.5 }; })
-        .concat(find(grid, 'h').map(function (s) { return { kind: 'health', x: ox + s.c + 0.5, z: oz + s.r + 0.5 }; }));
       var g = new IB.Geo(), P = new Parts(theme);
-      paintFloor(g, ox, oz, grid.w, grid.h, theme, false);
-      buildSymbols(P, zone, grid, theme, world);
+      if (theme.terrain) buildTerrain(g, zone, grid, theme, world);
+      else paintFloor(g, ox, oz, grid.w, grid.h, theme, false);
+      buildSymbols(P, zone, grid, theme, world, g, 0);
+      grid.layers.forEach(function (lg) { buildSymbols(P, zone, lg, theme, world, g, lg.y); });
       var roofCol = col(theme.wall && theme.wall.roof, '#D9D2E6'), roofY = ((theme.wall && theme.wall.height) || 3) + 0.04;
       P.roof.forEach(function (p) {
         var x = ox + p.c, zz = oz + p.r;
         g.flat([[x, zz], [x + 1, zz], [x + 1, zz + 1], [x, zz + 1]], roofY, roofCol);
       });
-      addCeiling(g, P, ox, oz, grid.w, grid.h, theme);
+      addCeiling(g, P, ox, oz, grid.w, grid.h, theme, grid);
       if (E.length) zone.entryGate = makeGate(P, ox + ecx, oz + grid.h - 0.5, E.length, theme, idx, world, 'entry');
       var gcx = (G[0].c + G[G.length - 1].c + 1) / 2;
       zone.exitGate = makeGate(P, ox + gcx, oz + 0.5, G.length, theme, idx, world, 'exit');
@@ -482,6 +794,7 @@
       zone.tris = zone.meshes.reduce(function (t, m) { return t + m.geometry.index.count / 3; }, 0);
       level.tris += zone.tris;
       if (zone.entryGate) zone.group.add(zone.entryGate.group);
+      zone.elevators.forEach(function (L) { zone.group.add(L.mesh); level.elevators.push(L); });
       Z.setGate(zone.exitGate, false, true);
       zone.group.add(zone.exitGate.group);
       level.root.add(zone.group);

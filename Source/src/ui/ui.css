@@ -472,3 +472,12 @@ body.kbd .btn.primary:focus-visible { outline-color: var(--paper); }
 @media (prefers-reduced-motion: reduce) {
   .gear, .ld-track i { animation-play-state: paused; }
 }
+
+/* loot: use prompt, armor, rarity accents */
+.use-prompt { position: absolute; left: 50%; top: calc(50% + 46px); transform: translateX(-50%); display: grid; grid-template-columns: auto auto; align-items: center; gap: 2px 10px;
+  padding: 6px 14px 6px 6px; background: var(--ink); color: var(--paper); border-left: 6px solid var(--rar, var(--teal)); font-weight: 800; font-size: var(--t15); white-space: nowrap; pointer-events: none; }
+.use-prompt .key { grid-row: span 2; display: grid; place-items: center; min-width: 28px; height: 28px; padding: 0 6px; background: var(--paper); color: var(--ink); font-stretch: 125%; font-weight: 900; }
+.use-prompt .us { font-size: 12px; font-weight: 700; color: var(--rar, var(--teal)); }
+.health .armor { margin-left: 6px; color: #7FB8FF; font-weight: 900; }
+.weapon.rar #wpnCls, .pickup.rar #pickupLine { color: var(--rar); font-weight: 900; }
+.tuse { width: 64px; height: 48px; right: calc(var(--sar) + 112px); bottom: calc(var(--sab) + 214px); font-weight: 900; font-size: 15px; }

@@ -88,13 +88,24 @@
     owned.forEach(function (id) { W.give(s, id); });
     return s;
   };
-  W.give = function (s, id) {
+  W.give = function (s, id, gear) {
     var def = IB.WEAPONS[id]; if (!def || def.fire === 'throw' || def.fire === 'melee' || def.fire === 'projectile') return;
     var mag = W.magSize(s, def);
     if (!model(id)) return;   // only weapons with a Blender model are playable
-    s.guns[id] = { id: id, def: def, mag: mag, reserve: (def.reserve === null || def.reserve === undefined || def.reserve === Infinity) ? Infinity : def.reserve };
+    s.guns[id] = { id: id, def: def, mag: mag, reserve: (def.reserve === null || def.reserve === undefined || def.reserve === Infinity) ? Infinity : def.reserve, rarity: 'common', mods: {} };
     if (!s.slots[def.slot]) s.slots[def.slot] = id;
+    if (gear) W.setGear(s, id, gear.rarity, gear.mods);
   };
+  // rarity + fitted mods (src/data/loot.js) -> the gun's live stats; a bigger magazine tops the current one up
+  W.setGear = function (s, id, rarity, mods) {
+    var g = s.guns[id]; if (!g || !IB.Loot) return;
+    var before = W.magSize(s, g.def);
+    g.rarity = rarity || g.rarity || 'common'; g.mods = mods || g.mods || {};
+    g.def = IB.Loot.derive(IB.WEAPONS[id], g.rarity, g.mods);
+    var after = W.magSize(s, g.def);
+    if (after > before) g.mag = Math.min(after, g.mag + (after - before)); else g.mag = Math.min(g.mag, after);
+  };
+  W.gear = function (s) { var o = {}; Object.keys(s.guns).forEach(function (k) { var g = s.guns[k]; o[k] = { rarity: g.rarity || 'common', mods: g.mods || {} }; }); return o; };
   W.magSize = function (s, def) { return IB.Upgrades ? IB.Upgrades.magSize(def.mag, s.fx.magLevel || 0) : def.mag; };
   W.refill = function (s) { Object.keys(s.guns).forEach(function (k) { var g = s.guns[k]; g.mag = W.magSize(s, g.def); g.reserve = (g.def.reserve == null || g.def.reserve === Infinity) ? Infinity : g.def.reserve; }); };
   W.addAmmo = function (s, frac) { Object.keys(s.guns).forEach(function (k) { var g = s.guns[k]; if (g.reserve !== Infinity) g.reserve = Math.min(g.def.reserve * 1.5, g.reserve + Math.ceil(g.def.reserve * frac)); }); };

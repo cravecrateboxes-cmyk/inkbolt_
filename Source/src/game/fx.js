@@ -260,7 +260,7 @@
   FX.dropGem = function (kind, x, y, z, zone) {
     for (var i = 0; i < FX.gemCap; i++) {
       var g = FX.gems[i]; if (g.on) continue;
-      g.on = true; g.kind = kind; g.x = x; g.y = y + 0.3; g.z = z; g.t = 0; g.fly = false; g.bounced = false; g.zone = zone;
+      g.on = true; g.kind = kind; g.x = x; g.y = y + 0.3; g.rest = y - 0.1; g.z = z; g.t = 0; g.fly = false; g.bounced = false; g.zone = zone;
       var a = Math.random() * Math.PI * 2, s = 1 + Math.random() * 1.5;
       g.vx = Math.cos(a) * s; g.vz = Math.sin(a) * s; g.vy = 3 + Math.random() * 2;
       FX.gemMesh.setColorAt(i, _c.set(GEMCOL[kind])); FX.gemMesh.instanceColor.needsUpdate = true;
@@ -332,7 +332,7 @@
         g.x += dxp / d * sp; g.y += dyp / d * sp; g.z += dzp / d * sp;
       } else {
         g.vy -= 18 * dt; g.x += g.vx * dt; g.y += g.vy * dt; g.z += g.vz * dt;
-        var rest = 0.3;
+        var rest = g.rest === undefined ? 0.3 : g.rest;
         if (g.y < rest) {
           g.y = rest;
           if (!g.bounced) { g.vy = Math.abs(g.vy) * 0.35; g.bounced = true; g.vx *= 0.5; g.vz *= 0.5; }

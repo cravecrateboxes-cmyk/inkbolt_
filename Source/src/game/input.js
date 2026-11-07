@@ -19,6 +19,7 @@
         case 'Space': I.jumpPressed = true; break;
         case 'KeyR': I.reloadPressed = true; break;
         case 'KeyF': I.meleePressed = true; break;
+        case 'KeyE': I.usePressed = true; break;
         case 'Escape': case 'KeyP': I.pausePressed = true; break;
         case 'KeyC': case 'ControlLeft': I.slidePressed = true; break;
         default: if (/^Digit[1-9]$/.test(e.code)) I.slotPressed = +e.code.slice(5);
@@ -65,7 +66,7 @@
   };
   I.endFrame = function () {
     I.lookDX = 0; I.lookDY = 0; I.jumpPressed = false; I.firePressed = false; I.reloadPressed = false;
-    I.meleePressed = false; I.pausePressed = false; I.slotPressed = 0; I.wheel = 0; I.swapPressed = false; I.slidePressed = false;
+    I.meleePressed = false; I.usePressed = false; I.pausePressed = false; I.slotPressed = 0; I.wheel = 0; I.swapPressed = false; I.slidePressed = false;
   };
   I.reset = function () { I.fire = I.aim = false; I.mx = I.mz = 0; I.keys = {}; I.endFrame(); if (I.stick) I.stick.id = null; };
 
@@ -79,6 +80,7 @@
       '<button class="tbtn treload" id="tReload" aria-label="Reload">R</button>' +
       '<button class="tbtn tswap" id="tSwap" aria-label="Swap weapon">' + svgSwap() + '</button>' +
       '<button class="tbtn tjump" id="tJump" aria-label="Jump">' + svgJump() + '</button>' +
+      '<button class="tbtn tuse" id="tUse" aria-label="Use" hidden>USE</button>' +
       '<button class="tbtn tslide" id="tSlide" aria-label="Slide or crouch" style="width:56px;height:56px;right:calc(var(--sar) + 200px);bottom:calc(var(--sab) + 140px)">' + svgSlide() + '</button>';
     var stick = I.stick = { id: null, ox: 0, oy: 0, el: document.getElementById('stick'), knob: document.getElementById('stickKnob') };
     var look = { id: null, x: 0, y: 0 };
@@ -100,6 +102,7 @@
     hold('tReload', function () { I.reloadPressed = true; });
     hold('tSwap', function () { I.swapPressed = true; I.wheel += 1; });
     hold('tJump', function () { I.jumpPressed = true; });
+    hold('tUse', function () { I.usePressed = true; });
     hold('tSlide', function () { I.slidePressed = true; I.crouch = true; }, function () { I.crouch = false; });
     var layer = document.getElementById('touchLayer');
     layer.addEventListener('touchstart', function (e) {
