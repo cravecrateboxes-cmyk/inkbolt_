@@ -117,7 +117,9 @@
       'x': { pieces: ['GasCart', 'WeldScreen'], rotate: 'random90', sequence: true, kind: 'cover' },
       'z': { size: [2, 2], pieces: ['Hazard_A', 'Hazard_B'], collide: false },
       // the test track: a finished bruiser laps the lane (a closed loop in the prefab's own metres)
-      'T': { size: [16, 12], pieces: ['TestTrack'], kind: 'wall',
+      // fence: the 1.55 m track fence is a 4 m movement bound (from a spawn can or a crate the player could hop in, but
+      // never back out: tests/e2e/bounds.spec.js)
+      'T': { size: [16, 12], pieces: ['TestTrack'], kind: 'wall', fence: 4,
              conveyor: { path: loop(5.9, 3.9, 1.5, 6), speed: 2.4, n: 2, y: 0, items: ['Mech_Bruiser_Test'] } },
       'D': { size: [10, 8], pieces: ['Landmark_Titan'], kind: 'wall' }
     },
