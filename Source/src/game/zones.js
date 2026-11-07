@@ -327,7 +327,12 @@
         if (yaw === 0 && !solid(p.c, p.r - 1) && solid(p.c, p.r + 1)) yaw = Math.PI;
         if (yaw !== 0 && !solid(p.c - 1, p.r) && solid(p.c + 1, p.r)) yaw = -Math.PI / 2;   // +Z face toward the open (west) side
       }
-      [].concat(name).forEach(function (n) { P.add(n, z.ox + p.c + 0.5, 0, z.oz + p.r + 0.5, yaw); });
+      [].concat(name).forEach(function (n) {
+        P.add(n, z.ox + p.c + 0.5, 0, z.oz + p.r + 0.5, yaw);
+        // wall.cols (opt-in): a module's own _COL boxes collide too (a buttress standing out into the room)
+        var wc = W.cols && colsOf(IB.themePiece(theme, n));
+        if (wc) addCols(world, wc, z.ox + p.c + 0.5, z.oz + p.r + 0.5, yaw, 'wall', z.idx);
+      });
     });
   }
   // height a piece stands at: the layer height, or (floor plan) the terrain under it; prefabs sink to their lowest corner
