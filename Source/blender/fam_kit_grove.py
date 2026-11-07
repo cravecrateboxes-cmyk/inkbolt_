@@ -238,7 +238,7 @@ def fern(k, rnd, x, y, s=1.0, z0=0.0, n=5):
     a0 = rnd.uniform(0, 2 * math.pi)
     for i in range(n):
         a = a0 + (i + rnd.uniform(-0.2, 0.2)) / n * 2 * math.pi
-        frond(k, rnd, x, y, z0 + 0.08 * s, a, rnd.uniform(0.85, 1.15) * s, 0.2 * s, rnd.uniform(0.38, 0.55) * s, rnd.uniform(0.45, 0.62) * s)
+        frond(k, rnd, x, y, z0 + 0.08 * s, a, rnd.uniform(0.85, 1.15) * s, 0.3 * s, rnd.uniform(0.38, 0.55) * s, rnd.uniform(0.45, 0.62) * s)
 
 
 def conifer(k, rnd, x, y, z0, h, r, tiers=5, col=('leaf3', 'leaf', 'leaf2'), seg=7):
@@ -321,7 +321,7 @@ def crown(k, rnd, z0, z1, reach, tiers, trunk_r):
             rr = trunk_r(z) * 0.7
             tip = (dx * L, dy * L, z - L * 0.18)
             k.beam((dx * rr, dy * rr, z + 0.2), (tip[0] * 0.7, tip[1] * 0.7, tip[2] + 0.3), 0.22 + 0.1 * (1 - f), 'bark2')
-            blob(k, rnd, tip[0] * 0.62, tip[1] * 0.62, tip[2] - 0.2, L * 0.42, L * 0.32, 1.25, leafcol('leaf3', 'leaf', 'leaf2'), n=5)
+            blob(k, rnd, tip[0] * 0.62, tip[1] * 0.62, tip[2] - 0.2, L * 0.42, L * 0.32, 1.25, leafcol('leaf3', 'leaf', 'leaf2'), n=4)
             blob(k, rnd, tip[0] * 0.95, tip[1] * 0.95, tip[2] - 0.55, L * 0.3, L * 0.26, 0.95, leafcol('leaf4', 'leaf3', 'leaf2'), n=4)
     k.cyl(0, 0, z1 - 1.0, 1.25, 0.0, 6.0, 'leaf2', seg=7)
     blob(k, rnd, 0, 0, z1 - 1.6, 1.9, 1.7, 2.2, leafcol('leaf3', 'leaf', 'leaf2'), n=6)
@@ -344,11 +344,8 @@ def build_redwood(k, ao, name, seed):
     trunk_cols(k, [(0.0, 0.6, 1.8), (0.6, 14.0, 1.7), (14.0, 24.0, 1.4), (24.0, 34.0, 1.05)])
     for (ang, reach, h) in ROOTS:
         root(k, rnd, ang + rnd.uniform(-4, 4), reach * rnd.uniform(0.95, 1.02), h * rnd.uniform(0.9, 1.1))
-    # moss cushions on the root shoulders, a few ferns between the roots (inside the footprint, clear of the stairs)
-    for (ang, reach, h) in ROOTS[1:4]:
-        a = math.radians(ang + 18)
-        rock(k, rnd, math.cos(a) * 2.6, math.sin(a) * 2.6, 0.35, 0.3, 0.35)
-    fern(k, rnd, -3.1, 0.6, 0.85, n=5)
+    # a mossy stone between the roots
+    rock(k, rnd, math.cos(math.radians(163)) * 2.7, math.sin(math.radians(163)) * 2.7, 0.4, 0.34, 0.4)
     # ---- staircase
     T = treads()
     for idx, (x0, x1, y0, y1, top, side) in enumerate(T):
@@ -444,7 +441,7 @@ def build_redwood(k, ao, name, seed):
     for ang in (135, 180, 225, 270, 315):
         a = math.radians(ang)
         k.beam((math.cos(a) * 1.5, math.sin(a) * 1.5, DECK - 2.6), (math.cos(a) * 3.5, math.sin(a) * 3.5, DECK - 0.32), 0.17, 'wood2')
-    k.cyl(0, 0, DECK + 0.25, 1.83, 1.83, 0.14, 'rope', seg=18)
+    k.cyl(0, 0, DECK + 0.25, 1.83, 1.83, 0.14, 'rope', seg=12)
     # stairwell rails at deck level: along y = E2 (x E2..4), x = E2 (y E2..2), y = 2 (x 0.6..E2), x = 0 (y 3.2..4)
     rails_n = [0]
 
@@ -711,8 +708,8 @@ def build_plants(k, ao):
     # sedge tuft (creek banks): thin arching blades
     rnd = random.Random(82)
     k.begin()
-    for i in range(7):
-        a = i * 0.9 + rnd.uniform(-0.2, 0.2)
+    for i in range(5):
+        a = i * 1.26 + rnd.uniform(-0.2, 0.2)
         L = rnd.uniform(0.5, 0.85)
         k.beam((math.cos(a) * 0.04, math.sin(a) * 0.04, -0.02), (math.cos(a) * L * 0.45, math.sin(a) * L * 0.45, L * 0.8), 0.035, ['fern', 'fern2', 'moss'][i % 3])
     k.finish('Sedge', ao=ao)
@@ -729,7 +726,7 @@ def build_water(k, ao):
                 y = -0.25 + i * 0.45
                 k.qz(-0.3 + 0.1 * i, 0.15 + 0.1 * i, y - 0.018, y + 0.018, 0.034, 1, 'water2')
         if name == 'Creek_B':
-            for (x, y, r) in ((-0.2, 0.15, 0.17), (0.25, -0.2, 0.13)):
+            for (x, y, r) in ((-0.1, 0.05, 0.18),):
                 k.disc(x, y, 0.034, r + 0.07, 'foam', n=9, rnd=rnd, jag=0.12)
                 rock(k, rnd, x, y, r, r * 0.85, 0.16, z0=-0.02, n=6, col=baldcol)
         if name == 'Creek_C':
@@ -753,16 +750,19 @@ def build_water(k, ao):
         rr = 2.25 + rnd.uniform(-0.1, 0.15)
         if i % 3 == 0:
             rock(k, rnd, math.cos(a) * rr, math.sin(a) * rr, 0.3, 0.26, 0.32, z0=-0.05, n=6)
-        elif i % 3 == 1:
-            star(k, (math.cos(a) * rr, math.sin(a) * rr, 0.0), 0.3, 0.75, 'fern3', pts=5, inner=0.25, droop=-0.2, phase=a * 50, under=0.05, under_color='fern2')
-        else:
-            for j in range(2):   # skunk cabbage leaves
-                b = a + j * 1.4
-                k.hullp([(math.cos(a) * rr, math.sin(a) * rr, 0.0), (math.cos(a) * rr + math.cos(b) * 0.45, math.sin(a) * rr + math.sin(b) * 0.45, 0.42),
-                         (math.cos(a) * rr + math.cos(b + 0.4) * 0.3, math.sin(a) * rr + math.sin(b + 0.4) * 0.3, 0.34),
-                         (math.cos(a) * rr + math.cos(b - 0.4) * 0.3, math.sin(a) * rr + math.sin(b - 0.4) * 0.3, 0.34), (math.cos(a) * rr, math.sin(a) * rr, 0.06)],
-                        lambda f: 'leaf4' if f.normal.z > 0 else 'leaf3')
-            k.cyl(math.cos(a) * rr, math.sin(a) * rr, 0.0, 0.05, 0.03, 0.32, 'flame2', seg=5)
+        elif i % 3 == 1:   # sedge blades
+            x, y = math.cos(a) * rr, math.sin(a) * rr
+            for j in range(3):
+                b = j * 2.1 + a
+                L = rnd.uniform(0.45, 0.75)
+                k.beam((x, y, -0.02), (x + math.cos(b) * L * 0.4, y + math.sin(b) * L * 0.4, L * 0.8), 0.035, ['fern', 'fern2', 'moss'][j % 3])
+        else:   # a fern on the bank (every other spot), a couple of yellow marsh flowers
+            if i % 4 == 2:
+                fern(k, rnd, math.cos(a) * (rr + 0.15), math.sin(a) * (rr + 0.15), 0.75, n=4)
+            for j in range(2):
+                x, y = math.cos(a + 0.12 * j) * (rr - 0.35), math.sin(a + 0.12 * j) * (rr - 0.35)
+                k.cyl(x, y, 0.0, 0.012, 0.012, 0.3, 'fern2', seg=3, ink=False)
+                k.sph(x, y, 0.31, 0.05, 'flame2', seg=(5, 3), scale=(1, 1, 0.6))
     k.finish('Pond', ao=ao)
 
 
@@ -1065,7 +1065,7 @@ def cliff_module(k, rnd, w, H, style, idx=0):
             z = z00
             first = True
             while z < H - 0.4:
-                hgt = min(H - z, rnd.uniform(0.9, 1.8) if first else rnd.uniform(1.3, 2.4))
+                hgt = min(H - z, rnd.uniform(1.2, 2.2) if first else rnd.uniform(1.8, 2.9))
                 first = False
                 xa, xb = xa0 + rnd.uniform(-0.1, 0.15), xb0 - rnd.uniform(-0.1, 0.15)
                 xa, xb = max(xa, -hw + 0.012), min(xb, hw - 0.012)   # never into the next module (copies would share planes)
@@ -1074,7 +1074,7 @@ def cliff_module(k, rnd, w, H, style, idx=0):
                 zb = z - 0.006 * col
                 zt = z + hgt * rnd.uniform(1.0, 1.12)
                 k.hullp(shear([(xa + rnd.uniform(0, 0.12), -0.5 + dy, zb), (xb - rnd.uniform(0, 0.12), -0.5 + dy + rnd.uniform(-0.05, 0.05), zb),
-                         (xa + 0.02, -0.6 + dy, z + hgt * rnd.uniform(0.3, 0.6)), (xb - 0.02, -0.58 + dy, z + hgt * rnd.uniform(0.4, 0.7)),
+                         ((xa + xb) / 2 + rnd.uniform(-0.15, 0.15), -0.62 + dy, z + hgt * rnd.uniform(0.35, 0.65)),
                          (xa + rnd.uniform(0.05, 0.3), -0.47 + dy, zt), (xb - rnd.uniform(0.05, 0.3), -0.45 + dy, zt - rnd.uniform(0, 0.25)),
                          (xa, yb, zb), (xb, yb, zb), (xa + 0.1, yb, zt), (xb - 0.1, yb, zt)]), rockcol)
                 z += hgt * rnd.uniform(0.86, 0.96)
@@ -1088,24 +1088,25 @@ def cliff_module(k, rnd, w, H, style, idx=0):
         for i in range(max(1, int(w))):   # roots: thick at the lip, wandering down, splitting and thinning
             p0 = (-hw + (i + 0.5) * w / max(1, int(w)) + rnd.uniform(-0.3, 0.3), -0.48, H + 0.05)
             th = 0.2
-            for seg in range(3):
-                p1 = (p0[0] + rnd.uniform(-0.7, 0.7), -0.56 - 0.02 * seg, p0[2] - rnd.uniform(1.1, 1.8))
+            for seg in range(2):
+                p1 = (p0[0] + rnd.uniform(-0.7, 0.7), -0.56 - 0.02 * seg, p0[2] - rnd.uniform(1.6, 2.6))
                 k.beam(p0, p1, th, 'bark' if seg == 0 else 'bark2')
-                if seg < 2:
+                if seg < 1:
                     q = (p1[0] + rnd.choice((-1, 1)) * rnd.uniform(0.4, 0.8), -0.55, p1[2] - rnd.uniform(0.6, 1.0))
                     k.beam(p1, q, th * 0.5, 'bark2')
                 p0, th = p1, th * 0.7
-        k.hullp([(x, -0.5 + dy, z) for x in (-hw * 0.7, hw * 0.6) for dy in (-0.06, 0.05) for z in (H * 0.3, H * 0.42)], lambda f: 'moss2' if f.normal.z > 0.5 else 'moss')
+        mx, mz, mw = rnd.uniform(-hw * 0.4, hw * 0.4), H * rnd.uniform(0.2, 0.6), rnd.uniform(0.25, 0.45) * w
+        k.hullp([(mx - mw, -0.53, mz), (mx + mw * 0.8, -0.53, mz + 0.1), (mx - mw * 0.6, -0.53, mz + 0.45), (mx + mw * 0.5, -0.53, mz + 0.6), (mx, -0.6, mz + 0.3),
+                 (mx - mw, -0.42, mz), (mx + mw * 0.8, -0.42, mz + 0.1), (mx, -0.42, mz + 0.6)], lambda f: 'moss2' if f.normal.z > 0.5 else 'moss')
         rock(k, rnd, rnd.uniform(-hw * 0.6, hw * 0.6), -0.5, rnd.uniform(0.35, 0.5) * min(1, w), 0.3, rnd.uniform(0.6, 1.0), z0=-0.1, n=6)
     # mossy lip, the ridge slope behind, a bush or fern on the lip
     yb = by()
     k.hullp(shear([(x, y, zz) for x in (-hw + 0.021, hw - 0.021) for (y, zz) in ((-0.48, top - 0.25), (-0.52, top + 0.05), (-0.2, top + 0.35), (yb, top + 0.25), (yb, top - 0.3))]),
             lambda f: 'moss2' if f.normal.z > 0.8 else ('moss' if f.normal.z > 0.3 else 'mossd'))
+    if w >= 2:   # a bush on the ridge crest breaks the skyline
+        blob(k, rnd, rnd.uniform(-0.4, 0.4), 6.6 + 0.11 * idx, top + 4.2, 0.9, 0.9, 1.3, leafcol('leaf3', 'leaf', 'leaf2'), n=4)
     hillside(k, rnd, -hw + 0.012, hw - 0.012, top, rise=rnd.uniform(3.8, 5.0), depth=8.0 + 0.11 * idx, by=0.45 + 0.013 * idx, z0=-0.1 - 0.0043 * idx)
-    if rnd.random() < 0.6:
-        blob(k, rnd, rnd.uniform(-0.3, 0.3) * w, 0.3, top + 0.15, 0.6 * min(w, 1.5), 0.5, rnd.uniform(0.8, 1.3), leafcol('leaf4', 'leaf3', 'leaf'), n=4)
-    else:
-        fern(k, rnd, rnd.uniform(-0.3, 0.3) * w, -0.1, rnd.uniform(0.9, 1.1), z0=top + 0.25, n=5)
+    blob(k, rnd, rnd.uniform(-0.3, 0.3) * w, 0.3, top + 0.15, 0.6 * min(w, 1.5), 0.5, rnd.uniform(0.8, 1.3), leafcol('leaf4', 'leaf3', 'leaf'), n=4)
     # a moss drape over the lip (on about half the modules)
     if rnd.random() < 0.5:
         x = rnd.uniform(-hw * 0.6, hw * 0.6)
@@ -1195,6 +1196,9 @@ def build_gate(k, ao):
             k.beam((0.05, 0.1, 2.0), (0.38, 0.25, 0.6), 0.06, 'bark2', ink=False)
         fern(k, rnd, 0.1, 0.0, 0.8, z0=2.45, n=5)
         fern(k, rnd, 0.48, 0.1, 0.55, n=4)
+        j = rnd.uniform(-0.3, 0.3)
+        k.hullp([(x, y, z) for y in (-0.492, 0.492) for (x, z) in ((-0.35, 0.0), (-0.35, 2.4), (-3.0, 5.6 + j), (-7.5, 10.5 + j), (-7.5, 0.0))],
+                lambda f: 'moss' if f.normal.z > 0.75 else ('duff' if f.normal.z > 0.35 else 'soil'))
         k.finish(name, ao=ao)
     # hatch (exit): a timber trapdoor in a log ring
     k.begin()

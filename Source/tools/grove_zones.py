@@ -193,7 +193,7 @@ def pickups(z, ch, pts):
         z.put(c, r, ch, over='.:')
 
 
-def dress(z, seed, ferns=56, clover=24, shrubs=22, young=10, misc=True):
+def dress(z, seed, ferns=48, clover=20, shrubs=22, young=10, misc=True):
     """undergrowth: ferns hug trunks, logs and rocks; oxalis carpets; shrubs; young redwoods; small things"""
     hold = keep_clear(z)
     for (c, r) in z.spawn_pts:
@@ -280,7 +280,7 @@ def giants():
     blocks(z, 'u', [(25, 8), (8, 36), (43, 45)])
     blocks(z, 'x', [(36, 25), (2, 18)])
     spawns(z, [(4, 4), (30, 6), (46, 4), (13, 7), (40, 21), (3, 25), (21, 17), (12, 28), (39, 28), (46, 35), (5, 39), (34, 33)])
-    dress(z, 20, ferns=58, clover=24, shrubs=24, young=11)
+    dress(z, 20, ferns=50, clover=20, shrubs=24, young=11)
     return finish(z, [(29, 23), (11, 16), (44, 46)], [(23, 34), (37, 2), (6, 46)])
 
 
@@ -303,7 +303,7 @@ def gully():
     blocks(z, 'u', [(35, 8), (12, 2), (27, 34)])
     blocks(z, 'x', [(19, 33), (46, 45)])
     spawns(z, [(4, 12), (21, 3), (34, 3), (46, 9), (11, 9), (2, 28), (13, 31), (29, 29), (46, 27), (40, 44), (8, 34), (21, 39)])
-    dress(z, 30, ferns=62, clover=24, shrubs=22, young=10)
+    dress(z, 30, ferns=54, clover=20, shrubs=22, young=10)
     return finish(z, [(26, 27), (8, 15), (44, 35)], [(15, 30), (32, 8), (5, 46)])
 
 

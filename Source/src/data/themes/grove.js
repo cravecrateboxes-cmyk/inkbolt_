@@ -108,7 +108,7 @@
       (lists[zi][fam] || (lists[zi][fam] = [])).push(IB.Assets.placed(full, new THREE.Matrix4().compose(_p, _q, _s)));
     }
     // giant trunks: a near ring right behind the walls (their crowns close the sky line) and a looser mid ring
-    var step = 8.5, gx, gz, k = 0;
+    var step = 10, gx, gz, k = 0;
     for (gx = bx0 - 40; gx <= bx1 + 40; gx += step) for (gz = bz0 - 40; gz <= bz1 + 40; gz += step) {
       k++;
       var x = gx + (hash(k, 3) - 0.5) * step * 0.8, z = gz + (hash(k, 5) - 0.5) * step * 0.8, Z = zoneOf(x, z), s;
@@ -131,7 +131,7 @@
     // light shafts: crossed quads slanting toward the sun, warm and additive, brightest a few metres up
     var mat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false });
     var sv = new THREE.Vector3(SUN[0], SUN[1], SUN[2]).normalize(), u1 = new THREE.Vector3().crossVectors(sv, _up).normalize(), u2 = new THREE.Vector3().crossVectors(sv, u1).normalize();
-    var PROF = [[0, 0.0], [0.07, 0.17], [0.4, 0.11], [1, 0.0]];   // (fraction of length, intensity)
+    var PROF = [[0, 0.0], [0.07, 0.12], [0.4, 0.08], [1, 0.0]];   // (fraction of length, intensity)
     zones.forEach(function (Z, zi) {
       var pos = [], cols = [], idx = [], n = 0, L = 42;
       for (var tries = 0; tries < 60 && n < 7; tries++) {
@@ -174,7 +174,7 @@
   IB.registerTheme({
     id: 'grove', name: 'Redwood Hollow', family: 'kit-grove', prefix: 'KIT_GROVE_',
     palette: ['#9C4A2B', '#2E7840', '#E3A645', '#7ECB58'],
-    env: { sky: ['#86C0E0', '#F2EDCF'], fog: { color: '#D6DFC0', near: 24, far: 112 }, sun: SUN, clouds: true, ceiling: null },
+    env: { sky: ['#86C0E0', '#DEE5C8'], fog: { color: '#DEE5C8', near: 24, far: 112 }, sun: SUN, clouds: true, ceiling: null },
     floor: { color: '#72923F', trail: '#A9825A', outside: '#62803A' },
     terrain: { height: hgt, paint: paint, flat: 'ZWkCTFJ', ramp: [1, 5], low: '#6F8F3C', high: '#A4BA5A', patch: '#9A7347', top: 3 },
     wall: { height: 6, roof: '#5E8A3A', facing: 'open', choose: chooseWall },
@@ -220,7 +220,7 @@
     trail: { wall: 'TrailWall', variants: ['TrailWall_B', 'TrailWall_C'], height: 2.6 },
     hatch: 'Hatch', stand: 'Crate',
     backdrop: { build: buildForest },
-    budget: { prop: 1600, landmark: 9000, total: 80000 },
+    budget: { prop: 1600, landmark: 7000, total: 60000 },
     allPieces: function () { return PIECES; },
     levels: {
       grove: {
