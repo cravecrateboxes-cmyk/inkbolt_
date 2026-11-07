@@ -966,8 +966,15 @@ async function launcherRun(browser, base) {
   const self = await pg.evaluate(async () => {
     const T = __TEST__, G = IB.Game; G.player.protect = 0; G.player.health = G.player.maxHp; const h0 = G.player.health;
     if (G.player.shield) G.player.shield.cur = 0;
-    T.look(0, -1.45); await __poll(() => false, 500); T.fireLauncher();
-    await __poll(() => T.launcherState().stats.selfDamage > 0, 20000);
+    // no robots around (only the rocket may hurt), a loaded Hothead, nothing still in flight; retry if a slow frame
+    // swallowed the shot
+    IB.AI.robots.forEach(r => { if (r.on) IB.AI.kill(r, null, true); });
+    await __poll(() => T.launcherState().inFlight === 0, 20000);
+    T.giveLauncher('hothead', { mag: 3, rockets: 4 });
+    T.look(0, -1.45); await __poll(() => false, 500);
+    for (let tries = 0; tries < 3 && !(T.launcherState().stats.selfDamage > 0); tries++) {
+      T.fireLauncher(); await __poll(() => T.launcherState().stats.selfDamage > 0, 8000);
+    }
     const d = h0 - G.player.health; G.player.protect = 999; G.player.health = G.player.maxHp;
     return { d, self: T.launcherState().stats.selfDamage };
   });
@@ -980,6 +987,7 @@ async function launcherRun(browser, base) {
     T.giveLauncher('murmur', { mag: 3, rockets: 4 });
     [['gunner', -4], ['gunner', 0], ['gunner', 4]].forEach(([t, dx]) => T.spawnRobot(t, p.x + dx, p.z - 15));
     await __poll(() => false, 500);
+    await __poll(() => T.computeLocks().filter(k => k.robot).length >= 2, 6000);   // spawned robots have dropped in
     const locks = T.computeLocks(), s0 = T.launcherState().stats.blasts, fired = T.fireLauncher(), s1 = T.launcherState();
     await __poll(() => T.launcherState().stats.blasts - s0 >= 6 && T.launcherState().inFlight === 0, 30000);
     return { locks, fired, live: s1.locks, inFlight: s1.inFlight, blasts: T.launcherState().stats.blasts - s0 };
