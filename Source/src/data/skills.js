@@ -2,9 +2,9 @@
 
    ECONOMY (see tests/unit/skills.test.js)
    Skill points come from campaign progress only: completing level L for the first time pays POINTS_AT[L]
-   (2 a level early on, 3 later, 4 on levels 10 and 15). Level 16 (the last campaign level) pays the last point.
-     after level   1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16
-     points        2  4  6  8 11 13 15 17 20 24 27 30 33 36 40 43   -> 43 in total = the whole tree
+   (2 a level, 3 on levels 5, 10, 15, 18 and 19). Level 19 (the last campaign level) pays the last points.
+     after level   1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19
+     points        2  4  6  8 11 13 15 17 19 22 24 26 28 30 33 35 37 40 43   -> 43 in total = the whole tree
    The tree holds 33 points of normal skills plus two 5-point endgame skills (43). However the points are spent,
    the top is always reachable: by the last level every skill, both endgame ones included, can be owned.
 
@@ -79,9 +79,9 @@
   IB.SKILL_BY_ID = {};
   IB.SKILLS.forEach(function (s) { IB.SKILL_BY_ID[s.id] = s; });
 
-  // points paid the first time a campaign level is completed; levels past 17 pay nothing
-  IB.SKILL_POINTS_AT = { 1: 2, 2: 2, 3: 2, 4: 2, 5: 3, 6: 2, 7: 2, 8: 2, 9: 3, 10: 4, 11: 3, 12: 3, 13: 3, 14: 3, 15: 4, 16: 3 };
-  IB.SKILL_LAST_LEVEL = 16;
+  // points paid the first time a campaign level is completed; levels past 19 pay nothing
+  IB.SKILL_POINTS_AT = { 1: 2, 2: 2, 3: 2, 4: 2, 5: 3, 6: 2, 7: 2, 8: 2, 9: 2, 10: 3, 11: 2, 12: 2, 13: 2, 14: 2, 15: 3, 16: 2, 17: 2, 18: 3, 19: 3 };
+  IB.SKILL_LAST_LEVEL = 19;
   IB.PLAYER_LEVEL_CAP = 20;
   // loadout size: 2 guns, 3 once level 10 (the Dumpster Tank) is beaten
   IB.LOADOUT_RULES = { base: 2, extra: 3, extraAfter: 10 };
