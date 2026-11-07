@@ -2,7 +2,7 @@
    index.src.html). While DEV_MAX is on, the newest save slot is maxed out when the title screen opens:
    every campaign level cleared (max player level, all 22 skill points to spend / respec freely, 3 loadout slots),
    lots of gems, every playable gun in the arsenal, epic level-20 attachments (max rolls) fitted to every gun that
-   takes them, an epic level-20 shield worn, and a level picker on the title screen. Never runs in ?autotest=1. */
+   takes them, and an epic level-20 shield worn. Never runs in ?autotest=1. */
 (function (IB) {
   'use strict';
   var DEV_MAX = true;
@@ -41,34 +41,8 @@
     G.slot = slot;
   }
 
-  // level picker: every campaign level, on the title screen only
-  function picker() {
-    var el = document.getElementById('devLevels');
-    if (!el) {
-      el = document.createElement('div'); el.id = 'devLevels';
-      el.style.cssText = 'position:fixed;right:16px;bottom:72px;z-index:60;display:flex;flex-direction:column;gap:6px;' +
-        'background:rgba(10,14,30,.82);border:3px solid #3FE0D0;padding:10px;max-height:70vh;overflow:auto;font:600 14px Archivo,sans-serif;color:#fff';
-      el.innerHTML = '<div style="color:#FFD23F">TEST: PICK A LEVEL</div>' + IB.CAMPAIGN.map(function (id, i) {
-        var p = IB.LEVEL_PLANS[id];
-        return '<button data-dev-plan="' + id + '" style="min-height:40px;text-align:left;background:#1d2a4a;color:#fff;border:2px solid #3FE0D0;padding:6px 10px;cursor:pointer">' +
-          (i + 1) + '. ' + (p.name || id) + '</button>';
-      }).join('');
-      el.addEventListener('click', function (e) {
-        var b = e.target.closest('[data-dev-plan]'); if (!b) return;
-        var plan = IB.LEVEL_PLANS[b.getAttribute('data-dev-plan')];
-        el.hidden = true;
-        G.slot.plan = plan.id; G.store.save(G.slot);
-        IB.Menus.wipe(function () { G.switchPlan(plan).then(function () { G.startLevel(); }); });
-      });
-      document.body.appendChild(el);
-    }
-    el.hidden = false;
-  }
-  setInterval(function () { var el = document.getElementById('devLevels'); if (el && G.mode !== 'title') el.hidden = true; }, 500);
-
   G.toTitle = function () {
     if (!done) { done = true; try { maxOut(); } catch (e) { G.errors.push('devmax: ' + e.message); } }
     toTitle.apply(this, arguments);
-    picker();
   };
 })(window.IB = window.IB || {});
