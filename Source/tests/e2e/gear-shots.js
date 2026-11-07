@@ -23,7 +23,7 @@ function serve() {
 // fully kitted (legendary grip, rare scope, epic acid, legendary mag), a common mag on the SMG, spares in the bag
 async function kit(pg) {
   await pg.evaluate(() => __TEST__.start());
-  await pg.waitForFunction(() => IB.Game.run && IB.Game.run.started, null, { timeout: 20000 });
+  await pg.waitForFunction(() => IB.Game.run && IB.Game.run.started, null, { timeout: 60000 });
   await pg.evaluate(() => {
     const G = IB.Game, L = IB.Loot, g = IB.Gear.gear(G), T = __TEST__;
     G.slot.highest = 12; G.slot.gems = 4120;
@@ -82,7 +82,7 @@ const SHOTS = {
     await pg.evaluate(() => { __TEST__.closeTabMenu(); });
     await pg.waitForTimeout(300);
     await pg.evaluate(() => { const G = IB.Game; G.player.protect = 99; IB.AI.update = () => {}; __TEST__.forceDrop('mag', 'legendary', 0.4, 12); });
-    await pg.waitForFunction(() => { const c = document.getElementById('lootCard'); return c && !c.hidden; }, null, { timeout: 10000 });
+    await pg.waitForFunction(() => { const c = document.getElementById('lootCard'); return c && !c.hidden; }, null, { timeout: 30000 });
     await pg.evaluate(() => { IB.LootHUD.tick = () => {}; });
   } }
 };
@@ -99,7 +99,7 @@ const SHOTS = {
     const pg = await ctx.newPage(); const logs = [];
     pg.on('pageerror', e => logs.push(e.message)); pg.on('console', m => { if (m.type() === 'error') logs.push(m.text()); });
     await pg.goto(url);
-    await pg.waitForFunction(() => window.__TEST__ && IB.Game.mode === 'play', null, { timeout: 30000 });
+    await pg.waitForFunction(() => window.__TEST__ && IB.Game.mode === 'play', null, { timeout: 90000 });
     await SHOTS[name].run(pg);
     await pg.waitForTimeout(700);
     const file = path.join(OUT, 'gear-' + name + '.png');

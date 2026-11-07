@@ -15,7 +15,7 @@
   var T = IB.Thumbs = { cache: {}, W: 420, H: 210 };
   var GEAR_NODE = { shield: 'GEAR_ShieldCell', grip: 'GEAR_Grip', scope: 'GEAR_Scope', acid: 'GEAR_Acid', muzzle: 'GEAR_Acid', mag: 'GEAR_Mag', armor: 'GEAR_Vest' };
   var VIEW = {
-    shield: { yaw: -0.9, pitch: 0.35, pad: 1.2, outline: 0.02, ink: 3 },
+    shield: { yaw: -0.6, pitch: 0, tilt: -0.5, pad: 1.18, outline: 0.02, ink: 3 },
     armor: { yaw: -0.55, pitch: 0.22, pad: 1.18, outline: 0.02, ink: 3 },
     mag: { yaw: -0.75, pitch: 0.3, pad: 1.18, outline: 0.02, ink: 3 },
     def: { yaw: -0.5, pitch: 0.3, pad: 1.15, outline: 0.016, ink: 3 }
@@ -61,7 +61,9 @@
       m.frustumCulled = false; root.add(m);
     });
     root.rotation.set(view.pitch || 0, view.yaw || 0, 0, 'YXZ');
-    scene.add(root); root.updateMatrixWorld(true);
+    // tilt: lean the top toward the camera (a world-space turn about the screen-horizontal axis, after yaw / pitch)
+    var top = new THREE.Group(); top.rotation.z = view.tilt || 0; top.add(root);
+    scene.add(top); top.updateMatrixWorld(true);
     box.setFromObject(root);
     var c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3());
     // camera on +X looking down -X: screen right is -Z (the muzzle), up is +Y
@@ -86,7 +88,7 @@
       }
     } finally {
       r.setRenderTarget(prevRT); r.setClearColor(_col, prevAlpha); r.autoClear = prevAuto;
-      scene.remove(root);
+      scene.remove(top);
     }
     return job;
   }
