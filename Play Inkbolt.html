@@ -21691,9 +21691,39 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     G.slot = slot;
   }
 
+  // DEV level selector (right edge, title screen and pause menu): click a level to start on it at once. The save is
+  // maxed again first, so the newest guns, melee weapons, frag cans and gear are always in it.
+  function picker() {
+    var el = document.getElementById('devLevels');
+    if (!el) {
+      el = document.createElement('div'); el.id = 'devLevels';
+      el.style.cssText = 'position:fixed;right:12px;top:50%;transform:translateY(-50%);z-index:60;display:flex;flex-direction:column;gap:5px;' +
+        'background:rgba(10,14,30,.86);border:3px solid #3FE0D0;padding:8px;max-height:82vh;overflow:auto;font:600 13px Archivo,sans-serif;color:#fff;width:190px';
+      el.innerHTML = '<div style="color:#FFD23F;letter-spacing:.06em">DEV · START ON LEVEL</div>' + IB.CAMPAIGN.map(function (id, i) {
+        var p = IB.LEVEL_PLANS[id];
+        return '<button data-dev-plan="' + id + '" style="min-height:34px;text-align:left;background:#1d2a4a;color:#fff;border:2px solid #3FE0D0;padding:4px 8px;cursor:pointer;font:inherit">' +
+          (i + 1) + '. ' + (p.name || id) + '</button>';
+      }).join('');
+      el.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-dev-plan]'); if (!b) return;
+        var plan = IB.LEVEL_PLANS[b.getAttribute('data-dev-plan')];
+        el.hidden = true;
+        var sk = G.slot && G.slot.skills;   // keep the skills already spent
+        try { maxOut(); } catch (err) { G.errors.push('devmax: ' + err.message); }
+        if (sk) { G.slot.skills = sk; G.store.save(G.slot); }
+        G.slot.plan = plan.id; G.slot.level = plan.level; G.store.save(G.slot);
+        IB.Menus.wipe(function () { G.switchPlan(plan).then(function () { G.startLevel(); }); });
+      });
+      document.body.appendChild(el);
+    }
+    el.hidden = false;
+  }
+  setInterval(function () { var el = document.getElementById('devLevels'); if (el) el.hidden = !(G.mode === 'title' || G.mode === 'paused'); }, 300);
+
   G.toTitle = function () {
     if (!done) { done = true; try { maxOut(); } catch (e) { G.errors.push('devmax: ' + e.message); } }
     toTitle.apply(this, arguments);
+    picker();
   };
 })(window.IB = window.IB || {});
 
