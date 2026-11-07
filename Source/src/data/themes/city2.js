@@ -135,21 +135,21 @@
           // El Avenue: crawlers down the avenue, gunners behind the parked cabs, a drone under the El
           { map: 'city2_avenue', waves: [
             [['crawler', 7], ['gunner', 2]],
-            [['crawler', 5], ['gunner', 3]],
-            [['crawler', 4], ['gunner', 2], ['drone', 1]],
-            [['crawler', 4], ['gunner', 2]]] },
+            [['crawler', 4], ['gunner', 3], ['soldier', 1]],
+            [['crawler', 3], ['gunner', 2], ['drone', 1], ['blader', 1]],
+            [['crawler', 3], ['gunner', 2], ['soldier', 1]]] },
           // Statue Plaza: bombers across the open granite, gunners on the ring road
           { map: 'city2_plaza', waves: [
             [['crawler', 6], ['gunner', 3]],
-            [['crawler', 4], ['bomber', 3]],
-            [['gunner', 3], ['drone', 1], ['crawler', 4]],
-            [['crawler', 4], ['bomber', 2], ['gunner', 2]]] },
+            [['crawler', 3], ['bomber', 3], ['blader', 1]],
+            [['gunner', 3], ['drone', 1], ['crawler', 2], ['soldier', 2]],
+            [['crawler', 3], ['bomber', 2], ['gunner', 2], ['blader', 1]]] },
           // The Crossing: everything at once round the two blocks and under the train
           { map: 'city2_crossing', waves: [
             [['crawler', 6], ['gunner', 3]],
-            [['bomber', 3], ['crawler', 4], ['drone', 1]],
-            [['gunner', 3], ['crawler', 5]],
-            [['crawler', 4], ['bomber', 2], ['gunner', 2]]] }
+            [['bomber', 3], ['crawler', 3], ['drone', 1], ['soldier', 1]],
+            [['gunner', 3], ['crawler', 3], ['soldier', 2]],
+            [['crawler', 2], ['bomber', 2], ['gunner', 2], ['blader', 2]]] }
         ]
       }
     }

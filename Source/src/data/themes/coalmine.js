@@ -127,20 +127,20 @@
           { map: 'coalmine_haulage', waves: [
             [['crawler', 7], ['gunner', 2]],
             [['crawler', 6], ['bomber', 2], ['gunner', 1]],
-            [['crawler', 5], ['gunner', 2], ['drone', 2]],
-            [['crawler', 5], ['bomber', 2]]] },
+            [['crawler', 4], ['gunner', 2], ['drone', 2], ['blader', 1]],
+            [['crawler', 4], ['bomber', 2], ['soldier', 1]]] },
           // The Coal Face: 37 robots between conveyors and cribs
           { map: 'coalmine_face', waves: [
             [['crawler', 6], ['gunner', 3]],
-            [['drone', 2], ['crawler', 6], ['bomber', 2]],
-            [['gunner', 3], ['crawler', 6]],
+            [['drone', 2], ['crawler', 5], ['bomber', 2], ['blader', 1]],
+            [['gunner', 3], ['crawler', 4], ['soldier', 2]],
             [['crawler', 5], ['bomber', 2], ['drone', 2]]] },
           // Main Shaft: 40 robots, the dense finale round the headframe
           { map: 'coalmine_shaft', waves: [
             [['crawler', 7], ['gunner', 2]],
-            [['drone', 2], ['bomber', 2], ['crawler', 6]],
-            [['gunner', 3], ['crawler', 6], ['drone', 1]],
-            [['crawler', 5], ['bomber', 2], ['gunner', 2], ['drone', 2]]] }
+            [['drone', 2], ['bomber', 2], ['crawler', 5], ['soldier', 1]],
+            [['gunner', 3], ['crawler', 5], ['drone', 1], ['blader', 1]],
+            [['crawler', 3], ['bomber', 2], ['gunner', 2], ['drone', 2], ['soldier', 1], ['blader', 1]]] }
         ]
       }
     }

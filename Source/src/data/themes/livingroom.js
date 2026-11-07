@@ -108,21 +108,21 @@
           // 36 + 41 + 52 = 129 robots; the kitchen's last wave is the dense finale
           { map: 'livingroom_lounge', waves: [
             [['crawler', 8], ['gunner', 1]],
-            [['crawler', 6], ['bomber', 2], ['gunner', 1]],
-            [['crawler', 6], ['drone', 2], ['gunner', 1]],
-            [['crawler', 5], ['gunner', 2], ['bomber', 2]]
+            [['crawler', 5], ['bomber', 2], ['gunner', 1], ['soldier', 1]],
+            [['crawler', 5], ['drone', 2], ['gunner', 1], ['blader', 1]],
+            [['crawler', 3], ['gunner', 2], ['bomber', 2], ['soldier', 2]]
           ] },
           { map: 'livingroom_dining', waves: [
             [['crawler', 8], ['gunner', 2]],
-            [['crawler', 6], ['bomber', 3], ['drone', 1]],
-            [['crawler', 6], ['gunner', 3], ['drone', 1]],
-            [['crawler', 5], ['bomber', 3], ['gunner', 2], ['drone', 1]]
+            [['crawler', 4], ['bomber', 3], ['drone', 1], ['blader', 2]],
+            [['crawler', 4], ['gunner', 3], ['drone', 1], ['soldier', 2]],
+            [['crawler', 4], ['bomber', 3], ['gunner', 2], ['drone', 1], ['blader', 1]]
           ] },
           { map: 'livingroom_kitchen', waves: [
             [['crawler', 7], ['gunner', 2], ['drone', 1]],
-            [['crawler', 6], ['bomber', 3], ['gunner', 2]],
-            [['crawler', 7], ['drone', 3], ['bomber', 2]],
-            [['crawler', 10], ['gunner', 4], ['bomber', 3], ['drone', 2]]
+            [['crawler', 4], ['bomber', 3], ['gunner', 2], ['soldier', 2]],
+            [['crawler', 5], ['drone', 3], ['bomber', 2], ['blader', 2]],
+            [['crawler', 8], ['gunner', 4], ['bomber', 3], ['drone', 2], ['soldier', 2]]
           ] }
         ]
       }

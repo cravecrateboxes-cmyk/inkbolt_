@@ -129,20 +129,20 @@
           { map: 'bedroom_toyspill', waves: [
             [['crawler', 7], ['gunner', 1]],
             [['crawler', 6], ['bomber', 2], ['gunner', 1]],
-            [['crawler', 6], ['drone', 2], ['gunner', 1]],
+            [['crawler', 5], ['drone', 2], ['gunner', 1], ['blader', 1]],
             [['crawler', 5], ['gunner', 2], ['bomber', 2]]
           ] },
           { map: 'bedroom_underbed', waves: [
             [['crawler', 8], ['gunner', 2]],
-            [['crawler', 5], ['bomber', 3], ['drone', 1]],
+            [['crawler', 4], ['bomber', 3], ['drone', 1], ['blader', 1]],
             [['crawler', 6], ['gunner', 3], ['drone', 1]],
-            [['crawler', 5], ['bomber', 3], ['gunner', 2], ['drone', 1]]
+            [['crawler', 4], ['bomber', 3], ['gunner', 2], ['drone', 1], ['soldier', 1]]
           ] },
           { map: 'bedroom_deskcorner', waves: [
             [['crawler', 7], ['gunner', 2], ['drone', 1]],
-            [['crawler', 6], ['bomber', 3], ['gunner', 2]],
-            [['crawler', 7], ['drone', 3], ['bomber', 2]],
-            [['crawler', 10], ['gunner', 4], ['bomber', 3], ['drone', 3]]
+            [['crawler', 5], ['bomber', 3], ['gunner', 2], ['soldier', 1]],
+            [['crawler', 6], ['drone', 3], ['bomber', 2], ['blader', 1]],
+            [['crawler', 8], ['gunner', 4], ['bomber', 3], ['drone', 3], ['soldier', 1], ['blader', 1]]
           ] }
         ]
       }

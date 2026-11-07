@@ -24,6 +24,13 @@
     return 3.34 + 0.03 * (L - 40);
   }
   function enemyDmgMul(L) { return Math.min(3, 1 + 0.04 * (L - 1)); }
+  /* one robot row (data/enemies.js) at campaign level L: health, shield pool and hit damage as the runtime scales
+     them (the shield grows with health; grenade / melee / dash damage with damage) */
+  function enemyAt(row, L) {
+    var h = enemyHpMul(L), d = enemyDmgMul(L);
+    return { hp: row.hp * h, shield: (row.shieldPool ? row.shield : 0) * h, damage: row.damage * d,
+      grenade: (row.grenadeDamage || 0) * d, melee: (row.meleeDamage || 0) * d, spin: (row.spinDamage || 0) * d };
+  }
 
   /* Tempo per campaign level, on top of HP x enemyHpMul and damage x enemyDmgMul: robots fire a little more often,
      aim a little tighter, lead a moving target a little more, telegraph a little faster and move a little quicker.
@@ -161,7 +168,7 @@
   function staggers(dmg, maxHp, charged) { return !!charged || dmg >= 0.25 * maxHp; }
 
   IB.Damage = {
-    enemyHpMul: enemyHpMul, enemyDmgMul: enemyDmgMul, enemyTempo: enemyTempo, playerMaxHp: playerMaxHp, enemyPressure: enemyPressure, attackTokens: attackTokens, falloff: falloff,
+    enemyHpMul: enemyHpMul, enemyDmgMul: enemyDmgMul, enemyAt: enemyAt, enemyTempo: enemyTempo, playerMaxHp: playerMaxHp, enemyPressure: enemyPressure, attackTokens: attackTokens, falloff: falloff,
     hit: hit, splash: splash, blastRadius: blastRadius, rocketSplash: rocketSplash, frag: frag,
     flashDamage: flashDamage, selfDamage: selfDamage, knockback: knockback, blindDuration: blindDuration,
     flashPlayer: flashPlayer, shield: shield, bossShell: bossShell, melee: melee, staggers: staggers

@@ -170,6 +170,9 @@
     AI.mat = IB.Render.toonMaterial({ fx: true, map: A.palette.bots, baked: bake });
     tintMaterial(AI.mat);
     AI.lightMat = IB.Render.toonMaterial({ map: A.palette.bots, baked: bake });
+    // armour recolour (Soldier variants): the palette's key armour texels take a per-instance colour (aTint)
+    AI.keyMat = IB.Render.toonMaterial({ fx: true, map: A.palette.bots, baked: bake });
+    tintMaterial(AI.keyMat); keyTintMaterial(AI.keyMat);
     Object.keys(VIS).forEach(function (id) {
       var v = VIS[id], T = { id: id, vis: v, parts: {}, partList: [], slots: [], corpse: null, hi: -1 };
       v.sockets(v);
@@ -177,11 +180,13 @@
         var P = v.parts[pn];
         var geo = A.get(P.asset).clone(), n = CAP * P.count;
         if (!P.light) { var fx = new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4); fx.setUsage(THREE.DynamicDrawUsage); geo.setAttribute('aFx', fx); }
-        var im = new THREE.InstancedMesh(geo, P.light ? AI.lightMat : AI.mat, n);
+        if (P.tint) { var ta = new THREE.InstancedBufferAttribute(new Float32Array(n * 3).fill(1), 3); ta.setUsage(THREE.DynamicDrawUsage); geo.setAttribute('aTint', ta); }
+        var im = new THREE.InstancedMesh(geo, P.light ? AI.lightMat : P.tint ? AI.keyMat : AI.mat, n);
         im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); im.frustumCulled = false;
         for (var i = 0; i < n; i++) { im.setMatrixAt(i, ZERO); if (P.light) im.setColorAt(i, _c.set(LIGHT_DIM)); }
         scene.add(im);
-        T.parts[pn] = { name: pn, mesh: im, count: P.count, fx: im.geometry.attributes.aFx || null };
+        // opt: a shape variant (only some robots wear it): drawn only in frames where a live robot uses it
+        T.parts[pn] = { name: pn, mesh: im, count: P.count, fx: im.geometry.attributes.aFx || null, tint: im.geometry.attributes.aTint || null, opt: !!P.opt, used: false };
         T.partList.push(T.parts[pn]);
       });
       // corpse geometry: whole robot in rest pose, all ink
@@ -216,6 +221,25 @@
     '}',
     'if ( vHull > 0.5 ) gl_FragColor = vec4( ( vFx.z > 0.5 && vFx.z < 1.5 ) ? mix( uInk, vec3( 0.07, 0.85, 0.78 ), vFx.w ) : uInk, 1.0 );'
   ].join('\n');
+  /* key-colour recolour: texels of the two armour key swatches ('plate' #F4F6F9, 'plate2' #B8BEC7 in fam_bots.py)
+     take the instance colour aTint (plate2 a shade darker); everything else keeps its palette colour */
+  function keyTintMaterial(mat) {
+    var base = mat.onBeforeCompile, key = mat.customProgramCacheKey;
+    mat.onBeforeCompile = function (sh) {
+      base(sh);
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec3 aTint;\nvarying vec3 vTint;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvTint = aTint;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vTint;')
+        .replace('#include <map_fragment>', ['#include <map_fragment>',
+          '#ifdef USE_MAP',
+          'float ibK1 = step( distance( texelColor.rgb, vec3( 0.957, 0.965, 0.976 ) ), 0.012 );',
+          'float ibK2 = step( distance( texelColor.rgb, vec3( 0.722, 0.745, 0.780 ) ), 0.012 );',
+          'diffuseColor.rgb = mix( diffuseColor.rgb, vTint, ibK1 );',
+          'diffuseColor.rgb = mix( diffuseColor.rgb, vTint * 0.66, ibK2 );',
+          '#endif'].join('\n'));
+    };
+    mat.customProgramCacheKey = function () { return key() + 'key'; };
+  }
   function tintMaterial(mat) {
     var base = mat.onBeforeCompile, key = mat.customProgramCacheKey;
     mat.onBeforeCompile = function (sh) {
@@ -275,6 +299,8 @@
     r.yaw = Math.atan2(tx - x, tz - z); r.walk = Math.random() * 3; r.dmgMul = (AI.dmgMul || 1) * (opts.dmgScale || 1);
     r.rogue = 0; r.rogueEnd = false; r.wet = 0; r.tgt = null; r.tgtT = 0;
     r.fy = r.gy = 0; r.fvy = 0; r.hop = 0;
+    r.maxShield = r.shield = 0;
+    if (v.init) v.init(r, opts);   // per-type spawn state (troops.js: armour variant, shield pool, grenades, blade)
     if (!opts.pose && IB.FX) IB.FX.puff(x, 1.0, z, 6, PAL.ink, 0.2, 0.6, 2.5);
     return r;
   };
@@ -314,14 +340,19 @@
     if (!r.on || r.state === 'spawn' || r.state === 'pose') return false;
     opts = opts || {};
     if (r.rogue > 0) onKill = null;   // a rogue was already paid for; whoever wrecks it earns nothing
+    var vd = VIS[r.type];
+    if (vd.onDamage) {   // per-type: a shield pool soaks it first (Soldier), a dizzy Blade Bot takes more
+      dmg = vd.onDamage(r, dmg, opts);
+      if (!(dmg > 0)) { r.flash = 0.06; if (r.state === 'idle') setState(r, 'alert'); return false; }
+    }
     r.hp -= dmg; r.flash = 0.06;
     if (r.state === 'idle') setState(r, 'alert');
     if (r.hp <= 0) {
       // Handy Helpers: a robot the player wrecks may turn rogue instead (it still counts as the player's kill)
-      if (onKill && AI.rogueChance > 0 && !r.def.boss && Math.random() < AI.rogueChance) { AI.makeRogue(r, AI.rogueTime); onKill(r); return true; }
+      if (onKill && AI.rogueChance > 0 && !r.def.boss && Math.random() < AI.rogueChance) { AI.makeRogue(r, AI.rogueTime); onKill(r); paid(r); return true; }
       AI.kill(r, onKill); return true;
     }
-    if (dmg >= r.maxHp * 0.25 || opts.stagger) {
+    if ((dmg >= r.maxHp * 0.25 || opts.stagger) && !(vd.noStagger && vd.noStagger(r))) {
       setState(r, 'stagger'); r.kx = opts.kx || 0; r.kz = opts.kz || 0; r.crouch = 0;
     }
     return false;
@@ -344,8 +375,10 @@
     // a rogue self-destructs: a blast that only hurts robots (Bombers already blew up in onDeath, harmless to the player)
     if (rogue && !quiet && !v.onDeath && IB.Projectiles && IB.Projectiles.explode) IB.Projectiles.explode(r.x, r.y + 0.45, r.z, 2.6, 0, 30 * (AI.hpMul || 1), r);
     r.rogue = 0; r.rogueEnd = false; r.wet = 0; r.tgt = null;
-    if (onKill && !rogue) onKill(r);
+    if (onKill && !rogue) { onKill(r); paid(r); }
   };
+  // a kill the player earned: per-type extras (troops.js: weapon drops)
+  function paid(r) { var v = VIS[r.type]; if (v.onPlayerKill) v.onPlayerKill(r); }
   /* Handy Helpers: r fights for the player for t seconds (full health, teal), then self-destructs */
   AI.makeRogue = function (r, t) {
     if (!r.on || r.state === 'pose') return false;
@@ -439,8 +472,8 @@
     return Math.atan2(p.y + 1.15 - py, Math.max(0.5, Math.hypot(p.x - px, p.z - pz)));
   }
   /* one bolt from the muzzle at the player's chest; lead = fraction of the player's velocity to lead by */
-  function fireBolt(r, v, p, speed, dmg, lead, spread) {
-    var m = muzzleWorld(r, v, r.gunOut);
+  function fireBolt(r, v, p, speed, dmg, lead, spread) { fireFrom(r, muzzleWorld(r, v, r.gunOut), p, speed, dmg, lead, spread); }
+  function fireFrom(r, m, p, speed, dmg, lead, spread) {
     var tx = p.x, ty = p.y + 1.15, tz = p.z;
     var dx = tx - m.x, dy = ty - m.y, dz = tz - m.z, d = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
     lead = (lead || 0) + tempo().leadAdd; spread = (spread || 0) * tempo().aimMul;
@@ -691,6 +724,10 @@
     drone: { think: thinkDrone }
   };
   AI.BEH = BEH;
+  // helpers shared with the robot types in other files (game/troops.js)
+  AI.K = { move: move, mv: _mv, setState: setState, takeToken: takeToken, releaseToken: releaseToken, tell: tell, play: play, turnTo: turnTo,
+    towardPlayer: towardPlayer, offLevel: offLevel, planKeep: planKeep, keepMove: keepMove, canFire: canFire, fireFrom: fireFrom,
+    wrapAngle: wrapAngle, clamp: clamp, sock: sock, tempo: tempo, lightDefault: lightDefault, ZERO: ZERO };
 
   // ---------------- targets: the player, or a robot in a rogue fight ----------------
   /* A robot fighting a robot sees it through a stand-in "player": the behaviours aim at its chest, bite it and shoot it
@@ -885,6 +922,8 @@
             else turnTo(r, Math.atan2(r.vx, r.vz), 5, dt);
           } else if (P.alive && r.state !== 'idle' && !mode) turnTo(r, Math.atan2(dx, dz), 4, dt);
         }
+      } else if (v.face) {
+        v.face(r, dt, P, dx, dz, dist, hs, fwd, mode);   // troops.js: Soldiers aim the torso while the legs walk, Blade Bots spin
       } else {
         if (r.type === 'bomber') r.tilt += ((r.state === 'chase' || r.state === 'windup' ? clamp(fwd * 0.03, -0.1, 0.16) : 0) - r.tilt) * Math.min(1, dt * 6);
         if (hs > 0.3 && r.state !== 'stagger' && r.state !== 'blinded') turnTo(r, Math.atan2(r.vx, r.vz), 9, dt);
@@ -922,11 +961,15 @@
     pop: function () { _cur.copy(_stk[--_sp]); return P; },
     emit: function (name, k) {
       var Pt = _T.parts[name], idx = _rob.slot * Pt.count + k;
-      Pt.mesh.setMatrixAt(idx, _cur);
+      Pt.mesh.setMatrixAt(idx, _cur); Pt.used = true;
+      if (Pt.tint && _rob.tint) Pt.tint.setXYZ(idx, _rob.tint.r, _rob.tint.g, _rob.tint.b);
       if (Pt.fx) Pt.fx.setXYZW(idx, _rob.flash > 0 ? 1 : 0, 0, _tk, _ta);
       else if (Pt.mesh.instanceColor) Pt.mesh.setColorAt(idx, _c.set(_T.vis.lightColor ? _T.vis.lightColor(_rob) : lightDefault(_rob)));
       return P;
     },
+    // a part this robot does not show (another shape variant, a grenade not in hand)
+    hide: function (name, k) { var Pt = _T.parts[name]; Pt.mesh.setMatrixAt(_rob.slot * Pt.count + (k || 0), ZERO); return P; },
+    mul: function (m) { _cur.multiply(m); return P; },
     // legacy one-liner: translate, pitch about X, stretch Y
     set: function (name, k, lx, ly, lz, rx, sy) { return P.root().t(lx, ly, lz).rx(rx || 0).s(1, sy, 1).emit(name, k); }
   };
@@ -935,6 +978,7 @@
       var T = AI.typeList[ti], hi = -1, s, k, pi;
       for (s = CAP - 1; s >= 0; s--) if (T.slots[s].on) { hi = s; break; }
       _T = T;
+      for (pi = 0; pi < T.partList.length; pi++) T.partList[pi].used = false;
       for (s = 0; s <= hi; s++) {
         var r = T.slots[s];
         if (!r.on) { for (pi = 0; pi < T.partList.length; pi++) { var Pz = T.partList[pi]; for (k = 0; k < Pz.count; k++) Pz.mesh.setMatrixAt(s * Pz.count + k, ZERO); } continue; }
@@ -951,8 +995,9 @@
       for (pi = 0; pi < T.partList.length; pi++) {
         var Pt = T.partList[pi]; Pt.mesh.instanceMatrix.needsUpdate = true;
         Pt.mesh.count = (hi + 1) * Pt.count;   // draw only up to the highest live slot
-        Pt.mesh.visible = hi >= 0;             // and no draw call at all for a type with none alive
+        Pt.mesh.visible = hi >= 0 && (!Pt.opt || Pt.used);   // and no draw call at all for a type with none alive
         if (Pt.fx) Pt.fx.needsUpdate = true;
+        if (Pt.tint) Pt.tint.needsUpdate = true;
         if (Pt.mesh.instanceColor) Pt.mesh.instanceColor.needsUpdate = true;
       }
       T.hi = hi;

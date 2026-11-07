@@ -60,7 +60,7 @@ test('robots: 80-95 in all, 3-4 waves a zone, 2-4 drones, no bombers in zone 1',
   PLAN.zones.forEach((z, i) => {
     assert.ok(z.waves.length >= 3 && z.waves.length <= 4, z.map + ' waves');
     z.waves.forEach((w) => w.forEach(([type, n]) => {
-      assert.ok(['crawler', 'gunner', 'bomber', 'drone'].includes(type), type);
+      assert.ok(['crawler', 'gunner', 'bomber', 'drone', 'soldier', 'blader'].includes(type), type);
       total += n; if (type === 'drone') drones += n;
       if (i === 0) assert.notStrictEqual(type, 'bomber', 'no bombers in zone 1');
     }));

@@ -47,7 +47,7 @@ test('classroom theme and level plan register', () => {
   assert.ok(total >= 90 && total <= 105, 'robots ' + total);
   for (const z of PLAN.zones) {
     assert.ok(z.waves.length >= 3 && z.waves.length <= 4, z.map + ' waves');
-    for (const w of z.waves) for (const [id, n] of w) assert.ok(['crawler', 'gunner', 'bomber', 'drone'].includes(id) && n > 0);
+    for (const w of z.waves) for (const [id, n] of w) assert.ok(['crawler', 'gunner', 'bomber', 'drone', 'soldier', 'blader'].includes(id) && n > 0);
   }
   const pieces = new Set(TH.allPieces());
   for (const d of Object.values(TH.symbols)) for (const p of d.pieces) assert.ok(pieces.has(p), p);

@@ -1,0 +1,540 @@
+/* INKBOLT troops: the Soldier and the Blade Bot (robot types registered into IB.AI before AI.init; rows in
+   data/enemies.js, models in blender/fam_bots.py). Health, shields and damage scale with the campaign level through
+   the same multipliers as every robot (AI.hpMul / r.dmgMul from core/damage.js, tempo for windups and cooldowns).
+
+   Soldier: an armoured robot trooper. Shield pool (r.shield / r.maxShield, the health bar's shield row) soaks damage
+     first, recharges after def.shieldDelay; keeps 7-15 m, strafes and takes cover (Gunner planner), fires 4-bolt
+     bursts from its rifle, throws up to 3 frag grenades (arc, bounce, blinking fuse, red ring, Projectiles.explode),
+     rifle-butts the player inside def.meleeRange after a pull-back tell. Rigid parts: hips + legs face the way it
+     walks, the torso turns to aim, both arms and the rifle pitch together about the shoulder line, the left arm
+     throws. Armour variants: plate colour per instance (AI key-tint material) x 2 torsos x 3 helmets.
+   Blade Bot: a hover saucer whose hub arm wields a katana or a Voltaxe (r.weaponId 'katana' | 'eaxe'). Slow patrol;
+     seeing the player it homes in, spins up (whine, flashing tell), dashes spinning at ~19 rev/s with a smear arc,
+     cuts on contact (the axe also shocks: damage over time on the player), overshoots and stays dizzy (takes extra
+     damage). Standing next to it triggers a spin slash in place.
+   Weapon drops: player kills call IB.WeaponDrops.roll(r) (Soldier) / IB.WeaponDrops.melee(r, r.weaponId) if present.
+   Also here: the enemy grenade pool (rendered + simulated through AI.update / AI.sync / AI.clear wrappers), the
+   blade smear arcs and the player's shock from the Voltaxe. Test hooks: IB.Troops.stats(), IB.Troops.grenades. */
+(function (IB) {
+  'use strict';
+  var AI = IB.AI, K = AI.K, VIS = AI.VIS, BEH = AI.BEH, PAL = IB.PAL, TAU = Math.PI * 2, G = 16;
+  var Tr = IB.Troops = { grenades: [], smears: [], shock: { left: 0, tick: 0, dps: 0, src: { x: 0, z: 0, type: 'blader', proj: true } },
+    stats: null, nadeCap: 12, liveNadeMax: 2 };
+  var _tmp = [], _c = null;
+  function stat(r, k, f) { var v = r.def[k]; return v === undefined ? f : v; }
+  function rnd(a, b) { return a + Math.random() * (b - a); }
+  function sfx(name, at, gain, pitch) { if (IB.Audio) IB.Audio.play(name, { pos: at, gain: gain, pitch: pitch }); }
+  function ease(k) { k = k < 0 ? 0 : k > 1 ? 1 : k; return k * k * (3 - 2 * k); }
+
+  // ======================================================================= SOLDIER
+  function sk(n) { return K.sock('BOT_SOLDIER_' + n); }
+  VIS.soldier = {
+    radius: 0.36, y0: 0.05, y1: 1.86, coreR: 0.11, shadow: 0.55, eye: 1.7, home: 'keep',
+    parts: { Hips: { count: 1, asset: 'BOT_SOLDIER_Hips', tint: true }, Thigh: { count: 2, asset: 'BOT_SOLDIER_Thigh', tint: true },
+      Shin: { count: 2, asset: 'BOT_SOLDIER_Shin', tint: true },
+      TorsoA: { count: 1, asset: 'BOT_SOLDIER_TorsoA', tint: true, opt: true }, TorsoB: { count: 1, asset: 'BOT_SOLDIER_TorsoB', tint: true, opt: true },
+      HelmA: { count: 1, asset: 'BOT_SOLDIER_HelmA', tint: true, opt: true }, HelmB: { count: 1, asset: 'BOT_SOLDIER_HelmB', tint: true, opt: true },
+      HelmC: { count: 1, asset: 'BOT_SOLDIER_HelmC', tint: true, opt: true },
+      ArmR: { count: 1, asset: 'BOT_SOLDIER_ArmR', tint: true }, ArmL: { count: 1, asset: 'BOT_SOLDIER_ArmL', tint: true },
+      Nade: { count: 1, asset: 'BOT_SOLDIER_Nade', opt: true }, Visor: { count: 1, light: true, asset: 'BOT_SOLDIER_Visor' } },
+    sockets: function (v) {
+      v.hips = [sk('HIP0'), sk('HIP1')]; v.waist = sk('WAIST'); v.neck = sk('NECK'); v.sh = [sk('SHOULDER0'), sk('SHOULDER1')];
+      v.visor = sk('VISOR'); v.muzzle = sk('MUZZLE'); v.handL = sk('HANDL');
+      var c = sk('CORE'); v.coreY = v.waist[1] + c[1]; v.coreZ = c[2];
+    },
+    init: function (r, opts) {
+      var d = r.def, A = d.armour || ['#EEF1F5'];
+      if (!r.tint) r.tint = new THREE.Color();
+      r.armour = (Math.random() * A.length) | 0; r.tint.set(A[r.armour]); r.tintHex = r.tint.getHex();
+      r.torso = (d.torsos || ['A'])[(Math.random() * (d.torsos || ['A']).length) | 0];
+      r.helm = (d.helmets || ['A'])[(Math.random() * (d.helmets || ['A']).length) | 0];
+      r.maxShield = r.shield = (d.shield || 0) * (AI.hpMul || 1); r.shT = 99; r.shFx = 0;
+      r.nades = d.grenades || 3; r.ncool = rnd(2.5, 5); r.mcool = 0; r.act = '';
+      r.legRel = 0; r.legDir = 1; r.legMove = 0; r.aim = -0.25; r.rigPitch = 0; r.rigPush = 0; r.throwL = 0; r.holdNade = false; r.bit = false; r.twist = 0;
+    },
+    onDamage: function (r, dmg) {
+      if (!(r.maxShield > 0)) return dmg;
+      r.shT = 0;   // any hit restarts the recharge delay
+      if (r.shield <= 0) return dmg;
+      var ab = Math.min(r.shield, dmg), y = r.y + 1.2;
+      r.shield -= ab;
+      if (IB.Boom && IB.Boom.ready && r.shFx <= 0) { r.shFx = 0.08; IB.Boom.zap(r.x, y, r.z, 0.45, 0x8ED2FF); }
+      if (r.shield <= 0.001) {   // shield breaks: a blue burst and a crackle
+        r.shield = 0;
+        if (IB.Boom && IB.Boom.ready) { IB.Boom.zap(r.x, y, r.z, 1.3, 0x5FC2FF); IB.Boom.sparks(r.x, y, r.z, 0, 0.5, 0, 10, 0x8ED2FF); }
+        sfx('boltHit', r, 0.9, 0.6);
+      }
+      return dmg - ab;
+    },
+    onPlayerKill: function (r) { if (IB.WeaponDrops && IB.WeaponDrops.roll) IB.WeaponDrops.roll(r); },
+    pose: function (r, P) {
+      var v = VIS.soldier, ph = r.walk * 1.9, mv = r.legMove, bob = Math.abs(Math.sin(ph)) * 0.035 * mv - r.crouch * 0.06, i;
+      // hips and legs face the way it walks (legRel off the torso yaw)
+      P.root().ry(r.legRel).t(0, bob, 0).emit('Hips', 0);
+      for (i = 0; i < 2; i++) {
+        var s = Math.sin(ph + i * Math.PI) * r.legDir, sw = s * 0.5 * mv, knee = Math.max(0, Math.cos(ph + i * Math.PI) * r.legDir) * 0.95 * mv + r.crouch * 0.5;
+        P.push().tv(v.hips[i]).rx(-sw - r.crouch * 0.35).emit('Thigh', i).t(0, -0.43, 0).rx(knee).emit('Shin', i).pop();
+      }
+      // torso turns to aim; arms + rifle pitch about the shoulder line
+      P.root().t(0, bob, 0).tv(v.waist).ry(r.twist).rx(r.crouch * 0.12);
+      P.emit(r.torso === 'B' ? 'TorsoB' : 'TorsoA', 0).hide(r.torso === 'B' ? 'TorsoA' : 'TorsoB', 0);
+      var hn = 'Helm' + r.helm;
+      P.push().tv(v.neck).rx(-r.aim * 0.4).emit(hn, 0);
+      if (hn !== 'HelmA') P.hide('HelmA', 0); if (hn !== 'HelmB') P.hide('HelmB', 0); if (hn !== 'HelmC') P.hide('HelmC', 0);
+      P.tv(v.visor).emit('Visor', 0).pop();
+      var th = -r.aim + r.rigPitch;
+      P.push().tv(v.sh[0]).rx(th).t(0, 0, r.rigPush - r.kick * 0.04).emit('ArmR', 0).pop();
+      P.push().tv(v.sh[1]).rx(th + r.throwL).t(0, 0, r.rigPush).emit('ArmL', 0);
+      if (r.holdNade) P.tv(v.handL).ry(r.st * 6).emit('Nade', 0); else P.hide('Nade', 0);
+      P.pop();
+    },
+    lightColor: function (r) {
+      if (r.state === 'windup' && (r.st * 14 | 0) % 2 === 0) return PAL.red;
+      if (r.alert > 0) return Math.sin(r.alert * 40) > 0 ? PAL.red : 0x7FE8FF;
+      return r.state === 'idle' ? 0x3C7C8C : 0x7FE8FF;
+    },
+    // rest pose for the ink silhouette
+    corpse: function (v, add) {
+      var M = new THREE.Matrix4(), W = v.waist;
+      add('BOT_SOLDIER_Hips', M.identity());
+      v.hips.forEach(function (h) { add('BOT_SOLDIER_Thigh', M.makeTranslation(h[0], h[1], h[2])); add('BOT_SOLDIER_Shin', M.makeTranslation(h[0], h[1] - 0.43, h[2])); });
+      add('BOT_SOLDIER_TorsoA', M.makeTranslation(W[0], W[1], W[2]));
+      add('BOT_SOLDIER_HelmA', M.makeTranslation(W[0] + v.neck[0], W[1] + v.neck[1], W[2] + v.neck[2]));
+      add('BOT_SOLDIER_ArmR', M.makeTranslation(W[0] + v.sh[0][0], W[1] + v.sh[0][1], W[2] + v.sh[0][2]));
+      add('BOT_SOLDIER_ArmL', M.makeTranslation(W[0] + v.sh[1][0], W[1] + v.sh[1][1], W[2] + v.sh[1][2]));
+    },
+    // the torso aims at the target while the legs walk the way it moves (backwards when backing off)
+    face: function (r, dt, P, dx, dz, dist, hs, fwd, mode) {
+      var busy = r.state === 'windup' || r.state === 'attack';
+      if (r.state !== 'stagger' && r.state !== 'blinded') {
+        if (P.alive && !mode && r.state !== 'idle' && (r.seesPlayer || busy || r.lost < 1.5)) K.turnTo(r, Math.atan2(dx, dz), busy ? 9 : 6, dt);
+        else if (hs > 0.3) K.turnTo(r, Math.atan2(r.vx, r.vz), 6, dt);
+      }
+      if (hs > 0.3) {
+        var rel = K.wrapAngle(Math.atan2(r.vx, r.vz) - r.yaw), dir = 1;
+        if (Math.abs(rel) > Math.PI * 0.6) { rel = K.wrapAngle(rel + Math.PI); dir = -1; }
+        r.legRel += (K.clamp(rel, -1.15, 1.15) - r.legRel) * Math.min(1, dt * 8); r.legDir = dir;
+      } else r.legRel *= Math.max(0, 1 - dt * 4);
+      r.legMove += ((hs > 0.3 ? Math.min(1, hs / 2.6) : 0) - r.legMove) * Math.min(1, dt * 7);
+      if (!busy) r.crouch = Math.max(0, r.crouch - dt * 3);
+      r.twist += ((r.state === 'attack' && r.act === 'melee' ? -0.35 : 0) - r.twist) * Math.min(1, dt * 12);
+    }
+  };
+
+  // world position of a point given in a shoulder's arm space (aim rig rotated by th, pushed along its z)
+  var _w = { x: 0, y: 0, z: 0 };
+  function armPoint(r, shi, pt, th, push) {
+    var v = VIS.soldier, s = v.sh[shi], c = Math.cos(th), sn = Math.sin(th), pz = pt[2] + push;
+    var lx = s[0] + pt[0], ly = v.waist[1] + s[1] + (pt[1] * c - pz * sn), lz = s[2] + (pt[1] * sn + pz * c);
+    var sy = Math.sin(r.yaw), cy = Math.cos(r.yaw);
+    _w.x = r.x + lx * cy + lz * sy; _w.y = r.y + ly; _w.z = r.z - lx * sy + lz * cy;
+    return _w;
+  }
+  function aimAt(r, p) { return Math.atan2(p.y + 1.15 - (r.y + 1.44), Math.max(0.6, Math.hypot(p.x - r.x, p.z - r.z))); }
+  function liveNades() { var n = 0; for (var i = 0; i < Tr.grenades.length; i++) if (Tr.grenades[i].on) n++; return n; }
+
+  function thinkSoldier(r, dt, ctx, zone, dx, dz, dist) {
+    var p = ctx.player, def = r.def, speed = def.speed || 3.2, T = K.tempo(), lv = K.offLevel(r, p, zone);
+    var wuF = (def.windup || 0.45) * T.tellMul, wuN = (def.grenadeWindup || 0.6) * T.tellMul, wuM = (def.meleeWindup || 0.4) * T.tellMul;
+    var k;
+    r.ncool -= dt; r.mcool -= dt;
+    if (r.state !== 'windup' || r.act !== 'melee') { r.rigPitch *= Math.max(0, 1 - dt * 8); r.rigPush *= Math.max(0, 1 - dt * 8); }
+    switch (r.state) {
+      case 'keep': {
+        r.aim += ((r.seesPlayer ? aimAt(r, p) : -0.3) - r.aim) * Math.min(1, dt * 5);
+        r.throwL *= Math.max(0, 1 - dt * 6);
+        if (!p.alive) break;
+        r.thinkT -= dt;
+        if (r.thinkT <= 0 || (r.mode === 'strafe' && r.bump > 0.25)) { if (r.bump > 0.25) { r.sdir = -r.sdir; r.bump = 0; } K.planKeep(r, ctx, zone, dist); }
+        K.keepMove(r, ctx, zone, dx, dz, dist, speed);
+        var gr = def.grenadeRange || [6, 19];
+        if (r.seesPlayer && !lv && dist < (def.meleeRange || 2.2) && r.mcool <= 0 && (K.takeToken(r) || dist < 1.6)) {
+          r.act = 'melee'; K.setState(r, 'windup'); K.play('servo', r, 0.6);
+        } else if (r.seesPlayer && r.nades > 0 && r.ncool <= 0 && dist > gr[0] && dist < gr[1] && liveNades() < Tr.liveNadeMax && K.takeToken(r)) {
+          r.act = 'nade'; K.setState(r, 'windup'); r.holdNade = true; K.play('clank', r, 0.8);
+        } else if (K.canFire(r, ctx, dist)) { r.act = 'fire'; K.setState(r, 'windup'); K.play('servo', r, 0.45); }
+        break;
+      }
+      case 'windup':
+        if (r.act === 'melee') {
+          K.turnTo(r, Math.atan2(dx, dz), 12, dt);
+          k = ease(r.st / wuM); r.rigPitch = 0.55 * k; r.rigPush = -0.14 * k; r.crouch = 0.4 * k;
+          K.tell(r, r.st / wuM);
+          if (dist > 1.4) K.move(dx, dz, speed * 0.8);   // step in
+          if (r.st >= wuM) { K.setState(r, 'attack'); r.bit = false; K.play('shove', r, 0.9); }
+        } else if (r.act === 'nade') {
+          K.turnTo(r, Math.atan2(dx, dz), 8, dt);
+          r.aim += (aimAt(r, p) - r.aim) * Math.min(1, dt * 6);
+          r.throwL = -2.5 * ease(r.st / wuN);
+          K.tell(r, r.st / wuN);
+          if (r.st >= wuN) { throwNade(r, p); K.setState(r, 'attack'); }
+        } else {
+          r.aim += (aimAt(r, p) - r.aim) * Math.min(1, dt * 9);
+          K.tell(r, r.st / wuF);
+          K.move(-dz * r.sdir, dx * r.sdir, speed * 0.3);   // keeps sidestepping while it brings the rifle up
+          if (r.st >= wuF) { K.setState(r, 'attack'); r.shots = 0; r.shotT = 0; }
+        }
+        break;
+      case 'attack':
+        if (r.act === 'melee') {
+          k = Math.min(1, r.st / 0.1); r.rigPitch = 0.55 - 1.5 * k; r.rigPush = -0.14 + 0.5 * k; r.crouch = 0.4 * (1 - k);
+          if (!r.bit && r.st >= 0.06) {
+            r.bit = true;
+            var fx = Math.sin(r.yaw), fz = Math.cos(r.yaw), facing = (dx * fx + dz * fz) / dist;
+            if (dist < (def.meleeRange || 2.2) + 0.45 && facing > 0.4 && Math.abs(p.y - r.fy) < 1.3) {
+              ctx.hurt(r, (def.meleeDamage || 14) * r.dmgMul);
+              if (!p.robot) { var kb = def.meleeKnock || 6; p.knockX = (p.knockX || 0) + dx / dist * kb; p.knockZ = (p.knockZ || 0) + dz / dist * kb; }
+              if (IB.Boom && IB.Boom.ready) { IB.Boom.word('WHAM!', p.x, p.y + 1.9, p.z, 1.1); IB.Boom.sparks(r.x + dx / dist * 1.0, r.y + 1.3, r.z + dz / dist * 1.0, -dx / dist, 0.3, -dz / dist, 6); }
+              K.play('clank', r, 1);
+            }
+          }
+          if (r.st >= 0.22) K.setState(r, 'recover');
+        } else if (r.act === 'nade') {
+          r.throwL += (0.5 - r.throwL) * Math.min(1, dt * 22);   // follow-through
+          if (r.st >= 0.25) K.setState(r, 'recover');
+        } else {
+          r.aim += (aimAt(r, p) - r.aim) * Math.min(1, dt * 6);
+          K.move(-dz * r.sdir, dx * r.sdir, speed * 0.3);
+          r.shotT -= dt;
+          if (r.shots < (def.bolts || 4) && r.shotT <= 0) {
+            var m = armPoint(r, 0, VIS.soldier.muzzle, -r.aim + r.rigPitch, r.rigPush);
+            K.fireFrom(r, m, p, def.boltSpeed || 26, (def.damage || 6) * r.dmgMul, 0.4, r.shots ? 0.04 : 0.01);
+            r.shots++; r.shotT = 0.11;
+          }
+          if (r.shots >= (def.bolts || 4) && r.shotT <= -0.08) K.setState(r, 'recover');
+        }
+        break;
+      case 'recover':
+        if (r.token) K.releaseToken(r);
+        r.throwL *= Math.max(0, 1 - dt * 6);
+        r.aim += ((r.seesPlayer ? aimAt(r, p) : -0.3) - r.aim) * Math.min(1, dt * 3);
+        var rt = r.act === 'melee' ? 0.6 : r.act === 'nade' ? 0.45 : (def.recover || 0.7);
+        if (r.st >= rt) {
+          K.setState(r, 'keep'); r.thinkT = 0;
+          if (r.act === 'melee') r.mcool = 1.4 + Math.random() * 0.8;
+          else if (r.act === 'nade') { var ge = def.grenadeEvery || [6, 10]; r.ncool = rnd(ge[0], ge[1]) * T.coolMul; r.cool = Math.max(r.cool, 0.6); }
+          else r.cool = (1.1 + Math.random() * 1.3) * T.coolMul;
+          r.act = '';
+        }
+        break;
+    }
+  }
+  function tickSoldier(r, dt) {
+    r.shFx -= dt;
+    if (r.maxShield > 0) { r.shT += dt; if (r.shT >= stat(r, 'shieldDelay', 3.5) && r.shield < r.maxShield) r.shield = Math.min(r.maxShield, r.shield + stat(r, 'shieldRate', 24) * (AI.hpMul || 1) * dt); }
+    if (r.state !== 'windup' || r.act !== 'nade') r.holdNade = false;
+  }
+  BEH.soldier = { think: thinkSoldier, tick: tickSoldier };
+
+  // ---------------- enemy grenades ----------------
+  var NR = 0.07;
+  function throwNade(r, p) {
+    if (r.nades <= 0) return;
+    var g = null, i;
+    for (i = 0; i < Tr.grenades.length; i++) if (!Tr.grenades[i].on) { g = Tr.grenades[i]; break; }
+    r.holdNade = false;
+    if (!g) return;
+    r.nades--;
+    var h = armPoint(r, 1, VIS.soldier.handL, -r.aim + r.throwL, 0);
+    var dx = p.x - h.x, dz = p.z - h.z, d = Math.hypot(dx, dz);
+    var t = K.clamp(0.55 + d * 0.05, 0.7, 1.4), lead = 0.5;
+    // aim a little short: the grenade skids on to the player's feet (plus a little scatter)
+    var sh = Math.min(0.9, d * 0.1) / (d || 1);
+    var tx = p.x - dx * sh + (p.vx || 0) * t * lead + rnd(-0.6, 0.6), tz = p.z - dz * sh + (p.vz || 0) * t * lead + rnd(-0.6, 0.6), ty = (p.y || 0) + NR;
+    var def = r.def;
+    g.on = true; g.t = 0; g.x = h.x; g.y = h.y; g.z = h.z; g.rest = false; g.spin = rnd(8, 13); g.rx = 0; g.rz = 0;
+    g.vx = (tx - h.x) / t; g.vz = (tz - h.z) / t; g.vy = (ty - h.y + 0.5 * G * t * t) / t;
+    g.fuse = (def.grenadeFuse || 2.1) * Math.max(0.85, K.tempo().tellMul);
+    g.R = def.grenadeRadius || 3.4; g.dmg = r.rogue > 0 ? 0 : (def.grenadeDamage || 30) * r.dmgMul;
+    g.rdmg = (def.grenadeRobotDamage || 20) * (AI.hpMul || 1) * (r.rogue > 0 ? AI.rogueDmgMul : 1);
+    g.src.x = r.x; g.src.z = r.z;
+    K.play('shove', r, 0.7);
+  }
+  function bounce(g, nx, ny, nz) {
+    var e = 0.3, vn = g.vx * nx + g.vy * ny + g.vz * nz;
+    if (vn >= 0) return;
+    g.vx -= (1 + e) * vn * nx; g.vy -= (1 + e) * vn * ny; g.vz -= (1 + e) * vn * nz;
+    var f = ny > 0.5 ? 0.45 : 0.6; g.vx *= f; g.vz *= f; if (ny < 0.5) g.vy *= f;   // heavy can: it thuds and skids, not bowls
+    g.spin *= 0.6;
+    if (Math.abs(vn) > 1.5) sfx('step', g, Math.min(1, Math.abs(vn) / 6), 1.7);
+  }
+  function updateNades(dt, world) {
+    for (var i = 0; i < Tr.grenades.length; i++) {
+      var g = Tr.grenades[i]; if (!g.on) continue;
+      g.t += dt;
+      if (g.t >= g.fuse) { g.on = false; if (IB.Projectiles && IB.Projectiles.explode) IB.Projectiles.explode(g.x, Math.max(0.3, g.y), g.z, g.R, g.dmg, g.rdmg, g.src); if (AI.hear) AI.hear(g.x, g.z, 25); continue; }
+      if (g.rest || !world) continue;
+      g.vy -= G * dt; g.x += g.vx * dt; g.y += g.vy * dt; g.z += g.vz * dt;
+      var fl = world.floorAt ? world.floorAt(g.x, g.z, g.y + 0.3) : 0;
+      if (g.y < fl + NR) { g.y = fl + NR; bounce(g, 0, 1, 0); }
+      world.query(g.x - NR, g.z - NR, g.x + NR, g.z + NR, _tmp);
+      for (var k = 0; k < _tmp.length; k++) {
+        var b = _tmp[k];
+        if (g.x + NR <= b.x0 || g.x - NR >= b.x1 || g.z + NR <= b.z0 || g.z - NR >= b.z1 || g.y + NR <= b.y0 || g.y - NR >= b.y1) continue;
+        var px0 = g.x + NR - b.x0, px1 = b.x1 - (g.x - NR), pz0 = g.z + NR - b.z0, pz1 = b.z1 - (g.z - NR), py0 = g.y + NR - b.y0, py1 = b.y1 - (g.y - NR);
+        var m = Math.min(px0, px1, pz0, pz1, py0, py1);
+        if (m === py1) { g.y = b.y1 + NR; bounce(g, 0, 1, 0); } else if (m === py0) { g.y = b.y0 - NR; bounce(g, 0, -1, 0); }
+        else if (m === px0) { g.x = b.x0 - NR; bounce(g, -1, 0, 0); } else if (m === px1) { g.x = b.x1 + NR; bounce(g, 1, 0, 0); }
+        else if (m === pz0) { g.z = b.z0 - NR; bounce(g, 0, 0, -1); } else { g.z = b.z1 + NR; bounce(g, 0, 0, 1); }
+      }
+      if (g.y <= fl + NR + 0.01 && Math.abs(g.vy) < 0.6 && Math.hypot(g.vx, g.vz) < 0.25) { g.rest = true; g.vx = g.vy = g.vz = 0; }
+      g.rx += g.spin * dt; g.rz += g.spin * 0.6 * dt;
+    }
+  }
+
+  // ======================================================================= BLADE BOT
+  function bk(n) { return K.sock('BOT_BLADER_' + n); }
+  VIS.blader = {
+    radius: 0.48, y0: 0.15, y1: 0.95, coreR: 0.16, shadow: 0.6, eye: 0.6, home: 'stalk',
+    parts: { Body: { count: 1, asset: 'BOT_BLADER_Body' }, Hub: { count: 1, asset: 'BOT_BLADER_Hub' },
+      Katana: { count: 1, asset: 'BOT_BLADER_Katana', opt: true }, Axe: { count: 1, asset: 'BOT_BLADER_Axe', opt: true },
+      Light: { count: 1, light: true, asset: 'BOT_BLADER_Light' } },
+    sockets: function (v) {
+      var c = bk('CORE'); v.coreY = c[1]; v.coreZ = c[2];
+      v.hub = bk('HUB'); v.grip = bk('GRIP'); v.light = bk('LIGHT');
+    },
+    init: function (r) {
+      var W = r.def.weapons || ['katana', 'eaxe'];
+      r.weaponId = W[(Math.random() * W.length) | 0];
+      r.reach = r.weaponId === 'eaxe' ? 1.32 : 1.5;
+      r.hub = Math.random() * TAU; r.spinV = 3; r.bspin = 0; r.bspinV = 0; r.act = ''; r.hitT = 0; r.lean = 0; r.dashX = 0; r.dashZ = 1;
+      r.swishT = 0; r.starT = 0;
+    },
+    onDamage: function (r, dmg) { return r.state === 'recover' && r.act === 'dash' ? dmg * stat(r, 'dizzyMul', 1.35) : dmg; },
+    noStagger: function (r) { return r.state === 'windup' || r.state === 'attack'; },
+    onPlayerKill: function (r) { if (IB.WeaponDrops && IB.WeaponDrops.melee) IB.WeaponDrops.melee(r, r.weaponId); },
+    pose: function (r, P) {
+      var v = VIS.blader, bob = Math.sin(r.idleT * 2.6 + r.slot) * 0.03 - r.crouch * 0.08;
+      P.root().t(0, bob, 0).ry(r.bspin).rx(r.lean).rz(r.wob).emit('Body', 0);
+      P.push().tv(v.light).emit('Light', 0).pop();
+      var wn = r.weaponId === 'eaxe' ? 'Axe' : 'Katana';
+      P.tv(v.hub).ry(r.hub).emit('Hub', 0).tv(v.grip).rx(0.45).emit(wn, 0).hide(wn === 'Axe' ? 'Katana' : 'Axe', 0);
+    },
+    lightColor: function (r) {
+      if (r.state === 'windup' || r.state === 'attack') return (r.st * 16 | 0) % 2 ? PAL.red : PAL.paper;
+      if (r.state === 'recover' && r.act === 'dash') return (r.st * 6 | 0) % 2 ? PAL.amber : 0x7A6A4A;
+      return K.lightDefault(r);
+    },
+    corpse: function (v, add) {
+      var M = new THREE.Matrix4();
+      add('BOT_BLADER_Body', M.identity());
+      add('BOT_BLADER_Hub', M.makeTranslation(v.hub[0], v.hub[1], v.hub[2]));
+    },
+    face: function (r, dt, P, dx, dz, dist, hs, fwd, mode) {
+      var dashing = r.state === 'attack';
+      if (!dashing && r.state !== 'stagger' && r.state !== 'blinded') {
+        if (P.alive && !mode && r.state !== 'idle' && r.seesPlayer) K.turnTo(r, Math.atan2(dx, dz), 5, dt);
+        else if (hs > 0.3) K.turnTo(r, Math.atan2(r.vx, r.vz), 5, dt);
+      }
+      // body spin: whirls during the dash and the spin slash, settles back facing forward after
+      if (dashing) r.bspinV += (26 - r.bspinV) * Math.min(1, dt * 6); else r.bspinV *= Math.max(0, 1 - dt * 3);
+      r.bspin += r.bspinV * dt;
+      if (r.bspinV < 2) r.bspin = K.wrapAngle(r.bspin) * Math.max(0, 1 - dt * 3);
+      r.lean += ((dashing && r.act === 'dash' ? 0.22 : r.state === 'windup' ? -0.12 : 0) - r.lean) * Math.min(1, dt * 6);
+      if (r.state !== 'windup') r.crouch = Math.max(0, r.crouch - dt * 3);
+      if (r.state !== 'recover' && r.state !== 'stagger') r.wob *= Math.max(0, 1 - dt * 6);
+    }
+  };
+
+  function bladeHit(r, ctx, dmg, dirx, dirz) {
+    var p = ctx.player, dx = p.x - r.x, dz = p.z - r.z, d = Math.hypot(dx, dz) || 0.01;
+    if (d > r.reach + 0.35 || Math.abs((p.y + 0.9) - (r.y + 0.84)) > 1.15) return false;
+    ctx.hurt(r, dmg);
+    if (!p.robot) {
+      var kx = dirx !== undefined ? dirx * 0.6 + dx / d * 0.8 : dx / d, kz = dirz !== undefined ? dirz * 0.6 + dz / d * 0.8 : dz / d;
+      p.knockX = (p.knockX || 0) + kx * 6.5; p.knockZ = (p.knockZ || 0) + kz * 6.5;
+      if (r.weaponId === 'eaxe') {   // Voltaxe: shock on the player (damage over time)
+        var S = Tr.shock; S.left = stat(r, 'shockTime', 2); S.dps = stat(r, 'shockDps', 4) * r.dmgMul; S.src.x = r.x; S.src.z = r.z; if (S.tick <= 0) S.tick = 0.4;
+      }
+    }
+    var hx = r.x + dx / d * Math.min(d, r.reach), hz = r.z + dz / d * Math.min(d, r.reach), hy = r.y + 0.9;
+    if (IB.Boom && IB.Boom.ready) {
+      IB.Boom.sparks(hx, hy, hz, -dx / d, 0.3, -dz / d, 10, r.weaponId === 'eaxe' ? 0x8ED2FF : undefined);
+      if (r.weaponId === 'eaxe') IB.Boom.zap(hx, hy, hz, 0.8);
+      IB.Boom.word(r.weaponId === 'eaxe' ? 'ZZAP!' : 'KRAK!', p.x, p.y + 2.0, p.z, 1.1);
+    }
+    sfx('slash', r, 1);
+    return true;
+  }
+
+  function thinkBlader(r, dt, ctx, zone, dx, dz, dist) {
+    var p = ctx.player, def = r.def, T = K.tempo(), lv = K.offLevel(r, p, zone), top = stat(r, 'spinRev', 19) * TAU;
+    var wu = (def.windup || 0.8) * T.tellMul, k;
+    r.hitT -= dt;
+    switch (r.state) {
+      case 'stalk':
+        r.spinV += ((r.seesPlayer ? 9 : 3) - r.spinV) * Math.min(1, dt * 2);
+        if (!p.alive) break;
+        // seen: homes in fast; not seen: closes in on the flow field at patrol pace
+        K.towardPlayer(r, ctx, zone, dx, dz, dist, r.seesPlayer ? stat(r, 'stalkSpeed', 2.6) : (def.speed || 1.6));
+        if (r.seesPlayer && !lv && dist < stat(r, 'spinRange', 2.4) && (K.takeToken(r) || dist < 1.8)) {
+          r.act = 'spin'; K.setState(r, 'windup'); sfx('spinup', r, 0.6, 1.6);
+        } else if (r.seesPlayer && !lv && dist < (def.range || 9) && dist > 3.2 && r.cool <= 0 && K.takeToken(r)) {
+          r.act = 'dash'; K.setState(r, 'windup'); sfx('spinup', r, 0.9, 1);
+        }
+        break;
+      case 'windup': {
+        var w = r.act === 'spin' ? 0.32 * T.tellMul : wu;
+        k = Math.min(1, r.st / w);
+        r.spinV += (top * (0.25 + 0.75 * k * k) - r.spinV) * Math.min(1, dt * 10);
+        r.crouch = k; r.wob = Math.sin(r.st * 60) * 0.05 * k;
+        K.tell(r, k);
+        if (r.act === 'dash') { if (dist < 3) K.move(-dx, -dz, 1.5); }   // backs off a touch while it winds up
+        else K.move(dx, dz, 1.2);
+        if (r.st >= w) {
+          if (r.act === 'dash') {
+            var tx = p.x + (p.vx || 0) * 0.22, tz = p.z + (p.vz || 0) * 0.22, ddx = tx - r.x, ddz = tz - r.z, dl = Math.hypot(ddx, ddz) || 1;
+            r.dashX = ddx / dl; r.dashZ = ddz / dl; r.dashT = Math.min(def.dashTime || 1.1, (dl + 3.2) / (def.chargeSpeed || 12)); r.yaw = Math.atan2(r.dashX, r.dashZ);
+          }
+          K.setState(r, 'attack'); r.hitT = 0; r.bump = 0;
+        }
+        break;
+      }
+      case 'attack':
+        r.spinV += (top - r.spinV) * Math.min(1, dt * 8);
+        r.swishT -= dt; if (r.swishT <= 0) { r.swishT = 0.11; sfx('swish', r, 0.55, 0.9 + Math.random() * 0.3); }
+        if (r.act === 'dash') {
+          K.mv.x = r.dashX; K.mv.z = r.dashZ; K.mv.s = def.chargeSpeed || 12;
+          if (r.hitT <= 0 && bladeHit(r, ctx, (def.damage || 18) * r.dmgMul, r.dashX, r.dashZ)) r.hitT = 0.45;
+          var past = (dx * r.dashX + dz * r.dashZ) < -2.5;
+          if (r.st >= r.dashT || past || (r.st > 0.15 && r.bump > 0.1)) { K.setState(r, 'recover'); if (r.bump > 0.1 && IB.Boom && IB.Boom.ready) IB.Boom.word('CLANG!', r.x, r.y + 1.4, r.z, 1.2); }
+        } else {
+          K.move(dx, dz, 1.4);
+          if (r.hitT <= 0 && bladeHit(r, ctx, (def.spinDamage || 7) * r.dmgMul)) r.hitT = 0.25;
+          if (r.st >= 0.9) K.setState(r, 'recover');
+        }
+        break;
+      case 'recover': {
+        if (r.token) K.releaseToken(r);
+        var dz_ = r.act === 'dash' ? (def.recover || 1.4) : 0.7;
+        r.spinV *= Math.max(0, 1 - dt * 2.2);
+        r.wob = Math.sin(r.st * 9) * 0.2 * Math.max(0, 1 - r.st / dz_);   // dizzy wobble
+        if (r.act === 'dash') {
+          r.starT -= dt;
+          if (r.starT <= 0 && IB.FX) { r.starT = 0.12; var a = r.st * 9; IB.FX.puff(r.x + Math.cos(a) * 0.4, r.y + 1.15, r.z + Math.sin(a) * 0.4, 1, Math.random() < 0.5 ? PAL.amber : PAL.paper, 0.05, 0.1, 0.4); }
+        }
+        if (r.st >= dz_) { K.setState(r, 'stalk'); r.cool = (1.0 + Math.random() * 1.2) * T.coolMul; r.act = ''; r.wob = 0; }
+        break;
+      }
+    }
+  }
+  function tickBlader(r, dt) {
+    if (r.state !== 'windup' && r.state !== 'attack' && r.state !== 'recover' && r.state !== 'stalk') r.spinV += (2 - r.spinV) * Math.min(1, dt * 2);
+    r.hub += r.spinV * dt;
+    if (r.hub > TAU * 64) r.hub -= TAU * 64;
+  }
+  BEH.blader = { think: thinkBlader, tick: tickBlader };
+
+  // ======================================================================= runtime: grenades, smears, shock
+  // smear arc: an annulus sector trailing the blade (local +X = the blade, the trail sweeps toward +Z behind it),
+  // alpha fading along the arc, a thin ink line at the outer edge (comic speed arc)
+  function smearGeometry() {
+    var SEG = 36, ARC = 5.4, rows = [[0.34, 0], [0.46, 0.5], [0.72, 0.62], [0.9, 0.9], [0.955, 0.95], [0.975, 1], [1.035, 1]], ink = [0, 0, 0, 0, 0, 1, 1];
+    var pos = [], al = [], ik = [], idx = [], i, j;
+    for (i = 0; i <= SEG; i++) {
+      var th = i / SEG * ARC, f = 0.18 + 0.82 * Math.pow(1 - i / SEG, 1.3);
+      for (j = 0; j < rows.length; j++) { pos.push(Math.cos(th) * rows[j][0], 0, Math.sin(th) * rows[j][0]); al.push(rows[j][1] * f); ik.push(ink[j]); }
+    }
+    var W = rows.length;
+    for (i = 0; i < SEG; i++) for (j = 0; j < W - 1; j++) { var a = i * W + j, b = a + W; idx.push(a, b, a + 1, a + 1, b, b + 1); }
+    var g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('aA', new THREE.Float32BufferAttribute(al, 1));
+    g.setAttribute('aInk', new THREE.Float32BufferAttribute(ik, 1));
+    g.setIndex(idx);
+    return g;
+  }
+  var SMEAR_CAP = 40, smear = null, nadeMesh = null, ringMesh = null, _m4 = null, _q4 = null, _v4 = null, _s4 = null, _up = null;
+  function initRuntime(scene) {
+    _m4 = new THREE.Matrix4(); _q4 = new THREE.Quaternion(); _v4 = new THREE.Vector3(); _s4 = new THREE.Vector3(); _up = new THREE.Vector3(0, 1, 0); _c = new THREE.Color();
+    var g = smearGeometry(), ic = new THREE.InstancedBufferAttribute(new Float32Array(SMEAR_CAP * 4), 4);
+    ic.setUsage(THREE.DynamicDrawUsage); g.setAttribute('iCol', ic);
+    var mat = new THREE.ShaderMaterial({
+      uniforms: { uInk: { value: new THREE.Color(PAL.ink) } }, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+      vertexShader: 'attribute float aA; attribute float aInk; attribute vec4 iCol; varying float vA; varying float vInk; varying vec4 vCol;\n' +
+        'void main() { vA = aA; vInk = aInk; vCol = iCol; gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0); }',
+      fragmentShader: 'uniform vec3 uInk; varying float vA; varying float vInk; varying vec4 vCol;\n' +
+        'void main() { gl_FragColor = vec4(mix(vCol.rgb, uInk, vInk), vA * vCol.a * mix(0.85, 1.0, vInk)); }'
+    });
+    smear = new THREE.InstancedMesh(g, mat, SMEAR_CAP);
+    smear.instanceMatrix.setUsage(THREE.DynamicDrawUsage); smear.frustumCulled = false; smear.renderOrder = 3; smear.count = 0; smear.visible = false; smear.name = 'bladeSmear';
+    scene.add(smear);
+    // grenades: the Soldier's grenade model in the robot material (aFx.x blinks the fuse), red reach rings
+    var ng = IB.Assets.get('BOT_SOLDIER_Nade').clone(), n = Tr.nadeCap;
+    var fx = new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4); fx.setUsage(THREE.DynamicDrawUsage); ng.setAttribute('aFx', fx);
+    nadeMesh = new THREE.InstancedMesh(ng, AI.mat, n);
+    nadeMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); nadeMesh.frustumCulled = false; nadeMesh.count = 0; nadeMesh.visible = false; nadeMesh.name = 'enemyNades';
+    scene.add(nadeMesh);
+    var rg = new THREE.RingGeometry(0.92, 1, 40); rg.rotateX(-Math.PI / 2);
+    ringMesh = new THREE.InstancedMesh(rg, new THREE.MeshBasicMaterial({ color: PAL.red, transparent: true, opacity: 0.6, depthWrite: false }), n);
+    ringMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); ringMesh.frustumCulled = false; ringMesh.renderOrder = 2; ringMesh.count = 0; ringMesh.visible = false;
+    scene.add(ringMesh);
+    for (var i = 0; i < n; i++) Tr.grenades.push({ on: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, t: 0, fuse: 2, rest: false, spin: 0, rx: 0, rz: 0, R: 3.4, dmg: 0, rdmg: 0, src: { x: 0, z: 0, type: 'soldier', proj: true } });
+  }
+  var SMEAR_COL = { katana: new THREE.Color(0xDCEBFF), eaxe: new THREE.Color(0x6FEFFF) };
+  var _t = 0;
+  function syncRuntime() {
+    if (!smear) return;
+    _t += 1 / 60;
+    var n = 0, ic = smear.geometry.attributes.iCol, T = AI.types.blader, i;
+    if (T) for (i = 0; i <= T.hi; i++) {
+      var r = T.slots[i]; if (!r.on || n >= SMEAR_CAP) continue;
+      var k = K.clamp((r.spinV - 30) / 70, 0, 1); if (k <= 0.02) continue;
+      var v = VIS.blader, bob = Math.sin(r.idleT * 2.6 + r.slot) * 0.03 - r.crouch * 0.08, yaw = r.yaw + r.bspin, sy = Math.sin(yaw), cy = Math.cos(yaw);
+      _v4.set(r.x + v.hub[0] * cy + v.hub[2] * sy, r.y + bob + v.hub[1] + 0.02, r.z - v.hub[0] * sy + v.hub[2] * cy);
+      _q4.setFromAxisAngle(_up, yaw + r.hub); _s4.set(r.reach + 0.04, 1, r.reach + 0.04);
+      _m4.compose(_v4, _q4, _s4); smear.setMatrixAt(n, _m4);
+      var c = SMEAR_COL[r.weaponId] || SMEAR_COL.katana; ic.setXYZW(n, c.r, c.g, c.b, 0.92 * k);
+      n++;
+    }
+    smear.count = n; smear.visible = n > 0;
+    if (n) { smear.instanceMatrix.needsUpdate = true; ic.needsUpdate = true; }
+    // grenades + rings (the ring shows the blast reach in the last 1.2 s, blinking faster near the end)
+    var m = 0, rn = 0, fxa = nadeMesh.geometry.attributes.aFx;
+    for (i = 0; i < Tr.grenades.length; i++) {
+      var g = Tr.grenades[i]; if (!g.on) continue;
+      var left = g.fuse - g.t, blink = Math.sin(_t * (left < 0.6 ? 40 : left < 1.2 ? 22 : 9)) > 0.3 ? 1 : 0;
+      _v4.set(g.x, g.y, g.z);
+      if (g.rest) _q4.setFromEuler(_e.set(Math.PI / 2, g.rx, 0)); else _q4.setFromEuler(_e.set(g.rx, 0, g.rz));
+      _s4.set(1.15, 1.15, 1.15); _m4.compose(_v4, _q4, _s4); nadeMesh.setMatrixAt(m, _m4); fxa.setXYZW(m, blink, 0, 0, 0); m++;
+      if (left < 1.2 && Math.sin(_t * (left < 0.5 ? 40 : 22)) > -0.2) {
+        _v4.set(g.x, Math.max(0.02, g.y - NR + 0.02), g.z); _q4.identity(); _s4.set(g.R, 1, g.R); _m4.compose(_v4, _q4, _s4); ringMesh.setMatrixAt(rn++, _m4);
+      }
+      if (IB.FX && Math.random() < 0.2) IB.FX.puff(g.x, g.y + 0.08, g.z, 1, PAL.paper, 0.04, 0.12, 0.4);
+    }
+    nadeMesh.count = m; nadeMesh.visible = m > 0; ringMesh.count = rn; ringMesh.visible = rn > 0;
+    if (m) { nadeMesh.instanceMatrix.needsUpdate = true; fxa.needsUpdate = true; }
+    if (rn) ringMesh.instanceMatrix.needsUpdate = true;
+  }
+  var _e = null;
+  // the Voltaxe's shock on the player: a hit every 0.4 s while it lasts
+  function updateShock(dt, ctx) {
+    var S = Tr.shock; if (S.left <= 0) return;
+    var p = ctx.player; if (!p || !p.alive || p.robot) { S.left = 0; return; }
+    S.left -= dt; S.tick -= dt;
+    if (S.tick <= 0) {
+      S.tick = 0.4; ctx.hurt(S.src, S.dps * 0.4);
+      if (IB.Boom && IB.Boom.ready) IB.Boom.zap(p.x + rnd(-0.3, 0.3), p.y + 0.7, p.z + rnd(-0.3, 0.3), 0.5);
+      sfx('boltHit', p, 0.4, 1.6);
+    }
+  }
+  function clearRuntime() { Tr.grenades.forEach(function (g) { g.on = false; }); Tr.shock.left = 0; Tr.shock.tick = 0; }
+
+  // ---- hook into the robot runtime (init / update / sync / clear)
+  var baseInit = AI.init, baseUpdate = AI.update, baseSync = AI.sync, baseClear = AI.clear, baseDespawn = AI.despawn;
+  AI.init = function (scene) { baseInit.apply(AI, arguments); _e = new THREE.Euler(); initRuntime(scene); };
+  AI.update = function (dt, ctx) { baseUpdate.apply(AI, arguments); updateNades(dt, ctx.world); updateShock(dt, ctx); };
+  AI.sync = function () { baseSync.apply(AI, arguments); syncRuntime(); };
+  AI.clear = function () { baseClear.apply(AI, arguments); clearRuntime(); };
+  AI.despawn = function () { baseDespawn.apply(AI, arguments); clearRuntime(); };
+
+  Tr.stats = function () {
+    var out = { nades: liveNades(), shock: +Tr.shock.left.toFixed(2), smears: smear ? smear.count : 0, soldiers: [], bladers: [] };
+    AI.robots.forEach(function (r) {
+      if (!r.on) return;
+      if (r.type === 'soldier') out.soldiers.push({ slot: r.slot, state: r.state, act: r.act, hp: +r.hp.toFixed(1), shield: +r.shield.toFixed(1), nades: r.nades, armour: r.armour, torso: r.torso, helm: r.helm });
+      if (r.type === 'blader') out.bladers.push({ slot: r.slot, state: r.state, act: r.act, weapon: r.weaponId, spinRev: +(r.spinV / TAU).toFixed(1) });
+    });
+    return out;
+  };
+})(window.IB = window.IB || {});

@@ -188,13 +188,13 @@
           { map: 'classroom_reading', waves: [
             [['crawler', 8], ['drone', 2]],
             [['bomber', 3], ['crawler', 6]],
-            [['gunner', 3], ['crawler', 5]],
+            [['gunner', 3], ['crawler', 4], ['blader', 1]],
             [['drone', 2], ['crawler', 4]]] },
           { map: 'classroom_front', waves: [
             [['crawler', 8], ['gunner', 3]],
             [['drone', 3], ['bomber', 3], ['crawler', 4]],
             [['gunner', 4], ['crawler', 5]],
-            [['crawler', 3], ['bomber', 2], ['drone', 2]]] }
+            [['crawler', 2], ['bomber', 2], ['drone', 2], ['blader', 1]]] }
         ]
       }
     }

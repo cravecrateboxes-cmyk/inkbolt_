@@ -141,21 +141,21 @@
           // Assembly Hall: 36 robots between the lines
           { map: 'factory_lines', waves: [
             [['crawler', 7], ['gunner', 2]],
-            [['crawler', 6], ['bomber', 2], ['gunner', 1]],
-            [['crawler', 5], ['gunner', 2], ['drone', 2]],
-            [['crawler', 6], ['bomber', 3]]] },
+            [['crawler', 5], ['bomber', 2], ['gunner', 1], ['soldier', 1]],
+            [['crawler', 4], ['gunner', 2], ['drone', 2], ['blader', 1]],
+            [['crawler', 5], ['bomber', 3], ['soldier', 1]]] },
           // Press Shop: 37 robots, drones over the press
           { map: 'factory_press', waves: [
             [['crawler', 6], ['gunner', 3]],
-            [['drone', 3], ['crawler', 5], ['bomber', 2]],
-            [['gunner', 3], ['crawler', 6]],
-            [['crawler', 5], ['bomber', 2], ['drone', 2]]] },
+            [['drone', 3], ['crawler', 3], ['bomber', 2], ['blader', 2]],
+            [['gunner', 3], ['crawler', 4], ['soldier', 2]],
+            [['crawler', 4], ['bomber', 2], ['drone', 2], ['blader', 1]]] },
           // Control & Dispatch: 42 robots, the dense finale under the booth
           { map: 'factory_dispatch', waves: [
             [['crawler', 7], ['gunner', 2]],
-            [['drone', 2], ['bomber', 2], ['crawler', 6]],
-            [['gunner', 3], ['crawler', 6], ['drone', 1]],
-            [['crawler', 5], ['bomber', 2], ['gunner', 3], ['drone', 3]]] }
+            [['drone', 2], ['bomber', 2], ['crawler', 4], ['soldier', 2]],
+            [['gunner', 3], ['crawler', 4], ['drone', 1], ['soldier', 2]],
+            [['crawler', 3], ['bomber', 2], ['gunner', 3], ['drone', 3], ['blader', 2]]] }
         ]
       }
     }

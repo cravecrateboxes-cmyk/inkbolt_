@@ -148,18 +148,18 @@
           { map: 'office_cubicles', waves: [
             [['crawler', 7], ['gunner', 2]],
             [['crawler', 6], ['bomber', 2], ['gunner', 1]],
-            [['crawler', 5], ['gunner', 2], ['drone', 2]],
+            [['crawler', 4], ['gunner', 2], ['drone', 2], ['blader', 1]],
             [['crawler', 5], ['bomber', 3]]] },
           { map: 'office_wing', waves: [
             [['crawler', 6], ['gunner', 3]],
             [['drone', 3], ['crawler', 5], ['bomber', 1]],
-            [['gunner', 3], ['crawler', 6]],
-            [['crawler', 4], ['bomber', 2], ['drone', 2]]] },
+            [['gunner', 3], ['crawler', 5], ['blader', 1]],
+            [['crawler', 3], ['bomber', 2], ['drone', 2], ['soldier', 1]]] },
           { map: 'office_lobby', waves: [
             [['crawler', 7], ['gunner', 2]],
-            [['drone', 2], ['bomber', 2], ['crawler', 6]],
+            [['drone', 2], ['bomber', 2], ['crawler', 5], ['blader', 1]],
             [['gunner', 3], ['crawler', 6], ['drone', 1]],
-            [['crawler', 5], ['bomber', 3], ['gunner', 2], ['drone', 2]]] }
+            [['crawler', 4], ['bomber', 3], ['gunner', 2], ['drone', 2], ['soldier', 1]]] }
         ]
       }
     }
