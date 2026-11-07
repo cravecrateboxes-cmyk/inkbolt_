@@ -41,7 +41,15 @@
    a ammo, h health, . floor.
    Collision: a piece node may carry empty children named <Piece>_COL<n> (Blender cube empties; position = box centre,
    scale = half extents); otherwise the cell (or prefab footprint) up to `h` is solid. Boxes may float (e.g. a bed
-   frame): robots and the player walk under boxes whose bottom is above 1.2 m. */
+   frame): robots and the player walk under boxes whose bottom is above 1.2 m.
+   Walkable surfaces: name an empty <Piece>_WCOL<n> instead and its box is one robots may walk ON (a deck, a stair
+   step, a ramp as stepped boxes, a bridge plank). The player stands on any box top anyway; ground robots climb
+   walkable boxes up to 0.4 m higher than the floor they stand on, and a zone holding walkable boxes gets a two-layer
+   nav grid whose flow field leads up stairs and across bridges (src/game/zones.js, src/game/ai.js). Keep each rise
+   <= 0.35 m (the player's step-up), steps >= 0.5 m deep (the nav cell) and deck undersides >= 1.9 m if people
+   should walk under them. Example: themes/garden.js (blender/fam_kit_garden.py).
+   Big landmarks: a prefab symbol may add `with: { Piece: ['PieceB', ...] }`: extra pieces placed with the same
+   transform (their collision too), so one structure can be split into parts that each keep to the piece budget. */
 (function (IB) {
   'use strict';
   IB.THEME_DEFS = IB.THEME_DEFS || {};

@@ -1,5 +1,14 @@
 /* INKBOLT zones: ASCII zone layouts -> merged toon geometry, AABB collision (2 m grid),
-   gates, trail arrows, exit hatch, nav grid + BFS flow fields. */
+   gates, trail arrows, exit hatch, nav grid + BFS flow fields.
+
+   Walkable surfaces (generic, data-driven): a kit piece marks a collision box as something ground robots may walk ON
+   by naming its Blender empty <Piece>_WCOL<n> instead of <Piece>_COL<n> (decks, stair steps, ramps as stepped boxes,
+   bridge planks, a raised gazebo floor). Such boxes get box.walk = true. The world answers floorAt(x, z, y): the top
+   of the highest walkable box under a point, at or below y (0 = the ground plane). A zone that holds walkable boxes
+   gets a two-layer nav grid (layer 0: the lowest standable surface of each cell, layer 1: a deck above it with
+   headroom underneath); neighbouring cells connect only when their surfaces differ by at most NAV_STEP, so the BFS
+   flow field climbs stairs and ramps and never "teleports" up a deck edge. Zones without walkable boxes keep the
+   original single-layer grid and code path unchanged. */
 (function (IB) {
   'use strict';
   var PAL = IB.PAL;
@@ -7,6 +16,7 @@
   var CELL = 2;          // collision grid cell (m)
   var NAV = 0.5;         // nav cell (m)
   var TRAIL_LEN = 12;
+  var NAV_STEP = 0.4;    // largest rise between neighbouring walkable nav cells (robots' step-up, ai.js STEP_UP)
 
   // ---------------- parsing ----------------
   Z.parse = function (text) {
@@ -50,7 +60,7 @@
   function hash(a, b) { var h = (a * 374761393 + b * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
 
   // ---------------- collision world ----------------
-  function World() { this.boxes = []; this.grid = new Map(); }
+  function World() { this.boxes = []; this.grid = new Map(); this.walkN = 0; }
   World.prototype.add = function (x0, y0, z0, x1, y1, z1, kind, zone) {
     var b = { id: this.boxes.length, x0: Math.min(x0, x1), y0: y0, z0: Math.min(z0, z1), x1: Math.max(x0, x1), y1: y1, z1: Math.max(z0, z1), on: true, kind: kind || 'wall', zone: zone === undefined ? -1 : zone };
     this.boxes.push(b);
@@ -103,6 +113,19 @@
     if (best >= maxT) return null;
     _hit.t = best; _hit.box = bb; _hit.nx = bnx; _hit.ny = bny; _hit.nz = bnz;
     return _hit;
+  };
+  // top of the highest walkable box (box.walk) whose footprint holds (x, z) and whose top is at or below y; 0 (the
+  // ground plane) when there is none. Worlds without walkable boxes answer 0 straight away.
+  World.prototype.floorAt = function (x, z, y) {
+    if (!this.walkN) return 0;
+    var a = this.grid.get(Math.floor(x / CELL) * 73856 + Math.floor(z / CELL)), best = 0;
+    if (!a) return 0;
+    for (var j = 0; j < a.length; j++) {
+      var b = this.boxes[a[j]];
+      if (!b.walk || !b.on || b.y1 > y || b.y1 <= best || x < b.x0 || x > b.x1 || z < b.z0 || z > b.z1) continue;
+      best = b.y1;
+    }
+    return best;
   };
   World.prototype.los = function (ax, ay, az, bx, by, bz) {
     var dx = bx - ax, dy = by - ay, dz = bz - az, d = Math.sqrt(dx * dx + dy * dy + dz * dz);
@@ -193,7 +216,8 @@
     if (colCache[name] !== undefined) return colCache[name];
     var node = IB.Assets.node[name], out = [];
     if (node) node.children.forEach(function (c) {
-      if (/_COL\d*$/.test(c.name)) out.push({ x: c.position.x, y: c.position.y, z: c.position.z, hx: Math.abs(c.scale.x), hy: Math.abs(c.scale.y), hz: Math.abs(c.scale.z) });
+      // <Piece>_COL<n>: solid box; <Piece>_WCOL<n>: a box robots may also walk on (deck, step, plank)
+      if (/_W?COL\d*$/.test(c.name)) out.push({ x: c.position.x, y: c.position.y, z: c.position.z, hx: Math.abs(c.scale.x), hy: Math.abs(c.scale.y), hz: Math.abs(c.scale.z), walk: /_WCOL\d*$/.test(c.name) });
     });
     colCache[name] = out.length ? out : null;
     return colCache[name];
@@ -204,7 +228,19 @@
     var c = Math.round(Math.cos(yaw)), s = Math.round(Math.sin(yaw));
     cols.forEach(function (b) {
       var cx = b.x * c + b.z * s, cz = -b.x * s + b.z * c, hx = c !== 0 ? b.hx : b.hz, hz = c !== 0 ? b.hz : b.hx;
-      world.add(x + cx - hx, b.y - b.hy, z + cz - hz, x + cx + hx, b.y + b.hy, z + cz + hz, kind, zi);
+      var nb = world.add(x + cx - hx, b.y - b.hy, z + cz - hz, x + cx + hx, b.y + b.hy, z + cz + hz, kind, zi);
+      if (b.walk) { nb.walk = true; world.walkN++; }
+    });
+  }
+  // d.with: { piece: [extra pieces] } placed with the same transform (a big landmark split into parts that each
+  // keep to the theme's per-piece triangle budget); their collision boxes are added too
+  function addWith(P, world, theme, d, name, x, y, zz, yaw, zi) {
+    var extra = d.with && d.with[name];
+    if (!extra) return;
+    extra.forEach(function (n2) {
+      P.add(n2, x, y, zz, yaw);
+      var c2 = d.collide !== false && colsOf(IB.themePiece(theme, n2));
+      if (c2) addCols(world, c2, x, zz, yaw, d.kind || 'cover', zi);
     });
   }
   function boxCols(w, d, h) { return [{ x: 0, y: h / 2, z: 0, hx: w / 2, hy: h / 2, hz: d / 2 }]; }
@@ -251,6 +287,7 @@
       var name = d.sequence ? d.pieces[i % d.pieces.length] : d.alternate ? d.pieces[(p.c + p.r) % d.pieces.length] : pick(d.pieces, hash(p.c * 3 + 1, p.r * 5 + 2));
       P.add(name, x, d.y || 0, zz, yaw);
       if (d.collide !== false) addCols(world, d.cols || colsOf(IB.themePiece(theme, name)) || boxCols(1, 1, d.h || 1), x, zz, yaw, d.kind || 'cover', z.idx);
+      addWith(P, world, theme, d, name, x, d.y || 0, zz, yaw, z.idx);
       if (d.stack && hash(p.c * 5, p.r * 3) < d.stack.chance) {
         P.add(d.stack.piece, x, d.h || 1, zz, Math.floor(hash(p.c * 7, p.r) * 4) * Math.PI / 2);
         if (d.collide !== false) world.add(x - 0.5, d.h || 1, zz - 0.5, x + 0.5, (d.h || 1) + (d.stack.h || 1), zz + 0.5, d.kind || 'cover', z.idx);
@@ -271,6 +308,7 @@
         var name = d.sequence ? d.pieces[(ri + i + k) % d.pieces.length] : pick(d.pieces, h);
         P.add(name, x, d.y || 0, zz, y);
         if (d.collide !== false) addCols(world, d.cols || colsOf(IB.themePiece(theme, name)) || boxCols(sw, sd, d.h || 1), x, zz, y, d.kind || 'cover', z.idx);
+        addWith(P, world, theme, d, name, x, d.y || 0, zz, y, z.idx);
       }
     });
   }
@@ -397,6 +435,7 @@
   // ---------------- nav grid / flow field ----------------
   function buildNav(zone, world) {
     var nx = Math.ceil(zone.w / NAV), nz = Math.ceil(zone.h / NAV);
+    for (var w = 0; w < world.boxes.length; w++) if (world.boxes[w].walk && world.boxes[w].zone === zone.idx) return buildNavLayered(zone, world, nx, nz);
     var blocked = new Uint8Array(nx * nz), tmp = [];
     for (var j = 0; j < nz; j++) for (var i = 0; i < nx; i++) {
       var x = zone.ox + (i + 0.5) * NAV, z = zone.oz + (j + 0.5) * NAV, inf = 0.3;
@@ -409,12 +448,89 @@
     }
     zone.nav = { nx: nx, nz: nz, blocked: blocked, dist: new Int16Array(nx * nz), queue: new Int32Array(nx * nz), t: 0 };
   }
+  /* Zones with walkable boxes: two nav layers. Node n = layer * nx * nz + cell; nav.h[n] = surface height.
+     Per cell the walkable boxes holding the cell centre are stacked bottom-up: a box that starts on (or within 0.35 m
+     of) a surface raises it (stair steps, a solid platform), a box floating higher starts a new surface (a deck with
+     open ground under it). A surface is open when nothing but the gate blocks the robot's body there (0.3 m around
+     the centre, from step height to 1.2 m above it; walkable boxes a step up or less never block). Layer 0 = the
+     lowest open surface, layer 1 = the next one at least 1.2 m higher. Layer 0 matches the single-layer grid wherever
+     no walkable box is near, so canister / pickup placement (ground cells, nav.h = 0) works as before. */
+  function buildNavLayered(zone, world, nx, nz) {
+    var NC = nx * nz, blocked = new Uint8Array(NC * 2), hgt = new Float32Array(NC * 2), tmp = [], surf = [], wb = [];
+    blocked.fill(1);
+    for (var j = 1; j < nz - 1; j++) for (var i = 1; i < nx - 1; i++) {
+      var c = j * nx + i, x = zone.ox + (i + 0.5) * NAV, z = zone.oz + (j + 0.5) * NAV, inf = 0.3, k, b, s;
+      world.query(x - inf, z - inf, x + inf, z + inf, tmp);
+      wb.length = 0;
+      for (k = 0; k < tmp.length; k++) { b = tmp[k]; if (b.walk && x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1) wb.push(b); }
+      wb.sort(function (p, q) { return p.y0 - q.y0; });
+      surf.length = 0; surf.push(0);
+      for (k = 0; k < wb.length; k++) {
+        b = wb[k];
+        var on = -1;
+        for (s = 0; s < surf.length; s++) if (b.y0 <= surf[s] + 0.35 && b.y1 > surf[s]) on = s;
+        if (on >= 0) surf[on] = Math.max(surf[on], b.y1); else if (b.y1 > surf[surf.length - 1]) surf.push(b.y1);
+      }
+      var L = 0, last = -9;
+      for (s = 0; s < surf.length && L < 2; s++) {
+        var h = surf[s], open = h - last >= 1.2;
+        for (k = 0; k < tmp.length && open; k++) {
+          b = tmp[k];
+          if (b.kind === 'gate' || b.y1 < h + 0.35 || b.y0 > h + 1.2 || (b.walk && b.y1 <= h + NAV_STEP)) continue;
+          if (x + inf > b.x0 && x - inf < b.x1 && z + inf > b.z0 && z - inf < b.z1) open = false;
+        }
+        if (!open) continue;
+        blocked[L * NC + c] = 0; hgt[L * NC + c] = h; last = h; L++;
+      }
+    }
+    zone.nav = { nx: nx, nz: nz, layers: 2, blocked: blocked, h: hgt, dist: new Int16Array(NC * 2), queue: new Int32Array(NC * 2), t: 0 };
+  }
   Z.navCell = function (zone, x, z) {
     var i = Math.floor((x - zone.ox) / NAV), j = Math.floor((z - zone.oz) / NAV);
     if (i < 0 || j < 0 || i >= zone.nav.nx || j >= zone.nav.nz) return -1;
     return j * zone.nav.nx + i;
   };
-  Z.flowField = function (zone, tx, tz) {
+  // layered nav: the open node of cell c whose surface is nearest to height y (within maxDy), or -1
+  function nodeAt(N, c, y, maxDy) {
+    var NC = N.nx * N.nz, best = -1, bd = maxDy;
+    for (var L = 0; L < 2; L++) { var n = L * NC + c; if (N.blocked[n]) continue; var d = Math.abs(N.h[n] - y); if (d < bd) { bd = d; best = n; } }
+    return best;
+  }
+  // the open node of cell c that a robot standing at height y can step to (|dh| <= NAV_STEP), or -1
+  function stepNode(N, c, y) {
+    var NC = N.nx * N.nz;
+    for (var L = 0; L < 2; L++) { var n = L * NC + c; if (!N.blocked[n] && Math.abs(N.h[n] - y) <= NAV_STEP) return n; }
+    return -1;
+  }
+  Z.navNode = function (zone, x, z, y) { var c = Z.navCell(zone, x, z); return c < 0 ? -1 : zone.nav.layers ? nodeAt(zone.nav, c, y || 0, 1.0) : (zone.nav.blocked[c] ? -1 : c); };
+  function flowFieldLayered(zone, tx, tz, ty) {
+    var N = zone.nav, d = N.dist, q = N.queue, nx = N.nx, nz = N.nz, NC = nx * nz;
+    d.fill(32767);
+    var c0 = Z.navCell(zone, tx, tz);
+    if (c0 < 0) return;
+    var s = nodeAt(N, c0, ty, 1.0);
+    if (s < 0) {   // nearest open node on the target's level
+      var bd = 1e9, si = c0 % nx, sj = (c0 / nx) | 0;
+      for (var r = 1; r < 6 && s < 0; r++) for (var dj = -r; dj <= r; dj++) for (var di = -r; di <= r; di++) {
+        var ii = si + di, jj = sj + dj; if (ii < 0 || jj < 0 || ii >= nx || jj >= nz) continue;
+        var n = nodeAt(N, jj * nx + ii, ty, 1.0); if (n >= 0 && di * di + dj * dj < bd) { bd = di * di + dj * dj; s = n; }
+      }
+      if (s < 0) return;
+    }
+    var h = 0, t = 0; q[t++] = s; d[s] = 0;
+    while (h < t) {
+      var cur = q[h++], cc = cur % NC, ci = cc % nx, cj = (cc / nx) | 0, cd = d[cur] + 1, ch = N.h[cur];
+      for (var e = 0; e < 4; e++) {
+        var ni = ci + (e === 0 ? -1 : e === 1 ? 1 : 0), nj = cj + (e === 2 ? -1 : e === 3 ? 1 : 0);
+        if (ni < 0 || nj < 0 || ni >= nx || nj >= nz) continue;
+        var m = stepNode(N, nj * nx + ni, ch);
+        if (m >= 0 && d[m] > cd) { d[m] = cd; q[t++] = m; }
+      }
+    }
+  }
+  // ty: the target's height (layered zones only; single-layer grids ignore it)
+  Z.flowField = function (zone, tx, tz, ty) {
+    if (zone.nav.layers) return flowFieldLayered(zone, tx, tz, ty || 0);
     var N = zone.nav, d = N.dist, q = N.queue, nx = N.nx, nz = N.nz;
     d.fill(32767);
     var s = Z.navCell(zone, tx, tz);
@@ -436,9 +552,32 @@
       if (cj < nz - 1 && !N.blocked[cur + nx] && d[cur + nx] > cd) { d[cur + nx] = cd; q[t++] = cur + nx; }
     }
   };
-  // direction toward target along the flow field (writes into out {x,z}); returns false if none
-  Z.flowDir = function (zone, x, z, out) {
+  // layered flow direction for a robot standing at height y: the step-reachable neighbour node with the least
+  // distance (a robot on a blocked node, e.g. brushing a rail, still finds its way out)
+  function flowDirLayered(zone, x, z, y, out) {
     var N = zone.nav, c = Z.navCell(zone, x, z);
+    if (c < 0) return false;
+    var nx = N.nx, ci = c % nx, cj = (c / nx) | 0, me = stepNode(N, c, y), hy = me >= 0 ? N.h[me] : y;
+    var best = me >= 0 ? N.dist[me] : 32767, bi = -1, bj = -1;
+    for (var dj = -1; dj <= 1; dj++) for (var di = -1; di <= 1; di++) {
+      if (!di && !dj) continue;
+      var ii = ci + di, jj = cj + dj; if (ii < 0 || jj < 0 || ii >= nx || jj >= N.nz) continue;
+      var k = stepNode(N, jj * nx + ii, hy); if (k < 0) continue;
+      if (di && dj && (stepNode(N, cj * nx + ii, hy) < 0 || stepNode(N, jj * nx + ci, hy) < 0)) continue; // no corner cutting
+      var v = N.dist[k] + ((di && dj) ? 0.4 : 0);
+      if (v < best) { best = v; bi = ii; bj = jj; }
+    }
+    if (bi < 0) return false;
+    out.x = zone.ox + (bi + 0.5) * NAV - x; out.z = zone.oz + (bj + 0.5) * NAV - z;
+    var L = Math.hypot(out.x, out.z) || 1; out.x /= L; out.z /= L;
+    return true;
+  }
+  // direction toward target along the flow field (writes into out {x,z}); returns false if none.
+  // y: the robot's floor height (layered zones only; single-layer grids ignore it)
+  Z.flowDir = function (zone, x, z, out, y) {
+    var N = zone.nav;
+    if (N.layers) return flowDirLayered(zone, x, z, y || 0, out);
+    var c = Z.navCell(zone, x, z);
     if (c < 0) return false;
     var nx = N.nx, ci = c % nx, cj = (c / nx) | 0, best = N.dist[c], bi = -1, bj = -1;
     for (var dj = -1; dj <= 1; dj++) for (var di = -1; di <= 1; di++) {
@@ -454,7 +593,11 @@
     var L = Math.hypot(out.x, out.z) || 1; out.x /= L; out.z /= L;
     return true;
   };
-  Z.isOpen = function (zone, x, z) { var c = Z.navCell(zone, x, z); return c >= 0 && !zone.nav.blocked[c]; };
+  // open ground (in layered zones: layer 0 at ground level, not a stair step or a platform top)
+  Z.isOpen = function (zone, x, z) { var c = Z.navCell(zone, x, z); return c >= 0 && !zone.nav.blocked[c] && (!zone.nav.h || zone.nav.h[c] < 0.05); };
+  // floor height under (x, z) at or below y in the current level (0 without walkable surfaces); used by effects
+  Z.floorY = function (x, z, y) { return Z.world ? Z.world.floorAt(x, z, y === undefined ? 1e9 : y) : 0; };
+  Z.NAV_STEP = NAV_STEP;
 
   // ---------------- level assembly ----------------
   /* plan: {themeId, zones:[{map:'name', waves:[[['crawler',4]], ...]}]} */
@@ -462,6 +605,7 @@
   Z.buildLevel = function (plan, scene) {
     if (!Z.mat) Z.mat = IB.Render.toonMaterial({});
     var world = new World(), theme = themeOf(plan);
+    Z.world = world;   // floor queries for effects (Z.floorY)
     var level = { world: world, zones: [], trails: [], plan: plan, root: new THREE.Group(), theme: theme, tris: 0 };
     scene.add(level.root);
     var prevExit = null;
