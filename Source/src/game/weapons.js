@@ -406,12 +406,14 @@
   //              footfall bob near the face, so it takes less on top
   //   sprintRoll share of the bob's roll kept while sprinting (a raised pistol rolling about the hip pivot swings wide)
   //   fade       crossfade (s) into and out of the sprint loop (weight: heavier guns take longer to come up)
+  //   hipX/Y/Z   extra hip-fire offset (m): the bulky launchers sit lower, further right and further out so they
+  //              don't fill the screen or cover the HUD (aiming still lines up the sight)
   var VM_CLASS = {
     pistol: { ads: 0.34, sprintBob: 1.15, sprintRoll: 0.45, fade: 0.18 },
     smg: { ads: 0.27, sprintBob: 1.6, sprintRoll: 1, fade: 0.16 },
-    rifle: { ads: 0.29, sprintBob: 1.7, sprintRoll: 1, fade: 0.2 },
+    rifle: { ads: 0.29, sprintBob: 1.7, sprintRoll: 1, fade: 0.2, hipX: 0, hipY: 0, hipZ: 0 },
     sniper: { ads: 0.13, fade: 0.22 },
-    shotgun: { ads: 0.2 }, rocket: { ads: 0.34 }
+    shotgun: { ads: 0.2 }, rocket: { ads: 0.34, hipX: 0.035, hipY: -0.03, hipZ: -0.16 }
   };
   W.vmClass = function (cls) {
     var c = VM_CLASS[cls] || {}, r = VM_CLASS.rifle, out = {};
@@ -433,7 +435,7 @@
     s.vert = Math.max(-0.035, Math.min(0.035, s.vert));
     var a = s.aim, hip = 1 - a;
     var portrait = IB.Render.vmCam.aspect < 1;
-    var x = (portrait ? 0.13 : 0.19), y = -0.13, z = -0.5, rx = 0, ry = 0.06, rz = 0;
+    var x = (portrait ? 0.13 : 0.19) + vc.hipX * hip, y = -0.13 + vc.hipY * hip, z = -0.5 + vc.hipZ * hip, rx = 0, ry = 0.06, rz = 0;
     // walk cycle: figure-8 with roll; bigger and faster at sprint
     var hs = Math.hypot(player.vx, player.vz), moving = player.onGround && !player.sliding ? Math.min(1, hs / 6) : 0;
     var amt = (headBob ? 1 : 0.6) * moving * (1 + (vc.sprintBob - 1) * s.sprintK) * (1 - a * 0.85), ph = player.bobT;
