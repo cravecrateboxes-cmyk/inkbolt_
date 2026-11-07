@@ -571,8 +571,9 @@
   function initPickups() {
     G.pickups = [];
     var geo = { ammo: IB.Assets.get('PICKUP_Ammo'), health: IB.Assets.get('PICKUP_Health') };
-    for (var i = 0; i < 28; i++) {
-      var kind = i < 10 ? 'ammo' : 'health';
+    // big levels place up to ~10 of each on the map; robots drop more (ammo) and the health director adds cans
+    for (var i = 0; i < 44; i++) {
+      var kind = i < 22 ? 'ammo' : 'health';
       var m = new THREE.Mesh(geo[kind], IB.Assets.mat.weapons); m.visible = false; R.scene.add(m);
       G.pickups.push({ kind: kind, mesh: m, on: false, x: 0, z: 0 });
     }

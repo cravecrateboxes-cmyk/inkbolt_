@@ -357,6 +357,88 @@ async function skillsRun(browser, base) {
   await pg.context().close();
 }
 
+// melee (V), frag cans (G), the new guns: unlock stands, hits, combo, grenade blast, per-shell reload, piercing rounds
+async function meleeRun(browser, base) {
+  console.log('\n# melee (V), frag cans (G), shell reload, piercing rounds');
+  let pg = await newPage(browser, base + '?autotest=1&plan=classroom');   // campaign level 3: the dagger waits on a stand
+  await pg.evaluate(() => { const G = IB.Game; G.slot.highest = 2; G.slot.melee = []; G.slot.frag = false; G.startLevel(); });
+  await until(pg, () => IB.Game.run.started, null, 10000);
+  const stands = await pg.evaluate(() => IB.Game.weaponStands.map((w) => w.id));
+  check('level 3 start: the dagger stands with the guns', stands.includes('dagger') && !stands.includes('katana'), stands.join(','));
+  await pg.evaluate(() => { const G = IB.Game, w = G.weaponStands.find((x) => x.id === 'dagger'); G.player.x = w.x; G.player.z = w.z; });
+  check('walking over it puts the dagger on V', await until(pg, () => IB.Game.meleeId() === 'dagger', null, 10000));
+  check('no frag cans before level 4', await pg.evaluate(() => IB.Game.slot.frag !== true && IB.Game.grenades === 0));
+  await pg.context().close();
+
+  // level 5 for a save that cleared 1-5 (a small window: software GL renders the big bedroom slowly, game time crawls)
+  pg = await newPage(browser, base + '?autotest=1&plan=bedroom', { viewport: { width: 640, height: 360 } });
+  await pg.evaluate(() => __TEST__.setTier('potato'));
+  await pg.evaluate(() => { const G = IB.Game; G.slot.highest = 5; G.startLevel(); G.player.protect = 1e9; });
+  await until(pg, () => IB.Game.run.started, null, 10000);
+  const kit = await pg.evaluate(() => ({ melee: IB.Game.slot.melee.slice().sort(), frag: IB.Game.slot.frag, cans: IB.Game.grenades,
+    kitShown: !document.getElementById('kit').hidden }));
+  check('by level 5: all four melee weapons, frag cans x3, equipment row shown',
+    kit.melee.join() === 'dagger,eaxe,katana,nunchucks' && kit.frag === true && kit.cans === 3 && kit.kitShown, JSON.stringify(kit));
+  // a robot right in front: each melee weapon lands a blow
+  for (const id of ['katana', 'eaxe', 'dagger', 'nunchucks']) {
+    const slot = await pg.evaluate(() => { const p = IB.Game.player; return __TEST__.spawnRobot('gunner', p.x, p.z - 1.7); });
+    await until(pg, (s) => __TEST__.robot('gunner', s).state !== 'spawn', slot, 10000);
+    const hp0 = await pg.evaluate((a) => { const r = IB.AI.types.gunner.slots[a[0]], p = IB.Game.player; r.x = p.x; r.z = p.z - 1.7; p.yaw = 0; p.pitch = 0; IB.Game.slot.meleeSel = a[1]; IB.Game.ws.comboT = 9; return r.hp; }, [slot, id]);
+    await until(pg, () => !IB.Game.ws.melee && !IB.Game.ws.throwing, null, 10000);
+    await pg.keyboard.press('KeyV');
+    const hit = await until(pg, (a) => { const r = IB.AI.types.gunner.slots[a[0]]; const p = IB.Game.player; if (r.on) { r.x = p.x; r.z = p.z - 1.7; } return !r.on || r.hp < a[1]; }, [slot, hp0], 15000);
+    check(id + ' strikes on V (the gun comes back after the swing)', hit && await until(pg, () => !IB.Game.ws.melee && IB.Game.ws.cur, null, 15000));
+    await pg.evaluate((s) => { const r = IB.AI.types.gunner.slots[s]; if (r.on) IB.AI.kill(r); }, slot);
+  }
+  // katana combo: three quick swings play Strike, Strike2, Strike3
+  await pg.evaluate(() => { IB.Game.slot.meleeSel = 'katana'; IB.Game.ws.comboT = 9; });
+  const combo = [];
+  for (let i = 0; i < 3; i++) {
+    await until(pg, () => !IB.Game.ws.melee, null, 15000);
+    await pg.evaluate(() => { IB.Game.ws.comboT = 0.1; });
+    await pg.keyboard.press('KeyV');
+    await until(pg, () => !!IB.Game.ws.melee, null, 10000);
+    combo.push(await pg.evaluate(() => IB.Game.ws.melee.combo));
+  }
+  check('katana: three swings in a row run the 3-cut combo', combo.join() === '0,1,2' || combo.join() === '1,2,0', combo.join());
+  await until(pg, () => !IB.Game.ws.melee, null, 15000);
+  // frag can: thrown along the view, bounces, goes off, robots in reach take the blast
+  const grp = await pg.evaluate(() => { const p = IB.Game.player; p.yaw = 0; p.pitch = 0.1; const o = []; for (let i = 0; i < 3; i++) o.push(__TEST__.spawnRobot('crawler', p.x - 1 + i, p.z - 11)); return o; });
+  await until(pg, (ids) => ids.every((s) => __TEST__.robot('crawler', s).state !== 'spawn'), grp, 10000);
+  await pg.evaluate((ids) => { const p = IB.Game.player; ids.forEach((s, i) => { const r = IB.AI.types.crawler.slots[s]; r.x = p.x - 1 + i; r.z = p.z - 11; r.frozenTest = true; }); IB.AI.update0 = IB.AI.update0 || IB.AI.update; IB.AI.update = function () {}; }, grp);
+  await pg.keyboard.press('KeyG');
+  check('G throws a frag can', await until(pg, () => IB.Throwables.live() === 1 && IB.Game.grenades === 2, null, 15000));
+  const fused = await until(pg, () => IB.Throwables.live() === 0, null, 90000);
+  const dbg = async () => pg.evaluate(() => JSON.stringify({ cans: IB.Throwables.list.filter((g) => g.on).map((g) => [g.t, g.rest]), time: IB.Game.run.time, hs: IB.Game.hitstop, errs: IB.Game.errors, dead: IB.Game.dead, cpl: IB.Game.complete }));
+  const d1 = fused ? '' : await dbg(); if (!fused) await pg.waitForTimeout(2000);
+  check('it goes off on its fuse', fused, fused ? '' : d1 + ' / ' + await dbg());
+  await pg.waitForTimeout(400);
+  const hurt = await pg.evaluate((ids) => ids.filter((s) => { const r = __TEST__.robot('crawler', s); return !r.on || r.hp < r.maxHp; }).length, grp);
+  await pg.evaluate(() => { IB.AI.update = IB.AI.update0; });
+  check('robots in its reach take the blast', hurt >= 2, hurt + ' of 3');
+  // ammo box gives a can back (up to 3)
+  await pg.evaluate(() => { const G = IB.Game, p = G.player; if (!G.spawnPickup('ammo', p.x, p.z)) { const k = G.pickups.find((q) => q.on && q.kind === 'ammo'); p.x = k.x; p.z = k.z; } });
+  const back = await until(pg, () => IB.Game.grenades === 3, null, 20000);
+  check('an ammo box gives a frag can back', back, back ? '' : await pg.evaluate(() => JSON.stringify({ g: IB.Game.grenades, p: [IB.Game.player.x, IB.Game.player.y, IB.Game.player.z], pk: IB.Game.pickups.filter((k) => k.on).map((k) => [k.kind, k.x, k.z]) })));
+  // pump shotgun: one shell per reload cycle
+  await pg.evaluate(() => { const G = IB.Game, W = IB.Weapons; W.give(G.ws, 'scrapper'); W.equip(G.ws, 'scrapper', true); G.ws.guns.scrapper.mag = 1; W.reload(G.ws); });
+  check('Scrapper loads shell by shell up to 6', await until(pg, () => IB.Game.ws.guns.scrapper.mag === 6 && IB.Game.ws.state === 'idle', null, 30000));
+  // Railspike: one round through two robots in a line
+  const line = await pg.evaluate(() => { const p = IB.Game.player; return [__TEST__.spawnRobot('gunner', p.x, p.z - 6), __TEST__.spawnRobot('gunner', p.x, p.z - 9)]; });
+  await until(pg, (ids) => ids.every((s) => __TEST__.robot('gunner', s).state !== 'spawn'), line, 10000);
+  const pierced = await pg.evaluate((ids) => {
+    const G = IB.Game, W = IB.Weapons, p = G.player; W.give(G.ws, 'railspike'); W.equip(G.ws, 'railspike', true);
+    IB.AI.update = function () {};
+    ids.forEach((s, i) => { const r = IB.AI.types.gunner.slots[s]; r.x = p.x; r.z = p.z - 6 - i * 3; });
+    __TEST__.fireRay(p.x, 1.0, p.z, 0, 0, -1);
+    IB.AI.update = IB.AI.update0;
+    return ids.map((s) => { const r = __TEST__.robot('gunner', s); return !r.on || r.hp < r.maxHp; });
+  }, line);
+  check('Railspike pierces: both robots in the line are hit', pierced[0] && pierced[1], JSON.stringify(pierced));
+  check('no console errors (melee run)', pg.logs.length === 0, pg.logs.join(' | '));
+  await pg.context().close();
+}
+
 async function campaignRun(browser, base) {
   console.log('\n# campaign: big levels, no z-fighting, waypath -> loading -> next level');
   // PLANS=castle,city2 checks a subset (the full level-1 flow runs only when mountains is in the list);
@@ -626,7 +708,7 @@ async function vfxRun(browser, base) {
   const browser = await chromium.launch({ args: ARGS });
   try {
     // ONLY=lootRun,tabMenuRun runs a subset
-    const runs = { hookRun, deathRun, inputRun, touchRun, tabMenuRun, skillsRun, slideRun, hudRun, lootRun, campaignRun, vfxRun };
+    const runs = { hookRun, deathRun, inputRun, touchRun, tabMenuRun, skillsRun, slideRun, hudRun, lootRun, meleeRun, campaignRun, vfxRun };
     for (const [name, fn] of Object.entries(runs)) if (!process.env.ONLY || process.env.ONLY.split(',').includes(name)) await fn(browser, base);
   } catch (e) { console.log('FAIL exception ' + e.stack); failures++; }
   await browser.close(); server.close();
