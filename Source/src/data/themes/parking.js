@@ -22,7 +22,7 @@
      D drums  L pallets [2,2]  w wheelie bins [2,1]  F forklift [2,3]
      u deck (slab)  t split-level platform (solid, 1.8 m)  d dock (solid, 1.2 m)  r deck-edge rail  e dock edge
    Markings: [ ] ( ) parking bay [3,5] with its back north / south / west / east  v ^ < > lane arrow  : dashed lane
-     line  | crossing stripe  % yellow hatching  ! oil stain  ? puddle  & drain  $ speed bump
+     line  | crossing stripe  % yellow hatching  ! oil stain  ? puddle  & drain  $ speed bump  , concrete patch  * skid marks
    Fittings (hang from the deck underside or the ceiling): = beam  + beam crossing  - duct  ~ sprinkler and water
      pipes  l strip light  f flickering strip light  x exit sign  c CCTV  _ height bar  1 2 3 4 level sign B1 - B4
    Paint (zones.js symbol option `paint`): every car, van, truck and bike gets a paint job from CAR; columns, ramps
@@ -51,7 +51,7 @@
     return grid._pkL;
   }
   function layerNear(grid, y) {
-    var L = null; (grid.layers || []).forEach(function (l) { if (Math.abs(l.y - y) < 0.05) L = l; }); return L;
+    var L = null; (grid.layers || []).forEach(function (l) { if (Math.abs(l.y - y) < 0.004) L = l; }); return L;   // exact: 1.8 (platform) vs 1.81 (its markings)
   }
   function gateC(grid, r) {
     var cache = grid._pkGate || (grid._pkGate = {});
@@ -84,6 +84,9 @@
     var fu = U ? U.at(c + fr[0], r + fr[1]) : '.', fc = C7 ? C7.at(c + fr[0], r + fr[1]) : '.';
     if ('=+'.indexOf(fu) >= 0) vl = 'Pier'; else if ('-~'.indexOf(fu) >= 0 && (vl === 'Pipe' || vl === 'Pier')) vl = 'Plain';
     if ('=+'.indexOf(fc) >= 0) vu = 'Pier'; else if ('-~'.indexOf(fc) >= 0 && (vu === 'Pipe' || vu === 'Pier')) vu = 'Plain';
+    // beside the split-level platform both storeys show the floor's level: the band rides over the platform
+    var plat = layerNear(grid, 1.8);
+    if (plat && plat.at(c + fr[0], r + fr[1]) !== '.') { vl = 'Split'; up = lo; if (vu === 'Pier') vu = 'Plain'; }
     if (face === 'E' && (r === H - 10 || r === H - 9)) vl = 'Lift';
     if (face === 'E' && r === H - 7) vl = 'Door';
     if (face === 'W' && r === H - 10) vl = 'Door';
@@ -139,14 +142,14 @@
   var BAYS = ['Bay_A', 'Bay_B', 'Bay_C', 'Bay_D', 'Bay_A', 'Bay_C', 'Bay_B', 'Bay_EV', 'Bay_D', 'Bay_H'];
   var WALLS = ['Corner_NW', 'Corner_NE', 'Corner_SW', 'Corner_SE', 'GateSide'];
   LV.forEach(function (L) {
-    ['Plain', 'Num', 'Arrow', 'Pipe', 'Pier', 'Door', 'Lift', 'Dock', 'EndL', 'EndR'].forEach(function (v) { WALLS.push('Lo_' + L + '_' + v); });
+    ['Plain', 'Num', 'Arrow', 'Pipe', 'Pier', 'Door', 'Lift', 'Dock', 'Split', 'EndL', 'EndR'].forEach(function (v) { WALLS.push('Lo_' + L + '_' + v); });
     ['Plain', 'Num', 'Arrow', 'Pipe', 'Pier', 'EndL', 'EndR'].forEach(function (v) { WALLS.push('Up_' + L + '_' + v); });
   });
   var OTHER = ['Sedan', 'Sedan_Door', 'Hatch', 'Hatch_Hazard', 'Hatch_Boot', 'SUV', 'SUV_Boot', 'Sports', 'HazardGlow', 'Wreck_Burnt',
     'Wreck_Burnt_B', 'Wreck_Smash', 'CarCovered', 'CarJack', 'Pickup', 'Pickup_B', 'Van', 'Van_Door', 'BoxTruck', 'TowTruck',
     'DeliveryTruck', 'Motorbike', 'Scooter', 'BikeRack', 'Buggy', 'Rail', 'RailFull', 'RailPost', 'Ramp', 'RampHalf', 'DockRamp',
     'Stair', 'DockStep', 'GateFrame', 'GateShutter', 'TrailWall', 'TrailWall_B', 'TrailWall_C', 'Hatch', 'Bay_A', 'Bay_B', 'Bay_C',
-    'Bay_D', 'Bay_EV', 'Bay_H', 'Arrow', 'LaneDash', 'Zebra', 'Hatching', 'Oil_A', 'Oil_B', 'Puddle', 'Drain', 'SpeedBump', 'Beam',
+    'Bay_D', 'Bay_EV', 'Bay_H', 'Arrow', 'LaneDash', 'Zebra', 'Hatching', 'Oil_A', 'Oil_B', 'Puddle', 'Drain', 'SpeedBump', 'Patch', 'Skid', 'Beam',
     'BeamX', 'Duct', 'Pipes', 'Strip', 'StripOff', 'StripGlow', 'ExitSign', 'LevelSign_B1', 'LevelSign_B2', 'LevelSign_B3',
     'LevelSign_B4', 'HeightBar', 'CCTV', 'Barrier_Down', 'Barrier_Up', 'PayStation', 'Cone', 'Cones', 'Bollard', 'Jersey_C',
     'Jersey_P', 'Cage', 'Drums', 'Pallets', 'Bins', 'Forklift', 'DockEdge', 'DockEdge_L', 'Landmark_CarWash']
@@ -159,7 +162,7 @@
     env: {
       sky: null, clear: '#4E5866', fog: { color: '#4E5866', near: 38, far: 112 }, clouds: false,
       sun: [0.32, 0.86, 0.4],
-      ceiling: { height: 7, color: '#EFEBD3' }   // fittings come from the zone's "@layer 7" grid
+      ceiling: { height: 7, color: '#F6F8D2' }   // fittings come from the zone's "@layer 7" grid
     },
     // poured concrete, 6 m pour joints (bays, lanes and stains are layer pieces on top)
     floor: {
@@ -192,7 +195,7 @@
       'I': { pieces: COLS('Col_Lo'), kind: 'cover', paint: LEVEL },
       'i': { pieces: COLS('Col_Hi'), kind: 'cover', paint: LEVEL },
       'C': { pieces: COLS('Col_Full'), kind: 'cover', paint: LEVEL },
-      'u': { deck: { thick: 0.4, color: '#B0AA9E', edge: '#8C867D', under: '#EBE7D0', with: '*' } },
+      'u': { deck: { thick: 0.4, color: '#B0AA9E', edge: '#8C867D', under: '#F2F4CE', with: '*' } },
       't': { deck: { thick: 1.8, color: '#B5AFA3', edge: '#9A9488', under: '#9A9488', with: '*' } },
       'd': { deck: { thick: 1.2, color: '#9DA3A8', edge: '#5C6168', under: '#5C6168', with: '*' } },
       'r': { pieces: ['Rail'], full: 'RailFull', links: 'ri', post: 'RailPost', kind: 'wall' },
@@ -221,6 +224,8 @@
       '?': { pieces: ['Puddle'], rotate: 'random90', collide: false },
       '&': { pieces: ['Drain'], collide: false },
       '$': { pieces: ['SpeedBump'], rotate: 'run', collide: false },
+      ',': { pieces: ['Patch'], rotate: 'random90', collide: false },
+      '*': { pieces: ['Skid'], rotate: 'random90', collide: false },
       // fittings (hang from the deck underside / the ceiling)
       '=': { pieces: ['Beam'], rotate: 'run', collide: false },
       '+': { pieces: ['BeamX'], collide: false },

@@ -164,6 +164,14 @@ def build_walls(pal, ao):
             elif v == 'Pier':
                 wall_pier(m, c, cl, DECK + 0.18, 6.72, ext=False)
             make('Up_%s_%s' % (L, v), m, ao)
+    # beside the split-level platform (1.8 m, solid): the kerb and the colour band sit over the platform
+    for L, (c, cl) in LEVELS.items():
+        m = new(pal)
+        wall_lo(m, c, cl, dado=False)
+        kerb(m, 1.8, 1.98)
+        fq(m, -0.5, 0.5, -0.506, 2.05, 2.95, c)
+        fq(m, -0.5, 0.5, -0.506, 3.02, 3.1, cl)
+        make('Lo_%s_Split' % L, m, ao)
     # beside a corner: plain modules whose proud details stop short of the corner post (EndL: post on the -X side)
     for L, (c, cl) in LEVELS.items():
         for t in ('L', 'R'):
@@ -240,7 +248,7 @@ def build_rails(pal, ao):
             lq(m, -0.103, a, b, 0.05, 0.3, 'lineY')
             rq(m, 0.103, a, b, 0.05, 0.3, 'lineY')
         m.bx(-0.035, 0.035, y0, y1, 1.0, 1.08, 'lineY', hull='noend')
-        m.bx(-0.02, 0.02, y0, y1, 0.66, 0.71, 'galv', hull='noend')
+        m.bx(-0.02, 0.02, y0, y1, 0.66, 0.71, 'galv', hull='none')
     m = new(pal)
     rail(m, -0.5, -0.1)
     make('Rail', m, ao, cols=[cb(-0.1, -0.5, 0, 0.1, 0.0, 1.1)])

@@ -388,9 +388,9 @@ def zone2():
     park(z, '0', nf, 'VWV.VHV')
     park(z, '0', nf2, 'V.V')
     park(z, '0', ef, 'VV.VWVV.VVHV.')
-    park(z, '0', ef2, 'V.VWV.VV')
+    park(z, '0', ef2, 'V..WV..V')
     park(z, DECK, nd, 'VVH.V.VVWV')
-    park(z, DECK, ed, 'V.VVV.WVV.VVV')
+    park(z, DECK, ed, 'V.V.V.WV..VV.')
     park(z, DECK, ed2, '.VV.VHV.')
     park(z, P, pw, 'VVWV.')
     park(z, P, pe, 'V.VV')
@@ -547,7 +547,7 @@ def finish(z, cols, beams, under_signs, ceil_signs, exits, cctv, ducts):
     # ceiling over everything: beams, strips, ducts, the deck's level signs over the deck
     allc = {(c, r) for r in range(1, H - 1) for c in range(1, W - 1)}
     fittings(z, CEIL, allc, up, lit_rows=(2, 7, 13, 19, 25, 31, 37, 43, 49), beam_rows=beams + (46,), lamp_cols=(), duct_cols=ducts,
-             pipe_rows=(5, 52), extra=[(c, r, up) for (c, r) in ceil_signs] + [(c, r, 'x') for (c, r) in ((24, 1), (26, 1))]
+             pipe_rows=(5,), extra=[(c, r, up) for (c, r) in ceil_signs] + [(c, r, 'x') for (c, r) in ((24, 1), (26, 1))]
              + [(c, r, 'c') for (c, r) in ((cc + 1, rr + 2) for (cc, rr) in cctv)])
 
 
@@ -577,12 +577,22 @@ def marks(z, F, D, extra_layers=()):
                     g[r][c] = '?'
                 elif h < 0.036 and y == F:
                     g[r][c] = '&'
+                elif h < 0.062:
+                    g[r][c] = ','
+                elif h < 0.074:
+                    g[r][c] = '*'
+        for ch, reach in ((',', 1), ('*', 3)):   # big decals of one kind never overlap each other (same height)
+            for r in range(H):
+                for c in range(W):
+                    if g[r][c] == ch and any(g[r + dr][c + dc] == ch for dr in range(-reach, reach + 1) for dc in range(-reach, reach + 1)
+                                             if (dr, dc) < (0, 0) and 0 <= r + dr < H and 0 <= c + dc < W):
+                        g[r][c] = '.'
 
 
 def lanes(z, y, pts):
     g = z.L(y)
     for (c, r, ch) in pts:
-        if g[r][c] in '.!?&':
+        if g[r][c] in '.!?&,*':
             g[r][c] = ch
 
 

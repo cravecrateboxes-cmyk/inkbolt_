@@ -8,7 +8,7 @@ from parking_base import *  # noqa: F401,F403
 from ib_lib import _clip
 
 # stacking (no two kinds ever share a height where they overlap): bays 3 - 12 mm, hatching 15, arrows / lane lines / crossings 18,
-# oil 21 - 24, puddles 27 - 33, drains 36 - 42
+# oil 21 - 24, puddles 27 - 33, drains 36 - 42, patches 45 - 48, skid marks 51
 Z0 = 0.003   # markings stand 3 mm over their layer (the layers sit 1 cm over the floor / deck top)
 
 
@@ -92,6 +92,20 @@ def build_markings(pal, ao):
     m = new(pal)
     m.prism([(-0.3, 0.0), (0.3, 0.0), (0.12, 0.07), (-0.12, 0.07)], -0.5, 0.5, ['lineY', 'ink'], skip=(0,))
     make('SpeedBump', m, ao)
+    # worn floor: a patched concrete repair (45 mm) and tyre skid marks curving through an aisle (48 mm)
+    m = new(pal)
+    poly(m, [(-0.75, -0.5, 0.045), (0.7, -0.55, 0.045), (0.78, 0.45, 0.045), (-0.7, 0.52, 0.045)], 'concW', (0, 0, 1))
+    for (a, b) in (((-0.3, -0.53), (-0.15, 0.49)), ((0.25, -0.54), (0.4, 0.47))):
+        poly(m, [(a[0] - 0.012, a[1], 0.048), (a[0] + 0.012, a[1], 0.048), (b[0] + 0.012, b[1], 0.048), (b[0] - 0.012, b[1], 0.048)], 'concD', (0, 0, 1))
+    make('Patch', m, ao)
+    m = new(pal)
+    for x0 in (-0.8, 0.8):
+        pts = [(x0 + 0.35 * math.sin(i / 8 * math.pi), -1.3 + i * 0.325) for i in range(9)]
+        for i in range(8):
+            (ax, ay), (bx, by) = pts[i], pts[i + 1]
+            w = 0.07 + 0.03 * math.sin(i)
+            poly(m, [(ax - w, ay, 0.051), (ax + w, ay, 0.051), (bx + w, by, 0.051), (bx - w, by, 0.051)], 'stain', (0, 0, 1))
+    make('Skid', m, ao)
 
 
 # ================================================================ ceiling and under-deck fittings (hang from origin)
@@ -113,7 +127,6 @@ def build_ceiling(pal, ao):
     m.cy((-0.5, 0.18, -0.3), 0.045, 0.045, 1.0, 'pipeB', seg=6, rot=(0, 90, 0), caps=False, hull='none')
     m.bx(-0.02, 0.02, -0.25, 0.28, -0.44, -0.4, 'steelD', hull='none')
     m.bx(-0.012, 0.012, -0.012, 0.012, -0.4, 0.0, 'steelD', hull='none', cull='tb')
-    m.cy((0.25, -0.15, -0.52), 0.04, 0.04, 0.012, 'chrome', seg=6, hull='none')
     m.bx(0.24, 0.26, -0.16, -0.14, -0.508, -0.42, 'chrome', hull='none', cull='t')
     make('Pipes', m, ao)
     for name, tube in (('Strip', 'lightC'), ('StripOff', 'steel')):
@@ -160,7 +173,6 @@ def build_ceiling(pal, ao):
     m.prism([(-0.06, -0.95), (0.06, -0.95), (0.06, -0.8), (-0.06, -0.8)], -1.5, 1.5, ['lineY', 'ink', 'lineY', 'ink', 'lineY', 'ink'])
     for x in (-1.2, 1.2):
         m.bx(x - 0.012, x + 0.012, -0.012, 0.012, -0.8, 0.0, 'steelD', hull='none')
-    fq(m, -0.22, 0.22, -0.063, -1.12, -0.95, 'paper') if False else None
     make('HeightBar', m, ao)
     # CCTV camera on a wall bracket hanging from the ceiling
     m = new(pal)
@@ -266,7 +278,6 @@ def build_props(pal, ao):
         for x in (-W2, W2):
             m.bx(x - 0.008, x + 0.008, y - 0.008, y + 0.008, 0.11, Hc - 0.06, 'steel', hull='none', cull='tb')
     fq(m, -0.4, 0.4, -D2 - 0.03, 1.2, 1.55, 'lineY')
-    text_front(m, 'KEEP OUT', 0.025, -D2 - 0.033, 0.0, 1.31, 'ink') if False else None
     m.bx(0.05, 0.15, -D2 - 0.08, -D2 - 0.03, 0.95, 1.07, 'lineY')
     m.bx(-1.3, -0.2, 0.45, 0.85, 0.0, 1.8, 'steelD', cull='b')
     for z in (0.5, 1.0, 1.5):
@@ -297,7 +308,6 @@ def build_props(pal, ao):
                             (-0.55, -0.45, 0.54, 0.35), (0.02, -0.4, 0.6, 0.4), (-0.4, 0.06, 0.6, 0.3)):
         m.bx(x0, x0 + 0.56, y0, y0 + 0.46, z0, z0 + h, 'cardb')
         uq(m, x0 + 0.24, x0 + 0.32, y0 + 0.01, y0 + 0.45, z0 + h + 0.003, 'wood')
-    m.bx(0.75, 0.95, -0.7, 0.7, 0.0, 0.1, 'wood') if False else None
     make('Pallets', m, ao, cols=[cb(-0.6, -0.5, 0, 0.6, 0.5, 0.95)])
     # wheelie bins (2 x 1)
     m = new(pal)

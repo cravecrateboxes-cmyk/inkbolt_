@@ -113,7 +113,6 @@ def open_door(m, S, side=-1, deg=32, paint='paint'):
     L = y1 - y0
     xa, xb = sorted((0.0, side * 0.07))
     m.bx(xa, xb, 0.0, L, S['body'][0][1] + 0.05, S['top'], paint)
-    (lq if side < 0 else rq)(m, xa if side < 0 else xb, 0.02, L - 0.02, S['body'][0][1] + 0.12, S['top'] - 0.05, paint) if False else None
     (rq if side < 0 else lq)(m, xb + 0.003 if side < 0 else xa - 0.003, 0.03, L - 0.03, S['body'][0][1] + 0.1, S['top'] - 0.03, 'interior')
     # window frame on the door
     m.bx(xa + 0.01, xb - 0.01, 0.02, 0.07, S['top'], S['roof'] - 0.08, paint, hull='none')
@@ -145,7 +144,6 @@ def build_cars(pal, ao):
             m.bx(-0.85, 0.85, 1.85, 2.15, 0.98, 1.03, 'paint')
             for sx in (-1, 1):
                 m.bx(sx * 0.6 - 0.03, sx * 0.6 + 0.03, 1.95, 2.05, 0.8, 0.98, 'ink')
-            uq(m, -0.12, 0.12, -2.0, -1.0, 0.783, 'paper') if False else None
             for sx in (-1, 1):   # racing stripes over the bonnet
                 poly(m, [(sx * 0.1, -2.1, 0.645), (sx * 0.25, -2.1, 0.645), (sx * 0.25, -0.75, 0.805), (sx * 0.1, -0.75, 0.805)], 'paper', (0, -0.16, 1.0))
         elif extra == 'door':
@@ -161,23 +159,24 @@ def build_cars(pal, ao):
             m.parent = P0 @ Matrix.Translation((0, ry, rzz)) @ Matrix.Rotation(math.radians(-70), 4, 'X')
             Lg = math.hypot(S['cab'][3][0] - ry, S['cab'][3][1] - rzz) + (S['top'] - S['body'][0][1]) * 0.6
             m.bx(-S['cw'] + 0.03, S['cw'] - 0.03, -0.06, 0.02, -Lg, 0.0, 'paint')
-            dq(m, -S['cw'] + 0.15, S['cw'] - 0.15, -0.05, 0.0, -Lg * 0.55 if False else 0.0, 'glass') if False else None
             fq(m, -S['cw'] + 0.12, S['cw'] - 0.12, -0.063, -Lg * 0.55, -0.08, 'glass')
             m.parent = P0
         cols = car_cols(S, skew, dx, dy)
         make(name, m, ao, bevel=0.02, cols=cols)
-    # the hazard lights' glow (an overlay the theme blinks): placed with Hatch_Hazard's transform
+    # the hazard lights' glow (an overlay the theme blinks): placed with Hatch_Hazard's transform; amber halo + hot core
     m = new(pal)
     m.parent = rz(2.0, -0.05, 0.15)
     S = HATCH
     hw = S['W'] / 2
     for sx in (-1, 1):
-        a, b = sorted((sx * (hw - 0.03), sx * (hw - 0.13)))
-        m.bx(a - 0.015, b + 0.015, S['hl'][0] - 0.02, S['hl'][0] + 0.09, S['hl'][1] - 0.03, S['hl'][2] + 0.03, 'litA', hull='none')
-        m.bx(a - 0.015, b + 0.015, S['tl'][0] - 0.09, S['tl'][0] + 0.04, S['tl'][1] - 0.03, S['tl'][2] + 0.03, 'litA', hull='none')
+        a, b = sorted((sx * (hw - 0.0), sx * (hw - 0.2)))
+        for y0, y1, z0, z1 in ((S['hl'][0] - 0.06, S['hl'][0] + 0.03, S['hl'][1] - 0.06, S['hl'][2] + 0.06),
+                               (S['tl'][0] - 0.03, S['tl'][0] + 0.06, S['tl'][1] - 0.06, S['tl'][2] + 0.06)):
+            m.bx(a - 0.02, b + 0.02, y0, y1, z0, z1, 'litA', hull='none')
+            m.bx(a + 0.04, b - 0.04, y0 - 0.012 if y0 < 0 else y0 + 0.01, y1 + 0.012 if y0 > 0 else y1 - 0.01, z0 + 0.05, z1 - 0.05, 'light', hull='none')
         for y in (-1.0, 1.4):
             x = sx * (hw + 0.008)
-            (rq if sx > 0 else lq)(m, x, y - 0.06, y + 0.06, S['top'] - 0.08, S['top'] - 0.02, 'litA')
+            (rq if sx > 0 else lq)(m, x, y - 0.08, y + 0.08, S['top'] - 0.1, S['top'], 'litA')
     make('HazardGlow', m, ao)
     return out
 
@@ -207,7 +206,6 @@ def build_wrecks(pal, ao):
             x = sx * (hw + 0.004)
             for (y0, y1, z0, z1, c) in ((-1.9, -0.9, 0.3, 0.7, 'rust'), (-0.4, 0.7, 0.22, 0.6, 'burntL'), (1.1, 1.9, 0.35, 0.72, 'rust')):
                 (rq if sx > 0 else lq)(m, x, y0, y1, z0, z1, c)
-        uq(m, -0.6, 0.5, -2.0, -1.4, S['body'][-3][1] - 0.12 + 0.01, 'rust') if False else None
         m.bx(-0.7, 0.7, -2.0, -1.3, 0.72, 0.76, 'rust', hull='none')
         m.bx(-0.3, 0.2, 1.6, 2.0, 0.72, 0.8, 'burntL', hull='none')
         make(name, m, ao, bevel=0.02, cols=[rot_box(S['L'], S['W'], skew, 0.8, 0.05), rot_box(2.3, 1.6, skew, 1.25, 0.05)])
@@ -234,7 +232,6 @@ def build_wrecks(pal, ao):
         (rq if sx > 0 else lq)(m, x, -1.7, -1.1, 0.4, 0.82, 'rust')
     lq(m, -hw - 0.004, -1.05, 0.2, 0.42, 0.88, 'interior')
     m.bx(-0.6, -0.15, -0.8, 0.0, 0.7, 1.2, 'seat', hull='none')
-    m.bx(-0.8, 0.8, -1.4, -1.1, 0.0, 0.02, 'glassL', hull='none') if False else None
     disc(m, -0.2, -2.6, 0.058, 0.35, 'glassL', seg=7, jag=[1.0, 0.6, 1.1, 0.7, 0.9, 0.5, 1.0])
     make('Wreck_Smash', m, ao, bevel=0.02, cols=[rot_box(4.1, S['W'], skew, 1.0, -0.1, 0.3), rot_box(2.5, 1.6, skew, 1.43, -0.1, 0.1)])
     # covered car: a fitted tarp over a sedan shape, tie straps, the tyres peeking out
@@ -420,7 +417,6 @@ def build_trucks(pal, ao):
         a, b = sorted((sx * hw, sx * (hw - 0.55)))
         m.bx(a, b, -1.4, 0.4, 1.15, 1.85, 'paint', bevel=True)
         x = sx * (hw + 0.003)
-        (rq if sx > 0 else lq)(m, x, -1.3, 0.3, 1.25, 1.75, 'lineY') if False else None
         for k in range(4):
             (rq if sx > 0 else lq)(m, x, -1.3 + k * 0.42, -1.1 + k * 0.42, 1.2, 1.32, 'lineY')
     m.bm_((0, 0.3, 1.2), (0, 2.9, 3.0), 0.28, 'lineY')

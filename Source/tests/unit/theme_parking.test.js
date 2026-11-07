@@ -45,7 +45,7 @@ function hash(a, b) { let h = (a * 374761393 + b * 668265263) | 0; h = (h ^ (h >
 const plan = IB.LEVEL_PLANS.parking;
 const maps = plan.zones.map((z) => ({ name: z.map, g: parse(fs.readFileSync(path.join(ZDIR, z.map + '.txt'), 'utf8')) }));
 const layer = (g, y) => g.layers.find((L) => Math.abs(L.y - y) < 0.001);
-const VEH = 'VHWTXYmkgA', CIRC = 'NURZzqOQ', PROPS = 'IiCBpobJKDLwF', DECKS = 'utd', MARK = '[]()v^<>:|%!?&$', FIT = '=+-~lfxc_1234';
+const VEH = 'VHWTXYmkgA', CIRC = 'NURZzqOQ', PROPS = 'IiCBpobJKDLwF', DECKS = 'utd', MARK = '[]()v^<>:|%!?&$,*', FIT = '=+-~lfxc_1234';
 const STAND = '.SahPEG';
 
 test('parking theme: kit-parking indoors under a 7 m ceiling, level 19, three zones of hard waves', () => {
@@ -57,8 +57,6 @@ test('parking theme: kit-parking indoors under a 7 m ceiling, level 19, three zo
   assert.equal(plan.zones.length, 3);
   let total = 0; const types = new Set();
   plan.zones.forEach((z) => z.waves.forEach((w) => w.forEach(([t, n]) => { total += n; types.add(t); })));
-  let grove = 0;
-  IB.LEVEL_PLANS.grove && IB.LEVEL_PLANS.grove.zones.forEach((z) => z.waves.forEach((w) => w.forEach(([, n]) => { grove += n; })));
   assert.ok(total >= 300, 'robots ' + total);
   for (const t of ['crawler', 'gunner', 'bomber', 'drone', 'soldier', 'blader']) assert.ok(types.has(t), t);
 });
@@ -161,7 +159,10 @@ test('wall chooser: two storeys in the zone levels, corner ends, gate piers, lif
       if ((face === 'S' || face === 'N') && 'GE'.includes(g.at(c - 1, r) + g.at(c + 1, r)[0]) && (g.at(c - 1, r) === 'G' || g.at(c + 1, r) === 'G' || g.at(c - 1, r) === 'E' || g.at(c + 1, r) === 'E')) { assert.equal(got, 'GateSide'); continue; }
       if (!Array.isArray(got)) continue;
       assert.match(got[0], new RegExp('^Lo_' + LV[zi + 1] + '_'), name + ' lower storey on the floor level');
-      assert.match(got[1], new RegExp('^Up_' + LV[zi] + '_'), name + ' upper storey on the deck level');
+      // beside the split-level platform both storeys carry the floor's level; elsewhere the upper one the deck's
+      const split = /_Split$/.test(got[0]);
+      assert.equal(split, !!layer(g, 1.8) && layer(g, 1.8).at(c + (face === 'E' ? 1 : face === 'W' ? -1 : 0), r + (face === 'S' ? 1 : face === 'N' ? -1 : 0)) !== '.', name + ' split ' + c + ',' + r);
+      assert.match(got[1], new RegExp('^Up_' + LV[split ? zi + 1 : zi] + '_'), name + ' upper storey level');
       const nearCorner = (face === 'S' || face === 'N') ? (c === 1 || c === g.w - 2) : (r === 1 || r === g.h - 2);
       assert.equal(/_End[LR]$/.test(got[0]), nearCorner, name + ' end module ' + c + ',' + r);
       if (nearCorner) ends++;
