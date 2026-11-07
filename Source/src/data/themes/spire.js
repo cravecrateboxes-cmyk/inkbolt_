@@ -101,7 +101,7 @@
       sky: ['#4F8FD6', '#F3D7B6'], fog: { color: '#F3D7B6', near: 120, far: 900, tierScale: true },
       sun: [-0.42, 0.42, 0.8],
       far: 1500,        // camera far plane: the street 360 m down and the haze ground out to the horizon
-      clouds: { y: [-150, -70], count: 4, scale: [3.2, 5.0], lanes: [44, 76], span: 520, speed: 0.9, axis: 'z' },
+      clouds: { y: [-95, -45], count: 7, scale: [2.4, 3.6], lanes: [50, 74], span: 290, speed: 0.9, axis: 'z' },
       ceiling: { height: 9.0, color: '#F4EFE6', light: 'CeilStrip', every: 4 }   // lights: trails only (zones say ceiling 'plain')
     },
     // warm limestone, 1 m joints (rugs, lawns and decking come from each zone's "@layer 0" grid)
@@ -175,7 +175,7 @@
       bridgeHole: [2.6, -1.15, 9.45],            // the openings in the towers' skins where the bridges join (girder to roof edge)
       shaftTop: BASE + 1,                        // shafts under the skyline pieces stop just inside their bases
       skyline: SKY,
-      far: { count: 34, radius: [700, 1500], height: [-120, 160], width: [24, 60] }
+      far: { count: 34, radius: [650, 1150], height: [-120, 160], width: [24, 60] }   // hazy towers on the horizon
     },
     budget: { prop: 3200, landmark: 6000, total: 90000 },
     allPieces: function () {

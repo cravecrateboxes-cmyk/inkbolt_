@@ -1260,8 +1260,9 @@
       roofCap(x0, z0, x1, z1, y1, roof);
     }
     // a tower's outside skin with openings: holes = [{ face: 2 (south) | 3 (north), x0, x1, y0, y1 }]; node = [x, z]
-    // a point the facade pattern is aligned to (a diagrid node of the curtain wall modules)
-    function skin(x0, z0, x1, z1, y0, y1, base, winC, fh, holes, node) {
+    // a point the facade pattern is aligned to (a diagrid node of the curtain wall modules); plugs (optional): the
+    // openings' own quads are collected there (drawn while the zone itself is not, so a bridge never ends in a void)
+    function skin(x0, z0, x1, z1, y0, y1, base, winC, fh, holes, node, plugs) {
       FACES(x0, z0, x1, z1).forEach(function (F) {
         var a = F[0], b = F[1], f = F[2], L = Math.hypot(b[0] - a[0], b[1] - a[1]), Hh = y1 - y0;
         var u0 = node ? -(f < 2 ? Math.abs(a[1] - node[1]) : Math.abs(a[0] - node[0])) : 0;
@@ -1276,7 +1277,10 @@
           return [Math.max(0, s0), Math.min(L, s1), Math.max(y0, h.y0), Math.min(y1, h.y1)];
         }).sort(function (p, q) { return p[0] - q[0]; });
         var s = 0;
-        hs.forEach(function (h) { piece(s, h[0], y0, y1); piece(h[0], h[1], y0, h[2]); piece(h[0], h[1], h[3], y1); s = h[1]; });
+        hs.forEach(function (h) {
+          piece(s, h[0], y0, y1); piece(h[0], h[1], y0, h[2]); piece(h[0], h[1], h[3], y1); s = h[1];
+          if (plugs) plugs.push([P(h[0], h[2]), P(h[1], h[2]), P(h[1], h[3]), P(h[0], h[3]), base, winC, fh, LIGHT[f], u0 + h[0], u0 + h[1]]);
+        });
         piece(s, L, y0, y1);
       });
       roofCap(x0, z0, x1, z1, y1, col('#8F8A86'));
@@ -1306,11 +1310,12 @@
     var wings = level.zones.map(function (z) { return [z.ox - 0.6, z.oz - 0.3, z.ox + z.w + 0.6, z.oz + z.h + 0.3]; });
     var TT = C.towerTop, FH = C.diagrid ? -1 : 4, BH = C.bridgeHole || [2.6, -1.2, ((theme.wall && theme.wall.height) || 4) + 0.5];
     function hole(face, x, top) { return { face: face, x0: x - BH[0], x1: x + BH[0], y0: BH[1], y1: top === undefined ? BH[2] : top }; }
+    var plugs = level.zones.map(function () { return []; });
     wings.forEach(function (w, i) {
       if (!TT) { tower(w[0], w[1], w[2], w[3], Y0, -0.06, facade, glass, 4, false); return; }
       var z = level.zones[i], holes = [hole(3, z.exitGate.x)];
       if (i > 0 && z.entryGate) holes.push(hole(2, z.entryGate.x));
-      skin(w[0], w[1], w[2], w[3], Y0, TT[i], facade, glass, FH, holes, [z.ox + 1, z.oz + 1]);
+      skin(w[0], w[1], w[2], w[3], Y0, TT[i], facade, glass, FH, holes, [z.ox + 1, z.oz + 1], plugs[i]);
     });
     if (C.bridges && level.hatch) {   // the exit room stands on (and in) a slender core tower
       var hx = level.hatch.x, hz0 = hz - 3.55, hz1 = hz + 3.1;
@@ -1393,14 +1398,18 @@
       var ftop = FA.height[0] + hash(fi, 74) * (FA.height[1] - FA.height[0]), ftc = BPAL[fi % BPAL.length];
       tower(fxx - fw / 2, fzz - fw / 2, fxx + fw / 2, fzz + fw / 2, Y0, ftop, ftc, ftc.clone().multiplyScalar(0.6), 4, ROOF.clone().lerp(ftc, 0.3));
     }
-    var geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    geo.setAttribute('color', new THREE.Float32BufferAttribute(colr, 3));
-    geo.setAttribute('aWin', new THREE.Float32BufferAttribute(win, 3));
-    geo.setAttribute('aFac', new THREE.Float32BufferAttribute(fac, 3));
-    geo.setAttribute('aEdge', new THREE.Float32BufferAttribute(edge, 4));
-    geo.setIndex(pos.length / 3 > 65535 ? new THREE.Uint32BufferAttribute(idx, 1) : new THREE.Uint16BufferAttribute(idx, 1));
-    geo.computeBoundingSphere();
+    function geometry() {
+      var geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      geo.setAttribute('color', new THREE.Float32BufferAttribute(colr, 3));
+      geo.setAttribute('aWin', new THREE.Float32BufferAttribute(win, 3));
+      geo.setAttribute('aFac', new THREE.Float32BufferAttribute(fac, 3));
+      geo.setAttribute('aEdge', new THREE.Float32BufferAttribute(edge, 4));
+      geo.setIndex(pos.length / 3 > 65535 ? new THREE.Uint32BufferAttribute(idx, 1) : new THREE.Uint16BufferAttribute(idx, 1));
+      geo.computeBoundingSphere();
+      return geo;
+    }
+    var geo = geometry(), cityTris = idx.length / 3;
     // window grid (floor bands + mullions) or diagrid, and the depth + distance haze are drawn per pixel: one quad
     // per facade
     var HD = C.hazeDist || [120, 260, 0.3], DG = C.diagrid || [6, 9];
@@ -1432,7 +1441,18 @@
     var mesh = new THREE.Mesh(geo, mat);
     mesh.frustumCulled = false; mesh.name = 'CityBelow';
     level.root.add(mesh);
-    level.cityTris = idx.length / 3;
+    level.cityTris = cityTris;
+    // the plugs: one small mesh per zone tower closing its bridge openings, shown while that zone is not drawn
+    // (Z.setVisible), so a bridge seen from the next tower ends at a facade, not in a see-through hole
+    level.plugs = [];
+    plugs.forEach(function (list, i) {
+      if (!list.length) return;
+      pos = []; colr = []; win = []; fac = []; edge = []; idx = [];
+      list.forEach(function (q) { quad(q[0], q[1], q[2], q[3], q[4], q[5], q[6], q[7], q[8], q[9]); });
+      var pm = new THREE.Mesh(geometry(), mat);
+      pm.frustumCulled = false; pm.name = 'CityPlug' + i; pm.visible = false;
+      level.root.add(pm); level.plugs.push({ zone: i, mesh: pm });
+    });
   }
   // where copy i of backdrop ring ri stands (and faces): shared by the ring placement and the city's skyline shafts
   function ringPlace(ring, ri, i, cz, rad) {
@@ -1517,6 +1537,7 @@
     level.zones.forEach(function (z, i) { z.group.visible = (i === cur || i === cur + 1); });
     level.trails.forEach(function (t, i) { t.group.visible = (i === cur || i === cur - 1); });
     if (level.hatch) level.hatch.group.visible = cur >= level.zones.length - 1;
+    (level.plugs || []).forEach(function (p) { p.mesh.visible = !level.zones[p.zone].group.visible; });   // theme.below bridge openings
   };
 
   Z.zoneAt = function (level, x, z) {

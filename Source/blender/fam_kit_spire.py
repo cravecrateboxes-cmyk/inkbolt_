@@ -349,8 +349,8 @@ def gate_shutter(k):
 
 
 def trail_wall(k, kind=''):
-    """Sky-bridge side, 1 m along Blender Y, corridor toward +X: white steel upstand, mullion and header, glass
-    between them braced with X ties, a brass handrail; half the bridge deck and roof slabs (to the corridor's centre
+    """Sky-bridge side, 1 m along Blender Y, corridor toward +X: white steel upstand, mullion, mid transom and header,
+    glass between them, a brass handrail; half the bridge deck and roof slabs (to the corridor's centre
     line 2.25 m in) and an edge girder under the floor."""
     k.begin()
     k.bx(-0.25, 0.25, -0.5, 0.5, 0, 0.25, 'dia')                                   # upstand
@@ -359,9 +359,6 @@ def trail_wall(k, kind=''):
     k.bx(-0.06, 0.06, -0.43, 0.5, DECK - 0.05, DECK + 0.05, 'dia', ink=False)      # mid transom
     k.bx(0.16, 0.21, -0.5, 0.5, 0.98, 1.03, 'brass', ink=False)                    # handrail
     k.bx(0.12, 0.16, -0.47, -0.43, 0.96, 1.0, 'steelDark', ink=False)
-    for (z0, z1) in ((DECK + 0.05, H - 0.4),):
-        k.beam((0.008, -0.43, z0 + 0.04), (0.008, 0.5, z1 - 0.04), 0.03, 'steel2', ink=False)
-        k.beam((-0.008, 0.5, z0 + 0.04), (-0.008, -0.43, z1 - 0.04), 0.03, 'steel2', ink=False)
     for s in (-1, 1):                                                                # glints, both faces of the glass
         x = s * 0.03
         k.poly([(x, -0.25, 1.4), (x, -0.18, 1.4), (x, 0.12, 2.2), (x, 0.05, 2.2)], 'glint', (s, 0, 0))
@@ -748,6 +745,35 @@ def carpet(k):
 
 
 # ================================================================ lobby props
+def reception_desk(k):
+    """Landmark: 6 x 3 reception desk facing -Y: backlit onyx front between brass fins, a marble top with rounded
+    stone ends, a brass spire emblem, the staff side with monitors and chairs. Kept low (1.1 m)."""
+    k.begin()
+    k.bx(-2.3, 2.3, -0.55, 0.15, 0, 1.05, 'stone')
+    for s in (-1, 1):
+        k.cyl(s * 2.3, -0.2, 0, 0.36, 0.36, 1.045, 'stone', seg=12)
+        k.cyl(s * 2.3, -0.2, 0.45, 0.375, 0.375, 0.08, 'brass', seg=12, ink=False, caps=False)
+    k.qy(-2.25, 2.25, 0.12, 0.98, -0.553, -1, 'onyx')
+    for i in range(9):
+        x = -2.0 + i * 0.5
+        k.bx(x - 0.025, x + 0.025, -0.58, -0.55, 0.1, 1.0, 'brass', ink=False)
+    k.poly([(-0.18, -0.584, 0.3), (0.18, -0.584, 0.3), (0.0, -0.584, 0.9)], 'brass', (0, -1, 0))
+    k.bx(-2.45, 2.45, -0.72, 0.25, 1.05, 1.11, 'marble')
+    k.bx(-2.45, 2.45, -0.74, -0.7, 0.0, 0.1, 'granite', ink=False)
+    k.bx(-2.2, 2.2, 0.15, 0.62, 0.72, 0.76, 'walnut')
+    for x in (-1.85, 1.85):
+        k.bx(x - 0.04, x + 0.04, 0.2, 0.6, 0, 0.72, 'walnut2', ink=False)
+    for x in (-1.1, 0.0, 1.1):
+        O.monitor(k, x, 0.32, 180, 0.76, 'screen2' if x else 'screen')
+        O.keyboard(k, x, 0.52, 180, 0.76)
+        O.task_chair(k, x + 0.08, 1.05, 4 if x > 0 else -6, 'chair')
+    k.bx(-0.9, -0.6, -0.5, -0.3, 1.11, 1.13, 'paper', ink=False)
+    O.small_plant(k, 2.0, -0.3, 1.11)
+    O.small_plant(k, -2.0, -0.3, 1.11)
+    k.col(-2.7, 2.7, -0.74, 0.62, 0, 1.11)
+    return k
+
+
 def turnstile(k):
     """Security gate pedestal (glass flaps toward its neighbours in the run, a teal reader)."""
     k.begin()
@@ -1220,7 +1246,7 @@ def build_kit_spire(ao):
     decking(k).finish('Decking')
     carpet(k).finish('Carpet')
     # lobby
-    O.reception(k).finish('Landmark_Reception', ao=ao)
+    reception_desk(k).finish('Landmark_Reception', ao=ao)
     for v in ('A', 'B'):
         O.lounge(k, v).finish('Lounge_%s' % v, ao=ao)
     spire_model(k).finish('Landmark_Model', ao=ao)
