@@ -103,6 +103,18 @@ def rock(k, rnd, cx, cy, rx, ry, h, z0=0.0, n=7, lim=None, ylim=None):
     return k.hullp(pts, rockcol)
 
 
+def stone(k, rnd, cx, cy, rx, ry, h, z0=0.0, n=7):
+    """Chunky rounded basalt block (broad shoulders, a flattish top): a hull of three jittered rings and a cap."""
+    pts = []
+    for ring, (zf, rf) in enumerate(((0.0, 1.0), (0.55, 0.96), (0.9, 0.62))):
+        for i in range(n):
+            a = (i + 0.5 * ring + rnd.uniform(-0.2, 0.2)) / n * 2 * math.pi
+            kk = rf * rnd.uniform(0.88, 1.04)
+            pts.append((cx + math.cos(a) * rx * kk, cy + math.sin(a) * ry * kk, z0 + h * (zf + rnd.uniform(-0.05, 0.05) * (ring > 0))))
+    pts.append((cx + rnd.uniform(-0.15, 0.15) * rx, cy + rnd.uniform(-0.15, 0.15) * ry, z0 + h))
+    return k.hullp(pts, rockcol)
+
+
 def star(k, c, r, h, color, pts=7, inner=0.4, droop=0.5, phase=0.0, under=0.12, under_color=None, ink=True):
     """Star-section umbrella (palm crown / fern / grass tuft): pts tips at radius r drooping, apex h above c."""
     cx, cy, cz = c
@@ -139,7 +151,7 @@ def frond(k, rnd, T, a, r, w=0.62):
 
     def pts(p, hw):
         return [(p[0] + sx * hw, p[1] + sy * hw, p[2] + dz) for dz in (-t, t)] + [(p[0] - sx * hw, p[1] - sy * hw, p[2] + dz) for dz in (-t, t)]
-    col = lambda f: 'frond' if f.normal.z > 0 else 'frond2'
+    col = lambda f: 'leaf3' if f.normal.z > 0 else 'frond'
     k.hullp([(p0[0], p0[1], p0[2] - t), (p0[0], p0[1], p0[2] + t)] + pts(p1, w * 0.5), col)
     q1 = (p1[0] - dx * 0.04, p1[1] - dy * 0.04, p1[2] - 0.012)       # tip blade starts a little inside, narrower
     k.hullp(pts(q1, w * 0.44) + [(p2[0], p2[1], p2[2] - t), (p2[0], p2[1], p2[2] + t)], col)
@@ -202,8 +214,17 @@ def plank_lines(k, x0, x1, y0, y1, z, n, c='wood2', along='y', w=0.025):
 
 
 # ================================================================ wall modules ('#', facing the open side = -Y)
-def jungle(k, seed, W=2):
-    """Dense jungle thicket: a fern-fringed bush at the foot, leafy masses behind, a palm leaning out over it."""
+def broadleaf(k, rnd, x, y, h, r):
+    """Jungle tree: a slightly bent trunk under a crown of three leafy masses."""
+    k.cyl(x, y, 0, 0.2, 0.15, h * 0.62, 'trunk2', seg=5, rot=(rnd.uniform(-6, 6), rnd.uniform(-6, 6), 0))
+    for i in range(3):
+        a = i / 3 * 2 * math.pi + rnd.uniform(-0.4, 0.4)
+        blob(k, rnd, x + math.cos(a) * r * 0.45, y + math.sin(a) * r * 0.4, h * 0.55, r * 0.7, r * 0.6, r * 0.9,
+             leafcol('leaf3', 'leaf', 'leafd'), n=6)
+
+
+def jungle(k, seed, W=2, tree='palm'):
+    """Dense jungle thicket: a fern-fringed bush at the foot, leafy masses behind, a palm or a broadleaf tree over it."""
     rnd = random.Random(seed)
     k.begin()
     hw = W / 2
@@ -215,23 +236,26 @@ def jungle(k, seed, W=2):
             fern(k, rnd, cx, -0.55, rnd.uniform(0.4, 0.62), col=('leaf3', 'grass2', 'leaf')[rnd.randrange(3)])
         blob(k, rnd, cx, 0.4, 0.8, 0.6 * W / n + 0.28, 0.75, rnd.uniform(2.4, 3.4), leafcol('leaf', 'leaf2', 'leafd'), n=6)
     blob(k, rnd, rnd.uniform(-0.3, 0.3) * W / 2, 1.0, 2.6, 0.55 * W + 0.2, 0.6, rnd.uniform(2.2, 3.4), leafcol('leaf3', 'leaf', 'leafd'), n=6)
-    palm(k, rnd, rnd.uniform(-0.4, 0.4) * W / 2, 0.9, rnd.uniform(6.4, 8.4), lean=rnd.uniform(0.08, 0.2), ang=math.radians(rnd.uniform(235, 305)), r=2.0, nuts=False)
+    if tree == 'palm':
+        palm(k, rnd, rnd.uniform(-0.4, 0.4) * W / 2, 0.9, rnd.uniform(6.4, 8.4), lean=rnd.uniform(0.08, 0.2), ang=math.radians(rnd.uniform(235, 305)), r=2.0, nuts=False)
+    elif tree == 'broad':
+        broadleaf(k, rnd, rnd.uniform(-0.3, 0.3) * W / 2, 0.8, rnd.uniform(6.0, 7.2), 1.6)
     return k
 
 
 def rocks_mod(k, seed, W=2):
-    """Warm basalt outcrop with a fern cap and moss on the ledges."""
+    """Warm basalt outcrop: broad stacked blocks stepping back, a fern cap and moss at the foot."""
     rnd = random.Random(seed)
     k.begin()
     hw = W / 2
     n = 2 if W == 2 else 1
     for i in range(n):
-        cx = -hw + (i + 0.5) * W / n
-        rock(k, rnd, cx, 0.3, 0.62 * W / n + 0.12, 0.95, rnd.uniform(2.6, 3.6), lim=hw + 0.1, ylim=1.5)
-        rock(k, rnd, cx + rnd.uniform(-0.2, 0.2), -0.35, 0.42 * W / n + 0.05, 0.34, rnd.uniform(0.8, 1.3), lim=hw + 0.05, ylim=1.5)
-    rock(k, rnd, rnd.uniform(-0.2, 0.2), 0.75, 0.45 * W + 0.1, 0.7, rnd.uniform(4.3, 5.2), z0=0.0, lim=hw + 0.1, ylim=1.5)
-    blob(k, rnd, rnd.uniform(-0.3, 0.3), 0.7, 4.0, 0.5 * W, 0.6, 1.3, leafcol('leaf3', 'leaf', 'leaf2'))
-    fern(k, rnd, rnd.uniform(-0.4, 0.4), -0.55, 0.45, col='moss')
+        cx = -hw + (i + 0.5) * W / n + rnd.uniform(-0.1, 0.1)
+        stone(k, rnd, cx, 0.1, 0.55 * W / n + 0.2, 0.75, rnd.uniform(1.6, 2.4))
+    stone(k, rnd, rnd.uniform(-0.15, 0.15), 0.65, 0.5 * W + 0.1, 0.7, rnd.uniform(1.6, 2.2), z0=rnd.uniform(1.3, 1.7))
+    stone(k, rnd, rnd.uniform(-0.2, 0.2), 1.05, 0.42 * W + 0.1, 0.5, rnd.uniform(1.2, 1.6), z0=rnd.uniform(2.8, 3.2))
+    blob(k, rnd, rnd.uniform(-0.3, 0.3), 1.0, 4.0, 0.42 * W, 0.5, 1.2, leafcol('leaf3', 'leaf', 'leaf2'), n=6)
+    fern(k, rnd, rnd.uniform(-0.4, 0.4), -0.62, 0.42, col='moss')
     return k
 
 
@@ -267,8 +291,8 @@ def corner(k, seed, kind):
     rnd = random.Random(seed)
     k.begin()
     if kind == 'A':
-        rock(k, rnd, 0, 0, 0.75, 0.75, rnd.uniform(3.4, 4.4), n=7, lim=0.8)
-        rock(k, rnd, 0.1, 0.1, 0.55, 0.55, 5.0, z0=2.0, n=6, lim=0.7)
+        stone(k, rnd, 0, 0, 0.8, 0.8, rnd.uniform(2.4, 2.9))
+        stone(k, rnd, 0.1, 0.1, 0.6, 0.6, 2.0, z0=2.3, n=6)
         blob(k, rnd, 0, 0, 4.8, 0.7, 0.7, 1.2)
         palm(k, rnd, 0.1, 0.2, 7.6, lean=0.12, r=1.8, z0=0.0, nuts=False)
     else:
@@ -356,11 +380,10 @@ def boulder(k, seed, s=1.0):
 def outcrop(k, seed):
     rnd = random.Random(seed)
     k.begin()
-    rock(k, rnd, -0.2, 0.1, 0.8, 0.75, rnd.uniform(1.7, 2.1), lim=0.98)
-    rock(k, rnd, 0.45, -0.35, 0.5, 0.5, rnd.uniform(1.0, 1.3), lim=0.98)
-    rock(k, rnd, 0.3, 0.55, 0.42, 0.38, 2.5, z0=0.6, lim=0.98)
-    fern(k, rnd, -0.5, -0.7, 0.35, col='moss')
-    tuft(k, rnd, 0.6, 0.5, 0.16, z0=1.8)
+    stone(k, rnd, -0.15, 0.1, 0.85, 0.78, rnd.uniform(1.3, 1.6))
+    stone(k, rnd, 0.5, -0.4, 0.42, 0.45, rnd.uniform(0.7, 0.95))
+    stone(k, rnd, 0.1, 0.35, 0.55, 0.45, rnd.uniform(0.8, 1.0), z0=1.15)
+    fern(k, rnd, -0.6, -0.72, 0.32, col='moss')
     k.col(-0.95, 0.95, -0.95, 0.95, 0, 2.0)
     return k
 
@@ -430,7 +453,7 @@ def reeds(k, seed):
         h = rnd.uniform(0.8, 1.4)
         k.cyl(x, y, 0, 0.03, 0.015, h, 'reed', seg=4, rot=(rnd.uniform(-8, 8), rnd.uniform(-8, 8), 0), ink=False)
         if i % 2 == 0:
-            k.cyl(x, y, h * 0.7, 0.05, 0.05, 0.22, 'cattail', seg=5)
+            k.cyl(x, y, h * 0.7, 0.035, 0.035, 0.18, 'cattail', seg=5)
     tuft(k, rnd, 0, 0, 0.25)
     return k
 
@@ -619,7 +642,7 @@ def pond(k, seed):
             xx, yy = x + rnd.uniform(-0.15, 0.15), y + rnd.uniform(-0.15, 0.15)
             k.cyl(xx, yy, 0, 0.03, 0.015, h, 'reed', seg=4, rot=(rnd.uniform(-8, 8), rnd.uniform(-8, 8), 0), ink=False)
             if j == 0:
-                k.cyl(xx, yy, h * 0.68, 0.045, 0.045, 0.2, 'cattail', seg=5)
+                k.cyl(xx, yy, h * 0.68, 0.035, 0.035, 0.18, 'cattail', seg=5)
     return k
 
 
@@ -675,7 +698,7 @@ def lagoon(k, seed):
             xx, yy = x + rnd.uniform(-0.2, 0.2), y + rnd.uniform(-0.2, 0.2)
             k.cyl(xx, yy, 0, 0.03, 0.015, h, 'reed', seg=4, rot=(rnd.uniform(-8, 8), rnd.uniform(-8, 8), 0), ink=False)
             if j == 0:
-                k.cyl(xx, yy, h * 0.68, 0.05, 0.05, 0.22, 'cattail', seg=5)
+                k.cyl(xx, yy, h * 0.68, 0.035, 0.035, 0.18, 'cattail', seg=5)
     glints(k, rnd, 8, 5.0, 3.4, cx=0.8)
     return k
 
@@ -1060,7 +1083,11 @@ def build_kit_island(ao):
     pal = Palette(FAM)
     k = Kit(pal, PFX, HULL_T)
     seed = 100
-    for name, fn in (('Jungle', jungle), ('Rocks', rocks_mod), ('Dune', dune_mod)):
+    jungle(k, 107, W=2, tree='palm').finish('Jungle_A', ao=ao)
+    jungle(k, 114, W=2, tree='broad').finish('Jungle_B', ao=ao)
+    jungle(k, 121, W=1, tree='none').finish('Jungle_1', ao=ao)
+    seed = 121
+    for name, fn in (('Rocks', rocks_mod), ('Dune', dune_mod)):
         for v in ('A', 'B'):
             seed += 7
             fn(k, seed, W=2).finish('%s_%s' % (name, v), ao=ao)

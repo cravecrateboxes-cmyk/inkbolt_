@@ -19,15 +19,16 @@ const SHOTS = [
   ['trail', 0, 31.5, -6, 0, -4, 1.55],
   ['lagoon-view', 1, 31, 40, 0, -6, 1.55],
   ['lagoon-sea', 1, 6, 30, 90, -3, 1.55],
-  ['lagoon-lookout', 1, 44, 46, -30, -2, 1.55],
+  ['lagoon-lookout', 1, 46, 47, -25, 4, 1.55],
+  ['lagoon-water', 1, 30, 31, 10, -14, 1.55],
+  ['pond-close', 0, 9, 18, 60, -25, 1.55],
   ['lagoon-high', 1, 31, 50, 0, -24, 16],
   ['point-outpost', 2, 31, 34, 40, -6, 1.55],
   ['point-lighthouse', 2, 44, 18, -40, 6, 1.55],
   ['point-sea', 2, 58, 30, -90, -2, 1.55],
   ['point-high', 2, 31, 50, 0, -22, 16],
   ['exit', 2, 31.5, -10, 0, -4, 1.55],
-  ['sky-high', 0, 31, 30, 180, -30, 60],
-  ['dbg-dune', 0, 29, 41, 0, -35, 2.5]
+  ['sky-high', 0, 31, 30, 180, -30, 60]
 ];
 
 function serve() {
@@ -64,6 +65,7 @@ function serve() {
     IB.AI.robots.forEach(r => { if (r.on) { r.on = false; r.state = 'off'; } });
     IB.Game.level.zones.forEach(z => { z.queue.length = 0; z.plan = Object.assign({}, z.plan, { waves: [[]] }); z.wave = 0; });
     const hud = document.getElementById('hud'); if (hud) hud.style.display = 'none';
+    IB.Render.vmScene.visible = false;   // no gun in the way
   });
   fs.mkdirSync(OUT, { recursive: true });
   for (const [name, zi, c, r, yaw, pitch, eye] of SHOTS) {
@@ -86,7 +88,7 @@ function serve() {
       const i = IB.Render.renderer.info.render;
       return { calls: i.calls, tris: i.triangles };
     }, { zi, c, r, yaw: yaw * D, pitch: pitch * D, eye });
-    await pg.screenshot({ path: path.join(OUT, 'island-' + name + '.png') });
+    await pg.screenshot({ path: path.join(OUT, 'island-' + name + '.png'), timeout: 120000 });
     console.log(name, JSON.stringify(st));
   }
   if (logs.length) console.log('console:', logs.slice(0, 10).join(' | '));
