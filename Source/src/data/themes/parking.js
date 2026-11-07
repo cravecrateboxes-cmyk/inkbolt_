@@ -251,11 +251,11 @@
         intro: 'Robots hold every level of the car park. Take the ramps and stairs down to B4 and clear the loading dock.',
         zones: [
           // B1 / B2: the entry level, ticket barriers, two ramps up to a U-shaped deck
-          { map: 'parking_1', waves: [[['crawler', 22], ['gunner', 6]], [['crawler', 6], ['bomber', 5], ['gunner', 5], ['blader', 7]], [['crawler', 5], ['drone', 5], ['gunner', 5], ['soldier', 7]], [['crawler', 5], ['bomber', 5], ['gunner', 6], ['soldier', 8]]] },
+          { map: 'parking_1', waves: [[['crawler', 22], ['gunner', 6]], [['crawler', 6], ['bomber', 5], ['gunner', 5], ['blader', 8]], [['crawler', 5], ['drone', 5], ['gunner', 5], ['soldier', 7]], [['crawler', 5], ['bomber', 5], ['gunner', 6], ['soldier', 8]]] },
           // B2 / B3: the split level, a platform at half height between the floor and the deck, the car wash
-          { map: 'parking_2', waves: [[['crawler', 22], ['gunner', 6], ['drone', 3]], [['crawler', 6], ['bomber', 5], ['gunner', 6], ['blader', 8]], [['crawler', 6], ['drone', 6], ['gunner', 5], ['soldier', 7]], [['crawler', 5], ['bomber', 5], ['gunner', 6], ['blader', 6], ['soldier', 4]]] },
+          { map: 'parking_2', waves: [[['crawler', 22], ['gunner', 6], ['drone', 3]], [['crawler', 6], ['bomber', 5], ['gunner', 6], ['blader', 8]], [['crawler', 6], ['drone', 6], ['gunner', 5], ['soldier', 7]], [['crawler', 5], ['bomber', 5], ['gunner', 6], ['blader', 7], ['soldier', 4]]] },
           // B3 / B4: the deep level and the loading dock, a heavy last wave
-          { map: 'parking_3', waves: [[['crawler', 22], ['gunner', 9]], [['crawler', 6], ['bomber', 6], ['drone', 5], ['soldier', 8]], [['crawler', 8], ['gunner', 8], ['drone', 5], ['blader', 7]], [['crawler', 9], ['gunner', 9], ['bomber', 8], ['drone', 4], ['soldier', 13]]] }
+          { map: 'parking_3', waves: [[['crawler', 22], ['gunner', 9]], [['crawler', 6], ['bomber', 6], ['drone', 5], ['soldier', 8]], [['crawler', 8], ['gunner', 8], ['drone', 5], ['blader', 8]], [['crawler', 9], ['gunner', 9], ['bomber', 8], ['drone', 4], ['soldier', 11], ['blader', 5]]] }
         ]
       }
     }
