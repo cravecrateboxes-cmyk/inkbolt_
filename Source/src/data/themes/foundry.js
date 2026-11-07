@@ -128,7 +128,7 @@
       'J': { size: [6, 4], pieces: ['Jig_Hover', 'Jig_Hound'], kind: 'cover' },
       'Q': { size: [6, 6], pieces: ['TestCell_Hound', 'TestCell_Spider'], sequence: true, kind: 'wall' },
       'K': { size: [10, 4], pieces: ['CentipedeRack'], flip: true, kind: 'cover' },
-      'F': { size: [4, 4], pieces: ['Pad_Spider', 'Pad_Hound', 'Pad_Hover'], kind: 'cover' },
+      'F': { size: [4, 4], pieces: ['Pad_Spider', 'Pad_Hound', 'Pad_Hover'], sequence: true, kind: 'cover' },
       'R': { size: [4, 4], pieces: ['ReactorCradle'], kind: 'cover' },
       'p': { size: [2, 2], pieces: ['Plates_Stack', 'Plates_Rack'], kind: 'cover' },
       'm': { size: [2, 2], pieces: ['Shells'], kind: 'cover' },
