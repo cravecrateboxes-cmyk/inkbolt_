@@ -734,6 +734,7 @@
     else if (G.mode === 'title') titleFrame(dtRaw);
     else idleFrame(dtRaw);
     Z.updateClouds(G.level, dtRaw);
+    Z.updateLines(G.level, G.mode === 'paused' || G.mode === 'menu' ? 0 : dtRaw, G.mode === 'play' ? G.player : null);   // moving assembly lines
     if (IB.SkillHUD) IB.SkillHUD.update(G, dtRaw);   // Undercover badge + cloak look
     R.render(G.mode === 'play' ? !G.dead && !G.ws.hidden : G.mode === 'title');
     Inp.endFrame();

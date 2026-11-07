@@ -8,7 +8,8 @@
        sky: ['#top', '#horizon'] | null (indoor: no sky dome),   clear: '#hex' (background when sky is null),
        fog: { color: '#hex', near: 40, far: 120 },
        sun: [x, y, z] (light direction, optional),
-       ceiling: null | { height: 4, color: '#hex', light: 'PieceName' (optional), every: 4 },
+       ceiling: null | { height: 4, color: '#hex', light: 'PieceName' | ['BayA', 'BayB'] (optional, a list is mixed
+                 per bay), every: 4 },
        clouds: true|false
      },
      floor: { color: '#hex', lines: [{ dir: 'x'|'z', every: 2, width: 0.05, color: '#hex', y: 0.01 }], trail: '#hex' },
@@ -22,7 +23,10 @@
        '=': { pieces: [...], h: 1, rotate: 'run'|'random90'|<radians>, stack: { piece, chance, h }, collide: true },
        'K': { size: [w, d], pieces: [...], h: 1.4, flip: true },   // multi-cell prefab tiled over each block of K
                                                                   // (turn: <radians> turns every prefab, e.g. Math.PI)
-       'p': { pieces: [...], collide: false }
+       'p': { pieces: [...], collide: false },
+       'L': { size: [12, 8], pieces: ['Feed', 'Mid', 'Out'], sequence: 'run' (first / last piece cap each run, the
+              middle ones repeat), conveyor: { ... } }   // a moving line: see zones.js "moving lines" for the options
+              (items riding the run, end hoods, stage stations, belt cleats, closed test-track loops, carrying the player)
      },
      gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2,     // 3 m wide opening, shutter rolls up; the frame
              dress: ['GateBooks'] (optional pieces placed with the frame) },
@@ -56,6 +60,15 @@
       IB.LEVEL_PLANS[pid] = L;
     });
     return def;
+  };
+  // every piece a symbol's moving line (conveyor option) can place: items and their stages, end pieces, cleats
+  IB.conveyorPieces = function (C) {
+    if (!C) return [];
+    var out = [];
+    (C.items || []).forEach(function (it) { (Array.isArray(it) ? it : [it]).forEach(function (n) { out.push(n); }); });
+    if (C.ends) ['start', 'end'].forEach(function (k) { if (C.ends[k]) out.push(C.ends[k]); });
+    if (C.cleat) out.push(C.cleat);
+    return out.filter(function (n, i) { return out.indexOf(n) === i; });
   };
   // full kit name for a short piece name ('Crate' -> 'KIT_TOYTOWN_Crate'); names that already carry a prefix pass through
   IB.themePiece = function (theme, n) {

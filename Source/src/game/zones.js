@@ -256,6 +256,11 @@
         if (d.collide !== false) world.add(x - 0.5, d.h || 1, zz - 0.5, x + 0.5, (d.h || 1) + (d.stack.h || 1), zz + 0.5, d.kind || 'cover', z.idx);
       }
     });
+    // moving line: one lane per straight run of cells (a 1-wide column runs north-south, anything else per row)
+    if (d.conveyor) rects(grid, ch).forEach(function (R) {
+      if (R.w === 1 && R.h > 1) addLine(P, z, theme, world, ch, d, z.ox + R.c + 0.5, z.oz + R.r + R.h / 2, Math.PI / 2, R.h / 2, null);
+      else for (var y = 0; y < R.h; y++) addLine(P, z, theme, world, ch, d, z.ox + R.c + R.w / 2, z.oz + R.r + y + 0.5, 0, R.w / 2, null);
+    });
   }
   // a multi-cell prefab symbol: each connected block is tiled with prefabs of size [w, d] (rotated 90 if that fits)
   function buildPrefabs(P, z, grid, theme, world, ch, d) {
@@ -265,15 +270,204 @@
       if (!(R.w % sw === 0 && R.h % sd === 0) && R.w % sd === 0 && R.h % sw === 0) { yaw = Math.PI / 2; tw = sd; td = sw; }
       var nx = Math.max(1, Math.floor(R.w / tw)), nz = Math.max(1, Math.floor(R.h / td));
       if (R.w % tw || R.h % td) { tw = R.w / nx; td = R.h / nz; }   // block not a multiple: centre one prefab per cell group
+      // the run (prefabs in a row along the prefab's local X) and its downstream order: local +X is east, or north for
+      // turned blocks; conveyor.dir -1 reverses it
+      var nRun = yaw ? nz : nx, lanes = d.conveyor ? [] : null, back = d.conveyor && d.conveyor.dir === -1;
       for (var i = 0; i < nx; i++) for (var k = 0; k < nz; k++) {
         var x = z.ox + R.c + (i + 0.5) * tw, zz = z.oz + R.r + (k + 0.5) * td, h = hash(R.c + i * 7, R.r + k * 11);
         var y = yaw + (d.turn || 0) + (d.flip && hash(R.c * 3 + i, R.r * 5 + k) > 0.5 ? Math.PI : 0);
-        var name = d.sequence ? d.pieces[(ri + i + k) % d.pieces.length] : pick(d.pieces, h);
+        var seq = yaw ? nz - 1 - k : i; if (back) seq = nRun - 1 - seq;
+        // sequence 'run': the first and last pieces cap each run (feed / dispatch), the middle ones repeat in order
+        var L = d.pieces.length, name = d.sequence === 'run' ? d.pieces[seq === 0 ? 0 : seq === nRun - 1 ? L - 1 : 1 + (seq - 1) % Math.max(1, L - 2)]
+          : d.sequence ? d.pieces[(ri + i + k) % L] : pick(d.pieces, h);
         P.add(name, x, d.y || 0, zz, y);
         if (d.collide !== false) addCols(world, d.cols || colsOf(IB.themePiece(theme, name)) || boxCols(sw, sd, d.h || 1), x, zz, y, d.kind || 'cover', z.idx);
+        if (lanes) {
+          if (d.conveyor.path) addLine(P, z, theme, world, ch, d, x, zz, y, 0, [{ at: 0, name: name }]);   // a loop per prefab
+          else { var li = yaw ? i : k; (lanes[li] || (lanes[li] = [])).push({ x: x, z: zz, name: name }); }
+        }
       }
+      // straight lines: one lane per row of prefabs, tiles in downstream order (stations are looked up per tile)
+      if (lanes) lanes.forEach(function (T) {
+        var cx = 0, cz = 0, len = yaw ? td : tw, yw = yaw + (d.turn || 0);
+        T.forEach(function (t) { cx += t.x / T.length; cz += t.z / T.length; });
+        addLine(P, z, theme, world, ch, d, cx, cz, yw, T.length * len / 2, T.map(function (t) {
+          return { at: (t.x - cx) * Math.cos(yw) - (t.z - cz) * Math.sin(yw), name: t.name };   // tile centre, line-local x
+        }));
+      });
     });
   }
+
+  // ---------------- moving lines (theme symbol option `conveyor`) ----------------
+  /* A symbol with `conveyor: {...}` is a moving line: belt cleats / track slats slide along each run and parts or
+     half-built robots ride it, popping in and out of sight inside end hoods or station booths so the loop never shows.
+       speed: 0.6 (m/s), dir: 1 | -1 | 'alt' (downstream = the placed piece's local +X, -X, or flipping every other run)
+       y: 0.86             height of the item base (belt top)
+       spacing: 1.2        metres between items (count: n overrides it)
+       items: ['Piece', ['Stage0', 'Stage1', ...]]   each item a piece or a stage chain (see stations); items of one
+                           symbol must come from one kit family
+       inset: 0.5          items pop in / out this far inside each end of the run
+       ends: { start: 'Feed', end: 'Exit', at: 0.5 }  pieces placed at the run ends (centre `at` m in from each end),
+                           turned so their local +X points downstream; their _COL boxes collide
+       stations: { 'Piece': x }   prefab lines: a tile of that piece moves its items on to the next stage where they pass
+                           its local x (inside a booth that hides the swap)
+       cleat: 'Cleat', cleatEvery: 0.5, cleatY: 0.86   belt cleats / track slats sliding along the whole run
+       path: [[x, z], ...] prefabs only: a closed loop in prefab-local metres (a test track) instead of a straight run;
+                           the items face along it
+       carry: { top: 1.0, width: 0.8 }   a player standing on the line's collision top is carried along
+     Per zone each moving symbol is ONE InstancedMesh (all its item kinds merged into one geometry; each instance shows
+     only its own kind), plus one more for every cleat, so a zone's lines cost a few draw calls; Z.updateLines (once a
+     frame from game.js) moves the visible zones only. Collision stays static: the line is cover. */
+  function addLine(P, z, theme, world, ch, d, cx, cz, yaw, half, tiles) {
+    var C = d.conveyor, lines = z.lines || (z.lines = []);
+    var nth = lines.filter(function (l) { return l.ch === ch; }).length;
+    var dir = C.dir === 'alt' ? (nth % 2 ? -1 : 1) : (C.dir || 1);
+    var l = { ch: ch, C: C, cx: cx, cz: cz, yaw: yaw, c: Math.cos(yaw), s: Math.sin(yaw), dir: dir, half: half, len: 2 * half, y: C.y || 0, stations: [], nth: nth };
+    if (C.path) {   // closed loop: cumulative arc length of the polyline
+      var pts = C.path, cum = [0];
+      for (var i = 1; i <= pts.length; i++) { var a = pts[i - 1], b = pts[i % pts.length]; cum.push(cum[i - 1] + Math.hypot(b[0] - a[0], b[1] - a[1])); }
+      l.loop = { pts: pts, cum: cum }; l.t0 = 0; l.span = cum[pts.length]; l.dir = 1;
+    } else {
+      var inset = C.inset !== undefined ? C.inset : 0.5;
+      l.t0 = inset; l.span = Math.max(0.1, l.len - 2 * inset);
+      (tiles || []).forEach(function (t) {
+        var sx = C.stations && C.stations[t.name];
+        if (sx !== undefined && sx !== null) l.stations.push(half + dir * (t.at + sx));
+      });
+      l.stations.sort(function (a, b) { return a - b; });
+      if (C.ends) [['start', 0], ['end', 1]].forEach(function (E) {
+        var n = C.ends[E[0]]; if (!n) return;
+        var at = C.ends.at !== undefined ? C.ends.at : 0.5, t = E[1] ? l.len - at : at, lx = dir * (t - half);
+        var ex = cx + lx * l.c, ez = cz - lx * l.s, ey = yaw + (dir < 0 ? Math.PI : 0);
+        P.add(n, ex, 0, ez, ey);
+        var ec = colsOf(IB.themePiece(theme, n)); if (ec) addCols(world, ec, ex, ez, ey, 'cover', z.idx);
+      });
+    }
+    var n = C.n || Math.max(1, Math.round(l.span / (C.spacing || 1.2)));
+    l.n = n; l.gap = l.span / n;
+    l.chains = [];
+    for (var k = 0; k < n; k++) {
+      var it = C.items[(k + nth * 3) % C.items.length];
+      l.chains.push((Array.isArray(it) ? it : [it]).map(function (nm) { return IB.themePiece(theme, nm); }));
+    }
+    if (C.cleat && !C.path) { l.cleat = IB.themePiece(theme, C.cleat); l.cn = Math.max(1, Math.round(l.len / (C.cleatEvery || 0.5))); }
+    lines.push(l);
+  }
+  // all kinds merged into one geometry; aKind tags each kind's vertices (cached per level, shared by the zones)
+  function kindAtlas(level, names) {
+    var key = names.join('|'), A = level.atlas || (level.atlas = {});
+    if (!A[key]) {
+      var list = names.map(function (n, k) {
+        var g = IB.Assets.get(n).clone(), a = new Float32Array(g.attributes.position.count); a.fill(k);
+        g.setAttribute('aKind', new THREE.BufferAttribute(a, 1)); return g;
+      });
+      A[key] = list.length > 1 ? THREE.BufferGeometryUtils.mergeBufferGeometries(list, false) : list[0];
+    }
+    var src = A[key], g = new THREE.BufferGeometry();   // a zone's view of the atlas: shared buffers + its own iKind
+    g.setIndex(src.index);
+    Object.keys(src.attributes).forEach(function (a) { g.setAttribute(a, src.attributes[a]); });
+    return g;
+  }
+  // the kit's toon material, plus: an instance draws only the vertices of its own kind (iKind)
+  var lineMats = {};
+  function lineMat(fam) {
+    if (lineMats[fam]) return lineMats[fam];
+    var m = IB.Render.toonMaterial({ map: IB.Assets.palette[fam], baked: IB.Assets.BAKED[fam] !== undefined ? IB.Assets.BAKED[fam] : 0.02 });
+    var base = m.onBeforeCompile, key = m.customProgramCacheKey;
+    m.onBeforeCompile = function (sh) {
+      base(sh);
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aKind;\nattribute float iKind;\n')
+        .replace('#include <fog_vertex>', '#include <fog_vertex>\nif ( abs( aKind - iKind ) > 0.5 ) gl_Position = vec4( 0.0, 0.0, -2.0, 1.0 );');
+    };
+    m.customProgramCacheKey = function () { return key() + 'line'; };
+    return (lineMats[fam] = m);
+  }
+  function lineMesh(level, zone, names, count) {
+    var g = kindAtlas(level, names), kind = new THREE.InstancedBufferAttribute(new Float32Array(count), 1);
+    kind.setUsage(THREE.DynamicDrawUsage); g.setAttribute('iKind', kind);
+    var mesh = new THREE.InstancedMesh(g, lineMat(IB.Assets.family[names[0]]), count);
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); mesh.frustumCulled = false;
+    zone.group.add(mesh);
+    return { mesh: mesh, kind: kind, names: names };
+  }
+  function buildLines(level, zone) {
+    if (!zone.lines) return;
+    var syms = {};
+    zone.lines.forEach(function (l) { (syms[l.ch] || (syms[l.ch] = [])).push(l); });
+    zone.lineMeshes = [];
+    Object.keys(syms).forEach(function (ch) {
+      var L = syms[ch], names = [], count = 0;
+      L.forEach(function (l) { l.base = count; count += l.n; l.chains.forEach(function (c) { c.forEach(function (n) { if (names.indexOf(n) < 0) names.push(n); }); }); });
+      var M = lineMesh(level, zone, names, count);
+      L.forEach(function (l) { l.items = M; l.kinds = l.chains.map(function (c) { return c.map(function (n) { return names.indexOf(n); }); }); });
+      zone.lineMeshes.push(M);
+    });
+    var cl = zone.lines.filter(function (l) { return l.cleat; }), cnames = [], cc = 0;
+    cl.forEach(function (l) { l.cbase = cc; cc += l.cn; if (cnames.indexOf(l.cleat) < 0) cnames.push(l.cleat); });
+    if (cl.length) {
+      var CM = lineMesh(level, zone, cnames, cc);
+      cl.forEach(function (l) { l.cleats = CM; for (var j = 0; j < l.cn; j++) CM.kind.array[l.cbase + j] = cnames.indexOf(l.cleat); });
+      zone.lineMeshes.push(CM);
+    }
+    placeLines(zone, level.lineT || 0);
+  }
+  var _lp = { x: 0, z: 0, yaw: 0 }, _lm = new THREE.Matrix4(), _lq = new THREE.Quaternion(), _lv = new THREE.Vector3();
+  function linePos(l, t, out) {
+    var lx, lz = 0, yaw = l.yaw;
+    if (l.loop) {
+      var P = l.loop.pts, cum = l.loop.cum, i = 0;
+      while (i < P.length - 1 && cum[i + 1] < t) i++;
+      var a = P[i], b = P[(i + 1) % P.length], f = (t - cum[i]) / Math.max(1e-6, cum[i + 1] - cum[i]);
+      lx = a[0] + (b[0] - a[0]) * f; lz = a[1] + (b[1] - a[1]) * f;
+      yaw += Math.atan2(b[0] - a[0], b[1] - a[1]);   // models face +Z: turn them along the path
+    } else lx = l.dir * (t - l.half);
+    out.x = l.cx + lx * l.c + lz * l.s; out.z = l.cz - lx * l.s + lz * l.c; out.yaw = yaw;
+    return out;
+  }
+  function setInst(M, i, x, y, z, yaw) {
+    _lq.setFromAxisAngle(_up, yaw); _lv.set(x, y, z);
+    M.mesh.setMatrixAt(i, _lm.compose(_lv, _lq, _s1));
+  }
+  function placeLines(zone, T) {
+    zone.lines.forEach(function (l) {
+      var run = T * (l.C.speed || 0.6);
+      for (var i = 0; i < l.n; i++) {
+        var t = l.t0 + ((i * l.gap + run) % l.span), k = l.kinds[i], st = 0;
+        while (st < l.stations.length && l.stations[st] < t) st++;
+        linePos(l, t, _lp);
+        setInst(l.items, l.base + i, _lp.x, l.y, _lp.z, _lp.yaw);
+        l.items.kind.array[l.base + i] = k[Math.min(st, k.length - 1)];
+      }
+      if (l.cleats) for (var j = 0; j < l.cn; j++) {
+        linePos(l, (j * l.len / l.cn + run) % l.len, _lp);
+        setInst(l.cleats, l.cbase + j, _lp.x, l.C.cleatY !== undefined ? l.C.cleatY : l.y, _lp.z, _lp.yaw);
+      }
+    });
+    zone.lineMeshes.forEach(function (M) { M.mesh.instanceMatrix.needsUpdate = true; M.kind.needsUpdate = true; });
+  }
+  // once a frame (game.js): move the lines of the zones being drawn; carry a player standing on a line top
+  var _carry = [];
+  Z.updateLines = function (level, dt, player) {
+    if (!level) return;
+    level.lineT = (level.lineT || 0) + dt;
+    level.zones.forEach(function (zone) {
+      if (!zone.lineMeshes || !zone.group.visible) return;
+      placeLines(zone, level.lineT);
+      if (!player || !player.onGround || !dt) return;
+      zone.lines.forEach(function (l) {
+        var K = l.C.carry; if (!K || l.loop || Math.abs(player.y - K.top) > 0.05) return;
+        var dx = player.x - l.cx, dz = player.z - l.cz, lx = dx * l.c - dz * l.s, lz = dx * l.s + dz * l.c;
+        if (Math.abs(lx) > l.half || Math.abs(lz) > (K.width || 0.8) / 2) return;
+        var v = l.dir * (l.C.speed || 0.6) * dt, nx = player.x + v * l.c, nz = player.z - v * l.s, r = IB.MOVE.radius;
+        level.world.query(nx - r, nz - r, nx + r, nz + r, _carry);
+        for (var i = 0; i < _carry.length; i++) {   // never carry the player into a wall, a hood or a crate
+          var b = _carry[i];
+          if (b.y1 > player.y + 0.05 && b.y0 < player.y + IB.MOVE.height && nx + r > b.x0 && nx - r < b.x1 && nz + r > b.z0 && nz - r < b.z1) return;
+        }
+        player.x = nx; player.z = nz;
+      });
+    });
+  };
   function buildSymbols(P, z, grid, theme, world) {
     buildWalls(P, z, grid, theme, world);
     Object.keys(theme.symbols || {}).forEach(function (ch) {
@@ -315,7 +509,9 @@
     var idx = g.idx; for (var t = idx.length - 6; t < idx.length; t += 3) { var tmp = idx[t + 1]; idx[t + 1] = idx[t + 2]; idx[t + 2] = tmp; }
     if (C.light) {
       var ev = C.every || 4;
-      for (var lx = x0 + ev / 2; lx < x0 + w; lx += ev) for (var lz = z0 + ev / 2; lz < z0 + h; lz += ev) P.add(C.light, lx, y, lz, 0);
+      // light: one piece, or a list mixed per bay (e.g. roof bays with and without an overhead crane)
+      for (var lx = x0 + ev / 2; lx < x0 + w; lx += ev) for (var lz = z0 + ev / 2; lz < z0 + h; lz += ev)
+        P.add(Array.isArray(C.light) ? pick(C.light, hash(Math.round(lx) * 7 + 3, Math.round(lz) * 11 + 5)) : C.light, lx, y, lz, 0);
     }
   }
 
@@ -491,6 +687,7 @@
       zone.ground = new THREE.Mesh(g.build(), Z.mat);
       zone.group.add(zone.ground);
       zone.meshes = meshesFor(P, zone.group);
+      buildLines(level, zone);   // moving lines (conveyor symbols): instanced items + belt cleats
       zone.tris = zone.meshes.reduce(function (t, m) { return t + m.geometry.index.count / 3; }, 0);
       level.tris += zone.tris;
       if (zone.entryGate) zone.group.add(zone.entryGate.group);
