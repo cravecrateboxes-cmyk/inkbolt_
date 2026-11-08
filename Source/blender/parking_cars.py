@@ -127,7 +127,7 @@ def build_cars(pal, ao):
     specs = [
         ('Sedan', SEDAN, 3.0, 0.08, 0.1, None),
         ('Sedan_Door', SEDAN, -2.0, -0.05, -0.1, 'door'),
-        ('Hatch', HATCH, -4.0, 0.1, 0.2, None),
+        ('Hatchback', HATCH, -4.0, 0.1, 0.2, None),
         ('Hatch_Hazard', HATCH, 2.0, -0.05, 0.15, None),
         ('Hatch_Boot', HATCH, 1.0, 0.05, -0.2, 'boot'),
         ('SUV', SUV, -2.5, -0.08, 0.0, 'rails'),

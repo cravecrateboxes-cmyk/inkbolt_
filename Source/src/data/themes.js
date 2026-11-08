@@ -46,6 +46,9 @@
    Collision: a piece node may carry empty children named <Piece>_COL<n> (Blender cube empties; position = box centre,
    scale = half extents); otherwise the cell (or prefab footprint) up to `h` is solid. Boxes may float (e.g. a bed
    frame): robots and the player walk under boxes whose bottom is above 1.2 m.
+   No invisible walls: a box must not block open air the player can see (tests/e2e/collision-audit.spec.js checks every
+   map). A prop whose single authored box is bigger than what it shows at player height (a round planter, a skewed
+   car, an open rack, a booth) is listed in blender/col_fit.py, which re-cuts its boxes to the drawn shape on export.
    Walkable surfaces: name an empty <Piece>_WCOL<n> instead and its box is one robots may walk ON (a deck, a stair
    step, a ramp as stepped boxes, a bridge plank). The player stands on any box top anyway; ground robots climb
    walkable boxes up to 0.4 m higher than the floor they stand on, and a zone holding walkable boxes gets a two-layer
