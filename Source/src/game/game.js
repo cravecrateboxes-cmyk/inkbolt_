@@ -471,7 +471,7 @@
   G.grantStarterShield = grantStarterShield;
   G.progress = function () {
     var h = G.slot ? G.slot.highest || 0 : 0, g = G.slot ? IB.Skills.gained(G.slot) : 0, lv = IB.Skills.playerLevel(g);
-    return { highest: h, gained: g, xp: G.slot ? G.slot.xp || 0 : 0, level: lv, title: IB.Skills.rankTitle(lv),
+    return { highest: h, gained: g, xp: G.slot ? G.slot.xp || 0 : 0, level: lv,
       points: G.slot ? IB.Skills.available(G.slot.skills || {}, g) : 0, earned: IB.Skills.earned(g), loadoutMax: IB.Skills.loadoutMax(h) };
   };
   /* Player XP (data/skills.js IB.XP): robots pay as they are wrecked, a level clear pays a bonus. A level-up raises
@@ -487,15 +487,15 @@
       applySkillStats(false);
       G.player.health = Math.min(G.player.maxHp, G.player.health + Math.max(0, G.player.maxHp - hp0));
       if (G.mode === 'play') {
-        HUD.toast('LEVEL UP · LV ' + after + ' ' + IB.Skills.rankTitle(after) + ' · max health ' + Math.round(G.player.maxHp) + (pts ? ' · +' + pts + ' skill point' + (pts > 1 ? 's' : '') + ' (Tab)' : ''), 3.2);
+        HUD.toast('LEVEL UP · LV ' + after + ' · max health ' + Math.round(G.player.maxHp) + (pts ? ' · +' + pts + ' skill point' + (pts > 1 ? 's' : '') + ' (Tab)' : ''), 3.2);
         A.play('hatch');
       }
-      hudLevel();
       G.store.save(G.slot);
     }
+    hudLevel(n);
   }
   G.addXp = addXp;
-  function hudLevel() { if (HUD.level) { var pr = G.progress(); HUD.level(pr.level, pr.title, pr.points); } }
+  function hudLevel(gain) { if (HUD.level) { var pr = G.progress(); HUD.level(pr.level, pr.points, IB.Skills.xpProgress(pr.xp), gain || 0); } }
   // after the Tab menu: skills may have changed (stats, effects) and so may the loadout
   G.applyProgress = function () {
     ensureSlot();

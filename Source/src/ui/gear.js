@@ -378,16 +378,17 @@
     host.innerHTML = cardFor(curG, gearOf(curG), spec);
   }
 
-  /* compact weapon card for a gun lying in the world (HUD peek panel, src/ui/hud.js H.peek): p = {id, tier, level,
-     roll, melee}. Stats as that gun would fight (no mods), compared with your own gun of that type when you have one. */
+  /* the weapon card for a gun lying in the world (HUD peek panel, src/ui/hud.js H.peek): the same card as the backpack
+     (cardShell) without the action buttons. p = {id, tier, level, roll, melee}. Stats as that gun would fight (no mods),
+     compared (▲/▼) with your own gun of that type when you have one. */
   GU.peekHtml = function (G, p) {
     var def = IB.WEAPONS[p.id]; if (!def || !G || !G.slot) return '';
     var WDg = IB.WeaponDrops, T = WDg ? WDg.tier(p.tier) : { name: 'Standard', color: '#E4DFD3', id: 'gray' };
     if (p.melee || def.cls === 'melee') {
       var own = (G.slot.melee || []).indexOf(p.id) >= 0;
-      return '<div class="pk-req"><span>Melee</span><span>' + (own ? 'Owned' : 'New') + '</span></div><div class="pk-bar" style="--rar:#FFC23A"><b>' + esc(def.name) + '</b></div>' +
-        '<ul class="pk-stats"><li>' + svg(SI.dmg, 'pk-si') + '<span>Damage</span><b>' + Math.round(def.damage) + '</b></li><li>' + svg(SI.rate, 'pk-si') + '<span>Swing</span><b>' + def.swing.toFixed(2) + ' s</b></li></ul>' +
-        '<div class="pk-foot">' + gunPic(p.id, 'pk-pic') + '</div>';
+      return cardShell('#FFC23A', (own ? svg(CHECK, 'g24 ic-check') : '') + '<span>Melee</span>', esc(def.name),
+        statList([{ label: 'Damage', icon: 'dmg', txt: String(Math.round(def.damage)) }, { label: 'Swing', icon: 'rate', txt: def.swing.toFixed(2) + ' s' }]),
+        gunPic(p.id, 'ic-pic'), own ? 'Owned' : 'New', '', 'peek');
     }
     var S0 = G.slot; S0.gunTier = S0.gunTier || {}; S0.gunLevel = S0.gunLevel || {}; S0.gunRoll = S0.gunRoll || {};
     var g = gearOf(G), have = (S0.arsenal || []).indexOf(p.id) >= 0, mine = have ? gunStats(G, p.id, g) : null;
@@ -404,15 +405,14 @@
     if (def.launcher === 'homing') notes.push('Homing salvo of ' + def.missiles);
     if (st.def.acid) notes.push('Acid rounds');
     if (st.fx.shock) notes.push('Shock rounds');
-    if (def.scopeZoom) notes.push(def.scopeZoom + 'x scope');
-    if (def.splash) notes.push('Splash ' + def.radius + ' m');
-    var pic = (IB.Thumbs ? IB.Thumbs.pic('gun', p.id + '@' + T.id, 'pk-pic', '') : '');
-    return '<div class="pk-req"><span>' + esc(T.name + ' ' + clsName(def.cls)) + '</span><span>Lv ' + lv + '</span></div>' +
-      '<div class="pk-bar" style="--rar:' + T.color + '"><b>' + esc(name) + '</b></div>' +
-      (mine ? '<div class="pk-vs">vs yours · ' + esc(WDg.nameOf(p.id)) + '</div>' : '<div class="pk-vs new">New gun</div>') +
-      statList(st.lines, mine && mine.lines).replace('class="ic-stats"', 'class="ic-stats pk-stats"') +
-      (notes.length ? '<ul class="pk-notes">' + notes.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul>' : '') +
-      '<div class="pk-foot">' + pic + '</div>';
+    if (def.scopeZoom) notes.push('Built-in ' + def.scopeZoom + 'x scope');
+    if (def.splash) notes.push('Splash damage, ' + def.radius + ' m');
+    var elem = st.def.acid ? svg(ACIDI, 'g24 ic-elem acid') : st.fx.shock ? svg(SHOCKI, 'g24 ic-elem shock') : '';
+    var pic = elem + (IB.Thumbs ? IB.Thumbs.pic('gun', p.id + '@' + T.id, 'ic-pic', '') : gunPic(p.id, 'ic-pic'));
+    return cardShell(T.color, '<span>' + esc(T.name + ' ' + clsName(def.cls)) + '</span><span>Lv ' + lv + '</span>', esc(name),
+      (mine ? '<div class="ic-vs">vs yours · ' + esc(WDg.nameOf(p.id)) + '</div>' : '') + statList(st.lines, mine && mine.lines) +
+      (notes.length ? '<ul class="ic-notes">' + notes.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul>' : ''),
+      pic, mine ? 'Owned' : 'New gun', '', 'peek');
   };
   GU.reset = function (G) {
     var lo = loadout(G), max = maxSlots(G);

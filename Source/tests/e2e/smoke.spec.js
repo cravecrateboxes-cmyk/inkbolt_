@@ -977,7 +977,7 @@ async function launcherRun(browser, base) {
     WD.clear(); WD.testDrop('pip', 'orange', false, 16); const d = WD.live().pop(); WD.list.forEach(q => { if (q.on) q.t = -99; });
     p.yaw = Math.atan2(-(d.x - p.x), -(d.z - p.z));
     await window.__poll(() => { const e = document.getElementById('peekCard'); return e && !e.hidden; }, 6000);
-    const e = document.getElementById('peekCard'), r = { shown: !!e && !e.hidden, text: e ? e.textContent : '', rows: e ? e.querySelectorAll('.pk-stats li').length : 0,
+    const e = document.getElementById('peekCard'), r = { shown: !!e && !e.hidden, text: e ? e.textContent : '', rows: e ? e.querySelectorAll('.inv-card .ic-stats li').length : 0,
       cmp: e ? e.querySelectorAll('.cmp').length : 0, skin: IB.GunSkins.material('pip', 'orange').userData.skin.shimmer, name: WD.skinName('pip', 'orange') };
     WD.clear(); await window.__poll(() => document.getElementById('peekCard').hidden, 3000);
     r.hidden = document.getElementById('peekCard').hidden;
@@ -1096,7 +1096,7 @@ async function launcherRun(browser, base) {
   check('launchers take no mods (no slots, nothing fits)', mods.slots === 0 && mods.fit === false, JSON.stringify(mods));
   await pg.evaluate(() => { __TEST__.giveLauncher('hothead', { mag: 5, elem: 'acid', rockets: 6 }); __TEST__.tabMenu(); });
   await wait(500);
-  const card = await pg.evaluate(() => { const b = document.querySelector('[data-k="s0"]'); if (b) b.click(); return new Promise(d => setTimeout(() => d({ txt: (document.querySelector('.inv-card') || {}).textContent || '', nomods: /no mods/i.test(document.querySelector('.inv-eq') ? document.querySelector('.inv-eq').textContent : '') }), 300)); });
+  const card = await pg.evaluate(() => { const b = document.querySelector('[data-k="s0"]'); if (b) b.click(); return new Promise(d => setTimeout(() => d({ txt: (document.querySelector('.invui .inv-card') || {}).textContent || '', nomods: /no mods/i.test(document.querySelector('.inv-eq') ? document.querySelector('.inv-eq').textContent : '') }), 300)); });
   check('the launcher card shows its level and element, and the slot says no mods', /Lv 14/.test(card.txt) && /Acid/.test(card.txt) && /no mods/i.test(card.txt) && card.nomods, card.txt.slice(0, 200));
   await pg.evaluate(() => __TEST__.closeTabMenu());
   // switching still works, the HUD shows the level, the save keeps rockets and levels

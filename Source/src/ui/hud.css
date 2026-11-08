@@ -104,12 +104,33 @@
 
 /* ---------- bottom-left: level tag, shield, health, stamina ---------- */
 .hud .hud-bl { width: 330px; gap: 5px; }
-.hud .lvtag { height: 24px; filter: none; gap: 8px; align-items: center; padding-right: 26px; background: linear-gradient(90deg, rgba(9, 12, 22, .55), rgba(9, 12, 22, 0)); }
-.hud .lv-badge { align-items: baseline; padding: 3px 9px 0 8px; height: 22px; background: rgba(46, 234, 216, .14); color: var(--hx-teal); box-shadow: inset 0 0 0 1px rgba(46, 234, 216, .6);
+/* XP bar (hud.js H.level): the health/shield plate style, teal; .gain = XP just earned (glow + "+N XP" tick) */
+.hud .xpbar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 9px; height: 28px; padding: 0 12px 0 10px; --cut: 8px; position: relative; overflow: visible; }
+.hud .xpbar::after { background: linear-gradient(90deg, rgba(9, 12, 22, .7), rgba(9, 12, 22, .5) 70%, rgba(9, 12, 22, .3));
+  clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, 0 100%); }
+.hud .xpbar::before { inset: 0 auto 0 0; width: 3px; background: var(--hx-teal); box-shadow: 0 0 8px var(--hx-teal-g); }
+.hud .lv-badge { display: flex; align-items: baseline; gap: 2px; padding: 2px 9px 0 8px; height: 20px; background: rgba(46, 234, 216, .14); color: var(--hx-teal); box-shadow: inset 0 0 0 1px rgba(46, 234, 216, .6);
   clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); font-weight: 700; }
-.hud .lv-badge small { font-size: 11px; font-weight: 600; letter-spacing: .1em; }
-.hud .lv-badge span { font-size: 19px; color: var(--hx-txt); }
-.hud .lv-title { margin: 0; padding: 0; background: none; clip-path: none; color: var(--hx-dim); font-weight: 600; font-size: 14px; letter-spacing: .16em; text-shadow: var(--hx-ts); }
+.hud .lv-badge small { font-size: 10px; font-weight: 600; letter-spacing: .1em; }
+.hud .lv-badge span { font-size: 17px; line-height: 1; color: var(--hx-txt); }
+.hud .xp-bar { position: relative; height: 7px; background: rgba(46, 234, 216, .14); transform: skewX(-20deg); }
+.hud .xp-bar > i { position: absolute; left: 0; top: 0; bottom: 0; }
+.hud .xp-bar #xpFill { width: 0; background: linear-gradient(180deg, #E6FFFB, var(--hx-teal)); box-shadow: 0 0 8px var(--hx-teal-g); transition: width .45s cubic-bezier(.2, .9, .3, 1); }
+.hud .xp-bar #xpFill.snap { transition: none; }
+.hud .xp-bar .xp-gain { width: 0; background: #FFFFFF; opacity: 0; z-index: 1; }
+.hud .xp-bar .hp-ticks { right: 0; --ticks: 20; z-index: 2; }
+.hud .xp-num { font-size: 16px; font-weight: 700; color: var(--hx-teal); white-space: nowrap; text-shadow: 0 0 8px var(--hx-teal-g), 0 1px 1px rgba(0, 0, 0, .6); }
+.hud .xp-num small { font-size: 11px; font-weight: 600; color: var(--hx-dim); letter-spacing: .06em; text-shadow: var(--hx-ts); }
+.hud .xpbar.max .xp-bar #xpFill { background: linear-gradient(180deg, #FFF3C4, var(--hx-amber)); box-shadow: 0 0 10px var(--hx-amber-g); }
+.hud .xpbar.max .xp-num { color: var(--hx-amber); text-shadow: 0 0 8px var(--hx-amber-g); }
+.hud .xp-plus { position: absolute; left: 100%; top: 50%; margin-left: 8px; transform: translateY(-50%); font-size: 16px; font-weight: 700; white-space: nowrap; color: var(--hx-teal);
+  text-shadow: -1px -1px 0 #0b0f1c, 1px -1px 0 #0b0f1c, -1px 1px 0 #0b0f1c, 1px 1px 0 #0b0f1c, 0 0 8px var(--hx-teal-g); opacity: 0; pointer-events: none; }
+.hud .xpbar.gain .xp-plus { animation: xpPlus 1.4s ease-out both; }
+.hud .xpbar.gain .xp-gain { animation: xpGain .9s ease-out both; }
+.hud .xpbar.gain::before { animation: xpEdge .6s ease-out; }
+@keyframes xpPlus { 0% { opacity: 0; transform: translate(-6px, -50%) scale(.8); } 12% { opacity: 1; transform: translate(0, -50%) scale(1.12); } 25% { transform: translate(0, -50%) scale(1); } 75% { opacity: 1; } 100% { opacity: 0; transform: translate(0, -110%); } }
+@keyframes xpGain { 0%, 30% { opacity: .95; } 100% { opacity: 0; } }
+@keyframes xpEdge { 0% { background: #FFFFFF; box-shadow: 0 0 14px #FFFFFF; } }
 .hud .lv-pts { margin-left: 2px; padding: 0 6px 0 8px; height: 22px; background: rgba(255, 178, 30, .16); color: var(--hx-amber); box-shadow: inset 0 0 0 1px rgba(255, 178, 30, .7);
   clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); font-weight: 700; font-size: 15px; animation: ptsPulse2 1.6s ease-in-out infinite; }
 .hud .lv-key { background: none; color: var(--hx-amber); font-size: 11px; font-weight: 600; letter-spacing: .1em; padding: 0 4px 0 0; }
@@ -310,10 +331,9 @@ body.touch-on .hud .slot { width: 50px; height: 34px; }
 body.touch-on .hud .slot.on { transform: none; }
 body.touch-on .hud .slot svg { width: 28px; height: 14px; }
 body.touch-on .hud .slot .key { left: 8px; top: 2px; }
-body.touch-on .hud .lvtag { height: 22px; }
-body.touch-on .hud .lv-badge { height: 20px; padding-top: 2px; }
+body.touch-on .hud .xpbar { height: 24px; padding: 0 10px 0 9px; gap: 7px; } body.touch-on .hud .xp-bar { height: 6px; } body.touch-on .hud .xp-num { font-size: 14px; } body.touch-on .hud .xp-num small { display: none; }
+body.touch-on .hud .lv-badge { height: 18px; padding-top: 2px; }
 body.touch-on .hud .lv-badge span { font-size: 16px; }
-body.touch-on .hud .lv-title { font-size: 12px; letter-spacing: .12em; }
 body.touch-on .hud .pickup-card, body.touch-on .hud .loot-card { padding: 7px 18px 7px 7px; gap: 10px; }
 body.touch-on .hud .pickup-txt b { font-size: 21px; }
 body.touch-on .hud .loot-name { font-size: 19px; }
@@ -370,31 +390,23 @@ body.touch-on .hud .kit { display: none; }
 .hud .use-prompt .ut { font-size: 17px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .hud .use-prompt .us { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--rar, var(--hx-teal)); }
 
-/* ---- weapon peek card: a gun in the world you walk up to (hud.js H.peek, gear.js GearUI.peekHtml) ---- */
-.hud .peek-card { position: absolute; left: calc(50% + 70px); top: 50%; transform: translateY(-58%); width: 250px; padding: 9px 11px 8px; pointer-events: none;
-  background: linear-gradient(160deg, rgba(14, 30, 64, .9), rgba(9, 16, 36, .88)); border: 2px solid var(--rar); border-radius: 4px;
-  box-shadow: 0 0 0 2px #15121C, 0 8px 22px rgba(0, 0, 0, .45), inset 0 0 22px color-mix(in srgb, var(--rar) 18%, transparent);
-  font-family: var(--hf); color: var(--hx-txt); text-shadow: 0 1px 0 #0b0f1c; animation: peekIn .16s ease-out; }
-@keyframes peekIn { from { opacity: 0; transform: translate(-8px, -58%); } }
-.peek-card .pk-req { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--hx-dim); }
-.peek-card .pk-bar { margin: 4px -4px 5px; padding: 4px 9px 3px; background: linear-gradient(180deg, color-mix(in srgb, var(--rar) 82%, #fff), var(--rar) 60%, color-mix(in srgb, var(--rar) 75%, #000));
-  clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%); }
-.peek-card .pk-bar b { display: block; font-size: 19px; line-height: 1.05; text-transform: uppercase; color: #15121C; text-shadow: 0 1px 0 rgba(255, 255, 255, .35); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.peek-card .pk-vs { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--hx-dim); margin-bottom: 2px; }
-.peek-card .pk-vs.new { color: #6BE05A; }
-.peek-card .pk-stats { list-style: none; margin: 0; padding: 0; display: grid; }
-.peek-card .pk-stats li { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto 12px; align-items: center; gap: 7px; min-height: 21px; font-size: 14px; border-bottom: 1px solid rgba(111, 234, 255, .1); }
-.peek-card .pk-stats li:last-child { border-bottom: 0; }
-.peek-card .pk-stats svg { width: 15px; height: 15px; color: #6FEAFF; }
-.peek-card .pk-stats b { font-size: 15px; text-align: right; }
-.peek-card .cmp { font-style: normal; font-size: 10px; }
-.peek-card .cmp.up { color: #6BE05A; } .peek-card .cmp.dn { color: #FF4B3E; }
-.peek-card .pk-notes { list-style: none; margin: 4px 0 0; padding: 0; font-size: 12px; font-weight: 600; color: var(--rar); text-transform: uppercase; letter-spacing: .05em; }
-.peek-card .pk-notes li::before { content: '◆ '; color: var(--hx-txt); }
-.peek-card .pk-foot { display: flex; justify-content: flex-end; height: 54px; margin-top: 2px; }
-.peek-card .pk-pic { display: grid; place-items: center end; height: 54px; max-width: 100%; } .peek-card .pk-pic .pic { max-height: 54px; max-width: 100%; }
-body.touch-on .hud .peek-card { left: calc(var(--sal, 0px) + 130px); top: 58px; transform: none; width: 200px; padding: 6px 9px; animation: none; }
-body.touch-on .hud .peek-card .pk-foot { display: none; }
-body.touch-on .hud .peek-card .pk-stats li { min-height: 18px; font-size: 13px; }
-body.touch-on .hud .use-prompt { top: calc(50% + 70px); }
-@media (max-width: 760px) { .hud .peek-card { left: 10px; top: 64px; transform: none; width: 200px; } }
+/* ---- weapon peek card: a gun in the world you walk up to (hud.js H.peek). It is the backpack card itself
+   (gear.js GearUI.peekHtml -> cardShell, styled in fieldkit.css), sized down to sit beside the crosshair. ---- */
+.hud .peek-card { position: absolute; left: calc(50% + 70px); top: 50%; transform: translateY(-50%); width: 290px; pointer-events: none;
+  font-family: var(--fk); font-weight: 400; font-synthesis: none; letter-spacing: .02em; color: var(--fk-txt); animation: peekIn .16s ease-out; }
+@keyframes peekIn { from { opacity: 0; transform: translate(-8px, -50%); } }
+.peek-card .inv-card { gap: 4px; padding: 12px 14px 10px; --ca: 16px; --cb: 6px; --rw: 5px; --o: 2.5px; }
+.peek-card .inv-card > .fr { filter: drop-shadow(0 0 10px rgba(255, 210, 63, .35)) drop-shadow(0 4px 0 rgba(4, 10, 28, .55)); }
+.peek-card .ic-req { font-size: 13px; } .peek-card .ic-check { width: 16px; height: 16px; }
+.peek-card .ic-bar { padding: 5px 9px 2px; margin: 0 0 2px; } .peek-card .ic-name { font-size: 21px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.peek-card .ic-vs { font-size: 12px; }
+.peek-card .ic-stats li { grid-template-columns: 16px minmax(0, 1fr) auto 12px; gap: 6px; min-height: 22px; font-size: 15px; }
+.peek-card .ic-stats b { font-size: 16px; } .peek-card .ic-si { width: 15px; height: 15px; } .peek-card .cmp { font-size: 11px; }
+.peek-card .ic-notes { margin-top: 2px; gap: 2px; } .peek-card .ic-notes li { font-size: 13px; padding-left: 14px; } .peek-card .ic-notes li::before { top: 4px; width: 6px; height: 6px; }
+.peek-card .ic-foot { min-height: 0; margin-top: 2px; gap: 6px; } .peek-card .ic-pic, .peek-card .ic-pic .pic { height: 56px; max-height: 56px; }
+.peek-card .ic-tag { font-size: 13px; padding: 4px 8px 2px; margin: 0 0 4px 2px; } .peek-card .ic-elem { width: 22px; height: 22px; }
+body.touch-on .hud .peek-card { left: calc(var(--sal, 0px) + 130px); top: 58px; transform: none; width: 230px; animation: none; }
+body.touch-on .hud .peek-card .ic-notes, body.touch-on .hud .peek-card .ic-foot { display: none; }
+body.touch-on .hud .peek-card .ic-stats li { min-height: 19px; font-size: 13px; } body.touch-on .hud .peek-card .ic-stats b { font-size: 14px; }
+body.touch-on .hud .peek-card .ic-name { font-size: 18px; }
+@media (max-width: 760px) { .hud .peek-card { left: 10px; top: 64px; transform: none; width: 220px; } .hud .peek-card .ic-notes, .hud .peek-card .ic-foot { display: none; } }

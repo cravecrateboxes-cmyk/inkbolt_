@@ -154,12 +154,13 @@
       entry('settings', 'Settings');
     var card = '';
     if (s) {
-      var lv = IB.Skills ? IB.Skills.levelFromXp(s.xp) : 1, title = IB.Skills ? IB.Skills.rankTitle(lv) : '';
+      var lv = IB.Skills ? IB.Skills.levelFromXp(s.xp) : 1, xpp = IB.Skills ? IB.Skills.xpProgress(s.xp) : { span: 0, frac: 1 };
       var pct = Math.round(Math.min(1, (s.highest || 0) / Math.max(1, (IB.CAMPAIGN || []).length || 19)) * 100);
       var when = s.saved && IB.Saves ? IB.Saves.ago(Date.now() - s.saved) : '';
       card = '<aside class="holo save-card" aria-label="Save slot ' + s.id + '">' +
         '<div class="sc-head">' + M.glyph('emblem', 'g24 sc-ic') + '<b>Save slot ' + s.id + '</b><span>' + esc(when) + '</span></div>' +
-        '<div class="sc-row sel"><span class="lvb"><small>LV</small>' + lv + '</span><b class="sc-name">' + esc(title) + '</b><span class="sc-gems">' + M.glyph('gem') + (s.gems || 0) + '</span></div>' +
+        '<div class="sc-row sel"><span class="lvb"><small>LV</small>' + lv + '</span><b class="sc-name">Player level</b><span class="sc-gems">' + M.glyph('gem') + (s.gems || 0) + '</span></div>' +
+        '<div class="sc-row"><span>XP</span><i class="sc-bar"><i style="width:' + Math.round(xpp.frac * 100) + '%"></i></i><b>' + (xpp.span ? Math.round(xpp.frac * 100) + '%' : 'Max') + '</b></div>' +
         '<div class="sc-row"><span>Next up</span><b>Level ' + s.level + ' · ' + esc(d.levelName) + '</b></div>' +
         '<div class="sc-row"><span>Campaign</span><i class="sc-bar"><i style="width:' + pct + '%"></i></i><b>' + (s.highest || 0) + '/' + ((IB.CAMPAIGN || []).length || 19) + '</b></div>' +
         '</aside>';
