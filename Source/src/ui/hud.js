@@ -36,7 +36,7 @@
       hpChip: $('hpChip'), stamina: $('stamina'), stFill: $('stFill'), dim: $('dim'), hurt: $('hurt'), hurtFlash: $('hurtFlash'),
       pickup: $('pickup'), pickupIcon: $('pickupIcon'), pickupName: $('pickupName'), pickupLine: $('pickupLine'),
       confirm: $('confirm'), confirmNum: $('confirmNum'), pauseBtn: $('pauseBtn'),
-      lvTag: $('lvTag'), lvNum: $('lvNum'), lvTitle: $('lvTitle'), lvPts: $('lvPts'), lvPtsN: $('lvPtsN'), lvKey: $('lvKey'), menuBtn: $('menuBtn'), menuDot: $('menuDot')
+      lvTag: $('lvTag'), lvNum: $('lvNum'), xpFill: $('xpFill'), xpGain: $('xpGain'), xpNum: $('xpNum'), xpPlus: $('xpPlus'), lvPts: $('lvPts'), lvPtsN: $('lvPtsN'), lvKey: $('lvKey'), menuBtn: $('menuBtn'), menuDot: $('menuDot')
     };
     H.arcs = [];
     for (var i = 0; i < 6; i++) {
@@ -72,16 +72,35 @@
     pickT = 0; confirmT = 0; toastT = 0; hitT = 0;
   };
 
-  /* player level tag above the health plate: LV badge, rank title, unspent skill points (+ the Tab hint) */
-  H.level = function (lv, title, points) {
+  /* player XP bar above the health plate: LV badge, progress to the next level (IB.Skills.xpProgress: {lv, into, span,
+     frac}), unspent skill points (+ the Tab hint). gain > 0 (XP just earned) flashes the gained stretch of the bar and
+     pops a "+N XP" tick (gains close together add up); a level-up snaps the bar back to empty. MAX at the level cap. */
+  var xpAt = -1e9, xpSum = 0;
+  H.level = function (lv, points, prog, gain) {
     var el = H.el; if (!el.lvTag) return;
-    set('lv', lv + '|' + title + '|' + points, function () {
-      el.lvNum.textContent = lv; el.lvTitle.textContent = title;
+    prog = prog || { lv: lv, into: 0, span: 0, frac: 0 };
+    var max = !prog.span, pct = max ? 100 : Math.max(0, Math.min(100, prog.frac * 100));
+    set('lv', lv + '|' + points, function () {
+      el.lvNum.textContent = lv;
       el.lvPts.hidden = !(points > 0); el.lvPtsN.textContent = '+' + points;
       el.lvKey.textContent = touch() ? 'pts' : 'Tab';
-      el.lvTag.setAttribute('aria-label', 'Level ' + lv + ', ' + title + (points > 0 ? ', ' + points + ' skill points to spend' : ''));
+      el.lvTag.classList.toggle('max', max);
       if (el.menuDot) el.menuDot.hidden = !(points > 0);
     });
+    set('xp', lv + '|' + pct.toFixed(1), function () {
+      var prev = H.xpLv === lv ? H.xpPct : null;
+      el.xpFill.style.width = pct + '%'; el.xpNum.innerHTML = max ? 'MAX' : Math.floor(prog.into) + '<small>/' + prog.span + ' XP</small>';
+      el.lvTag.setAttribute('aria-label', 'Level ' + lv + (max ? ', max level' : ', ' + Math.floor(prog.into) + ' of ' + prog.span + ' XP to level ' + (lv + 1)) + (points > 0 ? ', ' + points + ' skill points to spend' : ''));
+      // the stretch just earned glows, then fades (same level only; a level-up starts the bar over)
+      el.xpGain.style.left = (prev == null || prev > pct ? 0 : prev) + '%'; el.xpGain.style.width = Math.max(0, pct - (prev == null || prev > pct ? 0 : prev)) + '%';
+      el.xpFill.classList.toggle('snap', prev == null);
+      H.xpLv = lv; H.xpPct = pct;
+    });
+    if (gain > 0) {
+      var now = performance.now(); xpSum = now - xpAt < 1200 ? xpSum + gain : gain; xpAt = now;
+      el.xpPlus.textContent = '+' + Math.round(xpSum) + ' XP';
+      el.lvTag.classList.remove('gain'); void el.lvTag.offsetWidth; el.lvTag.classList.add('gain');
+    }
   };
   H.gems = function (n, pulse) {
     set('gems', n, function (v) { H.el.gemCount.textContent = v; });

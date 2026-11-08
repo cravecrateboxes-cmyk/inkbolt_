@@ -716,25 +716,20 @@ body.kbd .btn.mm-item:focus-visible { outline: none; }
   .gear, .ld-track i { animation-play-state: paused; }
 }
 
-/* ---------- player level tag (HUD, above the health plate; phones: under it) ---------- */
-.lvtag { display: flex; align-items: stretch; height: 32px; justify-self: start; max-width: 100%; min-width: 0; filter: drop-shadow(0 3px 0 rgba(21, 18, 28, .45)); }
+/* ---------- player XP bar (HUD, above the health plate; phones: under it) ---------- */
 .lv-badge { flex: none; display: flex; align-items: baseline; gap: 3px; padding: 4px 9px 0 8px; background: var(--teal); color: var(--ink); box-shadow: inset 0 0 0 3px var(--ink);
   font-stretch: 125%; font-weight: 900; line-height: 1; clip-path: polygon(8px 0, 100% 0, 100% 100%, 0 100%, 0 8px); }
 .lv-badge small { font-size: 11px; font-weight: 900; }
 .lv-badge span { font-size: 23px; }
-.lv-title { min-width: 0; display: flex; align-items: center; padding: 0 24px 0 10px; margin-left: -3px; background: var(--ink); color: var(--paper);
-  font-stretch: 88%; font-weight: 900; font-size: var(--t15); text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 100%, 0 100%); }
 .lv-pts { flex: none; display: flex; align-items: center; gap: 6px; margin-left: 4px; padding: 0 6px 0 9px; background: var(--amber); color: var(--ink); box-shadow: inset 0 0 0 3px var(--ink);
   font-stretch: 125%; font-weight: 900; font-size: var(--t15); clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 0 100%); animation: ptsPulse 1.6s ease-in-out infinite; }
 .lv-key { font-size: 11px; font-stretch: 100%; font-weight: 800; background: var(--ink); color: var(--amber); padding: 3px 5px 2px; text-transform: uppercase; letter-spacing: .04em; }
 @keyframes ptsPulse { 50% { background: #FFD27A; } }
 .menubtn { right: calc(var(--sar) + var(--gap) + 58px); }
 .menubtn-dot { position: absolute; top: 5px; right: 5px; width: 11px; height: 11px; background: var(--amber); box-shadow: 0 0 0 2px var(--ink); }
-body.touch-on .lvtag { order: 3; height: 26px; max-width: none; width: max-content; }
+body.touch-on .xpbar { order: 3; }
 body.touch-on .lv-pts { display: none; }   /* phones: the amber dot on the menu button shows unspent points */
 body.touch-on .lv-badge span { font-size: 18px; }
-body.touch-on .lv-title { font-size: 12px; padding-right: 16px; }
 body.touch-on .lv-pts { font-size: 13px; padding: 0 6px 0 7px; }
 body.touch-on .hud-tr { top: calc(var(--sat) + var(--gap) + 90px); }
 @media (orientation: portrait) {
@@ -837,9 +832,8 @@ body.touch-on .loot-note { display: none; }
 .scopeview svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .hud.scoped .xhair { opacity: 0; }
 
-/* phones: level tag + shield row together (the tag never widens the health column) */
+/* phones: XP bar + shield row together (the tag never widens the health column) */
 .hud-bl { grid-template-columns: minmax(0, 1fr); }
-.lvtag { width: max-content; max-width: none; }
 body.touch-on .hud.has-shield .hud-tr { top: calc(var(--sat) + var(--gap) + 120px); }
 @media (orientation: portrait) {
   body.touch-on .objective { top: calc(var(--sat) + var(--gap) + 160px); }

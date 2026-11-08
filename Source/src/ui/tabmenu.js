@@ -112,7 +112,7 @@
       '<section class="tm-frame" role="dialog" aria-modal="true" aria-label="Field kit">' +
         '<header class="tm-head">' +
           '<div class="tm-id">' + lvBadge(pr.level, 'tm-lv') +
-            '<span class="tm-idtxt"><b class="tm-title">' + esc(pr.title) + '</b><span class="tm-sub">' + (pr.highest > 0 ? 'Level ' + pr.highest + ' cleared' : 'Rookie') + '</span></span></div>' +
+            '<span class="tm-idtxt"><b class="tm-title">Scrapper</b><span class="tm-sub">' + 'Player level ' + pr.level + (pr.highest > 0 ? ' · level ' + pr.highest + ' cleared' : '') + '</span></span></div>' +
           '<nav class="tm-tabs" role="tablist" aria-label="Field kit">' + (touch() ? '' : '<kbd class="qe">Q</kbd>') + tabs +
             '<b class="tm-curlbl" aria-hidden="true">' + FR + '<span>' + cur + '</span></b>' + (touch() ? '' : '<kbd class="qe">E</kbd>') + '</nav>' +
           '<div class="tm-meta"><span class="tm-gems" aria-label="Gems"><i class="gem-glyph" aria-hidden="true"></i><b>' + (G.slot.gems || 0) + '</b></span>' +
@@ -248,7 +248,7 @@
   function plate(pr, sk, h) {
     var cost = IB.Skills.respecCost(h), spent = IB.Skills.spent(sk), canRespec = spent > 0 && (G.slot.gems || 0) >= cost;
     return '<div class="ep sk-plate">' + FR +
-      '<div class="sk-who">' + lvBadge(pr.level) + '<b class="sk-whoname">' + esc(pr.title) + '</b></div>' +
+      '<div class="sk-who">' + lvBadge(pr.level) + '<b class="sk-whoname">Scrapper</b></div>' +
       '<div class="sk-points"><span>Skill points</span><b class="' + (pr.points > 0 ? 'has' : '') + '">' + pr.points + '</b></div>' +
       '<button class="btn danger sk-rbtn' + (T.confirmRespec ? ' confirm' : '') + '" data-act="respec" data-nav' + (canRespec ? '' : ' disabled aria-disabled="true"') + '><span class="btn-l">' + (T.confirmRespec ? 'Confirm reset' : 'Respec') + '</span><span class="hint"><i class="gem-glyph sm" aria-hidden="true"></i>' + cost + '</span></button>' +
       '</div>';
@@ -295,7 +295,7 @@
   // reads the skill table and the player directly (no assumption about IB.Skills.effects field names)
   function characterPanel(pr) {
     var sk = G.slot.skills || {}, g = IB.Gear && IB.Gear.gear(G), p = G.player || {};
-    var cap = IB.PLAYER_LEVEL_CAP, next = pr.level < cap ? IB.Skills.rankTitle(pr.level + 1) : null;
+    var cap = IB.PLAYER_LEVEL_CAP;
     var xpp = IB.Skills.xpProgress(G.slot.xp), lvPct = Math.round(xpp.frac * 100), ptPct = Math.round(pr.earned / IB.Skills.totalPoints() * 100);
     var sh = g && g.shield ? IB.Loot.find(g, g.shield) : null;
     function row(ic, k, v, hl) { return '<li' + (hl ? ' class="hl"' : '') + '>' + skIcon(ic, 'skic sm') + '<span>' + esc(k) + '</span><b>' + esc(v) + '</b></li>'; }
@@ -313,10 +313,10 @@
     function rec(k, v) { return '<li><span>' + k + '</span><b>' + v + '</b></li>'; }
     return '<div class="ep hsel ch-id">' + FR +
         lvBadge(pr.level, 'ch-badge') +
-        '<b class="ch-title">' + esc(pr.title) + '</b><span class="ch-sub">Scrapper · LV ' + pr.level + ' of ' + cap + '</span>' +
+        '<b class="ch-title">Scrapper</b><span class="ch-sub">Player level ' + pr.level + ' of ' + cap + '</span>' +
         '<div class="ch-bar"><span>XP</span><i><i style="width:' + lvPct + '%"></i></i><b>' + (xpp.span ? Math.floor(xpp.into).toLocaleString() + '/' + xpp.span.toLocaleString() : 'Max') + '</b></div>' +
         '<div class="ch-bar"><span>Points</span><i><i style="width:' + ptPct + '%"></i></i><b>' + pr.earned + '/' + IB.Skills.totalPoints() + '</b></div>' +
-        '<p class="ch-next">' + (next ? 'Next rank: <b>' + esc(next) + '</b>' : 'Top rank reached.') + '</p>' +
+        '<p class="ch-next">' + (xpp.span ? '<b>' + Math.ceil(xpp.span - xpp.into).toLocaleString() + ' XP</b> to LV ' + (pr.level + 1) : 'Max level reached.') + '</p>' +
         (perks.length ? '<div class="ch-perks">' + perks.map(function (s) { return '<span>' + skIcon(s.icon, 'skic sm') + esc(s.name) + '</span>'; }).join('') + '</div>' : '') +
       '</div>' +
       '<section class="ep ch-mid" aria-label="Stats">' + FR + '<h3 class="ep-h">' + IB.Menus.glyph('emblem') + 'Combat stats</h3><div class="tm-scroll" data-pane="stats"><ul class="ch-stats">' + stats + '</ul></div></section>' +
