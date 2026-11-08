@@ -5,8 +5,8 @@
    firing range (acoustic panels, booths, robot-silhouette targets, backstop, baffles) and a vehicle garage (block
    walls, roller doors, bay lines, SWAT vans, holding cells, tool chests, drums and tyres).
    Weapon walls ('R') carry REAL guns: about 60 % of a wall's four slots are filled at level start, each with a gun
-   unlocked so far at a weapon tier rolled from `armory.tiers` (gray / green / blue common, purple very rare, orange
-   never). Workbenches ('b') hold gun attachments and gear shelves ('g') shield cells and vests, made by the gear loot
+   unlocked so far at a weapon tier rolled from `armory.tiers` (mostly gray / green, a blue or two, purple and orange (0.4%) very rare
+   0.4%). Workbenches ('b') hold gun attachments and gear shelves ('g') shield cells and vests, made by the gear loot
    system at `armory.gear` odds. Look at one and press E (touch: USE) to take it.
    Built by blender/fam_kit_police.py; zone layouts by tools/police_zones.py (src/data/zones/police_*.txt).
 
@@ -170,7 +170,7 @@
     wall: { height: 4.0, roof: '#C2C8D0', facing: 'open', choose: chooseWall },
     symbols: SYMBOLS,
     // armory odds (game.js placeLoot): rack guns by weapon tier (src/game/wdrops.js TIERS), bench / shelf gear by rarity
-    armory: { tiers: { gray: 46, green: 34, blue: 19.25, purple: 0.75, orange: 0 }, gear: { common: 62, rare: 33, epic: 5, legendary: 0 } },
+    armory: { tiers: { gray: 52, green: 43, blue: 4, purple: 0.6, orange: 0.4 }, gear: { common: 62, rare: 33, epic: 5, legendary: 0 } },
     gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.5, shutterHeight: 3.05 },
     trail: { wall: 'TrailWall', height: 4.0, variants: ['TrailWall', 'TrailWall_Board', 'TrailWall', 'TrailWall_Badge', 'TrailWall', 'TrailWall_Window'], end: 'TrailWall' },
     hatch: 'Hatch', stand: 'Crate',
