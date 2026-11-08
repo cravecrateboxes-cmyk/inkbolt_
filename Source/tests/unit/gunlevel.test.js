@@ -115,13 +115,28 @@ test('balance: launchers hit hardest per shot, but stay inside the ammo economy'
   let checked = 0;
   IB.CAMPAIGN.forEach((pid, i) => {
     const L = i + 1; if (L < GL.LAUNCHER_LEVEL) return;
-    const p = IB.LEVEL_PLANS[pid]; let robots = 0, soldiers = 0;
-    p.zones.forEach((z) => z.waves.forEach((w) => w.forEach((e) => { robots += e[1]; if (e[0] === 'soldier') soldiers += e[1]; })));
-    const rockets = GL.rocketBudget(soldiers) + GL.ROCKET.cap;
+    const p = IB.LEVEL_PLANS[pid]; let robots = 0, soldiers = 0, bladers = 0;
+    p.zones.forEach((z) => z.waves.forEach((w) => w.forEach((e) => { robots += e[1]; if (e[0] === 'soldier') soldiers += e[1]; if (e[0] === 'blader') bladers += e[1]; })));
+    const rockets = GL.rocketBudget(soldiers) + GL.ROCKET.cap;   // bladers drop crates too (half chance), from the same budget
     assert.ok(rockets * 2.5 / robots <= 0.25, 'level ' + L + ': ' + rockets + ' rockets vs ' + robots + ' robots');
     checked++;
   });
   assert.ok(checked >= 1);
   // rocket crates stay far rarer than normal ammo boxes (20 % of every kill)
   assert.ok(GL.ROCKET.maxChance * 0.25 < IB.WEAPON_RULES.ammoDropChance);
+});
+
+test('rocket crates: melee bladers drop them at half a soldier\'s chance, other robots never', () => {
+  assert.equal(GL.rocketDropWeight('soldier'), 1);
+  assert.equal(GL.rocketDropWeight('blader'), 0.5);
+  assert.equal(GL.rocketDropWeight('bruiser'), 0);
+  const st = { owned: true, carried: true, ammo: 0, used: 6, budget: 40 };
+  const need = GL.rocketNeed(st), pS = GL.ROCKET.maxChance * need;
+  // a roll just under the blader's threshold drops for both; one between the two thresholds only for a soldier
+  assert.ok(GL.rocketDrop(Object.assign({ w: 0.5 }, st), () => pS * 0.5 - 1e-6) > 0);
+  assert.equal(GL.rocketDrop(Object.assign({ w: 0.5 }, st), () => pS * 0.75), 0);
+  assert.ok(GL.rocketDrop(Object.assign({ w: 1 }, st), () => pS * 0.75) > 0);
+  assert.equal(GL.rocketDrop(Object.assign({ w: 0 }, st), () => 0), 0);
+  // bladers share the soldiers' level budget: once it is spent, no crate from either
+  assert.equal(GL.rocketDrop(Object.assign({ w: 0.5, dropped: 40 }, st), () => 0), 0);
 });

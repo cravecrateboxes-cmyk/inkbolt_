@@ -24,7 +24,7 @@ CONTROLS
            Space jump, Shift sprint, R reload, 1-3 or mouse wheel switch carried guns,
            V melee strike with the equipped melee weapon (a shove until you own one; quick presses chain a combo),
            B next melee weapon, G throw a frag can,
-           F Undercover (skill: 5 s invisible, 30 s cooldown; badge above the bottom edge), Esc pause.
+           F Undercover (skill: 7.5 s invisible, 23 s cooldown; badge above the bottom edge), Esc pause.
            Tab opens the field kit (pauses): Inventory, Skills, Character. Q / E (or the yellow chevrons) switch
            tabs, arrows move, Enter selects (Enter again spends a skill point; in the inventory Enter equips),
            pointing at an item shows its card, Tab or Esc resumes.

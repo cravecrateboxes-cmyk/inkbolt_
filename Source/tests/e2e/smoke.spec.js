@@ -51,6 +51,12 @@ async function hookRun(browser, base) {
     }
     const spawned = await until(pg, () => __TEST__.state().alive > 0, null, 10000);
     check('zone ' + (z + 1) + ' robots drop in', spawned);
+    if (z === 0) {
+      // spawn cans: a hinged lid per can; it pops open while a robot climbs out, then shuts again
+      const cans = await pg.evaluate(() => ({ n: IB.AI.cans.length, spawns: IB.Game.level.zones.reduce((a, q) => a + q.spawns.length, 0) }));
+      check('spawn cans: one lid per can', cans.n > 0 && cans.n === cans.spawns, JSON.stringify(cans));
+      check('spawn cans: a lid pops open as a robot hops out', await until(pg, () => IB.AI.cans.some((c) => c.a > 1.2) || IB.AI.robots.some((r) => r.on && r.state === 'spawn' && r.can && r.can.a > 1.2), null, 10000));
+    }
     // kill until cleared (waves keep coming until the zone is done)
     const t0 = Date.now();
     while (Date.now() - t0 < 20000) {
@@ -282,7 +288,7 @@ async function skillsRun(browser, base) {
   await pg.keyboard.press('KeyF');
   check('F turns Undercover on', await until(pg, () => __TEST__.skillState().cloak.active, null, 3000));
   ss = await pg.evaluate(() => __TEST__.skillState());
-  check('cloak: 5 s, then a 30 s cooldown; the AI is told', ss.cloaked && ss.cloak.t <= 5 && ss.cloak.t > 3 && ss.cloak.cd === 30, JSON.stringify(ss.cloak));
+  check('cloak: 7.5 s, then a 23 s cooldown; the AI is told', ss.cloaked && ss.cloak.t <= 7.5 && ss.cloak.t > 5.5 && ss.cloak.cd === 23, JSON.stringify(ss.cloak));
   check('after a quick flicker the world sinks into the ink-black stealth look (robots glow a bright stealth blue)', await until(pg, () => document.body.classList.contains('cloak-on') &&
     IB.Render.cloak.value > 0.9 && IB.Render.robotHull.value > 1.8 && IB.Render.robotHull.value < 2.3 && +getComputedStyle(document.getElementById('cloakFx')).opacity > 0.9 &&
     IB.Render.robotOutline.uInk.value.b > 0.5, null, 5000));
@@ -290,7 +296,7 @@ async function skillsRun(browser, base) {
   let worst = 0;
   for (let i = 0; i < 8; i++) { await pg.waitForTimeout(150); const s = await pg.evaluate(() => __TEST__.skillState()); if (!s.cloak.active) break; worst = Math.max(worst, s.seeing + s.attacking); }
   check('robots lose the player: nobody sees him or winds up an attack', worst === 0, 'seeing+attacking=' + worst);
-  await pg.evaluate(() => { IB.SkillFX.cloakT = Math.min(IB.SkillFX.cloakT, 0.3); });   // skip to the end of the 5 s (slow software GL)
+  await pg.evaluate(() => { IB.SkillFX.cloakT = Math.min(IB.SkillFX.cloakT, 0.3); });   // skip to the end of the 7.5 s (slow software GL)
   check('the cloak wears off', await until(pg, () => !__TEST__.skillState().cloak.active && !__TEST__.skillState().cloaked, null, 40000));
   check('screen back in colour, cooldown counting', await pg.evaluate(() => !document.body.classList.contains('cloak-on') && __TEST__.skillState().cloak.cd > 0 && /\d+s/.test(document.getElementById('cloakHud').textContent)));
   await pg.keyboard.press('KeyF'); await pg.waitForTimeout(300);
@@ -356,6 +362,18 @@ async function skillsRun(browser, base) {
   await pg.waitForTimeout(400);
   const hp1 = await pg.evaluate(() => IB.Game.player.health);
   check('its blast is harmless to the player', hp1 >= hp0, hp0 + ' -> ' + hp1);
+  // a helper left behind when the player moves on to the next zone powers down quietly (no blast, no kill counted)
+  const lb = await pg.evaluate(() => {
+    const G = IB.Game, z = G.level.zones[G.zone];
+    const slot = __TEST__.spawnRobot('gunner', z.entry.x + 3, z.entry.z - 5); __TEST__.wreck('gunner', slot);
+    return { slot, rogue: __TEST__.robot('gunner', slot).rogue > 0, kills: G.run.kills, zones: G.level.zones.length, blasts: IB.SkillFX.stats.chains };
+  });
+  if (lb.zones > 1) {
+    await pg.evaluate(() => __TEST__.teleport(1));
+    await until(pg, () => IB.Game.zone === 1, null, 8000);
+    const lb2 = await pg.evaluate((slot) => ({ zone: IB.Game.zone, on: __TEST__.robot('gunner', slot).on, kills: IB.Game.run.kills }), lb.slot);
+    check('Handy Helpers: a helper left in the previous zone is removed silently when the next zone starts', lb.rogue && lb2.zone === 1 && !lb2.on && lb2.kills === lb.kills, JSON.stringify([lb, lb2]));
+  }
   check('no console errors or warnings', pg.logs.length === 0, pg.logs.join(' | '));
   await pg.context().close();
 }
@@ -423,6 +441,19 @@ async function meleeRun(browser, base) {
   await pg.evaluate(() => { const G = IB.Game, p = G.player; if (!G.spawnPickup('ammo', p.x, p.z)) { const k = G.pickups.find((q) => q.on && q.kind === 'ammo'); p.x = k.x; p.z = k.z; } });
   const back = await until(pg, () => IB.Game.grenades === 3, null, 20000);
   check('an ammo box gives a frag can back', back, back ? '' : await pg.evaluate(() => JSON.stringify({ g: IB.Game.grenades, p: [IB.Game.player.x, IB.Game.player.y, IB.Game.player.z], pk: IB.Game.pickups.filter((k) => k.on).map((k) => [k.kind, k.x, k.z]) })));
+  // every gun's spare ammo full (and no frag can missing): the box stays on the floor; one gun short: it is taken
+  const af = await pg.evaluate(() => {
+    const G = IB.Game, p = G.player, ws = G.ws;
+    Object.keys(ws.guns).forEach((k) => { const g = ws.guns[k]; if (g.reserve !== Infinity && !g.def.ammo) g.reserve = IB.Loadout.reserveCap(g.def); });
+    G.grenades = IB.WEAPONS.frag.carry;
+    G.pickups.forEach((k) => { if (k.kind === 'ammo') { k.on = false; k.mesh.visible = false; } });
+    return !!G.spawnPickup('ammo', p.x, p.z) && IB.Weapons.ammoFull(ws);
+  });
+  await pg.waitForTimeout(1000);
+  const stays = await pg.evaluate(() => IB.Game.pickups.filter((k) => k.on && k.kind === 'ammo').length);
+  check('ammo full on every gun: walking over an ammo box leaves it there', af && stays === 1, JSON.stringify({ af, stays }));
+  await pg.evaluate(() => { const ws = IB.Game.ws, id = Object.keys(ws.guns).find((k) => ws.guns[k].reserve !== Infinity && !ws.guns[k].def.ammo); ws.guns[id].reserve = 0; });
+  check('...and it is taken once a gun can hold more', await until(pg, () => IB.Game.pickups.filter((k) => k.on && k.kind === 'ammo').length === 0, null, 10000));
   // pump shotgun: one shell per reload cycle
   await pg.evaluate(() => { const G = IB.Game, W = IB.Weapons; W.give(G.ws, 'scrapper'); W.equip(G.ws, 'scrapper', true); G.ws.guns.scrapper.mag = 1; W.reload(G.ws); });
   check('Scrapper loads shell by shell up to 6', await until(pg, () => IB.Game.ws.guns.scrapper.mag === 6 && IB.Game.ws.state === 'idle', null, 30000));
@@ -1018,6 +1049,23 @@ async function launcherRun(browser, base) {
   await wait(1200);
   const pick = await pg.evaluate(() => __TEST__.launcherState());
   check('walking over a rocket crate adds its rockets', pick.pool >= 2 && pick.crates.length === 0, JSON.stringify({ pool: pick.pool, crates: pick.crates }));
+  // rockets full: a crate walked over stays on the floor
+  await pg.evaluate(() => { const T = __TEST__, p = IB.Game.player; T.clearCrates(); T.setRockets(IB.GunLevel.ROCKET.cap); IB.Launchers.spawnCrate(p.x, p.z, p.y, 3); });
+  await wait(1200);
+  const full = await pg.evaluate(() => __TEST__.launcherState());
+  check('rockets full: the crate stays where it is', full.crates.length === 1 && full.crates[0].n === 3, JSON.stringify({ pool: full.pool, crates: full.crates }));
+  // melee Blade Bots drop rocket crates too (half a soldier's chance; the pity rule still gets a starving launcher one)
+  const bl = await pg.evaluate(() => {
+    const T = __TEST__, G = IB.Game; T.clearCrates(); T.setRockets(0); IB.Launchers.dry = 0;
+    Object.keys(G.ws.guns).forEach(id => { if (G.ws.guns[id].def.ammo) G.ws.guns[id].mag = 0; });
+    Object.keys(G.bank || {}).forEach(id => { if (IB.WEAPONS[id] && IB.WEAPONS[id].ammo) G.bank[id].mag = 0; });
+    for (let k = 0; k < 20; k++) IB.Launchers.onKill({ type: 'crawler', x: G.player.x + 3, z: G.player.z - 3, y: 0, fy: 0 });
+    const crawler = T.launcherState().crates.length;
+    let k = 0; while (T.launcherState().crates.length === 0 && k < 12) { T.bladerKill(); k++; }
+    return { crawler, kills: k, crates: T.launcherState().crates.length };
+  });
+  check('rocket crates: Blade Bots drop them, Crawlers never', bl.crawler === 0 && bl.crates === 1 && bl.kills <= 12, JSON.stringify(bl));
+  await pg.evaluate(() => __TEST__.clearCrates());
   const none = await pg.evaluate(() => {
     const T = __TEST__, G = IB.Game, s = G.slot; T.clearCrates();
     const keep = s.arsenal.slice(); s.arsenal = s.arsenal.filter(id => !IB.WEAPONS[id].ammo);

@@ -52,6 +52,9 @@
       r.helm = (d.helmets || ['A'])[(Math.random() * (d.helmets || ['A']).length) | 0];
       r.maxShield = r.shield = (d.shield || 0) * (AI.hpMul || 1); r.shT = 99; r.shFx = 0;
       r.nades = d.grenades || 3; r.ncool = rnd(2.5, 5); r.mcool = 0; r.act = '';
+      // overwhelm control: about 40 % of soldiers are poorer shots (core/damage.js sloppyAim / SLOPPY)
+      AI.soldierSeq = (AI.soldierSeq || 0) + 1;
+      r.sloppy = !opts || !opts.pose ? !!(IB.Damage && IB.Damage.sloppyAim && IB.Damage.sloppyAim(AI.soldierSeq)) : false;
       r.legRel = 0; r.legDir = 1; r.legMove = 0; r.aim = -0.25; r.rigPitch = 0; r.rigPush = 0; r.throwL = 0; r.holdNade = false; r.bit = false; r.twist = 0;
     },
     onDamage: function (r, dmg) {
@@ -234,6 +237,8 @@
     var T = K.tempo(), tx = p.x, ty = p.y + 1.15, tz = p.z;
     var dx = tx - m.x, dy = ty - m.y, dz = tz - m.z, d = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
     lead = (lead || 0) + T.leadAdd; spread = (spread || 0) * T.aimMul;
+    var SL = r.sloppy && !p.robot && IB.Damage && IB.Damage.SLOPPY;   // a poorer shot: wider spread, less lead
+    if (SL) { spread = spread * SL.spreadMul + SL.spreadAdd; lead *= SL.leadMul; }
     if (lead) { var tt = d / speed; tx += (p.vx || 0) * tt * lead; tz += (p.vz || 0) * tt * lead; dx = tx - m.x; dz = tz - m.z; d = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1; }
     dx /= d; dy /= d; dz /= d;
     if (spread) { dx += (Math.random() - 0.5) * spread; dy += (Math.random() - 0.5) * spread * 0.6; dz += (Math.random() - 0.5) * spread; }
@@ -399,7 +404,7 @@
         K.towardPlayer(r, ctx, zone, dx, dz, dist, r.seesPlayer ? stat(r, 'stalkSpeed', 2.6) : (def.speed || 1.6));
         if (r.seesPlayer && !lv && dist < stat(r, 'spinRange', 2.4) && (K.takeToken(r) || dist < 1.8)) {
           r.act = 'spin'; K.setState(r, 'windup'); sfx('spinup', r, 0.6, 1.6);
-        } else if (r.seesPlayer && !lv && dist < (def.range || 9) && dist > 3.2 && r.cool <= 0 && K.takeToken(r)) {
+        } else if (r.seesPlayer && !lv && !r.held && dist < (def.range || 9) && dist > 3.2 && r.cool <= 0 && K.takeToken(r)) {
           r.act = 'dash'; K.setState(r, 'windup'); sfx('spinup', r, 0.9, 1);
         }
         break;

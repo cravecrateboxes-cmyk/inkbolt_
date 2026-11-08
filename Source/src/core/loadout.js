@@ -42,5 +42,13 @@
     return { arsenal: A, loadout: L, slot: at };
   }
 
-  IB.Loadout = { uniq: uniq, fixArsenal: fixArsenal, fix: fix, assign: assign, pickup: pickup };
+  /* ammo boxes: a gun's spare-ammo cap (1.5 x its reserve), and whether every carried gun that takes boxes is full
+     (guns: {id: {def, reserve}}; infinite reserves and rocket launchers (def.ammo) never take boxes). A box walked over
+     while this is true stays where it is (game.js updatePickups). */
+  var RESERVE_CAP = 1.5;
+  function reserveCap(def) { return Math.floor(def.reserve * RESERVE_CAP); }
+  function ammoFull(guns) {
+    return Object.keys(guns || {}).every(function (k) { var g = guns[k]; return g.reserve === Infinity || !!g.def.ammo || g.reserve >= reserveCap(g.def); });
+  }
+  IB.Loadout = { uniq: uniq, fixArsenal: fixArsenal, fix: fix, assign: assign, pickup: pickup, reserveCap: reserveCap, ammoFull: ammoFull, RESERVE_CAP: RESERVE_CAP };
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));

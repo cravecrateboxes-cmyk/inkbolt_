@@ -178,6 +178,10 @@
   // refill (respawn) and ammo boxes leave the launchers alone: rocket ammo only comes in rocket crates
   W.refill = function (s) { Object.keys(s.guns).forEach(function (k) { var g = s.guns[k]; if (g.def.ammo) return; g.mag = W.magSize(s, g.def); g.reserve = (g.def.reserve == null || g.def.reserve === Infinity) ? Infinity : g.def.reserve; }); };
   W.addAmmo = function (s, frac) { Object.keys(s.guns).forEach(function (k) { var g = s.guns[k]; if (g.reserve !== Infinity && !g.def.ammo) g.reserve = Math.min(g.def.reserve * 1.5, g.reserve + Math.ceil(g.def.reserve * frac)); }); };
+  /* every gun that takes ammo boxes is at its reserve cap (an ammo box would add nothing) */
+  W.ammoFull = function (s) {
+    return IB.Loadout.ammoFull(s.guns);   // core/loadout.js
+  };
   W.current = function (s) { return s.cur ? s.guns[s.cur] : null; };
   W.ownedSlots = function (s) { return Object.keys(s.slots).map(Number).sort(); };
 

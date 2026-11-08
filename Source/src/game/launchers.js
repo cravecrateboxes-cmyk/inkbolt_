@@ -7,7 +7,7 @@
      fire(def, cam, spread)                       weapons.js fire() for fire 'rocket' (one rocket, or one salvo)
      update(dt, ctx)                              fixed step: flight, homing, impacts, blasts (ctx: player, world, onKill)
      sync(dt, t, G)                               render: rocket meshes, trails, lock brackets, crates, canister glow
-     onKill(robot)                                launcher drops (levels 14+) and rocket crates (soldiers, director)
+     onKill(robot)                                launcher drops (levels 14+) and rocket crates (soldiers; bladers at half the chance)
      magOf(def) / rackPick(L) / onAcquire(id, isNew) / radar()
    Rocket ammo: G.ws.ammo.rocket is the spare pool (every launcher's `reserve`); slot.rockets saves the total
    (spare + loaded), and a level start loads the carried launchers' magazines from it, so a level never hands out
@@ -92,9 +92,9 @@
     P.rocket = Math.max(0, (s && s.rockets) || 0);
     settle();
     L.dropped = 0; L.dry = 0;
-    var soldiers = 0;
-    ((g.plan && g.plan.zones) || []).forEach(function (z) { (z.waves || []).forEach(function (w) { w.forEach(function (e) { if (e[0] === 'soldier') soldiers += e[1]; }); }); });
-    L.soldiers = soldiers;
+    var soldiers = 0, bladers = 0;
+    ((g.plan && g.plan.zones) || []).forEach(function (z) { (z.waves || []).forEach(function (w) { w.forEach(function (e) { if (e[0] === 'soldier') soldiers += e[1]; else if (e[0] === 'blader') bladers += e[1]; }); }); });
+    L.soldiers = soldiers; L.bladers = bladers;
     L.budget = GL() ? GL().rocketBudget(soldiers) : 12;
   };
   /* a launcher joined the arsenal (isNew) or replaced yours: a new one comes with one magazine of rockets */
@@ -444,8 +444,10 @@
   };
   L.onKill = function (r) {
     if (IB.WeaponDrops && IB.WeaponDrops.rollLauncher) IB.WeaponDrops.rollLauncher(r);
-    if (r.type !== 'soldier' || !GL()) return;
-    var st = L.directorState(), n = GL().rocketDrop(st);
+    var w = GL() ? GL().rocketDropWeight(r.type) : 0;   // soldiers 1, melee bladers 0.5
+    if (w <= 0) return;
+    var st = L.directorState(); st.w = w;
+    var n = GL().rocketDrop(st);
     if (n > 0) { L.spawnCrate(r.x + 0.5, r.z + 0.3, r.fy || r.y || 0, n); L.dropped = (L.dropped || 0) + n; L.dry = 0; }
     else if (st.owned) L.dry = (L.dry || 0) + 1;
   };
@@ -538,6 +540,7 @@
     computeLocks: function () { var w = IB.Weapons.current(G().ws); return L.computeLocks(w ? w.def : IB.WEAPONS.murmur, IB.Render.camera).map(function (k) { return { robot: !!k.robot, type: k.robot ? k.robot.type : null, x: k.x, y: k.y, z: k.z }; }); },
     spawnCrate: function (n, dx, dz) { var p = G().player; return !!L.spawnCrate(p.x + (dx || 0), p.z + (dz === undefined ? -2.5 : dz), p.y, n || 3); },
     // a player kill of a soldier through the director (no robot needed)
+    bladerKill: function (x, z) { var p = G().player; L.onKill({ type: 'blader', x: x === undefined ? p.x + 3 : x, z: z === undefined ? p.z - 3 : z, y: 0, fy: 0 }); return L.dropped || 0; },
     soldierKill: function (x, z) { var p = G().player; L.onKill({ type: 'soldier', x: x === undefined ? p.x + 3 : x, z: z === undefined ? p.z - 3 : z, y: 0, fy: 0 }); return L.dropped || 0; },
     setRockets: function (n) { pool().rocket = n; },
     clearCrates: function () { L.crates.forEach(function (c) { c.on = false; c.mesh.visible = false; }); }

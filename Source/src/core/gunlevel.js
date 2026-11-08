@@ -97,7 +97,9 @@
 
   // ---------------- rocket ammo director ----------------
   GL.ROCKET = { cap: 16, start: 6, carriedTarget: 0.7, packTarget: 0.3, useWindow: 90, useFull: 6, maxChance: 0.5, pity: 3,
-    budgetPerSoldier: 0.27, minBudget: 14 };
+    budgetPerSoldier: 0.27, minBudget: 14, dropWeight: { soldier: 1, blader: 0.5 } };
+  /* which kills can drop a rocket crate, and how often vs a soldier (melee bladers: half the chance) */
+  GL.rocketDropWeight = function (type) { return GL.ROCKET.dropWeight[type] || 0; };
   /* st: {owned, carried, ammo, pending (rockets in crates on the map), used (rockets fired in the last 90 s), per
      (rockets a shot of the carried launcher takes)} -> 0..1 */
   GL.rocketNeed = function (st) {
@@ -111,9 +113,11 @@
     need *= st.carried ? 0.55 + 0.45 * use : 0.5;
     return clamp(need, 0, 1);
   };
+  /* rockets the director may drop on a level (soldier count; bladers also drop crates now, but share this same
+     budget, so a level's rocket economy is unchanged) */
   GL.rocketBudget = function (soldiers) { return Math.max(GL.ROCKET.minBudget, Math.round((soldiers || 0) * GL.ROCKET.budgetPerSoldier)); };
   /* one soldier kill: rockets in the crate it drops (0 = none). st also: dry (soldier kills since the last crate),
-     dropped (rockets dropped this level), budget */
+     dropped (rockets dropped this level), budget, w (drop weight of the killed robot, default 1: a blader 0.5) */
   GL.rocketDrop = function (st, rng) {
     rng = rng || Math.random;
     var R = GL.ROCKET, need = GL.rocketNeed(st);
@@ -122,7 +126,9 @@
     if (left <= 0) return 0;
     var have = (st.ammo || 0) + (st.pending || 0);
     var pity = st.carried && have < (st.per || 1) && (st.dry || 0) >= R.pity - 1;
-    if (!pity && rng() >= R.maxChance * need) return 0;
+    var w = st.w === undefined ? 1 : st.w;
+    if (w <= 0) return 0;
+    if (!pity && rng() >= R.maxChance * need * w) return 0;
     return Math.max(1, Math.min(R.cap - have, left, 2 + Math.round(3 * need)));
   };
 

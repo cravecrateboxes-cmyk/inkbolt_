@@ -132,7 +132,7 @@
       // stamina refills in half the time
       sprintMul: stamina ? 1.15 : 1, moveMul: stamina ? 1.15 : 1, staminaMul: stamina ? 2.5 : 1, staminaRechargeMul: stamina ? 0.5 : 1,
       coat: v('hydrate') / 100, coatTime: 6, coatRadius: 3, coatFrac: 0.3, coatMin: 2, coatMax: 18, coatBurn: 5,   // Hydrate
-      cloak: has('undercover'), cloakTime: 5, cloakCooldown: 30,   // Undercover (F)
+      cloak: has('undercover'), cloakTime: 7.5, cloakCooldown: 23,   // Undercover (F)
       // tier 5
       dmgTakenMul: 1 - v('tank') / 100,                // Tank: damage resistance
       regenFlat: rk('tank'),                           // ... and 1 health per second per rank

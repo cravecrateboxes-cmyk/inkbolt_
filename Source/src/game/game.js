@@ -123,6 +123,7 @@
   G.buildLevel = function () {
     G.disposeLevel();
     G.level = Z.buildLevel(G.plan, R.scene);
+    if (AI.setupCans) AI.setupCans(G.level);   // hinged spawn-can lids (ai.js)
     R.applyEnv(G.level.theme.env || {});
     AI.setLevel(G.plan.level);
   };
@@ -575,6 +576,9 @@
     if (z.state !== 'idle') return;
     z.state = 'active'; z.wave = -1; z.waveT = 0; z.startT = 0; z.queue = []; z.clearT = -1;
     G.zone = i; Z.setVisible(G.level, i);
+    // Handy Helpers left behind in the zone the player just left: powered down quietly (they would only draw fire
+    // through the wall); the ones that came along now belong to this zone
+    if (i > 0 && AI.dropRogues) AI.dropRogues(z, i);
     if (z.entryGate && i > 0) { Z.setGate(z.entryGate, false); A.play('gateShut', { pos: z.entryGate, gain: 0.9 }); }
     HUD.pips(G.level.zones.length, i, i);
     if (i > 0) HUD.toast('Zone ' + (i + 1) + ' of ' + G.level.zones.length, 1.6);
@@ -584,12 +588,12 @@
     var p = G.player, list = z.plan.waves[w] || [], k = 0;
     var spawns = z.spawns.filter(function (s) { return Math.hypot(s.x - p.x, s.z - p.z) >= 6; });
     if (!spawns.length) spawns = z.spawns.slice();
-    var off = (Math.random() * spawns.length) | 0;
+    var off = (Math.random() * spawns.length) | 0, GAP = (IB.Damage && IB.Damage.SPAWN_GAP) || 0.18;   // a wave trickles in
     list.forEach(function (entry) {
       for (var n = 0; n < entry[1]; n++) {
         var s = spawns[(off + k) % spawns.length];
         var type = AI.types[entry[0]] ? entry[0] : 'crawler';   // robots without a model yet fall back to the Crawler
-        z.queue.push({ type: type, x: s.x, y: s.y || 0, z: s.z, t: 0.18 * k + Math.floor(k / spawns.length) * 0.8 });
+        z.queue.push({ type: type, x: s.x, y: s.y || 0, z: s.z, t: GAP * k + Math.floor(k / spawns.length) * 0.8, wait: 0 });
         k++;
       }
     });
@@ -606,8 +610,12 @@
       if (z.state === 'active') {
         z.startT += dt; z.waveT += dt;
         if (z.wave < 0 && z.startT >= 1.0) queueWave(z, 0);
+        // overwhelm control (core/damage.js crowdCap): while the player is already crowded, the next robot waits in
+        // its can a moment (at most SPAWN_WAIT_MAX s each); a wave's robots all still come
+        var D0 = IB.Damage, crowded = D0 && D0.crowdCap && z.queue.length && AI.crowd(p, D0.CROWD_R) >= D0.crowdCap(G.plan.level || 1);
         for (var q = z.queue.length - 1; q >= 0; q--) {
           var e = z.queue[q]; e.t -= dt;
+          if (e.t <= 0 && crowded && e.wait < D0.SPAWN_WAIT_MAX) { e.wait += 0.4 - e.t; e.t = 0.4; continue; }
           if (e.t <= 0) {
             var dx = p.x - e.x, dz = p.z - e.z, d = Math.hypot(dx, dz) || 1, tx = e.x + dx / d * 1.3, tz = e.z + dz / d * 1.3;
             if (!Z.isOpen(z, tx, tz)) { tx = e.x + dx / d * 0.7; tz = e.z + dz / d * 0.7; }
@@ -743,23 +751,30 @@
   // ---------------- pickups ----------------
   // ---------------- health director ----------------
   // Watches the player's health and keeps health cans on the map in the current zone: one when healthy, up to four
-  // when badly hurt. New cans land on open ground 7-22 m away (never on top of the player), and show on the radar.
+  // when badly hurt, eight when critical (< 30 %). New cans land on open, reachable ground 7-22 m away (critical: 4-12 m,
+  // checked twice as often; never on top of the player), and show on the radar.
   // health cans restore 40% of max health (40 at LV 1), rounded to 5
   function healAmount() { return Math.max(40, Math.round(G.player.maxHp * 0.4 / 5) * 5); }
-  function healthWanted(frac) { return frac >= 0.8 ? 1 : frac >= 0.55 ? 2 : frac >= 0.3 ? 3 : 4; }
+  // core/damage.js healthPlan: cans wanted, check interval and landing ring for a health fraction (critical: x2, closer)
+  function healthPlan(frac) { return IB.Damage.healthPlan(frac); }
+  function healthWanted(frac) { return healthPlan(frac).want; }
   function healthDirector(dt) {
     G.hdT = (G.hdT || 0) - dt;
     if (G.hdT > 0 || !G.run.started || G.dead || G.complete) return;
     G.hdT = 2.5;
     var p = G.player, zi = Z.zoneAt(G.level, p.x, p.z);
     if (zi < 0) return;
-    var z = G.level.zones[zi], want = healthWanted(p.health / p.maxHp), have = 0;
+    var plan = healthPlan(p.health / p.maxHp);
+    G.hdT = plan.every;   // critically hurt: twice as often (and twice as many cans, closer)
+    var z = G.level.zones[zi], want = plan.want, have = 0, nav = z.nav, flow = zi === G.zone && nav && !nav.layers && nav.dist;
     G.pickups.forEach(function (pk) { if (pk.on && pk.kind === 'health' && pk.x > z.ox && pk.x < z.ox + z.w && pk.z > z.oz && pk.z < z.oz + z.h) have++; });
     if (have >= want) return;
     for (var tries = 0; tries < 60; tries++) {
       var x = z.ox + 2 + Math.random() * (z.w - 4), zz = z.oz + 2 + Math.random() * (z.h - 4), d = Math.hypot(x - p.x, zz - p.z);
-      if (d < 7 || d > 22 || !Z.isOpen(z, x, zz) || !Z.isOpen(z, x + 0.6, zz) || !Z.isOpen(z, x - 0.6, zz) || !Z.isOpen(z, x, zz + 0.6) || !Z.isOpen(z, x, zz - 0.6)) continue;
-      var near = G.pickups.some(function (pk) { return pk.on && Math.hypot(pk.x - x, pk.z - zz) < 4; });
+      if (d < plan.dMin || d > plan.dMax || !Z.isOpen(z, x, zz) || !Z.isOpen(z, x + 0.6, zz) || !Z.isOpen(z, x - 0.6, zz) || !Z.isOpen(z, x, zz + 0.6) || !Z.isOpen(z, x, zz - 0.6)) continue;
+      // reachable: on the flow field toward the player (zones without walkable layers; the field is fresh every 0.25 s)
+      if (flow) { var nc = Z.navCell(z, x, zz); if (nc < 0 || flow[nc] >= 32767) continue; }
+      var near = G.pickups.some(function (pk) { return pk.on && Math.hypot(pk.x - x, pk.z - zz) < (plan.critical ? 2.5 : 4); });
       if (near) continue;
       if (G.spawnPickup('health', x, zz)) { FX.puff(x, 0.4, zz, 4, PAL.green, 0.15, 0.45, 1.5); return; }
     }
@@ -807,6 +822,7 @@
     var p = G.player;
     G.pickups.forEach(function (pk, i) {
       if (!pk.on) return;
+      if (pk.fullT > 0) pk.fullT -= dt;
       pk.mesh.rotation.y = t * 1.5 + i;
       // hover clear of the floor (its lowest point stays ~22 cm up, so the base and its ink outline never sink in)
       pk.mesh.position.y = (pk.y || 0) + 0.27 + Math.sin(t * 3 + i) * 0.03;
@@ -814,8 +830,10 @@
       if (Math.hypot(p.x - pk.x, p.z - pk.z) < 0.9 && p.y < (pk.y || 0) + 1 && p.y > (pk.y || 0) - 0.8) {
         if (pk.kind === 'health') { if (p.health >= p.maxHp) return; var heal = healAmount(); p.health = Math.min(p.maxHp, p.health + heal); HUD.toast('+' + heal + ' health', 1.2); }
         else {
-          W.addAmmo(G.ws, 0.5);
+          // full on every gun (and no frag can to gain): leave the box where it is
           var gotCan = G.slot && G.slot.frag && G.grenades < IB.WEAPONS.frag.carry;
+          if (!gotCan && W.ammoFull(G.ws)) { if (!(pk.fullT > 0) && HUD.toast) HUD.toast('Ammo full', 1.0); pk.fullT = 3; return; }
+          W.addAmmo(G.ws, 0.5);
           if (gotCan) G.grenades++;
           HUD.toast(gotCan ? 'Ammo + frag can' : 'Ammo', 1.0);
         }

@@ -11,7 +11,14 @@
    off an edge); r.y = r.gy + r.hop (the Crawler's lunge hop). Collision, sight, hits, shots, shadows and corpses all
    work from r.y / r.fy, so robots climb stairs and ramps, cross bridges and fight on decks. Off-level targets (the
    player up on a deck) are chased along the layered flow field instead of straight at them. Without walkable boxes
-   r.fy = r.gy = 0 and everything behaves as before; Drones fly as before. */
+   r.fy = r.gy = 0 and everything behaves as before.
+   Flyers (Drones) hover at their height over the floor under them (ground or deck) but always below the zone's
+   ceiling (theme env.ceiling unless the zone plan says ceiling: false) and the underside of any box overhead (a car
+   park deck), and collide only with boxes at their height (flyCeil / flyY).
+   Overwhelm control (core/damage.js closeCap / HOLD): only the nearest few melee robots close in on the player at
+   once; the rest hold a 6-8.5 m ring, strafing, until a slot frees up (r.close, holdRing).
+   Blocked robots: a chaser that keeps bumping into something follows the flow field around it for a while (r.navT);
+   a robot only picks a rogue it can see in its own zone and gives up on one it has lost sight of (r.ign). */
 (function (IB) {
   'use strict';
   var PAL = IB.PAL;
@@ -159,6 +166,7 @@
   // ---------------- materials / meshes ----------------
   AI.init = function (scene) {
     AI.scene = scene;
+    splitCan();   // before any level is built: zones merge the lidless body, the lids are their own meshes
     var cmat = new THREE.MeshBasicMaterial({ color: PAL.ink, transparent: true, depthWrite: true });
     cmat.onBeforeCompile = function (sh) {
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aOp;\nvarying float vOp;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvOp = aOp;');
@@ -262,7 +270,13 @@
       // walkable surfaces: floor under the robot, smoothed foot height, its fall speed, the Crawler's lunge hop
       fy: 0, gy: 0, fvy: 0, hop: 0,
       // skills: rogue seconds left (Handy Helpers), wet seconds left (Hydrate), current robot target
-      rogue: 0, rogueEnd: false, wet: 0, tgt: null, tgtT: 0 };
+      rogue: 0, rogueEnd: false, wet: 0, tgt: null, tgtT: 0,
+      // overwhelm / pathing: close-range slot, held at the ring this frame, flow-field detour time, ignored rogue
+      close: true, held: false, navT: 0, ign: null, ignT: 0, rtT: 0, pd: 0,
+      // flyers: ceiling over the robot (re-checked every 0.25 s)
+      ceil: Infinity, ceilT: 0,
+      // spawn can hop-out: the can it climbs out of, landing squash
+      squash: 0, canX: 0, canZ: 0, canY: 0 };
   }
 
   AI.clear = function () {
@@ -281,7 +295,119 @@
   var TEMPO1 = { coolMul: 1, aimMul: 1, leadAdd: 0, tellMul: 1, speedMul: 1 };
   function tempo() { return AI.tempo || TEMPO1; }
 
-  /* spawn a robot hopping out of a spawn can at (x,z) toward (tx,tz) */
+  // ---------------- spawn cans: a hinged lid that pops open as a robot climbs out ----------------
+  /* The common kit's SpawnCan is one mesh; split it once (generic: by height and by the hull shell flag) into the body
+     (stays the asset zones.js merges into each zone) and the lid (IB.Assets.geo.SpawnCan_Lid, hinge at the origin:
+     the lid's back rim). A triangle belongs to the lid when it lies wholly in the top 20 % of the can, except flat
+     faces no wider than the body below (the body's own top cap stays, so the open can is not see-through). */
+  var CAN = AI.CAN = { hingeY: 0.95, hingeZ: -0.5, open: 1.95, popV: 15, spring: 70, damp: 7, bounce: 0.35, ready: false };
+  function splitCan() {
+    var A = IB.Assets; if (CAN.ready || !A || !A.geo || !A.geo.SpawnCan || !A.geo.SpawnCan.index) return;
+    var g = A.geo.SpawnCan, pos = g.attributes.position.array, hull = g.attributes.aHull ? g.attributes.aHull.array : null, ix = g.index.array;
+    var hs = hull ? g.attributes.aHull.itemSize : 0;
+    function isHull(v) { if (!hull) return 0; for (var k = 0; k < hs; k++) if (hull[v * hs + k] !== 0) return 1; return 0; }
+    g.computeBoundingBox();
+    var y0 = g.boundingBox.min.y, y1 = g.boundingBox.max.y, ys = y0 + (y1 - y0) * 0.8, bodyR = [0, 0], t, k, v;
+    for (t = 0; t < ix.length; t += 3) {
+      var lo = 1e9; for (k = 0; k < 3; k++) lo = Math.min(lo, pos[ix[t + k] * 3 + 1]);
+      if (lo >= ys) continue;
+      for (k = 0; k < 3; k++) { v = ix[t + k]; var h = isHull(v); bodyR[h] = Math.max(bodyR[h], Math.hypot(pos[v * 3], pos[v * 3 + 2])); }
+    }
+    var body = [], lid = [], lidLo = 1e9, lidZ = 0;
+    for (t = 0; t < ix.length; t += 3) {
+      var mn = 1e9, mx = -1e9, rr = 0, hh = isHull(ix[t]);
+      for (k = 0; k < 3; k++) { v = ix[t + k]; var y = pos[v * 3 + 1]; mn = Math.min(mn, y); mx = Math.max(mx, y); rr = Math.max(rr, Math.hypot(pos[v * 3], pos[v * 3 + 2])); }
+      var isLid = mn >= ys && !(mx - mn < 0.004 && rr <= bodyR[hh] + 0.005);
+      (isLid ? lid : body).push(ix[t], ix[t + 1], ix[t + 2]);
+      if (isLid && !hh) { lidLo = Math.min(lidLo, mn); for (k = 0; k < 3; k++) { v = ix[t + k]; lidZ = Math.min(lidZ, pos[v * 3 + 2]); } }
+    }
+    if (!lid.length || !body.length) return;
+    CAN.hingeY = lidLo; CAN.hingeZ = lidZ;
+    var lg = g.clone(); lg.setIndex(lid); lg.translate(0, -CAN.hingeY, -CAN.hingeZ);
+    // translate() moves positions only; the outline direction (aHull) is a direction and stays as it is
+    lg.computeBoundingSphere(); lg.computeBoundingBox();
+    var bg = g.clone(); bg.setIndex(body); bg.computeBoundingSphere(); bg.computeBoundingBox();
+    A.geo.SpawnCan = bg; A.geo.SpawnCan_Lid = lg; A.family.SpawnCan_Lid = A.family.SpawnCan || 'common';
+    CAN.ready = true;
+  }
+  /* one lid per spawn can of a freshly built level (zone.spawns), in its zone's group so it shows and hides with it */
+  AI.setupCans = function (level) {
+    AI.cans = [];
+    if (!CAN.ready || !level) return;
+    var geo = IB.Assets.geo.SpawnCan_Lid, mat = IB.Assets.mat[IB.Assets.family.SpawnCan_Lid];
+    level.zones.forEach(function (z) {
+      (z.spawns || []).forEach(function (sp, i) {
+        var piv = new THREE.Group(), m = new THREE.Mesh(geo, mat);
+        piv.rotation.order = 'YXZ'; piv.add(m); z.group.add(piv);
+        var c = { x: sp.x, y: sp.y || 0, z: sp.z, zone: z.idx, piv: piv, a: 0, v: 0, hold: 0 };
+        canYaw(c, (i * 2.39996) % TAU);   // the closed lid is round: any hinge side looks the same
+        sp.can = c; AI.cans.push(c);
+      });
+    });
+  };
+  // hinge side: the lid's back rim at local z = hingeZ, rotated about the can's axis by yaw
+  function canYaw(c, yaw) {
+    c.yaw = yaw; c.piv.rotation.y = yaw;
+    c.piv.position.set(c.x + Math.sin(yaw) * CAN.hingeZ, c.y + CAN.hingeY, c.z + Math.cos(yaw) * CAN.hingeZ);
+  }
+  function canAt(x, z) {
+    var cs = AI.cans || [], best = 0.36, bc = null;
+    for (var i = 0; i < cs.length; i++) { var d = Math.abs(cs[i].x - x) + Math.abs(cs[i].z - z); if (d < best) { best = d; bc = cs[i]; } }
+    return bc;
+  }
+  // lid: kicked open when a robot pops out, held open while it climbs out, then swings shut with a clatter and settles
+  function updateCans(dt) {
+    var cs = AI.cans || [];
+    for (var i = 0; i < cs.length; i++) {
+      var c = cs[i]; if (c.hold <= 0 && c.a === 0 && c.v === 0) continue;
+      c.hold -= dt;
+      var tgt = c.hold > 0 ? CAN.open : 0;
+      c.v += (CAN.spring * (tgt - c.a) - CAN.damp * c.v) * dt; c.a += c.v * dt;
+      if (c.a > CAN.open + 0.25) { c.a = CAN.open + 0.25; c.v = Math.min(0, c.v); }
+      if (c.a < 0) {   // slams shut: bounce, a puff of dust once it settles
+        if (c.v < -2.5) { if (IB.FX) IB.FX.puff(c.x, c.y + CAN.hingeY, c.z, 3, PAL.ink, 0.1, 0.3, 1.2); if (IB.Audio) IB.Audio.play('clank', { pos: c, gain: 0.35 }); }
+        c.a = 0; c.v = Math.abs(c.v) > 1.2 ? -c.v * CAN.bounce : 0;
+      }
+      if (c.hold <= 0 && Math.abs(c.a) < 0.004 && Math.abs(c.v) < 0.05) { c.a = 0; c.v = 0; }
+      c.piv.rotation.x = -c.a;   // lid tips back about its hinge
+    }
+  }
+  AI.updateCans = updateCans;
+  AI.canState = function () { return (AI.cans || []).map(function (c) { return { a: +c.a.toFixed(3), hold: c.hold > 0 }; }); };
+  /* the hop out (SPAWN_T s): crouched in the can as the lid pops (0-0.2), rises to the rim (0.2-0.45), springs up and
+     out in an arc to the landing spot beside the can (0.45-0.95), squashes on landing; a flyer lifts out instead and
+     climbs to its hover height. The squash eases off after the spawn (r.squash, AI.sync). */
+  var SPAWN_T = 0.95;
+  AI.SPAWN_T = SPAWN_T;
+  function ease(x) { return x * x * (3 - 2 * x); }
+  function spawnPose(r, dt, fly, world) {
+    var t = r.st, sy = r.canY, rim = sy + CAN.hingeY + 0.05, c = r.can;
+    if (c && t < 0.6) c.hold = Math.max(c.hold, 0.45);
+    if (t < 0.2) {
+      var k0 = t / 0.2;
+      r.x = r.canX; r.z = r.canZ; r.y = sy + 0.05 + 0.15 * k0; r.crouch = 1; r.squash = 0.35 * (1 - k0);
+      if (c && t >= 0.06 && c.v === 0 && c.a < 0.1) {
+        canYaw(c, Math.atan2(r.tx - r.canX, r.tz - r.canZ));   // hinge on the side away from the hop: the lid flips back
+        c.v = CAN.popV; if (IB.FX) IB.FX.puff(r.canX, rim, r.canZ, 5, PAL.ink, 0.14, 0.4, 2.2); }
+    } else if (t < 0.45) {
+      var k1 = ease((t - 0.2) / 0.25);
+      r.x = r.canX; r.z = r.canZ; r.y = sy + 0.2 + (rim - 0.15 - (sy + 0.2)) * k1; r.crouch = 1 - k1 * 0.4; r.squash = -0.18 * Math.sin(k1 * Math.PI);   // stretch as it pushes up
+    } else {
+      var k = Math.min(1, (t - 0.45) / (SPAWN_T - 0.45)), kk = ease(k);
+      r.x = r.canX + (r.tx - r.canX) * kk; r.z = r.canZ + (r.tz - r.canZ) * kk;
+      if (fly) {
+        var hov = r.landY + r.hy; if (r.ceil < Infinity) hov = Math.min(hov, Math.max(r.landY + 0.5, r.ceil - VIS[r.type].y1 - 0.2));
+        r.y = rim - 0.15 + (hov - (rim - 0.15)) * kk + Math.sin(k * Math.PI) * 0.35;
+        r.crouch = 0; r.squash = 0;
+      } else {
+        var a = rim - 0.15, b = r.landY;   // ballistic-looking arc: up 0.7 m over the rim, down onto the floor
+        r.y = a + (b - a) * k + Math.sin(k * Math.PI) * (0.7 + Math.max(0, a - b) * 0.25);
+        r.crouch = Math.max(0, 0.6 - k * 1.5); r.squash = k < 0.25 ? -0.12 * (1 - k / 0.25) : 0;   // tucks, then stretches out
+      }
+    }
+    r.walk += dt * 6;
+  }
+
   AI.spawn = function (type, x, z, zone, tx, tz, opts) {
     var T = AI.types[type]; if (!T) return null;
     var r = null; for (var i = 0; i < CAP; i++) if (!T.slots[i].on) { r = T.slots[i]; break; }
@@ -300,9 +426,17 @@
     r.yaw = Math.atan2(tx - x, tz - z); r.walk = Math.random() * 3; r.dmgMul = (AI.dmgMul || 1) * (opts.dmgScale || 1);
     r.rogue = 0; r.rogueEnd = false; r.wet = 0; r.tgt = null; r.tgtT = 0;
     r.fy = r.gy = 0; r.fvy = 0; r.hop = 0;
+    r.close = true; r.held = false; r.navT = 0; r.ign = null; r.ignT = 0; r.rtT = 0; r.ceil = Infinity; r.ceilT = 0; r.squash = 0;
+    r.canX = x; r.canZ = z; r.canY = r.sy;
     r.maxShield = r.shield = 0;
     if (v.init) v.init(r, opts);   // per-type spawn state (troops.js: armour variant, shield pool, grenades, blade)
-    if (!opts.pose && IB.FX) IB.FX.puff(x, 1.0, z, 6, PAL.ink, 0.2, 0.6, 2.5);
+    r.can = opts.pose ? null : canAt(x, z);
+    if (!opts.pose) {
+      var W0 = IB.Zones && IB.Zones.world;
+      r.landY = W0 && W0.floorAt ? W0.floorAt(tx, tz, r.sy + STEP_UP) : r.sy;
+      r.fy = r.landY; r.ceil = v.flying && W0 ? flyCeil(r, W0, AI.levelRef) : Infinity;
+      r.x = x; r.z = z; r.y = r.sy + 0.05;
+    }
     return r;
   };
 
@@ -443,11 +577,11 @@
   // ---------------- movement helpers ----------------
   // circle vs AABBs on XZ; boxes lower than ylo (or 0.3 m) are stepped over / flown over. base: a ground robot's
   // floor height (walkable surfaces): boxes are measured from it, and walkable boxes up to a step higher are walked onto
-  function collide(r, world, rad, ylo, base) {
+  function collide(r, world, rad, ylo, base, yhi) {
     world.query(r.x - rad, r.z - rad, r.x + rad, r.z + rad, _tmp);
     var lo = Math.max(0.3, ylo || 0) + (base || 0), top = 1.2 + (base || 0);
     for (var i = 0; i < _tmp.length; i++) {
-      var b = _tmp[i]; if (b.y1 < lo || (!ylo && b.y0 > top)) continue;   // ground robots pass under raised boxes
+      var b = _tmp[i]; if (b.y1 < lo || (!ylo && b.y0 > top) || (yhi !== undefined && b.y0 > yhi)) continue;   // ground robots pass under raised boxes, flyers under decks
       if (b.walk && !ylo && b.y1 <= (base || 0) + STEP_UP) continue;          // a step, ramp or deck edge: walk onto it
       var cx = Math.max(b.x0, Math.min(r.x, b.x1)), cz = Math.max(b.z0, Math.min(r.z, b.z1));
       var dx = r.x - cx, dz = r.z - cz, d2 = dx * dx + dz * dz;
@@ -497,9 +631,27 @@
   // the target stands on another level (up on a deck while the robot is on the ground, or the other way round): only
   // in zones with walkable surfaces (layered nav); there the robot paths up the stairs instead of running at it
   function offLevel(r, P, zone) { return !!(zone && zone.nav.layers) && !VIS[r.type].flying && Math.abs(P.y - r.fy) > 0.9; }
+  /* chase the player: straight at him while he is in sight, else (or while blocked: r.bump builds up when the robot
+     moves much slower than it wants, e.g. against a crate it can see over) along the zone's flow field around it */
   function towardPlayer(r, ctx, zone, dx, dz, dist, s) {
-    if (ctx.player.robot || (r.seesPlayer && !offLevel(r, ctx.player, zone)) || !zone || r.zone !== ctx.activeZone || !IB.Zones.flowDir(zone, r.x, r.z, _dir, VIS[r.type].flying ? 0 : r.fy)) move(dx, dz, s);
+    if (holdRing(r, ctx, dx, dz, dist, s)) return;
+    if (r.bump > 0.35 && !ctx.player.robot) { r.navT = 1.6; r.bump = 0; }
+    var nav = !ctx.player.robot && zone && r.zone === ctx.activeZone;
+    if (!nav || (r.seesPlayer && !(r.navT > 0) && !offLevel(r, ctx.player, zone)) || !IB.Zones.flowDir(zone, r.x, r.z, _dir, VIS[r.type].flying ? 0 : r.fy)) move(dx, dz, s);
     else move(_dir.x, _dir.z, s);
+  }
+  /* overwhelm control: a melee robot without a close-range slot (r.close, given out nearest-first in AI.update)
+     circles at the ring (6-8.5 m) instead of piling in; true when it did */
+  var HOLD0 = { ringIn: 6, ringOut: 8.5 };
+  function HOLD() { return (IB.Damage && IB.Damage.HOLD) || HOLD0; }
+  function holdRing(r, ctx, dx, dz, dist, s) {
+    var H = HOLD();
+    if (r.close || ctx.player.robot || dist > H.ringOut) return false;
+    var rad = dist < H.ringIn ? -1 : dist > H.ringIn + 1.5 ? 0.35 : 0;
+    if (r.bump > 0.3) { r.sdir = -r.sdir; r.bump = 0; }
+    move(-dz / dist * r.sdir * 0.8 + dx / dist * rad, dx / dist * r.sdir * 0.8 + dz / dist * rad, s * 0.6);
+    r.held = true;
+    return true;
   }
 
   // Crawler: chase with a zigzag, 0.35 s crouch windup, lunge bite
@@ -509,7 +661,8 @@
       case 'chase': {
         if (!p.alive) break;
         var lv = offLevel(r, p, zone);
-        if (r.seesPlayer && dist < 14 && !lv) {
+        if (holdRing(r, ctx, dx, dz, dist, speed)) break;
+        if (r.seesPlayer && dist < 14 && !lv && !(r.navT > 0) && r.bump < 0.35) {
           var mvx = dx / dist, mvz = dz / dist;
           var zz = Math.sin(r.zig + r.st * 5.5) * Math.min(1, (dist - 2) / 5) * 0.75;
           move(mvx - mvz * zz, mvz + mvx * zz, speed);
@@ -550,7 +703,8 @@
       case 'chase': {
         if (!p.alive) break;
         var rush = r.seesPlayer && dist < 7 ? 1.35 : 1, blv = offLevel(r, p, zone);
-        if (r.seesPlayer && dist < 16 && !blv) {
+        if (r.fuse <= 0 && holdRing(r, ctx, dx, dz, dist, speed)) break;
+        if (r.seesPlayer && dist < 16 && !blv && !(r.navT > 0) && r.bump < 0.35) {
           var w = Math.sin(r.zig + r.st * 3.1) * 0.25 * Math.min(1, (dist - 2) / 6);
           move(dx / dist - dz / dist * w, dz / dist + dx / dist * w, speed * rush);
         } else towardPlayer(r, ctx, zone, dx, dz, dist, speed);
@@ -729,7 +883,7 @@
   AI.BEH = BEH;
   // helpers shared with the robot types in other files (game/troops.js)
   AI.K = { move: move, mv: _mv, setState: setState, takeToken: takeToken, releaseToken: releaseToken, tell: tell, play: play, turnTo: turnTo,
-    towardPlayer: towardPlayer, offLevel: offLevel, planKeep: planKeep, keepMove: keepMove, canFire: canFire, fireFrom: fireFrom,
+    towardPlayer: towardPlayer, holdRing: holdRing, offLevel: offLevel, planKeep: planKeep, keepMove: keepMove, canFire: canFire, fireFrom: fireFrom,
     wrapAngle: wrapAngle, clamp: clamp, sock: sock, tempo: tempo, lightDefault: lightDefault, ZERO: ZERO };
 
   // ---------------- targets: the player, or a robot in a rogue fight ----------------
@@ -749,24 +903,46 @@
     _tp.x = t.x; _tp.z = t.z; _tp.y = t.y + (v.y0 + v.y1) * 0.5 - 1.15; _tp.vx = t.vx; _tp.vz = t.vz; _tp.alive = t.on; _tp.robot = t;
   }
   function fightable(o) { return o && o.on && o.state !== 'pose' && o.state !== 'spawn'; }
-  // a rogue picks the nearest robot that is not rogue (30 m)
-  function enemyFor(r) {
+  /* robot-vs-robot targets must be worth chasing: the same zone (never through a shut gate), not the one it just gave
+     up on, and in sight (eye to chest) -- so nobody runs into a wall trying to reach a robot on the other side */
+  function canFight(r, o, world) {
+    if (o.zone !== r.zone || o === r.ign) return false;
+    if (!world) return true;
+    var vo = VIS[o.type];
+    return world.los(r.x, r.y + VIS[r.type].eye, r.z, o.x, o.y + (vo.y0 + vo.y1) * 0.5, o.z);
+  }
+  // a rogue picks the nearest robot that is not rogue (30 m) it can see
+  function enemyFor(r, world) {
     var best = 900, br = null;
     for (var i = 0; i < AI.robots.length; i++) {
       var o = AI.robots[i]; if (o === r || !fightable(o) || o.rogue > 0) continue;
-      var d = (o.x - r.x) * (o.x - r.x) + (o.z - r.z) * (o.z - r.z); if (d < best) { best = d; br = o; }
+      var d = (o.x - r.x) * (o.x - r.x) + (o.z - r.z) * (o.z - r.z); if (d < best && canFight(r, o, world)) { best = d; br = o; }
     }
     return br;
   }
-  // the others go for a rogue when it is nearer than the player (or the player is gone / cloaked), up to 25 m
-  function rogueFor(r, distP, p) {
+  // the others go for a rogue when it is nearer than the player (or the player is gone / cloaked), up to 25 m, in sight
+  function rogueFor(r, distP, p, world) {
     var lim = AI.cloaked || !p.alive ? 25 : Math.min(25, distP), best = lim * lim, br = null;
     for (var i = 0; i < _rogues.length; i++) {
       var o = _rogues[i]; if (!o.on || !(o.rogue > 0)) continue;
-      var d = (o.x - r.x) * (o.x - r.x) + (o.z - r.z) * (o.z - r.z); if (d < best) { best = d; br = o; }
+      var d = (o.x - r.x) * (o.x - r.x) + (o.z - r.z) * (o.z - r.z); if (d < best && canFight(r, o, world)) { best = d; br = o; }
     }
     return br;
   }
+  /* the player moved on to zone `zi`: helpers (rogues) left behind in an earlier zone would only draw fire through the
+     wall, so they quietly power down (no blast, no corpse); the ones that came along now belong to the new zone */
+  AI.dropRogues = function (zone, zi) {
+    var n = 0;
+    for (var i = 0; i < AI.robots.length; i++) {
+      var r = AI.robots[i]; if (!r.on || !(r.rogue > 0)) continue;
+      var inside = zone && r.x > zone.ox + 0.3 && r.x < zone.ox + zone.w - 0.3 && r.z > zone.oz + 0.3 && r.z < zone.oz + zone.h - 0.3;
+      if (inside) { r.zone = zi; continue; }
+      releaseToken(r); r.on = false; r.state = 'off'; r.fuse = 0; r.rogue = 0; r.rogueEnd = false; r.tgt = null; n++;
+      if (IB.Status && IB.Status.clearRobot) IB.Status.clearRobot(r);
+    }
+    for (i = 0; i < AI.robots.length; i++) { var o = AI.robots[i]; if (o.tgt && !o.tgt.on) o.tgt = null; }
+    return n;
+  };
   /* Undercover: the player is invisible, so wander and search around where he was last seen; a rogue with nothing
      left to fight keeps close to the player */
   function searchMove(r, dt, mode, dx, dz, dist, speed) {
@@ -787,6 +963,52 @@
     if (on) { AI.lkx = x; AI.lkz = z; for (var i = 0; i < AI.robots.length; i++) { var r = AI.robots[i]; if (r.on && !(r.rogue > 0)) { r.wanderT = Math.random() * 0.6; r.seesPlayer = false; } } }
   };
 
+  /* overwhelm control: hand out the close-range slots (core/damage.js closeCap) to the melee robots after the player,
+     nearest first; ones already winding up or striking keep theirs. Everyone else is r.close = true (no limit). */
+  var MELEE = { crawler: 1, bomber: 1, blader: 1 }, _push = [];
+  function byDist(a, b) { return a.pd - b.pd; }
+  function closeSlots(p) {
+    var n = 0, cap = IB.Damage && IB.Damage.closeCap ? IB.Damage.closeCap(AI.level) : 99, used = 0, i, r;
+    for (i = 0; i < AI.robots.length; i++) {
+      r = AI.robots[i]; r.close = true;
+      if (!r.on || !MELEE[r.type] || r.rogue > 0 || r.tgt || r.state === 'spawn' || r.state === 'pose' || r.state === 'idle' || !p.alive || AI.cloaked) continue;
+      if (r.state === 'windup' || r.state === 'attack' || r.fuse > 0) { used++; continue; }
+      r.pd = (r.x - p.x) * (r.x - p.x) + (r.z - p.z) * (r.z - p.z); _push[n++] = r;
+    }
+    _push.length = n;
+    if (n + used <= cap) return;
+    _push.sort(byDist);
+    for (i = 0; i < n; i++) _push[i].close = i < cap - used;
+  }
+  // robots (not rogues) within rad m of (p.x, p.z): the spawn pacing in game.js waits while too many crowd the player
+  AI.crowd = function (p, rad) {
+    var n = 0, r2 = rad * rad;
+    for (var i = 0; i < AI.robots.length; i++) { var r = AI.robots[i]; if (r.on && r.state !== 'pose' && !(r.rogue > 0) && (r.x - p.x) * (r.x - p.x) + (r.z - p.z) * (r.z - p.z) < r2) n++; }
+    return n;
+  };
+
+  /* flyers: the lowest thing overhead at (x, z): the zone's ceiling plane, or the underside of a box above the floor
+     it hovers over (a deck, a beam with collision); zone bounds rings are ignored (they only stop walking) */
+  function flyCeil(r, world, level) {
+    var Z = level && level.zones[r.zone], C = level && level.theme && level.theme.env && level.theme.env.ceiling;
+    var c = C && C.height && !(Z && Z.plan && Z.plan.ceiling === false) ? C.height : Infinity;
+    var rad = VIS[r.type].radius + 0.15, lo = r.fy + 1.0;
+    world.query(r.x - rad, r.z - rad, r.x + rad, r.z + rad, _tmp);
+    for (var i = 0; i < _tmp.length; i++) {
+      var b = _tmp[i]; if (b.kind === 'bound' || b.y0 < lo || b.y0 >= c) continue;
+      if (r.x + rad < b.x0 || r.x - rad > b.x1 || r.z + rad < b.z0 || r.z - rad > b.z1) continue;
+      c = b.y0;
+    }
+    return c;
+  }
+  // the height a flyer hovers at here: its hover over the floor, kept under the ceiling (top of the body 0.2 m clear)
+  function flyY(r) {
+    var v = VIS[r.type], y = r.fy + r.hy, top = r.ceil - v.y1 - 0.2;
+    if (y > top) y = Math.max(r.fy + 0.5, top);
+    return y;
+  }
+  AI.flyCeil = flyCeil; AI.flyY = flyY;
+
   /* ctx: {player, world, level, activeZone, hurt(robot, dmg), shake(trauma), onKill(robot)} */
   AI.update = function (dt, ctx) {
     var p = ctx.player, world = ctx.world, i, r;
@@ -799,9 +1021,14 @@
       zone.nav.t -= dt;
       if (zone.nav.t <= 0) { zone.nav.t = 0.25; IB.Zones.flowField(zone, p.x, p.z, p.y); }
     }
+    closeSlots(p);
+    AI.levelRef = ctx.level;
+    updateCans(dt);
     for (i = 0; i < AI.robots.length; i++) {
       r = AI.robots[i]; if (!r.on) continue;
       var def = r.def, v = VIS[r.type], B = BEH[r.type];
+      r.held = false; if (r.navT > 0) r.navT -= dt;
+      if (r.squash > 0 && r.state !== 'spawn') r.squash = Math.max(0, r.squash - dt * 4.5);   // landing squash springs back
       var speed = def.speed || 5.0, fly = !!v.flying;
       r.st += dt; r.flash = Math.max(0, r.flash - dt); r.idleT += dt; r.cool -= dt;
       r.kick = Math.max(0, r.kick - dt * 6);
@@ -811,11 +1038,19 @@
       if (r.rogue > 0) {
         r.rogue -= dt;
         if (r.rogue <= 0) { rogueEnd(r); continue; }
-        r.tgtT -= dt;
-        if (r.tgtT <= 0 || !fightable(r.tgt) || r.tgt.rogue > 0) { r.tgtT = 0.3; r.tgt = enemyFor(r); }
+        r.tgtT -= dt; r.ignT -= dt; if (r.ignT <= 0) r.ign = null;
+        if (r.tgt && r.lost > 2 && r.tgtT <= 0) { r.ign = r.tgt; r.ignT = 4; r.tgt = null; }   // lost sight of it: give up
+        if (r.tgtT <= 0 || !fightable(r.tgt) || r.tgt.rogue > 0) { r.tgtT = 0.3; r.tgt = enemyFor(r, world); }
         tgt = r.tgt; if (!tgt) mode = 'follow';
       } else if (r.state !== 'pose') {
-        tgt = nR && r.state !== 'spawn' ? rogueFor(r, distP, p) : null; r.tgt = tgt;
+        r.rtT -= dt; r.ignT -= dt; if (r.ignT <= 0) r.ign = null;
+        tgt = r.tgt && r.tgt.on && r.tgt.rogue > 0 && r.tgt.zone === r.zone ? r.tgt : null;
+        // chasing a rogue it cannot see any more (behind a wall, round a corner): give up on it for a while
+        if (tgt && r.lost > 1.5) { r.ign = tgt; r.ignT = 4; tgt = null; r.rtT = 0; }
+        if (!nR || r.state === 'spawn') tgt = null;
+        else if (r.rtT <= 0) { r.rtT = 0.3; tgt = rogueFor(r, distP, p, world); }
+        if (tgt !== r.tgt) r.lost = 0;
+        r.tgt = tgt;
         if (!tgt && AI.cloaked) mode = 'search';
       }
       if (tgt) { fillTarget(tgt); P = _tp; C = _rctx; }
@@ -837,15 +1072,16 @@
           if (fly) r.y = r.hy + Math.sin(r.idleT * 1.7 + r.slot) * 0.08;
           break;
         case 'spawn': {
-          var k = Math.min(1, r.st / 0.8);
-          r.x = r.sx + (r.tx - r.sx) * k; r.z = r.sz + (r.tz - r.sz) * k;
-          if (fly) r.y = (r.sy || 0) + 1.0 + (r.hy - 1.0) * k * k * (3 - 2 * k) + Math.sin(k * Math.PI) * 0.6;
-          else r.y = (r.sy || 0) + Math.max(0, (1 - k) * 1.0 + Math.sin(k * Math.PI) * 0.8);
-          r.walk += dt * 6;
-          if (r.st >= 0.8) {
-            r.fy = r.gy = world.floorAt(r.x, r.z, (r.sy || 0) + STEP_UP); r.fvy = 0; r.hop = 0;   // the floor at the spawn can (ground or deck)
-            r.y = fly ? r.hy : r.gy;
-            if (!fly && IB.FX) IB.FX.puff(r.x, 0.1, r.z, 4, PAL.ink, 0.15, 0.45, 2);
+          spawnPose(r, dt, fly, world);
+          if (r.st >= SPAWN_T) {
+            r.x = r.tx; r.z = r.tz;
+            r.fy = r.gy = world.floorAt(r.x, r.z, (r.sy || 0) + STEP_UP); r.fvy = 0; r.hop = 0;   // the floor beside the spawn can (ground or deck)
+            if (fly) { r.ceil = flyCeil(r, world, ctx.level); r.y = flyY(r); r.squash = 0; }
+            else {
+              r.y = r.gy; r.squash = 1; r.crouch = 0;   // lands: squash (springs back in ~0.2 s), dust
+              if (IB.FX) { IB.FX.puff(r.x, r.gy + 0.1, r.z, 6, PAL.ink, 0.15, 0.45, 2.4); }
+              play('land', r, 0.5);
+            }
             setState(r, zone && r.zone === ctx.activeZone ? 'alert' : 'idle');
           }
           break;
@@ -874,7 +1110,7 @@
           break;
         case 'blinded':
           r.yaw += dt * 1.5;
-          if (fly) r.y += ((r.hy - 0.5) - r.y) * Math.min(1, dt * 2);
+          if (fly) r.y += ((flyY(r) - 0.5) - r.y) * Math.min(1, dt * 2);
           if (r.st >= r.blind) { setState(r, v.home); r.thinkT = 0; }
           break;
         default:
@@ -890,14 +1126,17 @@
       r.vx += (tvx - r.vx) * blend; r.vz += (tvz - r.vz) * blend;
       var ox = r.x, oz = r.z;
       r.x += r.vx * dt; r.z += r.vz * dt;
-      collide(r, world, v.radius * 0.9, fly ? r.y - 0.1 : 0, fly ? 0 : Math.max(r.fy, r.gy));
+      collide(r, world, v.radius * 0.9, fly ? r.y - 0.1 : 0, fly ? 0 : Math.max(r.fy, r.gy), fly ? r.y + v.y1 + 0.1 : undefined);
       if (!fly) {
         // walkable surfaces: the floor under the robot; glide up onto a step, fall off an edge (r.y = r.gy without them)
         r.fy = world.floorAt(r.x, r.z, Math.max(r.fy, r.gy) + STEP_UP);
         if (r.gy < r.fy) { r.gy += (r.fy - r.gy) * Math.min(1, dt * 14); if (r.fy - r.gy < 0.004) r.gy = r.fy; r.fvy = 0; }
         else if (r.gy > r.fy) { r.fvy -= 18 * dt; r.gy = Math.max(r.fy, r.gy + r.fvy * dt); if (r.gy <= r.fy) r.fvy = 0; }
         r.y = r.gy + r.hop;
-      } else r.fy = world.floorAt(r.x, r.z, r.y);
+      } else {
+        r.fy = world.floorAt(r.x, r.z, r.y + 0.3);
+        r.ceilT -= dt; if (r.ceilT <= 0) { r.ceilT = 0.25; r.ceil = flyCeil(r, world, ctx.level); }
+      }
       if (fly && ctx.level) {
         var Z = ctx.level.zones[r.zone];
         if (Z) { r.x = clamp(r.x, Z.ox + 1.2, Z.ox + Z.w - 1.2); r.z = clamp(r.z, Z.oz + 1.2, Z.oz + Z.h - 1.2); }
@@ -911,7 +1150,9 @@
       if (v.wheelR) r.roll += fwd * dt / v.wheelR;
       if (fly) {
         // hover: altitude bob, bank into the strafe, rotors
-        if (r.state !== 'stagger' && r.state !== 'blinded') r.y += ((r.hy + Math.sin(r.idleT * 1.7 + r.slot) * 0.1) - r.y) * Math.min(1, dt * 3);
+        if (r.state !== 'stagger' && r.state !== 'blinded') r.y += ((flyY(r) + Math.sin(r.idleT * 1.7 + r.slot) * 0.1) - r.y) * Math.min(1, dt * 3);
+        // never into the ceiling / a deck overhead, never through the floor (stagger and blind drift included)
+        r.y = clamp(r.y, r.fy + 0.15, Math.max(r.fy + 0.15, r.ceil - v.y1 - 0.1));
         var side = r.vx * Math.cos(r.yaw) - r.vz * Math.sin(r.yaw);
         r.bankX += (clamp(fwd * 0.05, -0.3, 0.3) - r.bankX) * Math.min(1, dt * 5);
         r.bankZ += (clamp(-side * 0.05, -0.3, 0.3) - r.bankZ) * Math.min(1, dt * 5);
@@ -990,7 +1231,8 @@
         if (r.rogue > 0) { _tk = 1; _ta = r.rogue < 3 && Math.sin(r.rogue * 16) > 0 ? 0.25 : 0.62; }
         else if (r.wet > 0) { _tk = 2; _ta = Math.min(1, r.wet * 1.5) * 0.85; }
         else { _tk = 0; _ta = 0; }
-        _q.setFromAxisAngle(_up, r.yaw); _v.set(r.x, r.y, r.z); _s.set(1, 1, 1);
+        var sq = r.squash || 0;   // spawn hop: + squashes (landing), - stretches (pushing up out of the can)
+        _q.setFromAxisAngle(_up, r.yaw); _v.set(r.x, r.y, r.z); _s.set(1 + sq * 0.22, 1 - sq * 0.3, 1 + sq * 0.22);
         _base.compose(_v, _q, _s);
         T.vis.pose(r, P);
         if (IB.FX) IB.FX.blob(r.x, r.fy || 0, r.z, T.vis.shadow * (T.vis.flying ? 0.8 : 1 - Math.min(0.5, r.y - (r.fy || 0))));
