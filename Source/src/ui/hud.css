@@ -278,21 +278,16 @@ body .cloakhud.on .ck-ring { background: conic-gradient(#08131A calc(var(--k, 1)
 body .cloakhud.on .ck-ring::before { background: #8FF5EA; }
 body .cloakhud.on .ck-key { color: #08131A; box-shadow: inset 0 0 0 1.5px #08131A; }
 
-/* ---------- screen edges: hurt flash and low health (comic halftone) ---------- */
-.hurt-flash { background: radial-gradient(circle, rgba(255, 60, 48, .95) 1.5px, transparent 2px) 0 0 / 8px 8px,
-  radial-gradient(ellipse 80% 75% at 50% 50%, transparent 42%, rgba(210, 24, 20, .62) 100%); }
-/* low health: a red vignette with comic halftone that grows toward the edges (small dots, then big ones) */
-.hurt-low { background: radial-gradient(ellipse 85% 80% at 50% 50%, transparent 36%, rgba(150, 10, 12, .78) 100%); }
-.hurt-low::before, .hurt-low::after { content: ''; position: absolute; inset: 0; }
-.hurt-low::before { background: radial-gradient(circle, #E3261D 1.4px, transparent 1.9px) 0 0 / 9px 9px;
-  -webkit-mask-image: radial-gradient(ellipse 80% 75% at 50% 50%, transparent 52%, #000 78%); mask-image: radial-gradient(ellipse 80% 75% at 50% 50%, transparent 52%, #000 78%); }
-.hurt-low::after { background: radial-gradient(circle, #E3261D 3.1px, transparent 3.6px) 4.5px 4.5px / 9px 9px;
-  -webkit-mask-image: radial-gradient(ellipse 80% 75% at 50% 50%, transparent 70%, #000 100%); mask-image: radial-gradient(ellipse 80% 75% at 50% 50%, transparent 70%, #000 100%); }
+/* ---------- screen edges: hurt flash and low health ----------
+   A smooth crimson-to-ink edge on a hit; at low health only a faint warm rim here: the ink vignette that thumps with
+   a heartbeat, the corner ink and the splats are drawn on the screen-ink canvas (game/boom.js B.Screen). */
+.hurt-flash { background: radial-gradient(ellipse 85% 80% at 50% 50%, transparent 46%, rgba(170, 14, 24, .38) 76%, rgba(60, 6, 14, .7) 100%); }
+.hurt-low { background: radial-gradient(ellipse 90% 85% at 50% 50%, transparent 55%, rgba(120, 10, 20, .3) 100%); }
 .hurt::before { background: radial-gradient(circle, rgba(95, 208, 255, .9) 1.4px, transparent 1.9px) 0 0 / 8px 8px,
   radial-gradient(ellipse 80% 75% at 50% 50%, transparent 50%, rgba(95, 208, 255, .42) 100%); }
 
-.hurt.low .hurt-low { animation: lowedge2 .6s ease-in-out infinite alternate; }
-@keyframes lowedge2 { from { opacity: .28; } to { opacity: .7; } }
+.hurt.low .hurt-low { animation: lowedge2 2.4s ease-in-out infinite alternate; }
+@keyframes lowedge2 { from { opacity: .55; } to { opacity: .85; } }
 
 /* ---------- touch controls: glass rings ---------- */
 .touch .tbtn { font-family: var(--hf); font-weight: 700; font-size: 22px; background: radial-gradient(circle at 50% 40%, rgba(24, 30, 46, .42), rgba(9, 12, 22, .62));

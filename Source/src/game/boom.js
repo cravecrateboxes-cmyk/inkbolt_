@@ -894,25 +894,66 @@
   B.canisters = function () { var out = []; for (var i = 0; i < CAN_CAP; i++) { var c = cans[i]; if (c.on) out.push({ x: c.x, z: c.z, zone: c.zone, state: ['intact', 'lit', 'gone'][c.state], hp: c.hp }); } return out; };
 
   // ---------------- screen ink (hurt splats, low-health ink, blast flash) ----------------
-  var Scr = B.Screen = { cv: null, ctx: null, w: 0, h: 0, k: 0.5, splats: [], spr: [], low: 0, flashA: 0, linesA: 0, dirty: false, lastHp: -1, wasAlive: true, vig: null, lines: null, lowT: 0 };
+  /* Drawn on one 2D canvas over the game at the display's own resolution (capped), only while something shows.
+     Splats are pre-rendered once as metaball ink: random blobs, tendrils (chains of shrinking discs) and loose
+     droplets are blurred together and thresholded with a soft ramp, so the edges are smooth, gooey and anti-aliased
+     at any size; then a deep ink body (a thin crimson rim on the red ones), a faint glossy highlight and a paper
+     grain. Each hit throws a few in from the edges with a slap-in overshoot; drips run down out of them, slowing,
+     each with a bead at its tip. Low health: an ink-and-crimson vignette with ink pooled at the corners that
+     thumps with a heartbeat (faster as health falls). Death: a heavy slap of large splats that drip longer. */
+  var INK = '#110D17', INK_RGB = [17, 13, 23];
+  var Scr = B.Screen = { cv: null, ctx: null, w: 0, h: 0, k: 1, splats: [], spr: [], low: 0, flashA: 0, linesA: 0, dirty: false, lastHp: -1, wasAlive: true, vig: null, lines: null, lowT: 0, beat: 0 };
+  var SPR = 384;   // sprite size (px); drawn up to ~0.45 of the screen's short side
+  function inkBlobs(g, r, red) {
+    var c = SPR / 2, k, a, j;
+    g.fillStyle = '#000';
+    // body: a cluster of overlapping discs
+    var nb = 7 + ((r() * 5) | 0);
+    for (k = 0; k < nb; k++) { a = r() * TAU; var d = r() * SPR * 0.12; g.beginPath(); g.arc(c + Math.cos(a) * d, c + Math.sin(a) * d, SPR * (0.06 + r() * 0.07), 0, TAU); g.fill(); }
+    // tendrils thrown outward: chains of shrinking discs, a droplet beyond
+    var nt = 4 + ((r() * 4) | 0);
+    for (k = 0; k < nt; k++) {
+      a = k / nt * TAU + (r() - 0.5) * 0.6;
+      var len = SPR * (0.06 + r() * 0.17), w0 = SPR * (0.035 + r() * 0.03), steps = 8, bend = (r() - 0.5) * 0.7;
+      for (j = 0; j <= steps; j++) {
+        var f = j / steps, aa = a + bend * f * f, rr = SPR * 0.12 + len * f;
+        g.beginPath(); g.arc(c + Math.cos(aa) * rr, c + Math.sin(aa) * rr, Math.max(1.5, w0 * (1 - f * 0.6)), 0, TAU); g.fill();
+      }
+      if (r() < 0.8) { var rd = SPR * 0.12 + len + SPR * (0.04 + r() * 0.05); g.beginPath(); g.arc(c + Math.cos(a + bend) * rd, c + Math.sin(a + bend) * rd, w0 * (0.5 + r() * 0.5), 0, TAU); g.fill(); }
+    }
+    // loose spray
+    for (k = 0; k < 4; k++) { a = r() * TAU; var ds = SPR * (0.22 + r() * 0.08); g.beginPath(); g.arc(c + Math.cos(a) * ds, c + Math.sin(a) * ds, SPR * (0.025 + r() * 0.03), 0, TAU); g.fill(); }
+    for (k = 0; k < 12; k++) { a = r() * TAU; var dd = SPR * (0.24 + r() * 0.2); g.beginPath(); g.arc(c + Math.cos(a) * dd, c + Math.sin(a) * dd, SPR * (0.006 + r() * r() * 0.016), 0, TAU); g.fill(); }
+  }
   function splatSprite(seed, red) {
-    var cv = document.createElement('canvas'); cv.width = cv.height = 256;
-    var g = cv.getContext('2d'), r = rngFrom(seed), k, a;
-    g.fillStyle = '#15121C';
-    g.beginPath(); var n = 18;
-    for (k = 0; k <= n; k++) { a = k / n * TAU; var rr = 70 * (0.6 + r() * 0.45); g[k ? 'lineTo' : 'moveTo'](128 + Math.cos(a) * rr, 128 + Math.sin(a) * rr); }
-    g.fill();
-    for (k = 0; k < 9; k++) {
-      a = r() * TAU; var d0 = 45, d1 = 80 + r() * 40, w = 0.12 + r() * 0.1;
-      g.beginPath(); g.moveTo(128 + Math.cos(a + w) * d0, 128 + Math.sin(a + w) * d0); g.lineTo(128 + Math.cos(a) * d1, 128 + Math.sin(a) * d1); g.lineTo(128 + Math.cos(a - w) * d0, 128 + Math.sin(a - w) * d0); g.fill();
-      g.beginPath(); g.arc(128 + Math.cos(a) * (d1 + 8), 128 + Math.sin(a) * (d1 + 8), 4 + r() * 6, 0, TAU); g.fill();
+    var r = rngFrom(seed), S = SPR;
+    var m = document.createElement('canvas'); m.width = m.height = S;
+    var g = m.getContext('2d');
+    // 1. mask: blobs blurred together (metaballs), thresholded below with a soft ramp
+    var raw = document.createElement('canvas'); raw.width = raw.height = S;
+    inkBlobs(raw.getContext('2d'), r, red);
+    if ('filter' in g) { g.filter = 'blur(' + (S * 0.016).toFixed(1) + 'px)'; g.drawImage(raw, 0, 0); g.filter = 'none'; } else g.drawImage(raw, 0, 0);
+    var img = g.getImageData(0, 0, S, S), d = img.data, i, x, y;
+    var al = new Float32Array(S * S);
+    for (i = 0; i < S * S; i++) { var v = d[i * 4 + 3] / 255; v = (v - 0.4) / 0.07; al[i] = v <= 0 ? 0 : v >= 1 ? 1 : v * v * (3 - 2 * v); }
+    // 2. colour: deep ink, a crimson rim on the red ones (edge = where the soft mask is below its core), a glossy
+    // highlight up-left inside the body, a paper grain
+    var grain = rngFrom(seed * 7 + 3);
+    for (y = 0; y < S; y++) for (x = 0; x < S; x++) {
+      i = y * S + x; var A = al[i]; if (A <= 0) { d[i * 4 + 3] = 0; continue; }
+      var inner = A, o = i * 4;
+      // the raw blurred alpha says how deep inside the body this is (0.42 edge .. 1 core)
+      var depth = Math.min(1, Math.max(0, (d[o + 3] / 255 - 0.4) / 0.5));
+      var R = INK_RGB[0], G = INK_RGB[1], Bc = INK_RGB[2];
+      if (red) { var rim = 1 - depth; R += 70 * rim * rim; G += 4 * rim; Bc += 8 * rim; }
+      var hx = (x - S * 0.43) / (S * 0.1), hy = (y - S * 0.41) / (S * 0.05), h = Math.max(0, 1 - hx * hx - hy * hy);
+      h = h * h * Math.max(0, depth - 0.4) / 0.6; R += 30 * h; G += 28 * h; Bc += 38 * h;
+      var n = (grain() - 0.5) * 10;
+      d[o] = R + n; d[o + 1] = G + n; d[o + 2] = Bc + n;
+      d[o + 3] = 255 * inner * (0.96 + 0.04 * grain());
     }
-    if (red) {   // a few Alert Red drops in the ink
-      g.fillStyle = '#F0443A';
-      for (k = 0; k < 4; k++) { a = r() * TAU; var dd = r() * 50; g.beginPath(); g.arc(128 + Math.cos(a) * dd, 128 + Math.sin(a) * dd, 6 + r() * 12, 0, TAU); g.fill(); }
-      g.fillStyle = '#15121C'; g.beginPath(); g.arc(128, 128, 30, 0, TAU); g.fill();
-    }
-    return cv;
+    g.putImageData(img, 0, 0);
+    return m;
   }
   Scr.init = function () {
     if (Scr.cv || typeof document === 'undefined') return;
@@ -924,84 +965,123 @@
     else if (hud && hud.parentNode) hud.parentNode.insertBefore(cv, hud);
     else document.body.appendChild(cv);
     Scr.ctx = cv.getContext('2d');
-    for (var i = 0; i < 6; i++) Scr.spr.push(splatSprite(901 + i * 77, i % 2 === 0));
-    for (i = 0; i < 12; i++) Scr.splats.push({ on: false, x: 0, y: 0, s: 1, rot: 0, t: 0, life: 1.6, spr: 0, drip: 0 });
+    for (var i = 0; i < 8; i++) Scr.spr.push(splatSprite(901 + i * 77, i % 3 === 0));
+    for (i = 0; i < 14; i++) Scr.splats.push({ on: false, x: 0, y: 0, s: 1, rot: 0, t: 0, life: 1.6, spr: 0, drips: [] });
     Scr.resize();
     window.addEventListener('resize', Scr.resize);
   };
   Scr.resize = function () {
     if (!Scr.cv) return;
     var W = Math.max(1, window.innerWidth), H = Math.max(1, window.innerHeight);
-    Scr.k = Math.min(0.5, 640 / Math.max(W, H));
+    // the display's own pixels (smooth at any size), capped so a 4K screen does not fill a 4K canvas every frame
+    Scr.k = Math.min(window.devicePixelRatio || 1, 1600 / Math.max(W, H));
     Scr.w = Scr.cv.width = Math.round(W * Scr.k); Scr.h = Scr.cv.height = Math.round(H * Scr.k);
-    // low-health vignette: ink pooling in from the corners, halftone fringe
-    var v = Scr.vig = document.createElement('canvas'); v.width = Scr.w; v.height = Scr.h;
-    var g = v.getContext('2d'), w = Scr.w, h = Scr.h, m = Math.min(w, h), r = rngFrom(31), k;
-    var grd = g.createRadialGradient(w / 2, h / 2, m * 0.32, w / 2, h / 2, Math.hypot(w, h) * 0.55);
-    grd.addColorStop(0, 'rgba(21,18,28,0)'); grd.addColorStop(0.6, 'rgba(21,18,28,0.35)'); grd.addColorStop(1, 'rgba(21,18,28,0.92)');
-    g.fillStyle = grd; g.fillRect(0, 0, w, h);
-    for (k = 0; k < 14; k++) { var cx = k % 2 ? (r() < 0.5 ? 0 : w) : r() * w, cy = k % 2 ? r() * h : (r() < 0.5 ? 0 : h), s = m * (0.18 + r() * 0.16); g.drawImage(Scr.spr[k % Scr.spr.length], cx - s / 2, cy - s / 2, s, s); }
-    g.fillStyle = 'rgba(21,18,28,0.85)';
-    for (var yy = 0; yy < h; yy += 6) for (var xx = 0; xx < w; xx += 6) {
-      var dx = (xx - w / 2) / (w / 2), dy = (yy - h / 2) / (h / 2), d = Math.sqrt(dx * dx * 0.8 + dy * dy * 1.1) - 0.72; if (d <= 0) continue;
-      g.beginPath(); g.arc(xx + ((yy / 6) & 1 ? 3 : 0), yy, Math.min(3.2, d * 9), 0, TAU); g.fill();
+    var w = Scr.w, h = Scr.h, m = Math.min(w, h), r = rngFrom(31), k;
+    // low-health ink pooled at the corners and creeping along the edges (the vignette itself is drawn live)
+    var v = Scr.vig = document.createElement('canvas'); v.width = w; v.height = h;
+    var g = v.getContext('2d');
+    var corners = [[0, 0], [w, 0], [0, h], [w, h]];
+    for (k = 0; k < 16; k++) {
+      var cn = corners[k % 4], s = m * (k < 4 ? 0.62 + r() * 0.12 : 0.26 + r() * 0.16), along = r();
+      var cx = k < 4 ? cn[0] : k % 2 ? along * w : cn[0], cy = k < 4 ? cn[1] : k % 2 ? cn[1] : along * h;
+      g.save(); g.translate(cx, cy); g.rotate(r() * TAU); g.globalAlpha = 0.95; g.drawImage(Scr.spr[k % Scr.spr.length], -s / 2, -s / 2, s, s); g.restore();
     }
-    // impact lines: ink wedges from the edges toward the centre
+    // impact lines: tapered ink wedges from the edges toward the centre
     var L = Scr.lines = document.createElement('canvas'); L.width = w; L.height = h;
-    g = L.getContext('2d'); g.fillStyle = '#15121C';
-    for (k = 0; k < 40; k++) {
-      var a = k / 40 * TAU + r() * 0.1, R1 = Math.hypot(w, h) * 0.6, R0 = m * (0.3 + r() * 0.15), ww = 0.012 + r() * 0.02;
-      g.beginPath(); g.moveTo(w / 2 + Math.cos(a - ww) * R1, h / 2 + Math.sin(a - ww) * R1); g.lineTo(w / 2 + Math.cos(a) * R0, h / 2 + Math.sin(a) * R0); g.lineTo(w / 2 + Math.cos(a + ww) * R1, h / 2 + Math.sin(a + ww) * R1); g.fill();
+    g = L.getContext('2d'); g.fillStyle = INK;
+    for (k = 0; k < 44; k++) {
+      var a = k / 44 * TAU + r() * 0.09, R1 = Math.hypot(w, h) * 0.6, R0 = m * (0.34 + r() * 0.16), ww = 0.008 + r() * 0.016;
+      g.beginPath(); g.moveTo(w / 2 + Math.cos(a - ww) * R1, h / 2 + Math.sin(a - ww) * R1);
+      g.quadraticCurveTo(w / 2 + Math.cos(a) * (R0 + (R1 - R0) * 0.3), h / 2 + Math.sin(a) * (R0 + (R1 - R0) * 0.3), w / 2 + Math.cos(a) * R0, h / 2 + Math.sin(a) * R0);
+      g.quadraticCurveTo(w / 2 + Math.cos(a) * (R0 + (R1 - R0) * 0.3), h / 2 + Math.sin(a) * (R0 + (R1 - R0) * 0.3), w / 2 + Math.cos(a + ww) * R1, h / 2 + Math.sin(a + ww) * R1);
+      g.fill();
     }
     Scr.dirty = true;
   };
-  Scr.hurt = function (amount) {
-    var n = Math.min(4, 1 + Math.floor(amount / 14)), m = Math.min(Scr.w, Scr.h);
-    for (var i = 0; i < n; i++) {
-      var sp = null; for (var k = 0; k < Scr.splats.length; k++) if (!Scr.splats[k].on) { sp = Scr.splats[k]; break; }
-      if (!sp) { sp = Scr.splats[0]; for (k = 1; k < Scr.splats.length; k++) if (Scr.splats[k].t > sp.t) sp = Scr.splats[k]; }
-      var side = (Math.random() * 4) | 0, f = Math.random();
-      sp.on = true; sp.t = 0; sp.life = 1.3 + Math.random() * 0.8; sp.spr = (Math.random() * Scr.spr.length) | 0; sp.rot = Math.random() * TAU;
-      sp.s = m * (0.2 + Math.random() * 0.14) * Math.min(1.7, 0.75 + amount / 35);
-      sp.x = side === 0 ? Scr.w * f : side === 1 ? Scr.w * f : side === 2 ? 0 : Scr.w; sp.y = side === 0 ? 0 : side === 1 ? Scr.h : Scr.h * f;
-      sp.x += (Scr.w / 2 - sp.x) * rnd(0.02, 0.12); sp.y += (Scr.h / 2 - sp.y) * rnd(0.02, 0.12); sp.drip = 0;
-    }
+  function addSplat(size, life, edge) {
+    var sp = null, k;
+    for (k = 0; k < Scr.splats.length; k++) if (!Scr.splats[k].on) { sp = Scr.splats[k]; break; }
+    if (!sp) { sp = Scr.splats[0]; for (k = 1; k < Scr.splats.length; k++) if (Scr.splats[k].t > sp.t) sp = Scr.splats[k]; }
+    var side = (Math.random() * 4) | 0, f = 0.08 + Math.random() * 0.84;
+    sp.on = true; sp.t = 0; sp.life = life; sp.spr = (Math.random() * Scr.spr.length) | 0; sp.rot = Math.random() * TAU; sp.s = size;
+    sp.x = side < 2 ? Scr.w * f : side === 2 ? 0 : Scr.w; sp.y = side === 0 ? 0 : side === 1 ? Scr.h : Scr.h * f;
+    sp.x += (Scr.w / 2 - sp.x) * rnd(edge, edge + 0.12); sp.y += (Scr.h / 2 - sp.y) * rnd(edge, edge + 0.12);
+    // drips: start on the lower part of the splat, run down, slowing; widths taper to a bead
+    var nd = 1 + ((Math.random() * 3) | 0); sp.drips.length = 0;
+    for (k = 0; k < nd; k++) sp.drips.push({ x: (Math.random() - 0.5) * size * 0.34, y0: size * (0.06 + Math.random() * 0.1), w: size * (0.03 + Math.random() * 0.025),
+      len: size * (0.18 + Math.random() * 0.35) * Math.min(1.4, life / 1.8), sp: 0.5 + Math.random() * 0.7, wob: Math.random() * TAU });
+    return sp;
+  }
+  Scr.hurt = function (amount, death) {
+    var m = Math.min(Scr.w, Scr.h);
+    if (death) { for (var j = 0; j < 6; j++) addSplat(m * (0.34 + Math.random() * 0.2), 3.2 + Math.random(), 0.04); Scr.dirty = true; return; }
+    var n = Math.min(4, 1 + Math.floor(amount / 14));
+    for (var i = 0; i < n; i++) addSplat(m * (0.2 + Math.random() * 0.14) * Math.min(1.7, 0.75 + amount / 35), 1.4 + Math.random() * 0.8, 0.02);
     Scr.dirty = true;
   };
-  Scr.kick = function (k) { if (!Scr.cv) return; Scr.linesA = Math.max(Scr.linesA, 0.75 * k); if (!reduce()) Scr.flashA = Math.max(Scr.flashA, 0.5 * k); Scr.dirty = true; };
+  Scr.kick = function (k) { if (!Scr.cv) return; Scr.linesA = Math.max(Scr.linesA, 0.6 * k); if (!reduce()) Scr.flashA = Math.max(Scr.flashA, 0.5 * k); Scr.dirty = true; };
   Scr.clear = function () { Scr.splats.forEach(function (s) { s.on = false; }); Scr.flashA = Scr.linesA = 0; Scr.low = 0; Scr.lastHp = -1; Scr.dirty = true; };
+  // a heartbeat: lub-dub, then rest (0..1)
+  function heart(t) { var p = t % 1, a = Math.exp(-Math.pow((p - 0.06) / 0.045, 2)), b = Math.exp(-Math.pow((p - 0.26) / 0.06, 2)) * 0.6; return Math.max(a, b); }
+  function drawDrip(ctx, s, dr, k, a) {
+    // length eases out (runs quickly, then slows to a creep)
+    var e = 1 - Math.pow(1 - Math.min(1, k * dr.sp * 1.6), 2.2), L = dr.len * e; if (L < 1) return;
+    var x0 = dr.x, y0 = dr.y0, x1 = x0 + Math.sin(dr.wob + k * 2) * dr.w * 0.6, y1 = y0 + L, w = dr.w;
+    ctx.beginPath();
+    ctx.moveTo(x0 - w, y0 - w);
+    ctx.bezierCurveTo(x0 - w * 0.75, y0 + L * 0.4, x1 - w * 0.45, y1 - L * 0.35, x1 - w * 0.42, y1);
+    ctx.lineTo(x1 + w * 0.42, y1);
+    ctx.bezierCurveTo(x1 + w * 0.45, y1 - L * 0.35, x0 + w * 0.75, y0 + L * 0.4, x0 + w, y0 - w);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.arc(x1, y1 + w * 0.2, w * 0.78, 0, TAU); ctx.fill();   // the bead at the tip
+  }
   Scr.update = function (dt, p) {
     if (!Scr.cv) return;
-    var g = IB.Game, show = !!(g && g.mode === 'play' && p);
+    var g = IB.Game, show = !!(g && g.mode === 'play' && p), frac = 1;
     if (show) {
       if (Scr.lastHp >= 0 && p.alive && p.health < Scr.lastHp - 0.5) Scr.hurt(Scr.lastHp - p.health);
-      if (Scr.wasAlive && !p.alive) { Scr.hurt(60); Scr.hurt(60); }
+      if (Scr.wasAlive && !p.alive) Scr.hurt(60, true);
       Scr.lastHp = p.alive ? p.health : -1; Scr.wasAlive = p.alive;
-      var frac = p.maxHp ? p.health / p.maxHp : 1, want = p.alive && frac < 0.3 ? 0.6 + (0.3 - frac) * 1.4 : 0;
-      Scr.lowT += dt; Scr.low += (want - Scr.low) * Math.min(1, dt * 4);
+      frac = p.maxHp ? p.health / p.maxHp : 1;
+      var want = p.alive && frac < 0.3 ? 0.55 + (0.3 - frac) * 1.5 : 0;
+      Scr.lowT += dt; Scr.low += (want - Scr.low) * Math.min(1, dt * 3);
+      Scr.beat += dt * (1.05 + Math.max(0, 0.3 - frac) * 2.2);   // ~63 bpm, faster as it falls
     } else { Scr.low = 0; Scr.lastHp = -1; Scr.wasAlive = true; }
-    var any = Scr.low > 0.01 || Scr.flashA > 0.01 || Scr.linesA > 0.01, i, s;
+    var any = Scr.low > 0.01 || Scr.flashA > 0.01 || Scr.linesA > 0.01, i, s, j;
     for (i = 0; i < Scr.splats.length; i++) if (Scr.splats[i].on) { any = true; break; }
     if (!show) any = false;
     if (!any) { if (Scr.dirty || Scr.cv.style.display !== 'none') { Scr.ctx.clearRect(0, 0, Scr.w, Scr.h); Scr.cv.style.display = 'none'; Scr.dirty = false; } return; }
     if (Scr.cv.style.display === 'none') Scr.cv.style.display = 'block';
-    var ctx = Scr.ctx; ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, Scr.w, Scr.h);
-    if (Scr.low > 0.01) { ctx.globalAlpha = Math.min(1, Scr.low * (0.85 + 0.15 * Math.sin(Scr.lowT * 6))); ctx.drawImage(Scr.vig, 0, 0); }
+    var ctx = Scr.ctx, W = Scr.w, H = Scr.h; ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, W, H);
+    if (Scr.low > 0.01) {
+      var hb = reduce() ? 0.3 : heart(Scr.beat), lo = Math.min(1, Scr.low);
+      // vignette: deep ink at the rim through a crimson band, pulsing inward with each beat
+      var R0 = Math.min(W, H) * (0.36 - 0.05 * hb * lo), R1 = Math.hypot(W, H) * 0.56;
+      var grd = ctx.createRadialGradient(W / 2, H / 2, R0, W / 2, H / 2, R1);
+      grd.addColorStop(0, 'rgba(50,4,12,0)'); grd.addColorStop(0.4, 'rgba(70,6,16,' + (0.12 + 0.12 * hb) * lo + ')');
+      grd.addColorStop(0.75, 'rgba(34,5,12,' + (0.6 + 0.14 * hb) * lo + ')'); grd.addColorStop(1, 'rgba(17,13,23,' + 0.94 * lo + ')');
+      ctx.globalAlpha = 1; ctx.fillStyle = grd; ctx.fillRect(0, 0, W, H);
+      // ink pooled at the corners, swelling a touch with the beat
+      var sc = 1 + 0.025 * hb;
+      ctx.globalAlpha = Math.min(1, lo * (0.8 + 0.2 * hb));
+      ctx.setTransform(sc, 0, 0, sc, W / 2 * (1 - sc), H / 2 * (1 - sc)); ctx.drawImage(Scr.vig, 0, 0); ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+    ctx.fillStyle = INK;
     for (i = 0; i < Scr.splats.length; i++) {
       s = Scr.splats[i]; if (!s.on) continue;
       s.t += dt; var k = s.t / s.life; if (k >= 1) { s.on = false; continue; }
-      var a = k < 0.08 ? k / 0.08 : k < 0.55 ? 1 : 1 - (k - 0.55) / 0.45, sc = k < 0.08 ? 0.7 + 0.3 * k / 0.08 : 1;
-      s.drip = Math.min(s.s * 0.9, s.drip + dt * s.s * 0.5);
-      ctx.globalAlpha = 0.9 * a;
-      ctx.setTransform(1, 0, 0, 1, s.x, s.y); ctx.rotate(s.rot);
-      ctx.drawImage(Scr.spr[s.spr], -s.s * sc / 2, -s.s * sc / 2, s.s * sc, s.s * sc);
+      // slap in (overshoot), hold, then fade
+      var a = k < 0.05 ? k / 0.05 : k < 0.6 ? 1 : 1 - Math.pow((k - 0.6) / 0.4, 1.5);
+      var q = Math.min(1, s.t / 0.14), sc2 = q < 1 ? 0.55 + 0.45 * (1 + 2.2 * Math.pow(q - 1, 3) + 1.2 * Math.pow(q - 1, 2)) : 1;
+      ctx.globalAlpha = 0.94 * a;
       ctx.setTransform(1, 0, 0, 1, s.x, s.y);
-      ctx.fillStyle = '#15121C'; ctx.fillRect(-s.s * 0.08, 0, s.s * 0.05, s.drip); ctx.fillRect(s.s * 0.12, 0, s.s * 0.035, s.drip * 0.6);
-      ctx.beginPath(); ctx.arc(-s.s * 0.055, s.drip, s.s * 0.04, 0, TAU); ctx.arc(s.s * 0.1375, s.drip * 0.6, s.s * 0.028, 0, TAU); ctx.fill();
+      for (j = 0; j < s.drips.length; j++) drawDrip(ctx, s, s.drips[j], s.t / 2.2, a);
+      ctx.rotate(s.rot);
+      ctx.drawImage(Scr.spr[s.spr], -s.s * sc2 / 2, -s.s * sc2 / 2, s.s * sc2, s.s * sc2);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
     }
     if (Scr.linesA > 0.01) { ctx.globalAlpha = Scr.linesA; ctx.drawImage(Scr.lines, 0, 0); Scr.linesA = Math.max(0, Scr.linesA - dt * 4.5); }
-    if (Scr.flashA > 0.01) { ctx.globalAlpha = Scr.flashA; ctx.fillStyle = '#FFFDF7'; ctx.fillRect(0, 0, Scr.w, Scr.h); Scr.flashA = Math.max(0, Scr.flashA - dt * 6); }
+    if (Scr.flashA > 0.01) { ctx.globalAlpha = Scr.flashA; ctx.fillStyle = '#FFFDF7'; ctx.fillRect(0, 0, W, H); Scr.flashA = Math.max(0, Scr.flashA - dt * 6); }
     ctx.globalAlpha = 1;
     Scr.dirty = true;
   };

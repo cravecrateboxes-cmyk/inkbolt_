@@ -1345,40 +1345,6 @@ def build_chalkboard(ao):
     m.parent = Matrix.Identity(4)
     m.bx(-1.2, -0.2, 5.48, 0.2, 0.15, 5.6, 'felt')
     m.bx(-1.2, -0.2, 5.6, 0.2, 0.15, 5.8, 'honeyDk')
-    # chalk work (strokes 5 mm proud of the board)
-    yf, yk = 0.305, 0.31
-
-    def word(s, x0, ztop, px, pz, col, gap=1.4):   # chalk handwriting (Pacifico) over the old letter run
-        span = (len(s) - 1) * px * 5 * gap + 5 * px
-        ib_text.draw(m, s, x0 - 2.5 * px + span / 2, yf, ztop - 5 * pz, 5 * pz * 0.8, col, face='y-', font='script', maxw=span)
-
-    word('ABC', -8.6, 11.6, 0.3, 0.34, 'chalk')
-    word('1+2=3', 2.6, 11.6, 0.22, 0.26, 'chalkY')
-    # underline squiggle
-    for i in range(7):
-        m.box((-8.3 + i * 0.72, 0.3065 - 0.003 * (i % 2), 9.35 + (0.12 if i % 2 else -0.12)), (0.78, 0.007, 0.09), 'chalk', rot=(0, 18 if i % 2 else -18, 0), bevel=False)
-        m.flat()
-    # a drawn sun: ring of strokes and rays
-    cx, cz = -1.0, 8.4
-    for i in range(12):
-        a = i * 30
-        r = math.radians(a)
-        m.box((cx + math.sin(r) * 0.95, 0.307 - 0.003 * (i % 2), cz + math.cos(r) * 0.95), (0.52, 0.006, 0.1), 'chalkY', rot=(0, -a - 90, 0), bevel=False)
-        m.flat()
-        if i % 2 == 0:
-            m.box((cx + math.sin(r) * 1.55, 0.3075, cz + math.cos(r) * 1.55), (0.07, 0.005, 0.5), 'chalkY', rot=(0, -a, 0), bevel=False)
-            m.flat()
-    # a little house and a tic-tac-toe
-    m.bx(5.0, yf, 6.6, 7.2, yk, 6.7, 'chalk', flat=True)
-    for x in (5.0, 7.1):
-        m.bx(x, 0.3045, 6.7, x + 0.1, yk, 8.2, 'chalk', flat=True)
-    m.box((5.6, 0.3065, 8.75), (1.5, 0.007, 0.1), 'chalk', rot=(0, -38, 0), bevel=False)
-    m.flat()
-    m.box((6.6, 0.3035, 8.75), (1.5, 0.007, 0.1), 'chalk', rot=(0, 38, 0), bevel=False)
-    m.flat()
-    for i in (1, 2):
-        m.bx(-8.6, yf, 6.5 + i * 0.7, -6.5, yk, 6.58 + i * 0.7, 'chalk', flat=True)
-        m.bx(-8.6 + i * 0.7, 0.3, 6.4, -8.52 + i * 0.7, 0.307, 8.6, 'chalk', flat=True)
     m.colbox(-10.95, 0.25, 5.3, 10.95, yb, 12.8)
     m.colbox(-10.6, -0.35, 5.3, 10.6, 0.25, 5.62)
     finish('Landmark_Chalkboard', m, bevel=0.03, ao=False)

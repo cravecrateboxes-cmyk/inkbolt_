@@ -38,6 +38,17 @@ test('every gun has its own colourway and a skin at every tier', () => {
   assert.equal(S.skin('rivet', 'gray').glow, '#000000');
   assert.notEqual(S.skin('rivet', 'purple').glow, '#000000');
   assert.equal(S.skin('rivet', 'orange').shimmer, 1);
+  // Legendary: a premium finish per gun, several kinds, gold only on some; every one glows and shimmers
+  const legs = GUNS.map((id) => S.skin(id, 'orange'));
+  legs.forEach((k, i) => {
+    assert.ok(S.LEGEND[S.GUNS[GUNS[i]].leg], GUNS[i] + ' legendary finish');
+    assert.equal(k.shimmer, 1); assert.notEqual(k.glow, '#000000');
+    assert.ok(S.PATTERNS[k.pat.type] > 0, GUNS[i] + ' finish pattern');
+    assert.ok(S.LEGEND[k.legend].word.includes(S.word(GUNS[i], 'orange')));
+  });
+  const kinds = new Set(legs.map((k) => k.legend));
+  assert.ok(kinds.size >= 6, 'at least six legendary finishes');
+  assert.ok(legs.filter((k) => k.legend === 'gold').length <= GUNS.length / 3, 'gold only on some');
 });
 
 test('rarity names and feel', () => {

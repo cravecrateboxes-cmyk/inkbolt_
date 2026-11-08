@@ -1,6 +1,7 @@
 /* INKBOLT gun skins at runtime: a gun's skin (src/core/gunskins.js) as an 8 x 8 palette texture (one texel per
    weapons-palette cell, the cell flags in alpha) on a toon material with a small shader extension:
-     pattern (object-space: wood grain, carbon twill, camo blotches, hex lattice, gold filigree, anodising sheen) on
+     pattern (object-space: wood grain, carbon twill, camo blotches, hex lattice, filigree, anodising sheen, and the
+     Legendary finishes: molten veins (emissive), oil-slick iridescence, aurora nebula, damascus bands, pearl) on
      'pat' cells, unlit breathing glow on 'glow' cells, a slow bright sweep on 'shim' cells (Legendary).
    One program for every skin (patterns are uniforms); one material per (gun, tier, outline set), made on first use.
      IB.GunSkins.material(gunId, tier, uni)  uni: IB.Render.vmOutline (viewmodel), worldOutline (default) or any
@@ -50,7 +51,7 @@
   }
 
   var FRAG_PARS = [
-    'uniform float uPat, uPatS, uShim, uTime; uniform vec3 uPatC, uGlowC;',
+    'uniform float uPat, uPatS, uShim, uTime, uPatGlow; uniform vec3 uPatC, uGlowC, uShimC;',
     'varying vec3 vIbP; varying vec3 vIbN;',
     'float ibH( vec3 p ) { return fract( sin( dot( p, vec3( 127.1, 311.7, 74.7 ) ) ) * 43758.5453 ); }',
     'float ibN( vec3 p ) { vec3 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f );',
@@ -69,20 +70,40 @@
     '  if ( t < 4.5 ) { float g = fract( uv.y * 55.0 + sin( uv.x * 9.0 ) * 0.9 + ibN( p * 9.0 ) * 2.2 ); return smoothstep( 0.62, 0.9, g ) * 0.9; }',   // wood grain
     '  if ( t < 5.5 ) { vec2 q = uv * 95.0; float a = sin( q.x + sin( q.y * 0.9 ) * 2.4 ) * sin( q.y + sin( q.x * 0.7 ) * 2.0 );',          // filigree scrolls
     '    return ( 1.0 - smoothstep( 0.03, 0.09, abs( a ) ) ) * 0.9; }',
-    '  return smoothstep( -0.2, 1.0, sin( dot( uv, vec2( 18.0, 30.0 ) ) ) ) * 0.55;',                                                     // sheen bands
+    '  if ( t < 6.5 ) return smoothstep( -0.2, 1.0, sin( dot( uv, vec2( 18.0, 30.0 ) ) ) ) * 0.55;',                                      // sheen bands
+    '  if ( t < 7.5 ) { float v = min( abs( ibN( p * 16.0 ) - 0.5 ), abs( ibN( p * 34.0 + 3.1 ) - 0.5 ) * 1.4 );',                     // molten veins
+    '    return 1.0 - smoothstep( 0.012, 0.034, v ); }',
+    '  if ( t < 8.5 ) return 0.55 + 0.3 * ibN( p * 7.0 );',                                                                               // oil slick
+    '  if ( t < 9.5 ) return 0.92;',                                                                                                      // aurora
+    '  if ( t < 10.5 ) { float g = sin( uv.y * 70.0 + sin( uv.x * 11.0 + ibN( p * 5.0 ) * 5.0 ) * 3.2 + ibN( p * 18.0 ) * 2.4 );',     // damascus
+    '    return smoothstep( 0.1, 0.8, g ) * 0.85; }',
+    '  return 0.55 + 0.3 * ibN( p * 6.0 );',                                                                                              // pearl
+    '}',
+    // the pattern colour: most patterns use uPatC; oil slick, aurora and pearl paint their own
+    'vec3 ibPatCol( float t, vec3 p, vec3 n ) {',
+    '  if ( t > 7.5 && t < 8.5 ) { float h = ibN( p * 4.5 ) * 1.4 + dot( n, vec3( 0.45, 0.7, 0.3 ) ) * 0.5 + uTime * 0.04;',
+    '    return mix( uPatC, 0.6 + 0.4 * cos( 6.2832 * ( h + vec3( 0.0, 0.33, 0.67 ) ) ), 0.62 ); }',
+    '  if ( t > 8.5 && t < 9.5 ) { float k = ibN( p * 3.5 ) * 0.9 + p.z * 2.2 + p.y * 1.6 + 0.2 * sin( uTime * 0.4 );',
+    '    vec3 c = mix( vec3( 0.06, 0.08, 0.26 ), uPatC, smoothstep( 0.15, 0.6, fract( k ) ) );',
+    '    c = mix( c, vec3( 0.62, 0.32, 0.95 ), smoothstep( 0.55, 0.95, fract( k ) ) );',
+    '    c = mix( c, vec3( 0.06, 0.08, 0.26 ), smoothstep( 0.0, 0.25, abs( ibN( p * 9.0 ) - 0.5 ) ) * 0.55 );',
+    '    return c + step( 0.992, ibH( floor( p * 220.0 ) ) ) * 0.9; }',                                                                     // star specks
+    '  if ( t > 10.5 ) return mix( uPatC, vec3( 0.86, 0.95, 1.0 ), 0.5 + 0.5 * n.y );',
+    '  return uPatC;',
     '}'
   ].join('\n');
   var FRAG_MAP = [
     '#include <map_fragment>',
     'float ibF = floor( ( 1.0 - texelColor.a ) * 8.0 + 0.5 );',   // 0 none, 1 pat, 2 glow, 3 shim, 4 pat + shim
     'diffuseColor.a = opacity;',
-    'if ( ( ibF == 1.0 || ibF == 4.0 ) && uPat > 0.5 ) diffuseColor.rgb = mix( diffuseColor.rgb, uPatC, ibPattern( uPat, vIbP * uPatS, vIbN ) );'
+    'if ( ( ibF == 1.0 || ibF == 4.0 ) && uPat > 0.5 ) diffuseColor.rgb = mix( diffuseColor.rgb, ibPatCol( uPat, vIbP, vIbN ), ibPattern( uPat, vIbP * uPatS, vIbN ) );'
   ].join('\n');
   var FRAG_END = [
     'if ( ibF == 2.0 ) gl_FragColor.rgb = mix( gl_FragColor.rgb, uGlowC * ( 1.05 + 0.18 * sin( uTime * 3.2 + vIbP.z * 9.0 ) ), 0.88 );',
+    'if ( uPatGlow > 0.5 && ( ibF == 1.0 || ibF == 4.0 ) ) gl_FragColor.rgb = mix( gl_FragColor.rgb, uPatC * ( 1.15 + 0.3 * sin( uTime * 2.2 + vIbP.z * 14.0 ) ), ibPattern( uPat, vIbP * uPatS, vIbN ) * 0.92 );',
     'if ( uShim > 0.5 && ( ibF >= 2.0 ) ) {',
     '  float s = fract( vIbP.z * 0.9 - vIbP.y * 0.6 - uTime * 0.32 ); float b = smoothstep( 0.0, 0.035, s ) * ( 1.0 - smoothstep( 0.035, 0.11, s ) );',
-    '  gl_FragColor.rgb += vec3( 1.0, 0.92, 0.7 ) * b * 0.55; }',
+    '  gl_FragColor.rgb += uShimC * b * 0.55; }',
     'if ( vHull > 0.5 )'
   ].join('\n');
 
@@ -98,7 +119,8 @@
     var sk = D().skin(gunId, tier);
     var mat = R.toonMaterial({ uni: uni, map: texture(sk), baked: A.BAKED ? A.BAKED.weapons : 0 });
     var U = { uPat: { value: D().PATTERNS[sk.pat.type] || 0 }, uPatS: { value: sk.pat.scale }, uPatC: { value: C(sk.pat.col) },
-      uGlowC: { value: C(sk.glow) }, uShim: { value: sk.shimmer }, uTime: time };
+      uGlowC: { value: C(sk.glow) }, uShim: { value: sk.shimmer }, uTime: time,
+      uShimC: { value: C(sk.shimCol || '#FFEBB3') }, uPatGlow: { value: sk.patGlow || 0 } };
     var inner = mat.onBeforeCompile, key0 = mat.customProgramCacheKey;
     mat.onBeforeCompile = function (sh) {
       inner(sh);
