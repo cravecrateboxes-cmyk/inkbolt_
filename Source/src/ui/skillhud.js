@@ -58,7 +58,7 @@
     // while hidden the world goes ink black and grey (render.js CLOAK_WORLD) and robots blaze a bright stealth blue:
     // a thick glowing outline, pulsing, that reads from across the map
     var R = IB.Render, lit = on && !flick ? 1 : on ? 0.45 : 0, pulse = Math.sin(performance.now() * 0.008);
-    if (R && R.cloak) { R.cloak.value = lit; R.robotHull.value = 1 + lit * (1.6 + 0.35 * pulse); }
+    if (R && R.cloak) { R.cloak.value = lit; R.robotHull.value = 1 + lit * (0.95 + 0.2 * pulse);   // about 2x the normal ink line (was ~2.8x) }
     if (RO) { if (lit) RO.uInk.value.setRGB(0.25 + 0.1 * pulse, 0.78 + 0.12 * pulse, 1.0); else RO.uInk.value.setHex(0x15121C); }
     document.body.classList.toggle('cloak-on', on && !flick);
     document.body.classList.toggle('cloak-flick', on && flick);

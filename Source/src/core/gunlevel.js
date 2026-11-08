@@ -19,9 +19,9 @@
    ROCKET AMMO DIRECTOR. Only soldiers drop rocket crates, and only while the player needs them: need = how far the
    rocket pool (plus crates lying on the map) is below a target (70% of the cap when a launcher is carried, 30%
    when one is only in the backpack, nothing without one), weighted by recent use (rockets fired in the last 90 s).
-   A soldier kill drops a crate with chance 0.4 x need, 2-5 rockets (more when the need is bigger); a carried
-   launcher with fewer than one salvo left gets a crate after at most 4 soldier kills without one. Never more than
-   the level's budget (a quarter of its soldiers, at least 12 rockets): rockets stay a fraction of normal ammo. */
+   A soldier kill drops a crate with chance 0.5 x need, 2-5 rockets (more when the need is bigger); a carried
+   launcher with fewer than one salvo left gets a crate after at most 3 soldier kills without one. Never more than
+   the level's budget (0.27 rockets per soldier, at least 14): rockets stay a fraction of normal ammo. */
 (function (IB) {
   'use strict';
   var GL = {};
@@ -96,8 +96,8 @@
   GL.RACK_LAUNCHER = 0.03;   // share of armory rack guns that are a launcher (levels 14+)
 
   // ---------------- rocket ammo director ----------------
-  GL.ROCKET = { cap: 16, start: 6, carriedTarget: 0.7, packTarget: 0.3, useWindow: 90, useFull: 6, maxChance: 0.4, pity: 4,
-    budgetPerSoldier: 0.25, minBudget: 12 };
+  GL.ROCKET = { cap: 16, start: 6, carriedTarget: 0.7, packTarget: 0.3, useWindow: 90, useFull: 6, maxChance: 0.5, pity: 3,
+    budgetPerSoldier: 0.27, minBudget: 14 };
   /* st: {owned, carried, ammo, pending (rockets in crates on the map), used (rockets fired in the last 90 s), per
      (rockets a shot of the carried launcher takes)} -> 0..1 */
   GL.rocketNeed = function (st) {
