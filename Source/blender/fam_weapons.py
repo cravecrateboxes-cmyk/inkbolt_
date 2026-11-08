@@ -1292,46 +1292,56 @@ def build_hothead(pal):
 
 
 def build_murmur(pal):
-    """ML-6 Murmur: a boxy homing launcher. Six missile tubes in the nose (red tips inside), a seeker dome and antenna
-    on top, amber stripes and vents down the sides, a missile cassette (the Mag) under the housing."""
+    """ML-6 Murmur: a shoulder-fired six-pack homing launcher. Two rows of three launch tubes bundled by steel straps,
+    red warhead noses poking out of the front rims, flared venturis at the back (rear blast venting), a lock-on
+    targeting unit with a seeker lens and whip antenna up top-left, ring sights on the centre line, the Hothead's
+    pistol-grip frame + foregrip, and a missile cassette (the Mag) under the bundle with its warheads showing."""
     rake = 18
     k = Kit(pal)
-    bz = 0.076
-    k.cbox((0, 0.060, bz), (0.092, 0.420, 0.088), 'gun3', ch=0.008, axis='y')                          # housing x +-0.046, z .032-.120
-    k.cbox((0, 0.274, bz), (0.084, 0.012, 0.080), 'gunmetal', ch=0.004, axis='y')                      # nose plate, front y .280
-    for x in (-0.026, 0.0, 0.026):
-        for z in (bz - 0.019, bz + 0.019):
-            k.ring('y', (x, 0, z), 0.272, 0.292, 0.0082, 0.0118, 'steel2', seg=8)
-            k.lathe([(0.283, 0), (0.283, 0.0090), (0.285, 0.0090), (0.285, 0.0055), (0.291, 0)], 'ink', 'y', (x, 0, z), 8, hull=False,
-                    bands=[None, None, None, 'red'])                                                       # bore + missile tip
-    k.box((0, 0.120, bz - 0.026), (0.098, 0.120, 0.010), 'amber')                                       # side stripes
-    k.box((0, -0.060, bz - 0.026), (0.098, 0.040, 0.010), 'ink')
-    for i in range(4):
-        k.box((-0.0465, -0.100 + i * 0.026, bz + 0.020), (0.008, 0.012, 0.030), 'ink', skip=('+x',))   # vents (left)
-    k.box((0, -0.152, bz), (0.070, 0.008, 0.060), 'ink', skip=('+y',))                                 # rear exhaust grille
-    for z in (bz - 0.018, bz, bz + 0.018):
-        k.box((0, -0.159, z), (0.064, 0.010, 0.006), 'steel2')
-    # seeker dome (top right) and antenna (top left rear)
-    k.lathe([(0, 0), (0, 0.024), (0.006, 0.024), (0.006, 0)], 'gunmetal', 'z', (0.020, 0.150, 0.118), 10)
-    k.lathe([(0.004, 0.019), (0.014, 0.016), (0.021, 0.009), (0.024, 0)], 'lens', 'z', (0.020, 0.150, 0.118), 10, hull=True)
-    k.bar((-0.030, -0.120, 0.118), (-0.030, -0.120, 0.170), 0.004, 0.004, 'ink', hull=True)
-    k.cbox((-0.030, -0.120, 0.172), (0.009, 0.009, 0.009), 'red', ch=0.002)
-    # sights on the housing top
+    bz, R, dx, dz = 0.076, 0.018, 0.042, 0.021
+    tubes = [(x, bz + z) for z in (-dz, dz) for x in (-dx, 0.0, dx)]
+    for x, z in tubes:
+        k.lathe([(-0.150, 0), (-0.150, R), (0.252, R), (0.256, R + 0.0028), (0.274, R + 0.0028), (0.274, 0.0150),
+                 (0.262, 0.0150), (0.262, 0)], 'gun3', 'y', (x, 0, z), 6,
+                bands=[None, None, 'gunmetal', 'gunmetal', 'gunmetal', 'ink', 'ink'])                                  # tube + front rim
+        k.lathe([(0.250, 0.0140), (0.280, 0.0128), (0.300, 0)], 'red', 'y', (x, 0, z), 6, hull=False)       # warhead nose
+        k.lathe([(-0.140, 0.0150), (-0.176, R + 0.0028), (-0.176, 0.0110), (-0.160, 0)],
+                'steel2', 'y', (x, 0, z), 6, bands=[None, None, 'ink'], hull=False)                              # venturi
+    for y, w in ((0.230, 0.020), (-0.132, 0.020)):                                                             # bundle straps
+        k.cbox((0, y, bz), (2 * (dx + R) + 0.012, w, 2 * (dz + R) + 0.012), 'gunmetal', ch=0.004, axis='y')
+    for y in (0.176, -0.090):                                                                                                  # hazard bands
+        k.box((0, y, bz), (2 * (dx + R) + 0.006, 0.012, 2 * (dz + R) + 0.006), 'amber')
+    k.cbox((0, 0.040, 0.034), (0.100, 0.300, 0.012), 'gun2', ch=0.003, axis='y')                                              # saddle onto the frame
+    # lock-on targeting unit (top left): housing on a mount, seeker lens + ring, lock LED, whip antenna
+    tx, ty, tz = -0.054, 0.080, 0.140
+    k.cbox((tx + 0.006, ty, 0.118), (0.020, 0.050, 0.012), 'gun2', ch=0.002, axis='y')
+    k.cbox((tx, ty, tz), (0.034, 0.096, 0.036), 'gun2', ch=0.004, axis='y')
+    k.ring('y', (tx, 0, tz), ty + 0.046, ty + 0.058, 0.0100, 0.0150, 'gunmetal', seg=6)
+    k.lathe([(ty + 0.046, 0), (ty + 0.046, 0.0102), (ty + 0.052, 0.0080), (ty + 0.055, 0)], 'lens', 'y', (tx, 0, tz), 6, hull=False)
+    k.box((tx - 0.0185, ty - 0.010, tz + 0.006), (0.004, 0.030, 0.008), 'amber')
+    k.cbox((tx + 0.004, ty - 0.020, tz + 0.020), (0.010, 0.010, 0.008), 'red', ch=0.002)
+    k.bar((tx - 0.008, ty - 0.040, tz + 0.016), (tx - 0.008, ty - 0.040, tz + 0.062), 0.004, 0.004, 'ink', hull=False)
+    # sights on the centre line (rear aperture, front ring)
     zs = 0.120 + 0.024
     k.cbox((0, -0.120, 0.12575), (0.022, 0.028, 0.0235), 'gunmetal', ch=0.003, axis='y')
     k.ring('y', (0, 0, zs), -0.126, -0.118, 0.0040, 0.0085, 'gunmetal', seg=8, hull=True)
     k.cbox((0, 0.240, 0.12625), (0.012, 0.016, 0.0205), 'gunmetal', ch=0.002, axis='y')
     k.ring('y', (0, 0, zs), 0.236, 0.244, 0.0110, 0.0155, 'amber', seg=12, hull=True)
+    # arming lever (rear left, under the bundle) and a shoulder pad
+    k.cbox((-0.034, -0.110, 0.030), (0.012, 0.036, 0.012), 'gun3', ch=0.002, axis='y')
+    k.cbox((0, -0.190, 0.025), (0.034, 0.090, 0.020), 'gun2', ch=0.005, axis='y')
     launcher_frame(k, rake, 0.200, 0.026)
-    # missile cassette: a flat box with an amber label band and a pull tab
+    stripe(k, -0.020, 0.090, 0.012, 0.018, 0.023)
+    # missile cassette: a flat box with an amber label band, three warheads peeking out of its nose
     mk = Kit(pal)
     mk.cbox((0, 0.0, -0.022), (0.050, 0.080, 0.064), 'gun2', ch=0.004, axis='x')
     mk.box((0, 0.0, -0.024), (0.056, 0.060, 0.014), 'amber')
     for i in (-1, 1):
         mk.box((0, i * 0.018, -0.024), (0.062, 0.006, 0.020), 'ink')
     mk.cbox((0, 0.0, -0.058), (0.056, 0.086, 0.010), 'gun3', ch=0.003, axis='z')
-    mk.cbox((0, 0.0, -0.066), (0.022, 0.040, 0.010), 'red', ch=0.002, axis='y')
-    return k, mk, {'rake': rake, 'mrake': 0, 'mag': (0, 0.110, -0.010), 'muzzle': (0, 0.292, bz), 'eject': (-0.03, -0.10, bz),
+    for i in (-1, 0, 1):
+        mk.lathe([(0.034, 0), (0.034, 0.0062), (0.054, 0)], 'red', 'y', (i * 0.0150, 0, -0.042), 6, hull=False)
+    return k, mk, {'rake': rake, 'mrake': 0, 'mag': (0, 0.110, -0.010), 'muzzle': (0, 0.300, bz), 'eject': (-0.03, -0.10, bz),
                    'sight': (0, -0.135, zs), 'cls': 'rocket', 'fore': (0.200, 0.026)}
 
 
@@ -2488,7 +2498,7 @@ ANIM = {
     'RAILSPIKE': {'fire': 60 / 70, 'reload': 2.6, 'style': 'rifle', 'heavy': 1.0, 'charge': ((0, -0.120, 0.050), (0, -0.040, 0))},
     # round 5 launchers: the support hand swaps the cassette under the frame, then works the arming lever / housing latch
     'HOTHEAD': {'fire': 60 / 120, 'reload': 3.2, 'style': 'rifle', 'heavy': 1.3, 'charge': ((-0.034, -0.110, 0.034), (0, -0.040, 0))},
-    'MURMUR': {'fire': 1.0, 'reload': 3.4, 'style': 'rifle', 'heavy': 1.6, 'charge': ((-0.046, -0.040, 0.090), (0, -0.040, 0))},
+    'MURMUR': {'fire': 1.0, 'reload': 3.4, 'style': 'rifle', 'heavy': 1.6, 'charge': ((-0.034, -0.110, 0.030), (0, -0.040, 0))},
 }
 
 # ---------------------------------------------------------------- handling: data-driven per weapon class
