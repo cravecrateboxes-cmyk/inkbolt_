@@ -18,7 +18,7 @@
 
    Walls: every wall cell stacks two storefront modules (ground 'Lo_', upper 'Up_'), so the chooser returns a list.
    Bays are 6 m: a pilaster, then five modules (window, sign-left, door, sign-right, window) of one brand per storey;
-   the brand name in pixel letters runs over the middle three. On the N and E faces the modules come mirrored (the
+   the shop name (vector lettering, blender/ib_text.py) runs over the middle three. On the N and E faces the modules come mirrored (the
    engine turns them to face the open side), so sign-left / sign-right and the two windows swap there. */
 (function (IB) {
   'use strict';

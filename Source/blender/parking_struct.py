@@ -223,9 +223,8 @@ def column(m, h, code):
     text_front(m, code, 0.05, -0.323, 0.0, 1.695, 'ink')
     text_back(m, code, 0.05, 0.323, 0.0, 1.695, 'ink')
     m.bx(-0.32, 0.32, -0.16, 0.16, 2.2, 2.52, 'signB', hull='none')
-    for (a, b, c0, c1) in word_rects('P', 0.05, 0.0, 2.235):
-        rq(m, 0.325, a, b, c0, c1, 'paper')
-        lq(m, -0.325, -b, -a, c0, c1, 'paper')
+    text_side(m, 'P', 0.05, 0.325, 0.0, 2.235, 'paper', 'x+')
+    text_side(m, 'P', 0.05, -0.325, 0.0, 2.235, 'paper', 'x-')
     m.bx(-0.32, 0.32, -0.32, 0.32, h - 0.25, h - 0.18, 'lvB', hull='none')
 
 

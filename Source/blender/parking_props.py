@@ -373,8 +373,9 @@ def build_dock(pal, ao):
             m.bx(min(sx * 2.09, sx * 2.6), max(sx * 2.09, sx * 2.6), y - 0.032, y + 0.032, 3.0, 3.08, 'steelD')
     m.bx(-2.95, 2.95, -3.8, -3.4, 3.4, 4.0, 'signB')
     m.bx(-2.95, 2.95, 3.4, 3.8, 3.4, 4.0, 'signB')
-    text_front(m, 'WASH', 0.09, -3.803, 0.0, 3.47, 'paper')
-    text_back(m, 'WASH', 0.09, 3.803, 0.0, 3.47, 'paper')
+    for fy in (-1, 1):   # script "Car Wash" with a drop shadow, both faces
+        ib_text.draw(m, 'Car Wash', 0.0, fy * 3.803, 3.53, 0.27, 'paper', face='y-' if fy < 0 else 'y+', font='script',
+                     maxw=3.2, shadow='pPurple', shadow_off=(0.05, -0.06))
     m.cy((-2.6, 0.0, 2.75), 0.35, 0.35, 5.2, 'pPurple', seg=10, rot=(0, 90, 0))     # top brush
     m.bx(-2.6, 2.6, -3.0, -2.75, 2.8, 3.1, 'galv')                                # dryer nozzle bar
     for k in range(6):

@@ -32,7 +32,7 @@ from mathutils import Matrix, Vector
 from ib_lib import *  # noqa: F401,F403
 import ib_lib
 from fam_kit_smallcity import PM, post_hull, slant
-from fam_kit_mall import FONT as MALL_FONT
+import ib_text
 
 FAM = 'kit-parking'
 PFX = 'KIT_PARKING_'
@@ -67,13 +67,7 @@ DECK = 3.6       # deck top (slab 3.2 - 3.6)
 UNDER = 3.2      # deck underside
 LEVELS = {'B1': ('lvB', 'lvBL'), 'B2': ('lvG', 'lvGL'), 'B3': ('lvO', 'lvOL'), 'B4': ('lvP', 'lvPL')}
 
-FONT = dict(MALL_FONT)
-FONT.update({
-    '0': ['###', '#.#', '#.#', '#.#', '###'], '1': ['.#.', '##.', '.#.', '.#.', '###'], '2': ['##.', '..#', '.#.', '#..', '###'],
-    '3': ['##.', '..#', '.#.', '..#', '##.'], '4': ['#.#', '#.#', '###', '..#', '..#'], '5': ['###', '#..', '##.', '..#', '##.'],
-    '6': ['.##', '#..', '###', '#.#', '###'], '7': ['###', '..#', '.#.', '.#.', '.#.'], '8': ['###', '#.#', '###', '#.#', '###'],
-    '9': ['###', '#.#', '###', '..#', '##.'], 'V': ['#.#', '#.#', '#.#', '#.#', '.#.'],
-})
+# signage lettering: vector glyphs (ib_text, Inter Bold) -- see text_front / text_back / text_up below
 
 
 # ================================================================ helpers
@@ -160,58 +154,30 @@ def disc(m, x, y, z, r, c, seg=12, sx=1.0, sy=1.0, jag=None, a0=0.0):
     return poly(m, pts, c, (0, 0, 1))
 
 
-def word_rects(word, px, xc=0.0, z0=0.0):
-    """rectangles (x0, x1, z0, z1) of a word in the 3 x 5 pixel font, centred on xc, bottom at z0"""
-    width = (len(word) * 4 - 1) * px
-    out = []
-    for i, ch in enumerate(word):
-        g = FONT[ch]
-        lx = xc - width / 2 + i * 4 * px
-        runs = []
-        for row in range(5):
-            c = 0
-            while c < 3:
-                if g[row][c] == '#':
-                    e = c
-                    while e + 1 < 3 and g[row][e + 1] == '#':
-                        e += 1
-                    runs.append((row, c, e))
-                    c = e + 1
-                else:
-                    c += 1
-        used = set()
-        for k, (row, c0, c1) in enumerate(runs):
-            if k in used:
-                continue
-            r1 = row
-            for j in range(k + 1, len(runs)):
-                rj, a, b = runs[j]
-                if rj == r1 + 1 and a == c0 and b == c1:
-                    used.add(j)
-                    r1 = rj
-            out.append((lx + c0 * px, lx + (c1 + 1) * px, z0 + (4 - r1) * px, z0 + (5 - row) * px))
-    return out
+# Lettering: real vector glyphs (ib_text, Inter Bold by default). `px` keeps the old pixel-font sizing: the cap height
+# is 5 px and the word is fitted into the old (4 n - 1) px width, so every sign keeps its layout.
+def _fit(word, px):
+    return dict(cap=5 * px, maxw=(4 * len(word) - 1) * px * 0.95)
 
 
-def text_front(m, word, px, y, xc, z0, c):
-    for (x0, x1, a, b) in word_rects(word, px, xc, z0):
-        fq(m, x0, x1, y, a, b, c)
+def text_front(m, word, px, y, xc, z0, c, font='sans'):
+    """letters on a -Y facing plane at y, centred on xc, baseline z0"""
+    ib_text.draw(m, word, xc, y, z0, color=c, face='y-', font=font, **_fit(word, px))
 
 
-def text_back(m, word, px, y, xc, z0, c):
-    """letters on a +Y facing plane, reading correctly from behind"""
-    for (x0, x1, a, b) in word_rects(word, px, 0.0, z0):
-        bq(m, xc - x1, xc - x0, y, a, b, c)
+def text_back(m, word, px, y, xc, z0, c, font='sans'):
+    """letters on a +Y facing plane, reading correctly from behind, centred on xc"""
+    ib_text.draw(m, word, xc, y, z0, color=c, face='y+', font=font, **_fit(word, px))
 
 
-def text_up(m, word, px, z, xc, yc, c, flip=False):
-    """letters painted on the floor (reading from -Y toward +Y; flip: from +Y)"""
-    for (x0, x1, a, b) in word_rects(word, px, 0.0, 0.0):
-        h = 5 * px
-        if flip:
-            uq(m, xc - x1, xc - x0, yc + h / 2 - b, yc + h / 2 - a, z, c)
-        else:
-            uq(m, xc + x0, xc + x1, yc - h / 2 + a, yc - h / 2 + b, z, c)
+def text_side(m, word, px, x, yc, z0, c, face, font='sans'):
+    """letters on a +X ('x+') or -X ('x-') facing plane at x, centred on yc"""
+    ib_text.draw(m, word, x, yc, z0, color=c, face=face, font=font, **_fit(word, px))
+
+
+def text_up(m, word, px, z, xc, yc, c, flip=False, font='sans'):
+    """letters painted on the floor, centred on (xc, yc) (reading from -Y toward +Y; flip: from +Y)"""
+    ib_text.draw(m, word, xc, yc, z, color=c, face='upr' if flip else 'up', font=font, valign='m', **_fit(word, px))
 
 
 def arrow_pts(L, w, head, hw, y0=0.0):

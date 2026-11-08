@@ -19,6 +19,7 @@ from mathutils import Matrix, Vector
 
 from ib_lib import *  # noqa: F401,F403
 import ib_lib
+import ib_text
 
 FAM = 'kit-classroom'
 PRE = 'KIT_CLASSROOM_'
@@ -204,20 +205,15 @@ def glyph_rects(ch):
     return out
 
 
-def glyph_wall(m, ch, cx, ztop, px, pz, y0, y1, color, flat=True):
-    """Glyph on a wall plane (faces -Y): pixel px wide, pz tall, top edge at ztop, spanning y0..y1."""
-    for (c, r, w, h) in glyph_rects(ch):
-        x0 = cx - 2.5 * px + c * px
-        z1 = ztop - r * pz
-        m.bx(x0, y0, z1 - h * pz, x0 + w * px, y1, z1, color, flat=flat)
+def glyph_wall(m, ch, cx, ztop, px, pz, y0, y1, color, flat=True, font='sans'):
+    """Glyph (vector, ib_text) on a wall plane facing -Y at y0, centred on cx, in the old 5 x 5 cell box:
+    top edge at ztop, 5 pz tall, at most 5 px wide (y1, flat: kept for the old call sites)."""
+    ib_text.draw(m, ch, cx, y0, ztop - 5 * pz, 5 * pz, color, face='y-', font=font, maxw=5 * px * 1.15)
 
 
-def glyph_top(m, ch, cx, cy, px, z0, z1, color):
-    """Glyph lying on a horizontal surface (read from the south: rows run toward -Y)."""
-    for (c, r, w, h) in glyph_rects(ch):
-        x0 = cx - 2.5 * px + c * px
-        ya = cy + 2.5 * px - r * px
-        m.bx(x0, ya - h * px, z0, x0 + w * px, ya, z1, color, flat=True)
+def glyph_top(m, ch, cx, cy, px, z0, z1, color, font='script'):
+    """Glyph lying on a horizontal surface at z1, centred on (cx, cy), reading from the south."""
+    ib_text.draw(m, ch, cx, cy, z1, 5 * px, color, face='up', font=font, valign='m', maxw=5 * px * 1.3)
 
 
 # ---------------------------------------------------------------- continents (globe + wall map share them)
@@ -442,8 +438,7 @@ def build_cork():
     # A+ test
     M = sheet(1.75, 10.55, 1.05, 1.45, 'paper', 4, lines=5, pin='crayY')
     f, b = L(1)
-    glyph_wall(m, 'A', -0.14, 0.62, 0.05, 0.05, f, b, 'crayR')
-    glyph_wall(m, '+', 0.2, 0.62, 0.05, 0.05, f, b, 'crayR')
+    ib_text.draw(m, 'A+', 0.03, f, 0.38, 0.2, 'crayR', face='y-', font='script', maxw=0.6)
     # star chart
     M = sheet(-2.45, 7.8, 1.6, 1.0, 'noteBl', -2, pin='crayG')
     for r in range(3):
@@ -1353,10 +1348,9 @@ def build_chalkboard(ao):
     # chalk work (strokes 5 mm proud of the board)
     yf, yk = 0.305, 0.31
 
-    def word(s, x0, ztop, px, pz, col, gap=1.4):
-        for i, ch in enumerate(s):
-            if ch != ' ':
-                glyph_wall(m, ch, x0 + i * px * 5 * gap, ztop, px, pz, yf, yk, col)
+    def word(s, x0, ztop, px, pz, col, gap=1.4):   # chalk handwriting (Pacifico) over the old letter run
+        span = (len(s) - 1) * px * 5 * gap + 5 * px
+        ib_text.draw(m, s, x0 - 2.5 * px + span / 2, yf, ztop - 5 * pz, 5 * pz * 0.8, col, face='y-', font='script', maxw=span)
 
     word('ABC', -8.6, 11.6, 0.3, 0.34, 'chalk')
     word('1+2=3', 2.6, 11.6, 0.22, 0.26, 'chalkY')

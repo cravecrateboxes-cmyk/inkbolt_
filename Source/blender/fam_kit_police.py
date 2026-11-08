@@ -26,6 +26,7 @@ from mathutils import Matrix, Vector
 
 from ib_lib import *  # noqa: F401,F403
 import ib_lib
+import ib_text
 from fam_kit_smallcity import PM, post_hull
 from kit_util import col_box, tag
 
@@ -371,9 +372,8 @@ def sign(m, S, plate, ink, edge, icon='text'):
             x = -0.08 + k * 0.055
             mark(x - 0.01, x + 0.01, -0.12, 0.11, 'white', front=f2)
         mark(0.2, 0.32, -0.02, 0.02)
-    else:                                  # block letters + underline
-        for k, (x0, x1) in enumerate(((-0.3, -0.21), (-0.17, -0.08), (-0.04, 0.05), (0.09, 0.18), (0.22, 0.3))):
-            mark(x0, x1, -0.07, 0.07, ink, front=f if k % 2 else f2)
+    else:                                  # lettered plate (vector glyphs, ib_text) + underline
+        ib_text.draw(m, 'RECEPTION', 0.0, f, z - 0.06, 0.14, ink, face='y-', font='cond', maxw=0.62)
         mark(-0.3, 0.3, -0.13, -0.11)
 
 

@@ -16,6 +16,7 @@ from mathutils import Vector
 from ib_lib import *  # noqa: F401,F403
 import ib_lib
 from kit_base import Kit, srt
+import ib_text
 
 FAM = 'kit-foundry'
 PFX = 'KIT_FOUNDRY_'
@@ -146,19 +147,9 @@ def drumy(k, x, yc, z, r, L, c, seg=10, ink=True):
 
 
 def stencil_digit(k, d, x, z, w, h, y, s, c='ink', dy=0.003):
-    """A blocky stencil digit (0-9) on a -Y/+Y facing plane: up to 7 bars, each its own quad. On a +Y face the glyph is
-    mirrored so it reads right for someone looking at that face (their right hand is -X)."""
-    t = w * 0.24
-    m0, m1 = z + h / 2 - t / 2, z + h / 2 + t / 2
-    seg = {'a': (x, x + w, z + h - t, z + h), 'g': (x, x + w, m0, m1), 'd': (x, x + w, z, z + t),
-           'f': (x, x + t, m1, z + h - t), 'b': (x + w - t, x + w, m1, z + h - t),
-           'e': (x, x + t, z + t, m0), 'c': (x + w - t, x + w, z + t, m0)}
-    on = {0: 'abcdef', 1: 'bc', 2: 'abged', 3: 'abgcd', 4: 'fgbc', 5: 'afgcd', 6: 'afgedc', 7: 'abc', 8: 'abcdefg', 9: 'abfgcd'}[d]
-    for i, key in enumerate(on):
-        x0, x1, z0, z1 = seg[key]
-        if s > 0:
-            x0, x1 = 2 * x + w - x1, 2 * x + w - x0
-        k.qy(x0, x1, z0, z1, y + s * dy * (1 + (i % 2)), s, c)
+    """A stencil-style digit (Bebas Neue vector glyph, ib_text) in the box x..x+w, z..z+h on a -Y (s=-1) / +Y (s=1)
+    facing plane, dy proud of y. On a +Y face it reads right for someone looking at that face (their right is -X)."""
+    ib_text.draw(k, str(d), x + w / 2, y + s * dy, z, h, c, face='y-' if s < 0 else 'y+', font='display', maxw=w * 1.1)
 
 
 def stencil_num(k, digits, x, z, w, h, gap, y, s, c='ink', dy=0.003):
@@ -170,31 +161,13 @@ def stencil_num(k, digits, x, z, w, h, gap, y, s, c='ink', dy=0.003):
 
 
 def stencil_x(k, d, y, z, w, h, x, s, c='ink', dx=0.003):
-    """Stencil digit on a -X/+X facing plane (y runs along the face; mirrored on a -X face, whose viewer's right is -Y)."""
-    t = w * 0.24
-    m0, m1 = z + h / 2 - t / 2, z + h / 2 + t / 2
-    seg = {'a': (y, y + w, z + h - t, z + h), 'g': (y, y + w, m0, m1), 'd': (y, y + w, z, z + t),
-           'f': (y, y + t, m1, z + h - t), 'b': (y + w - t, y + w, m1, z + h - t),
-           'e': (y, y + t, z + t, m0), 'c': (y + w - t, y + w, z + t, m0)}
-    on = {0: 'abcdef', 1: 'bc', 2: 'abged', 3: 'abgcd', 4: 'fgbc', 5: 'afgcd', 6: 'afgedc', 7: 'abc', 8: 'abcdefg', 9: 'abfgcd'}[d]
-    for i, key in enumerate(on):
-        y0, y1, z0, z1 = seg[key]
-        if s < 0:
-            y0, y1 = 2 * y + w - y1, 2 * y + w - y0
-        k.qx(y0, y1, z0, z1, x + s * dx * (1 + (i % 2)), s, c)
+    """Stencil digit on a -X (s=-1) / +X (s=1) facing plane, in the box y..y+w, z..z+h (reads right from that side)."""
+    ib_text.draw(k, str(d), x + s * dx, y + w / 2, z, h, c, face='x-' if s < 0 else 'x+', font='display', maxw=w * 1.1)
 
 
 def floor_digit(k, d, x, y, w, h, z, c='paintW'):
-    """Stencil digit painted on the floor (reads from the south: digit top toward +Y)."""
-    t = w * 0.24
-    m0, m1 = y + h / 2 - t / 2, y + h / 2 + t / 2
-    seg = {'a': (x, x + w, y + h - t, y + h), 'g': (x, x + w, m0, m1), 'd': (x, x + w, y, y + t),
-           'f': (x, x + t, m1, y + h - t), 'b': (x + w - t, x + w, m1, y + h - t),
-           'e': (x, x + t, y + t, m0), 'c': (x + w - t, x + w, y + t, m0)}
-    on = {0: 'abcdef', 1: 'bc', 2: 'abged', 3: 'abgcd', 4: 'fgbc', 5: 'afgcd', 6: 'afgedc', 7: 'abc', 8: 'abcdefg', 9: 'abfgcd'}[d]
-    for i, key in enumerate(on):
-        x0, x1, y0, y1 = seg[key]
-        k.qz(x0, x1, -y1, -y0, z + 0.003 * (i % 2), 1, c)   # flipped: the digit reads upright from the south
+    """Stencil digit painted on the floor over x..x+w, -(y+h)..-y, reading upright from the south (top toward +Y)."""
+    ib_text.draw(k, str(d), x + w / 2, -(y + h / 2), z, h, c, face='up', font='display', valign='m', maxw=w * 1.1)
 
 
 def chevrons_y(k, x0, x1, z0, z1, y, s, n, ca='hazard', cb='ink'):

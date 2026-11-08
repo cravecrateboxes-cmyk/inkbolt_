@@ -1,13 +1,15 @@
 """INKBOLT asset family: kit-mall ("Galleria", a two-storey shopping mall under a glazed roof).
 
 Storefronts: every wall cell stacks a ground-floor and an upper-floor shopfront module (the theme's wall chooser
-returns both). Six brands (STYLE fashion, TECH, CAFE, BOOKS, TOYS, GEMS jewellery), each with its own frame and sign
-colours, pixel-lettered name across the three middle modules of a 5 m bay, awnings or light boxes, blade signs and a
+returns both). Six colour brands per storey = twelve shops (SHOPS: Atelier, Signal, The Coffee House, Northfield Books,
+Toy Workshop, Aurum / Shoe Gallery, Lumen Optics, Bakehouse, Hearth & Home, Field & Court (closed, shutters down),
+Leatherworks), each name in real vector lettering (ib_text: serif, script, display, condensed or sans) across the three
+middle modules of a 5 m bay, monogram roundels, awnings or light boxes, blade signs and a
 lit interior you see through the (open, glint-marked) shop windows: mannequins, shelves, counters, books, toys,
 display cases. Sandstone pilasters with sconces part the bays; corner blocks and pilasters close the interiors.
 Circulation: a steel-and-glass escalator (stair-block collision kept), baluster railings (half modules the engine
 links into runs), columns under / over the mezzanine edge, a framed glass lift shaft, a cab and sliding door leaves
-(the engine moves cab and leaves). Atrium: tiered fountain, round Guest Services desk with INFO drums, coffee / sweets
+(the engine moves cab and leaves). Atrium: tiered fountain, round Guest Services desk with lettered drums, coffee / sweets
 / gadget kiosks, food-court tables and food stalls, palm planters, flower planters, benches, bins, directory totems,
 department-store podiums. Floor inlays (an "@layer 0" grid: diamonds, border bands, compass-rose medallions, food-court
 checker, entrance mats) and the roof (an "@layer 9.5" grid: glazed coffers, lattice trusses with hanging banners and
@@ -27,6 +29,8 @@ from mathutils import Vector
 from ib_lib import *  # noqa: F401,F403
 import ib_lib
 from fam_kit_smallcity import PM, post_hull
+import ib_text  # noqa: F401
+from ib_text import draw as txt
 
 FAM = 'kit-mall'
 PFX = 'KIT_MALL_'
@@ -157,66 +161,40 @@ def annulus(m, z, r0, r1, c, seg=16):
                  (math.cos(a1) * r1, math.sin(a1) * r1, z), (math.cos(a1) * r0, math.sin(a1) * r0, z)], c, (0, 0, 1))
 
 
-# ---------------------------------------------------------------- pixel lettering (3 x 5 font)
-FONT = {
-    'A': ['.#.', '#.#', '###', '#.#', '#.#'], 'B': ['##.', '#.#', '##.', '#.#', '##.'], 'C': ['.##', '#..', '#..', '#..', '.##'],
-    'D': ['##.', '#.#', '#.#', '#.#', '##.'], 'E': ['###', '#..', '##.', '#..', '###'], 'F': ['###', '#..', '##.', '#..', '#..'],
-    'G': ['.##', '#..', '#.#', '#.#', '.##'], 'H': ['#.#', '#.#', '###', '#.#', '#.#'], 'I': ['###', '.#.', '.#.', '.#.', '###'],
-    'K': ['#.#', '#.#', '##.', '#.#', '#.#'], 'L': ['#..', '#..', '#..', '#..', '###'], 'M': ['#.#', '###', '###', '#.#', '#.#'],
-    'N': ['##.', '#.#', '#.#', '#.#', '#.#'], 'O': ['.#.', '#.#', '#.#', '#.#', '.#.'], 'P': ['##.', '#.#', '##.', '#..', '#..'],
-    'R': ['##.', '#.#', '##.', '#.#', '#.#'], 'S': ['.##', '#..', '.#.', '..#', '##.'], 'T': ['###', '.#.', '.#.', '.#.', '.#.'],
-    'U': ['#.#', '#.#', '#.#', '#.#', '###'], 'W': ['#.#', '#.#', '###', '###', '#.#'], 'X': ['#.#', '#.#', '.#.', '#.#', '#.#'],
-    'Y': ['#.#', '#.#', '.#.', '.#.', '.#.'], 'Z': ['###', '..#', '.#.', '#..', '###'], ' ': ['...', '...', '...', '...', '...'],
-}
+# ---------------------------------------------------------------- lettering: vector glyphs (ib_text: Bebas Neue,
+# Oswald, Playfair Display, Pacifico, Inter Bold; SIL OFL fonts under third_party/fonts), painted flat >= 3 mm proud;
+# merchandise helpers for the window displays
 
 
-def word_rects(word, px, xc=0.0, z0=0.0):
-    """rectangles (x0, x1, z0, z1) of a word in the pixel font, centred on xc, bottom at z0"""
-    n = len(word)
-    width = (n * 4 - 1) * px
-    out = []
-    for i, ch in enumerate(word):
-        g = FONT[ch]
-        lx = xc - width / 2 + i * 4 * px
-        runs = []   # merge row runs vertically
-        for row in range(5):
-            line = g[row]
-            c = 0
-            while c < 3:
-                if line[c] == '#':
-                    e = c
-                    while e + 1 < 3 and line[e + 1] == '#':
-                        e += 1
-                    runs.append((row, c, e))
-                    c = e + 1
-                else:
-                    c += 1
-        used = set()
-        for k, (row, c0, c1) in enumerate(runs):
-            if k in used:
-                continue
-            r1 = row
-            for j in range(k + 1, len(runs)):
-                rj, a, b = runs[j]
-                if rj == r1 + 1 and a == c0 and b == c1:
-                    used.add(j)
-                    r1 = rj
-            out.append((lx + c0 * px, lx + (c1 + 1) * px, z0 + (4 - r1) * px, z0 + (5 - row) * px))
-    return out
+def shoe(m, x, y, z, c, heel=False):
+    """one shoe, toe toward -X: sole, vamp, collar (or a stiletto heel)"""
+    m.bx(x - 0.12, x + 0.12, y - 0.04, y + 0.04, z, z + 0.022, 'paper' if c != 'paper' else 'dark', hull='none')
+    if heel:
+        m.bx(x - 0.1, x + 0.03, y - 0.035, y + 0.035, z + 0.022, z + 0.06, c, hull='none')
+        m.bx(x + 0.03, x + 0.12, y - 0.035, y + 0.035, z + 0.09, z + 0.12, c, hull='none')
+        m.bx(x + 0.09, x + 0.11, y - 0.012, y + 0.012, z + 0.022, z + 0.09, 'dark', hull='none')
+    else:
+        m.bx(x - 0.11, x + 0.03, y - 0.038, y + 0.038, z + 0.022, z + 0.07, c, hull='none')
+        m.bx(x + 0.03, x + 0.115, y - 0.038, y + 0.038, z + 0.022, z + 0.12, c, hull='none')
 
 
-def letters(m, rects, y, c, clip=None, off=0.0, back=False, xc=0.0):
-    """paint letter rectangles on a plane at y (front-facing, or back-facing mirrored about xc when back=True)"""
-    for (x0, x1, z0, z1) in rects:
-        x0, x1 = x0 - off, x1 - off
-        if clip:
-            x0, x1 = max(x0, clip[0]), min(x1, clip[1])
-            if x1 - x0 < 0.004:
-                continue
-        if back:
-            bq(m, 2 * xc - x1, 2 * xc - x0, y, z0, z1, c)
-        else:
-            fq(m, x0, x1, y, z0, z1, c)
+def bag(m, x, y, z, c, w=0.22, h=0.18, strap='dark'):
+    """handbag: trapezoid body and an arched handle"""
+    m.prism([(y - 0.05, z), (y + 0.05, z), (y + 0.04, z + h), (y - 0.04, z + h)], x - w / 2, x + w / 2, [c], hull='none')
+    t = z + h + 0.1   # the two halves of the handle on planes 1 cm apart (no coplanar overlap at the top)
+    m.bm_((x - w * 0.3, y - 0.005, z + h), (x, y - 0.005, t), 0.015, strap, hull='none')
+    m.bm_((x, y + 0.005, t), (x + w * 0.3, y + 0.005, z + h), 0.015, strap, hull='none')
+
+
+def cake(m, x, y, z, r, c, top='cream', h=0.1):
+    m.cy((x, y, z), r, r, h, c, seg=7, hull='none', caps=False)
+    m.cy((x, y, z + h), r * 1.02, r * 1.02, 0.02, top, seg=7, hull='none')
+
+
+def plant(m, x, y, z, s=1.0, pot='terra'):
+    m.cy((x, y, z), 0.09 * s, 0.12 * s, 0.2 * s, pot, seg=8, hull='none')
+    m.sp((x, y, z + 0.38 * s), 0.2 * s, 'leaf', seg=(6, 4), hull='none')
+    m.sp((x + 0.08 * s, y - 0.04, z + 0.52 * s), 0.12 * s, 'leafL', seg=(5, 3), hull='none')
 
 
 # ================================================================ storefronts
@@ -231,32 +209,70 @@ BRANDS = {
     'gold': ('TOYS', 'yellow', 'redT', 'blueT', 'cream', 'yellowL', ('redT', 'yellow')),
     'violet': ('GEMS', 'violetD', 'gold', 'brass', 'intD', 'violetD', None),
 }
+# shop identity per (brand, storey): name, font (ib_text), cap height, sign band colour, letter colour, drop shadow,
+# closed (roller shutters down, "Closed" plate). Generic descriptive names: no real or parody brands.
+SHOPS = {
+    ('rose', 'Lo'): dict(name='Atelier', font='serif', cap=0.34, band='sign', lc='roseL'),
+    ('sky', 'Lo'): dict(name='SIGNAL', font='display', cap=0.38, band='sky', lc='paper', sh='navy'),
+    ('orange', 'Lo'): dict(name='The Coffee House', font='script', cap=0.22, band='orange', lc='paper', sh='terraD'),
+    ('mint', 'Lo'): dict(name='Northfield Books', font='serif', cap=0.27, band='tealD', lc='mintL'),
+    ('gold', 'Lo'): dict(name='TOY WORKSHOP', font='display', cap=0.38, band='yellow', lc='redT', sh='blueT'),
+    ('violet', 'Lo'): dict(name='Aurum', font='serif', cap=0.36, band='violetD', lc='gold'),
+    ('rose', 'Up'): dict(name='Shoe Gallery', font='cond', cap=0.34, band='cream', lc='rose'),
+    ('sky', 'Up'): dict(name='Lumen Optics', font='sans', cap=0.28, band='navy', lc='skyL'),
+    ('orange', 'Up'): dict(name='Bakehouse', font='script', cap=0.25, band='sign', lc='orangeL'),
+    ('mint', 'Up'): dict(name='Hearth & Home', font='serif', cap=0.3, band='cream', lc='tealD'),
+    ('gold', 'Up'): dict(name='FIELD & COURT', font='display', cap=0.38, band='navy', lc='yellow', closed=True),
+    ('violet', 'Up'): dict(name='Leatherworks', font='script', cap=0.24, band='sign', lc='roseL'),
+}
 POS = ['WinA', 'SignL', 'Door', 'SignR', 'WinB']   # k = 1..5 in a bay (the theme mirrors L / R on N and E faces)
 GY = -0.40      # glass line (glints); interiors start behind it
 BACK = 2.2      # interior back wall
 
 
+def initial(shop):
+    n = shop['name']
+    return (n[4:] if n.startswith('The ') else n)[0]
+
+
 def shop_front(m, brand, pos, S):
-    word, band, lc, frame, flo, wall, awn = BRANDS[brand]
+    _w, _b, _l, frame, flo, wall, awn = BRANDS[brand]
+    shop = SHOPS[(brand, 'Lo' if S is LO else 'Up')]
+    band, lc, closed = shop['band'], shop['lc'], shop.get('closed', False)
+    if S is UP:
+        awn = None
     z0, kick, wtop, s0, s1, top, ceil = S['z0'], S['kick'], S['wtop'], S['s0'], S['s1'], S['top'], S['ceil']
     door = pos == 'Door'
     # frame: mullion halves at the module edges (they pair up with the neighbours), transom, kick plate
     for sx in (-1, 1):
         m.bx(sx * 0.5 - (0.04 if sx > 0 else 0), sx * 0.5 + (0.04 if sx < 0 else 0), -0.54, -0.37, z0, wtop, frame, hull='none', cull='ktb' + ('r' if sx > 0 else 'l'))
     m.bx(-0.5, 0.5, -0.545, -0.37, wtop, s0, frame, hull='none', cull='klrt')
-    if not door:
+    if not door and not closed:
         m.bx(-0.5, 0.5, -0.56, -0.37, z0, kick, 'stone2', hull='none', cull='kblr')
         glint(m, -0.42, 0.42, GY, kick, wtop)
-    # sign band and letters (the word spans SignL / Door / SignR: bay x -1.5 .. 1.5)
+        # window vinyl: a short line of script on the glass
+    # sign band and the shop name (spans SignL / Door / SignR: bay x -1.5 .. 1.5, clipped per module)
     m.bx(-0.5, 0.5, -0.6, -0.37, s0, s1, band, hull='noside', cull='klrt')
+    zm = (s0 + s1) / 2
     if pos in ('SignL', 'Door', 'SignR'):
-        px = min(0.1, 2.6 / (len(word) * 4 - 1))
-        rects = word_rects(word, px, 0.0, (s0 + s1) / 2 - 2.5 * px)
         off = {'SignL': -1.0, 'Door': 0.0, 'SignR': 1.0}[pos]
-        letters(m, rects, -0.605, lc, clip=(-0.5, 0.5), off=off)
-    else:   # brand roundel at the bay ends
-        vdisc(m, (0, -0.604, (s0 + s1) / 2), 0.21, lc, 'y-', seg=10)
-        vdisc(m, (0, -0.607, (s0 + s1) / 2), 0.13, band, 'y-', seg=8)
+        txt(m, shop['name'], -off, -0.604, zm, shop['cap'], lc, font=shop['font'], valign='m', maxw=2.7,
+            clip=(-0.5 + off, 0.5 + off), shadow=shop.get('sh'), shadow_off=(0.05, -0.07))
+    else:   # monogram roundel at the bay ends
+        vdisc(m, (0, -0.604, zm), 0.22, lc, 'y-', seg=14)
+        txt(m, initial(shop), 0.0, -0.608, zm, 0.2, band, font='display', valign='m', maxw=0.3)
+    if closed:   # roller shutter down over the window / door, a "Closed" plate on it
+        top_ = wtop if not door else S['dtop']
+        m.bx(-0.5, 0.5, -0.56, -0.5, top_ - 0.18, wtop, 'dark', hull='noside', cull='klr')
+        n = int((top_ - 0.18 - z0) / 0.12)
+        for i in range(n):
+            fq(m, -0.5, 0.5, -0.53, z0 + i * (top_ - 0.18 - z0) / n, z0 + (i + 1) * (top_ - 0.18 - z0) / n - 0.012, 'steel' if i % 2 else 'chrome')
+        m.bx(-0.5, 0.5, -0.545, -0.53, z0, z0 + 0.08, 'dark', hull='none', cull='kb')
+        if pos == 'Door':
+            zc = z0 + 1.45
+            fq(m, -0.3, 0.3, -0.534, zc - 0.17, zc + 0.17, 'paper')
+            txt(m, 'Closed', 0.0, -0.538, zc - 0.02, 0.1, 'redT', font='script', maxw=0.5)
+            txt(m, 'OPENING SOON', 0.0, -0.538, zc - 0.12, 0.045, 'ink', font='cond', maxw=0.5)
     # bulkhead (ground) / cornice with a gold frieze (upper)
     if top - s1 > 0.5:
         fq(m, -0.5, 0.5, -0.5, s1, top, 'stone')
@@ -274,13 +290,17 @@ def shop_front(m, brand, pos, S):
         zb = wtop - 0.45
         m.bx(-0.43, -0.4, -1.0, -0.37, zb + 0.3, zb + 0.36, 'dark', hull='none')
         m.bx(-0.44, -0.39, -0.95, -0.42, zb - 0.3, zb + 0.3, band, hull='full')
-        vdisc(m, (-0.386, -0.685, zb), 0.17, lc, 'x+', seg=10)
-        vdisc(m, (-0.444, -0.685, zb), 0.17, lc, 'x-', seg=10)
+        vdisc(m, (-0.386, -0.685, zb), 0.17, lc, 'x+', seg=12)
+        vdisc(m, (-0.444, -0.685, zb), 0.17, lc, 'x-', seg=12)
+        txt(m, initial(shop), -0.382, -0.685, zb, 0.17, band, face='x+', font='display', valign='m', maxw=0.24)
+        txt(m, initial(shop), -0.448, -0.685, zb, 0.17, band, face='x-', font='display', valign='m', maxw=0.24)
     # interior shell: floor, back wall, ceiling with a light strip
     uq(m, -0.5, 0.5, -0.37, BACK, z0 + 0.012, flo)
     fq(m, -0.5, 0.5, BACK, z0, ceil, wall)
     dq(m, -0.5, 0.5, -0.37, BACK, ceil, 'cream')
     dq(m, -0.5, 0.5, 0.5, 0.7, ceil - 0.004, 'lightW')
+    if closed:
+        return
     if door:
         door_leaves(m, S, frame)
     else:
@@ -303,7 +323,7 @@ def door_leaves(m, S, frame):
         m.bx(a + 0.08, b - 0.08, -0.52, -0.49, z0 + 0.98, z0 + 1.04, 'brass', hull='none', cull='k')
         glint(m, a + 0.05, b - 0.05, -0.452, z0 + 0.2, d - 0.1)
     m.bx(-0.5, 0.5, -0.5, -0.37, d, S['wtop'], 'sign', hull='noside', cull='klr')
-    fq(m, -0.2, 0.2, -0.503, d + 0.12, S['wtop'] - 0.12, 'lightW')
+    txt(m, 'OPEN', 0.0, -0.504, (d + S['wtop']) / 2, 0.1, 'lightW', font='display', valign='m', maxw=0.5, spacing=1.3)
     uq(m, -0.4, 0.4, -0.5, -0.37, S['z0'] + 0.008, 'chrome')
     uq(m, -0.42, 0.42, -0.2, 0.6, S['z0'] + 0.02, 'sign')   # mat
 
@@ -336,7 +356,98 @@ def shelf_wall(m, z0, h, colors, frame='wood', y=BACK - 0.02, n=3, step=0.13):
             i += 1
 
 
+def contents_up(m, brand, pos, S):
+    """upper-storey shops: shoes, optics, bakery, homeware, (sports: closed), leather goods"""
+    z0, ceil = S['z0'], S['ceil']
+    pl = z0 + S['kick'] - 0.01
+    win = pos in ('WinA', 'WinB')
+    if brand == 'rose':   # Shoe Gallery
+        for k in range(3):   # wall shelves of shoes
+            zb = z0 + 0.6 + k * 0.6
+            m.bx(-0.5, 0.5, BACK - 0.3, BACK - 0.006, zb - 0.03, zb, 'cream', hull='none', cull='kb')
+            for i in range(4):   # shoe pairs painted as side profiles on the shelf back
+                x = -0.36 + i * 0.24
+                c = ('rose', 'navy', 'paper', 'gold', 'dark')[(i + k + len(pos)) % 5]
+                poly(m, [(x - 0.09, BACK - 0.003, zb + 0.004), (x + 0.09, BACK - 0.003, zb + 0.004), (x + 0.09, BACK - 0.003, zb + 0.12),
+                         (x + 0.02, BACK - 0.003, zb + 0.12), (x - 0.09, BACK - 0.003, zb + 0.05)], c, (0, -1, 0))
+        if win:   # stepped plinths with pairs
+            for i, (x, h, c) in enumerate(((-0.25, 0.25, 'paper'), (0.0, 0.45, 'roseL'), (0.25, 0.15, 'cream'))):
+                m.bx(x - 0.11, x + 0.11, -0.25, 0.0, pl, pl + h, c, hull='none', cull='k')
+                shoe(m, x, -0.17, pl + h, ('rose', 'dark', 'gold')[i], heel=(i != 1))
+                shoe(m, x, -0.07, pl + h, ('rose', 'dark', 'gold')[i], heel=(i != 1))
+        else:
+            m.cy((0.0, 0.6, z0), 0.3, 0.3, 0.42, 'rose', seg=10, hull='none')
+    elif brand == 'sky':   # Lumen Optics: eye chart, frames on display
+        fq(m, -0.3, 0.3, BACK - 0.003, z0 + 1.1, z0 + 2.5, 'paper')
+        for i, (row, cap) in enumerate((('E', 0.22), ('F P', 0.12), ('T O Z', 0.08), ('L P E D', 0.055)) if pos == 'Door' else ()):
+            txt(m, row, 0.0, BACK - 0.007, z0 + 2.2 - i * 0.28 + (0.0 if i else -0.05), cap, 'ink', font='sans', maxw=0.5)
+        m.bx(-0.45, 0.45, 0.5, 0.9, z0, z0 + 0.9, 'cream', hull='none', cull='k')
+        for i in range(3):
+            x = -0.28 + i * 0.28
+            for sx in (-1, 1):
+                m.cy((x + sx * 0.045, 0.7, z0 + 0.95), 0.035, 0.035, 0.008, 'dark', seg=8, rot=(90, 0, 0), hull='none')
+            m.bx(x - 0.07, x + 0.07, 0.712, 0.73, z0 + 0.9, z0 + 0.92, 'dark', hull='none')
+        if win:   # giant spectacles on a stand
+            for sx in (-1, 1):
+                m.cy((sx * 0.17, -0.1, pl + 1.0), 0.15, 0.15, 0.03, 'dark', seg=12, rot=(90, 0, 0), hull='none')
+                m.cy((sx * 0.17, -0.115, pl + 1.0), 0.12, 0.12, 0.005, 'glassL', seg=12, rot=(90, 0, 0), hull='none')
+            m.bx(-0.04, 0.04, -0.12, -0.08, pl + 1.04, pl + 1.07, 'dark', hull='none')
+            m.bx(-0.015, 0.015, -0.1, -0.07, pl, pl + 0.85, 'chrome', hull='none')
+    elif brand == 'orange':   # Bakehouse: cake counter, cake stand, chalk menu
+        fq(m, -0.42, 0.42, BACK - 0.003, z0 + 1.3, z0 + 2.4, 'sign')
+        if pos == 'Door':
+            txt(m, "Today's Bakes", 0.0, BACK - 0.007, z0 + 2.12, 0.1, 'paper', font='script', maxw=0.74)
+        for i in range(3):
+            fq(m, -0.32, 0.18 + 0.06 * (i % 2), BACK - 0.007, z0 + 1.5 + i * 0.16, z0 + 1.53 + i * 0.16, 'orangeL')
+        if win:   # three-tier cake stand
+            m.cy((0, -0.1, pl), 0.03, 0.03, 0.7, 'chrome', seg=6, hull='none')
+            for i, r in enumerate((0.3, 0.22, 0.15)):
+                zz = pl + 0.15 + i * 0.25
+                m.cy((0, -0.1, zz), r, r, 0.015, 'paper', seg=12, hull='none')
+                cake(m, 0.0, -0.1, zz + 0.015, r * 0.6, ('roseL', 'woodL', 'orangeL')[i], h=0.08)
+        else:
+            m.bx(-0.5, 0.5, 1.0, 1.4, z0, z0 + 0.95, 'wood2', hull='none', cull='k')
+            m.bx(-0.5, 0.5, 1.0, 1.4, z0 + 0.95, z0 + 1.25, 'glassL', hull='none', cull='kb')
+            for i in range(3):
+                cake(m, -0.3 + i * 0.3, 1.2, z0 + 0.955, 0.1, ('roseL', 'wood', 'cream')[i], top=('paper', 'cream', 'orangeL')[i], h=0.09)
+    elif brand == 'mint':   # Hearth & Home: plants, vases, lamp
+        m.bx(-0.5, 0.5, BACK - 0.3, BACK, z0 + 1.2, z0 + 1.23, 'woodL', hull='none', cull='kb')
+        for i in range(4):
+            x = -0.36 + i * 0.24
+            m.cy((x, BACK - 0.15, z0 + 1.23), 0.05, 0.07 - 0.02 * (i % 2), 0.2 + 0.08 * (i % 3), ('tealM', 'cream', 'terra', 'navy')[i], seg=8, hull='none')
+        if win:
+            plant(m, -0.2, -0.1, pl, 1.4)
+            m.cy((0.25, -0.1, pl), 0.12, 0.12, 0.5, 'wood', seg=8, hull='none')
+            m.cy((0.25, -0.1, pl + 0.5), 0.06, 0.09, 0.3, 'tealM', seg=8, hull='none')
+        else:
+            m.bx(-0.42, 0.42, 0.4, 1.0, z0, z0 + 0.7, 'woodL', hull='none', cull='k')
+            for i in range(3):
+                plant(m, -0.28 + i * 0.28, 0.7, z0 + 0.7, 0.8, pot=('terra', 'cream', 'navy')[i])
+            m.cy((0.0, 1.5, z0), 0.02, 0.02, 1.5, 'brass', seg=6, hull='none')
+            m.cy((0.0, 1.5, z0 + 1.45), 0.22, 0.12, 0.25, 'cream', seg=10, hull='none')
+    elif brand == 'violet':   # Leatherworks: bags on plinths and shelves
+        for k in range(2):
+            zb = z0 + 0.9 + k * 0.7
+            m.bx(-0.5, 0.5, BACK - 0.3, BACK - 0.006, zb - 0.03, zb, 'wood2', hull='none', cull='kb')
+            for i in range(3):   # bags painted on the shelf back
+                x = -0.3 + i * 0.3
+                c = ('wood', 'redT', 'dark', 'gold', 'wood2')[(i + k) % 5]
+                poly(m, [(x - 0.11, BACK - 0.003, zb + 0.004), (x + 0.11, BACK - 0.003, zb + 0.004), (x + 0.08, BACK - 0.003, zb + 0.17),
+                         (x - 0.08, BACK - 0.003, zb + 0.17)], c, (0, -1, 0))
+        if win:
+            for i, (x, h) in enumerate(((-0.24, 0.5), (0.22, 0.3))):
+                m.cy((x, -0.1, pl), 0.13, 0.13, h, 'paper', seg=10, hull='none')
+                bag(m, x, -0.1, pl + h, ('wood', 'redT')[i], w=0.26, h=0.2)
+        else:
+            m.bx(-0.45, 0.45, 0.6, 1.0, z0, z0 + 0.85, 'sign', hull='none', cull='k')
+            bag(m, 0.0, 0.8, z0 + 0.85, 'wood2', w=0.3, h=0.22)
+        if pos == 'Door':
+            txt(m, 'Est. 1984', 0.0, BACK - 0.004, z0 + 2.35, 0.09, 'gold', font='script', maxw=0.6)
+
+
 def contents(m, brand, pos, S):
+    if S is UP:
+        return contents_up(m, brand, pos, S)
     z0, ceil = S['z0'], S['ceil']
     pl = z0 + S['kick'] - 0.01      # window plinth top
     win = pos in ('WinA', 'WinB')
@@ -380,8 +491,12 @@ def contents(m, brand, pos, S):
                 for i in range(3):
                     m.cy((-0.26 + i * 0.26, 1.33, z0 + 1.05), 0.08, 0.08, 0.07, ('roseL', 'orangeL', 'woodL')[i], seg=8, hull='none')
         fq(m, -0.42, 0.42, BACK - 0.003, z0 + 1.6, z0 + 2.4, 'sign')
-        for i in range(3):
-            fq(m, -0.34, 0.1 + 0.08 * (i % 2), BACK - 0.006, z0 + 1.75 + i * 0.2, z0 + 1.8 + i * 0.2, 'paper')
+        if pos == 'Door':   # neon script over the counter
+            txt(m, 'Coffee', 0.0, BACK - 0.007, z0 + 1.85, 0.16, 'orangeL', font='script', maxw=0.72, shadow='orange', shadow_off=(0.03, -0.03))
+        else:
+            txt(m, 'MENU', 0.0, BACK - 0.007, z0 + 2.2, 0.1, 'gold', font='display', maxw=0.6)
+            for i in range(3):
+                fq(m, -0.34, 0.1 + 0.08 * (i % 2), BACK - 0.006, z0 + 1.75 + i * 0.13, z0 + 1.78 + i * 0.13, 'paper')
     elif brand == 'mint':
         shelf_wall(m, z0, min(2.5, ceil - z0 - 0.1), ['tealM', 'redT', 'gold', 'navy', 'cream', 'orange', 'violet'], frame='wood2')
         if win:   # book pyramid on the plinth
@@ -487,7 +602,9 @@ def build_walls(pal, ao):
                                        (-0.33, 0.33, 1.1, 1.28, 'stone2'), (-0.33, 0.0, 0.88, 1.04, 'yellow')):
                 fq(m, a, b, -0.606, c0, c1, c)
             m.cy((0.12, -0.61, 1.0), 0.05, 0.05, 0.004, 'redT', seg=8, rot=(90, 0, 0), hull='none')
+            txt(m, 'YOU ARE HERE', 0.19, -0.607, 0.9, 0.032, 'redT', font='cond', align='l', maxw=0.17)
             fq(m, -0.42, 0.42, -0.603, 2.75, 2.95, 'tealM')
+            txt(m, 'DIRECTORY', 0.0, -0.607, 2.79, 0.12, 'paper', font='display', maxw=0.72)
             # upper: clock
             m.cy((0, -0.5, 6.6), 0.42, 0.42, 0.08, 'brass', seg=16, rot=(90, 0, 0))
             m.cy((0, -0.585, 6.6), 0.36, 0.36, 0.006, 'cream', seg=16, rot=(90, 0, 0), hull='none')
@@ -496,14 +613,23 @@ def build_walls(pal, ao):
         else:
             fq(m, -0.37, 0.37, -0.603, 0.82, 2.68, 'lightW')
             fq(m, -0.37, 0.37, -0.606, 0.82, 1.5, 'tealM')
-            m.cy((0.05, -0.609, 1.95), 0.26, 0.26, 0.004, 'orange', seg=12, rot=(90, 0, 0), hull='none')
-            m.cy((0.05, -0.612, 1.95), 0.17, 0.17, 0.004, 'yellow', seg=12, rot=(90, 0, 0), hull='none')
-            letters(m, word_rects('SALE', 0.045, 0.0, 1.0), -0.61, 'paper')
-            # upper: tall poster
+            m.cy((0.0, -0.609, 1.95), 0.26, 0.26, 0.004, 'orange', seg=14, rot=(90, 0, 0), hull='none')
+            m.cy((0.0, -0.612, 1.95), 0.21, 0.21, 0.004, 'yellow', seg=14, rot=(90, 0, 0), hull='none')
+            txt(m, '50%', 0.0, -0.62, 1.97, 0.13, 'redT', font='display', maxw=0.36)
+            txt(m, 'SUMMER SALE', 0.0, -0.606, 2.36, 0.1, 'rose', font='display', maxw=0.68)
+            txt(m, 'SALE', 0.0, -0.61, 1.1, 0.22, 'paper', font='display', maxw=0.6)
+            # upper: tall fashion poster: silhouette, "New Season"
             m.bx(-0.4, 0.4, -0.6, -0.5, 5.2, 8.4, 'dark', hull='full', cull='k')
             fq(m, -0.34, 0.34, -0.603, 5.27, 8.33, 'rose')
             fq(m, -0.34, 0.34, -0.606, 5.27, 6.2, 'violetD')
-            m.sp((0.0, -0.62, 7.3), 0.25, 'yellow', seg=(10, 6), scale=(1, 0.25, 1))
+            vdisc(m, (0.0, -0.607, 7.95), 0.08, 'sign', 'y-', seg=10)
+            poly(m, [(-0.03, -0.607, 7.8), (0.03, -0.607, 7.8), (0.08, -0.607, 7.55), (-0.08, -0.607, 7.55)], 'sign', (0, -1, 0))
+            poly(m, [(-0.08, -0.607, 7.55), (0.08, -0.607, 7.55), (0.22, -0.607, 6.6), (-0.22, -0.607, 6.6)], 'sign', (0, -1, 0))
+            for sx in (-1, 1):
+                fq(m, sx * 0.07 - 0.022, sx * 0.07 + 0.022, -0.607, 6.24, 6.6, 'sign')
+            fq(m, 0.2, 0.32, -0.61, 6.8, 6.95, 'gold')
+            txt(m, 'New Season', 0.0, -0.61, 5.82, 0.11, 'paper', font='serif', maxw=0.62)
+            txt(m, 'AUTUMN · WINTER', 0.0, -0.61, 5.55, 0.05, 'roseL', font='cond', maxw=0.6)
         back_sides(m)
         make(name, m, ao)
     # ground storey behind a food stall (the stall's own back wall covers it): flat stone, sides closing the neighbours
@@ -555,6 +681,11 @@ def build_columns(pal, ao):
             m.cy((0, 0, z), 0.315, 0.315, 0.06, 'gold', seg=10, hull='none', caps=False)
         m.cy((0, 0, h - 0.5), 0.3, 0.4, 0.3, 'cream', seg=10, caps=False)
         m.bx(-0.44, 0.44, -0.44, 0.44, h - 0.2, h - 0.004, 'stone2', cull='t')
+        for fy in (-1, 1):   # wayfinding plaque on two faces
+            y0, y1 = sorted((fy * 0.27, fy * 0.325))
+            m.bx(-0.28, 0.28, y0, y1, 2.25, 2.6, 'tealD', hull='full')
+            f = 'y-' if fy < 0 else 'y+'
+            txt(m, 'LEVEL 0' if name == 'Column_Lo' else 'LEVEL 1', 0.0, fy * 0.329, 2.425, 0.16, 'paper', face=f, font='display', valign='m', maxw=0.48)
         if name == 'Column_Hi':   # a bracket lamp facing the atrium on each side
             for a in (0, 2):
                 ca, sa = math.cos(a * math.pi / 2), math.sin(a * math.pi / 2)
@@ -677,7 +808,7 @@ def build_elevator(pal, ao):
             m.cy((0.96, -1.535, zs + zb), 0.035, 0.035, 0.006, 'light', seg=8, rot=(90, 0, 0), hull='none')
     # sign over the upper landing; crown
     m.bx(-1.0, 1.0, -1.62, -1.5, 7.55, 8.05, 'sign')
-    letters(m, word_rects('LIFT', 0.07, 0.0, 7.63), -1.625, 'gold')
+    txt(m, 'Lifts', 0.0, -1.624, 7.8, 0.24, 'gold', font='sans', valign='m', maxw=1.6)
     m.bx(-1.56, 1.56, -1.56, 1.56, top, top + 0.06, 'gold', hull='none', cull='t')
     cols = [col_box(-1.5, 1.36, 0, 1.5, 1.5, top), col_box(-1.5, -1.5, 0, -1.36, 1.5, top), col_box(1.36, -1.5, 0, 1.5, 1.5, top)]
     make('Landmark_ElevatorShaft', m, ao, cols=cols)
@@ -830,7 +961,7 @@ def build_props(pal, ao):
             prof = [(-0.85, 2.5), (0.85, 2.5), (0.85, 2.62), (0.0, 2.9), (-0.85, 2.62)]
             m.prism(prof, -1.45, 1.45, [c, c2, c, c2, c, c2])
             m.bx(-0.6, 0.6, -0.86, -0.8, 2.15, 2.5, 'sign')
-            letters(m, word_rects('CAFE', 0.05, 0.0, 2.2), -0.865, 'gold')
+            txt(m, 'Espresso', 0.0, -0.864, 2.31, 0.15, 'gold', font='script', valign='m', maxw=1.1)
         elif name == 'Kiosk_B':
             for i in range(4):
                 x = -0.9 + i * 0.6
@@ -848,10 +979,7 @@ def build_props(pal, ao):
             m.bx(-0.06, 0.06, -0.06, 0.06, 1.4, 2.2, 'chrome', hull='none', cull='b')
             m.bx(-1.1, 1.1, -0.2, 0.2, 2.2, 2.75, 'sky')
             for sy in (-1, 1):
-                if sy < 0:
-                    letters(m, word_rects('TECH', 0.07, 0.0, 2.3), -0.205, 'paper')
-                else:
-                    letters(m, word_rects('TECH', 0.07, 0.0, 2.3), 0.205, 'paper', back=True)
+                txt(m, 'Accessories', 0.0, sy * 0.204, 2.47, 0.18, 'paper', face='y-' if sy < 0 else 'y+', font='sans', valign='m', maxw=2.0)
         make(name, m, ao, cols=[col_box(-1.4, -0.8, 0, 1.4, 0.8, 2.6)])
     # food court tables (2 x 2): round table + four chairs with backs, tray with a burger and drinks; parasol variant
     for name, para in (('FoodTable', False), ('FoodTable_B', True)):
@@ -879,7 +1007,11 @@ def build_props(pal, ao):
             m.fan((0, 0, 2.2), 2.55, 1.15, 8, ['tealM', 'cream'])
         make(name, m, ao, cols=[col_box(-0.95, -0.95, 0, 0.95, 0.95, 0.77)])
     # food stall 4 x 2 (against a wall; front -Y): counter, food display, menu boards, sign with lettering
+    STALL = {'Stall_Pizza': ('Pizzeria', 'script', 0.26, ('PIZZA', 'SIDES', 'DRINKS')),
+             'Stall_Noodle': ('NOODLE BAR', 'display', 0.38, ('NOODLES', 'RICE', 'DRINKS')),
+             'Stall_Burger': ('Burgers & Fries', 'cond', 0.32, ('BURGERS', 'FRIES', 'SHAKES'))}
     for name, word, c, c2 in (('Stall_Pizza', 'PIZZA', 'redT', 'yellow'), ('Stall_Noodle', 'WOK', 'orange', 'sign'), ('Stall_Burger', 'BURGER', 'yellow', 'redT')):
+        sname, sfont, scap, heads = STALL[name]
         m = new(pal)
         m.bx(-2.0, 2.0, 0.5, 1.0, 0.0, 3.4, 'cream', cull='b')            # back wall
         m.bx(-2.0, -1.9, -1.0, 0.5, 0.0, 3.4, c, cull='b')
@@ -894,11 +1026,12 @@ def build_props(pal, ao):
         for i in range(3):   # menu boards
             x = -1.25 + i * 1.25
             m.bx(x - 0.55, x + 0.55, 0.42, 0.5, 2.0, 2.8, 'sign', hull='full')
-            fq(m, x - 0.45, x + 0.45, 0.417, 2.55, 2.7, c2 if c2 != 'sign' else 'gold')
+            txt(m, heads[i], x, 0.416, 2.56, 0.11, c2 if c2 != 'sign' else 'gold', font='display', maxw=0.8)
             for j in range(3):
                 fq(m, x - 0.45, x + 0.1 - 0.1 * j, 0.417, 2.1 + j * 0.13, 2.16 + j * 0.13, 'paper')
         m.bx(-2.05, 2.05, -1.1, 0.55, 3.0, 3.6, c)                         # sign box
-        letters(m, word_rects(word, 0.08, 0.0, 3.1), -1.105, c2 if c2 != 'sign' else 'paper')
+        txt(m, sname, 0.0, -1.104, 3.3, scap, c2 if c2 != 'sign' else 'paper', font=sfont, valign='m', maxw=3.5,
+            shadow='sign' if name != 'Stall_Noodle' else None, shadow_off=(0.04, -0.05))
         make(name, m, ao, cols=[col_box(-2.0, -1.0, 0, 2.0, 1.0, 3.6)])
     # department store podium (2 x 1): white plinth, two mannequins, a SALE sign
     m = new(pal)
@@ -907,7 +1040,8 @@ def build_props(pal, ao):
     figure(m, -0.4, 0.0, 0.25, 'tealM', legs='navy')
     figure(m, 0.4, 0.05, 0.25, 'orange', legs='cream')
     m.bx(-0.2, 0.2, -0.35, -0.3, 0.25, 0.75, 'sign')
-    letters(m, word_rects('SALE', 0.025, 0.0, 0.5), -0.355, 'yellow')
+    txt(m, 'New In', 0.0, -0.354, 0.55, 0.08, 'yellow', font='script', maxw=0.34)
+    txt(m, 'ALL STYLES', 0.0, -0.354, 0.4, 0.04, 'paper', font='cond', maxw=0.32)
     make('Display', m, ao, cols=[col_box(-0.9, -0.45, 0, 0.9, 0.45, 1.85)])
 
 
@@ -974,12 +1108,8 @@ def build_guestdesk(pal, ao):
     m.bx(-0.95, 0.95, -0.95, 0.95, 3.0, 3.6, 'tealD')
     m.bx(-0.97, 0.97, -0.97, 0.97, 2.94, 3.0, 'gold', hull='none')
     m.bx(-0.97, 0.97, -0.97, 0.97, 3.6, 3.66, 'gold', hull='none')
-    rects = word_rects('INFO', 0.075, 0.0, 3.11)
-    letters(m, rects, -0.955, 'paper')
-    letters(m, rects, 0.955, 'paper', back=True)
-    for (x0, x1, z0, z1) in rects:
-        rq(m, 0.955, x0, x1, z0, z1, 'paper')
-        lq(m, -0.955, -x1, -x0, z0, z1, 'paper')
+    for face, (fx, fy) in (('y-', (0, -0.955)), ('y+', (0, 0.955)), ('x+', (0.955, 0)), ('x-', (-0.955, 0))):
+        txt(m, 'Guest Services', fx, fy, 3.3, 0.2, 'paper', face=face, font='serif', valign='m', maxw=1.7)
     m.cy((0, 0, 3.66), 0.25, 0.25, 0.3, 'gold', seg=10)
     m.sp((0, 0, 4.05), 0.18, 'light', seg=(8, 5))
     # brochure racks on the counter
@@ -1097,11 +1227,16 @@ def build_ceiling(pal, ao):
             m.bx(bxc - 0.5, bxc + 0.5, ty - 0.012, ty + 0.012, -3.0, -1.42, c, hull='full', cull='t')
             poly(m, [(bxc - 0.5, ty, -3.0), (bxc + 0.5, ty, -3.0), (bxc, ty, -3.3)], c, (0, -1, 0))
             poly(m, [(bxc - 0.5, ty, -3.0), (bxc + 0.5, ty, -3.0), (bxc, ty, -3.3)], c, (0, 1, 0))
-            rects = word_rects(word, 0.055, bxc, -1.95)
-            letters(m, rects, ty - 0.015, c2)
-            letters(m, rects, ty + 0.015, c2, back=True, xc=bxc)
-            vdisc(m, (bxc, ty - 0.016, -2.5), 0.26, c2, 'y-', seg=10)
-            vdisc(m, (bxc, ty + 0.016, -2.5), 0.26, c2, 'y+', seg=10)
+            for fy in (-1, 1):
+                f = 'y-' if fy < 0 else 'y+'
+                if word == 'SALE':
+                    txt(m, 'SUMMER', bxc, ty + fy * 0.015, -1.9, 0.18, c2, face=f, font='display', maxw=0.86)
+                    vdisc(m, (bxc, ty + fy * 0.016, -2.38), 0.3, c2, f, seg=14)
+                    txt(m, 'SALE', bxc, ty + fy * 0.02, -2.38, 0.2, c, face=f, font='display', valign='m', maxw=0.5)
+                else:
+                    txt(m, 'SHOP', bxc, ty + fy * 0.015, -1.9, 0.2, c2, face=f, font='display', maxw=0.86)
+                    vdisc(m, (bxc, ty + fy * 0.016, -2.38), 0.26, c2, f, seg=14)
+                    txt(m, 'G', bxc, ty + fy * 0.02, -2.38, 0.26, c, face=f, font='serif', valign='m', maxw=0.4)
         make(name, m, ao)
     # round downlight (mezzanine ceiling) and under-deck downlight (hangs 0.4 under a deck cell's origin)
     m = new(pal)
@@ -1132,8 +1267,9 @@ def build_gate(pal, ao):
         yy = fy * 0.49
         # name plaque
         m.bx(-1.48, 1.48, min(yy, yy + fy * 0.1), max(yy, yy + fy * 0.1), 5.0, 5.75, 'navy', cull='')
-        rects = word_rects('GALLERIA', 0.09, 0.0, 5.15)
-        letters(m, rects, -0.595, 'gold') if fy < 0 else letters(m, rects, 0.595, 'gold', back=True)
+        f = 'y-' if fy < 0 else 'y+'
+        txt(m, 'Galleria', 0.0, fy * 0.594, 5.3, 0.34, 'gold', face=f, font='serif', maxw=2.7)
+        txt(m, 'SHOPPING CENTRE', 0.0, fy * 0.594, 5.1, 0.08, 'cream', face=f, font='cond', maxw=2.0, spacing=1.2)
         # sunburst fan window
         cz, r = 6.1, 1.35
         for i in range(8):
@@ -1177,6 +1313,9 @@ def build_gate(pal, ao):
             rq(m, 0.313, -0.36, 0.36, 1.31, 3.24, 'lightW')
             rq(m, 0.316, -0.36, 0.36, 1.31, 2.0, 'rose')
             m.cy((0.317, 0.0, 2.6), 0.22, 0.22, 0.003, 'yellow', seg=10, rot=(0, 90, 0), hull='none')
+            txt(m, 'Late Nights', 0.32, 0.0, 1.66, 0.11, 'paper', face='x+', font='script', maxw=0.66)
+            txt(m, 'THURSDAYS UNTIL 9', 0.32, 0.0, 1.45, 0.05, 'paper', face='x+', font='cond', maxw=0.6)
+            txt(m, 'G', 0.324, 0.0, 2.6, 0.24, 'rose', face='x+', font='serif', valign='m', maxw=0.3)
         else:
             rq(m, 0.253, -0.4, 0.4, 1.3, 3.3, 'stone2')
             rq(m, 0.256, -0.34, 0.34, 1.36, 3.24, 'stone')
