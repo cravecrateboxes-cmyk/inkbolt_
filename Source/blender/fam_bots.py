@@ -33,9 +33,9 @@ ib_lib.ZFIGHT_STRICT['bots'] = True
 ib_lib.PALETTES['bots'] = BASE + [
     # Crawler: dented tin can
     ('tin', _lighten('#C9CFD6')), ('tin2', _lighten('#A9B0BA')), ('rust', _lighten('#D9663B')), ('spring', _lighten('#8C93A0')),
-    ('core', '#FFC23A'), ('light', '#FFFFFF'),
-    # Gunner: wheelie bin
-    ('bin', _lighten('#4FA36A')), ('bin2', _lighten('#3F8A57')), ('rubber', _lighten('#3A3844', 0.06)), ('steel', _lighten('#9AA6B4')),
+    ('core', '#FFC23A'), ('light', '#FFFFFF'), ('trim', '#4B515E'), ('pouch', '#6E7262'),
+    # Gunner: armoured gun sentry (keeps its green so the type reads at a glance)
+    ('bin', _lighten('#44975E')), ('bin2', _lighten('#2F6B45', 0.06)), ('rubber', _lighten('#3A3844', 0.06)), ('steel', _lighten('#9AA6B4')),
     ('core2', '#E9A21F'), ('sticker', '#FFF1D6'),
     # Bomber: fizzing bottle on a roller
     ('glass', _lighten('#3E86D8')), ('glass2', _lighten('#2F6DB8')), ('capred', _lighten('#F0443A', 0.06)), ('label', '#FFF7E6'),
@@ -121,7 +121,7 @@ class Part:
         self.cyl((0, 0, 0), r1, r2, d.length, color, seg=seg, caps=caps, deco=deco)
         self.parent = old
 
-    def prism(self, poly, z0, z1, color, deco=False):
+    def prism(self, poly, z0, z1, color, deco=False, bevel=False):
         """Polygon (x, y) extruded from z0 to z1 (counter-clockwise polygon seen from +Z)."""
         for mm in self._each(deco):
             bm = mm.bm
@@ -133,7 +133,7 @@ class Part:
             for k in range(n):
                 k2 = (k + 1) % n
                 bm.faces.new((lo[k], lo[k2], hi[k2], hi[k]))
-            mm._finish(lo + hi, color, False)
+            mm._finish(lo + hi, color, bevel and not deco)
 
     def blade(self, st, tip, color, edge_color):
         """Lens-section blade along +X: stations (x, y_back, y_edge, half_thickness); the faces next to the edge
@@ -203,24 +203,28 @@ class Part:
 
 
 # ================================================================ CRAWLER
-# Dented tin can on 4 spring legs: corrugated tin with a rust band and a torn paper label scrap, rolled top rim,
-# one sensor slot, antenna light, gold core dome (weak point) where the lid used to be.
+# Tin can on 4 spring legs, kitted out a touch tactical: corrugated tin, dark gunmetal rim and webbing belt with two
+# drab pouches, a bolted front plate under a hooded visor slot, whip + stub antennas (light), gold core dome (weak point).
 def build_crawler(pal):
     p = Part(pal)
     p.cyl((0, 0, 0.30), 0.32, 0.31, 0.42, 'tin', seg=10, bevel=True)
-    p.cyl((0, 0, 0.72), 0.35, 0.35, 0.05, 'tin2', seg=10, bevel=True)                 # rolled top rim
+    p.cyl((0, 0, 0.72), 0.35, 0.35, 0.05, 'trim', seg=10, bevel=True)                 # rolled top rim
     p.box((0, -0.31, 0.60), (0.34, 0.07, 0.07), 'ink')                                  # sensor slot (front = -Y)
     p.box((0, -0.349, 0.60), (0.22, 0.02, 0.03), 'amber')
     p.sphere((0, 0, 0.77), 0.14, 'core', seg=(8, 4), scale=(1, 1, 0.6))
     p.cyl((0.12, 0.08, 0.76), 0.018, 0.018, 0.3, 'ink', seg=3)
-    # deco: rust band, corrugation ridges, torn label scrap, dent creases, seam rivets, core seat ring
-    p.cyl((0, 0, 0.42), 0.335, 0.335, 0.12, 'rust', seg=10, caps=False, deco=True)
-    for z in (0.335, 0.375, 0.585):
-        p.cyl((0, 0, z), 0.326, 0.326, 0.016, 'tin2', seg=10, caps=False, deco=True)
-    for k, (z, w, h) in enumerate(((0.47, 0.17, 0.10), (0.50, 0.07, 0.06))):
-        p.on_facet(3, 10, 0.335, 0.004 + 0.004 * k, z, (w, 0.006, h), 'paper' if k == 0 else 'sticker')
-    p.on_facet(4, 10, 0.32, 0.004, 0.62, (0.012, 0.006, 0.12), 'ink')                   # dent crease
-    for z in (0.34, 0.44, 0.54, 0.64):
+    # deco: webbing belt + pouches, corrugation ridges, front plate, visor hood, seam rivets, stub antenna, core seat ring
+    p.cyl((0, 0, 0.405), 0.335, 0.335, 0.065, 'trim', seg=10, caps=False, deco=True)
+    p.cyl((0, 0, 0.585), 0.326, 0.326, 0.016, 'tin2', seg=10, caps=False, deco=True)
+    for k in (4, 0):                                                                     # pouches hung on the belt
+        p.on_facet(k, 10, 0.335, 0.002, 0.405, (0.13, 0.055, 0.12), 'pouch')
+    p.on_facet(7, 10, 0.32, 0.003, 0.505, (0.22, 0.012, 0.09), 'tin3')                 # bolted front plate
+    for x in (-0.085, 0.085):
+        p.box((x, -0.3225, 0.505), (0.022, 0.012, 0.022), 'trim', deco=True)
+    p.box((0, -0.322, 0.649), (0.38, 0.10, 0.024), 'trim', rot=(-8, 0, 0), deco=True)   # visor hood over the slot
+    p.cyl((-0.15, 0.09, 0.755), 0.014, 0.014, 0.13, 'ink', seg=4, deco=True)            # stub antenna
+    p.box((-0.15, 0.09, 0.895), (0.04, 0.04, 0.03), 'trim', deco=True)
+    for z in (0.47, 0.54):
         p.on_facet(8, 10, 0.32, 0.003, z, (0.022, 0.008, 0.022), 'tin2')                # seam rivets
     p.cyl((0, 0, 0.77), 0.152, 0.152, 0.02, 'gunmetal', seg=10, caps=False, deco=True)
     body = p.build('BOT_CRAWLER_Body')
@@ -239,68 +243,129 @@ def build_crawler(pal):
 
 
 # ================================================================ GUNNER
-# Wheelie bin (tapered tub, rim lip, hinged lid, push handle, two back wheels, front feet) with a pipe gun
-# clamped on a gold battery (the core) under the lid's front lip. The gun pitches about the battery axis.
-G_Z0, G_Z1 = 0.07, 0.985            # tub bottom / top
-G_HW0, G_HW1 = 0.25, 0.30           # tub half width (x) at bottom / top
-G_DEPTH = 1.1                       # depth (y) / width
+# Armoured gun sentry (green = the Gunner): an angular hull on two rear drive wheels and front claw skids, sloped glacis
+# with hazard chevrons, side armour sponsons, a 4-cell rocket pod on the right shoulder, a rear power pack carrying the
+# antenna, and an armoured dorsal cowl (the Lid, sensor slit in its brow) that lifts during the windup to bare a twin
+# autocannon clamped on a gold battery (the core) at the front. The gun pitches about the battery axis.
+# Socket positions are unchanged from the bin version, so ai.js poses and hit volumes stay identical.
 G_HINGE = (0, 0.372, 1.0)
 G_PIVOT = (0, -0.405, 0.835)        # battery axis centre = gun trunnion
 G_WHEEL = (0.318, 0.30, 0.125)
 G_WHEEL_R = 0.125
 G_LIGHT = (0.24, 0.47, 1.43)
+G_HW = 0.255                        # hull half width (x)
+G_PROF = [(-0.215, 0.075), (0.255, 0.075), (0.345, 0.30), (0.345, 0.63), (0.325, 0.955), (-0.255, 0.955),
+          (-0.300, 0.715), (-0.355, 0.40)]      # hull side profile (y, z), front = -y
+_YZX = Matrix(((0, 0, 1, 0), (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 0, 1)))   # local (a, b, c) -> world (c, a, b)
 
 
-def g_hw(z):
-    return G_HW0 + (G_HW1 - G_HW0) * (z - G_Z0) / (G_Z1 - G_Z0)
+def _parea(poly):
+    return sum(a[0] * b[1] - b[0] * a[1] for a, b in zip(poly, poly[1:] + poly[:1]))
+
+
+def sprism(p, poly, x0, x1, color, deco=False, bevel=False):
+    """Side-profile prism: polygon in (y, z) extruded along X from x0 to x1."""
+    if _parea(poly) < 0:
+        poly = list(reversed(poly))
+    x0, x1 = min(x0, x1), max(x0, x1)
+    old = p.parent
+    p.parent = old @ _YZX
+    p.prism(poly, x0, x1, color, deco=deco, bevel=bevel)
+    p.parent = old
+
+
+def on_edge(prof, i, t, out, x=0.0):
+    """Frame on edge i of a side profile at t along it (x = across, y = along the edge, z = outward normal), `out` m proud."""
+    a, b = Vector(prof[i]), Vector(prof[(i + 1) % len(prof)])
+    u = (b - a).normalized()
+    n = Vector((u.y, -u.x))
+    c = Vector((sum(q[0] for q in prof) / len(prof), sum(q[1] for q in prof) / len(prof)))
+    pt = a + (b - a) * t
+    if n.dot(pt - c) < 0:
+        n = -n
+    ey = Vector((0, u.x, u.y))
+    ez = Vector((0, n.x, n.y))
+    if Vector((1, 0, 0)).cross(ey).dot(ez) < 0:
+        ey = -ey
+    o = Vector((x, pt.x, pt.y)) + ez * out
+    m = Matrix.Identity(4)
+    for r in range(3):
+        m[r][0], m[r][1], m[r][2], m[r][3] = (1, 0, 0)[r], ey[r], ez[r], o[r]
+    return m
+
+
+def hazard(p, frame, w, h, color='amber', n=5, t=0.004):
+    """Hazard panel on a frame: amber plate with ink chevron bars (all deco)."""
+    old = p.parent
+    p.parent = old @ frame
+    p.box((0, 0, t / 2 - 0.0005), (w, h, t + 0.001), color, deco=True)
+    s = w / n
+    for k in range(n):
+        x = -w / 2 + s * (k + 0.25)
+        poly = [(x, -h / 2), (x + s * 0.45, -h / 2), (x + s * 0.45 + h * 0.35, h / 2), (x + h * 0.35, h / 2)]
+        poly = [(min(max(px, -w / 2), w / 2), py) for px, py in poly]
+        if abs(_parea(poly)) > 1e-6:
+            p.prism(poly, t + 0.0025, t + 0.0075, 'ink', deco=True)
+    p.parent = old
 
 
 def build_gunner(pal):
-    slope_y = math.degrees(math.atan(G_DEPTH * (G_HW1 - G_HW0) / (G_Z1 - G_Z0)))  # front/back wall lean
-
-    def front(z, out):
-        return -(G_DEPTH * g_hw(z) + out)
-
+    P_ = G_PROF
     p = Part(pal)
-    # tub (square frustum stretched in depth) and the rim lip the lid rests on
-    p.parent = Matrix.Diagonal(Vector((1, G_DEPTH, 1, 1)))
-    p.cyl((0, 0, G_Z0), G_HW0 * math.sqrt(2), G_HW1 * math.sqrt(2), G_Z1 - G_Z0, 'bin', seg=4, rot=(0, 0, 45), bevel=True)
-    p.cyl((0, 0, 0.925), 0.322 * math.sqrt(2), 0.322 * math.sqrt(2), 0.07, 'bin2', seg=4, rot=(0, 0, 45), bevel=True)
+    # hull: angular core prism, side armour sponsons (stepped out), glacis cheek plates
+    sprism(p, P_, -G_HW, G_HW, 'bin')
+    sprism(p, [(-0.207, 0.068), (0.249, 0.068), (0.354, 0.33), (-0.333, 0.33)], -G_HW - 0.01, G_HW + 0.01, 'gunmetal')  # dark chassis
+    spon = [(-0.300, 0.33), (0.190, 0.33), (0.240, 0.42), (0.240, 0.83), (-0.255, 0.86), (-0.320, 0.60)]
+    for sx in (-1, 1):                                                                     # flared 7 deg: wider at the shoulder
+        p.parent = Matrix.Translation((sx * 0.25, 0, 0.33)) @ Matrix.Rotation(math.radians(7 * sx), 4, 'Y') @ Matrix.Translation((-sx * 0.25, 0, -0.33))
+        sprism(p, spon, sx * 0.225, sx * 0.300, 'bin2')
+        p.box((sx * 0.301, -0.04, 0.47), (0.008, 0.30, 0.03), 'ink', deco=True)          # vision cut + amber tick
+        p.box((sx * 0.301, -0.04, 0.52), (0.008, 0.30, 0.015), 'amber', deco=True)
+        for y in (-0.20, 0.10):
+            p.cyl((sx * 0.296, y, 0.40), 0.016, 0.016, 0.008, 'steel', seg=6, rot=(0, sx * 90, 0), deco=True)
     p.parent = Matrix.Identity(4)
-    # core: gold battery lying along X (the gun's trunnion)
+    # rear power pack (carries the antenna) and the drive axle housing
+    pack = [(0.300, 0.56), (0.470, 0.60), (0.500, 0.70), (0.470, 0.925), (0.300, 0.925)]
+    sprism(p, pack, -0.27, 0.27, 'gunmetal')
+    p.box((0, 0.30, 0.125), (0.56, 0.09, 0.09), 'gunmetal')
+    # core: gold battery lying along X (the gun's trunnion), in an armoured cradle
     px, py, pz = G_PIVOT
     p.cyl((-0.17, py, pz), 0.075, 0.075, 0.34, 'core', seg=10, rot=(0, 90, 0))
-    # back: axle housing, push handle with grips
-    p.box((0, 0.30, 0.125), (0.56, 0.08, 0.08), 'gunmetal')
-    p.cyl((-0.30, 0.445, 0.95), 0.03, 0.03, 0.60, 'gunmetal', seg=8, rot=(0, 90, 0))
     for sx in (-1, 1):
-        p.cyl((sx * 0.295 - 0.025, 0.445, 0.95), 0.037, 0.037, 0.05, 'rubber', seg=8, rot=(0, 90, 0))
-        p.box((sx * 0.17, -0.235, 0.035), (0.11, 0.10, 0.07), 'rubber')                  # front feet
-    # antenna on the right handle bracket (the light sits on top)
+        sprism(p, [(-0.300, 0.73), (py, 0.745), (py - 0.03, 0.80), (-0.29, 0.86)], sx * 0.185, sx * 0.235, 'gunmetal')
+        # front claw skids
+        sprism(p, [(-0.30, 0.0), (-0.12, 0.0), (-0.10, 0.06), (-0.22, 0.14), (-0.33, 0.04)], sx * 0.12, sx * 0.22, 'gunmetal', bevel=False)
+    # 4-cell rocket pod on the right shoulder
+    pod = [(-0.27, 0.70), (0.13, 0.70), (0.16, 0.78), (0.13, 0.86), (-0.27, 0.86)]
+    sprism(p, pod, 0.315, 0.440, 'gunmetal')
     lx, ly, lz = G_LIGHT
-    p.cyl((lx, ly, 0.97), 0.012, 0.012, lz - 0.97 - 0.04, 'ink', seg=4)
+    p.cyl((lx, ly, 0.935), 0.012, 0.012, lz - 0.935 - 0.04, 'ink', seg=4)                    # antenna whip
     # ---- deco
-    for sx in (-1, 1):                                                                   # side ribs, leaning with the wall
-        for y in (-0.15, 0.13):
-            za, zb = 0.16, 0.86
-            p.beam((sx * (g_hw(za) + 0.006), y, za), (sx * (g_hw(zb) + 0.006), y, zb), 0.03, 'bin2', deco=True)
-    p.box((0, front(0.20, 0.012), 0.20), (0.40, 0.03, 0.07), 'bin2', rot=(slope_y, 0, 0), deco=True)   # kick rib
-    zs = 0.52                                                                           # "collection day" sticker
-    p.box((0, front(zs, 0.006), zs), (0.30, 0.008, 0.24), 'sticker', rot=(slope_y, 0, 0), deco=True)
-    p.box((0, front(zs + 0.07, 0.0135), zs + 0.07), (0.27, 0.008, 0.05), 'teal', rot=(slope_y, 0, 0), deco=True)
-    for i, w in enumerate((0.20, 0.14, 0.17)):
-        z = zs - 0.005 - i * 0.045
-        p.box((-0.12 + w / 2, front(z, 0.0135), z), (w, 0.008, 0.016), 'ink', rot=(slope_y, 0, 0), deco=True)
-    for sx in (-1, 1):                                                                   # battery brackets + bolts
-        x = sx * 0.218
-        y0 = front(pz, -0.02)
-        p.box((x, (y0 + py) / 2, pz), (0.04, abs(py - y0), 0.10), 'gunmetal', deco=True)
-        p.cyl((x + sx * 0.02, py, pz), 0.022, 0.022, 0.012, 'steel', seg=6, rot=(0, sx * 90, 0), deco=True)
-        p.cyl((sx * 0.17 - 0.02, py, pz), 0.081, 0.081, 0.04, 'core2', seg=10, rot=(0, 90, 0), caps=False, deco=True)
-        p.box((sx * 0.235, 0.40, 0.95), (0.05, 0.10, 0.06), 'bin2', deco=True)           # handle brackets
+    hazard(p, on_edge(P_, 7, 0.55, 0.009), 0.40, 0.15)                                # lower glacis chevrons
+    p.parent = on_edge(P_, 6, 0.5, 0.0)                                                   # bolted chest plate + intake slits
+    p.box((0, 0, 0.004), (0.36, 0.25, 0.010), 'bin2', deco=True)
+    for x in (-0.06, 0.0, 0.06):
+        p.box((x, 0.0, 0.0105), (0.022, 0.15, 0.006), 'ink', deco=True)
+    for x in (-0.15, 0.15):
+        for y in (-0.095, 0.095):
+            p.cyl((x, y, 0.006), 0.014, 0.014, 0.008, 'steel', seg=6, deco=True)
+    p.parent = Matrix.Identity(4)
+    for sx in (-1, 1):                                                                     # sponson bolts + vision cut
+        p.cyl((sx * 0.13 - 0.02, py, pz), 0.081, 0.081, 0.04, 'core2', seg=10, rot=(0, 90, 0), caps=False, deco=True)
     p.cyl((0.165, py, pz), 0.03, 0.03, 0.03, 'steel', seg=6, rot=(0, 90, 0), deco=True)   # + terminal
-    p.cyl((lx, ly, 0.965), 0.03, 0.022, 0.035, 'gunmetal', seg=6, deco=True)             # antenna base
-    p.box((0, 0, 0.996), (0.56, 0.62, 0.006), 'ink', deco=True)                          # dark opening (shows when the lid lifts)
+    for i in range(4):                                                                    # rocket pod tubes + red tips
+        y0, z0 = -0.27, (0.745, 0.815)[i % 2]
+        x0 = (0.407, 0.348)[i // 2]
+        p.cyl((x0, y0 + 0.004, z0), 0.024, 0.024, 0.012, 'ink', seg=6, rot=(90, 0, 0), deco=True)
+        p.cyl((x0, y0 - 0.004, z0), 0.012, 0.006, 0.014, 'red', seg=6, rot=(90, 0, 0), deco=True)
+    p.box((0.443, -0.05, 0.78), (0.008, 0.20, 0.035), 'amber', deco=True)
+    for t in (0.2, 0.4, 0.6, 0.8):                                                        # power pack cooling slats
+        p.parent = on_edge(pack, 2, t, 0.0)
+        p.box((0, 0, 0.0015), (0.40, 0.018, 0.006), 'ink', deco=True)
+    p.parent = Matrix.Identity(4)
+    p.box((0, 0.347, 0.45), (0.40, 0.008, 0.10), 'ink', deco=True)                       # rear hull vent
+    p.cyl((lx, ly, 0.92), 0.03, 0.022, 0.035, 'steel', seg=6, deco=True)                  # antenna base
+    p.box((0, -0.02, 0.962), (0.44, 0.52, 0.006), 'ink', deco=True)                       # dark bay (shows when the cowl lifts)
     body = p.build('BOT_GUNNER_Body')
     socket('BOT_GUNNER_CORE', body, (0, py, pz))
     socket('BOT_GUNNER_HINGE', body, G_HINGE)
@@ -309,36 +374,43 @@ def build_gunner(pal):
     for i, sx in enumerate((-1, 1)):
         socket('BOT_GUNNER_WHEEL%d' % i, body, (sx * G_WHEEL[0], G_WHEEL[1], G_WHEEL[2]))
 
-    # lid (origin on the hinge axis; extends toward -Y)
+    # armoured cowl (origin on the hinge axis; extends toward -Y): a wedge with a sloped brow and a hanging front lip
     p = Part(pal)
-    L = 0.75
-    p.box((0, -L / 2 + 0.005, 0.024), (0.69, L, 0.048), 'bin', bevel=True)
-    p.box((0, -L + 0.012, -0.012), (0.70, 0.026, 0.10), 'bin2')                         # front lip
-    p.box((0, -L / 2 - 0.02, 0.054), (0.50, 0.50, 0.014), 'bin2', deco=True)           # raised panel
-    p.box((0, -L - 0.004, -0.004), (0.42, 0.012, 0.04), 'ink', deco=True)               # sensor slot
-    p.box((0, -L - 0.0125, -0.004), (0.34, 0.01, 0.018), 'amber', deco=True)            # sensor strip
+    cowl = [(0.012, -0.020), (0.012, 0.045), (-0.07, 0.085), (-0.58, 0.085), (-0.735, 0.030), (-0.755, -0.035),
+            (-0.705, -0.075), (-0.640, -0.020)]
+    sprism(p, cowl, -0.315, 0.315, 'bin')
+    sprism(p, [(-0.05, 0.07), (-0.56, 0.07), (-0.50, 0.115), (-0.10, 0.115)], -0.17, 0.17, 'bin2')   # raised spine plate
+    p.parent = on_edge(cowl, 3, 0.5, 0.0)                                                 # brow: sensor slit
+    p.box((0, 0, 0.004), (0.46, 0.05, 0.008), 'ink', deco=True)
+    p.box((0, 0, 0.010), (0.36, 0.018, 0.006), 'amber', deco=True)
+    p.parent = Matrix.Identity(4)
+    hazard(p, on_edge(cowl, 4, 0.5, 0.0), 0.50, 0.045, n=5)                                 # lip hazard band
     for sx in (-1, 1):
         p.cyl((sx * 0.30 - 0.05, 0, 0.0), 0.028, 0.028, 0.10, 'gunmetal', seg=6, rot=(0, 90, 0), deco=True)  # knuckles
+        for y in (-0.15, -0.45):
+            p.cyl((sx * 0.25, y, 0.081), 0.014, 0.014, 0.008, 'steel', seg=6, deco=True)  # bolts
     p.build('BOT_GUNNER_Lid')
 
-    # pipe gun (origin on the battery axis; barrel along -Y)
+    # twin autocannon (origin on the battery axis; barrels along -Y)
     p = Part(pal)
-    p.cyl((-0.05, 0, 0), 0.092, 0.092, 0.10, 'gunmetal', seg=8, rot=(0, 90, 0))          # clamp collar
-    p.box((0, -0.10, 0), (0.07, 0.10, 0.11), 'gunmetal')                                  # breech block
-    p.cyl((0, -0.12, 0), 0.044, 0.044, 0.36, 'steel', seg=8, rot=(90, 0, 0))              # barrel
-    p.cyl((0, -0.44, 0), 0.06, 0.06, 0.06, 'gunmetal', seg=8, rot=(90, 0, 0))             # muzzle cap
-    p.cyl((0, -0.17, 0), 0.049, 0.049, 0.05, 'amber', seg=8, rot=(90, 0, 0), caps=False, deco=True)   # tape wrap
-    p.cyl((0, -0.29, 0), 0.056, 0.056, 0.05, 'gunmetal', seg=8, rot=(90, 0, 0), caps=False, deco=True)  # coupling
-    p.cyl((0, -0.496, 0), 0.032, 0.032, 0.008, 'ink', seg=8, rot=(90, 0, 0), deco=True)   # bore
-    p.box((0, -0.468, 0.068), (0.018, 0.03, 0.024), 'gunmetal', deco=True)                 # sight
+    p.cyl((-0.05, 0, 0), 0.092, 0.092, 0.10, 'gunmetal', seg=8, rot=(0, 90, 0))           # clamp collar
+    p.box((0, -0.14, 0.01), (0.15, 0.15, 0.14), 'gunmetal', bevel=True)                   # receiver
+    p.box((0, -0.29, 0.0), (0.12, 0.17, 0.07), 'bin2', bevel=True)                         # barrel shroud
+    for sx in (-1, 1):
+        p.cyl((sx * 0.032, -0.20, 0), 0.025, 0.025, 0.27, 'steel', seg=6, rot=(90, 0, 0))  # barrels
+        p.cyl((sx * 0.032, -0.445, 0), 0.036, 0.036, 0.06, 'gunmetal', seg=6, rot=(90, 0, 0))   # muzzle brakes
+        p.cyl((sx * 0.032, -0.500, 0), 0.016, 0.016, 0.009, 'ink', seg=6, rot=(90, 0, 0), deco=True)  # bores
+        p.box((sx * 0.062, -0.29, 0.0), (0.006, 0.12, 0.016), 'ink', deco=True)          # shroud cooling slots
+    p.box((0, -0.29, 0.037), (0.10, 0.12, 0.006), 'ink', deco=True)
+    p.box((0, -0.12, 0.082), (0.11, 0.05, 0.006), 'amber', deco=True)                     # receiver hazard band
     gun = p.build('BOT_GUNNER_Gun', bevel=False)
     socket('BOT_GUNNER_GUN', gun, (0, -0.51, 0))
 
     # wheel (origin on the axle; axis X; symmetric so the game mirrors it for the other side)
     p = Part(pal)
     w = 0.075
-    p.cyl((-w / 2, 0, 0), G_WHEEL_R, G_WHEEL_R, w, 'rubber', seg=10, rot=(0, 90, 0))
-    p.cyl((-w / 2 - 0.004, 0, 0), 0.072, 0.072, w + 0.008, 'steel', seg=8, rot=(0, 90, 0), deco=True)     # hub
+    p.cyl((-w / 2, 0, 0), G_WHEEL_R, G_WHEEL_R, w, 'rubber', seg=8, rot=(0, 90, 0))
+    p.cyl((-w / 2 - 0.004, 0, 0), 0.072, 0.072, w + 0.008, 'bin2', seg=6, rot=(0, 90, 0), deco=True)     # armoured hub
     p.cyl((-w / 2 - 0.01, 0, 0), 0.026, 0.026, w + 0.02, 'gunmetal', seg=6, rot=(0, 90, 0), deco=True)   # axle nut
     p.build('BOT_GUNNER_Wheel', bevel=False)
 

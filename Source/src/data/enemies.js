@@ -7,7 +7,7 @@
 
   var ENEMIES = {
     crawler: {
-      id: 'crawler', name: 'Crawler', built: 'Dented tin can on 4 spring legs', first: 1,
+      id: 'crawler', name: 'Crawler', built: 'Kitted-out tin can on 4 spring legs', first: 1,
       hp: 30, shield: 0, speed: 5.0, chargeSpeed: 0, attack: 'Lunge bite', damage: 8,
       windup: 0.35, recover: 0.4, range: 1.4, gems: { chip: 1, shard: 0, core: 0 }, cost: 1,
       color: '#C9CFD6', accent: '#D9663B', pack: [3, 6], zigzag: true,
@@ -15,7 +15,7 @@
       notes: 'Comes in packs of 3 to 6; zigzags'
     },
     gunner: {
-      id: 'gunner', name: 'Gunner', built: 'Wheelie bin with a pipe gun', first: 2,
+      id: 'gunner', name: 'Gunner', built: 'Armoured sentry with a twin autocannon', first: 2,
       hp: 55, shield: 0, speed: 3.0, chargeSpeed: 0, attack: '3-bolt volley', damage: 6,
       bolts: 3, boltSpeed: 22, windup: 0.5, recover: 0.8, range: 22,
       gems: { chip: 2, shard: 0, core: 0 }, cost: 2, color: '#4FA36A', keepDistance: [8, 16],
