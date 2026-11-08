@@ -444,6 +444,7 @@ async function meleeRun(browser, base) {
   // every gun's spare ammo full (and no frag can missing): the box stays on the floor; one gun short: it is taken
   const af = await pg.evaluate(() => {
     const G = IB.Game, p = G.player, ws = G.ws;
+    if (!ws.guns.scrapper) IB.Weapons.give(ws, 'scrapper');   // a gun with a finite spare-ammo pool
     Object.keys(ws.guns).forEach((k) => { const g = ws.guns[k]; if (g.reserve !== Infinity && !g.def.ammo) g.reserve = IB.Loadout.reserveCap(g.def); });
     G.grenades = IB.WEAPONS.frag.carry;
     G.pickups.forEach((k) => { if (k.kind === 'ammo') { k.on = false; k.mesh.visible = false; } });
@@ -452,7 +453,7 @@ async function meleeRun(browser, base) {
   await pg.waitForTimeout(1000);
   const stays = await pg.evaluate(() => IB.Game.pickups.filter((k) => k.on && k.kind === 'ammo').length);
   check('ammo full on every gun: walking over an ammo box leaves it there', af && stays === 1, JSON.stringify({ af, stays }));
-  await pg.evaluate(() => { const ws = IB.Game.ws, id = Object.keys(ws.guns).find((k) => ws.guns[k].reserve !== Infinity && !ws.guns[k].def.ammo); ws.guns[id].reserve = 0; });
+  await pg.evaluate(() => { IB.Game.ws.guns.scrapper.reserve = 0; });
   check('...and it is taken once a gun can hold more', await until(pg, () => IB.Game.pickups.filter((k) => k.on && k.kind === 'ammo').length === 0, null, 10000));
   // pump shotgun: one shell per reload cycle
   await pg.evaluate(() => { const G = IB.Game, W = IB.Weapons; W.give(G.ws, 'scrapper'); W.equip(G.ws, 'scrapper', true); G.ws.guns.scrapper.mag = 1; W.reload(G.ws); });

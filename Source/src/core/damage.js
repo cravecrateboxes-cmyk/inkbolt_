@@ -70,14 +70,14 @@
      player at once. Totals per level are unchanged; only how many close in at the same moment and how fast a wave
      lands.
        closeCap(L)        melee robots (Crawler, Bomber, Blade Bot) let into close range at once; the rest hold a ring
-                          HOLD.ringIn..ringOut m out (strafing) until a slot frees up (3 at LV 1-9, 4 at 10-19, 5 at 20+)
+                          HOLD.ringIn..ringOut m out (strafing) until a slot frees up (4 at LV 1-9, 5 at 10-19, 6 at 20+)
        crowdCap(L)        robots within CROWD_R m of the player at which the next queued spawn waits a moment (a wave
                           trickles in instead of landing all at once), never longer than SPAWN_WAIT_MAX s per robot
        sloppyAim(seq)     about 40 % of soldiers (golden-ratio sequence, so the share holds in any run of spawns) aim
                           worse: SLOPPY spread x1.9 + 0.02 and 60 % of the lead */
   var HOLD = { ringIn: 6, ringOut: 8.5 }, CROWD_R = 10, SPAWN_WAIT_MAX = 3.5, SPAWN_GAP = 0.26;
   var SLOPPY = { share: 0.4, spreadMul: 1.9, spreadAdd: 0.02, leadMul: 0.6 };
-  function closeCap(L) { return 3 + Math.floor(Math.max(1, L || 1) / 10); }
+  function closeCap(L) { return 4 + Math.floor(Math.max(1, L || 1) / 10); }
   function crowdCap(L) { return 7 + Math.floor(Math.max(1, L || 1) / 6); }
   function sloppyAim(seq) { var f = (seq * 0.6180339887498949) % 1; return f < SLOPPY.share; }
   /* health director plan for the player's health fraction: cans wanted in the zone, seconds between checks and the
