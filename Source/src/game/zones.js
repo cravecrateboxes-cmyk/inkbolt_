@@ -299,7 +299,7 @@
     var node = IB.Assets.node[name], out = [];
     if (node) node.children.forEach(function (c) {
       // <Piece>_COL<n>: solid box; <Piece>_WCOL<n>: a box robots may also walk on (deck, step, plank)
-      if (/_W?COL\d*$/.test(c.name)) out.push({ x: c.position.x, y: c.position.y, z: c.position.z, hx: Math.abs(c.scale.x), hy: Math.abs(c.scale.y), hz: Math.abs(c.scale.z), walk: /_WCOL\d*$/.test(c.name) });
+      if (/_W?COL\d*$/.test(c.name)) out.push({ x: c.position.x, y: c.position.y, z: c.position.z, hx: Math.abs(c.scale.x), hy: Math.abs(c.scale.y), hz: Math.abs(c.scale.z), walk: /_WCOL\d*$/.test(c.name), piece: name });
     });
     colCache[name] = out.length ? out : null;
     return colCache[name];
@@ -311,6 +311,7 @@
     cols.forEach(function (b) {
       var cx = b.x * c + b.z * s, cz = -b.x * s + b.z * c, hx = c !== 0 ? b.hx : b.hz, hz = c !== 0 ? b.hz : b.hx;
       var nb = world.add(x + cx - hx, b.y - b.hy, z + cz - hz, x + cx + hx, b.y + b.hy, z + cz + hz, kind, zi);
+      if (b.piece) nb.piece = b.piece;   // source kit piece (collision audit)
       if (b.walk) { nb.walk = true; world.walkN++; }
     });
   }
@@ -371,7 +372,7 @@
     return y;
   }
   function addColsY(world, cols, x, y0, z, yaw, kind, zi) {
-    addCols(world, cols.map(function (b) { return { x: b.x, y: b.y + y0, z: b.z, hx: b.hx, hy: b.hy, hz: b.hz, walk: b.walk }; }), x, z, yaw, kind, zi);
+    addCols(world, cols.map(function (b) { return { x: b.x, y: b.y + y0, z: b.z, hx: b.hx, hy: b.hy, hz: b.hz, walk: b.walk, piece: b.piece }; }), x, z, yaw, kind, zi);
   }
   // walkable deck (mezzanine floor) over each block of the symbol: slab with fascia, ink edge bands, collision
   function buildDeck(g, z, grid, world, ch, d, yb) {

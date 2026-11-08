@@ -285,6 +285,9 @@ def fresh_scene():
 def export(family):
     os.makedirs(OUT, exist_ok=True)
     path = os.path.join(OUT, GLB[family])
+    sys.path.insert(0, HERE)
+    import col_fit   # re-cut listed pieces' _COL boxes to what they show (no invisible walls)
+    col_fit.fit(family)
     bpy.ops.export_scene.gltf(filepath=path, export_format='GLB', export_apply=True, export_yup=True,
                               export_vertex_color='NAME', export_vertex_color_name='Col', export_all_vertex_colors=False, export_attributes=True,
                               export_texcoords=True, export_normals=True, export_tangents=False, export_cameras=False,

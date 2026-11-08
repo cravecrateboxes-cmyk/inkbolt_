@@ -196,11 +196,12 @@ def overlook(k, seed):
     k.loft([(-0.5, e), (-0.17, mids[0]), (0.17, mids[1]), (0.5, e)], rock_fn(), baffle='rock2')
     k.bx(-0.5, 0.5, -0.33, 0.48, 3.98, 4.26, 'rock2')                 # lintel underside
     cable_run(k, z=4.6, y=-0.5)
-    for x in (-0.26, 0.26):                                            # timber barrier: posts, two rails
-        k.bx(x - 0.07, x + 0.07, -0.08, 0.06, 0, 1.15, 'timber')
-    k.bx(-0.5, 0.5, -0.13, -0.07, 0.95, 1.1, 'timber2')
-    k.bx(-0.5, 0.5, -0.12, -0.08, 0.45, 0.58, 'timber2')
-    k.qy(-0.5, 0.5, 0.75, 0.81, -0.135, -1, 'hazard')
+    # timber barrier at the cell's open face (the cell's wall box stops the player there: no invisible gap before it)
+    for x in (-0.26, 0.26):                                            # posts, two rails
+        k.bx(x - 0.07, x + 0.07, -0.44, -0.3, 0, 1.15, 'timber')
+    k.bx(-0.5, 0.5, -0.49, -0.43, 0.95, 1.1, 'timber2')
+    k.bx(-0.5, 0.5, -0.48, -0.44, 0.45, 0.58, 'timber2')
+    k.qy(-0.5, 0.5, 0.75, 0.81, -0.495, -1, 'hazard')
     k.bx(-0.5, 0.5, -0.1, 0.5, -0.4, 0.06, 'rock2', ink=False)        # ledge lip
     return k
 

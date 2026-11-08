@@ -138,14 +138,14 @@
 
   var R90 = Math.PI / 2;
   var COLS = function (n) { return [0, 1, 2, 3].map(function (k) { return n + '_' + k; }); };
-  var CARS = ['Sedan', 'Sedan', 'Sedan_Door', 'Hatch', 'Hatch', 'Hatch_Boot', 'SUV', 'SUV', 'SUV_Boot', 'Sports', 'Sedan', 'Wreck_Smash'];
+  var CARS = ['Sedan', 'Sedan', 'Sedan_Door', 'Hatchback', 'Hatchback', 'Hatch_Boot', 'SUV', 'SUV', 'SUV_Boot', 'Sports', 'Sedan', 'Wreck_Smash'];
   var BAYS = ['Bay_A', 'Bay_B', 'Bay_C', 'Bay_D', 'Bay_A', 'Bay_C', 'Bay_B', 'Bay_EV', 'Bay_D', 'Bay_H'];
   var WALLS = ['Corner_NW', 'Corner_NE', 'Corner_SW', 'Corner_SE', 'GateSide'];
   LV.forEach(function (L) {
     ['Plain', 'Num', 'Arrow', 'Pipe', 'Pier', 'Door', 'Lift', 'Dock', 'Split', 'EndL', 'EndR'].forEach(function (v) { WALLS.push('Lo_' + L + '_' + v); });
     ['Plain', 'Num', 'Arrow', 'Pipe', 'Pier', 'EndL', 'EndR'].forEach(function (v) { WALLS.push('Up_' + L + '_' + v); });
   });
-  var OTHER = ['Sedan', 'Sedan_Door', 'Hatch', 'Hatch_Hazard', 'Hatch_Boot', 'SUV', 'SUV_Boot', 'Sports', 'HazardGlow', 'Wreck_Burnt',
+  var OTHER = ['Sedan', 'Sedan_Door', 'Hatchback', 'Hatch_Hazard', 'Hatch_Boot', 'SUV', 'SUV_Boot', 'Sports', 'HazardGlow', 'Wreck_Burnt',
     'Wreck_Burnt_B', 'Wreck_Smash', 'CarCovered', 'CarJack', 'Pickup', 'Pickup_B', 'Van', 'Van_Door', 'BoxTruck', 'TowTruck',
     'DeliveryTruck', 'Motorbike', 'Scooter', 'BikeRack', 'Buggy', 'Rail', 'RailFull', 'RailPost', 'Ramp', 'RampHalf', 'DockRamp',
     'Stair', 'DockStep', 'GateFrame', 'GateShutter', 'TrailWall', 'TrailWall_B', 'TrailWall_C', 'Hatch', 'Bay_A', 'Bay_B', 'Bay_C',
