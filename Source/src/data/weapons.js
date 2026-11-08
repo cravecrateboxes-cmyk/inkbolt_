@@ -169,7 +169,7 @@
     hothead: W({
       // rapid-fire elemental launcher: 0.5 s between rockets, 3-5 per cassette; element per drop (IB.LAUNCHER_ELEMENTS)
       id: 'hothead', name: 'RL-3 Hothead', cls: 'rocket', slot: 5, fire: 'rocket', launcher: 'elemental', ammo: 'rocket', ammoPer: 1,
-      noMods: true, elements: true, damage: 220, splash: 140, radius: 3.2, exponent: 0.8, rpm: 120, spreadHip: 0.7, spreadAim: 0.15,
+      noMods: true, elements: true, damage: 170, splash: 190, radius: 4.5, exponent: 0.5, rpm: 120, spreadHip: 0.7, spreadAim: 0.15,
       recoil: 3.4, recoilH: 0.5, reload: 3.2, mag: 3, magRoll: [3, 5], reserve: 0, unlock: 0, speed: 42, projRadius: 0.12, life: 2.4,
       selfMul: 0.35, selfCap: 35, knockback: 7, moveMul: 0.92, aimZoom: 0.8, coreMul: 1,
       blurb: 'Rapid-fire rockets. Each one carries its element.', sound: 'thump launch, hiss trail, boom on hit'
@@ -177,7 +177,7 @@
     murmur: W({
       // homing salvo: locks up to 5 robots (or spots) in front, 6 missiles split over the locks; 2 rockets a salvo
       id: 'murmur', name: 'ML-6 Murmur', cls: 'rocket', slot: 5, fire: 'rocket', launcher: 'homing', ammo: 'rocket', ammoPer: 2,
-      noMods: true, damage: 48, splash: 44, radius: 2.2, exponent: 0.8, missiles: 6, locks: 5, lockRange: 60, lockCone: 26,
+      noMods: true, damage: 36, splash: 58, radius: 3.0, exponent: 0.5, missiles: 6, locks: 5, lockRange: 60, lockCone: 26,
       rpm: 60, spreadHip: 0.5, spreadAim: 0.2, recoil: 4.2, recoilH: 0.6, reload: 3.4, mag: 2, magRoll: [2, 4], reserve: 0, unlock: 0,
       speed: 30, turn: 6.5, projRadius: 0.1, life: 3.2, selfMul: 0.35, selfCap: 35, knockback: 4, moveMul: 0.9, aimZoom: 0.8, coreMul: 1,
       blurb: 'Locks up to 5 targets and fires 6 homing missiles.', sound: 'servo chirps, rippled launch, six booms'
