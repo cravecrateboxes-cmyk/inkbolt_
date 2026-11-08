@@ -10,7 +10,7 @@
                      3 m of it takes shock over time (5 s burn)
      Undercover      F: invisible for 5 s (ai.js AI.cloak: robots lose you and search), 30 s cooldown after it wears off
      Healthy / Tank  max health %, damage resistance, repair after 4 s without damage
-     Handy Helpers   ai.js AI.rogueChance: a wreck may turn rogue instead and fight for you for 15 s
+     Handy Helpers   ai.js AI.rogueChance: a wreck may turn rogue instead and fight for you until destroyed (3-5x health, 1.5x damage)
      Chain Reaction  a hit on a robot with 2+ others within 4 m: 10% chance (1 s cooldown) the group blows up for 40% of
                      each one's max health (core/skills.js chainDamage: never all of them at once)
    Secondary hits (pierce, ricochet) carry Electrify but roll none of the chance skills, so nothing cascades. */
@@ -35,7 +35,7 @@
   function applyAI() {
     var f = SF.fx, A = AI(); if (!A || !f) return;
     A.rogueChance = SF.force.rogue !== undefined ? SF.force.rogue : f.rogue;
-    A.rogueTime = f.rogueTime; A.rogueDmgMul = f.rogueDmgMul;
+    A.rogueTime = f.rogueTime; A.rogueDmgMul = f.rogueDmgMul; A.rogueHpMul = f.rogueHpMul;
   }
   SF.begin = function (skills) {
     SF.fx = IB.Skills.effects(skills || {});

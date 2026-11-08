@@ -168,7 +168,7 @@
       if (hasSh && h.shv !== undefined && (r.shield || 0) < h.shv - 1e-4) { h.dmgT = 0; h.flash = 1; }
       h.shv = r.shield || 0;
       // the top row: shield / armour, or for a rogue (ally) the seconds it has left
-      h.sh = ally ? Math.max(0, Math.min(1, r.rogue / (AI.rogueTime || 15))) : hasSh ? Math.max(0, Math.min(1, (r.shield || 0) / r.maxShield)) : -1;
+      h.sh = ally ? (isFinite(AI.rogueTime) ? Math.max(0, Math.min(1, r.rogue / (AI.rogueTime || 15))) : -1) : hasSh ? Math.max(0, Math.min(1, (r.shield || 0) / r.maxShield)) : -1;
       h.ally = ally;
       h.dmgT += dt; h.tgtT = r === tgt ? 0 : h.tgtT + dt;
       h.disp += (frac - h.disp) * Math.min(1, dt * 16);

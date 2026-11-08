@@ -140,7 +140,7 @@
       reloadMul: 1 / (1 + v('fastfingers') / 100),     // Fast Fingers: multiply reload TIME by this
       swapMul: 1 / (1 + v('fastfingers') / 100),       // ... and holster / draw time
       // tier 6 (pick one)
-      rogue: has('handyhelpers') ? 0.08 : 0, rogueTime: 15, rogueDmgMul: 2,   // Handy Helpers
+      rogue: has('handyhelpers') ? 0.08 : 0, rogueTime: Infinity, rogueDmgMul: 1.5, rogueHpMul: [3, 5],   // Handy Helpers
       chain: has('chainreaction') ? 0.1 : 0, chainMin: 2, chainRadius: 4, chainFrac: 0.4, chainCooldown: 1,   // Chain Reaction
       // neutral fields older callers still read (Upgrade Bench stacking, field kit)
       recoilMul: 1, spreadMul: 1, magnetMul: 1, coreMul: 1, leech: 0, maxHpAdd: 0, regen: rk('tank') + 0.5 * rk('healthy')

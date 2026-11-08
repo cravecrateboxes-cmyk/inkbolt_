@@ -13,7 +13,8 @@
      LV            2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 (21-30: none)
      points        2  3  4  5  6  7  8  9 10 12 13 14 15 16 18 19 20 21 22
    The tree holds 43 points, so 22 buys a build, not the whole tree (respec to change it). The gates are low so the
-   top is always reachable: any 9 points below open the endgame row, and 9 + 5 + 5 = 19 owns both endgame skills.
+   top is always reachable: any 9 points below open the endgame row. The two endgame skills cost 1 point and you
+   pick ONE of them (respec to switch), so even 21 points spent below still leave the point for it.
    In core/skills.js the skill functions take g (level-ups gained, = Skills.gained(slot)).
 */
 (function (IB) {
@@ -22,7 +23,7 @@
   // ranks: the effect value per rank (index 0 = rank 1); unit is appended in the UI
   function S(id, tier, col, name, kind, ranks, unit, stat, text, icon) {
     return { id: id, tier: tier, col: col, name: name, kind: kind, ranks: ranks, max: ranks.length, unit: unit,
-      stat: stat, text: text, icon: icon, cost: kind === 'capstone' ? 5 : 1, group: null };
+      stat: stat, text: text, icon: icon, cost: 1, group: kind === 'capstone' ? 'endgame' : null };
   }
 
   /* The tree is laid out as the player's sketch: six rows, the trunk at the bottom, the two endgame skills on top.
@@ -33,9 +34,7 @@
        3                  4     Stamina (special) | Hydrate | Undercover (special)
        4                  3     Hazard | Ricochet | Healthy
        5                  2     Stream | Electrify (special) | Rapid
-       6                  1     Overload | Heavy Ink
-     Normal skills hold 30 + 3 = 33 points; an endgame skill needs 9 below it + 5 = 14 (first affordable after
-     level 12); the 22 points of the whole campaign buy a build (the tree costs 43). */
+       6                  1     Overload | Heavy Ink */
   IB.SKILL_TIERS = [
     { tier: 1, name: 'Trunk', gate: 0 },
     { tier: 2, name: 'Rounds', gate: 1 },
@@ -74,9 +73,9 @@
     S('tank', 5, 0, 'Tank', 'rank', [5, 10, 15], '%', 'Damage resistance',
       'Increases damage resistance and repairs 1 health per second per rank, starting after 4 s without taking damage (like a shield).', 'armor'),
     S('fastfingers', 5, 1, 'Fast Fingers', 'rank', [10, 20, 30], '%', 'Reload and swap speed', 'Increases weapon swap speed and reload speed.', 'reload'),
-    // tier 6: endgame (both can be owned)
+    // tier 6: endgame (pick one)
     S('handyhelpers', 6, 0, 'Handy Helpers', 'capstone', [1], '', 'Rogue bots',
-      'When you wreck a robot there is an 8% chance it turns rogue instead and fights for you for 15 s.', 'helper'),
+      'When you wreck a robot there is an 8% chance it turns rogue instead and fights for you until it is destroyed, with 3-5x its health and 1.5x its damage.', 'helper'),
     S('chainreaction', 6, 1, 'Chain Reaction', 'capstone', [1], '', 'Group blast',
       'Shooting a robot with 2 or more others within 4 m has a 10% chance to blow the whole group up for 40% of each robot\'s max health. They do not all die at once.', 'burst')
   ];

@@ -35,7 +35,7 @@ test('data: 15 skills in 6 tiers (trunk at the bottom), 3-rank skills, 1-rank sp
   assert.deepEqual(row(1), ['overload', 'heavyink']);
   const caps = IB.SKILLS.filter((s) => s.kind === 'capstone');
   assert.equal(caps.length, 2);
-  assert.ok(caps.every((s) => s.tier === IB.SKILL_TIERS.length && !s.group && s.cost === 5));
+  assert.ok(caps.every((s) => s.tier === IB.SKILL_TIERS.length && s.group === 'endgame' && s.cost === 1));
   assert.deepEqual(IB.SKILLS.filter((s) => s.kind === 'special').map((s) => s.id), ['electrify', 'stamina', 'undercover']);
   assert.deepEqual(IB.SKILL_TIERS.map((t) => t.gate), [0, 1, 3, 5, 7, 9]);
   assert.ok(IB.SKILL_TIERS[5].capstone && IB.SKILL_TIERS.slice(0, 5).every((t) => !t.capstone));
@@ -48,8 +48,8 @@ test('economy: 22 points from levels 1-19 only, never more; a build, not the who
   assert.equal(S.totalPoints(), 22);
   for (let L = 20; L <= 60; L++) assert.equal(S.earned(L), 22, 'nothing after level 19 (' + L + ')');
   assert.equal(S.earned(-3), 0); assert.equal(S.earned(NaN), 0); assert.equal(S.earned('19'), 0);
-  assert.equal(treeCost(), 43);
-  assert.ok(IB.SKILL_TIERS[5].gate + 10 <= S.totalPoints(), 'both endgame skills fit in a max-level build');
+  assert.equal(treeCost(), 35);
+  assert.ok(IB.SKILL_TIERS[5].gate + 1 <= S.totalPoints(), 'an endgame skill fits in a max-level build');
 });
 
 test('available points are derived from progress, never stored; buying is the only way to spend them', () => {
@@ -116,25 +116,26 @@ test('tier gates: a row opens once enough points are spent in the rows below it 
   assert.ok(S.validate({ overload: 2, heavyink: 2, hazard: 1, undercover: 1 }, 19).ok);
 });
 
-test('endgame: both can be owned; however the points went in, the top opens and is affordable at max level', () => {
+test('endgame: pick one of the two; however the points went in, the top opens and is affordable at max level', () => {
   const route = ['overload', 'overload', 'overload', 'heavyink', 'heavyink', 'electrify', 'healthy', 'healthy',
     'undercover'];   // 9 points: every row is open
   const sk = buyAll({}, 19, route);
   assert.ok(S.tierUnlocked(sk, 6));
-  const both = buyAll(sk, 19, ['handyhelpers', 'chainreaction']);
-  assert.ok(S.rank(both, 'handyhelpers') && S.rank(both, 'chainreaction'));
-  assert.ok(S.validate(both, 19).ok);
-  assert.equal(S.available(both, 19), 3);
-  // a player who pours 17 points into the low rows first still reaches and buys an endgame skill at max level
-  const low = IB.SKILLS.filter((s) => s.kind !== 'capstone').flatMap((s) => Array(s.max).fill(s.id)).slice(0, 17);
-  const one = buyAll(buyAll({}, 19, low), 19, ['handyhelpers']);
+  const one0 = buyAll(sk, 19, ['handyhelpers']);
+  assert.equal(S.canBuy(one0, 19, 'chainreaction').reason, 'exclusive', 'only one of the two endgame skills');
+  assert.ok(!S.validate({ ...one0, chainreaction: 1 }, 19).ok);
+  // the reported bug: 21 points in the rows below still leave the point for an endgame skill
+  const low = IB.SKILLS.filter((s) => s.kind !== 'capstone').flatMap((s) => Array(s.max).fill(s.id)).slice(0, 21);
+  const before = buyAll({}, 19, low);
+  assert.equal(S.spent(before), 21);
+  for (const cap of ['handyhelpers', 'chainreaction']) assert.ok(S.canBuy(before, 19, cap).ok, cap);
+  const one = buyAll(before, 19, ['chainreaction']);
   assert.equal(S.spent(one), 22);
   assert.equal(S.available(one, 19), 0);
-  assert.equal(S.buy(one, 99, 'chainreaction'), null, 'never more than 22 points');
   // the earliest clear that can afford one is level 12
   const caps = IB.SKILLS.filter((s) => s.kind === 'capstone');
   const first = [...Array(20).keys()].find((L) => S.earned(L) >= IB.SKILL_TIERS[5].gate + caps[0].cost);
-  assert.equal(first, 12);
+  assert.equal(first, 9);
 });
 
 test('old saves: trees with the retired skill ids are refunded in full, never crash', () => {
@@ -195,7 +196,7 @@ test('effects: every skill changes the runtime numbers its text promises', () =>
   near(S.regenRate(S.effects({ tank: 2, healthy: 1 }), 100), 2.5);
   const ff = S.effects({ fastfingers: 3 }); near(ff.reloadMul, 1 / 1.3); near(ff.swapMul, 1 / 1.3);
   // endgame
-  const hh = S.effects({ handyhelpers: 1 }); near(hh.rogue, 0.08); assert.equal(hh.rogueTime, 15);
+  const hh = S.effects({ handyhelpers: 1 }); near(hh.rogue, 0.08); assert.equal(hh.rogueTime, Infinity); near(hh.rogueDmgMul, 1.5); assert.deepEqual(hh.rogueHpMul, [3, 5]);
   const cr = S.effects({ chainreaction: 1 }); near(cr.chain, 0.1); assert.equal(cr.chainMin, 2); assert.equal(cr.chainRadius, 4); near(cr.chainFrac, 0.4);
   // every skill id is read by effects(): owning it changes at least one field
   const base = JSON.stringify(none);

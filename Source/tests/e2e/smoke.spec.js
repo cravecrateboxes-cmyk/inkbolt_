@@ -340,10 +340,10 @@ async function skillsRun(browser, base) {
     const G = IB.Game, z = G.level.zones[G.zone], k0 = G.run.kills, alive0 = IB.AI.alive(G.zone);
     const slot = __TEST__.spawnRobot('gunner', z.entry.x + 4, z.entry.z - 6);
     const alive1 = IB.AI.alive(G.zone);
-    const killed = __TEST__.wreck('gunner', slot);
-    return { slot, killed, kills: G.run.kills - k0, alive0, alive1, alive2: IB.AI.alive(G.zone), r: __TEST__.robot('gunner', slot) };
+    const base = IB.AI.types.gunner.slots[slot].maxHp, killed = __TEST__.wreck('gunner', slot), rr = IB.AI.types.gunner.slots[slot];
+    return { hpx: rr.maxHp / base, full: rr.hp === rr.maxHp, forever: rr.rogue === Infinity, slot, killed, kills: G.run.kills - k0, alive0, alive1, alive2: IB.AI.alive(G.zone), r: __TEST__.robot('gunner', slot) };
   });
-  check('Handy Helpers: the wreck turns rogue instead (counts as a kill, not as a robot left)', h.killed && h.kills === 1 && h.r.on && h.r.rogue > 14 && h.alive2 === h.alive1 - 1, JSON.stringify(h));
+  check('Handy Helpers: the wreck turns rogue instead (a kill, not a robot left; 3-5x health, no timer)', h.killed && h.kills === 1 && h.r.on && h.forever && h.hpx >= 3 && h.hpx <= 5 && h.full && h.alive2 === h.alive1 - 1, JSON.stringify(h));
   check('rogue gets the teal tint', await until(pg, (slot) => IB.AI.types.gunner.parts.Body.fx.getZ(slot) === 1, h.slot, 3000));
   check('player bullets pass through the rogue', await pg.evaluate((slot) => { const r = IB.AI.types.gunner.slots[slot]; return !IB.AI.raycast(r.x, 0.55, r.z + 3, 0, 0, -1, 6); }, h.slot));
   const c = await pg.evaluate((slot) => { const r = IB.AI.types.gunner.slots[slot]; return __TEST__.spawnRobot('crawler', r.x + 1.5, r.z); }, h.slot);
@@ -352,7 +352,7 @@ async function skillsRun(browser, base) {
   await pg.evaluate(() => __TEST__.killZone());
   await until(pg, () => __TEST__.state().zones[0] === 'cleared', null, 8000);
   const hp0 = await pg.evaluate((slot) => { const p = IB.Game.player, r = IB.AI.types.gunner.slots[slot]; p.protect = 0; if (r.on) { r.x = p.x + 1.2; r.z = p.z; } __TEST__.setRogueTime(0.2); return p.health; }, h.slot);
-  check('after 15 s (shortened) the rogue self-destructs', await until(pg, (slot) => !__TEST__.robot('gunner', slot).on, h.slot, 8000));
+  check('a rogue given a timer (test hook) still self-destructs', await until(pg, (slot) => !__TEST__.robot('gunner', slot).on, h.slot, 8000));
   await pg.waitForTimeout(400);
   const hp1 = await pg.evaluate(() => IB.Game.player.health);
   check('its blast is harmless to the player', hp1 >= hp0, hp0 + ' -> ' + hp1);

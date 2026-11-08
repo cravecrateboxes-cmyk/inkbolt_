@@ -380,11 +380,13 @@
   };
   // a kill the player earned: per-type extras (troops.js: weapon drops)
   function paid(r) { var v = VIS[r.type]; if (v.onPlayerKill) v.onPlayerKill(r); }
-  /* Handy Helpers: r fights for the player for t seconds (full health, teal), then self-destructs */
+  /* Handy Helpers: r fights for the player (3-5x health, teal) until destroyed (rogueTime Infinity; a finite t
+     still counts down and self-destructs) */
   AI.makeRogue = function (r, t) {
     if (!r.on || r.state === 'pose') return false;
     releaseToken(r);
-    r.rogue = t || AI.rogueTime || 15; r.rogueEnd = false; r.hp = r.maxHp; r.fuse = 0; r.capPop = 0; r.tgt = null; r.tgtT = 0; r.wet = 0;
+    r.rogue = t || AI.rogueTime || 15; r.rogueEnd = false;
+    var hm = AI.rogueHpMul || [1, 1]; r.maxHp *= hm[0] + Math.random() * (hm[1] - hm[0]); r.hp = r.maxHp;   // Handy Helpers: 3-5x health r.fuse = 0; r.capPop = 0; r.tgt = null; r.tgtT = 0; r.wet = 0;
     r.crouch = 0; r.kx = r.kz = 0; if (!VIS[r.type].flying) { r.hop = 0; r.y = r.gy; }
     setState(r, 'alert'); r.flash = 0.25;
     if (IB.Status && IB.Status.clearRobot) IB.Status.clearRobot(r);

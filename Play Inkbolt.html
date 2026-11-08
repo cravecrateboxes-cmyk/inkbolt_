@@ -6925,7 +6925,8 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
      LV            2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 (21-30: none)
      points        2  3  4  5  6  7  8  9 10 12 13 14 15 16 18 19 20 21 22
    The tree holds 43 points, so 22 buys a build, not the whole tree (respec to change it). The gates are low so the
-   top is always reachable: any 9 points below open the endgame row, and 9 + 5 + 5 = 19 owns both endgame skills.
+   top is always reachable: any 9 points below open the endgame row. The two endgame skills cost 1 point and you
+   pick ONE of them (respec to switch), so even 21 points spent below still leave the point for it.
    In core/skills.js the skill functions take g (level-ups gained, = Skills.gained(slot)).
 */
 (function (IB) {
@@ -6934,7 +6935,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   // ranks: the effect value per rank (index 0 = rank 1); unit is appended in the UI
   function S(id, tier, col, name, kind, ranks, unit, stat, text, icon) {
     return { id: id, tier: tier, col: col, name: name, kind: kind, ranks: ranks, max: ranks.length, unit: unit,
-      stat: stat, text: text, icon: icon, cost: kind === 'capstone' ? 5 : 1, group: null };
+      stat: stat, text: text, icon: icon, cost: 1, group: kind === 'capstone' ? 'endgame' : null };
   }
 
   /* The tree is laid out as the player's sketch: six rows, the trunk at the bottom, the two endgame skills on top.
@@ -6945,9 +6946,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
        3                  4     Stamina (special) | Hydrate | Undercover (special)
        4                  3     Hazard | Ricochet | Healthy
        5                  2     Stream | Electrify (special) | Rapid
-       6                  1     Overload | Heavy Ink
-     Normal skills hold 30 + 3 = 33 points; an endgame skill needs 9 below it + 5 = 14 (first affordable after
-     level 12); the 22 points of the whole campaign buy a build (the tree costs 43). */
+       6                  1     Overload | Heavy Ink */
   IB.SKILL_TIERS = [
     { tier: 1, name: 'Trunk', gate: 0 },
     { tier: 2, name: 'Rounds', gate: 1 },
@@ -6986,9 +6985,9 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     S('tank', 5, 0, 'Tank', 'rank', [5, 10, 15], '%', 'Damage resistance',
       'Increases damage resistance and repairs 1 health per second per rank, starting after 4 s without taking damage (like a shield).', 'armor'),
     S('fastfingers', 5, 1, 'Fast Fingers', 'rank', [10, 20, 30], '%', 'Reload and swap speed', 'Increases weapon swap speed and reload speed.', 'reload'),
-    // tier 6: endgame (both can be owned)
+    // tier 6: endgame (pick one)
     S('handyhelpers', 6, 0, 'Handy Helpers', 'capstone', [1], '', 'Rogue bots',
-      'When you wreck a robot there is an 8% chance it turns rogue instead and fights for you for 15 s.', 'helper'),
+      'When you wreck a robot there is an 8% chance it turns rogue instead and fights for you until it is destroyed, with 3-5x its health and 1.5x its damage.', 'helper'),
     S('chainreaction', 6, 1, 'Chain Reaction', 'capstone', [1], '', 'Group blast',
       'Shooting a robot with 2 or more others within 4 m has a 10% chance to blow the whole group up for 40% of each robot\'s max health. They do not all die at once.', 'burst')
   ];
@@ -11813,7 +11812,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       reloadMul: 1 / (1 + v('fastfingers') / 100),     // Fast Fingers: multiply reload TIME by this
       swapMul: 1 / (1 + v('fastfingers') / 100),       // ... and holster / draw time
       // tier 6 (pick one)
-      rogue: has('handyhelpers') ? 0.08 : 0, rogueTime: 15, rogueDmgMul: 2,   // Handy Helpers
+      rogue: has('handyhelpers') ? 0.08 : 0, rogueTime: Infinity, rogueDmgMul: 1.5, rogueHpMul: [3, 5],   // Handy Helpers
       chain: has('chainreaction') ? 0.1 : 0, chainMin: 2, chainRadius: 4, chainFrac: 0.4, chainCooldown: 1,   // Chain Reaction
       // neutral fields older callers still read (Upgrade Bench stacking, field kit)
       recoilMul: 1, spreadMul: 1, magnetMul: 1, coreMul: 1, leech: 0, maxHpAdd: 0, regen: rk('tank') + 0.5 * rk('healthy')
@@ -16143,11 +16142,13 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   };
   // a kill the player earned: per-type extras (troops.js: weapon drops)
   function paid(r) { var v = VIS[r.type]; if (v.onPlayerKill) v.onPlayerKill(r); }
-  /* Handy Helpers: r fights for the player for t seconds (full health, teal), then self-destructs */
+  /* Handy Helpers: r fights for the player (3-5x health, teal) until destroyed (rogueTime Infinity; a finite t
+     still counts down and self-destructs) */
   AI.makeRogue = function (r, t) {
     if (!r.on || r.state === 'pose') return false;
     releaseToken(r);
-    r.rogue = t || AI.rogueTime || 15; r.rogueEnd = false; r.hp = r.maxHp; r.fuse = 0; r.capPop = 0; r.tgt = null; r.tgtT = 0; r.wet = 0;
+    r.rogue = t || AI.rogueTime || 15; r.rogueEnd = false;
+    var hm = AI.rogueHpMul || [1, 1]; r.maxHp *= hm[0] + Math.random() * (hm[1] - hm[0]); r.hp = r.maxHp;   // Handy Helpers: 3-5x health r.fuse = 0; r.capPop = 0; r.tgt = null; r.tgtT = 0; r.wet = 0;
     r.crouch = 0; r.kx = r.kz = 0; if (!VIS[r.type].flying) { r.hop = 0; r.y = r.gy; }
     setState(r, 'alert'); r.flash = 0.25;
     if (IB.Status && IB.Status.clearRobot) IB.Status.clearRobot(r);
@@ -18629,7 +18630,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
                      3 m of it takes shock over time (5 s burn)
      Undercover      F: invisible for 5 s (ai.js AI.cloak: robots lose you and search), 30 s cooldown after it wears off
      Healthy / Tank  max health %, damage resistance, repair after 4 s without damage
-     Handy Helpers   ai.js AI.rogueChance: a wreck may turn rogue instead and fight for you for 15 s
+     Handy Helpers   ai.js AI.rogueChance: a wreck may turn rogue instead and fight for you until destroyed (3-5x health, 1.5x damage)
      Chain Reaction  a hit on a robot with 2+ others within 4 m: 10% chance (1 s cooldown) the group blows up for 40% of
                      each one's max health (core/skills.js chainDamage: never all of them at once)
    Secondary hits (pierce, ricochet) carry Electrify but roll none of the chance skills, so nothing cascades. */
@@ -18654,7 +18655,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   function applyAI() {
     var f = SF.fx, A = AI(); if (!A || !f) return;
     A.rogueChance = SF.force.rogue !== undefined ? SF.force.rogue : f.rogue;
-    A.rogueTime = f.rogueTime; A.rogueDmgMul = f.rogueDmgMul;
+    A.rogueTime = f.rogueTime; A.rogueDmgMul = f.rogueDmgMul; A.rogueHpMul = f.rogueHpMul;
   }
   SF.begin = function (skills) {
     SF.fx = IB.Skills.effects(skills || {});
@@ -19328,7 +19329,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       if (hasSh && h.shv !== undefined && (r.shield || 0) < h.shv - 1e-4) { h.dmgT = 0; h.flash = 1; }
       h.shv = r.shield || 0;
       // the top row: shield / armour, or for a rogue (ally) the seconds it has left
-      h.sh = ally ? Math.max(0, Math.min(1, r.rogue / (AI.rogueTime || 15))) : hasSh ? Math.max(0, Math.min(1, (r.shield || 0) / r.maxShield)) : -1;
+      h.sh = ally ? (isFinite(AI.rogueTime) ? Math.max(0, Math.min(1, r.rogue / (AI.rogueTime || 15))) : -1) : hasSh ? Math.max(0, Math.min(1, (r.shield || 0) / r.maxShield)) : -1;
       h.ally = ally;
       h.dmgT += dt; h.tgtT = r === tgt ? 0 : h.tgtT + dt;
       h.disp += (frac - h.disp) * Math.min(1, dt * 16);

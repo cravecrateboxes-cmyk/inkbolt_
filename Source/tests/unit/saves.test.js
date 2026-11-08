@@ -176,7 +176,7 @@ test('ago()', () => {
   assert.equal(S.ago(-5000), 'just now');
 });
 
-test('skills are validated against progress on load (spent <= earned, gates; both capstones are allowed)', () => {
+test('skills are validated against progress on load (spent <= earned, gates, one endgame skill)', () => {
   const { be, store } = setup();
   // highest 1 earns 2 points: 2 ranks are fine, 3 are not
   be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 1, skills: { overload: 2 } }));
@@ -188,11 +188,13 @@ test('skills are validated against progress on load (spent <= earned, gates; bot
     be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 17, skills: bad }));
     assert.deepEqual(store.load(1).skills, {}, JSON.stringify(bad));
   }
-  // both capstones are kept once they are paid for (19 points: after level 16)
-  const both = { overload: 3, heavyink: 2, electrify: 1, healthy: 2, undercover: 1, handyhelpers: 1, chainreaction: 1 };
+  // an endgame skill is kept once it is paid for (10 points); both at once is not allowed
+  const both = { overload: 3, heavyink: 2, electrify: 1, healthy: 2, undercover: 1, handyhelpers: 1 };
   be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 99, skills: both }));
   assert.deepEqual(store.load(1).skills, both);
-  be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 15, skills: both }));
+  be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 99, skills: Object.assign({ chainreaction: 1 }, both) }));
+  assert.deepEqual(store.load(1).skills, {}, 'both endgame skills: reset');
+  be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 8, skills: both }));
   assert.deepEqual(store.load(1).skills, {}, 'not enough points yet');
   // a tree from the old 43-point economy is over the 22-point cap: reset, every point back
   const old = { overload: 3, heavyink: 3, stream: 3, electrify: 1, rapid: 3, hazard: 3, ricochet: 3, healthy: 3, undercover: 1 };
