@@ -26,6 +26,7 @@ from mathutils import Matrix, Vector
 from ib_lib import *  # noqa: F401,F403
 import ib_lib
 from kit_base import Kit, rz, srt, shutter_hull
+import ib_text
 
 FAM = 'kit-factory2'
 PFX = 'KIT_FACTORY2_'
@@ -61,16 +62,9 @@ Z = {'pool': 0.016, 'track': 0.024, 'hazard': 0.032, 'cell': 0.04, 'test': 0.048
 
 # ================================================================ shared bits
 def stencil_digit(k, d, x, z, w, h, y, s, c='ink', dy=0.003):
-    """A blocky stencil digit (0-9) on a -Y/+Y facing plane: up to 7 bars, each drawn as its own quad."""
-    t = w * 0.24
-    m0, m1 = z + h / 2 - t / 2, z + h / 2 + t / 2
-    seg = {'a': (x, x + w, z + h - t, z + h), 'g': (x, x + w, m0, m1), 'd': (x, x + w, z, z + t),
-           'f': (x, x + t, m1, z + h - t), 'b': (x + w - t, x + w, m1, z + h - t),
-           'e': (x, x + t, z + t, m0), 'c': (x + w - t, x + w, z + t, m0)}
-    on = {0: 'abcdef', 1: 'bc', 2: 'abged', 3: 'abgcd', 4: 'fgbc', 5: 'afgcd', 6: 'afgedc', 7: 'abc', 8: 'abcdefg', 9: 'abfgcd'}[d]
-    for i, key in enumerate(on):
-        x0, x1, z0, z1 = seg[key]
-        k.qy(x0, x1, z0, z1, y + s * dy * (1 + (i % 2)), s, c)
+    """A stencil-style digit (Bebas Neue vector glyph, ib_text) in the box x..x+w, z..z+h on a -Y (s=-1) / +Y (s=1)
+    facing plane, dy proud of y; reads right from the side it faces."""
+    ib_text.draw(k, str(d), x + w / 2, y + s * dy, z, h, c, face='y-' if s < 0 else 'y+', font='display', maxw=w * 1.1)
 
 
 def spark_star(k, x, y, z, r, s=-1, c='spark'):
