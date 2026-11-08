@@ -34,7 +34,10 @@ ib_lib.PALETTES['weapons'] = [(n, _LIFT.get(n, h)) for n, h in BASE] + [
     ('chip', '#FFFFFF'), ('chip2', '#DCDCE6'), ('ammo', '#2F7BEA'), ('ammo2', '#1E559F'), ('ammo3', '#5C98F0'),
     ('health', '#5BCF4A'), ('health2', '#3E9C33'), ('health3', '#86E078'),
     ('glove4', '#4A465E'),   # moulded glove armour: knuckle / thumb pads, reinforced fingertips
-    ('olive', '#7C8A3E'), ('olive2', '#5C672C'), ('olive3', '#A2B060')]   # rocket ammo crate
+    ('olive', '#7C8A3E'), ('olive2', '#5C672C'), ('olive3', '#A2B060'),   # rocket ammo crate
+    # gun skins (src/game/gunskins.js recolours these per gun and rarity; keep the order: the runtime indexes cells)
+    ('furn', '#4A4257'),     # furniture: pistol grips, stocks
+    ('trim', '#FFB21E')]     # accent stripes / rings (glow lines on Epic and Legendary)
 
 import os
 DEBUG = {} if os.environ.get('IB_DEBUG') else None
@@ -355,7 +358,7 @@ HAND = {'cy': -0.002, 'hx': 0.017, 'hy': 0.024}       # grip cross-section the g
 TRIG = (0.040, -0.013)                                  # trigger face in the grip frame (gy, gz)
 
 
-def grip(k, rake, style='pistol', color='gun2', panel='gun3', w=0.034, ay=0.0, az=0.0, top=0.012, bottom=-0.100,
+def grip(k, rake, style='pistol', color='furn', panel='gun3', w=0.034, ay=0.0, az=0.0, top=0.012, bottom=-0.100,
          ptop=-0.022, grooves=3, ch=0.004):
     """Pistol grip around the standard hand section; texture panels + ink grooves on both sides + a cross screw."""
     hy, cy = HAND['hy'], HAND['cy']
@@ -441,7 +444,7 @@ def rail(k, y0, y1, z, w=0.022, pitch=0.012, x=0.0, color='gunmetal', base='ink'
         k.box((x, yc, z + 0.004), (w, pitch * 0.6, 0.007), color, skip=('-z',))
 
 
-def stripe(k, y0, y1, z0, z1, half, color='amber'):
+def stripe(k, y0, y1, z0, z1, half, color='trim'):
     """Flat Amber accent stripe through a body of half-width <= half - 3 mm (shows on both sides)."""
     k.box((0, (y0 + y1) / 2, (z0 + z1) / 2), (half * 2, y1 - y0, z1 - z0), color)
 
@@ -578,7 +581,7 @@ def build_rivet(pal):
             k.box((s * 0.0270, 0.172 + i * 0.036, bz + 0.004), (0.006, 0.022, 0.008), 'ink', skip=('-x' if s > 0 else '+x',))
         for i in range(2):
             k.screw((s * 0.0270, 0.152 + i * 0.196, bz - 0.006), (s, 0, 0))
-    k.box((0, 0.250, bz - 0.0145), (0.0600, 0.180, 0.006), 'amber')
+    k.box((0, 0.250, bz - 0.0145), (0.0600, 0.180, 0.006), 'trim')
     rail(k, 0.141, 0.352, 0.059, w=0.020, pitch=0.018, clear=[(0.322, 0.338)])
     barrel(k, 0.350, 0.450, 0.0085, bz)
     muzzle(k, 0.448, 0.500, 0.0120, bz, rb=0.0055, ports=3)                       # birdcage
@@ -588,7 +591,7 @@ def build_rivet(pal):
     trigger(k, rake)
     grip(k, rake, 'ar', w=0.033, top=-0.008, ptop=-0.038, grooves=2)
     k.lathe([(-0.112, 0), (-0.112, 0.014), (-0.270, 0.014), (-0.274, 0.010), (-0.274, 0)], 'steel2', 'y', (0, 0, 0.030), 8)   # buffer tube
-    k.ext_x([(-0.180, 0.048), (-0.300, 0.050), (-0.304, -0.040), (-0.282, -0.046), (-0.250, -0.010), (-0.190, 0.012)], -0.019, 0.019, 'gun2', ch=0.004)
+    k.ext_x([(-0.180, 0.048), (-0.300, 0.050), (-0.304, -0.040), (-0.282, -0.046), (-0.250, -0.010), (-0.190, 0.012)], -0.019, 0.019, 'furn', ch=0.004)
     k.ext_x([(-0.299, 0.054), (-0.314, 0.054), (-0.316, -0.044), (-0.301, -0.044)], -0.0225, 0.0225, 'ink')    # butt pad
     k.box((0, -0.244, 0.028), (0.044, 0.044, 0.006), 'gun3')
     mk = Kit(pal)
@@ -656,7 +659,7 @@ def build_handcannon(pal):
     for i in range(2):
         k.box((0, 0.210 + i * 0.008, 0.0555), (0.012, 0.004, 0.006), 'ink', skip=('-z',))
     muzzle(k, 0.230, 0.250, 0.0105, bz, rb=0.0055, hull=True, seg=8)
-    k.box((0, 0.160, 0.019), (0.0335, 0.120, 0.006), 'amber')
+    k.box((0, 0.160, 0.019), (0.0335, 0.120, 0.006), 'trim')
     k.lathe([(0.076, 0), (0.076, 0.0045), (0.228, 0.0045), (0.234, 0.0025), (0.234, 0)], 'steel', 'y', (0, 0, 0.004), 6, hull=False)   # ejector rod
     # sights: front post with red insert, adjustable rear on the topstrap
     k.box((0, 0.226, 0.065), (0.008, 0.012, 0.018), 'ink', hull=True)
@@ -699,7 +702,7 @@ def build_twintap(pal):
             k.box((s * 0.0235, 0.040, zz), (0.006, 0.120, 0.005), 'ink', skip=sk)
         for i in range(2):
             k.box((s * 0.0235, -0.074 + i * 0.010, 0.034), (0.006, 0.0045, 0.040), 'ink', skip=sk)
-    k.box((0, 0.045, 0.034), (0.0525, 0.080, 0.006), 'amber')
+    k.box((0, 0.045, 0.034), (0.0525, 0.080, 0.006), 'trim')
     k.box((0.015, -0.005, 0.0605), (0.023, 0.046, 0.016), 'ink')                # port
     # compensator with top + side ports, twin crowns
     k.cbox((0, 0.143, 0.034), (0.050, 0.040, 0.058), 'gun3', ch=0.004, axis='y')
@@ -765,8 +768,8 @@ def build_buzz(pal):
     k.xbar(-0.0275, -0.0240, [(-0.052, 0.010), (-0.032, 0.008), (-0.030, 0.016), (-0.050, 0.018)], 'gun3', ch=0, hull=False)   # selector
     k.pin(-0.0270, 0.0270, -0.080, 0.012, 0.003)
     # skeleton stock (extended): top bar, sloped lower strut, butt plate
-    k.box((0, -0.170, 0.050), (0.016, 0.160, 0.014), 'gun2', hull=True)
-    k.bar((0, -0.100, 0.004), (0, -0.240, -0.030), 0.014, 0.012, 'gun2', hull=True)
+    k.box((0, -0.170, 0.050), (0.016, 0.160, 0.014), 'furn', hull=True)
+    k.bar((0, -0.100, 0.004), (0, -0.240, -0.030), 0.014, 0.012, 'furn', hull=True)
     k.ext_x([(-0.236, 0.062), (-0.256, 0.062), (-0.258, -0.044), (-0.238, -0.044)], -0.019, 0.019, 'ink', ch=0.003)
     k.box((0, -0.244, 0.010), (0.044, 0.008, 0.050), 'gun3')
     mk = Kit(pal)
@@ -792,7 +795,7 @@ def build_whisk(pal):
     L0, L1, r = 0.106, 0.270, 0.0205
     k.lathe([(L0, 0), (L0, r - 0.004), (L0 + 0.006, r), (0.180, r), (0.180, r + 0.003), (0.202, r + 0.003), (0.202, r), (L1 - 0.004, r),
              (L1, r - 0.004), (L1, 0.006), (L1 - 0.010, 0.006), (L1 - 0.010, 0)], 'gun3', 'y', (0, 0, bz), 12,
-            bands=[None, None, None, 'amber', 'amber', 'amber', None, None, None, 'ink', 'ink'])
+            bands=[None, None, None, 'trim', 'trim', 'trim', None, None, None, 'ink', 'ink'])
     for i in range(3):
         k.box((0, 0.230 + i * 0.012, bz + r - 0.0005), (0.010, 0.004, 0.007), 'ink', skip=('-z',))
     k.box((0, 0.216, bz + r + 0.010), (0.005, 0.008, 0.024), 'ink', hull=True)       # front post on the can (on the sight line)
@@ -804,7 +807,7 @@ def build_whisk(pal):
     # wire stock (collapsed): two rods + butt plate
     for s in (-1, 1):
         k.lathe([(-0.150, 0), (-0.150, 0.004), (-0.074, 0.004), (-0.074, 0)], 'steel', 'y', (s * 0.016, 0, 0.012), 6, hull=True)
-    k.ext_x([(-0.146, 0.040), (-0.160, 0.040), (-0.162, -0.034), (-0.148, -0.030)], -0.022, 0.022, 'gun2', ch=0.003)
+    k.ext_x([(-0.146, 0.040), (-0.160, 0.040), (-0.162, -0.034), (-0.148, -0.030)], -0.022, 0.022, 'furn', ch=0.003)
     k.box((0, -0.153, -0.022), (0.050, 0.008, 0.010), 'ink')
     my, mz = g2w(rake, HAND['cy'], -0.096)
     mk = Kit(pal)
@@ -846,7 +849,7 @@ def build_hornet(pal):
     # retractable stock: two rails, butt with cheek rest
     for s in (-1, 1):
         k.box((s * 0.015, -0.150, 0.036), (0.008, 0.130, 0.010), 'steel2', hull=True)
-    k.ext_x([(-0.206, 0.060), (-0.224, 0.060), (-0.226, -0.030), (-0.208, -0.026)], -0.0225, 0.0225, 'gun2', ch=0.003)
+    k.ext_x([(-0.206, 0.060), (-0.224, 0.060), (-0.226, -0.030), (-0.208, -0.026)], -0.0225, 0.0225, 'furn', ch=0.003)
     k.box((0, -0.215, -0.024), (0.052, 0.010, 0.010), 'ink')
     k.box((0, -0.190, 0.058), (0.026, 0.040, 0.010), 'gun3')
     mk = Kit(pal)
@@ -929,7 +932,7 @@ def build_longtom(pal):
     for s in (-1, 1):
         for i in range(6):
             k.box((s * 0.0240, 0.165 + i * 0.040, bz), (0.006, 0.024, 0.008), 'ink', skip=('-x' if s > 0 else '+x',))
-    k.box((0, 0.290, bz - 0.0145), (0.0540, 0.220, 0.006), 'amber')
+    k.box((0, 0.290, bz - 0.0145), (0.0540, 0.220, 0.006), 'trim')
     rail(k, 0.141, 0.250, 0.058, w=0.020, pitch=0.018)
     barrel(k, 0.410, 0.536, 0.0100, bz)
     for s in (-1, 1):
@@ -940,7 +943,7 @@ def build_longtom(pal):
     trigger(k, rake)
     grip(k, rake, 'ar', w=0.033, top=-0.008, ptop=-0.038, grooves=2)
     # fixed precision stock: cheek riser, butt pad, sling stud
-    k.ext_x([(-0.110, 0.050), (-0.180, 0.050), (-0.330, 0.054), (-0.334, -0.060), (-0.300, -0.064), (-0.200, -0.016), (-0.110, -0.016)], -0.020, 0.020, 'gun2', ch=0.005)
+    k.ext_x([(-0.110, 0.050), (-0.180, 0.050), (-0.330, 0.054), (-0.334, -0.060), (-0.300, -0.064), (-0.200, -0.016), (-0.110, -0.016)], -0.020, 0.020, 'furn', ch=0.005)
     k.ext_x([(-0.190, 0.049), (-0.300, 0.053), (-0.300, 0.064), (-0.196, 0.062)], -0.0155, 0.0155, 'gun3', ch=0.003)
     k.ext_x([(-0.330, 0.058), (-0.346, 0.058), (-0.348, -0.064), (-0.332, -0.066)], -0.0235, 0.0235, 'ink', ch=0.003)
     for s in (-1, 1):
@@ -997,7 +1000,7 @@ def build_brick(pal):
     trigger(k, rake)
     grip(k, rake, 'ar', w=0.034, top=0.000, ptop=-0.032)
     # stock: solid with butt plate, buffer ridge
-    k.ext_x([(-0.126, 0.072), (-0.320, 0.064), (-0.322, -0.046), (-0.296, -0.050), (-0.180, -0.004), (-0.126, 0.006)], -0.022, 0.022, 'gun2', ch=0.005)
+    k.ext_x([(-0.126, 0.072), (-0.320, 0.064), (-0.322, -0.046), (-0.296, -0.050), (-0.180, -0.004), (-0.126, 0.006)], -0.022, 0.022, 'furn', ch=0.005)
     k.ext_x([(-0.318, 0.070), (-0.336, 0.070), (-0.338, -0.050), (-0.320, -0.054)], -0.0265, 0.0265, 'ink', ch=0.003)
     k.box((0, -0.220, 0.040), (0.050, 0.120, 0.006), 'gun3')
     # brick ammo box (the Mag): ribs, lid, feed chute with rounds
@@ -1033,7 +1036,7 @@ def build_needle(pal):
         for i in range(5):
             k.box((s * 0.0225, 0.150 + i * 0.034, 0.004), (0.006, 0.022, 0.012), 'ink', skip=('-x' if s > 0 else '+x',))
         k.screw((s * 0.0225, 0.060, 0.008), (s, 0, 0))
-    k.box((0, 0.230, -0.010), (0.0510, 0.180, 0.005), 'amber')
+    k.box((0, 0.230, -0.010), (0.0510, 0.180, 0.005), 'trim')
     bipod_folded(k, 0.200, 0.320, -0.026, x=0.012)
     rail(k, -0.104, 0.098, bz + 0.0195, w=0.020, pitch=0.014, clear=[(-0.074, -0.054), (0.044, 0.064)])
     # barrel (taper) and two-chamber brake
@@ -1056,7 +1059,7 @@ def build_needle(pal):
     grip(k, rake, 'ar', w=0.033, top=-0.022, ptop=-0.040)
     # skeleton chassis stock: top bar with cheek riser, lower strut, butt pad, monopod
     k.cbox((0, -0.2045, 0.020), (0.020, 0.191, 0.020), 'gun3', ch=0.004, axis='y')
-    k.cbox((0, -0.225, 0.040), (0.026, 0.090, 0.016), 'gun2', ch=0.004, axis='y')
+    k.cbox((0, -0.225, 0.040), (0.026, 0.090, 0.016), 'furn', ch=0.004, axis='y')
     k.bar((0, -0.100, -0.024), (0, -0.290, -0.056), 0.020, 0.016, 'gun3', hull=True)
     k.ext_x([(-0.296, 0.040), (-0.318, 0.040), (-0.320, -0.074), (-0.298, -0.074)], -0.0215, 0.0215, 'ink', ch=0.003)
     k.lathe([(-0.060, 0), (-0.060, 0.007), (0.0, 0.007), (0.0, 0)], 'steel2', 'z', (0, -0.262, -0.050), 8, hull=False)
@@ -1093,7 +1096,7 @@ def build_scrapper(pal):
     k.pin(-0.0295, 0.0295, -0.060, 0.012, 0.003)
     k.pin(-0.0295, 0.0295, 0.090, 0.012, 0.003)
     # stock: wood-tone polymer with a recoil pad
-    k.ext_x([(-0.106, 0.064), (-0.330, 0.050), (-0.332, -0.050), (-0.300, -0.056), (-0.160, -0.004), (-0.106, 0.010)], -0.021, 0.021, 'amber', ch=0.005)
+    k.ext_x([(-0.106, 0.064), (-0.330, 0.050), (-0.332, -0.050), (-0.300, -0.056), (-0.160, -0.004), (-0.106, 0.010)], -0.021, 0.021, 'furn', ch=0.005)
     k.ext_x([(-0.328, 0.056), (-0.348, 0.056), (-0.350, -0.056), (-0.330, -0.060)], -0.025, 0.025, 'ink', ch=0.003)
     for i in range(3):
         k.box((0, -0.200 - i * 0.030, 0.0560 - i * 0.002), (0.050, 0.010, 0.006), 'gun3')
@@ -1121,7 +1124,7 @@ def build_thunder(pal):
     for s in (-1, 1):
         for i in range(4):
             k.box((s * 0.0290, 0.180 + i * 0.052, bz + 0.004), (0.006, 0.030, 0.026), 'ink', skip=('-x' if s > 0 else '+x',))
-    k.box((0, 0.214, bz - 0.0305), (0.062, 0.100, 0.006), 'amber')
+    k.box((0, 0.214, bz - 0.0305), (0.062, 0.100, 0.006), 'trim')
     barrel(k, 0.390, 0.450, 0.0140, bz, seg=12)
     k.lathe([(0.446, 0), (0.446, 0.0200), (0.488, 0.0200), (0.488, 0.0110), (0.478, 0.0110), (0.478, 0)], 'steel2', 'y', (0, 0, bz), 12)   # brake
     for i in range(4):
@@ -1181,7 +1184,7 @@ def build_vanguard(pal):
     trigger(k, rake)
     grip(k, rake, 'ar', w=0.034, top=-0.008, ptop=-0.038, grooves=2)
     k.lathe([(-0.116, 0), (-0.116, 0.015), (-0.260, 0.015), (-0.264, 0.011), (-0.264, 0)], 'steel2', 'y', (0, 0, 0.030), 8)
-    k.ext_x([(-0.170, 0.056), (-0.300, 0.058), (-0.304, -0.046), (-0.282, -0.052), (-0.240, -0.014), (-0.180, 0.012)], -0.020, 0.020, 'gun2', ch=0.004)
+    k.ext_x([(-0.170, 0.056), (-0.300, 0.058), (-0.304, -0.046), (-0.282, -0.052), (-0.240, -0.014), (-0.180, 0.012)], -0.020, 0.020, 'furn', ch=0.004)
     k.ext_x([(-0.300, 0.062), (-0.316, 0.062), (-0.318, -0.050), (-0.302, -0.054)], -0.024, 0.024, 'ink')
     k.cbox((0, -0.236, 0.066), (0.030, 0.080, 0.014), 'gun3', ch=0.003, axis='y')                         # cheek riser
     mk = Kit(pal)
@@ -1201,7 +1204,7 @@ def build_railspike(pal):
     k.ext_x([(0.060, 0.002), (0.130, 0.002), (0.132, -0.034), (0.124, -0.044), (0.060, -0.044), (0.056, -0.032)], -0.0255, 0.0255, 'gun2', ch=0.003)
     # open rail frame: two rails (top / bottom) with coil rings between, an ink core
     for zz in (bz + 0.020, bz - 0.020):
-        k.cbox((0, 0.392, zz), (0.020, 0.496, 0.012), 'amber', ch=0.003, axis='y')
+        k.cbox((0, 0.392, zz), (0.020, 0.496, 0.012), 'trim', ch=0.003, axis='y')
     k.lathe([(0.140, 0), (0.140, 0.0060), (0.640, 0.0060), (0.640, 0)], 'ink', 'y', (0, 0, bz), 8, hull=False)
     for i in range(5):
         y = 0.180 + i * 0.090
@@ -1225,7 +1228,7 @@ def build_railspike(pal):
     k.cbox((0, -0.205, 0.024), (0.022, 0.180, 0.022), 'gun3', ch=0.004, axis='y')
     k.bar((0, -0.110, -0.022), (0, -0.290, -0.052), 0.020, 0.016, 'gun3', hull=True)
     k.ext_x([(-0.290, 0.044), (-0.312, 0.044), (-0.314, -0.072), (-0.292, -0.072)], -0.022, 0.022, 'ink', ch=0.003)
-    k.cbox((0, -0.226, 0.044), (0.026, 0.090, 0.016), 'gun2', ch=0.004, axis='y')
+    k.cbox((0, -0.226, 0.044), (0.026, 0.090, 0.016), 'furn', ch=0.004, axis='y')
     mk = Kit(pal)
     mk.cbox((0, 0.0, -0.036), (0.030, 0.056, 0.072), 'gun2', ch=0.004, axis='x')                            # battery pack
     mk.box((0, 0.0, -0.036), (0.037, 0.030, 0.040), 'lens')
@@ -1258,7 +1261,7 @@ def build_hothead(pal):
     k.lathe([(0.286, 0), (0.286, 0.051), (0.326, 0.055), (0.366, 0.063), (0.378, 0.063), (0.378, 0.051), (0.334, 0.040), (0.334, 0)],
             'red', 'y', (0, 0, bz), 16, bands=[None, None, None, None, 'ink', 'ink', 'ink'])                                 # muzzle bell
     for y in (0.196, 0.226, -0.214):
-        k.ring('y', (0, 0, bz), y, y + 0.016, R - 0.010, R + 0.0045, 'amber', seg=16, hull=False)
+        k.ring('y', (0, 0, bz), y, y + 0.016, R - 0.010, R + 0.0045, 'trim', seg=16, hull=False)
     k.ring('y', (0, 0, bz), 0.150, 0.162, R - 0.010, R + 0.0040, 'ink', seg=16, hull=False)
     # caged element canister (left side): dark core, three bars, two end caps; ELEM socket at its centre
     cx, cz = -(R + 0.010), bz - 0.004
@@ -1274,7 +1277,7 @@ def build_hothead(pal):
     k.cbox((0, -0.150, 0.12825), (0.022, 0.032, 0.0245), 'gunmetal', ch=0.003, axis='y')
     k.ring('y', (0, 0, zs), -0.156, -0.148, 0.0040, 0.0085, 'gunmetal', seg=8, hull=True)
     k.cbox((0, 0.120, 0.1278), (0.012, 0.018, 0.0235), 'gunmetal', ch=0.002, axis='y')
-    k.ring('y', (0, 0, zs), 0.116, 0.124, 0.0120, 0.0165, 'amber', seg=12, hull=True)
+    k.ring('y', (0, 0, zs), 0.116, 0.124, 0.0120, 0.0165, 'trim', seg=12, hull=True)
     # arming lever (rear left) and a shoulder pad under the rear of the tube
     k.cbox((-0.034, -0.110, bz - 0.040), (0.012, 0.036, 0.012), 'gun3', ch=0.002, axis='y')
     k.cbox((0, -0.190, 0.025), (0.034, 0.090, 0.020), 'gun2', ch=0.005, axis='y')
@@ -1283,7 +1286,7 @@ def build_hothead(pal):
     # 3-rocket cassette: box with three red warheads peeking out of its nose
     mk = Kit(pal)
     mk.cbox((0, 0.0, -0.026), (0.046, 0.074, 0.070), 'gun2', ch=0.004, axis='x')
-    mk.box((0, 0.0, -0.022), (0.052, 0.056, 0.012), 'amber')
+    mk.box((0, 0.0, -0.022), (0.052, 0.056, 0.012), 'trim')
     mk.cbox((0, 0.0, -0.064), (0.052, 0.082, 0.010), 'gun3', ch=0.003, axis='z')
     for i in (-1, 0, 1):
         mk.lathe([(0.030, 0), (0.030, 0.0062), (0.044, 0.0058), (0.052, 0)], 'red', 'y', (i * 0.0140, 0, -0.044), 8, hull=False)
@@ -1310,7 +1313,7 @@ def build_murmur(pal):
     for y, w in ((0.230, 0.020), (-0.132, 0.020)):                                                             # bundle straps
         k.cbox((0, y, bz), (2 * (dx + R) + 0.012, w, 2 * (dz + R) + 0.012), 'gunmetal', ch=0.004, axis='y')
     for y in (0.176, -0.090):                                                                                                  # hazard bands
-        k.box((0, y, bz), (2 * (dx + R) + 0.006, 0.012, 2 * (dz + R) + 0.006), 'amber')
+        k.box((0, y, bz), (2 * (dx + R) + 0.006, 0.012, 2 * (dz + R) + 0.006), 'trim')
     k.cbox((0, 0.040, 0.034), (0.100, 0.300, 0.012), 'gun2', ch=0.003, axis='y')                                              # saddle onto the frame
     # lock-on targeting unit (top left): housing on a mount, seeker lens + ring, lock LED, whip antenna
     tx, ty, tz = -0.054, 0.080, 0.140
@@ -1318,7 +1321,7 @@ def build_murmur(pal):
     k.cbox((tx, ty, tz), (0.034, 0.096, 0.036), 'gun2', ch=0.004, axis='y')
     k.ring('y', (tx, 0, tz), ty + 0.046, ty + 0.058, 0.0100, 0.0150, 'gunmetal', seg=6)
     k.lathe([(ty + 0.046, 0), (ty + 0.046, 0.0102), (ty + 0.052, 0.0080), (ty + 0.055, 0)], 'lens', 'y', (tx, 0, tz), 6, hull=False)
-    k.box((tx - 0.0185, ty - 0.010, tz + 0.006), (0.004, 0.030, 0.008), 'amber')
+    k.box((tx - 0.0185, ty - 0.010, tz + 0.006), (0.004, 0.030, 0.008), 'trim')
     k.cbox((tx + 0.004, ty - 0.020, tz + 0.020), (0.010, 0.010, 0.008), 'red', ch=0.002)
     k.bar((tx - 0.008, ty - 0.040, tz + 0.016), (tx - 0.008, ty - 0.040, tz + 0.062), 0.004, 0.004, 'ink', hull=False)
     # sights on the centre line (rear aperture, front ring)
@@ -1326,7 +1329,7 @@ def build_murmur(pal):
     k.cbox((0, -0.120, 0.12575), (0.022, 0.028, 0.0235), 'gunmetal', ch=0.003, axis='y')
     k.ring('y', (0, 0, zs), -0.126, -0.118, 0.0040, 0.0085, 'gunmetal', seg=8, hull=True)
     k.cbox((0, 0.240, 0.12625), (0.012, 0.016, 0.0205), 'gunmetal', ch=0.002, axis='y')
-    k.ring('y', (0, 0, zs), 0.236, 0.244, 0.0110, 0.0155, 'amber', seg=12, hull=True)
+    k.ring('y', (0, 0, zs), 0.236, 0.244, 0.0110, 0.0155, 'trim', seg=12, hull=True)
     # arming lever (rear left, under the bundle) and a shoulder pad
     k.cbox((-0.034, -0.110, 0.030), (0.012, 0.036, 0.012), 'gun3', ch=0.002, axis='y')
     k.cbox((0, -0.190, 0.025), (0.034, 0.090, 0.020), 'gun2', ch=0.005, axis='y')
@@ -1335,7 +1338,7 @@ def build_murmur(pal):
     # missile cassette: a flat box with an amber label band, three warheads peeking out of its nose
     mk = Kit(pal)
     mk.cbox((0, 0.0, -0.022), (0.050, 0.080, 0.064), 'gun2', ch=0.004, axis='x')
-    mk.box((0, 0.0, -0.024), (0.056, 0.060, 0.014), 'amber')
+    mk.box((0, 0.0, -0.024), (0.056, 0.060, 0.014), 'trim')
     for i in (-1, 1):
         mk.box((0, i * 0.018, -0.024), (0.062, 0.006, 0.020), 'ink')
     mk.cbox((0, 0.0, -0.058), (0.056, 0.086, 0.010), 'gun3', ch=0.003, axis='z')

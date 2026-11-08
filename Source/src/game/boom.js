@@ -676,7 +676,9 @@
   B.tracer = function (ax, ay, az, bx, by, bz, def) {
     if (!B.ready) return;
     var dx = bx - ax, dy = by - ay, dz = bz - az, L = Math.sqrt(dx * dx + dy * dy + dz * dz); if (L < 0.5) return;
-    var heavy = def && (def.cls === 'sniper' || def.id === 'handcannon'), c = card(C.streak, M_TRACER, ax, ay, az, 1, 1, 1, heavy ? 0xFFE15A : PAL.amber);
+    var heavy = def && (def.cls === 'sniper' || def.id === 'handcannon'), tint = heavy ? 0xFFE15A : PAL.amber;
+    if (def && IB.GunSkins) { var tr = IB.GunSkins.tierOf(def.id); if (tr !== 'gray') tint = parseInt(IB.GunSkins.feel(tr).tracer.slice(1), 16); }   // rarity tracer tint
+    var c = card(C.streak, M_TRACER, ax, ay, az, 1, 1, 1, tint);
     c.ex = bx; c.ey = by; c.ez = bz; c.sp = heavy ? 320 : 230; c.seg = Math.min(L * 0.6, heavy ? 6 : 3.4); c.life = (L + c.seg) / c.sp; c.w = heavy ? 0.1 : 0.06; c.a0 = 0.95;
   };
   /* electric arc between two points (Lightning Rod, Electrify, shock DoT) */

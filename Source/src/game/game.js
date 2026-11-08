@@ -207,9 +207,9 @@
         if (m.kind === 'gun') {
           L.id = guns[(Math.random() * guns.length) | 0]; L.tier = rollW(TIERS); L.level = G.plan.level;
           if (IB.Launchers) IB.Launchers.rackPick(L);   // levels 14+: now and then a launcher on the rack
-          var T = WD.tier(L.tier), def = IB.WEAPONS[L.id], nm = IB.GunLevel ? IB.GunLevel.displayName(def, L.roll) : def.name;
+          var T = WD.tier(L.tier), def = IB.WEAPONS[L.id], nm = WD.skinName ? WD.skinName(L.id, L.tier, L.roll) : def.name;
           L.label = 'Take ' + nm; L.sub = T.name + ' · Lv ' + L.level + ' · x' + (T.dmg * (IB.GunLevel ? IB.GunLevel.mul(L.level) : 1)).toFixed(2) + ' damage'; L.color = T.color;
-          key = 'WPN:' + L.id; tags.push(L);
+          key = 'WPN:' + L.id + ':' + L.tier; tags.push(L);   // one instanced mesh per gun and tier (rarity skin)
         } else {
           var types = m.kind === 'mod' ? attach : worn;
           if (!types.length) return;
@@ -224,7 +224,7 @@
       });
       Object.keys(groups).forEach(function (key) {
         var list = groups[key], isGun = key.indexOf('WPN:') === 0;
-        var geo = isGun ? G.gunGeo(list[0].id) : A.get(key), mat = isGun ? G.worldWpnMat : A.material(key);
+        var geo = isGun ? G.gunGeo(list[0].id) : A.get(key), mat = isGun ? (IB.GunSkins ? IB.GunSkins.material(list[0].id, list[0].tier) : G.worldWpnMat) : A.material(key);
         var im = new THREE.InstancedMesh(geo, mat, list.length);
         im.frustumCulled = false;
         var local = isGun ? null : itemLocal(geo, new THREE.Matrix4());
@@ -286,7 +286,7 @@
   function updateLoot() {
     if (!G.loot || !G.loot.length) { if (HUD.use) HUD.use(null); return; }
     var L = G.dead || G.complete || !G.player.alive ? null : nearestLoot();
-    if (HUD.use) HUD.use(L ? { key: 'E', text: L.label, sub: L.sub, color: L.color } : null);
+    if (HUD.use) HUD.use(L ? { key: 'E', text: L.label, sub: L.sub, color: L.color, gun: L.kind === 'gun' ? { id: L.id, tier: L.tier, level: L.level, roll: L.roll } : null } : null);
     if (L && Inp.usePressed) takeLoot(L);
   }
   G.nearestLoot = nearestLoot; G.takeLoot = takeLoot;
@@ -323,7 +323,7 @@
       g.position.set(0, 1.02, 0.1);
       return g;
     }
-    var gun = new THREE.Mesh(A.get('WPN_' + id.toUpperCase()), G.worldWpnMat);
+    var gun = new THREE.Mesh(A.get('WPN_' + id.toUpperCase()), def.cls !== 'melee' && IB.GunSkins ? IB.GunSkins.material(id, 'gray') : G.worldWpnMat);
     if (def.cls === 'melee') {
       gun.scale.setScalar(1.6);
       gun.rotation.set(-0.42, 0.5, 0);                               // standing on its pommel, leaning back on the crate

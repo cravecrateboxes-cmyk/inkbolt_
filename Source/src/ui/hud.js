@@ -137,6 +137,9 @@
     if (w.id !== L.id || w.name !== L.name || w.cls !== L.cls || w.level !== L.level) {
       L.id = w.id; L.name = w.name; L.cls = w.cls; L.level = w.level;
       el.wpnName.textContent = String(w.name || CLS_NAME[w.cls] || '').toUpperCase();
+      // the name in its tier colour from Tuned up ('Cobalt Rivet' in blue: core/gunskins.js names)
+      var tc = IB.WeaponDrops && IB.WEAPONS && IB.WEAPONS[w.id] && w.cls !== 'melee' && w.cls !== 'shove' ? IB.WeaponDrops.tierOf(w.id) : null;
+      el.wpnName.style.color = tc && tc.rank > 0 ? tc.color : '';
       el.wpnIcon.innerHTML = H.icon(w.cls);
       el.wpnCls.textContent = H.clsName(w.cls) + (w.level > 0 && w.cls !== 'melee' && w.cls !== 'shove' ? ' · Lv ' + w.level : '');   // gun item level (core/gunlevel.js)
     }
@@ -163,11 +166,11 @@
       el.weapon.classList.toggle('reloading', state === 'reload');
       el.prompt.hidden = !(state === 'empty' || state === 'reload' || (state === 'low' && res !== 0));
       el.prompt.className = 'prompt ' + state;
-      if (state === 'reload') { el.promptKey.hidden = true; el.promptText.textContent = 'Reloading'; }
+      if (state === 'reload') { el.promptKey.hidden = true; el.promptText.textContent = 'Reload'; }
       else if (outOfAll) { el.promptKey.hidden = true; el.promptText.textContent = 'No ammo · swap weapon'; }
       else { el.promptKey.hidden = false; el.promptKey.textContent = 'R'; el.promptText.textContent = state === 'low' ? 'Low ammo' : 'Reload'; }
     }
-    if (state === 'reload') { var pq = Math.round(fill * 100); if (pq !== L.pfill) { L.pfill = pq; el.promptFill.style.width = pq + '%'; } }
+    if (state === 'reload') { var pq = Math.round(fill * 100); if (pq !== L.pfill) { L.pfill = pq; el.promptFill.style.width = pq + '%'; el.prompt.style.setProperty('--p', pq + '%'); } }
   };
   // legacy: keeps name/class from the last HUD.weapon call
   var AMMO = { mag: 0, reserve: 0, magSize: 0 };
@@ -253,14 +256,39 @@
     if (!el) return;
     var on = !!d;
     if (on !== USE.on) { USE.on = on; el.hidden = !on; if (tb) tb.hidden = !on; }
+    H.peek('rack', on && d.gun ? d.gun : null);
     if (on && (d.text !== USE.text || d.color !== USE.color)) {
       USE.text = d.text; USE.color = d.color;
-      el.querySelector('.key').textContent = ('ontouchstart' in window) ? 'USE' : d.key;
+      var tk = ('ontouchstart' in window); el.classList.toggle('tk', tk);
+      el.querySelector('.key').textContent = tk ? 'USE' : d.key;
       el.querySelector('.ut').textContent = d.text;
       el.querySelector('.us').textContent = d.sub || '';
       el.style.setProperty('--rar', d.color || '#12C7B6');
     }
   };
+  /* weapon card for a gun in the world you walk up to / look at (armory rack: source 'rack', ground drop: 'drop'; the
+     rack wins). spec {id, tier, level, roll, melee} or null. The card (IB.GearUI.peekHtml) is rebuilt only when the
+     target changes; a picture still being drawn swaps in by itself (IB.Thumbs). */
+  var PEEK = { rack: null, drop: null, key: '' };
+  H.peek = function (src, spec) {
+    PEEK[src] = spec || null;
+    var p = PEEK.rack || PEEK.drop, el = H.el.peek;
+    var key = p ? [p.id, p.tier, p.level, p.melee ? 1 : 0, p.roll ? p.roll.mag + p.roll.elem : '', IB.WeaponDrops ? IB.WeaponDrops.tierOf(p.id).id : ''].join('|') : '';
+    if (key === PEEK.key) return;
+    PEEK.key = key;
+    if (!el) {
+      if (!p) return;
+      el = H.el.peek = document.createElement('div'); el.className = 'peek-card'; el.id = 'peekCard';
+      (document.getElementById('hud') || document.body).appendChild(el);
+    }
+    el.hidden = !p;
+    if (p) {
+      var html = IB.GearUI && IB.GearUI.peekHtml ? IB.GearUI.peekHtml(IB.Game, p) : '';
+      el.innerHTML = html; el.hidden = !html;
+      el.style.setProperty('--rar', p.melee ? '#FFC23A' : IB.WeaponDrops ? IB.WeaponDrops.tier(p.tier).color : '#2EEAD8');
+    }
+  };
+  H.peekKey = function () { return PEEK.key; };
   H.toast = function (text, secs) { H.el.toast.textContent = text; H.el.toast.hidden = false; toastT = secs || 2.5; H.el.toast.style.animation = 'none'; void H.el.toast.offsetWidth; H.el.toast.style.animation = ''; };
   H.elim = function (show, name, count, retries) {
     H.el.elim.hidden = !show;

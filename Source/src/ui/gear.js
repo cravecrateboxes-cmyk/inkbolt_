@@ -49,7 +49,12 @@
   function clsName(c) { return IB.HUD && IB.HUD.clsName ? IB.HUD.clsName(c) : c; }
   function clsIcon(c) { return IB.HUD && IB.HUD.icon ? IB.HUD.icon(c) : ''; }
   // pictures: the real model rendered by IB.Thumbs, else the class / type glyph
-  function gunPic(w, cls) { var d = IB.WEAPONS[w], fb = '<span class="pic-fb">' + clsIcon(d && d.cls) + '</span>'; return IB.Thumbs ? IB.Thumbs.pic('gun', w, cls || 'gpic', fb) : '<span class="' + (cls || 'gpic') + '">' + fb + '</span>'; }
+  function gunPic(w, cls) {
+    var d = IB.WEAPONS[w], fb = '<span class="pic-fb">' + clsIcon(d && d.cls) + '</span>';
+    var k = d && d.cls !== 'melee' && IB.WeaponDrops ? w + '@' + IB.WeaponDrops.tierOf(w).id : w;   // rarity skin picture
+    return IB.Thumbs ? IB.Thumbs.pic('gun', k, cls || 'gpic', fb) : '<span class="' + (cls || 'gpic') + '">' + fb + '</span>'; }
+  // a gun's name dressed by its tier ('Cobalt Rivet': core/gunskins.js via IB.WeaponDrops.nameOf)
+  function gunName(w) { return IB.WeaponDrops && IB.WeaponDrops.nameOf ? IB.WeaponDrops.nameOf(w) : IB.WEAPONS[w].name; }
   // rarity: types with a model per rarity (shield cells) draw that rarity's own model
   function perRarity(type) { var td = IB.LOOT.types[type], m = td && td.models; if (!m) return false; var k = Object.keys(m); return k.some(function (r) { return m[r] !== m[k[0]]; }); }
   function gearPic(type, cls, rar) {
@@ -283,7 +288,7 @@
       var chips = slots.map(function (sl) { return chipHtml(G, g, w, sl); }).join('');
       rows += '<div class="inv-wrow' + (sel ? ' cur' : '') + '"><span class="inv-num">' + (i + 1) + '</span>' +
         '<button class="tile lo-slot inv-wslot' + (def ? '' : ' empty') + (sel ? ' sel' : '') + '"' + (gr ? ' style="--rar:' + gr.color + '"' : '') + ' data-gact="slot" data-slot="' + i + '" data-k="s' + i + '" data-nav aria-pressed="' + sel + '" aria-label="Slot ' + (i + 1) + ': ' + (def ? esc(def.name) : 'empty') + '">' + FR +
-          (def ? gunPic(w, 'ws-pic') + '<span class="ws-name">' + esc(def.name) + '</span>' : '<span class="ws-plus" aria-hidden="true">+</span><span class="ws-name">' + (touch() ? 'Tap' : 'Pick') + ' a gun</span>') +
+          (def ? gunPic(w, 'ws-pic') + '<span class="ws-name">' + esc(gunName(w)) + '</span>' : '<span class="ws-plus" aria-hidden="true">+</span><span class="ws-name">' + (touch() ? 'Tap' : 'Pick') + ' a gun</span>') +
         '</button>' + (chips ? '<div class="inv-chips n' + slots.length + '">' + chips + '</div>' : def && def.noMods ? '<div class="inv-chips n1"><span class="gu-nofit">Launchers take no mods</span></div>' : '') + '</div>';
     }
     var worn = IB.LOOT.worn.map(function (sl) { return '<div class="inv-gear"><span class="inv-gl">' + svg(sl === 'shield' ? SI.cap : SI[sl] || SI.cap) + '</span>' + wornTile(G, g, sl) + '</div>'; }).join('');
@@ -307,7 +312,7 @@
     var gunT = guns.map(function (w) {
       var def = IB.WEAPONS[w], gr = grade(def), sel = S.sel && S.sel.k === 'gun' && S.sel.id === w, n = Object.keys(L.weaponItems(g, w)).length;
       return '<button class="tile lo-card inv-item gun' + (sel ? ' sel' : '') + (tgt ? ' faded' : '') + '" style="--rar:' + gr.color + '" data-gact="gun" data-gun="' + w + '" data-k="g_' + w + '" data-nav aria-label="' + esc(def.name) + ', ' + clsName(def.cls) + '">' + FR +
-        gunPic(w, 'it-pic') + '<span class="it-name">' + esc(def.name) + '</span>' + (n ? '<span class="it-mods" aria-hidden="true">+' + n + '</span>' : '') + '</button>';
+        gunPic(w, 'it-pic') + '<span class="it-name">' + esc(gunName(w)) + '</span>' + (n ? '<span class="it-mods" aria-hidden="true">+' + n + '</span>' : '') + '</button>';
     }).join('');
     function itemTile(it) {
       var rc = rarity(it), sel = S.sel && S.sel.k === 'item' && S.sel.id === it.id, f = fits(it);
@@ -373,6 +378,42 @@
     host.innerHTML = cardFor(curG, gearOf(curG), spec);
   }
 
+  /* compact weapon card for a gun lying in the world (HUD peek panel, src/ui/hud.js H.peek): p = {id, tier, level,
+     roll, melee}. Stats as that gun would fight (no mods), compared with your own gun of that type when you have one. */
+  GU.peekHtml = function (G, p) {
+    var def = IB.WEAPONS[p.id]; if (!def || !G || !G.slot) return '';
+    var WDg = IB.WeaponDrops, T = WDg ? WDg.tier(p.tier) : { name: 'Standard', color: '#E4DFD3', id: 'gray' };
+    if (p.melee || def.cls === 'melee') {
+      var own = (G.slot.melee || []).indexOf(p.id) >= 0;
+      return '<div class="pk-req"><span>Melee</span><span>' + (own ? 'Owned' : 'New') + '</span></div><div class="pk-bar" style="--rar:#FFC23A"><b>' + esc(def.name) + '</b></div>' +
+        '<ul class="pk-stats"><li>' + svg(SI.dmg, 'pk-si') + '<span>Damage</span><b>' + Math.round(def.damage) + '</b></li><li>' + svg(SI.rate, 'pk-si') + '<span>Swing</span><b>' + def.swing.toFixed(2) + ' s</b></li></ul>' +
+        '<div class="pk-foot">' + gunPic(p.id, 'pk-pic') + '</div>';
+    }
+    var S0 = G.slot; S0.gunTier = S0.gunTier || {}; S0.gunLevel = S0.gunLevel || {}; S0.gunRoll = S0.gunRoll || {};
+    var g = gearOf(G), have = (S0.arsenal || []).indexOf(p.id) >= 0, mine = have ? gunStats(G, p.id, g) : null;
+    var keep = [S0.gunTier[p.id], S0.gunLevel[p.id], S0.gunRoll[p.id]], st, lv;
+    try {
+      S0.gunTier[p.id] = T.id; S0.gunLevel[p.id] = Math.max(1, p.level || 1); if (p.roll) S0.gunRoll[p.id] = p.roll;
+      st = gunStats(G, p.id, null); lv = WDg && WDg.levelOf ? WDg.levelOf(p.id) : p.level;
+    } finally {
+      ['gunTier', 'gunLevel', 'gunRoll'].forEach(function (k, i) { if (keep[i] === undefined) delete S0[k][p.id]; else S0[k][p.id] = keep[i]; });
+    }
+    var name = WDg && WDg.skinName ? WDg.skinName(p.id, T.id, p.roll) : def.name, notes = [];
+    var el = p.roll && def.elements && IB.GunLevel ? IB.GunLevel.element(p.roll.elem) : null;
+    if (el && el.name) notes.push(el.name + ' rockets');
+    if (def.launcher === 'homing') notes.push('Homing salvo of ' + def.missiles);
+    if (st.def.acid) notes.push('Acid rounds');
+    if (st.fx.shock) notes.push('Shock rounds');
+    if (def.scopeZoom) notes.push(def.scopeZoom + 'x scope');
+    if (def.splash) notes.push('Splash ' + def.radius + ' m');
+    var pic = (IB.Thumbs ? IB.Thumbs.pic('gun', p.id + '@' + T.id, 'pk-pic', '') : '');
+    return '<div class="pk-req"><span>' + esc(T.name + ' ' + clsName(def.cls)) + '</span><span>Lv ' + lv + '</span></div>' +
+      '<div class="pk-bar" style="--rar:' + T.color + '"><b>' + esc(name) + '</b></div>' +
+      (mine ? '<div class="pk-vs">vs yours · ' + esc(WDg.nameOf(p.id)) + '</div>' : '<div class="pk-vs new">New gun</div>') +
+      statList(st.lines, mine && mine.lines).replace('class="ic-stats"', 'class="ic-stats pk-stats"') +
+      (notes.length ? '<ul class="pk-notes">' + notes.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul>' : '') +
+      '<div class="pk-foot">' + pic + '</div>';
+  };
   GU.reset = function (G) {
     var lo = loadout(G), max = maxSlots(G);
     S.slot = Math.min(lo.length, max - 1); S.sel = null; S.target = null; S.confirm = null;
