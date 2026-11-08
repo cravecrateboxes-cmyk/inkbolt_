@@ -340,7 +340,11 @@
       AI.robots.forEach(function (o) {
         if (!o.on || o === v.r || o.state === 'spawn' || o.state === 'pose' || o.rogue > 0 || (IB.AI.VIS[o.type] && IB.AI.VIS[o.type].flying && o.y > 2)) return;
         var dx = v.x - o.x, dz = v.z - o.z, d = Math.hypot(dx, dz);
-        if (d > v.R || d < 1.1) return;
+        if (d > v.R) return;
+        // how hard it is pulled (0..1): the bodies lean, drag, lift and flail by it (trooperrig.js, AI.sync)
+        var k = Math.min(1, 0.45 + 0.6 * (1 - d / v.R)) * Math.min(1, v.t / 0.25);
+        if (k > (o.pullTgt || 0)) { o.pullTgt = k; o.pullX = v.x; o.pullZ = v.z; }
+        if (d < 1.1) return;
         var step = Math.min(d - 1.1, dt * (3 + 6 * (1 - d / v.R))), nx = o.x + dx / d * step, nz = o.z + dz / d * step;
         var zi = Z.zoneAt(L, nx, nz);
         if (zi >= 0 && Z.isOpen(L.zones[zi], nx, nz)) { o.x = nx; o.z = nz; }
@@ -348,10 +352,22 @@
     }
   }
   Gear.voidCount = function () { return voids.length; };
+  // the pull each robot feels, eased in and out so the bodies never snap (r.pull 0..1, r.pullT its own clock)
+  function easePull(dt) {
+    var rs = IB.AI && IB.AI.robots; if (!rs) return;
+    for (var i = 0; i < rs.length; i++) {
+      var o = rs[i]; if (!o.pull && !o.pullTgt) continue;
+      var tg = o.on ? o.pullTgt || 0 : 0;
+      o.pull = (o.pull || 0) + (tg - (o.pull || 0)) * Math.min(1, dt * (tg > o.pull ? 5 : 2.6));
+      if (o.pull < 0.005 && !tg) o.pull = 0;
+      o.pullT = (o.pullT || 0) + dt; o.pullTgt = 0;
+    }
+  }
 
   // ---------------- per frame ----------------
   Gear.update = function (dt, G) {
     if (voids.length) tickVoids(dt);
+    easePull(dt);
     var p = G.player, st = p && p.shield;
     if (st && p.alive) {
       var ev = L().tickShield(st, dt);
@@ -391,6 +407,8 @@
       Gear.save(G); return it ? it.id : null;
     },
     drops: function () { return IB.Drops.list(); },
+    // a Void singularity at (x, z) (height y, reach R m, t s), as a Void can opens one on a hit
+    forceVoid: function (x, z, R, t, y) { voids.push({ x: x, y: y === undefined ? 1 : y, z: z, r: null, t: t || 1.4, R: R || 6 }); return voids.length; },
     gearState: function () {
       var G = IB.Game, g = Gear.gear(G), p = G.player, w = IB.Weapons.current(G.ws);
       return { inv: g ? g.inv.map(function (i) { return { id: i.id, type: i.type, rarity: i.rarity, name: i.name, perk: i.perk ? i.perk.id : null }; }) : [], shield: g && g.shield, armor: g && g.armor,

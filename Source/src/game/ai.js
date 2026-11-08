@@ -422,7 +422,7 @@
     r.y = r.sy + (opts.pose ? r.hy : 1.0);
     r.vx = r.vz = 0; r.kx = r.kz = 0; r.flash = 0; r.crouch = 0; r.token = false; r.alert = 0; r.blind = 0;
     r.cool = 0.6 + Math.random() * 1.2; r.thinkT = 0; r.mode = 'approach'; r.sdir = Math.random() < 0.5 ? -1 : 1; r.bump = 0; r.lost = 0;
-    r.tilt = 0; r.wob = 0; r.lid = 0; r.aim = -0.45; r.gunOut = 0; r.kick = 0; r.bankX = r.bankZ = 0; r.fuse = 0; r.capPop = 0;
+    r.tilt = 0; r.wob = 0; r.pull = r.pullTgt = 0; r.lid = 0; r.aim = -0.45; r.gunOut = 0; r.kick = 0; r.bankX = r.bankZ = 0; r.fuse = 0; r.capPop = 0;
     r.yaw = Math.atan2(tx - x, tz - z); r.walk = Math.random() * 3; r.dmgMul = (AI.dmgMul || 1) * (opts.dmgScale || 1);
     r.rogue = 0; r.rogueEnd = false; r.wet = 0; r.tgt = null; r.tgtT = 0;
     r.fy = r.gy = 0; r.fvy = 0; r.hop = 0;
@@ -1217,6 +1217,18 @@
     // legacy one-liner: translate, pitch about X, stretch Y
     set: function (name, k, lx, ly, lz, rx, sy) { return P.root().t(lx, ly, lz).rx(rx || 0).s(1, sy, 1).emit(name, k); }
   };
+  /* dragged by a singularity (gear.js, r.pull 0..1): the body tips toward the core from its feet, rocks and skips
+     off the ground, and stretches a little along the pull */
+  var _qa = new THREE.Quaternion(), _ax = new THREE.Vector3();
+  function pulled(r) {
+    var p = r.pull, t = r.pullT || 0, ph = r.slot * 1.7, dx = (r.pullX || r.x) - r.x, dz = (r.pullZ || r.z) - r.z, d = Math.hypot(dx, dz) || 1;
+    _ax.set(dz / d, 0, -dx / d);   // up x (to the core): tipping about it leans the top toward the core
+    _qa.setFromAxisAngle(_ax, p * (0.3 + 0.07 * Math.sin(t * 8.5 + ph)));
+    _q.premultiply(_qa);
+    _ax.set(dx / d, 0, dz / d); _qa.setFromAxisAngle(_ax, p * 0.1 * Math.sin(t * 6.1 + ph)); _q.premultiply(_qa);   // side to side
+    _v.y += p * p * (0.06 + 0.1 * Math.abs(Math.sin(t * 7.3 + ph)));
+    _s.y *= 1 + 0.07 * p; _s.x *= 1 - 0.035 * p; _s.z *= 1 - 0.035 * p;
+  }
   AI.sync = function () {
     for (var ti = 0; ti < AI.typeList.length; ti++) {
       var T = AI.typeList[ti], hi = -1, s, k, pi;
@@ -1233,6 +1245,7 @@
         else { _tk = 0; _ta = 0; }
         var sq = r.squash || 0;   // spawn hop: + squashes (landing), - stretches (pushing up out of the can)
         _q.setFromAxisAngle(_up, r.yaw); _v.set(r.x, r.y, r.z); _s.set(1 + sq * 0.22, 1 - sq * 0.3, 1 + sq * 0.22);
+        if (r.pull > 0.01 && !T.vis.flying) pulled(r);
         _base.compose(_v, _q, _s);
         T.vis.pose(r, P);
         if (IB.FX) IB.FX.blob(r.x, r.fy || 0, r.z, T.vis.shadow * (T.vis.flying ? 0.8 : 1 - Math.min(0.5, r.y - (r.fy || 0))));

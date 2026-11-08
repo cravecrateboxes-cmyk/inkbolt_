@@ -100,7 +100,10 @@
     var root = cloneRig(src), mesh = null, bones = {};
     root.traverse(function (o) { if (o.isSkinnedMesh) mesh = o; if (o.isBone) bones[o.name.replace(/[.:\/\[\]]/g, '')] = o; });
     var R = { root: root, mesh: mesh, muzzle: root.getObjectByName('TROOPER_MUZZLE'), handL: bones['DEF-handL'],
-      spine: [bones['DEF-spine001'], bones['DEF-spine002'], bones['DEF-spine003']], var: -1, mixer: new THREE.AnimationMixer(root),
+      spine: [bones['DEF-spine001'], bones['DEF-spine002'], bones['DEF-spine003']], var: -1,
+      neck: bones['DEF-neck'], head: bones['DEF-head'], arm: [bones['DEF-upper_armL'], bones['DEF-upper_armR']],
+      fore: [bones['DEF-forearmL'], bones['DEF-forearmR']], thigh: [bones['DEF-thighL'], bones['DEF-thighR']],
+      shin: [bones['DEF-shinL'], bones['DEF-shinR']], pYaw: null, mixer: new THREE.AnimationMixer(root),
       low: {}, up: {}, one: {}, death: null, os: null, osT: 0, osDur: 0, r: null, t: 0, sink: 0 };
     mesh.frustumCulled = false; mesh.material = mats[0];
     Object.keys(clips.low).forEach(function (k) { var a = R.mixer.clipAction(clips.low[k]); a.play(); a.setEffectiveWeight(0); R.low[k] = a; });
@@ -182,6 +185,9 @@
     if (R.low.sprint) R.low.sprint.timeScale = sgn * Math.max(0.8, hs / 5.6);
     if (R.low.cwalk) R.low.cwalk.timeScale = sgn * Math.max(0.6, hs / 1.4);
     var c = crouch, s = 1 - c;
+    // dragged by a singularity: the stepping cycles give way to planted, dragging feet (the pulled layer below)
+    var pl = r.pull || 0, keep = 1 - Math.min(1, pl * 1.25);
+    wWalk *= keep; wJog *= keep; wSprint *= keep; wIdle = wIdle * keep + (1 - keep);
     weight(R, R.low.idle, 'idle', wIdle * s, 8, dt); weight(R, R.low.walk, 'walk', wWalk * s, 8, dt);
     weight(R, R.low.jog, 'jog', wJog * s, 8, dt); weight(R, R.low.sprint, 'sprint', wSprint * s, 8, dt);
     if (R.low.cidle) weight(R, R.low.cidle, 'cidle', wIdle * c, 8, dt);
@@ -200,18 +206,76 @@
     var osW = 0;
     if (R.os) { R.osT += dt; var left = R.osDur - R.osT; osW = Math.min(1, R.osT / 0.1, Math.max(0, left / 0.15)); R.os.setEffectiveWeight(osW); if (left <= 0) { R.os.stop(); R.os = null; osW = 0; } }
     var aim = r.aim || 0, up = Math.max(0, Math.min(1, aim / 0.6)), dn = Math.max(0, Math.min(1, -(aim + 0.05) / 0.6)), nt = Math.max(0, 1 - up - dn);
-    var f = (fight ? 1 : 0) * (1 - osW), rd = (fight ? 0 : 1) * (1 - osW);
+    var f = (fight ? 1 : 0) * (1 - osW) * keep, rd = (fight ? 0 : 1) * (1 - osW) * keep + (1 - keep) * (1 - osW);
     weight(R, R.up.ready, 'ready', rd, 6, dt);
     weight(R, R.up.aimN, 'aimN', f * nt, 10, dt); weight(R, R.up.aimU, 'aimU', f * up, 10, dt); weight(R, R.up.aimD, 'aimD', f * dn, 10, dt);
     R.mixer.update(dt);
     // the legs face the way it walks; the spine twists the chest back onto the aim, recoil kicks it
-    var legRel = r.legRel || 0;
-    R.root.rotation.set(0, r.yaw + legRel, 0);
+    var legRel = r.legRel || 0, yaw = r.yaw + legRel;
+    if (pl > 0.01) { yaw = pullYaw(R, r, yaw, pl, dt); legRel *= 1 - pl; } else R.pYaw = null;
+    R.root.rotation.set(0, yaw, 0);
+    if (pl > 0.01) pullBody(R, r, pl, yaw);
     R.root.updateMatrixWorld(true);
     for (var i = 0; i < 3; i++) turnBone(R.spine[i], _ax, -legRel * (i === 2 ? 0.4 : 0.3));
     if (r.kick > 0.01) {
       _v.set(Math.cos(r.yaw), 0, -Math.sin(r.yaw));   // the soldier's right
       turnBone(R.spine[2], _v, -r.kick * 0.12);
+    }
+    if (pl > 0.01) pullLimbs(R, r, pl, yaw);
+  }
+
+  /* ---- the pulled layer (a Void can's singularity, gear.js: r.pull 0..1 eased, r.pullX / pullZ the core) ----
+     The body is caught from behind: it turns (rate-limited, never spins) to brace with its back to the core, tips
+     toward it from the feet, skips and lifts off the ground as the pull grows, its legs trail and kick, the spine
+     arches and the head whips back, the arms flail forward grabbing for footing. All on top of the mixer's pose. */
+  var _pd = new THREE.Vector3(), _pa = new THREE.Vector3(), _pr = new THREE.Vector3(), _pf = new THREE.Vector3();
+  function wrapA(a) { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; }
+  function pullDir(r) {
+    var dx = (r.pullX === undefined ? r.x : r.pullX) - r.x, dz = (r.pullZ === undefined ? r.z : r.pullZ) - r.z, d = Math.hypot(dx, dz);
+    if (d < 1e-3) { dx = -Math.sin(r.yaw); dz = -Math.cos(r.yaw); d = 1; }
+    _pd.set(dx / d, 0, dz / d);
+    _pa.set(_pd.z, 0, -_pd.x);   // up x (to the core): turning about it tips the top toward the core
+    return _pd;
+  }
+  function pullYaw(R, r, yaw, pl, dt) {
+    var d = pullDir(r), away = Math.atan2(d.x, d.z);   // forward (-sin, -cos) pointing away from the core
+    // brace three-quarters away from the core on the side it already faces: a quarter turn at most, never a spin
+    var off = wrapA(yaw - away), tgt = away + Math.max(-0.9, Math.min(0.9, off));
+    if (R.pYaw === null) R.pYaw = yaw;
+    var dl = wrapA(tgt - R.pYaw), mx = dt * 2.2;
+    R.pYaw = wrapA(R.pYaw + Math.max(-mx, Math.min(mx, dl)));
+    return yaw + wrapA(R.pYaw - yaw) * Math.min(1, pl * 1.4);
+  }
+  function pullBody(R, r, pl, yaw) {
+    var t = r.pullT || 0, ph = r.slot * 1.3, air = Math.max(0, pl - 0.45) / 0.55;
+    pullDir(r);
+    // tip toward the core from the feet, rocking; airborne it tumbles a little further
+    _q.setFromAxisAngle(_pa, pl * (0.26 + 0.05 * Math.sin(t * 7.1 + ph)) + air * 0.18);
+    R.root.quaternion.premultiply(_q);
+    _q.setFromAxisAngle(_pd, pl * 0.08 * Math.sin(t * 5.3 + ph)); R.root.quaternion.premultiply(_q);
+    // skips off the ground, then floats
+    R.root.position.y += pl * 0.05 * Math.abs(Math.sin(t * 8.4 + ph)) + air * air * (0.32 + 0.07 * Math.sin(t * 3.1 + ph));
+  }
+  function pullLimbs(R, r, pl, yaw) {
+    var t = r.pullT || 0, ph = r.slot * 1.3, air = Math.max(0, pl - 0.45) / 0.55, i, sd;
+    pullDir(r);
+    _pr.set(Math.cos(yaw), 0, -Math.sin(yaw));   // the soldier's right
+    _pf.set(-Math.sin(yaw), 0, -Math.cos(yaw));  // and forward
+    // spine arches toward the core, the head lags and whips
+    for (i = 0; i < 3; i++) turnBone(R.spine[i], _pa, pl * (0.07 + 0.02 * i) + pl * 0.03 * Math.sin(t * 9 + ph + i));
+    turnBone(R.neck, _pa, pl * 0.1);
+    turnBone(R.head, _pa, pl * (0.12 + 0.1 * Math.sin(t * 6.7 + ph)));
+    for (i = 0; i < 2; i++) {
+      sd = i ? 1 : -1;   // L, R
+      // arms thrown up and out, clawing forward out of phase
+      var claw = Math.sin(t * (10.5 + i * 1.7) + ph + i * 2.1);
+      turnBone(R.arm[i], _pr, pl * (0.95 + 0.45 * claw));
+      turnBone(R.arm[i], _pf, sd * pl * (0.45 + 0.2 * Math.sin(t * 7.9 + i * 1.3 + ph)));
+      turnBone(R.fore[i], _pr, pl * (0.3 + 0.35 * Math.max(0, -claw)));
+      // legs trail away from the core and kick for footing; airborne they hang and bicycle
+      var kick = Math.sin(t * (8.2 + i * 0.9) + ph + i * Math.PI);
+      turnBone(R.thigh[i], _pa, -pl * (0.22 + 0.25 * air) + pl * 0.28 * kick);
+      turnBone(R.shin[i], _pr, -pl * (0.25 + 0.3 * air) * (0.6 + 0.4 * Math.max(0, kick)));
     }
   }
 
