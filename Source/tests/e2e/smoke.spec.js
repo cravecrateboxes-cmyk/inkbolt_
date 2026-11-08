@@ -970,6 +970,21 @@ async function launcherRun(browser, base) {
   await until(pg, () => IB.WeaponDrops.live().length === 0, null, 8000);
   const got = await pg.evaluate(() => { const s = IB.Game.slot; return { has: s.arsenal.includes('hothead'), roll: s.gunRoll.hothead, lv: s.gunLevel.hothead, rockets: s.rockets }; });
   check('a launcher drop joins the arsenal with its magazine roll, element, level and rockets', got.has && got.roll.mag === 5 && got.roll.elem === 'acid' && got.lv === 14 && got.rockets >= 5, JSON.stringify(got));
+  // rarity skins + weapon peek card: a drop in front shows its card (tier name, stats, compare vs yours), then hides
+  const pk = await pg.evaluate(async () => {
+    window.__poll = window.__poll || ((f, ms) => new Promise(done => { const t0 = performance.now(); (function k() { let v = false; try { v = f(); } catch (e) { v = false; } if (v || performance.now() - t0 > ms) return done(!!v); setTimeout(k, 100); })(); }));
+    const G = IB.Game, WD = IB.WeaponDrops, p = G.player;
+    WD.clear(); WD.testDrop('pip', 'orange', false, 16); const d = WD.live().pop(); WD.list.forEach(q => { if (q.on) q.t = -99; });
+    p.yaw = Math.atan2(-(d.x - p.x), -(d.z - p.z));
+    await window.__poll(() => { const e = document.getElementById('peekCard'); return e && !e.hidden; }, 6000);
+    const e = document.getElementById('peekCard'), r = { shown: !!e && !e.hidden, text: e ? e.textContent : '', rows: e ? e.querySelectorAll('.pk-stats li').length : 0,
+      cmp: e ? e.querySelectorAll('.cmp').length : 0, skin: IB.GunSkins.material('pip', 'orange').userData.skin.shimmer, name: WD.skinName('pip', 'orange') };
+    WD.clear(); await window.__poll(() => document.getElementById('peekCard').hidden, 3000);
+    r.hidden = document.getElementById('peekCard').hidden;
+    r.ring = !!document.querySelector('#prompt .prompt-ring') && !!document.querySelector('#usePrompt .uacc');
+    return r;
+  });
+  check('looking at a gun drop shows its weapon card (rarity name, stats, compare), and it hides again', pk.shown && pk.hidden && /Legendary/.test(pk.text) && pk.text.toUpperCase().includes(pk.name.toUpperCase()) && pk.rows >= 4 && pk.cmp > 0 && pk.skin === 1 && pk.ring, JSON.stringify(pk).slice(0, 300));
   // in-page wait for a condition (the headless GPU runs the game well below real time)
   await pg.evaluate(() => { window.__poll = (f, ms) => new Promise(done => { const t0 = performance.now(); (function k() { let v = false; try { v = f(); } catch (e) { v = false; } if (v || performance.now() - t0 > ms) return done(!!v); setTimeout(k, 100); })(); }); });
   // Hothead: direct hit + splash on the robot next to it

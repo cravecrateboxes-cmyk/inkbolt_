@@ -347,3 +347,54 @@ body.touch-on .hud .arcs { width: 300px; height: 300px; margin: -150px; }
 body.touch-on .hud .kit { display: none; }
 .touch .tbtn .tcount { position: absolute; right: 4px; bottom: 2px; font: 700 12px/1 'Barlow Condensed', sans-serif; font-style: normal; }
 .touch .tbtn.none { opacity: 0.4; }
+
+
+/* ---- reload: a radial ring under the crosshair with a small label (hud.js: --p = progress) ---- */
+.hud .prompt.reload { background: none; clip-path: none; padding: 0; display: grid; grid-template-columns: auto; justify-items: center; gap: 4px; top: calc(50% + 34px);
+  font-size: 12px; letter-spacing: .28em; color: var(--hx-teal); text-shadow: var(--hx-ts); }
+.hud .prompt .prompt-ring { display: none; }
+.hud .prompt.reload .prompt-ring { display: block; order: -1; width: 40px; height: 40px; border-radius: 50%;
+  background: conic-gradient(var(--hx-teal) var(--p, 0%), rgba(214, 238, 255, .18) 0);
+  -webkit-mask: radial-gradient(circle, transparent 13px, #000 14px); mask: radial-gradient(circle, transparent 13px, #000 14px);
+  filter: drop-shadow(0 0 5px var(--hx-teal-g)); }
+.hud .prompt.reload .prompt-bar { display: none; }
+
+/* ---- use prompt (armory: take a gun / gear): key cap, name, rarity accent ---- */
+.hud .use-prompt { top: calc(50% + 96px); gap: 1px 12px; padding: 7px 18px 7px 7px; background: linear-gradient(90deg, rgba(9, 12, 22, .82), rgba(9, 12, 22, .6));
+  border: 0; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--hx-line), 0 6px 18px rgba(0, 0, 0, .35); font-family: var(--hf); color: var(--hx-txt);
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px)); overflow: hidden; }
+.hud .use-prompt .uacc { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--rar, var(--hx-teal)); box-shadow: 0 0 10px var(--rar, var(--hx-teal)); }
+.hud .use-prompt .key { min-width: 32px; height: 32px; padding: 0 7px; border-radius: 5px; background: linear-gradient(180deg, #FFFFFF, #D8E2EE); color: #15121C;
+  box-shadow: 0 3px 0 #8A98AE, 0 4px 6px rgba(0, 0, 0, .4); font-size: 17px; font-weight: 800; letter-spacing: 0; margin-left: 4px; }
+.hud .use-prompt.tk .key { font-size: 12px; letter-spacing: .06em; }
+.hud .use-prompt .ut { font-size: 17px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.hud .use-prompt .us { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--rar, var(--hx-teal)); }
+
+/* ---- weapon peek card: a gun in the world you walk up to (hud.js H.peek, gear.js GearUI.peekHtml) ---- */
+.hud .peek-card { position: absolute; left: calc(50% + 70px); top: 50%; transform: translateY(-58%); width: 250px; padding: 9px 11px 8px; pointer-events: none;
+  background: linear-gradient(160deg, rgba(14, 30, 64, .9), rgba(9, 16, 36, .88)); border: 2px solid var(--rar); border-radius: 4px;
+  box-shadow: 0 0 0 2px #15121C, 0 8px 22px rgba(0, 0, 0, .45), inset 0 0 22px color-mix(in srgb, var(--rar) 18%, transparent);
+  font-family: var(--hf); color: var(--hx-txt); text-shadow: 0 1px 0 #0b0f1c; animation: peekIn .16s ease-out; }
+@keyframes peekIn { from { opacity: 0; transform: translate(-8px, -58%); } }
+.peek-card .pk-req { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--hx-dim); }
+.peek-card .pk-bar { margin: 4px -4px 5px; padding: 4px 9px 3px; background: linear-gradient(180deg, color-mix(in srgb, var(--rar) 82%, #fff), var(--rar) 60%, color-mix(in srgb, var(--rar) 75%, #000));
+  clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%); }
+.peek-card .pk-bar b { display: block; font-size: 19px; line-height: 1.05; text-transform: uppercase; color: #15121C; text-shadow: 0 1px 0 rgba(255, 255, 255, .35); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.peek-card .pk-vs { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--hx-dim); margin-bottom: 2px; }
+.peek-card .pk-vs.new { color: #6BE05A; }
+.peek-card .pk-stats { list-style: none; margin: 0; padding: 0; display: grid; }
+.peek-card .pk-stats li { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto 12px; align-items: center; gap: 7px; min-height: 21px; font-size: 14px; border-bottom: 1px solid rgba(111, 234, 255, .1); }
+.peek-card .pk-stats li:last-child { border-bottom: 0; }
+.peek-card .pk-stats svg { width: 15px; height: 15px; color: #6FEAFF; }
+.peek-card .pk-stats b { font-size: 15px; text-align: right; }
+.peek-card .cmp { font-style: normal; font-size: 10px; }
+.peek-card .cmp.up { color: #6BE05A; } .peek-card .cmp.dn { color: #FF4B3E; }
+.peek-card .pk-notes { list-style: none; margin: 4px 0 0; padding: 0; font-size: 12px; font-weight: 600; color: var(--rar); text-transform: uppercase; letter-spacing: .05em; }
+.peek-card .pk-notes li::before { content: '◆ '; color: var(--hx-txt); }
+.peek-card .pk-foot { display: flex; justify-content: flex-end; height: 54px; margin-top: 2px; }
+.peek-card .pk-pic { display: grid; place-items: center end; height: 54px; max-width: 100%; } .peek-card .pk-pic .pic { max-height: 54px; max-width: 100%; }
+body.touch-on .hud .peek-card { left: calc(var(--sal, 0px) + 130px); top: 58px; transform: none; width: 200px; padding: 6px 9px; animation: none; }
+body.touch-on .hud .peek-card .pk-foot { display: none; }
+body.touch-on .hud .peek-card .pk-stats li { min-height: 18px; font-size: 13px; }
+body.touch-on .hud .use-prompt { top: calc(50% + 70px); }
+@media (max-width: 760px) { .hud .peek-card { left: 10px; top: 64px; transform: none; width: 200px; } }

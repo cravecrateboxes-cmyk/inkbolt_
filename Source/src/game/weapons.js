@@ -71,6 +71,17 @@
     W.flashCone = layers([[pg, PAL.ink, [1.5, 2.2], 0.002, 0, Math.PI / 2, 0], [pg, PAL.amber, [1.4, 1.5], 0, 0, Math.PI / 2, 0]]);
     W.flashCone.renderOrder = 9; W.flash.add(W.flashCone);
     W.flashCore = W.flashStar;
+    // rarity flash sets (Tuned and up): the amber layers in the tier's flash tint (core/gunskins.js FEEL)
+    W.flashSets = { gray: [W.flashStar, W.flashSide, W.flashCone] };
+    var FD = IB.GunSkinData;
+    if (FD) ['green', 'blue', 'purple', 'orange'].forEach(function (t) {
+      var tc = FD.FEEL[t].flash;
+      var st = layers([[starGeo(6, 0.12, 0.058, 0.18), PAL.ink, ONE], [starGeo(6, 0.095, 0.04, 0.18), tc, ONE], [starGeo(5, 0.05, 0.028, 0), PAL.paper, ONE]]);
+      var sd = layers([[pg, PAL.ink, [1.12, 1.7]], [pg, PAL.ink, [1.12, 1.7], 0, 0, 0, Math.PI], [pg, tc, ONE], [pg, tc, ONE, 0, 0, 0, Math.PI]]); sd.renderOrder = 9;
+      var cn = layers([[pg, PAL.ink, [1.5, 2.2], 0.002, 0, Math.PI / 2, 0], [pg, tc, [1.4, 1.5], 0, 0, Math.PI / 2, 0]]); cn.renderOrder = 9;
+      [st, sd, cn].forEach(function (o) { o.visible = false; W.flash.add(o); });
+      W.flashSets[t] = [st, sd, cn];
+    });
     W.flash.visible = false;
     // things the support hand holds (frag can for a throw, a shell while loading the pump gun) ride the HOLD_L socket
     // on the left hand bone (blender/fam_weapons.py hold_socket)
@@ -105,8 +116,22 @@
     W.models[id] = { mesh: gun, mag: mag, muzzle: muzzle, key: id.toUpperCase() };
     return W.models[id];
   }
+  function setFlash(tier) {
+    var set = W.flashSets && (W.flashSets[tier] || W.flashSets.gray); if (!set || set[0] === W.flashStar) return;
+    [W.flashStar, W.flashSide, W.flashCone].forEach(function (o) { o.visible = false; });
+    W.flashStar = W.flashCore = set[0]; W.flashSide = set[1]; W.flashCone = set[2]; W.flashStar.visible = true;
+  }
+  // rarity skin (src/game/gunskins.js): checked every frame, so a tier upgrade shows at once
+  function skinModel(id) {
+    var m = W.models[id]; if (!m || !IB.GunSkins || IB.WEAPONS[id].cls === 'melee') return;
+    var tier = IB.GunSkins.tierOf(id); if (m.tier === tier) return;
+    var mat = IB.GunSkins.material(id, tier, IB.Render.vmOutline);
+    m.tier = tier; m.mesh.material = mat; if (m.mag) m.mag.material = mat;
+    setFlash(tier);
+  }
   function showModel(id, on) {
     var m = W.models[id]; if (!m) return; m.mesh.visible = on; if (m.mag) m.mag.visible = on;
+    if (on) skinModel(id);
     if (on && m.muzzle && IB.WEAPONS[id].cls !== 'melee') m.muzzle.add(W.flash);
   }
 
@@ -371,7 +396,10 @@
     if (IB.Boom) IB.Boom.onFire(s, d);   // shell casing from the EJECT socket, muzzle smoke
     // layered shot per class; heavier guns pitch down, light ones up (+/-4% random per shot)
     var snd = FIRE_SND[d.id] || FIRE_SND[d.cls] || ['gun', 1];
-    IB.Audio && IB.Audio.play(snd[0], { pitch: snd[1] * (1 + (Math.random() * 0.08 - 0.04)) });
+    // rarer guns: a touch deeper and punchier, Epic / Legendary with a bright ring on top (core/gunskins.js FEEL)
+    var feel = IB.GunSkins && IB.GunSkins.feel(IB.GunSkins.tierOf(d.id)) || { pitch: 1, gain: 1, ring: 0 };
+    IB.Audio && IB.Audio.play(snd[0], { pitch: snd[1] * feel.pitch * (1 + (Math.random() * 0.08 - 0.04)), gain: feel.gain });
+    if (feel.ring && IB.Audio) IB.Audio.play('pip', { pitch: 1.9 + Math.random() * 0.1, gain: feel.ring });
     if (ctx.onFire) ctx.onFire(d);
   }
 
@@ -479,6 +507,7 @@
     W.vmRoot.rotation.set(rx, ry, rz);
     W.vmRoot.scale.setScalar(VM_SCALE);
     W.vmRoot.visible = (!!g || !!s.melee) && !s.hidden;
+    if (IB.GunSkins) { IB.GunSkins.tick(s.t); if (g) skinModel(s.cur); }
     if (!g) W.flash.visible = false;
     if (g) {
       W.flash.visible = s.flashT > 0 && s.aim < 0.3;   // never over the sights when aiming

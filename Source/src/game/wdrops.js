@@ -23,7 +23,7 @@
   ];
   var BY = {}; TIERS.forEach(function (t, i) { t.rank = i; BY[t.id] = t; });
   WD.tier = function (id) { return BY[id] || BY.gray; };
-  var CAP = 6, R = 1.3;
+  var CAP = 6, R = 1.3, PEEK_R = 7;
 
   function slot() { return IB.Game && IB.Game.slot; }
   WD.tierOf = function (gunId) { var s = slot(); return WD.tier(s && s.gunTier && s.gunTier[gunId]); };
@@ -35,14 +35,19 @@
   WD.levelOf = function (gunId) { return GL() ? GL().effective(WD.ownLevel(gunId), playerLv(), curLevel()) : 1; };
   WD.dmgMul = function (gunId) { return WD.tierOf(gunId).dmg * (GL() ? GL().mul(WD.levelOf(gunId)) : 1); };
   WD.rollOf = function (gunId) { var s = slot(), def = IB.WEAPONS[gunId]; return def && GL() && GL().isLauncher(def) ? GL().fixRoll(def, s && s.gunRoll && s.gunRoll[gunId]) : null; };
-  WD.nameOf = function (gunId) { var def = IB.WEAPONS[gunId]; return GL() ? GL().displayName(def, WD.rollOf(gunId)) : def.name; };
+  /* display name: the model name (launchers with their element), dressed by the tier (core/gunskins.js: 'Cobalt Rivet') */
+  WD.skinName = function (gunId, tierId, roll) {
+    var def = IB.WEAPONS[gunId], base = GL() ? GL().displayName(def, roll) : def.name;
+    return IB.GunSkinData ? IB.GunSkinData.name(gunId, WD.tier(tierId).id, base) : base;
+  };
+  WD.nameOf = function (gunId) { return WD.skinName(gunId, WD.tierOf(gunId).id, WD.rollOf(gunId)); };
   /* a gun picked up (drop, armory rack): joins the arsenal, replaces yours if better, else gems. Returns the line. */
   WD.acquire = function (id, tierId, level, roll) {
     var G = IB.Game, s = G.slot, def = IB.WEAPONS[id], gl = GL(), line;
     s.gunTier = s.gunTier || {}; s.arsenal = s.arsenal || []; s.gunLevel = s.gunLevel || {}; s.gunRoll = s.gunRoll || {};
     var have = s.arsenal.indexOf(id) >= 0, nt = WD.tier(tierId), lv = Math.max(1, level || curLevel());
     var launcher = gl && gl.isLauncher(def); if (launcher) roll = gl.fixRoll(def, roll || gl.rollLauncher(def));
-    var name = gl ? gl.displayName(def, roll) : def.name, tag = nt.name + ' Lv ' + lv;
+    var name = WD.skinName(id, nt.id, roll), tag = nt.name + ' Lv ' + lv;
     if (!have) {
       s.arsenal.push(id); s.owned = s.arsenal.slice(); s.gunTier[id] = nt.id; s.gunLevel[id] = lv; if (launcher) s.gunRoll[id] = roll;
       line = tag + ' ' + name + ' · in your backpack (Tab)';
@@ -73,11 +78,11 @@
       WD.list.push({ on: false, grp: grp, ring: ring, beam: beam, spin: spin, mesh: null, id: null, tier: null, melee: false, x: 0, z: 0, t: 0, label: label, cv: cv, tex: tex, level: 1, roll: null });
     }
   };
-  WD.clear = function () { WD.list.forEach(function (d) { d.on = false; d.grp.visible = false; }); };
+  WD.clear = function () { WD.list.forEach(function (d) { d.on = false; d.grp.visible = false; }); if (IB.HUD && IB.HUD.peek) IB.HUD.peek('drop', null); };
 
   function drawLabel(d) {
     var c = d.cv.getContext('2d'), def = IB.WEAPONS[d.id], T = WD.tier(d.tier), col = d.melee ? '#FFC23A' : T.color;
-    var name = d.melee ? def.name : (GL() ? GL().displayName(def, d.roll) : def.name);
+    var name = d.melee ? def.name : WD.skinName(d.id, d.tier, d.roll);
     c.clearRect(0, 0, 256, 64);
     c.lineJoin = 'round'; c.textAlign = 'center'; c.textBaseline = 'middle';
     c.font = '700 22px "Barlow Condensed", "Archivo", sans-serif';
@@ -94,7 +99,7 @@
     if (!d) { d = WD.list[0]; for (i = 1; i < CAP; i++) if (WD.list[i].t > d.t) d = WD.list[i]; }
     if (d.mesh) d.spin.remove(d.mesh);
     if (!WD.mat) WD.mat = IB.Render.toonMaterial({ map: A.palette.weapons, baked: A.BAKED ? A.BAKED.weapons : 0 });
-    d.mesh = new THREE.Mesh(A.get(node), WD.mat); d.mesh.scale.setScalar(melee ? 1.5 : 1.7);
+    d.mesh = new THREE.Mesh(A.get(node), !melee && IB.GunSkins ? IB.GunSkins.material(id, tier) : WD.mat);   // rarity skin d.mesh.scale.setScalar(melee ? 1.5 : 1.7);
     if (melee) d.mesh.rotation.set(0, 0, 0.5); else d.mesh.rotation.set(0, 0, 0);
     d.spin.add(d.mesh);
     var floor = IB.Zones && IB.Zones.floorY ? IB.Zones.floorY(x, z, (y || 0) + 0.6) : 0;   // the floor (or deck) it fell on
@@ -167,6 +172,7 @@
 
   WD.update = function (dt, t, G) {
     var p = G.player;
+    if (IB.GunSkins) IB.GunSkins.tick(t);
     for (var i = 0; i < CAP; i++) {
       var d = WD.list[i]; if (!d.on) continue;
       d.t += dt;
@@ -175,6 +181,15 @@
       d.beam.material.opacity = 0.2 + 0.1 * Math.sin(t * 3 + i);
       if (p && p.alive && d.t > 0.6 && Math.hypot(p.x - d.x, p.z - d.z) < R && Math.abs(p.y - d.y) < 1.2) take(d, G);
     }
+    // weapon card for the drop you walk up to and look at (HUD peek panel; rebuilt only when the target changes)
+    var best = null, bs = 0;
+    if (p && p.alive) for (i = 0; i < CAP; i++) {
+      var q = WD.list[i]; if (!q.on) continue;
+      var dx = q.x - p.x, dz = q.z - p.z, dist = Math.hypot(dx, dz); if (dist > PEEK_R || dist < R || Math.abs(p.y - q.y) > 2.5) continue;   // on top of it: it is being picked up
+      var face = (-Math.sin(p.yaw) * dx - Math.cos(p.yaw) * dz) / dist; if (face < 0.82) continue;
+      var sc = face - dist * 0.05; if (sc > bs) { bs = sc; best = q; }
+    }
+    if (IB.HUD && IB.HUD.peek) IB.HUD.peek('drop', best ? { id: best.id, tier: best.tier, level: best.level, roll: best.roll, melee: best.melee } : null);
   };
   WD.radar = function () { return WD.list.filter(function (d) { return d.on; }).map(function (d) { return { x: d.x, z: d.z, kind: 'weapon' }; }); };
   WD.live = function () { return WD.list.filter(function (d) { return d.on; }).map(function (d) { return { id: d.id, tier: d.tier, melee: d.melee, x: d.x, z: d.z, level: d.level, roll: d.roll }; }); };

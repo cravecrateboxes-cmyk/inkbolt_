@@ -4,7 +4,7 @@
                                              cached, else the fallback markup; the picture is then drawn in the
                                              background, one at a time, and swapped into every span still waiting
      IB.Thumbs.url(kind, id)                 the cached data URL, or null (not drawn yet / no model)
-   kind 'gun': WPN_<ID> + its magazine, muzzle to the right. kind 'gear': shield (GEAR_ShieldCell; 'shield.epic' etc.
+   kind 'gun': WPN_<ID> + its magazine, muzzle to the right ('<id>@<tier>': in that tier's rarity skin). kind 'gear': shield (GEAR_ShieldCell; 'shield.epic' etc.
    draws that rarity's own cell, IB.Loot.modelOf), grip, scope, acid / muzzle (GEAR_Acid), mag (GEAR_Mag),
    armor (GEAR_Vest).
    Drawn with the game's own renderer (no second GL context, the toon program the viewmodel already uses) into a small
@@ -51,8 +51,8 @@
   function webgl2(gl) { return typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext; }
   /* render parts into the render target and copy the pixels out: on WebGL2 into a pixel-pack buffer (GPU side, read
      later), else synchronously. Returns {pbo} or {px}, or null. */
-  function shoot(parts, fam, view) {
-    var mat = material(fam), r = IB.Render.renderer, gl = r.getContext();
+  function shoot(parts, fam, view, skin) {
+    var mat = skin || material(fam), r = IB.Render.renderer, gl = r.getContext();
     if (!mat) return null;
     var root = new THREE.Group(), box = new THREE.Box3();
     parts.forEach(function (p) {
@@ -128,11 +128,14 @@
     var A = IB.Assets;
     if (!A || !A.geo) return null;
     if (kind === 'gun') {
-      var key = 'WPN_' + String(id).toUpperCase();
+      // 'rivet@purple': that tier's rarity skin (src/game/gunskins.js); a bare id draws the Standard skin
+      var at = String(id).indexOf('@'), gid = at > 0 ? id.slice(0, at) : String(id), tier = at > 0 ? id.slice(at + 1) : 'gray';
+      var key = 'WPN_' + gid.toUpperCase();
       if (!A.geo[key]) return null;
       var list = [{ geo: A.geo[key] }], sock = A.node[key + '_MAG'];
       if (A.geo[key + '_Mag'] && sock) list.push({ geo: A.geo[key + '_Mag'], pos: sock.position });
-      return { fam: 'weapons', list: list, view: { yaw: -0.22, pitch: 0.1, pad: 1.06, outline: 0.012, ink: 3 } };
+      var skin = IB.GunSkins && setup() && IB.WEAPONS[gid] && IB.WEAPONS[gid].cls !== 'melee' ? IB.GunSkins.material(gid, tier, uni) : null;
+      return { fam: 'weapons', skin: skin, list: list, view: { yaw: -0.22, pitch: 0.1, pad: 1.06, outline: 0.012, ink: 3 } };
     }
     // id: a type ('shield', 'mag'...), a slot ('muzzle'), or 'type.rarity' for a type with a model per rarity
     var dot = String(id).indexOf('.'), type = dot > 0 ? id.slice(0, dot) : id, n = GEAR_NODE[type];
@@ -155,7 +158,7 @@
     var jobs = [];
     keys.forEach(function (k) {
       var i = k.indexOf(':'), p = parts(k.slice(0, i), k.slice(i + 1)), job = null;
-      if (p) { try { job = shoot(p.list, p.fam, p.view); } catch (e) { job = null; } }
+      if (p) { try { job = shoot(p.list, p.fam, p.view, p.skin); } catch (e) { job = null; } }
       if (job) { job.k = k; job.ink = p.view.ink; jobs.push(job); } else T.cache[k] = null;
     });
     if (!jobs.length) { next(); return; }
