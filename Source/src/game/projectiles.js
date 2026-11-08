@@ -199,7 +199,7 @@
       var dp = Math.sqrt((p.x - x) * (p.x - x) + (cy - y) * (cy - y) + (p.z - z) * (p.z - z));
       if (ctx.shake && !Boom) ctx.shake(dp < 6 ? 0.6 : 0.6 * Math.max(0, 1 - (dp - 6) / 8));
       var dmg = Pj.blastDamage(dp - PLAYER_R, R, q.D, covered(world, x, y, z, p.x, p.y + 1.0, p.z));
-      if (dmg > 0.5 && ctx.hurt) ctx.hurt(q.src, dmg);
+      if (dmg > 0.5 && ctx.hurt) ctx.hurt(q.src, dmg * (IB.AI && IB.AI.rangedMul || 1));   // early levels: x0.75 (ai.js setLevel)
     }
     // robots (Bombers caught in it go off next: AI.kill queues their own blast)
     var AI = IB.AI;
@@ -274,7 +274,7 @@
       // player capsule
       if (b.vs !== 1 && p && p.alive && Pj.segHitsCapsule(b.x, b.y, b.z, nx, ny, nz, p.x, p.y + PLAYER_R, p.y + PLAYER_H - PLAYER_R, p.z, PLAYER_R, HIT_R)) {
         b.on = false;
-        if (ctx.hurt) ctx.hurt(b.src, b.dmg);
+        if (ctx.hurt) ctx.hurt(b.src, b.dmg * (IB.AI && IB.AI.rangedMul || 1));
         special(b, nx, ny, nz, true);
         if (FX) { FX.puff(nx, ny, nz, 3, PAL.amber, 0.1, 0.3, 2.5); FX.puff(nx, ny, nz, 2, PAL.ink, 0.12, 0.35, 2); }
         if (IB.Boom) IB.Boom.boltHit(nx, ny, nz, -b.vx / b.sp, -b.vy / b.sp, -b.vz / b.sp);

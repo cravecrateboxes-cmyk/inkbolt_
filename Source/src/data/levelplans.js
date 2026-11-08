@@ -44,7 +44,7 @@
        light robots (crawler, drone, bomber, gunner); soldiers and blade bots keep their count, so the shooting
        grows faster than the danger.
      - The next wave drops in when 6 or fewer are left (game.js WAVE_NEXT), so there is little dead time. */
-  IB.MIN_LEVEL = { soldier: 4, blader: 7 };
+  IB.MIN_LEVEL = { soldier: 4, blader: 7, bomber: 4 };   // no exploding Bombers before level 4
   var LIGHT = { crawler: 1, drone: 1, bomber: 1, gunner: 1 };
   var ELITE_MUL = 2.5;   // Soldiers and Blade Bots: 2.5x the theme files' counts, light robots make room
   IB.WAVE_MUL = function (L) { return 1.15 + 0.45 * Math.min(1, Math.max(0, (L - 1) / 12)); };
@@ -68,7 +68,7 @@
         var out = {};
         w.forEach(function (e) {
           var id = e[0], n = e[1];
-          if (IB.MIN_LEVEL[id] && L < IB.MIN_LEVEL[id]) id = id === 'blader' ? 'crawler' : 'gunner';
+          if (IB.MIN_LEVEL[id] && L < IB.MIN_LEVEL[id]) id = id === 'soldier' ? 'gunner' : 'crawler';
           if (LIGHT[id]) n = Math.round(n * m);
           out[id] = (out[id] || 0) + n;
         });

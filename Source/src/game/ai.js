@@ -289,6 +289,8 @@
     AI.level = L; AI.tokenMax = 3 + Math.floor(L / 5);
     AI.hpMul = IB.Damage ? IB.Damage.enemyHpMul(L) : 1 + 0.06 * (L - 1);
     AI.dmgMul = IB.Damage ? IB.Damage.enemyDmgMul(L) : Math.min(3, 1 + 0.04 * (L - 1));
+    // levels 1-7: everything robots shoot or throw at the player (bolts, blasts) deals 25% less (projectiles.js)
+    AI.rangedMul = L <= 7 ? 0.75 : 1;
     // per-level tempo: volley pauses, aim spread and lead, windup tells, move speed (core/damage.js enemyTempo)
     AI.tempo = IB.Damage && IB.Damage.enemyTempo ? IB.Damage.enemyTempo(L) : TEMPO1;
   };

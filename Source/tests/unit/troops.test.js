@@ -110,3 +110,10 @@ test('XP levelling: playing the campaign through (90% of robots) puts the player
   // skill points: 22 by LV 20 and none after
   assert.equal(S.earned(19), 22); assert.equal(S.earned(29), 22);
 });
+
+test('no exploding Bombers before level 4', () => {
+  IB.CAMPAIGN.forEach((id) => {
+    const p = IB.LEVEL_PLANS[id];
+    if (p.level < 4) p.zones.forEach((z) => z.waves.forEach((w) => w.forEach((e) => assert.notEqual(e[0], 'bomber', id))));
+  });
+});
