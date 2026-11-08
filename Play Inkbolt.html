@@ -725,25 +725,20 @@ body.kbd .btn.mm-item:focus-visible { outline: none; }
   .gear, .ld-track i { animation-play-state: paused; }
 }
 
-/* ---------- player level tag (HUD, above the health plate; phones: under it) ---------- */
-.lvtag { display: flex; align-items: stretch; height: 32px; justify-self: start; max-width: 100%; min-width: 0; filter: drop-shadow(0 3px 0 rgba(21, 18, 28, .45)); }
+/* ---------- player XP bar (HUD, above the health plate; phones: under it) ---------- */
 .lv-badge { flex: none; display: flex; align-items: baseline; gap: 3px; padding: 4px 9px 0 8px; background: var(--teal); color: var(--ink); box-shadow: inset 0 0 0 3px var(--ink);
   font-stretch: 125%; font-weight: 900; line-height: 1; clip-path: polygon(8px 0, 100% 0, 100% 100%, 0 100%, 0 8px); }
 .lv-badge small { font-size: 11px; font-weight: 900; }
 .lv-badge span { font-size: 23px; }
-.lv-title { min-width: 0; display: flex; align-items: center; padding: 0 24px 0 10px; margin-left: -3px; background: var(--ink); color: var(--paper);
-  font-stretch: 88%; font-weight: 900; font-size: var(--t15); text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 100%, 0 100%); }
 .lv-pts { flex: none; display: flex; align-items: center; gap: 6px; margin-left: 4px; padding: 0 6px 0 9px; background: var(--amber); color: var(--ink); box-shadow: inset 0 0 0 3px var(--ink);
   font-stretch: 125%; font-weight: 900; font-size: var(--t15); clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 0 100%); animation: ptsPulse 1.6s ease-in-out infinite; }
 .lv-key { font-size: 11px; font-stretch: 100%; font-weight: 800; background: var(--ink); color: var(--amber); padding: 3px 5px 2px; text-transform: uppercase; letter-spacing: .04em; }
 @keyframes ptsPulse { 50% { background: #FFD27A; } }
 .menubtn { right: calc(var(--sar) + var(--gap) + 58px); }
 .menubtn-dot { position: absolute; top: 5px; right: 5px; width: 11px; height: 11px; background: var(--amber); box-shadow: 0 0 0 2px var(--ink); }
-body.touch-on .lvtag { order: 3; height: 26px; max-width: none; width: max-content; }
+body.touch-on .xpbar { order: 3; }
 body.touch-on .lv-pts { display: none; }   /* phones: the amber dot on the menu button shows unspent points */
 body.touch-on .lv-badge span { font-size: 18px; }
-body.touch-on .lv-title { font-size: 12px; padding-right: 16px; }
 body.touch-on .lv-pts { font-size: 13px; padding: 0 6px 0 7px; }
 body.touch-on .hud-tr { top: calc(var(--sat) + var(--gap) + 90px); }
 @media (orientation: portrait) {
@@ -846,9 +841,8 @@ body.touch-on .loot-note { display: none; }
 .scopeview svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .hud.scoped .xhair { opacity: 0; }
 
-/* phones: level tag + shield row together (the tag never widens the health column) */
+/* phones: XP bar + shield row together (the tag never widens the health column) */
 .hud-bl { grid-template-columns: minmax(0, 1fr); }
-.lvtag { width: max-content; max-width: none; }
 body.touch-on .hud.has-shield .hud-tr { top: calc(var(--sat) + var(--gap) + 120px); }
 @media (orientation: portrait) {
   body.touch-on .objective { top: calc(var(--sat) + var(--gap) + 160px); }
@@ -1607,12 +1601,33 @@ body.kbd .tabmenu button:focus-visible { outline: 3px solid var(--fk-txt); outli
 
 /* ---------- bottom-left: level tag, shield, health, stamina ---------- */
 .hud .hud-bl { width: 330px; gap: 5px; }
-.hud .lvtag { height: 24px; filter: none; gap: 8px; align-items: center; padding-right: 26px; background: linear-gradient(90deg, rgba(9, 12, 22, .55), rgba(9, 12, 22, 0)); }
-.hud .lv-badge { align-items: baseline; padding: 3px 9px 0 8px; height: 22px; background: rgba(46, 234, 216, .14); color: var(--hx-teal); box-shadow: inset 0 0 0 1px rgba(46, 234, 216, .6);
+/* XP bar (hud.js H.level): the health/shield plate style, teal; .gain = XP just earned (glow + "+N XP" tick) */
+.hud .xpbar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 9px; height: 28px; padding: 0 12px 0 10px; --cut: 8px; position: relative; overflow: visible; }
+.hud .xpbar::after { background: linear-gradient(90deg, rgba(9, 12, 22, .7), rgba(9, 12, 22, .5) 70%, rgba(9, 12, 22, .3));
+  clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, 0 100%); }
+.hud .xpbar::before { inset: 0 auto 0 0; width: 3px; background: var(--hx-teal); box-shadow: 0 0 8px var(--hx-teal-g); }
+.hud .lv-badge { display: flex; align-items: baseline; gap: 2px; padding: 2px 9px 0 8px; height: 20px; background: rgba(46, 234, 216, .14); color: var(--hx-teal); box-shadow: inset 0 0 0 1px rgba(46, 234, 216, .6);
   clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); font-weight: 700; }
-.hud .lv-badge small { font-size: 11px; font-weight: 600; letter-spacing: .1em; }
-.hud .lv-badge span { font-size: 19px; color: var(--hx-txt); }
-.hud .lv-title { margin: 0; padding: 0; background: none; clip-path: none; color: var(--hx-dim); font-weight: 600; font-size: 14px; letter-spacing: .16em; text-shadow: var(--hx-ts); }
+.hud .lv-badge small { font-size: 10px; font-weight: 600; letter-spacing: .1em; }
+.hud .lv-badge span { font-size: 17px; line-height: 1; color: var(--hx-txt); }
+.hud .xp-bar { position: relative; height: 7px; background: rgba(46, 234, 216, .14); transform: skewX(-20deg); }
+.hud .xp-bar > i { position: absolute; left: 0; top: 0; bottom: 0; }
+.hud .xp-bar #xpFill { width: 0; background: linear-gradient(180deg, #E6FFFB, var(--hx-teal)); box-shadow: 0 0 8px var(--hx-teal-g); transition: width .45s cubic-bezier(.2, .9, .3, 1); }
+.hud .xp-bar #xpFill.snap { transition: none; }
+.hud .xp-bar .xp-gain { width: 0; background: #FFFFFF; opacity: 0; z-index: 1; }
+.hud .xp-bar .hp-ticks { right: 0; --ticks: 20; z-index: 2; }
+.hud .xp-num { font-size: 16px; font-weight: 700; color: var(--hx-teal); white-space: nowrap; text-shadow: 0 0 8px var(--hx-teal-g), 0 1px 1px rgba(0, 0, 0, .6); }
+.hud .xp-num small { font-size: 11px; font-weight: 600; color: var(--hx-dim); letter-spacing: .06em; text-shadow: var(--hx-ts); }
+.hud .xpbar.max .xp-bar #xpFill { background: linear-gradient(180deg, #FFF3C4, var(--hx-amber)); box-shadow: 0 0 10px var(--hx-amber-g); }
+.hud .xpbar.max .xp-num { color: var(--hx-amber); text-shadow: 0 0 8px var(--hx-amber-g); }
+.hud .xp-plus { position: absolute; left: 100%; top: 50%; margin-left: 8px; transform: translateY(-50%); font-size: 16px; font-weight: 700; white-space: nowrap; color: var(--hx-teal);
+  text-shadow: -1px -1px 0 #0b0f1c, 1px -1px 0 #0b0f1c, -1px 1px 0 #0b0f1c, 1px 1px 0 #0b0f1c, 0 0 8px var(--hx-teal-g); opacity: 0; pointer-events: none; }
+.hud .xpbar.gain .xp-plus { animation: xpPlus 1.4s ease-out both; }
+.hud .xpbar.gain .xp-gain { animation: xpGain .9s ease-out both; }
+.hud .xpbar.gain::before { animation: xpEdge .6s ease-out; }
+@keyframes xpPlus { 0% { opacity: 0; transform: translate(-6px, -50%) scale(.8); } 12% { opacity: 1; transform: translate(0, -50%) scale(1.12); } 25% { transform: translate(0, -50%) scale(1); } 75% { opacity: 1; } 100% { opacity: 0; transform: translate(0, -110%); } }
+@keyframes xpGain { 0%, 30% { opacity: .95; } 100% { opacity: 0; } }
+@keyframes xpEdge { 0% { background: #FFFFFF; box-shadow: 0 0 14px #FFFFFF; } }
 .hud .lv-pts { margin-left: 2px; padding: 0 6px 0 8px; height: 22px; background: rgba(255, 178, 30, .16); color: var(--hx-amber); box-shadow: inset 0 0 0 1px rgba(255, 178, 30, .7);
   clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); font-weight: 700; font-size: 15px; animation: ptsPulse2 1.6s ease-in-out infinite; }
 .hud .lv-key { background: none; color: var(--hx-amber); font-size: 11px; font-weight: 600; letter-spacing: .1em; padding: 0 4px 0 0; }
@@ -1813,10 +1828,9 @@ body.touch-on .hud .slot { width: 50px; height: 34px; }
 body.touch-on .hud .slot.on { transform: none; }
 body.touch-on .hud .slot svg { width: 28px; height: 14px; }
 body.touch-on .hud .slot .key { left: 8px; top: 2px; }
-body.touch-on .hud .lvtag { height: 22px; }
-body.touch-on .hud .lv-badge { height: 20px; padding-top: 2px; }
+body.touch-on .hud .xpbar { height: 24px; padding: 0 10px 0 9px; gap: 7px; } body.touch-on .hud .xp-bar { height: 6px; } body.touch-on .hud .xp-num { font-size: 14px; } body.touch-on .hud .xp-num small { display: none; }
+body.touch-on .hud .lv-badge { height: 18px; padding-top: 2px; }
 body.touch-on .hud .lv-badge span { font-size: 16px; }
-body.touch-on .hud .lv-title { font-size: 12px; letter-spacing: .12em; }
 body.touch-on .hud .pickup-card, body.touch-on .hud .loot-card { padding: 7px 18px 7px 7px; gap: 10px; }
 body.touch-on .hud .pickup-txt b { font-size: 21px; }
 body.touch-on .hud .loot-name { font-size: 19px; }
@@ -1873,34 +1887,26 @@ body.touch-on .hud .kit { display: none; }
 .hud .use-prompt .ut { font-size: 17px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .hud .use-prompt .us { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--rar, var(--hx-teal)); }
 
-/* ---- weapon peek card: a gun in the world you walk up to (hud.js H.peek, gear.js GearUI.peekHtml) ---- */
-.hud .peek-card { position: absolute; left: calc(50% + 70px); top: 50%; transform: translateY(-58%); width: 250px; padding: 9px 11px 8px; pointer-events: none;
-  background: linear-gradient(160deg, rgba(14, 30, 64, .9), rgba(9, 16, 36, .88)); border: 2px solid var(--rar); border-radius: 4px;
-  box-shadow: 0 0 0 2px #15121C, 0 8px 22px rgba(0, 0, 0, .45), inset 0 0 22px color-mix(in srgb, var(--rar) 18%, transparent);
-  font-family: var(--hf); color: var(--hx-txt); text-shadow: 0 1px 0 #0b0f1c; animation: peekIn .16s ease-out; }
-@keyframes peekIn { from { opacity: 0; transform: translate(-8px, -58%); } }
-.peek-card .pk-req { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--hx-dim); }
-.peek-card .pk-bar { margin: 4px -4px 5px; padding: 4px 9px 3px; background: linear-gradient(180deg, color-mix(in srgb, var(--rar) 82%, #fff), var(--rar) 60%, color-mix(in srgb, var(--rar) 75%, #000));
-  clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%); }
-.peek-card .pk-bar b { display: block; font-size: 19px; line-height: 1.05; text-transform: uppercase; color: #15121C; text-shadow: 0 1px 0 rgba(255, 255, 255, .35); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.peek-card .pk-vs { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--hx-dim); margin-bottom: 2px; }
-.peek-card .pk-vs.new { color: #6BE05A; }
-.peek-card .pk-stats { list-style: none; margin: 0; padding: 0; display: grid; }
-.peek-card .pk-stats li { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto 12px; align-items: center; gap: 7px; min-height: 21px; font-size: 14px; border-bottom: 1px solid rgba(111, 234, 255, .1); }
-.peek-card .pk-stats li:last-child { border-bottom: 0; }
-.peek-card .pk-stats svg { width: 15px; height: 15px; color: #6FEAFF; }
-.peek-card .pk-stats b { font-size: 15px; text-align: right; }
-.peek-card .cmp { font-style: normal; font-size: 10px; }
-.peek-card .cmp.up { color: #6BE05A; } .peek-card .cmp.dn { color: #FF4B3E; }
-.peek-card .pk-notes { list-style: none; margin: 4px 0 0; padding: 0; font-size: 12px; font-weight: 600; color: var(--rar); text-transform: uppercase; letter-spacing: .05em; }
-.peek-card .pk-notes li::before { content: '◆ '; color: var(--hx-txt); }
-.peek-card .pk-foot { display: flex; justify-content: flex-end; height: 54px; margin-top: 2px; }
-.peek-card .pk-pic { display: grid; place-items: center end; height: 54px; max-width: 100%; } .peek-card .pk-pic .pic { max-height: 54px; max-width: 100%; }
-body.touch-on .hud .peek-card { left: calc(var(--sal, 0px) + 130px); top: 58px; transform: none; width: 200px; padding: 6px 9px; animation: none; }
-body.touch-on .hud .peek-card .pk-foot { display: none; }
-body.touch-on .hud .peek-card .pk-stats li { min-height: 18px; font-size: 13px; }
-body.touch-on .hud .use-prompt { top: calc(50% + 70px); }
-@media (max-width: 760px) { .hud .peek-card { left: 10px; top: 64px; transform: none; width: 200px; } }
+/* ---- weapon peek card: a gun in the world you walk up to (hud.js H.peek). It is the backpack card itself
+   (gear.js GearUI.peekHtml -> cardShell, styled in fieldkit.css), sized down to sit beside the crosshair. ---- */
+.hud .peek-card { position: absolute; left: 0; top: 0; transform-origin: 0 0; /* placed over its gun by HUD.peekTrack */ width: 290px; pointer-events: none;
+  font-family: var(--fk); font-weight: 400; font-synthesis: none; letter-spacing: .02em; color: var(--fk-txt); animation: peekIn .16s ease-out; }
+@keyframes peekIn { from { opacity: 0; } }
+.peek-card .inv-card { gap: 4px; padding: 12px 14px 10px; --ca: 16px; --cb: 6px; --rw: 5px; --o: 2.5px; }
+.peek-card .inv-card > .fr { filter: drop-shadow(0 0 10px rgba(255, 210, 63, .35)) drop-shadow(0 4px 0 rgba(4, 10, 28, .55)); }
+.peek-card .ic-req { font-size: 13px; } .peek-card .ic-check { width: 16px; height: 16px; }
+.peek-card .ic-bar { padding: 5px 9px 2px; margin: 0 0 2px; } .peek-card .ic-name { font-size: 21px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.peek-card .ic-vs { font-size: 12px; }
+.peek-card .ic-stats li { grid-template-columns: 16px minmax(0, 1fr) auto 12px; gap: 6px; min-height: 22px; font-size: 15px; }
+.peek-card .ic-stats b { font-size: 16px; } .peek-card .ic-si { width: 15px; height: 15px; } .peek-card .cmp { font-size: 11px; }
+.peek-card .ic-notes { margin-top: 2px; gap: 2px; } .peek-card .ic-notes li { font-size: 13px; padding-left: 14px; } .peek-card .ic-notes li::before { top: 4px; width: 6px; height: 6px; }
+.peek-card .ic-foot { min-height: 0; margin-top: 2px; gap: 6px; } .peek-card .ic-pic, .peek-card .ic-pic .pic { height: 56px; max-height: 56px; }
+.peek-card .ic-tag { font-size: 13px; padding: 4px 8px 2px; margin: 0 0 4px 2px; } .peek-card .ic-elem { width: 22px; height: 22px; }
+body.touch-on .hud .peek-card { left: 0; top: 0; width: 230px; animation: none; }
+body.touch-on .hud .peek-card .ic-notes, body.touch-on .hud .peek-card .ic-foot { display: none; }
+body.touch-on .hud .peek-card .ic-stats li { min-height: 19px; font-size: 13px; } body.touch-on .hud .peek-card .ic-stats b { font-size: 14px; }
+body.touch-on .hud .peek-card .ic-name { font-size: 18px; }
+@media (max-width: 760px) { .hud .peek-card { left: 0; top: 0; width: 220px; } .hud .peek-card .ic-notes, .hud .peek-card .ic-foot { display: none; } }
 
 /* INKBOLT between-levels loader (ui/loader.js): black screen, a real-3D gear on its own canvas, a quiet caption.
    #loading uses the class "ldr" (the old gears screen styled ".loading" in ui.css is no longer used). */
@@ -1969,7 +1975,7 @@ body.touch-on .hud .use-prompt { top: calc(50% + 70px); }
   <div class="use-prompt" id="usePrompt" hidden><span class="key">E</span><span class="ut"></span><span class="us"></span><i class="uacc" aria-hidden="true"></i></div>
   <div class="prompt" id="prompt" hidden><span class="key" id="promptKey">R</span><span id="promptText">Reload</span><i class="prompt-bar"><i id="promptFill"></i></i><i class="prompt-ring" aria-hidden="true"></i></div>
   <div class="hud-bl">
-    <div class="lvtag" id="lvTag"><b class="lv-badge"><small>LV</small><span id="lvNum">1</span></b><span class="lv-title" id="lvTitle">Tin Rookie</span><span class="lv-pts" id="lvPts" hidden><b id="lvPtsN">+1</b><span class="lv-key" id="lvKey">Tab</span></span></div>
+    <div class="plate ink xpbar" id="lvTag"><b class="lv-badge"><small>LV</small><span id="lvNum">1</span></b><div class="xp-bar"><i class="xp-gain" id="xpGain"></i><i id="xpFill"></i><i class="hp-ticks"></i></div><b class="xp-num" id="xpNum">0%</b><span class="lv-pts" id="lvPts" hidden><b id="lvPtsN">+1</b><span class="lv-key" id="lvKey">Tab</span></span><span class="xp-plus" id="xpPlus" aria-hidden="true"></span></div>
     <div class="plate ink health" id="health">
       <svg class="hp-glyph" viewBox="-12 -12 24 24" aria-hidden="true"><polygon points="11,0 5.5,9.5 -5.5,9.5 -11,0 -5.5,-9.5 5.5,-9.5"/><circle r="3.6"/></svg>
       <div class="hp-bar"><i class="hp-chip" id="hpChip"></i><i id="hpFill"></i><i class="hp-ticks"></i></div><b id="hpNum">100</b>
@@ -10878,7 +10884,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
        light robots (crawler, drone, bomber, gunner); soldiers and blade bots keep their count, so the shooting
        grows faster than the danger.
      - The next wave drops in when 6 or fewer are left (game.js WAVE_NEXT), so there is little dead time. */
-  IB.MIN_LEVEL = { soldier: 4, blader: 7 };
+  IB.MIN_LEVEL = { soldier: 4, blader: 7, bomber: 4 };   // no exploding Bombers before level 4
   var LIGHT = { crawler: 1, drone: 1, bomber: 1, gunner: 1 };
   var ELITE_MUL = 2.5;   // Soldiers and Blade Bots: 2.5x the theme files' counts, light robots make room
   IB.WAVE_MUL = function (L) { return 1.15 + 0.45 * Math.min(1, Math.max(0, (L - 1) / 12)); };
@@ -10902,7 +10908,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
         var out = {};
         w.forEach(function (e) {
           var id = e[0], n = e[1];
-          if (IB.MIN_LEVEL[id] && L < IB.MIN_LEVEL[id]) id = id === 'blader' ? 'crawler' : 'gunner';
+          if (IB.MIN_LEVEL[id] && L < IB.MIN_LEVEL[id]) id = id === 'soldier' ? 'gunner' : 'crawler';
           if (LIGHT[id]) n = Math.round(n * m);
           out[id] = (out[id] || 0) + n;
         });
@@ -16353,6 +16359,8 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     AI.level = L; AI.tokenMax = 3 + Math.floor(L / 5);
     AI.hpMul = IB.Damage ? IB.Damage.enemyHpMul(L) : 1 + 0.06 * (L - 1);
     AI.dmgMul = IB.Damage ? IB.Damage.enemyDmgMul(L) : Math.min(3, 1 + 0.04 * (L - 1));
+    // levels 1-7: everything robots shoot or throw at the player (bolts, blasts) deals 25% less (projectiles.js)
+    AI.rangedMul = L <= 7 ? 0.75 : 1;
     // per-level tempo: volley pauses, aim spread and lead, windup tells, move speed (core/damage.js enemyTempo)
     AI.tempo = IB.Damage && IB.Damage.enemyTempo ? IB.Damage.enemyTempo(L) : TEMPO1;
   };
@@ -18417,7 +18425,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       var dp = Math.sqrt((p.x - x) * (p.x - x) + (cy - y) * (cy - y) + (p.z - z) * (p.z - z));
       if (ctx.shake && !Boom) ctx.shake(dp < 6 ? 0.6 : 0.6 * Math.max(0, 1 - (dp - 6) / 8));
       var dmg = Pj.blastDamage(dp - PLAYER_R, R, q.D, covered(world, x, y, z, p.x, p.y + 1.0, p.z));
-      if (dmg > 0.5 && ctx.hurt) ctx.hurt(q.src, dmg);
+      if (dmg > 0.5 && ctx.hurt) ctx.hurt(q.src, dmg * (IB.AI && IB.AI.rangedMul || 1));   // early levels: x0.75 (ai.js setLevel)
     }
     // robots (Bombers caught in it go off next: AI.kill queues their own blast)
     var AI = IB.AI;
@@ -18492,7 +18500,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       // player capsule
       if (b.vs !== 1 && p && p.alive && Pj.segHitsCapsule(b.x, b.y, b.z, nx, ny, nz, p.x, p.y + PLAYER_R, p.y + PLAYER_H - PLAYER_R, p.z, PLAYER_R, HIT_R)) {
         b.on = false;
-        if (ctx.hurt) ctx.hurt(b.src, b.dmg);
+        if (ctx.hurt) ctx.hurt(b.src, b.dmg * (IB.AI && IB.AI.rangedMul || 1));
         special(b, nx, ny, nz, true);
         if (FX) { FX.puff(nx, ny, nz, 3, PAL.amber, 0.1, 0.3, 2.5); FX.puff(nx, ny, nz, 2, PAL.ink, 0.12, 0.35, 2); }
         if (IB.Boom) IB.Boom.boltHit(nx, ny, nz, -b.vx / b.sp, -b.vy / b.sp, -b.vz / b.sp);
@@ -22185,7 +22193,10 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       var face = (-Math.sin(p.yaw) * dx - Math.cos(p.yaw) * dz) / dist; if (face < 0.82) continue;
       var sc = face - dist * 0.05; if (sc > bs) { bs = sc; best = q; }
     }
-    if (IB.HUD && IB.HUD.peek) IB.HUD.peek('drop', best ? { id: best.id, tier: best.tier, level: best.level, roll: best.roll, melee: best.melee } : null);
+    // the floating name label hides while its card is up (the card says it all)
+    for (i = 0; i < CAP; i++) { var lq = WD.list[i]; if (lq.label) lq.label.visible = lq !== best; }
+    if (IB.HUD && IB.HUD.peek) IB.HUD.peek('drop', best ? { id: best.id, tier: best.tier, level: best.level, roll: best.roll, melee: best.melee, wx: best.x, wy: (best.y || 0) + 1.5, wz: best.z } : null);
+    if (IB.HUD && IB.HUD.peekTrack) IB.HUD.peekTrack();   // keep the card floating over its gun
   };
   WD.radar = function () { return WD.list.filter(function (d) { return d.on; }).map(function (d) { return { x: d.x, z: d.z, kind: 'weapon' }; }); };
   WD.live = function () { return WD.list.filter(function (d) { return d.on; }).map(function (d) { return { id: d.id, tier: d.tier, melee: d.melee, x: d.x, z: d.z, level: d.level, roll: d.roll }; }); };
@@ -22786,7 +22797,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       hpChip: $('hpChip'), stamina: $('stamina'), stFill: $('stFill'), dim: $('dim'), hurt: $('hurt'), hurtFlash: $('hurtFlash'),
       pickup: $('pickup'), pickupIcon: $('pickupIcon'), pickupName: $('pickupName'), pickupLine: $('pickupLine'),
       confirm: $('confirm'), confirmNum: $('confirmNum'), pauseBtn: $('pauseBtn'),
-      lvTag: $('lvTag'), lvNum: $('lvNum'), lvTitle: $('lvTitle'), lvPts: $('lvPts'), lvPtsN: $('lvPtsN'), lvKey: $('lvKey'), menuBtn: $('menuBtn'), menuDot: $('menuDot')
+      lvTag: $('lvTag'), lvNum: $('lvNum'), xpFill: $('xpFill'), xpGain: $('xpGain'), xpNum: $('xpNum'), xpPlus: $('xpPlus'), lvPts: $('lvPts'), lvPtsN: $('lvPtsN'), lvKey: $('lvKey'), menuBtn: $('menuBtn'), menuDot: $('menuDot')
     };
     H.arcs = [];
     for (var i = 0; i < 6; i++) {
@@ -22822,16 +22833,35 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     pickT = 0; confirmT = 0; toastT = 0; hitT = 0;
   };
 
-  /* player level tag above the health plate: LV badge, rank title, unspent skill points (+ the Tab hint) */
-  H.level = function (lv, title, points) {
+  /* player XP bar above the health plate: LV badge, progress to the next level (IB.Skills.xpProgress: {lv, into, span,
+     frac}), unspent skill points (+ the Tab hint). gain > 0 (XP just earned) flashes the gained stretch of the bar and
+     pops a "+N XP" tick (gains close together add up); a level-up snaps the bar back to empty. MAX at the level cap. */
+  var xpAt = -1e9, xpSum = 0;
+  H.level = function (lv, points, prog, gain) {
     var el = H.el; if (!el.lvTag) return;
-    set('lv', lv + '|' + title + '|' + points, function () {
-      el.lvNum.textContent = lv; el.lvTitle.textContent = title;
+    prog = prog || { lv: lv, into: 0, span: 0, frac: 0 };
+    var max = !prog.span, pct = max ? 100 : Math.max(0, Math.min(100, prog.frac * 100));
+    set('lv', lv + '|' + points, function () {
+      el.lvNum.textContent = lv;
       el.lvPts.hidden = !(points > 0); el.lvPtsN.textContent = '+' + points;
       el.lvKey.textContent = touch() ? 'pts' : 'Tab';
-      el.lvTag.setAttribute('aria-label', 'Level ' + lv + ', ' + title + (points > 0 ? ', ' + points + ' skill points to spend' : ''));
+      el.lvTag.classList.toggle('max', max);
       if (el.menuDot) el.menuDot.hidden = !(points > 0);
     });
+    set('xp', lv + '|' + pct.toFixed(1), function () {
+      var prev = H.xpLv === lv ? H.xpPct : null;
+      el.xpFill.style.width = pct + '%'; el.xpNum.innerHTML = max ? 'MAX' : Math.floor(prog.into) + '<small>/' + prog.span + ' XP</small>';
+      el.lvTag.setAttribute('aria-label', 'Level ' + lv + (max ? ', max level' : ', ' + Math.floor(prog.into) + ' of ' + prog.span + ' XP to level ' + (lv + 1)) + (points > 0 ? ', ' + points + ' skill points to spend' : ''));
+      // the stretch just earned glows, then fades (same level only; a level-up starts the bar over)
+      el.xpGain.style.left = (prev == null || prev > pct ? 0 : prev) + '%'; el.xpGain.style.width = Math.max(0, pct - (prev == null || prev > pct ? 0 : prev)) + '%';
+      el.xpFill.classList.toggle('snap', prev == null);
+      H.xpLv = lv; H.xpPct = pct;
+    });
+    if (gain > 0) {
+      var now = performance.now(); xpSum = now - xpAt < 1200 ? xpSum + gain : gain; xpAt = now;
+      el.xpPlus.textContent = '+' + Math.round(xpSum) + ' XP';
+      el.lvTag.classList.remove('gain'); void el.lvTag.offsetWidth; el.lvTag.classList.add('gain');
+    }
   };
   H.gems = function (n, pulse) {
     set('gems', n, function (v) { H.el.gemCount.textContent = v; });
@@ -23020,6 +23050,21 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
      rack wins). spec {id, tier, level, roll, melee} or null. The card (IB.GearUI.peekHtml) is rebuilt only when the
      target changes; a picture still being drawn swaps in by itself (IB.Thumbs). */
   var PEEK = { rack: null, drop: null, key: '' };
+  /* the card floats in the world over its gun: project the gun's point each frame, anchor the card's bottom centre
+     there, scale with distance, keep it on screen */
+  var _pv = null;
+  H.peekTrack = function () {
+    var p = PEEK.rack || PEEK.drop, el = H.el.peek, cam = IB.Render && IB.Render.camera;
+    if (!p || !el || el.hidden || !cam || p.wx === undefined) return;
+    _pv = _pv || new THREE.Vector3(); _pv.set(p.wx, p.wy, p.wz).project(cam);
+    if (_pv.z > 1) { el.style.opacity = 0; return; }
+    var W = window.innerWidth, Hh = window.innerHeight, x = (_pv.x * 0.5 + 0.5) * W, y = (-_pv.y * 0.5 + 0.5) * Hh;
+    var pl = IB.Game && IB.Game.player, d = pl ? Math.hypot(p.wx - pl.x, p.wz - pl.z) : 4, k = Math.max(0.55, Math.min(1, 3.2 / Math.max(1, d)));
+    var w = el.offsetWidth * k, h = el.offsetHeight * k;
+    x = Math.max(w / 2 + 8, Math.min(W - w / 2 - 8, x)); y = Math.max(h + 8, Math.min(Hh - 8, y));
+    el.style.opacity = 1;
+    el.style.transform = 'translate(' + (x - w / 2).toFixed(1) + 'px,' + (y - h).toFixed(1) + 'px) scale(' + k.toFixed(3) + ')';
+  };
   H.peek = function (src, spec) {
     PEEK[src] = spec || null;
     var p = PEEK.rack || PEEK.drop, el = H.el.peek;
@@ -23376,12 +23421,13 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       entry('settings', 'Settings');
     var card = '';
     if (s) {
-      var lv = IB.Skills ? IB.Skills.levelFromXp(s.xp) : 1, title = IB.Skills ? IB.Skills.rankTitle(lv) : '';
+      var lv = IB.Skills ? IB.Skills.levelFromXp(s.xp) : 1, xpp = IB.Skills ? IB.Skills.xpProgress(s.xp) : { span: 0, frac: 1 };
       var pct = Math.round(Math.min(1, (s.highest || 0) / Math.max(1, (IB.CAMPAIGN || []).length || 19)) * 100);
       var when = s.saved && IB.Saves ? IB.Saves.ago(Date.now() - s.saved) : '';
       card = '<aside class="holo save-card" aria-label="Save slot ' + s.id + '">' +
         '<div class="sc-head">' + M.glyph('emblem', 'g24 sc-ic') + '<b>Save slot ' + s.id + '</b><span>' + esc(when) + '</span></div>' +
-        '<div class="sc-row sel"><span class="lvb"><small>LV</small>' + lv + '</span><b class="sc-name">' + esc(title) + '</b><span class="sc-gems">' + M.glyph('gem') + (s.gems || 0) + '</span></div>' +
+        '<div class="sc-row sel"><span class="lvb"><small>LV</small>' + lv + '</span><b class="sc-name">Player level</b><span class="sc-gems">' + M.glyph('gem') + (s.gems || 0) + '</span></div>' +
+        '<div class="sc-row"><span>XP</span><i class="sc-bar"><i style="width:' + Math.round(xpp.frac * 100) + '%"></i></i><b>' + (xpp.span ? Math.round(xpp.frac * 100) + '%' : 'Max') + '</b></div>' +
         '<div class="sc-row"><span>Next up</span><b>Level ' + s.level + ' · ' + esc(d.levelName) + '</b></div>' +
         '<div class="sc-row"><span>Campaign</span><i class="sc-bar"><i style="width:' + pct + '%"></i></i><b>' + (s.highest || 0) + '/' + ((IB.CAMPAIGN || []).length || 19) + '</b></div>' +
         '</aside>';
@@ -24829,16 +24875,17 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     host.innerHTML = cardFor(curG, gearOf(curG), spec);
   }
 
-  /* compact weapon card for a gun lying in the world (HUD peek panel, src/ui/hud.js H.peek): p = {id, tier, level,
-     roll, melee}. Stats as that gun would fight (no mods), compared with your own gun of that type when you have one. */
+  /* the weapon card for a gun lying in the world (HUD peek panel, src/ui/hud.js H.peek): the same card as the backpack
+     (cardShell) without the action buttons. p = {id, tier, level, roll, melee}. Stats as that gun would fight (no mods),
+     compared (▲/▼) with your own gun of that type when you have one. */
   GU.peekHtml = function (G, p) {
     var def = IB.WEAPONS[p.id]; if (!def || !G || !G.slot) return '';
     var WDg = IB.WeaponDrops, T = WDg ? WDg.tier(p.tier) : { name: 'Standard', color: '#E4DFD3', id: 'gray' };
     if (p.melee || def.cls === 'melee') {
       var own = (G.slot.melee || []).indexOf(p.id) >= 0;
-      return '<div class="pk-req"><span>Melee</span><span>' + (own ? 'Owned' : 'New') + '</span></div><div class="pk-bar" style="--rar:#FFC23A"><b>' + esc(def.name) + '</b></div>' +
-        '<ul class="pk-stats"><li>' + svg(SI.dmg, 'pk-si') + '<span>Damage</span><b>' + Math.round(def.damage) + '</b></li><li>' + svg(SI.rate, 'pk-si') + '<span>Swing</span><b>' + def.swing.toFixed(2) + ' s</b></li></ul>' +
-        '<div class="pk-foot">' + gunPic(p.id, 'pk-pic') + '</div>';
+      return cardShell('#FFC23A', (own ? svg(CHECK, 'g24 ic-check') : '') + '<span>Melee</span>', esc(def.name),
+        statList([{ label: 'Damage', icon: 'dmg', txt: String(Math.round(def.damage)) }, { label: 'Swing', icon: 'rate', txt: def.swing.toFixed(2) + ' s' }]),
+        gunPic(p.id, 'ic-pic'), own ? 'Owned' : 'New', '', 'peek');
     }
     var S0 = G.slot; S0.gunTier = S0.gunTier || {}; S0.gunLevel = S0.gunLevel || {}; S0.gunRoll = S0.gunRoll || {};
     var g = gearOf(G), have = (S0.arsenal || []).indexOf(p.id) >= 0, mine = have ? gunStats(G, p.id, g) : null;
@@ -24855,15 +24902,14 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     if (def.launcher === 'homing') notes.push('Homing salvo of ' + def.missiles);
     if (st.def.acid) notes.push('Acid rounds');
     if (st.fx.shock) notes.push('Shock rounds');
-    if (def.scopeZoom) notes.push(def.scopeZoom + 'x scope');
-    if (def.splash) notes.push('Splash ' + def.radius + ' m');
-    var pic = (IB.Thumbs ? IB.Thumbs.pic('gun', p.id + '@' + T.id, 'pk-pic', '') : '');
-    return '<div class="pk-req"><span>' + esc(T.name + ' ' + clsName(def.cls)) + '</span><span>Lv ' + lv + '</span></div>' +
-      '<div class="pk-bar" style="--rar:' + T.color + '"><b>' + esc(name) + '</b></div>' +
-      (mine ? '<div class="pk-vs">vs yours · ' + esc(WDg.nameOf(p.id)) + '</div>' : '<div class="pk-vs new">New gun</div>') +
-      statList(st.lines, mine && mine.lines).replace('class="ic-stats"', 'class="ic-stats pk-stats"') +
-      (notes.length ? '<ul class="pk-notes">' + notes.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul>' : '') +
-      '<div class="pk-foot">' + pic + '</div>';
+    if (def.scopeZoom) notes.push('Built-in ' + def.scopeZoom + 'x scope');
+    if (def.splash) notes.push('Splash damage, ' + def.radius + ' m');
+    var elem = st.def.acid ? svg(ACIDI, 'g24 ic-elem acid') : st.fx.shock ? svg(SHOCKI, 'g24 ic-elem shock') : '';
+    var pic = elem + (IB.Thumbs ? IB.Thumbs.pic('gun', p.id + '@' + T.id, 'ic-pic', '') : gunPic(p.id, 'ic-pic'));
+    return cardShell(T.color, '<span>' + esc(T.name + ' ' + clsName(def.cls)) + '</span><span>Lv ' + lv + '</span>', esc(name),
+      (mine ? '<div class="ic-vs">vs yours · ' + esc(WDg.nameOf(p.id)) + '</div>' : '') + statList(st.lines, mine && mine.lines) +
+      (notes.length ? '<ul class="ic-notes">' + notes.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul>' : ''),
+      pic, mine ? 'Owned' : 'New gun', '', 'peek');
   };
   GU.reset = function (G) {
     var lo = loadout(G), max = maxSlots(G);
@@ -25114,7 +25160,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       '<section class="tm-frame" role="dialog" aria-modal="true" aria-label="Field kit">' +
         '<header class="tm-head">' +
           '<div class="tm-id">' + lvBadge(pr.level, 'tm-lv') +
-            '<span class="tm-idtxt"><b class="tm-title">' + esc(pr.title) + '</b><span class="tm-sub">' + (pr.highest > 0 ? 'Level ' + pr.highest + ' cleared' : 'Rookie') + '</span></span></div>' +
+            '<span class="tm-idtxt"><b class="tm-title">Scrapper</b><span class="tm-sub">' + 'Player level ' + pr.level + (pr.highest > 0 ? ' · level ' + pr.highest + ' cleared' : '') + '</span></span></div>' +
           '<nav class="tm-tabs" role="tablist" aria-label="Field kit">' + (touch() ? '' : '<kbd class="qe">Q</kbd>') + tabs +
             '<b class="tm-curlbl" aria-hidden="true">' + FR + '<span>' + cur + '</span></b>' + (touch() ? '' : '<kbd class="qe">E</kbd>') + '</nav>' +
           '<div class="tm-meta"><span class="tm-gems" aria-label="Gems"><i class="gem-glyph" aria-hidden="true"></i><b>' + (G.slot.gems || 0) + '</b></span>' +
@@ -25250,7 +25296,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   function plate(pr, sk, h) {
     var cost = IB.Skills.respecCost(h), spent = IB.Skills.spent(sk), canRespec = spent > 0 && (G.slot.gems || 0) >= cost;
     return '<div class="ep sk-plate">' + FR +
-      '<div class="sk-who">' + lvBadge(pr.level) + '<b class="sk-whoname">' + esc(pr.title) + '</b></div>' +
+      '<div class="sk-who">' + lvBadge(pr.level) + '<b class="sk-whoname">Scrapper</b></div>' +
       '<div class="sk-points"><span>Skill points</span><b class="' + (pr.points > 0 ? 'has' : '') + '">' + pr.points + '</b></div>' +
       '<button class="btn danger sk-rbtn' + (T.confirmRespec ? ' confirm' : '') + '" data-act="respec" data-nav' + (canRespec ? '' : ' disabled aria-disabled="true"') + '><span class="btn-l">' + (T.confirmRespec ? 'Confirm reset' : 'Respec') + '</span><span class="hint"><i class="gem-glyph sm" aria-hidden="true"></i>' + cost + '</span></button>' +
       '</div>';
@@ -25297,7 +25343,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   // reads the skill table and the player directly (no assumption about IB.Skills.effects field names)
   function characterPanel(pr) {
     var sk = G.slot.skills || {}, g = IB.Gear && IB.Gear.gear(G), p = G.player || {};
-    var cap = IB.PLAYER_LEVEL_CAP, next = pr.level < cap ? IB.Skills.rankTitle(pr.level + 1) : null;
+    var cap = IB.PLAYER_LEVEL_CAP;
     var xpp = IB.Skills.xpProgress(G.slot.xp), lvPct = Math.round(xpp.frac * 100), ptPct = Math.round(pr.earned / IB.Skills.totalPoints() * 100);
     var sh = g && g.shield ? IB.Loot.find(g, g.shield) : null;
     function row(ic, k, v, hl) { return '<li' + (hl ? ' class="hl"' : '') + '>' + skIcon(ic, 'skic sm') + '<span>' + esc(k) + '</span><b>' + esc(v) + '</b></li>'; }
@@ -25315,10 +25361,10 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     function rec(k, v) { return '<li><span>' + k + '</span><b>' + v + '</b></li>'; }
     return '<div class="ep hsel ch-id">' + FR +
         lvBadge(pr.level, 'ch-badge') +
-        '<b class="ch-title">' + esc(pr.title) + '</b><span class="ch-sub">Scrapper · LV ' + pr.level + ' of ' + cap + '</span>' +
+        '<b class="ch-title">Scrapper</b><span class="ch-sub">Player level ' + pr.level + ' of ' + cap + '</span>' +
         '<div class="ch-bar"><span>XP</span><i><i style="width:' + lvPct + '%"></i></i><b>' + (xpp.span ? Math.floor(xpp.into).toLocaleString() + '/' + xpp.span.toLocaleString() : 'Max') + '</b></div>' +
         '<div class="ch-bar"><span>Points</span><i><i style="width:' + ptPct + '%"></i></i><b>' + pr.earned + '/' + IB.Skills.totalPoints() + '</b></div>' +
-        '<p class="ch-next">' + (next ? 'Next rank: <b>' + esc(next) + '</b>' : 'Top rank reached.') + '</p>' +
+        '<p class="ch-next">' + (xpp.span ? '<b>' + Math.ceil(xpp.span - xpp.into).toLocaleString() + ' XP</b> to LV ' + (pr.level + 1) : 'Max level reached.') + '</p>' +
         (perks.length ? '<div class="ch-perks">' + perks.map(function (s) { return '<span>' + skIcon(s.icon, 'skic sm') + esc(s.name) + '</span>'; }).join('') + '</div>' : '') +
       '</div>' +
       '<section class="ep ch-mid" aria-label="Stats">' + FR + '<h3 class="ep-h">' + IB.Menus.glyph('emblem') + 'Combat stats</h3><div class="tm-scroll" data-pane="stats"><ul class="ch-stats">' + stats + '</ul></div></section>' +
@@ -25660,7 +25706,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   function updateLoot() {
     if (!G.loot || !G.loot.length) { if (HUD.use) HUD.use(null); return; }
     var L = G.dead || G.complete || !G.player.alive ? null : nearestLoot();
-    if (HUD.use) HUD.use(L ? { key: 'E', text: L.label, sub: L.sub, color: L.color, gun: L.kind === 'gun' ? { id: L.id, tier: L.tier, level: L.level, roll: L.roll } : null } : null);
+    if (HUD.use) HUD.use(L ? { key: 'E', text: L.label, sub: L.sub, color: L.color, gun: L.kind === 'gun' ? { id: L.id, tier: L.tier, level: L.level, roll: L.roll, wx: L.x, wy: (L.y || 1) + 0.6, wz: L.z } : null } : null);
     if (L && Inp.usePressed) takeLoot(L);
   }
   G.nearestLoot = nearestLoot; G.takeLoot = takeLoot;
@@ -25845,7 +25891,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   G.grantStarterShield = grantStarterShield;
   G.progress = function () {
     var h = G.slot ? G.slot.highest || 0 : 0, g = G.slot ? IB.Skills.gained(G.slot) : 0, lv = IB.Skills.playerLevel(g);
-    return { highest: h, gained: g, xp: G.slot ? G.slot.xp || 0 : 0, level: lv, title: IB.Skills.rankTitle(lv),
+    return { highest: h, gained: g, xp: G.slot ? G.slot.xp || 0 : 0, level: lv,
       points: G.slot ? IB.Skills.available(G.slot.skills || {}, g) : 0, earned: IB.Skills.earned(g), loadoutMax: IB.Skills.loadoutMax(h) };
   };
   /* Player XP (data/skills.js IB.XP): robots pay as they are wrecked, a level clear pays a bonus. A level-up raises
@@ -25861,15 +25907,15 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       applySkillStats(false);
       G.player.health = Math.min(G.player.maxHp, G.player.health + Math.max(0, G.player.maxHp - hp0));
       if (G.mode === 'play') {
-        HUD.toast('LEVEL UP · LV ' + after + ' ' + IB.Skills.rankTitle(after) + ' · max health ' + Math.round(G.player.maxHp) + (pts ? ' · +' + pts + ' skill point' + (pts > 1 ? 's' : '') + ' (Tab)' : ''), 3.2);
+        HUD.toast('LEVEL UP · LV ' + after + ' · max health ' + Math.round(G.player.maxHp) + (pts ? ' · +' + pts + ' skill point' + (pts > 1 ? 's' : '') + ' (Tab)' : ''), 3.2);
         A.play('hatch');
       }
-      hudLevel();
       G.store.save(G.slot);
     }
+    hudLevel(n);
   }
   G.addXp = addXp;
-  function hudLevel() { if (HUD.level) { var pr = G.progress(); HUD.level(pr.level, pr.title, pr.points); } }
+  function hudLevel(gain) { if (HUD.level) { var pr = G.progress(); HUD.level(pr.level, pr.points, IB.Skills.xpProgress(pr.xp), gain || 0); } }
   // after the Tab menu: skills may have changed (stats, effects) and so may the loadout
   G.applyProgress = function () {
     ensureSlot();

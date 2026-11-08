@@ -289,6 +289,21 @@
      rack wins). spec {id, tier, level, roll, melee} or null. The card (IB.GearUI.peekHtml) is rebuilt only when the
      target changes; a picture still being drawn swaps in by itself (IB.Thumbs). */
   var PEEK = { rack: null, drop: null, key: '' };
+  /* the card floats in the world over its gun: project the gun's point each frame, anchor the card's bottom centre
+     there, scale with distance, keep it on screen */
+  var _pv = null;
+  H.peekTrack = function () {
+    var p = PEEK.rack || PEEK.drop, el = H.el.peek, cam = IB.Render && IB.Render.camera;
+    if (!p || !el || el.hidden || !cam || p.wx === undefined) return;
+    _pv = _pv || new THREE.Vector3(); _pv.set(p.wx, p.wy, p.wz).project(cam);
+    if (_pv.z > 1) { el.style.opacity = 0; return; }
+    var W = window.innerWidth, Hh = window.innerHeight, x = (_pv.x * 0.5 + 0.5) * W, y = (-_pv.y * 0.5 + 0.5) * Hh;
+    var pl = IB.Game && IB.Game.player, d = pl ? Math.hypot(p.wx - pl.x, p.wz - pl.z) : 4, k = Math.max(0.55, Math.min(1, 3.2 / Math.max(1, d)));
+    var w = el.offsetWidth * k, h = el.offsetHeight * k;
+    x = Math.max(w / 2 + 8, Math.min(W - w / 2 - 8, x)); y = Math.max(h + 8, Math.min(Hh - 8, y));
+    el.style.opacity = 1;
+    el.style.transform = 'translate(' + (x - w / 2).toFixed(1) + 'px,' + (y - h).toFixed(1) + 'px) scale(' + k.toFixed(3) + ')';
+  };
   H.peek = function (src, spec) {
     PEEK[src] = spec || null;
     var p = PEEK.rack || PEEK.drop, el = H.el.peek;

@@ -189,7 +189,10 @@
       var face = (-Math.sin(p.yaw) * dx - Math.cos(p.yaw) * dz) / dist; if (face < 0.82) continue;
       var sc = face - dist * 0.05; if (sc > bs) { bs = sc; best = q; }
     }
-    if (IB.HUD && IB.HUD.peek) IB.HUD.peek('drop', best ? { id: best.id, tier: best.tier, level: best.level, roll: best.roll, melee: best.melee } : null);
+    // the floating name label hides while its card is up (the card says it all)
+    for (i = 0; i < CAP; i++) { var lq = WD.list[i]; if (lq.label) lq.label.visible = lq !== best; }
+    if (IB.HUD && IB.HUD.peek) IB.HUD.peek('drop', best ? { id: best.id, tier: best.tier, level: best.level, roll: best.roll, melee: best.melee, wx: best.x, wy: (best.y || 0) + 1.5, wz: best.z } : null);
+    if (IB.HUD && IB.HUD.peekTrack) IB.HUD.peekTrack();   // keep the card floating over its gun
   };
   WD.radar = function () { return WD.list.filter(function (d) { return d.on; }).map(function (d) { return { x: d.x, z: d.z, kind: 'weapon' }; }); };
   WD.live = function () { return WD.list.filter(function (d) { return d.on; }).map(function (d) { return { id: d.id, tier: d.tier, melee: d.melee, x: d.x, z: d.z, level: d.level, roll: d.roll }; }); };

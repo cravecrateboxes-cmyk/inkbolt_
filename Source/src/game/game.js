@@ -286,7 +286,7 @@
   function updateLoot() {
     if (!G.loot || !G.loot.length) { if (HUD.use) HUD.use(null); return; }
     var L = G.dead || G.complete || !G.player.alive ? null : nearestLoot();
-    if (HUD.use) HUD.use(L ? { key: 'E', text: L.label, sub: L.sub, color: L.color, gun: L.kind === 'gun' ? { id: L.id, tier: L.tier, level: L.level, roll: L.roll } : null } : null);
+    if (HUD.use) HUD.use(L ? { key: 'E', text: L.label, sub: L.sub, color: L.color, gun: L.kind === 'gun' ? { id: L.id, tier: L.tier, level: L.level, roll: L.roll, wx: L.x, wy: (L.y || 1) + 0.6, wz: L.z } : null } : null);
     if (L && Inp.usePressed) takeLoot(L);
   }
   G.nearestLoot = nearestLoot; G.takeLoot = takeLoot;
