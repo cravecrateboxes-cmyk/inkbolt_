@@ -330,13 +330,19 @@
 
   // '#': exposed cells get a wall module; building interiors get a flat roof
   function buildWalls(P, z, grid, theme, world) {
-    var W = theme.wall || {}, H = W.height || 3;
+    var W = theme.wall || {}, H = W.height || 3, PS = W.passage;
     rects(grid, '#').forEach(function (R) {
       world.add(z.ox + R.c, 0, z.oz + R.r, z.ox + R.c + R.w, H, z.oz + R.r + R.h, 'wall', z.idx);
     });
-    var WALLISH = '#GE';
+    /* wall.passage = { ch, solid: [[y0, y1], ...] } (optional): a doorway cell in a wall line. It counts as wall for the
+       modules around it (facing, exposure) and gets a module from the chooser like any wall cell, but it is solid only
+       in the given height bands (lintels), so people walk through it (a walk-in shop's open front, on each storey) */
+    if (PS) rects(grid, PS.ch).forEach(function (R) {
+      PS.solid.forEach(function (b) { world.add(z.ox + R.c, b[0], z.oz + R.r, z.ox + R.c + R.w, b[1], z.oz + R.r + R.h, 'wall', z.idx); });
+    });
+    var WALLISH = '#GE' + (PS ? PS.ch : '');
     function solid(c, r) { return cellIs(grid, c, r, WALLISH); }
-    find(grid, '#').forEach(function (p) {
+    find(grid, '#').concat(PS ? find(grid, PS.ch) : []).forEach(function (p) {
       var exposed = !solid(p.c - 1, p.r) || !solid(p.c + 1, p.r) || !solid(p.c, p.r - 1) || !solid(p.c, p.r + 1) ||
         !solid(p.c - 1, p.r - 1) || !solid(p.c + 1, p.r - 1) || !solid(p.c - 1, p.r + 1) || !solid(p.c + 1, p.r + 1);
       if (!exposed) { P.roof.push(p); return; }
@@ -345,6 +351,9 @@
       // facing from the open cardinal neighbours: 'S','N','E','W', 'corner' (two adjacent open sides) or 'none'
       var oS = !solid(p.c, p.r + 1), oN = !solid(p.c, p.r - 1), oE = !solid(p.c + 1, p.r), oW = !solid(p.c - 1, p.r);
       var nOpen = oS + oN + oE + oW, face = nOpen === 0 ? 'none' : nOpen === 1 ? (oS ? 'S' : oN ? 'N' : oE ? 'E' : 'W') : ((oS || oN) && (oE || oW) ? 'corner' : (oS ? 'S' : 'E'));
+      // wall.faceOf (optional): the theme settles the facing of a cell open on two opposite sides (a shop front with
+      // the hall on one side and the shop's own room on the other)
+      if (W.faceOf) face = W.faceOf(p.c, p.r, grid, face) || face;
       var name = W.choose ? W.choose(p.c, p.r, horiz, horiz && vert, hash, grid, face) : pick(W.pieces, hash(p.c * 13, p.r * 17));
       if (!name) return;   // the chooser leaves cells a gate built-in covers empty (their collision stays)
       // a list of names: parts stacked in one cell with one transform (a storefront per storey over a shared shell)
@@ -583,6 +592,16 @@
     var best = Math.max(n, s, w, e); if (!best) return y;
     return best === n ? 0 : best === s ? Math.PI : best === w ? Math.PI / 2 : -Math.PI / 2;
   }
+  // orient: 'open': the front (+Z) turns to the side of the block with the smallest share of wall cells (a room whose
+  // front is a shop window line with a doorway, walled on its other three sides)
+  function openYaw(grid, R, y) {
+    function wallAt(r, c) { return r < 0 || c < 0 || r >= grid.h || c >= grid.w || grid.rows[r][c] === '#'; }
+    var n = 0, s = 0, w = 0, e = 0, i;
+    for (i = 0; i < R.w; i++) { if (wallAt(R.r - 1, R.c + i)) n++; if (wallAt(R.r + R.h, R.c + i)) s++; }
+    for (i = 0; i < R.h; i++) { if (wallAt(R.r + i, R.c - 1)) w++; if (wallAt(R.r + i, R.c + R.w)) e++; }
+    var f = [[n / R.w, Math.PI], [s / R.w, 0], [w / R.h, -Math.PI / 2], [e / R.h, Math.PI / 2]].sort(function (a, b) { return a[0] - b[0]; });
+    return f[0][0] < f[1][0] ? f[0][1] : y;
+  }
   // a multi-cell prefab symbol: each connected block is tiled with prefabs of size [w, d] (rotated 90 if that fits)
   function buildPrefabs(P, z, grid, theme, world, ch, d, yb) {
     var sw = d.size[0], sd = d.size[1];
@@ -600,6 +619,7 @@
         var y = yaw + (d.turn || 0) + (d.flip && hash(R.c * 3 + i, R.r * 5 + k) > 0.5 ? Math.PI : 0);
         if (typeof d.face === 'number') y = d.face;
         if (d.orient === 'wall') y = wallYaw(grid, R, y);
+        else if (d.orient === 'open') y = openYaw(grid, R, y);
         var seq = yaw ? nz - 1 - k : i; if (back) seq = nRun - 1 - seq;
         // sequence 'run': the first and last pieces cap each run (feed / dispatch), the middle ones repeat in order
         var L = d.pieces.length, name = d.sequence === 'run' ? d.pieces[seq === 0 ? 0 : seq === nRun - 1 ? L - 1 : 1 + (seq - 1) % Math.max(1, L - 2)]

@@ -17,11 +17,19 @@
              facing: 'open' (turn each module's +Z face toward its single open side: S/N/E/W; corners keep 0),
              pieces: ['Wall_A', ...] | choose: function (c, r, horiz, corner, hash, grid, face) -> name | null (no module) },
              (face = 'S'|'N'|'E'|'W' open side, 'corner' (two adjacent open sides) or 'none')
+             faceOf: function (c, r, grid, face) -> 'S'|'N'|'E'|'W' | null (optional: settles the facing of a cell open on
+               two opposite sides, e.g. a shop front with the hall in front and a walk-in room behind)
+             passage: { ch: 'n', solid: [[y0, y1], ...] } (optional: a doorway cell in a wall line; it counts as wall for
+               the modules round it and gets a module from the chooser, but collides only in the given height bands, so
+               people walk through below / between its lintels; e.g. themes/mall.js walk-in shops on two storeys)
              (grid: {w, h, at(c, r)}; c/r = cell; modules face +/-Z and are turned 90 for vertical runs; with faceOpen the
               module's +Z face (= Blender -Y face) is turned toward the open side, so one-sided walls face the room)
      symbols: {                    // any ASCII symbol except the built-ins below
        '=': { pieces: [...], h: 1, rotate: 'run'|'random90'|<radians>, stack: { piece, chance, h }, collide: true },
        'K': { size: [w, d], pieces: [...], h: 1.4, flip: true },   // multi-cell prefab tiled over each block of K
+                                                                  // (orient: 'wall' turns its back to the side with the most
+                                                                  // '#' cells, 'open' its front to the side with the smallest
+                                                                  // share of them: a room fronted by a doorway line)
                                                                   // (turn: <radians> turns every prefab, e.g. Math.PI)
        'p': { pieces: [...], collide: false },
        'L': { size: [12, 8], pieces: ['Feed', 'Mid', 'Out'], sequence: 'run' (first / last piece cap each run, the

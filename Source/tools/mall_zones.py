@@ -9,6 +9,10 @@ dressing that follows from them and rewrites the files in place (idempotent: it 
     compass roses under the fountain / Guest Services, the food-court checker, entrance mats at both gates
   * "@layer 9.5" roof: glazed coffer tiles over the atrium (4 m), trusses on the column lines with banners (kept
     clear of escalators), none over the lift shaft; downlights over the mezzanine ring
+  * walk-in shops: a 7-cell band behind the west and east walls; 5 bays per side whose doorway approach is clear on
+    both storeys (props in the way move to the bay's pilaster rows) become 5 x 6 m rooms: room symbols on the plan and
+    the mezzanine layer, doorway cells 'n' (three per bay) with deck in the upper doorways, a pickup in two ground-floor
+    shops per zone (layer 0). Re-running strips the band first, so the hand-laid hall stays the source.
 Run: python3 tools/mall_zones.py
 """
 import os
@@ -40,10 +44,92 @@ def bbox(cells):
     return min(cs), min(rs), max(cs), max(rs)
 
 
+# ---- walk-in shops: a band of shop rooms behind the west and east shop fronts (both storeys)
+BAND = 7                      # band depth in cells: the back wall + a 6 m deep room
+LO_ROOMS = 'AZCRWU'           # ground storey: Atelier, SIGNAL, The Coffee House, Northfield Books, Toy Workshop, Aurum
+UP_ROOMS = 'gvbmt'            # mezzanine storey: Shoe Gallery, Lumen Optics, Bakehouse, Hearth & Home, Leatherworks
+PICK = {'W': (0, 2, 3, 5, 7), 'E': (1, 2, 4, 6, 7)}   # preferred bays per side (5 of 8), topped up from the rest
+PER_SIDE = 5
+
+
+def strip_band(base, mez):
+    """undo an earlier band: drop its columns, close the doorways again"""
+    b = 0
+    while base[1][b] == '#':
+        b += 1
+    b -= 1
+    if b <= 0:
+        return base, mez
+    base = [row[b:len(row) - b] for row in base]
+    mez = [row[b:len(row) - b] for row in mez]
+    for g in (base, mez):
+        for row in g:
+            for c in (0, len(row) - 1):
+                row[c] = '#'
+    return base, mez
+
+
+def add_band(name, zi, base, mez, fl, rf):
+    """rooms behind the chosen bays of the west / east walls; returns the new grids and the room list"""
+    H, W = len(base), len(base[0])
+    rooms = []
+    for side, front, inw in (('W', 0, 1), ('E', W - 1, -1)):
+        cand = []
+        for b in range(8):
+            r0 = 1 + 6 * b
+            if r0 + 5 > H - 3:
+                continue
+            door = range(r0 + 2, r0 + 5)
+            # props that would stand in front of the doorway move to the pilaster rows of the bay
+            for g, movable, rows in ((base, 'dc', door), (mez, 'oc', door), (base, 'd', range(r0 + 1, r0 + 6))):
+                for r in rows:
+                    for j in (1, 2):
+                        c = front + inw * j
+                        if g[r][c] in movable:
+                            for rr in (r0, r0 + 6, r0 - 1, r0 + 7):
+                                if g[rr][c] in '.u':
+                                    g[rr][c], g[r][c] = g[r][c], ('.' if g is base else 'u')
+                                    break
+            ok = all(base[r][front + inw * j] in '.ah' and mez[r][front + inw * j] in 'ul' for r in door for j in (1, 2))
+            ok = ok and all(base[r][front + inw] != 'Y' for r in range(r0 + 1, r0 + 6))
+            if ok:
+                cand.append(b)
+        pick = [b for b in PICK[side] if b in cand]
+        pick += [b for b in cand if b not in pick][:max(0, PER_SIDE - len(pick))]
+        for b in sorted(pick[:PER_SIDE]):
+            rooms.append((side, 1 + 6 * b))
+    # room identities: every shop of the storey turns up in turn (the open-front Field & Court stays shuttered)
+    rooms.sort(key=lambda t: (t[1], t[0]))
+    out_b = [['#'] * BAND + row + ['#'] * BAND for row in base]
+    out_m = [['#'] * BAND + row + ['#'] * BAND for row in mez]
+    out_f = [['.'] * BAND + row + ['.'] * BAND for row in fl]
+    out_r = [['.'] * BAND + row + ['.'] * BAND for row in rf]
+    W2 = W + 2 * BAND
+    info = []
+    for i, (side, r0) in enumerate(rooms):
+        lo = LO_ROOMS[(i + zi * 2) % len(LO_ROOMS)]
+        up = UP_ROOMS[(i + zi * 3) % len(UP_ROOMS)]
+        front = BAND if side == 'W' else W2 - 1 - BAND
+        cols = range(1, BAND) if side == 'W' else range(W2 - BAND, W2 - 1)
+        for r in range(r0 + 1, r0 + 6):
+            for c in cols:
+                out_b[r][c] = lo
+                out_m[r][c] = up
+        for r in range(r0 + 2, r0 + 5):
+            out_b[r][front] = 'n'
+            out_m[r][front] = 'u'
+        if i in (2, 7):   # a pickup in the aisle of two ground-floor shops per zone
+            c = BAND - 2 if side == 'W' else W2 - BAND + 1
+            out_f[r0 + 3][c] = 'ah'[i == 7]
+        info.append((side, r0, lo, up))
+    return out_b, out_m, out_f, out_r, info
+
+
 def build(name):
     path = os.path.join(ZD, name + '.txt')
     base, layers = parse(open(path).read())
     mez = next(L for L in layers if L[0] == '4.5')[1]
+    base, mez = strip_band(base, mez)
     H, W = len(base), len(base[0])
     # undo earlier generation
     for g in (base, mez):
@@ -152,12 +238,16 @@ def build(name):
             if on_ring and mez[r][c] in 'uSoBcah' and not (r0 - 1 <= r <= r1 + 1 and c0 - 1 <= c <= c1 + 1):
                 rf[r][c] = ':'
 
+    zi = ('mall_1', 'mall_2', 'mall_3').index(name)
+    base, mez, fl, rf, rooms = add_band(name, zi, base, mez, fl, rf)
     out = [''.join(row) for row in base]
     for y, g in (('0', fl), ('4.5', mez), ('9.5', rf)):
         out.append('@layer ' + y)
         out += [''.join(row) for row in g]
     open(path, 'w').write('\n'.join(out) + '\n')
     print(name, 'void', (c0, r0, c1, r1), 'columns', len(columns), 'truss rows', truss_rows)
+    for side, r, lo, up in rooms:
+        print('   shop', side, 'rows', r + 1, '-', r + 5, 'ground', lo, 'upper', up)
 
 
 if __name__ == '__main__':

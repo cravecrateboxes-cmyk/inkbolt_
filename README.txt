@@ -53,6 +53,10 @@ CAMPAIGN (src/data/levelplans.js ORDER)
   Heavy Works (factory2): giant walkers and tread bruisers built along moving lines (bare chassis, drivetrain, armour,
     paint), overhead cranes, a test track. Moving lines (theme symbol option `conveyor`, zones.js updateLines,
     one instanced mesh per moving symbol) run in both factories; standing on a belt carries you.
+  Galleria Mall (mall): two storeys of shopfronts round a glazed atrium; about a third of the bays (west and east walls,
+    both storeys) are walk-in shops with furnished 5 x 6 m rooms (books, coffee, fashion, electronics, toys, jewellery,
+    shoes, optics, bakery, homeware, leather goods) that robots follow you into; the others are window-only or
+    shuttered. Zone layers: tools/mall_zones.py; rooms: blender/mall_rooms.py; doorways: theme wall.passage.
   Lagoon Island (island): a wide island with wadeable ponds, tide pools and a lagoon, sea walls on the shore and open
     ocean to the horizon all round (theme backdrop.build paints the island ground and the sea).
 

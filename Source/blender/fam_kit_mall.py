@@ -14,7 +14,10 @@ links into runs), columns under / over the mezzanine edge, a framed glass lift s
 department-store podiums. Floor inlays (an "@layer 0" grid: diamonds, border bands, compass-rose medallions, food-court
 checker, entrance mats) and the roof (an "@layer 9.5" grid: glazed coffers, lattice trusses with hanging banners and
 pendant lamps, downlights), plus under-deck downlights ("@layer 4.5"). Gate portal with GALLERIA lettering, corridor
-walls, hatch.
+walls, hatch. Walk-in shops: open-front variants of the storefronts (WinAW / OpenL / OpenC / OpenR / WinBW: display beds,
+a 3 m doorway under the sign band, the room-side face of the wall line) and one furnished 5 x 6 m room per shop
+(mall_rooms.py: floor finish, walls, ceiling with light panels, staff door, cash desk, the shop's fittings, collision
+cut per fitting).
 
 Conventions (src/game/zones.js): 1 cell = 1 m; origin = centre of the cell / footprint at floor level; Blender -Y =
 game +Z = the piece's front. Decks stand at 4.5 m (slab 4.1-4.5); the ceiling is at 9.5 m. Ceiling pieces hang from
@@ -311,6 +314,159 @@ def shop_front(m, brand, pos, S):
         m.hmode[k] = 'none'
 
 
+# ---------------------------------------------------------------- walk-in shop fronts (a room behind, mall_rooms.py)
+# The bay's two windows keep their glass with a display bed that fills the cell (the room-side face of the wall line is
+# drawn); the three middle modules open below the transom (OpenL / OpenC / OpenR: a 3 m doorway, the engine's
+# wall.passage keeps only the lintel solid) under the shop's sign band.
+POS_W = ['WinAW', 'OpenL', 'OpenC', 'OpenR', 'WinBW']
+# room look per (brand, storey): floor, floor accent, walls, trim (mall_rooms.py uses the same)
+ROOM = {
+    ('rose', 'Lo'): ('woodL', 'wood', 'roseL', 'rose'), ('sky', 'Lo'): ('paper', 'skyL', 'skyL', 'navy'),
+    ('orange', 'Lo'): ('wood', 'wood2', 'orangeL', 'orange'), ('mint', 'Lo'): ('woodL', 'wood', 'mintL', 'tealD'),
+    ('gold', 'Lo'): ('cream', 'yellow', 'yellowL', 'blueT'), ('violet', 'Lo'): ('intD', 'sign', 'violetD', 'gold'),
+    ('rose', 'Up'): ('cream', 'roseL', 'roseL', 'rose'), ('sky', 'Up'): ('skyL', 'paper', 'paper', 'navy'),
+    ('orange', 'Up'): ('terra', 'cream', 'cream', 'orange'), ('mint', 'Up'): ('wood', 'wood2', 'mintL', 'tealD'),
+    ('violet', 'Up'): ('wood2', 'wood', 'orangeL', 'violetD'),
+}
+RH = 3.4        # room ceiling above its floor (both storeys); the front's room face runs a little past it
+
+
+def walk_display(m, brand, tag, pos, bt):
+    """one or two pieces of the shop's stock on a window's display bed (top bt)"""
+    a = pos == 'WinAW'
+    y = -0.05
+    if tag == 'Lo':
+        if brand == 'rose':
+            figure(m, 0.0, y, bt, 'rose' if a else 'navy', legs='cream' if a else 'dark')
+        elif brand == 'sky':
+            for i, x in enumerate((-0.2, 0.2)):
+                m.bx(x - 0.03, x + 0.03, y - 0.03, y + 0.03, bt, bt + 0.35, 'chrome', hull='none')
+                m.bx(x - 0.1, x + 0.1, y - 0.04, y - 0.02, bt + 0.3, bt + 0.66, 'dark', hull='none')
+                fq(m, x - 0.085, x + 0.085, y - 0.043, bt + 0.32, bt + 0.64, 'sky' if i else 'blueT')
+        elif brand == 'orange':
+            m.cy((0, y, bt), 0.03, 0.03, 0.55, 'chrome', seg=6, hull='none')
+            for i, r in enumerate((0.26, 0.18)):
+                zz = bt + 0.2 + i * 0.3
+                m.cy((0, y, zz), r, r, 0.015, 'paper', seg=10, hull='none')
+                cake(m, 0.0, y, zz + 0.015, r * 0.6, ('roseL', 'woodL')[i], h=0.08)
+        elif brand == 'mint':
+            for k, w in enumerate((0.4, 0.28, 0.16)):
+                m.bx(-w, w, -0.2, 0.15, bt + k * 0.16, bt + (k + 1) * 0.16 - 0.005, ('redT', 'navy', 'gold')[k], hull='none', cull='b')
+        elif brand == 'gold':
+            if a:
+                m.sp((0, y, bt + 0.3), 0.28, 'wood', seg=(7, 4))
+                m.sp((0, y - 0.02, bt + 0.74), 0.2, 'wood', seg=(7, 4))
+                for sx in (-1, 1):
+                    m.sp((sx * 0.15, y, bt + 0.9), 0.07, 'wood2', seg=(6, 4), hull='none')
+                m.sp((0, y - 0.19, bt + 0.7), 0.065, 'woodL', seg=(6, 4), hull='none')
+            else:
+                for i, (x, c) in enumerate(((-0.22, 'redT'), (0.0, 'blueT'), (0.22, 'greenT'))):
+                    m.bx(x - 0.1, x + 0.1, y - 0.1, y + 0.1, bt, bt + 0.2 + 0.1 * i, c, hull='full', cull='b')
+        elif brand == 'violet':
+            m.cy((0.0, y, bt), 0.15, 0.15, 0.6, 'paper', seg=8)
+            m.prism([(y - 0.1, bt + 0.6), (y + 0.1, bt + 0.6), (y + 0.05, bt + 1.0), (y - 0.05, bt + 1.0)], -0.12, 0.12, ['sign'])
+            m.cy((0.0, y - 0.105, bt + 0.85), 0.09, 0.09, 0.02, 'gold', seg=8, rot=(90, 0, 0), hull='none')
+    else:
+        if brand == 'rose':
+            for i, (x, h, c) in enumerate(((-0.25, 0.15, 'paper'), (0.0, 0.35, 'roseL'), (0.25, 0.05, 'cream'))):
+                m.bx(x - 0.11, x + 0.11, -0.15, 0.1, bt, bt + h, c, hull='none', cull='b')
+                shoe(m, x, -0.07, bt + h, ('rose', 'dark', 'gold')[i], heel=(i != 1))
+                shoe(m, x, 0.03, bt + h, ('rose', 'dark', 'gold')[i], heel=(i != 1))
+        elif brand == 'sky':
+            for sx in (-1, 1):
+                m.cy((sx * 0.17, y, bt + 0.9), 0.15, 0.15, 0.03, 'dark', seg=12, rot=(90, 0, 0), hull='none')
+                m.cy((sx * 0.17, y - 0.015, bt + 0.9), 0.12, 0.12, 0.005, 'glassL', seg=12, rot=(90, 0, 0), hull='none')
+            m.bx(-0.04, 0.04, y - 0.02, y + 0.02, bt + 0.94, bt + 0.97, 'dark', hull='none')
+            m.bx(-0.015, 0.015, y - 0.01, y + 0.02, bt, bt + 0.75, 'chrome', hull='none')
+        elif brand == 'orange':
+            m.cy((0, y, bt), 0.03, 0.03, 0.7, 'chrome', seg=6, hull='none')
+            for i, r in enumerate((0.3, 0.22, 0.15)):
+                zz = bt + 0.15 + i * 0.25
+                m.cy((0, y, zz), r, r, 0.015, 'paper', seg=12, hull='none')
+                cake(m, 0.0, y, zz + 0.015, r * 0.6, ('roseL', 'woodL', 'orangeL')[i], h=0.08)
+        elif brand == 'mint':
+            plant(m, -0.2, y, bt, 1.4)
+            m.cy((0.25, y, bt), 0.12, 0.12, 0.45, 'wood', seg=8, hull='none')
+            m.cy((0.25, y, bt + 0.45), 0.06, 0.09, 0.3, 'tealM', seg=8, hull='none')
+        elif brand == 'violet':
+            for i, (x, h) in enumerate(((-0.22, 0.4), (0.22, 0.2))):
+                m.cy((x, y, bt), 0.13, 0.13, h, 'paper', seg=10, hull='none')
+                bag(m, x, y, bt + h, ('wood', 'redT')[i], w=0.26, h=0.2)
+
+
+def shop_front_walk(m, brand, pos, S):
+    _w, _b, _l, frame, flo, wall, awn = BRANDS[brand]
+    tag = 'Lo' if S is LO else 'Up'
+    shop = SHOPS[(brand, tag)]
+    band, lc = shop['band'], shop['lc']
+    if S is UP:
+        awn = None
+    z0, kick, wtop, s0, s1, top = S['z0'], S['kick'], S['wtop'], S['s0'], S['s1'], S['top']
+    rw, trim = ROOM[(brand, tag)][2], ROOM[(brand, tag)][3]
+    win = pos in ('WinAW', 'WinBW')
+    rt = z0 + RH + 0.05        # the room-side face of the wall line runs just past the room ceiling
+    # frame: mullion halves where a window meets its neighbour (doorways keep only the outer jambs)
+    for sx in (-1, 1):
+        outer = (pos == 'OpenL' and sx < 0) or (pos == 'OpenR' and sx > 0)
+        if win or outer:
+            m.bx(sx * 0.5 - (0.04 if sx > 0 else 0), sx * 0.5 + (0.04 if sx < 0 else 0), -0.54, -0.37, z0, wtop, frame, hull='none', cull='ktb' + ('r' if sx > 0 else 'l'))
+    m.bx(-0.5, 0.5, -0.545, -0.37, wtop, s0, frame, hull='none', cull='klrt' + ('' if win else 'b'))
+    m.bx(-0.5, 0.5, -0.6, -0.37, s0, s1, band, hull='noside', cull='klrt')
+    zm = (s0 + s1) / 2
+    if pos in ('OpenL', 'OpenC', 'OpenR'):
+        off = {'OpenL': -1.0, 'OpenC': 0.0, 'OpenR': 1.0}[pos]
+        txt(m, shop['name'], -off, -0.604, zm, shop['cap'], lc, font=shop['font'], valign='m', maxw=2.7,
+            clip=(-0.5 + off, 0.5 + off), shadow=shop.get('sh'), shadow_off=(0.05, -0.07))
+    else:
+        vdisc(m, (0, -0.604, zm), 0.22, lc, 'y-', seg=14)
+        txt(m, initial(shop), 0.0, -0.608, zm, 0.2, band, font='display', valign='m', maxw=0.3)
+    if top - s1 > 0.5:
+        fq(m, -0.5, 0.5, -0.5, s1, top, 'stone')
+        for i in range(4):
+            fq(m, -0.44 + i * 0.25, -0.31 + i * 0.25, -0.503, s1 + 0.35, s1 + 0.48, 'gold')
+        m.bx(-0.5, 0.5, -0.62, -0.5, top - 0.6, top - 0.38, 'stone2', hull='noside', cull='klr')
+        m.bx(-0.5, 0.5, -0.56, -0.5, top - 0.16, top, 'cream', hull='noside', cull='ktlr')
+    else:
+        fq(m, -0.5, 0.5, -0.5, s1, top, 'stone')
+    if awn and pos != 'OpenC':
+        prof = [(-0.37, wtop + 0.02), (-1.12, wtop - 0.4), (-1.12, wtop - 0.6), (-0.37, wtop - 0.06)]
+        m.prism(prof, -0.5, 0.5, [awn[0], awn[1]], hull='noside')
+    elif pos == 'WinAW':
+        zb = wtop - 0.45
+        m.bx(-0.43, -0.4, -1.0, -0.37, zb + 0.3, zb + 0.36, 'dark', hull='none')
+        m.bx(-0.44, -0.39, -0.95, -0.42, zb - 0.3, zb + 0.3, band, hull='full')
+        vdisc(m, (-0.386, -0.685, zb), 0.17, lc, 'x+', seg=12)
+        vdisc(m, (-0.444, -0.685, zb), 0.17, lc, 'x-', seg=12)
+        txt(m, initial(shop), -0.382, -0.685, zb, 0.17, band, face='x+', font='display', valign='m', maxw=0.24)
+        txt(m, initial(shop), -0.448, -0.685, zb, 0.17, band, face='x-', font='display', valign='m', maxw=0.24)
+    # room side of the wall line, above the opening, with a trim band along the opening's head
+    bq(m, -0.5, 0.5, 0.5, wtop, rt, rw)
+    m.bx(-0.5, 0.5, 0.44, 0.5, wtop - 0.12, wtop, trim, hull='none', cull='ftlr')
+    if win:
+        bt = z0 + 0.6
+        m.bx(-0.5, 0.5, -0.56, -0.37, z0, kick, 'stone2', hull='none', cull='kblr')
+        glint(m, -0.42, 0.42, GY, kick, wtop)
+        m.bx(-0.46, 0.46, -0.37, 0.5, z0, bt, 'cream', hull='none', cull='bkft')   # display bed (sides; top below)
+        uq(m, -0.46, 0.46, -0.37, 0.5, bt + 0.003, flo)
+        bq(m, -0.5, 0.5, 0.503, z0, bt, trim)
+        # jamb toward the doorway (the window's inner side), facing the passage
+        if pos == 'WinAW':
+            rq(m, 0.5, -0.37, 0.5, z0, wtop, 'stone')
+        else:
+            lq(m, -0.5, -0.37, 0.5, z0, wtop, 'stone')
+        n0 = m.nshape
+        walk_display(m, brand, tag, pos, bt)
+        for k in range(n0 + 1, m.nshape + 1):
+            m.hmode[k] = 'none'
+    else:
+        # soffit over the doorway, a rolled-up shutter box behind the transom, a brass threshold and a dark mat strip
+        dq(m, -0.5, 0.5, -0.545, 0.5, wtop, 'stone')
+        m.bx(-0.5, 0.5, -0.3, -0.08, wtop - 0.16, wtop - 0.002, 'steel', hull='none', cull='t')
+        fq(m, -0.5, 0.5, -0.303, wtop - 0.13, wtop - 0.1, 'chrome')
+        uq(m, -0.5, 0.5, -0.5, -0.3, z0 + 0.016, 'brass')
+        uq(m, -0.5, 0.5, -0.3, 0.5, z0 + 0.014, 'sign')
+
+
 def door_leaves(m, S, frame):
     z0, d = S['z0'], S['dtop']
     for sx in (-1, 1):   # two open-frame glass doors with push bars
@@ -547,6 +703,13 @@ def build_shopfronts(pal, ao):
             for tag, S in (('Lo', LO), ('Up', UP)):
                 m = new(pal)
                 shop_front(m, brand, pos, S)
+                make('%s_%s_%s' % (tag, brand, pos), m, ao)
+        for tag, S in (('Lo', LO), ('Up', UP)):
+            if (brand, tag) not in ROOM:
+                continue
+            for pos in POS_W:
+                m = new(pal)
+                shop_front_walk(m, brand, pos, S)
                 make('%s_%s_%s' % (tag, brand, pos), m, ao)
 
 
@@ -1343,7 +1506,11 @@ def build_kit_mall(ao):
     build_floor(pal, ao)
     build_ceiling(pal, ao)
     build_gate(pal, ao)
+    import mall_rooms
+    mall_rooms.build_rooms(pal, ao)
     print('kit-mall: %d pieces, %d triangles' % (len(TRIS), sum(TRIS.values())))
+    for n in sorted(k for k in TRIS if '_Room_' in k):
+        print('  room %-36s %6d' % (n, TRIS[n]))
     for n in sorted(TRIS, key=lambda k: -TRIS[k])[:16]:
         print('  %-40s %6d' % (n, TRIS[n]))
     export(FAM)
