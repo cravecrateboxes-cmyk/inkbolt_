@@ -2168,7 +2168,7 @@
 
    Walls: every wall cell stacks two storefront modules (ground 'Lo_', upper 'Up_'), so the chooser returns a list.
    Bays are 6 m: a pilaster, then five modules (window, sign-left, door, sign-right, window) of one brand per storey;
-   the brand name in pixel letters runs over the middle three. On the N and E faces the modules come mirrored (the
+   the shop name (vector lettering, blender/ib_text.py) runs over the middle three. On the N and E faces the modules come mirrored (the
    engine turns them to face the open side), so sign-left / sign-right and the two windows swap there. */
 (function (IB) {
   'use strict';
@@ -2727,14 +2727,14 @@
 
   var R90 = Math.PI / 2;
   var COLS = function (n) { return [0, 1, 2, 3].map(function (k) { return n + '_' + k; }); };
-  var CARS = ['Sedan', 'Sedan', 'Sedan_Door', 'Hatch', 'Hatch', 'Hatch_Boot', 'SUV', 'SUV', 'SUV_Boot', 'Sports', 'Sedan', 'Wreck_Smash'];
+  var CARS = ['Sedan', 'Sedan', 'Sedan_Door', 'Hatchback', 'Hatchback', 'Hatch_Boot', 'SUV', 'SUV', 'SUV_Boot', 'Sports', 'Sedan', 'Wreck_Smash'];
   var BAYS = ['Bay_A', 'Bay_B', 'Bay_C', 'Bay_D', 'Bay_A', 'Bay_C', 'Bay_B', 'Bay_EV', 'Bay_D', 'Bay_H'];
   var WALLS = ['Corner_NW', 'Corner_NE', 'Corner_SW', 'Corner_SE', 'GateSide'];
   LV.forEach(function (L) {
     ['Plain', 'Num', 'Arrow', 'Pipe', 'Pier', 'Door', 'Lift', 'Dock', 'Split', 'EndL', 'EndR'].forEach(function (v) { WALLS.push('Lo_' + L + '_' + v); });
     ['Plain', 'Num', 'Arrow', 'Pipe', 'Pier', 'EndL', 'EndR'].forEach(function (v) { WALLS.push('Up_' + L + '_' + v); });
   });
-  var OTHER = ['Sedan', 'Sedan_Door', 'Hatch', 'Hatch_Hazard', 'Hatch_Boot', 'SUV', 'SUV_Boot', 'Sports', 'HazardGlow', 'Wreck_Burnt',
+  var OTHER = ['Sedan', 'Sedan_Door', 'Hatchback', 'Hatch_Hazard', 'Hatch_Boot', 'SUV', 'SUV_Boot', 'Sports', 'HazardGlow', 'Wreck_Burnt',
     'Wreck_Burnt_B', 'Wreck_Smash', 'CarCovered', 'CarJack', 'Pickup', 'Pickup_B', 'Van', 'Van_Door', 'BoxTruck', 'TowTruck',
     'DeliveryTruck', 'Motorbike', 'Scooter', 'BikeRack', 'Buggy', 'Rail', 'RailFull', 'RailPost', 'Ramp', 'RampHalf', 'DockRamp',
     'Stair', 'DockStep', 'GateFrame', 'GateShutter', 'TrailWall', 'TrailWall_B', 'TrailWall_C', 'Hatch', 'Bay_A', 'Bay_B', 'Bay_C',
@@ -2859,8 +2859,8 @@
    firing range (acoustic panels, booths, robot-silhouette targets, backstop, baffles) and a vehicle garage (block
    walls, roller doors, bay lines, SWAT vans, holding cells, tool chests, drums and tyres).
    Weapon walls ('R') carry REAL guns: about 60 % of a wall's four slots are filled at level start, each with a gun
-   unlocked so far at a weapon tier rolled from `armory.tiers` (gray / green / blue common, purple very rare, orange
-   never). Workbenches ('b') hold gun attachments and gear shelves ('g') shield cells and vests, made by the gear loot
+   unlocked so far at a weapon tier rolled from `armory.tiers` (mostly gray / green, a blue or two, purple and orange (0.4%) very rare
+   0.4%). Workbenches ('b') hold gun attachments and gear shelves ('g') shield cells and vests, made by the gear loot
    system at `armory.gear` odds. Look at one and press E (touch: USE) to take it.
    Built by blender/fam_kit_police.py; zone layouts by tools/police_zones.py (src/data/zones/police_*.txt).
 
@@ -3024,7 +3024,7 @@
     wall: { height: 4.0, roof: '#C2C8D0', facing: 'open', choose: chooseWall },
     symbols: SYMBOLS,
     // armory odds (game.js placeLoot): rack guns by weapon tier (src/game/wdrops.js TIERS), bench / shelf gear by rarity
-    armory: { tiers: { gray: 46, green: 34, blue: 19.25, purple: 0.75, orange: 0 }, gear: { common: 62, rare: 33, epic: 5, legendary: 0 } },
+    armory: { tiers: { gray: 52, green: 43, blue: 4, purple: 0.6, orange: 0.4 }, gear: { common: 62, rare: 33, epic: 5, legendary: 0 } },
     gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.5, shutterHeight: 3.05 },
     trail: { wall: 'TrailWall', height: 4.0, variants: ['TrailWall', 'TrailWall_Board', 'TrailWall', 'TrailWall_Badge', 'TrailWall', 'TrailWall_Window'], end: 'TrailWall' },
     hatch: 'Hatch', stand: 'Crate',
