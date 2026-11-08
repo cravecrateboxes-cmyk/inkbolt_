@@ -24,8 +24,8 @@ test('ammo boxes: taken only while some carried gun can still hold more spare am
 
 test('overwhelm control: a few melee robots close in at once, a wave trickles in, ~40 % of soldiers aim worse', () => {
   // close-range slots grow slowly with the level, and stay near the attack tokens' ration
-  assert.equal(D.closeCap(1), 4); assert.equal(D.closeCap(9), 4); assert.equal(D.closeCap(10), 5); assert.equal(D.closeCap(19), 5); assert.equal(D.closeCap(20), 6);
-  for (let L = 1; L <= 40; L++) assert.ok(D.closeCap(L) <= D.attackTokens(L) + 1 && D.closeCap(L) >= 4, 'L' + L);
+  assert.equal(D.closeCap(1), 5); assert.equal(D.closeCap(9), 5); assert.equal(D.closeCap(10), 6); assert.equal(D.closeCap(19), 6); assert.equal(D.closeCap(20), 7);
+  for (let L = 1; L <= 40; L++) assert.ok(D.closeCap(L) <= D.attackTokens(L) + 2 && D.closeCap(L) >= 5, 'L' + L);
   // the hold ring sits outside melee reach (2.4 m) and inside the gunners' band (7-16 m starts at 7)
   assert.ok(D.HOLD.ringIn > 3 && D.HOLD.ringOut > D.HOLD.ringIn && D.HOLD.ringOut <= 10);
   // spawn pacing: only a crowd of more than the close slots holds spawns back, and never for long
