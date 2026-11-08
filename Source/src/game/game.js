@@ -865,7 +865,7 @@
         var pd = res2.damage * mul, ex = ox + dx * nt, ey = oy + dy * nt, ez = oz + dz * nt;
         var pk = AI.damage(hr, pd, { kx: dx * 3, kz: dz * 3 }, onKill);
         if (IB.Boom) IB.Boom.robotHit(hr, ex, ey, ez, dx, dy, dz, nz, pk);
-        if (IB.Gear) IB.Gear.onHit(hr, { damage: pd }, nz, def, pk);
+        if (IB.Gear) IB.Gear.onHit(hr, { damage: pd, crit: nz === 'head' }, nz, def, pk);
       }
     }
     _end.set(ox + dx * endT, oy + dy * endT, oz + dz * endT);
@@ -875,16 +875,16 @@
     if (rh) {
       var r = rh.robot, zone = rh.zone;
       var res = IB.Damage.hit({ weapon: def, dist: endT, zone: zone, dmgLevel: up('dmg'), coreLevel: up('core'), critLevel: up('crit'), rng: Math.random, blinded: r.state === 'blinded' });
-      G.run.hits++; if (zone === 'core') G.run.coreHits++;
+      G.run.hits++; if (zone === 'core' || zone === 'head') G.run.coreHits++;
       var dmg = res.damage *= IB.SkillFX.hitMul(zone) * (IB.WeaponDrops ? IB.WeaponDrops.dmgMul(def.id) : 1);   // Heavy Ink, the gun's tier
       _shot.ox = ox; _shot.oy = oy; _shot.oz = oz; _shot.dx = dx; _shot.dy = dy; _shot.dz = dz; _shot.t = rh.t; _shot.wt = wt; _shot.def = def;
       var killed = AI.damage(r, dmg, { kx: dx * 4, kz: dz * 4 }, onKill);
       // Electrify, Stream, Ricochet, Hazard, Hydrate, Chain Reaction
       IB.SkillFX.onHit(r, dmg, zone, killed, _end, onKill, _shot);
-      FX.puff(_end.x, _end.y, _end.z, zone === 'core' ? 5 : 3, PAL.ink, 0.12, 0.38, 2.2);
-      if (zone === 'core') FX.puff(_end.x, _end.y, _end.z, 2, PAL.amber, 0.08, 0.2, 3);
+      FX.puff(_end.x, _end.y, _end.z, (zone === 'core' || zone === 'head') ? 5 : 3, PAL.ink, 0.12, 0.38, 2.2);
+      if (zone === 'core' || zone === 'head') FX.puff(_end.x, _end.y, _end.z, 2, PAL.amber, 0.08, 0.2, 3);
       if (IB.Boom) IB.Boom.robotHit(r, _end.x, _end.y, _end.z, dx, dy, dz, zone, killed);   // sparks, chips, core pop
-      if (!killed) { HUD.hit(zone === 'core' ? 'core' : 'hit'); A.play(zone === 'core' ? 'core' : 'hit'); }
+      if (!killed) { HUD.hit(zone !== 'body' ? 'core' : 'hit'); A.play(zone !== 'body' ? 'core' : 'hit'); }
       if (IB.Gear) IB.Gear.onHit(r, res, zone, def, killed);   // damage number, acid DoT
     } else if (whit) {
       if (whit.box && whit.box.kind === 'canister' && IB.Boom) IB.Boom.hitCan(whit.box, def.damage || 15);   // explosive canister

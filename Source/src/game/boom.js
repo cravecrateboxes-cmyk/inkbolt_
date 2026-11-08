@@ -650,7 +650,7 @@
   /* bullet hits a robot */
   B.robotHit = function (r, x, y, z, dx, dy, dz, zone, killed) {
     if (!B.ready) return;
-    var core = zone === 'core', f = FLAV[r.type] || FLAV.crawler, c, i;
+    var core = zone === 'core' || zone === 'head', f = FLAV[r.type] || FLAV.crawler, c, i;
     sparkBurst(x, y, z, cnt(core ? 8 : 4), core ? 8 : 6, -dx, -dy, -dz, 0.9, undefined, core ? 0.38 : 0.28);
     flash(x - dx * 0.05, y - dy * 0.05, z - dz * 0.05, core ? 0.75 : 0.4, core ? PAL.amber : 0xFFF1D6, core ? 0.1 : 0.06, core ? C.burst : C.cloud);
     var nc = cnt(core ? 2 : 1);

@@ -564,8 +564,9 @@
       var tb = rayCapsule(ox, oy, oz, dx, dy, dz, r.x, r.z, bodyY + v.y0 + v.radius * 0.5, bodyY + v.y1 - v.radius * 0.5, v.radius);
       var sy = Math.sin(r.yaw), cy = Math.cos(r.yaw);
       var tc = raySphere(ox, oy, oz, dx, dy, dz, r.x + sy * v.coreZ, bodyY + v.coreY, r.z + cy * v.coreZ, v.coreR);
-      var t = Math.min(tb, tc);
-      if (t < best) { best = t; br = r; bz = (tc <= tb + 0.12) ? 'core' : 'body'; }
+      var th = v.headR ? raySphere(ox, oy, oz, dx, dy, dz, r.x + sy * (v.headZ || 0), bodyY + v.headY, r.z + cy * (v.headZ || 0), v.headR) : Infinity;   // head crit spot (soldiers)
+      var t = Math.min(tb, tc, th);
+      if (t < best) { best = t; br = r; bz = (th < Infinity) ? 'head' : (tc <= tb + 0.12) ? 'core' : 'body'; }
     }
     if (!br) return null;
     _hit.robot = br; _hit.t = best; _hit.zone = bz; return _hit;

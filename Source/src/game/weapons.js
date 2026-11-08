@@ -293,10 +293,20 @@
     if (th.t >= th.dur) s.throwing = null;
   }
 
+  /* Epic (purple) and Legendary (orange) pistols and shotguns are tuned up: a faster fire rate; shotguns also fire more
+     pellets (damage per pellet unchanged, so more damage per shot) in a wider cone. {rate, pellets, spread} multipliers. */
+  var TIER_MODS = { purple: { rate: 1.15, pellets: 1.25, spread: 1.2 }, orange: { rate: 1.3, pellets: 1.5, spread: 1.4 } };
+  W.tierMods = function (d) {
+    var out = { rate: 1, pellets: 1, spread: 1 };
+    if (!d || (d.cls !== 'pistol' && d.cls !== 'shotgun') || !IB.WeaponDrops) return out;
+    var m = TIER_MODS[IB.WeaponDrops.tierOf(d.id).id]; if (!m) return out;
+    out.rate = m.rate; if (d.cls === 'shotgun') { out.pellets = m.pellets; out.spread = m.spread; }
+    return out;
+  };
   // spread cone half-angle (deg) right now
   W.spread = function (s, player) {
     var g = W.current(s); if (!g) return 0;
-    var d = g.def, base = (s.aim > 0.5 ? d.spreadAim : d.spreadHip) * (s.fx.spreadMul || 1);
+    var d = g.def, base = (s.aim > 0.5 ? d.spreadAim : d.spreadHip) * (s.fx.spreadMul || 1) * W.tierMods(d).spread;
     if (player.moving) base *= 1.5;
     if (!player.onGround) base *= 2;
     if (s.sinceShot > 0.4) base *= 0.25;
@@ -362,7 +372,7 @@
     if (p.sprinting || s.throwing) { s.burst = 0; return; }
     var d = g.def;
     var trig = d.fire === 'auto' ? inp.fire : inp.firePressed;
-    var rm = s.fx.rateMul || 1;   // Rapid skill: shorter gaps between shots
+    var rm = (s.fx.rateMul || 1) * W.tierMods(d).rate;   // Rapid skill + Epic / Legendary pistols and shotguns: shorter gaps between shots
     if (s.burst > 0 && s.next <= 0) { fire(s, g, ctx); s.burst--; s.next = (s.burst > 0 ? (d.burstGap || 60 / d.rpm) : Math.max(0, d.cycle - (d.burst - 1) * (d.burstGap || 60 / d.rpm))) / rm; return; }
     if (trig && s.next <= 0 && s.burst === 0) {
       if (g.mag <= 0) { if (inp.firePressed) IB.Audio && IB.Audio.play('dry'); W.reload(s); return; }
@@ -380,7 +390,7 @@
     cam.getWorldDirection(_fwd);
     _right.set(1, 0, 0).applyQuaternion(cam.quaternion); _up.set(0, 1, 0).applyQuaternion(cam.quaternion);
     if (d.fire === 'rocket' && ctx.rocket) ctx.rocket(d, cam, spread);   // launchers: game/launchers.js flies the rockets
-    else for (var k = 0; k < (d.pellets || 1); k++) {
+    else for (var k = 0, np = Math.round((d.pellets || 1) * W.tierMods(d).pellets); k < np; k++) {
       var a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * Math.tan(spread);
       _dir.copy(_fwd).addScaledVector(_right, Math.cos(a) * r).addScaledVector(_up, Math.sin(a) * r).normalize();
       ctx.shoot(cam.position, _dir, d, k);

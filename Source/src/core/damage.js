@@ -102,6 +102,7 @@
     dmg *= falloff(w.cls, o.dist || 0);
     if (o.zone === 'core') dmg *= (w.coreMul || 1.75) * (1 + 0.15 * (o.coreLevel || 0));
     var crit = false;
+    if (o.zone === 'head') { dmg *= IB.Damage.HEAD_MUL; crit = true; }   // soldier headshot: x2, shown as CRIT
     var chance = 0.06 * (o.critLevel || 0);
     if (chance > 0 && o.rng && o.rng() < chance) { crit = true; dmg *= 2; }
     if (o.blinded) dmg *= 1.25;
@@ -190,7 +191,9 @@
   // 4.4 Stagger: one hit of at least 25% max HP, or a charged melee hit.
   function staggers(dmg, maxHp, charged) { return !!charged || dmg >= 0.25 * maxHp; }
 
+  var HEAD_MUL = 2.0;
   IB.Damage = {
+    HEAD_MUL: HEAD_MUL,
     enemyHpMul: enemyHpMul, enemyDmgMul: enemyDmgMul, enemyAt: enemyAt, enemyTempo: enemyTempo, playerMaxHp: playerMaxHp, enemyPressure: enemyPressure, attackTokens: attackTokens, falloff: falloff,
     closeCap: closeCap, crowdCap: crowdCap, sloppyAim: sloppyAim, healthPlan: healthPlan, HOLD: HOLD, CROWD_R: CROWD_R, SPAWN_WAIT_MAX: SPAWN_WAIT_MAX, SPAWN_GAP: SPAWN_GAP, SLOPPY: SLOPPY, HEALTH_CRIT: HEALTH_CRIT,
     hit: hit, splash: splash, blastRadius: blastRadius, rocketSplash: rocketSplash, frag: frag,

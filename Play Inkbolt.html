@@ -11377,6 +11377,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     dmg *= falloff(w.cls, o.dist || 0);
     if (o.zone === 'core') dmg *= (w.coreMul || 1.75) * (1 + 0.15 * (o.coreLevel || 0));
     var crit = false;
+    if (o.zone === 'head') { dmg *= IB.Damage.HEAD_MUL; crit = true; }   // soldier headshot: x2, shown as CRIT
     var chance = 0.06 * (o.critLevel || 0);
     if (chance > 0 && o.rng && o.rng() < chance) { crit = true; dmg *= 2; }
     if (o.blinded) dmg *= 1.25;
@@ -11465,7 +11466,9 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   // 4.4 Stagger: one hit of at least 25% max HP, or a charged melee hit.
   function staggers(dmg, maxHp, charged) { return !!charged || dmg >= 0.25 * maxHp; }
 
+  var HEAD_MUL = 2.0;
   IB.Damage = {
+    HEAD_MUL: HEAD_MUL,
     enemyHpMul: enemyHpMul, enemyDmgMul: enemyDmgMul, enemyAt: enemyAt, enemyTempo: enemyTempo, playerMaxHp: playerMaxHp, enemyPressure: enemyPressure, attackTokens: attackTokens, falloff: falloff,
     closeCap: closeCap, crowdCap: crowdCap, sloppyAim: sloppyAim, healthPlan: healthPlan, HOLD: HOLD, CROWD_R: CROWD_R, SPAWN_WAIT_MAX: SPAWN_WAIT_MAX, SPAWN_GAP: SPAWN_GAP, SLOPPY: SLOPPY, HEALTH_CRIT: HEALTH_CRIT,
     hit: hit, splash: splash, blastRadius: blastRadius, rocketSplash: rocketSplash, frag: frag,
@@ -16661,8 +16664,9 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       var tb = rayCapsule(ox, oy, oz, dx, dy, dz, r.x, r.z, bodyY + v.y0 + v.radius * 0.5, bodyY + v.y1 - v.radius * 0.5, v.radius);
       var sy = Math.sin(r.yaw), cy = Math.cos(r.yaw);
       var tc = raySphere(ox, oy, oz, dx, dy, dz, r.x + sy * v.coreZ, bodyY + v.coreY, r.z + cy * v.coreZ, v.coreR);
-      var t = Math.min(tb, tc);
-      if (t < best) { best = t; br = r; bz = (tc <= tb + 0.12) ? 'core' : 'body'; }
+      var th = v.headR ? raySphere(ox, oy, oz, dx, dy, dz, r.x + sy * (v.headZ || 0), bodyY + v.headY, r.z + cy * (v.headZ || 0), v.headR) : Infinity;   // head crit spot (soldiers)
+      var t = Math.min(tb, tc, th);
+      if (t < best) { best = t; br = r; bz = (th < Infinity) ? 'head' : (tc <= tb + 0.12) ? 'core' : 'body'; }
     }
     if (!br) return null;
     _hit.robot = br; _hit.t = best; _hit.zone = bz; return _hit;
@@ -18125,6 +18129,8 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     // core (power cell on the back) for weak-spot hits, measured on the rig
     var core = src.getObjectByName('TROOPER_CORE');
     if (core) { src.updateMatrixWorld(true); core.getWorldPosition(_v); src.worldToLocal(_v); VIS.soldier.coreY = _v.y; VIS.soldier.coreZ = _v.z; }
+    // head: crit spot (a sphere around the head, 2x damage, damage number says CRIT); falls back to the standing height
+    VIS.soldier.headY = Math.max(VIS.soldier.y1 || 1.88, 1.6) - 0.16; VIS.soldier.headR = 0.15; VIS.soldier.headZ = 0.02;
     TR.ready = true;
   };
 
@@ -19081,10 +19087,20 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     if (th.t >= th.dur) s.throwing = null;
   }
 
+  /* Epic (purple) and Legendary (orange) pistols and shotguns are tuned up: a faster fire rate; shotguns also fire more
+     pellets (damage per pellet unchanged, so more damage per shot) in a wider cone. {rate, pellets, spread} multipliers. */
+  var TIER_MODS = { purple: { rate: 1.15, pellets: 1.25, spread: 1.2 }, orange: { rate: 1.3, pellets: 1.5, spread: 1.4 } };
+  W.tierMods = function (d) {
+    var out = { rate: 1, pellets: 1, spread: 1 };
+    if (!d || (d.cls !== 'pistol' && d.cls !== 'shotgun') || !IB.WeaponDrops) return out;
+    var m = TIER_MODS[IB.WeaponDrops.tierOf(d.id).id]; if (!m) return out;
+    out.rate = m.rate; if (d.cls === 'shotgun') { out.pellets = m.pellets; out.spread = m.spread; }
+    return out;
+  };
   // spread cone half-angle (deg) right now
   W.spread = function (s, player) {
     var g = W.current(s); if (!g) return 0;
-    var d = g.def, base = (s.aim > 0.5 ? d.spreadAim : d.spreadHip) * (s.fx.spreadMul || 1);
+    var d = g.def, base = (s.aim > 0.5 ? d.spreadAim : d.spreadHip) * (s.fx.spreadMul || 1) * W.tierMods(d).spread;
     if (player.moving) base *= 1.5;
     if (!player.onGround) base *= 2;
     if (s.sinceShot > 0.4) base *= 0.25;
@@ -19150,7 +19166,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     if (p.sprinting || s.throwing) { s.burst = 0; return; }
     var d = g.def;
     var trig = d.fire === 'auto' ? inp.fire : inp.firePressed;
-    var rm = s.fx.rateMul || 1;   // Rapid skill: shorter gaps between shots
+    var rm = (s.fx.rateMul || 1) * W.tierMods(d).rate;   // Rapid skill + Epic / Legendary pistols and shotguns: shorter gaps between shots
     if (s.burst > 0 && s.next <= 0) { fire(s, g, ctx); s.burst--; s.next = (s.burst > 0 ? (d.burstGap || 60 / d.rpm) : Math.max(0, d.cycle - (d.burst - 1) * (d.burstGap || 60 / d.rpm))) / rm; return; }
     if (trig && s.next <= 0 && s.burst === 0) {
       if (g.mag <= 0) { if (inp.firePressed) IB.Audio && IB.Audio.play('dry'); W.reload(s); return; }
@@ -19168,7 +19184,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     cam.getWorldDirection(_fwd);
     _right.set(1, 0, 0).applyQuaternion(cam.quaternion); _up.set(0, 1, 0).applyQuaternion(cam.quaternion);
     if (d.fire === 'rocket' && ctx.rocket) ctx.rocket(d, cam, spread);   // launchers: game/launchers.js flies the rockets
-    else for (var k = 0; k < (d.pellets || 1); k++) {
+    else for (var k = 0, np = Math.round((d.pellets || 1) * W.tierMods(d).pellets); k < np; k++) {
       var a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * Math.tan(spread);
       _dir.copy(_fwd).addScaledVector(_right, Math.cos(a) * r).addScaledVector(_up, Math.sin(a) * r).normalize();
       ctx.shoot(cam.position, _dir, d, k);
@@ -19789,7 +19805,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     _v = new THREE.Vector3();
     return root;
   }
-  function label(n) { return String(Math.max(1, Math.round(n))); }
+  function label(n, kind) { return (kind === 'crit' ? 'CRIT ' : '') + String(Math.max(1, Math.round(n))); }
 
   FX.damageNumber = function (x, y, z, amount, kind) {
     if (typeof document === 'undefined' || !(amount > 0)) return null;
@@ -19803,7 +19819,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     }
     if (best) {
       best.amt += amount; best.t = Math.min(best.t, 0.05);
-      best.el.textContent = label(best.amt) + (kind === 'crit' ? '!' : '');
+      best.el.textContent = label(best.amt, kind) + (kind === 'crit' ? '!' : '');
       return best;
     }
     for (i = 0; i < CAP; i++) { d = pool[i]; if (!d.on) { best = d; break; } if (!oldest || d.t / d.life > oldest.t / oldest.life) oldest = d; }
@@ -19811,7 +19827,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     d.on = true; d.t = 0; d.life = LIFE[kind]; d.kind = kind; d.amt = amount; d.id = ++seq;
     d.x = x; d.y = y; d.z = z; d.jx = (Math.random() - 0.5) * 0.5; d.drift = (Math.random() - 0.5) * 0.35;
     d.el.className = 'dmgn ' + kind;
-    d.el.textContent = label(amount) + (kind === 'crit' ? '!' : '');
+    d.el.textContent = label(amount, kind) + (kind === 'crit' ? '!' : '');
     d.w = 0;   // width measured lazily on the first frame (one read per number)
     return d;
   };
@@ -20733,7 +20749,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   /* bullet hits a robot */
   B.robotHit = function (r, x, y, z, dx, dy, dz, zone, killed) {
     if (!B.ready) return;
-    var core = zone === 'core', f = FLAV[r.type] || FLAV.crawler, c, i;
+    var core = zone === 'core' || zone === 'head', f = FLAV[r.type] || FLAV.crawler, c, i;
     sparkBurst(x, y, z, cnt(core ? 8 : 4), core ? 8 : 6, -dx, -dy, -dz, 0.9, undefined, core ? 0.38 : 0.28);
     flash(x - dx * 0.05, y - dy * 0.05, z - dz * 0.05, core ? 0.75 : 0.4, core ? PAL.amber : 0xFFF1D6, core ? 0.1 : 0.06, core ? C.burst : C.cloud);
     var nc = cnt(core ? 2 : 1);
@@ -24807,12 +24823,13 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   function gunStats(G, w, g) {
     var d = modsDef(g, w), fx = skillFx(G), wfx = (G.ws && G.ws.fx) || {};
     var lvMul = IB.WeaponDrops && IB.WeaponDrops.dmgMul ? IB.WeaponDrops.dmgMul(w) : 1;   // tier x item level
-    var dmg = (IB.GunLevel ? IB.GunLevel.shotDamage(d) : d.damage * (d.pellets || 1)) * fx.dmgMul * lvMul;
-    var rate = d.cycle > 0 ? (d.burst > 1 ? d.burst / d.cycle : 1 / d.cycle) * fx.rateMul : 0;
+    var dmg = (IB.GunLevel ? IB.GunLevel.shotDamage(d) : d.damage * (d.pellets || 1)) * fx.dmgMul * lvMul * (IB.Weapons.tierMods ? IB.Weapons.tierMods(d).pellets : 1);
+    var tm = IB.Weapons.tierMods ? IB.Weapons.tierMods(d) : { rate: 1, pellets: 1 };   // Epic / Legendary pistol + shotgun tuning
+    var rate = d.cycle > 0 ? (d.burst > 1 ? d.burst / d.cycle : 1 / d.cycle) * fx.rateMul * tm.rate : 0;
     var mag = IB.Weapons.magSize({ fx: { magMul: fx.magMul, magLevel: wfx.magLevel || 0 } }, d);
     var rl = d.reload * fx.reloadMul * ((G.fx && G.fx.reloadMul) || 1);
     var acc = Math.max(5, Math.min(99.5, 100 - d.spreadHip * 12));
-    var out = [{ key: 'dmg', label: 'Damage', icon: 'dmg', v: dmg, txt: (d.pellets > 1 ? Math.round(d.damage * fx.dmgMul * lvMul) + ' x' + d.pellets : d.missiles > 1 ? Math.round(dmg / d.missiles) + ' x' + d.missiles : String(Math.round(dmg))), better: 'high' }];
+    var out = [{ key: 'dmg', label: 'Damage', icon: 'dmg', v: dmg, txt: (d.pellets > 1 ? Math.round(d.damage * fx.dmgMul * lvMul) + ' x' + Math.round(d.pellets * tm.pellets) : d.missiles > 1 ? Math.round(dmg / d.missiles) + ' x' + d.missiles : String(Math.round(dmg))), better: 'high' }];
     if (d.spreadHip > 0) out.push({ key: 'acc', label: 'Accuracy', icon: 'acc', v: acc, txt: acc.toFixed(1), better: 'high' });
     if (rate > 0) out.push({ key: 'rate', label: 'Fire rate', icon: 'rate', v: rate, txt: rate.toFixed(1) + '/s', better: 'high' });
     if (d.reload > 0) out.push({ key: 'reload', label: 'Reload', icon: 'reload', v: rl, txt: rl.toFixed(1) + ' s', better: 'low' });
@@ -26509,7 +26526,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
         var pd = res2.damage * mul, ex = ox + dx * nt, ey = oy + dy * nt, ez = oz + dz * nt;
         var pk = AI.damage(hr, pd, { kx: dx * 3, kz: dz * 3 }, onKill);
         if (IB.Boom) IB.Boom.robotHit(hr, ex, ey, ez, dx, dy, dz, nz, pk);
-        if (IB.Gear) IB.Gear.onHit(hr, { damage: pd }, nz, def, pk);
+        if (IB.Gear) IB.Gear.onHit(hr, { damage: pd, crit: nz === 'head' }, nz, def, pk);
       }
     }
     _end.set(ox + dx * endT, oy + dy * endT, oz + dz * endT);
@@ -26519,16 +26536,16 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     if (rh) {
       var r = rh.robot, zone = rh.zone;
       var res = IB.Damage.hit({ weapon: def, dist: endT, zone: zone, dmgLevel: up('dmg'), coreLevel: up('core'), critLevel: up('crit'), rng: Math.random, blinded: r.state === 'blinded' });
-      G.run.hits++; if (zone === 'core') G.run.coreHits++;
+      G.run.hits++; if (zone === 'core' || zone === 'head') G.run.coreHits++;
       var dmg = res.damage *= IB.SkillFX.hitMul(zone) * (IB.WeaponDrops ? IB.WeaponDrops.dmgMul(def.id) : 1);   // Heavy Ink, the gun's tier
       _shot.ox = ox; _shot.oy = oy; _shot.oz = oz; _shot.dx = dx; _shot.dy = dy; _shot.dz = dz; _shot.t = rh.t; _shot.wt = wt; _shot.def = def;
       var killed = AI.damage(r, dmg, { kx: dx * 4, kz: dz * 4 }, onKill);
       // Electrify, Stream, Ricochet, Hazard, Hydrate, Chain Reaction
       IB.SkillFX.onHit(r, dmg, zone, killed, _end, onKill, _shot);
-      FX.puff(_end.x, _end.y, _end.z, zone === 'core' ? 5 : 3, PAL.ink, 0.12, 0.38, 2.2);
-      if (zone === 'core') FX.puff(_end.x, _end.y, _end.z, 2, PAL.amber, 0.08, 0.2, 3);
+      FX.puff(_end.x, _end.y, _end.z, (zone === 'core' || zone === 'head') ? 5 : 3, PAL.ink, 0.12, 0.38, 2.2);
+      if (zone === 'core' || zone === 'head') FX.puff(_end.x, _end.y, _end.z, 2, PAL.amber, 0.08, 0.2, 3);
       if (IB.Boom) IB.Boom.robotHit(r, _end.x, _end.y, _end.z, dx, dy, dz, zone, killed);   // sparks, chips, core pop
-      if (!killed) { HUD.hit(zone === 'core' ? 'core' : 'hit'); A.play(zone === 'core' ? 'core' : 'hit'); }
+      if (!killed) { HUD.hit(zone !== 'body' ? 'core' : 'hit'); A.play(zone !== 'body' ? 'core' : 'hit'); }
       if (IB.Gear) IB.Gear.onHit(r, res, zone, def, killed);   // damage number, acid DoT
     } else if (whit) {
       if (whit.box && whit.box.kind === 'canister' && IB.Boom) IB.Boom.hitCan(whit.box, def.damage || 15);   // explosive canister

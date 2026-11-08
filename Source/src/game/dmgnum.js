@@ -24,7 +24,7 @@
     _v = new THREE.Vector3();
     return root;
   }
-  function label(n) { return String(Math.max(1, Math.round(n))); }
+  function label(n, kind) { return (kind === 'crit' ? 'CRIT ' : '') + String(Math.max(1, Math.round(n))); }
 
   FX.damageNumber = function (x, y, z, amount, kind) {
     if (typeof document === 'undefined' || !(amount > 0)) return null;
@@ -38,7 +38,7 @@
     }
     if (best) {
       best.amt += amount; best.t = Math.min(best.t, 0.05);
-      best.el.textContent = label(best.amt) + (kind === 'crit' ? '!' : '');
+      best.el.textContent = label(best.amt, kind) + (kind === 'crit' ? '!' : '');
       return best;
     }
     for (i = 0; i < CAP; i++) { d = pool[i]; if (!d.on) { best = d; break; } if (!oldest || d.t / d.life > oldest.t / oldest.life) oldest = d; }
@@ -46,7 +46,7 @@
     d.on = true; d.t = 0; d.life = LIFE[kind]; d.kind = kind; d.amt = amount; d.id = ++seq;
     d.x = x; d.y = y; d.z = z; d.jx = (Math.random() - 0.5) * 0.5; d.drift = (Math.random() - 0.5) * 0.35;
     d.el.className = 'dmgn ' + kind;
-    d.el.textContent = label(amount) + (kind === 'crit' ? '!' : '');
+    d.el.textContent = label(amount, kind) + (kind === 'crit' ? '!' : '');
     d.w = 0;   // width measured lazily on the first frame (one read per number)
     return d;
   };

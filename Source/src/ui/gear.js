@@ -86,12 +86,13 @@
   function gunStats(G, w, g) {
     var d = modsDef(g, w), fx = skillFx(G), wfx = (G.ws && G.ws.fx) || {};
     var lvMul = IB.WeaponDrops && IB.WeaponDrops.dmgMul ? IB.WeaponDrops.dmgMul(w) : 1;   // tier x item level
-    var dmg = (IB.GunLevel ? IB.GunLevel.shotDamage(d) : d.damage * (d.pellets || 1)) * fx.dmgMul * lvMul;
-    var rate = d.cycle > 0 ? (d.burst > 1 ? d.burst / d.cycle : 1 / d.cycle) * fx.rateMul : 0;
+    var dmg = (IB.GunLevel ? IB.GunLevel.shotDamage(d) : d.damage * (d.pellets || 1)) * fx.dmgMul * lvMul * (IB.Weapons.tierMods ? IB.Weapons.tierMods(d).pellets : 1);
+    var tm = IB.Weapons.tierMods ? IB.Weapons.tierMods(d) : { rate: 1, pellets: 1 };   // Epic / Legendary pistol + shotgun tuning
+    var rate = d.cycle > 0 ? (d.burst > 1 ? d.burst / d.cycle : 1 / d.cycle) * fx.rateMul * tm.rate : 0;
     var mag = IB.Weapons.magSize({ fx: { magMul: fx.magMul, magLevel: wfx.magLevel || 0 } }, d);
     var rl = d.reload * fx.reloadMul * ((G.fx && G.fx.reloadMul) || 1);
     var acc = Math.max(5, Math.min(99.5, 100 - d.spreadHip * 12));
-    var out = [{ key: 'dmg', label: 'Damage', icon: 'dmg', v: dmg, txt: (d.pellets > 1 ? Math.round(d.damage * fx.dmgMul * lvMul) + ' x' + d.pellets : d.missiles > 1 ? Math.round(dmg / d.missiles) + ' x' + d.missiles : String(Math.round(dmg))), better: 'high' }];
+    var out = [{ key: 'dmg', label: 'Damage', icon: 'dmg', v: dmg, txt: (d.pellets > 1 ? Math.round(d.damage * fx.dmgMul * lvMul) + ' x' + Math.round(d.pellets * tm.pellets) : d.missiles > 1 ? Math.round(dmg / d.missiles) + ' x' + d.missiles : String(Math.round(dmg))), better: 'high' }];
     if (d.spreadHip > 0) out.push({ key: 'acc', label: 'Accuracy', icon: 'acc', v: acc, txt: acc.toFixed(1), better: 'high' });
     if (rate > 0) out.push({ key: 'rate', label: 'Fire rate', icon: 'rate', v: rate, txt: rate.toFixed(1) + '/s', better: 'high' });
     if (d.reload > 0) out.push({ key: 'reload', label: 'Reload', icon: 'reload', v: rl, txt: rl.toFixed(1) + ' s', better: 'low' });

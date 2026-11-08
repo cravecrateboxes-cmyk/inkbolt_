@@ -147,6 +147,8 @@
     // core (power cell on the back) for weak-spot hits, measured on the rig
     var core = src.getObjectByName('TROOPER_CORE');
     if (core) { src.updateMatrixWorld(true); core.getWorldPosition(_v); src.worldToLocal(_v); VIS.soldier.coreY = _v.y; VIS.soldier.coreZ = _v.z; }
+    // head: crit spot (a sphere around the head, 2x damage, damage number says CRIT); falls back to the standing height
+    VIS.soldier.headY = Math.max(VIS.soldier.y1 || 1.88, 1.6) - 0.16; VIS.soldier.headR = 0.15; VIS.soldier.headZ = 0.02;
     TR.ready = true;
   };
 

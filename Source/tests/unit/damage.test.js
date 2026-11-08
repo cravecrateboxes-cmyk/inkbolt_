@@ -194,3 +194,10 @@ test('player health per level stays ahead of robot pressure, more so late (LV = 
     if (L > 1) assert.ok(IB.Damage.playerMaxHp(L) > IB.Damage.playerMaxHp(L - 1));
   }
 });
+
+test('soldier headshots: a crit spot worth x2 and flagged as a crit (CRIT damage number)', () => {
+  const w = { damage: 20, cls: 'rifle' };
+  const body = IB.Damage.hit({ weapon: w, dist: 5, zone: 'body' }), head = IB.Damage.hit({ weapon: w, dist: 5, zone: 'head' });
+  near(head.damage / body.damage, IB.Damage.HEAD_MUL); assert.ok(head.crit && !body.crit);
+  assert.ok(IB.Damage.HEAD_MUL >= 1.75 && IB.Damage.HEAD_MUL <= 2.5, 'a reasonable amount more than a body shot');
+});
