@@ -74,7 +74,7 @@
     S('hydrate', 5, 1, 'Hydrate', 'rank', [6, 12, 18], '%', 'Coat chance',
       'Your bullets have a chance to coat a robot in electrified liquid for 6 s. Robots that come within 3 m of it take shock damage over time.', 'water'),
     S('undercover', 5, 2, 'Undercover', 'special', [1], '', 'Cloak (F)',
-      'Press F: you go invisible and robots cannot see you for 7.5 s. Cooldown 25 s. The screen turns comic black, grey and white while it lasts.', 'cloak'),
+      'Press F: you go invisible and robots cannot see you for 7 s. Cooldown 25 s. The screen turns comic black, grey and white while it lasts.', 'cloak'),
     // tier 6 (grit)
     S('tank', 6, 0, 'Tank', 'rank', [5, 10, 15], '%', 'Damage resistance',
       'Increases damage resistance and repairs 1 health per second per rank, starting after 4 s without taking damage (like a shield).', 'armor'),

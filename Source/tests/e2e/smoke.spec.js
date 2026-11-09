@@ -288,7 +288,7 @@ async function skillsRun(browser, base) {
   await pg.keyboard.press('KeyF');
   check('F turns Undercover on', await until(pg, () => __TEST__.skillState().cloak.active, null, 3000));
   ss = await pg.evaluate(() => __TEST__.skillState());
-  check('cloak: 7.5 s, then a 25 s cooldown; the AI is told', ss.cloaked && ss.cloak.t <= 7.5 && ss.cloak.t > 5.5 && ss.cloak.cd === 25, JSON.stringify(ss.cloak));
+  check('cloak: 7 s, then a 25 s cooldown; the AI is told', ss.cloaked && ss.cloak.t <= 7 && ss.cloak.t > 5 && ss.cloak.cd === 25, JSON.stringify(ss.cloak));
   check('after a quick flicker the world sinks into the ink-black stealth look (robots glow a bright stealth blue)', await until(pg, () => document.body.classList.contains('cloak-on') &&
     IB.Render.cloak.value > 0.9 && IB.Render.robotHull.value > 1.8 && IB.Render.robotHull.value < 2.3 && +getComputedStyle(document.getElementById('cloakFx')).opacity > 0.9 &&
     IB.Render.robotOutline.uInk.value.b > 0.5, null, 5000));
@@ -296,7 +296,7 @@ async function skillsRun(browser, base) {
   let worst = 0;
   for (let i = 0; i < 8; i++) { await pg.waitForTimeout(150); const s = await pg.evaluate(() => __TEST__.skillState()); if (!s.cloak.active) break; worst = Math.max(worst, s.seeing + s.attacking); }
   check('robots lose the player: nobody sees him or winds up an attack', worst === 0, 'seeing+attacking=' + worst);
-  await pg.evaluate(() => { IB.SkillFX.cloakT = Math.min(IB.SkillFX.cloakT, 0.3); });   // skip to the end of the 7.5 s (slow software GL)
+  await pg.evaluate(() => { IB.SkillFX.cloakT = Math.min(IB.SkillFX.cloakT, 0.3); });   // skip to the end of the 7 s (slow software GL)
   check('the cloak wears off', await until(pg, () => !__TEST__.skillState().cloak.active && !__TEST__.skillState().cloaked, null, 40000));
   check('screen back in colour, cooldown counting', await pg.evaluate(() => !document.body.classList.contains('cloak-on') && __TEST__.skillState().cloak.cd > 0 && /\d+s/.test(document.getElementById('cloakHud').textContent)));
   await pg.keyboard.press('KeyF'); await pg.waitForTimeout(300);

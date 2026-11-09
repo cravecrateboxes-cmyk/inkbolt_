@@ -8,7 +8,7 @@
      Hazard          chance a hit leaves a bubbling acid pool on the floor for 5 s; ground robots in it burn (acid, 5 s)
      Hydrate         chance a hit coats the robot in electrified liquid for 6 s (wet blue sheen, drips); every robot within
                      3 m of it takes shock over time (5 s burn)
-     Undercover      F: invisible for 7.5 s (ai.js AI.cloak: robots lose you and search), 25 s cooldown after it wears off
+     Undercover      F: invisible for 7 s (ai.js AI.cloak: robots lose you and search), 25 s cooldown after it wears off
      Healthy / Tank  max health %, damage resistance, repair after 4 s without damage
      Handy Helpers   ai.js AI.rogueChance: a wreck may turn rogue instead and fight for you until destroyed (3-5x health, 1.5x damage)
      Boom            rocket launcher and frag can damage +10/20/30% (SF.boomMul), one more frag can (game.js fragCarry)
@@ -260,7 +260,7 @@
   // ---------------- Undercover ----------------
   SF.cloakState = function () {
     var f = SF.fx, owned = !!(f && f.cloak);
-    return { owned: owned, active: SF.cloakT > 0, t: SF.cloakT, cd: SF.cloakCd, time: f ? f.cloakTime : 7.5, cooldown: f ? f.cloakCooldown : 25,
+    return { owned: owned, active: SF.cloakT > 0, t: SF.cloakT, cd: SF.cloakCd, time: f ? f.cloakTime : 7, cooldown: f ? f.cloakCooldown : 25,
       ready: owned && SF.cloakT <= 0 && SF.cloakCd <= 0 };
   };
   SF.tryCloak = function (p) {

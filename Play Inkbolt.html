@@ -7041,7 +7041,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     S('hydrate', 5, 1, 'Hydrate', 'rank', [6, 12, 18], '%', 'Coat chance',
       'Your bullets have a chance to coat a robot in electrified liquid for 6 s. Robots that come within 3 m of it take shock damage over time.', 'water'),
     S('undercover', 5, 2, 'Undercover', 'special', [1], '', 'Cloak (F)',
-      'Press F: you go invisible and robots cannot see you for 7.5 s. Cooldown 25 s. The screen turns comic black, grey and white while it lasts.', 'cloak'),
+      'Press F: you go invisible and robots cannot see you for 7 s. Cooldown 25 s. The screen turns comic black, grey and white while it lasts.', 'cloak'),
     // tier 6 (grit)
     S('tank', 6, 0, 'Tank', 'rank', [5, 10, 15], '%', 'Damage resistance',
       'Increases damage resistance and repairs 1 health per second per rank, starting after 4 s without taking damage (like a shield).', 'armor'),
@@ -12143,7 +12143,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       // stamina refills in half the time
       sprintMul: stamina ? 1.15 : 1, moveMul: stamina ? 1.15 : 1, staminaMul: stamina ? 2.5 : 1, staminaRechargeMul: stamina ? 0.5 : 1,
       coat: v('hydrate') / 100, coatTime: 6, coatRadius: 3, coatFrac: 0.3, coatMin: 2, coatMax: 18, coatBurn: 5,   // Hydrate
-      cloak: has('undercover'), cloakTime: 7.5, cloakCooldown: 25,   // Undercover (F)
+      cloak: has('undercover'), cloakTime: 7, cloakCooldown: 25,   // Undercover (F)
       // tier 6 (grit)
       dmgTakenMul: 1 - v('tank') / 100,                // Tank: damage resistance
       regenFlat: rk('tank'),                           // ... and 1 health per second per rank
@@ -19375,7 +19375,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
      Hazard          chance a hit leaves a bubbling acid pool on the floor for 5 s; ground robots in it burn (acid, 5 s)
      Hydrate         chance a hit coats the robot in electrified liquid for 6 s (wet blue sheen, drips); every robot within
                      3 m of it takes shock over time (5 s burn)
-     Undercover      F: invisible for 7.5 s (ai.js AI.cloak: robots lose you and search), 25 s cooldown after it wears off
+     Undercover      F: invisible for 7 s (ai.js AI.cloak: robots lose you and search), 25 s cooldown after it wears off
      Healthy / Tank  max health %, damage resistance, repair after 4 s without damage
      Handy Helpers   ai.js AI.rogueChance: a wreck may turn rogue instead and fight for you until destroyed (3-5x health, 1.5x damage)
      Boom            rocket launcher and frag can damage +10/20/30% (SF.boomMul), one more frag can (game.js fragCarry)
@@ -19627,7 +19627,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   // ---------------- Undercover ----------------
   SF.cloakState = function () {
     var f = SF.fx, owned = !!(f && f.cloak);
-    return { owned: owned, active: SF.cloakT > 0, t: SF.cloakT, cd: SF.cloakCd, time: f ? f.cloakTime : 7.5, cooldown: f ? f.cloakCooldown : 25,
+    return { owned: owned, active: SF.cloakT > 0, t: SF.cloakT, cd: SF.cloakCd, time: f ? f.cloakTime : 7, cooldown: f ? f.cloakCooldown : 25,
       ready: owned && SF.cloakT <= 0 && SF.cloakCd <= 0 };
   };
   SF.tryCloak = function (p) {
