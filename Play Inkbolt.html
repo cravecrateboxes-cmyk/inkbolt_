@@ -6554,22 +6554,26 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   var WEAPONS = {
     pip: W({
       id: 'pip', name: 'P-12 Warden', cls: 'pistol', slot: 1, fire: 'semi', damage: 18, rpm: 450,
-      spreadHip: 0.8, spreadAim: 0.3, recoil: 1.2, recoilH: 0.3, reload: 1.1, mag: 12, reserve: PISTOL_RESERVE,
+      // Each gun rolls its magazine (40-50, see GunLevel.rollMagRange) on first use; the roll is kept in the save.
+      // 3x damage on crit spots (core, head), as the Ironjaw.
+      spreadHip: 0.8, spreadAim: 0.3, recoil: 1.2, recoilH: 0.3, reload: 1.1, mag: 40, magRange: [40, 50],
+      reserve: PISTOL_RESERVE, coreMul: 3, headMul: 3,
       unlock: 1, sound: 'click transient, 2.4 kHz noise snap, short bright tail'
     }),
     handcannon: W({
       // Wyrmforged: a very fast pistol (Maggie-style: click-fast, low recoil), 3x damage on crit spots (core, soldier head).
-      // Each drop rolls its magazine (8-13, more at higher player levels) and a x2 or x3 damage multiplier (GunLevel.wyrmRoll).
+      // Each drop rolls its magazine (18-30, more at higher player levels) and a x2 or x3 damage multiplier (GunLevel.wyrmRoll).
       id: 'handcannon', name: 'Wyrmforged Ironjaw', cls: 'pistol', slot: 1, fire: 'semi', action: 'revolver',
       damage: 22, rpm: 600, spreadHip: 0.5, spreadAim: 0.15, recoil: 1.0, recoilH: 0.3, reload: 2.2,
-      mag: 8, reserve: PISTOL_RESERVE, unlock: 2, coreMul: 3, headMul: 3, wyrm: { mag: [8, 13], mult: [2, 3] },
+      mag: 18, reserve: PISTOL_RESERVE, unlock: 2, coreMul: 3, headMul: 3, wyrm: { mag: [18, 30], mult: [2, 3] },
       sound: '120 to 50 Hz thump, noise crack, metal ring'
     }),
     twintap: W({
       // Brief gives 220 bursts/min only; rpm keeps that figure (bursts), cycle = 60/220.
       // burstGap (time between the 2 rounds of one burst) is not in the brief: 0.06 s chosen.
-      id: 'twintap', name: 'P-16 Twinfire', cls: 'pistol', slot: 1, fire: 'burst', damage: 16, burst: 2,
-      rpm: 300, cycle: 60 / 300, burstGap: 0.06, spreadHip: 1.0, spreadAim: 0.4, recoil: 0.9, recoilH: 0,
+      // 5-round bursts. rpm is bursts per minute: 780 rounds/min (+30% on the old 600) = 156 bursts/min.
+      id: 'twintap', name: 'P-16 Twinfire', cls: 'pistol', slot: 1, fire: 'burst', damage: 16, burst: 5,
+      rpm: 156, cycle: 60 / 156, burstGap: 0.06, spreadHip: 1.0, spreadAim: 0.4, recoil: 0.9, recoilH: 0,
       reload: 1.3, mag: 16, reserve: PISTOL_RESERVE, unlock: 5, sound: 'double tick, tight snap, slide clack'
     }),
     buzz: W({
@@ -11566,13 +11570,22 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     }
     return { mag: clamp(mag, r[0], r[1]), elem: elem };
   };
-  /* a Wyrmforged gun's roll: {mag, mult}. mag 8-13, higher at higher player levels (LV 1 -> low, LV 30 -> high);
+  /* a Wyrmforged gun's roll: {mag, mult}. mag 18-30, higher at higher player levels (LV 1 -> low, LV 30 -> high);
      mult 2 or 3 (the damage multiplier). */
   GL.wyrmRoll = function (def, playerLv, rng) {
     rng = rng || Math.random;
     var R = def.wyrm, lvF = (clamp(Math.round(+playerLv) || 1, 1, 30) - 1) / 29;
     var mag = Math.round(R.mag[0] + (R.mag[1] - R.mag[0]) * clamp(0.6 * rng() + 0.4 * lvF, 0, 1));
     return { mag: mag, mult: rng() < 0.5 ? R.mult[0] : R.mult[1] };
+  };
+  /* a gun with a rolled magazine range (def.magRange, e.g. the Warden 40-50): {mag}, uniform over the range */
+  GL.rollMagRange = function (def, rng) {
+    rng = rng || Math.random; var r = def.magRange;
+    return { mag: Math.round(r[0] + (r[1] - r[0]) * rng()) };
+  };
+  GL.fixMagRange = function (def, roll) {
+    var r = def.magRange, o = roll || {};
+    return { mag: clamp(Math.round(+o.mag || r[0]), r[0], r[1]) };
   };
   GL.fixWyrm = function (def, roll) {
     var R = def.wyrm, o = roll || {};
@@ -19027,7 +19040,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   };
   W.magSize = function (s, def) {
     if (def.ammo) return IB.Launchers && IB.Launchers.magOf ? IB.Launchers.magOf(def) : def.mag;   // a launcher's rolled magazine; no bench / skill bonus
-    var base = def.mag, rr = def.wyrm && IB.WeaponDrops && IB.WeaponDrops.rollOf ? IB.WeaponDrops.rollOf(def.id) : null;   // Wyrmforged: the rolled magazine
+    var base = def.mag, rr = (def.wyrm || def.magRange) && IB.WeaponDrops && IB.WeaponDrops.rollOf ? IB.WeaponDrops.rollOf(def.id) : null;   // Wyrmforged / rolled magazine
     if (rr && rr.mag) base = rr.mag;
     var m = IB.Upgrades ? IB.Upgrades.magSize(base, s.fx.magLevel || 0) : base;
     return s.fx.magMul && m !== Infinity ? Math.ceil(m * s.fx.magMul - 1e-9) : m;   // Overload skill
@@ -22354,6 +22367,10 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     var s = slot(), def = IB.WEAPONS[gunId], gl = GL(), saved = s && s.gunRoll && s.gunRoll[gunId];
     if (!def || !gl) return null;
     if (gl.isLauncher(def)) return gl.fixRoll(def, saved);
+    if (def.magRange) {   // the Warden: its magazine is rolled the first time it is needed, then kept in the save
+      if (!saved && s) { s.gunRoll = s.gunRoll || {}; saved = s.gunRoll[gunId] = gl.rollMagRange(def); }
+      return gl.fixMagRange(def, saved);
+    }
     return def.wyrm ? gl.fixWyrm(def, saved) : null;
   };
   // the player level a new drop's roll uses (XP-based, 1-30)

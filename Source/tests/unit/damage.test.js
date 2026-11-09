@@ -54,12 +54,12 @@ test('Scrapper full blast is 9 pellets x 9', () => {
 });
 
 test('core multipliers', () => {
-  near(D.hit({ weapon: W.pip, dist: 0, zone: 'core' }).damage, 31.5);
+  near(D.hit({ weapon: W.pip, dist: 0, zone: 'core' }).damage, 54);   // Warden: x3 on the core
   near(D.hit({ weapon: W.rivet, dist: 0, zone: 'core' }).damage, 38.5);
   near(D.hit({ weapon: W.needle, dist: 0, zone: 'core' }).damage, 400);
   near(D.hit({ weapon: W.longtom, dist: 0, zone: 'core' }).damage, 120);
   // Core Finder +15% core-hit damage per level
-  near(D.hit({ weapon: W.pip, dist: 0, zone: 'core', coreLevel: 2 }).damage, 18 * 1.75 * 1.3);
+  near(D.hit({ weapon: W.pip, dist: 0, zone: 'core', coreLevel: 2 }).damage, 18 * 3 * 1.3);
   near(D.hit({ weapon: W.needle, dist: 0, zone: 'core', coreLevel: 4 }).damage, 160 * 2.5 * 1.6);
   // Core Finder does nothing on body hits
   near(D.hit({ weapon: W.pip, dist: 0, zone: 'body', coreLevel: 4 }).damage, 18);

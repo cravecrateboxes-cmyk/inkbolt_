@@ -38,6 +38,10 @@
     var s = slot(), def = IB.WEAPONS[gunId], gl = GL(), saved = s && s.gunRoll && s.gunRoll[gunId];
     if (!def || !gl) return null;
     if (gl.isLauncher(def)) return gl.fixRoll(def, saved);
+    if (def.magRange) {   // the Warden: its magazine is rolled the first time it is needed, then kept in the save
+      if (!saved && s) { s.gunRoll = s.gunRoll || {}; saved = s.gunRoll[gunId] = gl.rollMagRange(def); }
+      return gl.fixMagRange(def, saved);
+    }
     return def.wyrm ? gl.fixWyrm(def, saved) : null;
   };
   // the player level a new drop's roll uses (XP-based, 1-30)

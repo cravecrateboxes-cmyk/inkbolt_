@@ -141,14 +141,14 @@ test('rocket crates: melee bladers drop them at half a soldier\'s chance, other 
   assert.equal(GL.rocketDrop(Object.assign({ w: 0.5, dropped: 40 }, st), () => 0), 0);
 });
 
-test('Wyrmforged Ironjaw roll: magazine 8-13 (higher at higher player levels), damage x2 or x3 per drop', () => {
+test('Wyrmforged Ironjaw roll: magazine 18-30 (higher at higher player levels), damage x2 or x3 per drop', () => {
   const def = IB.WEAPONS.handcannon, GL = IB.GunLevel;
-  assert.deepEqual(def.wyrm, { mag: [8, 13], mult: [2, 3] });
+  assert.deepEqual(def.wyrm, { mag: [18, 30], mult: [2, 3] });
   assert.equal(def.coreMul, 3); assert.equal(def.headMul, 3);
   const seen = new Set();
   for (let i = 0; i < 400; i++) {
     const r = GL.wyrmRoll(def, 1 + (i % 30), Math.random);
-    assert.ok(r.mag >= 8 && r.mag <= 13, 'mag ' + r.mag);
+    assert.ok(r.mag >= 18 && r.mag <= 30, 'mag ' + r.mag);
     assert.ok(r.mult === 2 || r.mult === 3, 'mult ' + r.mult);
     seen.add(r.mult);
   }
@@ -156,6 +156,17 @@ test('Wyrmforged Ironjaw roll: magazine 8-13 (higher at higher player levels), d
   // the same luck at LV 1 and at LV 30: the high player level gives the bigger magazine
   const mean = (lv) => { let t = 0; for (let i = 0; i < 2000; i++) t += GL.wyrmRoll(def, lv, Math.random).mag; return t / 2000; };
   assert.ok(mean(30) > mean(1) + 1.5, 'LV 30 averages ' + mean(30).toFixed(2) + ', LV 1 ' + mean(1).toFixed(2));
-  assert.deepEqual(GL.fixWyrm(def, { mag: 99, mult: 3 }), { mag: 13, mult: 3 });
-  assert.deepEqual(GL.fixWyrm(def, undefined), { mag: 8, mult: 2 });
+  assert.deepEqual(GL.fixWyrm(def, { mag: 99, mult: 3 }), { mag: 30, mult: 3 });
+  assert.deepEqual(GL.fixWyrm(def, undefined), { mag: 18, mult: 2 });
+});
+
+test('Warden: magazine rolled 40-50 (kept as a roll), crit spots x3', () => {
+  const def = IB.WEAPONS.pip, GL = IB.GunLevel;
+  assert.deepEqual(def.magRange, [40, 50]);
+  assert.equal(def.coreMul, 3); assert.equal(def.headMul, 3);
+  const seen = new Set();
+  for (let i = 0; i < 400; i++) { const r = GL.rollMagRange(def, Math.random); assert.ok(r.mag >= 40 && r.mag <= 50, 'mag ' + r.mag); seen.add(r.mag); }
+  assert.ok(seen.size > 3, 'the magazine varies between drops');
+  assert.deepEqual(GL.fixMagRange(def, { mag: 99 }), { mag: 50 });
+  assert.deepEqual(GL.fixMagRange(def, undefined), { mag: 40 });
 });

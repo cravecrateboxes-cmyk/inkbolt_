@@ -28,22 +28,26 @@
   var WEAPONS = {
     pip: W({
       id: 'pip', name: 'P-12 Warden', cls: 'pistol', slot: 1, fire: 'semi', damage: 18, rpm: 450,
-      spreadHip: 0.8, spreadAim: 0.3, recoil: 1.2, recoilH: 0.3, reload: 1.1, mag: 12, reserve: PISTOL_RESERVE,
+      // Each gun rolls its magazine (40-50, see GunLevel.rollMagRange) on first use; the roll is kept in the save.
+      // 3x damage on crit spots (core, head), as the Ironjaw.
+      spreadHip: 0.8, spreadAim: 0.3, recoil: 1.2, recoilH: 0.3, reload: 1.1, mag: 40, magRange: [40, 50],
+      reserve: PISTOL_RESERVE, coreMul: 3, headMul: 3,
       unlock: 1, sound: 'click transient, 2.4 kHz noise snap, short bright tail'
     }),
     handcannon: W({
       // Wyrmforged: a very fast pistol (Maggie-style: click-fast, low recoil), 3x damage on crit spots (core, soldier head).
-      // Each drop rolls its magazine (8-13, more at higher player levels) and a x2 or x3 damage multiplier (GunLevel.wyrmRoll).
+      // Each drop rolls its magazine (18-30, more at higher player levels) and a x2 or x3 damage multiplier (GunLevel.wyrmRoll).
       id: 'handcannon', name: 'Wyrmforged Ironjaw', cls: 'pistol', slot: 1, fire: 'semi', action: 'revolver',
       damage: 22, rpm: 600, spreadHip: 0.5, spreadAim: 0.15, recoil: 1.0, recoilH: 0.3, reload: 2.2,
-      mag: 8, reserve: PISTOL_RESERVE, unlock: 2, coreMul: 3, headMul: 3, wyrm: { mag: [8, 13], mult: [2, 3] },
+      mag: 18, reserve: PISTOL_RESERVE, unlock: 2, coreMul: 3, headMul: 3, wyrm: { mag: [18, 30], mult: [2, 3] },
       sound: '120 to 50 Hz thump, noise crack, metal ring'
     }),
     twintap: W({
       // Brief gives 220 bursts/min only; rpm keeps that figure (bursts), cycle = 60/220.
       // burstGap (time between the 2 rounds of one burst) is not in the brief: 0.06 s chosen.
-      id: 'twintap', name: 'P-16 Twinfire', cls: 'pistol', slot: 1, fire: 'burst', damage: 16, burst: 2,
-      rpm: 300, cycle: 60 / 300, burstGap: 0.06, spreadHip: 1.0, spreadAim: 0.4, recoil: 0.9, recoilH: 0,
+      // 5-round bursts. rpm is bursts per minute: 780 rounds/min (+30% on the old 600) = 156 bursts/min.
+      id: 'twintap', name: 'P-16 Twinfire', cls: 'pistol', slot: 1, fire: 'burst', damage: 16, burst: 5,
+      rpm: 156, cycle: 60 / 156, burstGap: 0.06, spreadHip: 1.0, spreadAim: 0.4, recoil: 0.9, recoilH: 0,
       reload: 1.3, mag: 16, reserve: PISTOL_RESERVE, unlock: 5, sound: 'double tick, tight snap, slide clack'
     }),
     buzz: W({

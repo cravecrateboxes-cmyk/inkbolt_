@@ -69,13 +69,22 @@
     }
     return { mag: clamp(mag, r[0], r[1]), elem: elem };
   };
-  /* a Wyrmforged gun's roll: {mag, mult}. mag 8-13, higher at higher player levels (LV 1 -> low, LV 30 -> high);
+  /* a Wyrmforged gun's roll: {mag, mult}. mag 18-30, higher at higher player levels (LV 1 -> low, LV 30 -> high);
      mult 2 or 3 (the damage multiplier). */
   GL.wyrmRoll = function (def, playerLv, rng) {
     rng = rng || Math.random;
     var R = def.wyrm, lvF = (clamp(Math.round(+playerLv) || 1, 1, 30) - 1) / 29;
     var mag = Math.round(R.mag[0] + (R.mag[1] - R.mag[0]) * clamp(0.6 * rng() + 0.4 * lvF, 0, 1));
     return { mag: mag, mult: rng() < 0.5 ? R.mult[0] : R.mult[1] };
+  };
+  /* a gun with a rolled magazine range (def.magRange, e.g. the Warden 40-50): {mag}, uniform over the range */
+  GL.rollMagRange = function (def, rng) {
+    rng = rng || Math.random; var r = def.magRange;
+    return { mag: Math.round(r[0] + (r[1] - r[0]) * rng()) };
+  };
+  GL.fixMagRange = function (def, roll) {
+    var r = def.magRange, o = roll || {};
+    return { mag: clamp(Math.round(+o.mag || r[0]), r[0], r[1]) };
   };
   GL.fixWyrm = function (def, roll) {
     var R = def.wyrm, o = roll || {};
