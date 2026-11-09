@@ -473,7 +473,7 @@
   };
   L.onKill = function (r) {
     if (IB.WeaponDrops && IB.WeaponDrops.rollLauncher) IB.WeaponDrops.rollLauncher(r);
-    var w = GL() ? GL().rocketDropWeight(r.type) : 0;   // soldiers 1, melee bladers 0.5
+    var w = GL() ? GL().rocketDropWeight(r.type) : 0;   // soldiers 1.05, melee bladers 0.525 (+5% on the old 1 and 0.5)
     if (w <= 0) return;
     var st = L.directorState(); st.w = w;
     var n = GL().rocketDrop(st);

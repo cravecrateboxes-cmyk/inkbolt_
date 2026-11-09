@@ -118,7 +118,7 @@
 
   // ---------------- rocket ammo director ----------------
   GL.ROCKET = { cap: 16, start: 6, carriedTarget: 0.7, packTarget: 0.3, useWindow: 90, useFull: 6, maxChance: 0.5, pity: 3,
-    budgetPerSoldier: 0.27, minBudget: 14, dropWeight: { soldier: 1, blader: 0.5 }, torpedoCapMul: 1.5 };
+    budgetPerSoldier: 0.27, minBudget: 14, dropWeight: { soldier: 1.05, blader: 0.525 }, torpedoCapMul: 1.5 };
   /* the rocket pool's cap: the Torpedo skill adds 50% (st.cap in rocketNeed / rocketDrop overrides the base) */
   GL.rocketCap = function (torpedo) { return Math.round(GL.ROCKET.cap * (torpedo ? GL.ROCKET.torpedoCapMul : 1)); };
   /* which kills can drop a rocket crate, and how often vs a soldier (melee bladers: half the chance) */

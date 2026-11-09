@@ -127,8 +127,8 @@ test('balance: launchers hit hardest per shot, but stay inside the ammo economy'
 });
 
 test('rocket crates: melee bladers drop them at half a soldier\'s chance, other robots never', () => {
-  assert.equal(GL.rocketDropWeight('soldier'), 1);
-  assert.equal(GL.rocketDropWeight('blader'), 0.5);
+  assert.equal(GL.rocketDropWeight('soldier'), 1.05);
+  assert.equal(GL.rocketDropWeight('blader'), 0.525);
   assert.equal(GL.rocketDropWeight('bruiser'), 0);
   const st = { owned: true, carried: true, ammo: 0, used: 6, budget: 40 };
   const need = GL.rocketNeed(st), pS = GL.ROCKET.maxChance * need;
