@@ -22237,8 +22237,8 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     '  if ( t < 3.5 ) { vec2 q = floor( uv * 160.0 ); float w = mod( q.x + q.y, 4.0 ) < 2.0 ? 1.0 : 0.0;',                                 // carbon twill
     '    return w * 0.85; }',
     '  if ( t < 4.5 ) { float g = fract( uv.y * 55.0 + sin( uv.x * 9.0 ) * 0.9 + ibN( p * 9.0 ) * 2.2 ); return smoothstep( 0.62, 0.9, g ) * 0.9; }',   // wood grain
-    '  if ( t < 5.5 ) { vec2 q = uv * 95.0; float a = sin( q.x + sin( q.y * 0.9 ) * 2.4 ) * sin( q.y + sin( q.x * 0.7 ) * 2.0 );',          // filigree scrolls
-    '    return ( 1.0 - smoothstep( 0.03, 0.09, abs( a ) ) ) * 0.9; }',
+    '  if ( t < 5.5 ) { vec2 q = uv * 95.0; float a = sin( q.x + sin( q.y * 0.9 ) * 2.4 ) + sin( q.y + sin( q.x * 0.7 ) * 2.0 );',          // filigree scrolls: a sum (not a product) gives unbroken curves
+    '    return ( 1.0 - smoothstep( 0.1, 0.22, abs( a ) ) ) * 0.9; }',
     '  if ( t < 6.5 ) return smoothstep( -0.2, 1.0, sin( dot( uv, vec2( 18.0, 30.0 ) ) ) ) * 0.55;',                                      // sheen bands
     '  if ( t < 7.5 ) { float v = min( abs( ibN( p * 16.0 ) - 0.5 ), abs( ibN( p * 34.0 + 3.1 ) - 0.5 ) * 1.4 );',                     // molten veins
     '    return 1.0 - smoothstep( 0.012, 0.034, v ); }',
