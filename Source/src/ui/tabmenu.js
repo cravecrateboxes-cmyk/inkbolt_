@@ -18,7 +18,7 @@
   var ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
   var FR = '<i class="fr" aria-hidden="true"><i></i></i>';
   // node x per tier in the player's sketch (units: -220..220 across the tree), tier 1 = bottom row
-  var LAYOUT = { 7: [-112, 112], 6: [-72, 72], 5: [-124, 0, 124], 4: [-124, 0, 124], 3: [-158, 0, 158], 2: [-158, 0, 158], 1: [-72, 72] };
+  var LAYOUT = { 7: [-124, 0, 124], 6: [-72, 72], 5: [-124, 0, 124], 4: [-124, 0, 124], 3: [-158, 0, 158], 2: [-158, 0, 158], 1: [-72, 72] };
 
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function touch() { return !!(IB.Input && IB.Input.touch); }

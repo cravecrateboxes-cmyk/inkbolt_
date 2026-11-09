@@ -426,7 +426,7 @@
     r.cool = 0.6 + Math.random() * 1.2; r.thinkT = 0; r.mode = 'approach'; r.sdir = Math.random() < 0.5 ? -1 : 1; r.bump = 0; r.lost = 0;
     r.tilt = 0; r.wob = 0; r.pull = r.pullTgt = 0; r.lid = 0; r.aim = -0.45; r.gunOut = 0; r.kick = 0; r.bankX = r.bankZ = 0; r.fuse = 0; r.capPop = 0;
     r.yaw = Math.atan2(tx - x, tz - z); r.walk = Math.random() * 3; r.dmgMul = (AI.dmgMul || 1) * (opts.dmgScale || 1);
-    r.rogue = 0; r.rogueEnd = false; r.wet = 0; r.tgt = null; r.tgtT = 0;
+    r.rogue = 0; r.rogueEnd = false; r.wet = 0; r.tgt = null; r.tgtT = 0; r.slowT = 0;
     r.fy = r.gy = 0; r.fvy = 0; r.hop = 0;
     r.close = true; r.held = false; r.navT = 0; r.ign = null; r.ignT = 0; r.rtT = 0; r.ceil = Infinity; r.ceilT = 0; r.squash = 0;
     r.canX = x; r.canZ = z; r.canY = r.sy;
@@ -1124,7 +1124,8 @@
       if (r.state === 'spawn' || r.state === 'pose') continue;
       if (B.tick) { B.tick(r, dt, C); if (!r.on) continue; }
       // movement: smooth velocity toward the wish, collide, face
-      var sm = r.state === 'attack' ? 1 : tempo().speedMul;
+      if (r.slowT > 0) r.slowT -= dt;   // Torpedo: a slowed robot moves a bit slower for a moment
+      var sm = (r.state === 'attack' ? 1 : tempo().speedMul) * (r.slowT > 0 ? 1 - (r.slowMul || 0) : 1);
       var tvx = _mv.x * _mv.s * sm, tvz = _mv.z * _mv.s * sm, blend = Math.min(1, dt * (r.state === 'attack' && r.type === 'crawler' ? 30 : fly ? 4 : 10));
       r.vx += (tvx - r.vx) * blend; r.vz += (tvz - r.vz) * blend;
       var ox = r.x, oz = r.z;

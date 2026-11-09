@@ -384,12 +384,15 @@
   function fire(s, g, ctx) {
     if (g.mag <= 0) { s.burst = 0; return; }
     var d = g.def, p = ctx.player, cam = ctx.cam;
+    // Torpedo (endgame): the last round of a magazine, fired with 1 left, is a torpedo; guns only, not launchers
+    var torpedo = g.mag === 1 && s.fx && s.fx.torpedo && d.fire !== 'rocket' && d.cls !== 'rocket' && ctx.torpedo;
     g.mag--;
     var spread = W.spread(s, p) * D2R;
     s.sinceShot = 0; s.shotsInRow++;
     cam.getWorldDirection(_fwd);
     _right.set(1, 0, 0).applyQuaternion(cam.quaternion); _up.set(0, 1, 0).applyQuaternion(cam.quaternion);
-    if (d.fire === 'rocket' && ctx.rocket) ctx.rocket(d, cam, spread);   // launchers: game/launchers.js flies the rockets
+    if (torpedo) ctx.torpedo(d, cam, spread);   // game/launchers.js flies the torpedo
+    else if (d.fire === 'rocket' && ctx.rocket) ctx.rocket(d, cam, spread);   // launchers: game/launchers.js flies the rockets
     else for (var k = 0, np = Math.round((d.pellets || 1) * W.tierMods(d).pellets); k < np; k++) {
       var a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * Math.tan(spread);
       _dir.copy(_fwd).addScaledVector(_right, Math.cos(a) * r).addScaledVector(_up, Math.sin(a) * r).normalize();

@@ -149,6 +149,27 @@
     if (IB.FX) IB.FX.puff(_mz.x, _mz.y, _mz.z, 4, 0xE9E4F0, 0.12, 0.3, 1.6);
   };
 
+  // ---------------- Torpedo (endgame skill, skills.js): the last round of a gun's magazine ----------------
+  // a fast rocket with no direct hit: torpedoMul x the gun's shot damage as a wide splash; the robots it hurts are slowed
+  var TORPEDO = { id: 'torpedo', name: 'Torpedo', damage: 0, splash: 0, radius: 4.5, exponent: 0.7, speed: 34, life: 2.2, turn: 0, knockback: 8, slow: 0.25, slowTime: 2 };
+  var TORPEDO_EL = { id: 'torpedo', name: '', color: '#5FE3FF', splashMul: 1, radiusMul: 1.15 };
+  L.torpedo = function (gun, cam, spread) {
+    var sk = IB.SkillFX && IB.SkillFX.fx ? IB.SkillFX.fx : {};
+    var base = (GL() ? GL().shotDamage(gun) : gun.damage) * dmgMul(gun);
+    var def = Object.assign({}, TORPEDO, { splash: base * (sk.torpedoMul || 4), radius: sk.torpedoRadius || 4.5, slow: sk.torpedoSlow || 0, slowTime: sk.torpedoSlowTime || 2 });
+    IB.Weapons.muzzleWorld(cam, _mz);
+    cam.getWorldDirection(_d); _mz.addScaledVector(_d, 0.25);
+    aimPoint(cam, 160, _aim);
+    var dx = _aim.x - _mz.x, dy = _aim.y - _mz.y, dz = _aim.z - _mz.z, dl = Math.hypot(dx, dy, dz);
+    if (dl < 2.5) { dx = _d.x; dy = _d.y; dz = _d.z; dl = 1; }
+    _rt.set(1, 0, 0).applyQuaternion(cam.quaternion); _upv.set(0, 1, 0).applyQuaternion(cam.quaternion);
+    var a = Math.random() * Math.PI * 2, rr = Math.sqrt(Math.random()) * Math.tan(spread || 0);
+    dx = dx / dl + (_rt.x * Math.cos(a) + _upv.x * Math.sin(a)) * rr; dy = dy / dl + (_rt.y * Math.cos(a) + _upv.y * Math.sin(a)) * rr; dz = dz / dl + (_rt.z * Math.cos(a) + _upv.z * Math.sin(a)) * rr;
+    spawnRocket(def, _mz.x, _mz.y, _mz.z, dx, dy, dz, def.speed, { elem: TORPEDO_EL, mul: 1, sc: 0.8 });
+    if (IB.Audio) IB.Audio.play('missile', { pitch: 1.25, gain: 0.5 });
+    if (IB.FX) IB.FX.puff(_mz.x, _mz.y, _mz.z, 3, 0x5FE3FF, 0.1, 0.25, 1.2);
+  };
+
   // ---------------- Murmur: locks and the salvo ----------------
   function center(r) { var v = IB.AI.VIS[r.type]; return r.y + (v ? (v.y0 + v.y1) / 2 : 0.6); }
   function lockable(r) { return r.on && !(r.rogue > 0) && r.state !== 'spawn' && r.state !== 'pose' && r.state !== 'off'; }
@@ -235,6 +256,7 @@
       hits.push(r);
       var k2 = AI.damage(r, sd, { kx: hx * kb, kz: hz * kb, stagger: d < R * 0.6 }, ctx.onKill);
       dmgNum(r, sd, 'hit'); L.stats.robotHits++;
+      if (def.slow > 0) { r.slowT = def.slowTime; r.slowMul = def.slow; }   // Torpedo: the robots it hurts are slowed
       if (!k2 && el.dot && IB.Status) IB.Status.apply(r, el.id, sd * el.dot / el.dur, el.dur);
     }
     // the player: a frag's share, capped

@@ -450,6 +450,7 @@
     if (G.ws) {
       var wf = G.ws.fx;
       wf.reloadMul = (fx.reloadMul || 1) * sk.reloadMul; wf.recoilMul = (fx.recoilMul || 1) * sk.recoilMul;
+      wf.torpedo = !!sk.torpedo;   // Torpedo: the last round of a magazine
       wf.spreadMul = (fx.spreadMul || 1) * sk.spreadMul; wf.magMul = sk.magMul; wf.rateMul = sk.rateMul; wf.swapMul = sk.swapMul;
     }
   }
@@ -1156,7 +1157,7 @@
     if (G.run.started) IB.SkillFX.update(dt, onKill, p);   // acid pools, wet coats, Undercover timer
     // weapons
     W.update(G.ws, dt, { player: p, cam: R.camera, input: { fire: Inp.fire && p.alive && G.run.started, firePressed: Inp.firePressed && p.alive && G.run.started, aim: Inp.aim && p.alive }, shoot: shoot,
-      melee: meleeHit, onThrow: throwFrag, rocket: IB.Launchers ? IB.Launchers.fire : null,
+      melee: meleeHit, onThrow: throwFrag, rocket: IB.Launchers ? IB.Launchers.fire : null, torpedo: IB.Launchers ? IB.Launchers.torpedo : null,
       onFire: function (d) { if (s.shake && (d.cls === 'smg' || d.cls === 'rifle')) G.shake = Math.max(G.shake, 0.15); } });
     // FOV: aim zoom, plus a small widen at sprint and a kick while sliding
     var cw = W.current(G.ws), aimZoom = cw ? (cw.def.scopeZoom ? 1 / cw.def.scopeZoom : (cw.def.aimZoom || 0.85)) : 0.85;
