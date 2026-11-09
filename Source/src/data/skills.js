@@ -83,7 +83,7 @@
     S('handyhelpers', 7, 0, 'Handy Helpers', 'capstone', [1], '', 'Rogue bots',
       'When you wreck a robot there is an 8% chance it turns rogue instead and fights for you until it is destroyed, with 3-5x its health and 1.5x its damage.', 'helper'),
     S('torpedo', 7, 2, 'Torpedo', 'capstone', [1], '', 'Last-round torpedo',
-      'The last round in each magazine becomes a torpedo: it flies out and explodes for 5x your gun\'s base damage in a wide splash, and slows the robots it hurts for 5 s. Not for rocket launchers.', 'torpedo'),
+      'Your last round in each magazine becomes a torpedo: 5x base damage in a wide splash that slows what it hits for 5 s. Not for rocket launchers.', 'torpedo'),
     S('chainreaction', 7, 1, 'Chain Reaction', 'capstone', [1], '', 'Group blast',
       'Shooting a robot with 2 or more others within 4 m has a 10% chance to blow the whole group up for 40% of each robot\'s max health. They do not all die at once.', 'burst')
   ];
