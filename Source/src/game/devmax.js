@@ -12,9 +12,13 @@
   var G = IB.Game, toTitle = G.toTitle, done = false;
 
   function best() { return 0.999; }          // top of every stat range
-  function maxOut() {
+  // the max profile is applied once per save (slot.devMax); after that the save is the player's own progress.
+  // force = the level picker: re-max now, keeping the skills already spent
+  function maxOut(force) {
     var store = G.store, slot = store.newest();
     if (!slot) slot = store.newSlot(store.freeSlot() || 1, (Math.random() * 1e9) | 0);
+    if (slot.devMax && !force) { G.slot = slot; return; }
+    slot.devMax = 1;
     var top = IB.CAMPAIGN.length, plans = IB.CAMPAIGN;
     slot.highest = Math.max(slot.highest || 0, 20, top);
     slot.gems = Math.max(slot.gems || 0, 999999);
@@ -55,7 +59,7 @@
     });
     CANS.forEach(function (t) { put(L.makeItem(t, 'legendary', 30, best)); });   // a spare of each can in the bag
     slot.gear = g;
-    slot.skills = {};                         // all points free: spend / respec as you like in Tab -> Skills
+    if (!force) slot.skills = {};             // all points free: spend / respec as you like in Tab -> Skills
     store.save(slot);
     G.slot = slot;
   }
@@ -78,7 +82,7 @@
         var plan = IB.LEVEL_PLANS[b.getAttribute('data-dev-plan')];
         el.hidden = true;
         var sk = G.slot && G.slot.skills;   // keep the skills already spent
-        try { maxOut(); } catch (err) { G.errors.push('devmax: ' + err.message); }
+        try { maxOut(true); } catch (err) { G.errors.push('devmax: ' + err.message); }
         if (sk) { G.slot.skills = sk; G.store.save(G.slot); }
         G.slot.plan = plan.id; G.slot.level = plan.level; G.store.save(G.slot);
         IB.Menus.wipe(function () { G.switchPlan(plan).then(function () { G.startLevel(); }); });
@@ -90,7 +94,7 @@
   setInterval(function () { var el = document.getElementById('devLevels'); if (el) el.hidden = !(G.mode === 'title' || G.mode === 'paused'); }, 300);
 
   G.toTitle = function () {
-    if (!done) { done = true; try { maxOut(); } catch (e) { G.errors.push('devmax: ' + e.message); } }
+    if (!done) { done = true; try { maxOut(false); } catch (e) { G.errors.push('devmax: ' + e.message); } }
     toTitle.apply(this, arguments);
     picker();
   };
