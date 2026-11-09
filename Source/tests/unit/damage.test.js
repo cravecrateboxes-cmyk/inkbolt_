@@ -15,7 +15,7 @@ const DISTS = [0, 10, 25, 40, 70];
 // Expected body damage per bullet/pellet with no upgrades, at 0/10/25/40/70 m (5.2 falloff).
 const EXPECTED = {
   pip: [18, 18, 14.4, 10.8, 10.8],
-  handcannon: [55, 55, 44, 33, 33],
+  handcannon: [22, 22, 17.6, 13.2, 13.2],   // Wyrmforged, no roll bonus (x2 or x3 is rolled per drop)
   twintap: [16, 16, 12.8, 9.6, 9.6],
   buzz: [11, 11, 5.5, 5.5, 5.5],
   whisk: [8, 8, 4, 4, 4],

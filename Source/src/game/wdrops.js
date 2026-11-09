@@ -33,8 +33,15 @@
   /* the level a gun fights at (its own, or player level - 4); melee weapons have none and ride the floor */
   WD.ownLevel = function (gunId) { var s = slot(); return (s && s.gunLevel && s.gunLevel[gunId]) || 1; };
   WD.levelOf = function (gunId) { return GL() ? GL().effective(WD.ownLevel(gunId), playerLv(), curLevel()) : 1; };
-  WD.dmgMul = function (gunId) { return WD.tierOf(gunId).dmg * (GL() ? GL().mul(WD.levelOf(gunId)) : 1); };
-  WD.rollOf = function (gunId) { var s = slot(), def = IB.WEAPONS[gunId]; return def && GL() && GL().isLauncher(def) ? GL().fixRoll(def, s && s.gunRoll && s.gunRoll[gunId]) : null; };
+  WD.dmgMul = function (gunId) { var r = WD.rollOf(gunId); return WD.tierOf(gunId).dmg * (GL() ? GL().mul(WD.levelOf(gunId)) : 1) * (r && r.mult ? r.mult : 1); };
+  WD.rollOf = function (gunId) {
+    var s = slot(), def = IB.WEAPONS[gunId], gl = GL(), saved = s && s.gunRoll && s.gunRoll[gunId];
+    if (!def || !gl) return null;
+    if (gl.isLauncher(def)) return gl.fixRoll(def, saved);
+    return def.wyrm ? gl.fixWyrm(def, saved) : null;
+  };
+  // the player level a new drop's roll uses (XP-based, 1-30)
+  function playerLv() { return IB.Game && IB.Game.progress ? IB.Game.progress().level : 1; }
   /* display name: the model name (launchers with their element), dressed by the tier (core/gunskins.js: 'Cobalt Rivet') */
   WD.skinName = function (gunId, tierId, roll) {
     var def = IB.WEAPONS[gunId], base = GL() ? GL().displayName(def, roll) : def.name;
@@ -47,15 +54,16 @@
     s.gunTier = s.gunTier || {}; s.arsenal = s.arsenal || []; s.gunLevel = s.gunLevel || {}; s.gunRoll = s.gunRoll || {};
     var have = s.arsenal.indexOf(id) >= 0, nt = WD.tier(tierId), lv = Math.max(1, level || curLevel());
     var launcher = gl && gl.isLauncher(def); if (launcher) roll = gl.fixRoll(def, roll || gl.rollLauncher(def));
+    var wyrm = gl && def.wyrm; if (wyrm) roll = gl.fixWyrm(def, roll || gl.wyrmRoll(def, playerLv()));
     var name = WD.skinName(id, nt.id, roll), tag = nt.name + ' Lv ' + lv;
     if (!have) {
-      s.arsenal.push(id); s.owned = s.arsenal.slice(); s.gunTier[id] = nt.id; s.gunLevel[id] = lv; if (launcher) s.gunRoll[id] = roll;
+      s.arsenal.push(id); s.owned = s.arsenal.slice(); s.gunTier[id] = nt.id; s.gunLevel[id] = lv; if (launcher || wyrm) s.gunRoll[id] = roll;
       line = tag + ' ' + name + ' · in your backpack (Tab)';
       if (launcher && IB.Launchers) IB.Launchers.onAcquire(id, true);
     } else {
       var cur = WD.tierOf(id), now = gl ? gl.score(def, cur.dmg, WD.levelOf(id), WD.rollOf(id)) : cur.dmg, nw = gl ? gl.score(def, nt.dmg, lv, roll) : nt.dmg;
       if (nw > now * 1.0001) {
-        s.gunTier[id] = nt.id; s.gunLevel[id] = lv; if (launcher) s.gunRoll[id] = roll;
+        s.gunTier[id] = nt.id; s.gunLevel[id] = lv; if (launcher || wyrm) s.gunRoll[id] = roll;
         line = name + ' upgraded to ' + tag + ' (x' + (nw / now).toFixed(2) + ' power)';
         if (launcher && IB.Launchers) IB.Launchers.onAcquire(id, false);
       } else { s.gems = (s.gems || 0) + nt.gems; line = tag + ' ' + name + ' · broken down for ' + nt.gems + ' gems'; }
@@ -92,6 +100,7 @@
     c.strokeText(name.toUpperCase(), 128, 45); c.fillStyle = '#FFFDF7'; c.fillText(name.toUpperCase(), 128, 45);
     d.tex.needsUpdate = true;
   }
+  function def0(id) { return IB.WEAPONS && IB.WEAPONS[id]; }
   function spawn(id, tier, x, z, melee, y, level, roll) {
     var A = IB.Assets, node = 'WPN_' + id.toUpperCase();
     if (!A.geo[node]) return null;
@@ -105,6 +114,7 @@
     var floor = IB.Zones && IB.Zones.floorY ? IB.Zones.floorY(x, z, (y || 0) + 0.6) : 0;   // the floor (or deck) it fell on
     d.on = true; d.id = id; d.tier = tier; d.melee = !!melee; d.x = x; d.z = z; d.t = 0; d.y = floor;
     d.level = Math.max(1, level || curLevel()); d.roll = roll || null;
+    if (!d.roll && !melee && IB.GunLevel && def0(id) && def0(id).wyrm) d.roll = IB.GunLevel.wyrmRoll(def0(id), playerLv());
     if (d.label) drawLabel(d);
     d.grp.position.set(x, floor, z); d.grp.visible = true;
     var c = new THREE.Color(melee ? '#FFC23A' : WD.tier(tier).color);

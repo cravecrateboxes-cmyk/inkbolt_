@@ -140,3 +140,22 @@ test('rocket crates: melee bladers drop them at half a soldier\'s chance, other 
   // bladers share the soldiers' level budget: once it is spent, no crate from either
   assert.equal(GL.rocketDrop(Object.assign({ w: 0.5, dropped: 40 }, st), () => 0), 0);
 });
+
+test('Wyrmforged Ironjaw roll: magazine 8-13 (higher at higher player levels), damage x2 or x3 per drop', () => {
+  const def = IB.WEAPONS.handcannon, GL = IB.GunLevel;
+  assert.deepEqual(def.wyrm, { mag: [8, 13], mult: [2, 3] });
+  assert.equal(def.coreMul, 3); assert.equal(def.headMul, 3);
+  const seen = new Set();
+  for (let i = 0; i < 400; i++) {
+    const r = GL.wyrmRoll(def, 1 + (i % 30), Math.random);
+    assert.ok(r.mag >= 8 && r.mag <= 13, 'mag ' + r.mag);
+    assert.ok(r.mult === 2 || r.mult === 3, 'mult ' + r.mult);
+    seen.add(r.mult);
+  }
+  assert.equal(seen.size, 2, 'both x2 and x3 turn up');
+  // the same luck at LV 1 and at LV 30: the high player level gives the bigger magazine
+  const mean = (lv) => { let t = 0; for (let i = 0; i < 2000; i++) t += GL.wyrmRoll(def, lv, Math.random).mag; return t / 2000; };
+  assert.ok(mean(30) > mean(1) + 1.5, 'LV 30 averages ' + mean(30).toFixed(2) + ', LV 1 ' + mean(1).toFixed(2));
+  assert.deepEqual(GL.fixWyrm(def, { mag: 99, mult: 3 }), { mag: 13, mult: 3 });
+  assert.deepEqual(GL.fixWyrm(def, undefined), { mag: 8, mult: 2 });
+});

@@ -80,7 +80,7 @@
     aurora: { word: ['Starfall', 'Nebula', 'Borealis'], pat: 'aurora', patCol: '#6AF0D0', glow: '#7CFFE0', shim: '#E6FFFA',
       c: { body: '#141A3A', frame: '#1A1433', acc: '#2A2F5E', furn: '#1D1840', steel: '#D9E2F5', steel2: '#9AA6C8', trim: '#7CFFE0', lens: '#E09BFF', red: '#FF7AD8' },
       flag: { body: 'patshim', frame: 'pat', acc: 'pat', furn: 'pat', steel: 'shim', trim: 'glow', lens: 'glow', red: 'glow' } },
-    damascus: { word: ['Wyrmforged', 'Tempered', 'Ivorybrand'], pat: 'damascus', patCol: '#3A3E47', glow: '#9FE8FF', shim: '#F4F8FF',
+    damascus: { word: ['Damask', 'Tempered', 'Ivorybrand'], pat: 'damascus', patCol: '#3A3E47', glow: '#9FE8FF', shim: '#F4F8FF',
       c: { body: '#A7ACB5', frame: '#3A3640', acc: '#B9BDC5', furn: '#EDE3CF', steel: '#D5D9E0', steel2: '#8E939E', trim: '#D9B676', lens: '#B6EEFF', red: '#E0A060' },
       flag: { body: 'patshim', acc: 'pat', steel: 'shim', steel2: 'shim', trim: 'shim', lens: 'glow', red: 'glow' } }
   };

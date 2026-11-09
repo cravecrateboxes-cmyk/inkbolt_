@@ -102,7 +102,7 @@
     dmg *= falloff(w.cls, o.dist || 0);
     if (o.zone === 'core') dmg *= (w.coreMul || 1.75) * (1 + 0.15 * (o.coreLevel || 0));
     var crit = false;
-    if (o.zone === 'head') { dmg *= IB.Damage.HEAD_MUL; crit = true; }   // soldier headshot: x2, shown as CRIT
+    if (o.zone === 'head') { dmg *= w.headMul || IB.Damage.HEAD_MUL; crit = true; }   // soldier headshot: x2, shown as CRIT
     var chance = 0.06 * (o.critLevel || 0);
     if (chance > 0 && o.rng && o.rng() < chance) { crit = true; dmg *= 2; }
     if (o.blinded) dmg *= 1.25;

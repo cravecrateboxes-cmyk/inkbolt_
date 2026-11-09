@@ -30,6 +30,7 @@
     slot.gunLevel = {}; guns.forEach(function (id) { slot.gunLevel[id] = 30; });       // gun level 30
     slot.gunRoll = {}; guns.forEach(function (id) {                                     // launchers: biggest magazine
       var d = IB.WEAPONS[id]; if (d.magRoll) slot.gunRoll[id] = { mag: d.magRoll[1], elem: d.elements ? 'boom' : 'none' };
+      if (d.wyrm) slot.gunRoll[id] = { mag: d.wyrm.mag[1], mult: d.wyrm.mult[1] };   // Wyrmforged: biggest magazine, x3
     });
     slot.rockets = IB.GunLevel ? IB.GunLevel.ROCKET.cap : 16;
     slot.melee = (IB.MELEE_WEAPONS || []).filter(function (id) { return IB.Assets.node['WPN_' + id.toUpperCase()]; });   // every melee weapon (V, B)
@@ -93,8 +94,22 @@
   }
   setInterval(function () { var el = document.getElementById('devLevels'); if (el) el.hidden = !(G.mode === 'title' || G.mode === 'paused'); }, 300);
 
+  // the Wyrmforged Ironjaw replaces the old one in the tester save: top roll (13 rounds, x3), Legendary, LV 30 gun level
+  function wyrmUpdate(slot) {
+    if (!slot || slot.wyrmV || !IB.WEAPONS.handcannon) return;
+    slot.wyrmV = 1;
+    var id = 'handcannon';
+    slot.gunRoll = slot.gunRoll || {}; slot.gunRoll[id] = { mag: IB.WEAPONS[id].wyrm.mag[1], mult: IB.WEAPONS[id].wyrm.mult[1] };
+    slot.gunTier = slot.gunTier || {}; slot.gunTier[id] = 'orange';
+    slot.gunLevel = slot.gunLevel || {}; slot.gunLevel[id] = 30;
+    if (slot.arsenal && slot.arsenal.indexOf(id) < 0) slot.arsenal.push(id);
+    slot.owned = (slot.arsenal || []).slice();
+    G.store.save(slot);
+  }
+
   G.toTitle = function () {
     if (!done) { done = true; try { maxOut(false); } catch (e) { G.errors.push('devmax: ' + e.message); } }
+    try { wyrmUpdate(G.store.newest()); } catch (e) { G.errors.push('devmax: ' + e.message); }
     toTitle.apply(this, arguments);
     picker();
   };

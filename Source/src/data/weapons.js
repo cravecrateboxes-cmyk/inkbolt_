@@ -29,9 +29,12 @@
       unlock: 1, sound: 'click transient, 2.4 kHz noise snap, short bright tail'
     }),
     handcannon: W({
-      id: 'handcannon', name: 'R-50 Ironjaw', cls: 'pistol', slot: 1, fire: 'semi', action: 'revolver',
-      damage: 55, rpm: 150, spreadHip: 0.5, spreadAim: 0.15, recoil: 4.0, recoilH: 0.8, reload: 2.2,
-      mag: 6, reserve: 36, unlock: 2, sound: '120 to 50 Hz thump, noise crack, metal ring'
+      // Wyrmforged: a very fast pistol (Maggie-style: click-fast, low recoil), 3x damage on crit spots (core, soldier head).
+      // Each drop rolls its magazine (8-13, more at higher player levels) and a x2 or x3 damage multiplier (GunLevel.wyrmRoll).
+      id: 'handcannon', name: 'Wyrmforged Ironjaw', cls: 'pistol', slot: 1, fire: 'semi', action: 'revolver',
+      damage: 22, rpm: 600, spreadHip: 0.5, spreadAim: 0.15, recoil: 1.0, recoilH: 0.3, reload: 2.2,
+      mag: 8, reserve: 36, unlock: 2, coreMul: 3, headMul: 3, wyrm: { mag: [8, 13], mult: [2, 3] },
+      sound: '120 to 50 Hz thump, noise crack, metal ring'
     }),
     twintap: W({
       // Brief gives 220 bursts/min only; rpm keeps that figure (bursts), cycle = 60/220.

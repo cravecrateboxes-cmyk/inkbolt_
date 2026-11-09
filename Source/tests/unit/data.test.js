@@ -12,7 +12,7 @@ test('weapon table numbers (5.2)', () => {
     // id: [damage, rpm, hip, aim, recoil, recoilH, reload, mag, reserve, slot, cls, fire]
     // pistol fire rates raised from the brief at the user's request (pip 300->450, handcannon 110->150, twintap 220->300 bursts)
     pip: [18, 450, 0.8, 0.3, 1.2, 0.3, 1.1, 12, Infinity, 1, 'pistol', 'semi'],
-    handcannon: [55, 150, 0.5, 0.15, 4.0, 0.8, 2.2, 6, 36, 1, 'pistol', 'semi'],
+    handcannon: [22, 600, 0.5, 0.15, 1.0, 0.3, 2.2, 8, 36, 1, 'pistol', 'semi'],
     twintap: [16, 300, 1.0, 0.4, 0.9, 0, 1.3, 16, 96, 1, 'pistol', 'burst'],
     buzz: [11, 900, 2.2, 1.2, 0.5, 0.4, 1.6, 30, 180, 2, 'smg', 'auto'],
     whisk: [8, 1100, 3.2, 2.0, 0.35, 0.6, 1.4, 40, 240, 2, 'smg', 'auto'],
@@ -55,7 +55,7 @@ test('weapon table numbers (5.2)', () => {
 });
 
 test('every weapon has the required fields and names', () => {
-  const names = ['P-12 Warden', 'R-50 Ironjaw', 'P-16 Twinfire', 'KV-9 Buzzsaw', 'KV-4 Whiplash', 'KV-7 Hornet', 'AR-22 Rivet',
+  const names = ['P-12 Warden', 'Wyrmforged Ironjaw', 'P-16 Twinfire', 'KV-9 Buzzsaw', 'KV-4 Whiplash', 'KV-7 Hornet', 'AR-22 Rivet',
     'AR-3 Tribolt', 'DMR-60 Longtom', 'LMG-26 Bricklayer', 'SR-160 Needle', 'RL-1 Canister', 'M-15 Frag Can', 'FX-2 Pop Flash',
     'Stinger', 'Twin Strikers', 'Ronin Blade', 'Voltaxe', 'SG-9 Scrapper', 'AR-40 Vanguard', 'SG-12 Thunderclap',
     'SR-9 Railspike', 'RL-3 Hothead', 'ML-6 Murmur'];
