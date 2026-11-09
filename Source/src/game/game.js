@@ -274,6 +274,8 @@
     if (G.store) G.store.save(s);
     return true;
   }
+  // frag cans carried: the base carry, +1 with Boom
+  function fragCarry() { return IB.WEAPONS.frag.carry + (IB.SkillFX && IB.SkillFX.grenadeBonus ? IB.SkillFX.grenadeBonus() : 0); }
   function takeLoot(L) {
     var ok;
     if (L.kind === 'gun') ok = takeRackGun(L.id, L.tier, L.level, L.roll);
@@ -379,7 +381,7 @@
     ensureSlot();
     if (def.cls === 'melee' || def.cls === 'grenade') {
       if (def.cls === 'melee') { grantMelee(w.id); G.slot.meleeSel = w.id; }
-      else { G.slot.frag = true; G.grenades = def.carry; }
+      else { G.slot.frag = true; G.grenades = fragCarry(); }
       w.taken = true; w.group.remove(w.gun); w.ring.visible = false;
       G.store.save(G.slot);
       if (HUD.pickup) HUD.pickup(def.name, def.cls, def.cls === 'melee' ? 'V' : 'G'); else HUD.toast('New: ' + def.name, 2.2);
@@ -538,7 +540,7 @@
     if (IB.GunLevel) IB.GunLevel.fill(G.slot);   // guns without an item level (older saves, granted guns) get one
     var owned = syncArmory();
     G.bank = {};
-    G.grenades = G.slot.frag ? IB.WEAPONS.frag.carry : 0;
+    G.grenades = G.slot.frag ? fragCarry() : 0;
     G.ws = W.create(owned, { magLevel: (G.slot.upgrades && G.slot.upgrades.mag) || 0, magMul: IB.SkillFX.fx.magMul });
     if (IB.Launchers) IB.Launchers.startLevel(G);   // rocket pool from the save, rolled magazines, ammo director
     applySkillStats(true);
@@ -831,7 +833,7 @@
         if (pk.kind === 'health') { if (p.health >= p.maxHp) return; var heal = healAmount(); p.health = Math.min(p.maxHp, p.health + heal); HUD.toast('+' + heal + ' health', 1.2); }
         else {
           // full on every gun (and no frag can to gain): leave the box where it is
-          var gotCan = G.slot && G.slot.frag && G.grenades < IB.WEAPONS.frag.carry;
+          var gotCan = G.slot && G.slot.frag && G.grenades < fragCarry();
           if (!gotCan && W.ammoFull(G.ws)) { if (!(pk.fullT > 0) && HUD.toast) HUD.toast('Ammo full', 1.0); pk.fullT = 3; return; }
           W.addAmmo(G.ws, 0.5);
           if (gotCan) G.grenades++;
@@ -876,7 +878,7 @@
       var r = rh.robot, zone = rh.zone;
       var res = IB.Damage.hit({ weapon: def, dist: endT, zone: zone, dmgLevel: up('dmg'), coreLevel: up('core'), critLevel: up('crit'), rng: Math.random, blinded: r.state === 'blinded' });
       G.run.hits++; if (zone === 'core' || zone === 'head') G.run.coreHits++;
-      var dmg = res.damage *= IB.SkillFX.hitMul(zone) * (IB.WeaponDrops ? IB.WeaponDrops.dmgMul(def.id) : 1);   // Heavy Ink, the gun's tier
+      var dmg = res.damage *= IB.SkillFX.hitMul(zone) * (IB.WeaponDrops ? IB.WeaponDrops.dmgMul(def.id) : 1) * (G.ws && G.ws.aim > 0.5 ? IB.SkillFX.dartMul() : 1);   // Heavy Ink, the gun's tier, Dart when zoomed in
       _shot.ox = ox; _shot.oy = oy; _shot.oz = oz; _shot.dx = dx; _shot.dy = dy; _shot.dz = dz; _shot.t = rh.t; _shot.wt = wt; _shot.def = def;
       var killed = AI.damage(r, dmg, { kx: dx * 4, kz: dz * 4 }, onKill);
       // Electrify, Stream, Ricochet, Hazard, Hydrate, Chain Reaction
@@ -896,6 +898,7 @@
   function up(id) { return (G.slot && G.slot.upgrades && G.slot.upgrades[id]) || 0; }
   function onKill(r) {
     G.run.kills++;
+    if (IB.SkillFX) IB.SkillFX.surgeKill();   // Surge Up: a kill speeds you up for a few seconds
     var kx = IB.Skills.killXp(r.type, G.plan.level); G.run.xp += kx; addXp(kx);
     HUD.hit('kill'); A.play('crunch', { pos: r });
     var def = IB.ENEMIES[r.type];

@@ -127,19 +127,23 @@
       ricochet: v('ricochet') / 100, ricochetRange: 10, ricochetFrac: 0.6,   // Ricochet
       maxHpMul: 1 + v('healthy') / 100,                // Healthy: max health
       regenPct: 0.5 * rk('healthy'),                   // ... and 0.5% of max health per second per rank
-      // tier 4
+      // tier 4 (arsenal)
+      boomMul: 1 + v('boom') / 100, grenadeCount: has('boom') ? 1 : 0,   // Boom: frag + rocket damage, one more frag can
+      dartMul: 1 + v('dart') / 100,                    // Dart: bullets while zoomed in
+      surgeMul: v('surge') / 100, surgeTime: 4,        // Surge Up: move speed after a kill (no stacking)
+      // tier 5 (tricks)
       // Stamina: sprint x1.3 on top of the +15% move speed (x1.5 in all; it was a too-fast x2), runs last 2.5x longer,
       // stamina refills in half the time
       sprintMul: stamina ? 1.15 : 1, moveMul: stamina ? 1.15 : 1, staminaMul: stamina ? 2.5 : 1, staminaRechargeMul: stamina ? 0.5 : 1,
       coat: v('hydrate') / 100, coatTime: 6, coatRadius: 3, coatFrac: 0.3, coatMin: 2, coatMax: 18, coatBurn: 5,   // Hydrate
       cloak: has('undercover'), cloakTime: 7.5, cloakCooldown: 23,   // Undercover (F)
-      // tier 5
+      // tier 6 (grit)
       dmgTakenMul: 1 - v('tank') / 100,                // Tank: damage resistance
       regenFlat: rk('tank'),                           // ... and 1 health per second per rank
       regenDelay: 4,                                   // both repairs start after 4 s without damage
       reloadMul: 1 / (1 + v('fastfingers') / 100),     // Fast Fingers: multiply reload TIME by this
       swapMul: 1 / (1 + v('fastfingers') / 100),       // ... and holster / draw time
-      // tier 6 (pick one)
+      // tier 7 (pick one)
       rogue: has('handyhelpers') ? 0.08 : 0, rogueTime: Infinity, rogueDmgMul: 1.5, rogueHpMul: [3, 5],   // Handy Helpers
       chain: has('chainreaction') ? 0.1 : 0, chainMin: 2, chainRadius: 4, chainFrac: 0.4, chainCooldown: 1,   // Chain Reaction
       // neutral fields older callers still read (Upgrade Bench stacking, field kit)

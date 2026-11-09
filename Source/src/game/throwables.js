@@ -89,7 +89,7 @@
     g.on = false; g.mesh.visible = false; g.ring.visible = false;
     var d = g.def, Rb = (d.radius || 5) * (g.mul > 0 ? 1 : 1);
     // the player takes at most selfCap (35) from their own can; robots the full splash (scaled with robot health)
-    if (IB.Projectiles) IB.Projectiles.explode(g.x, Math.max(0.3, g.y), g.z, Rb, d.selfCap || 35, (d.splash || d.damage) * g.mul, { type: 'frag', x: g.x, z: g.z, player: true });
+    if (IB.Projectiles) IB.Projectiles.explode(g.x, Math.max(0.3, g.y), g.z, Rb, d.selfCap || 35, (d.splash || d.damage) * g.mul * (IB.SkillFX && IB.SkillFX.boomMul ? IB.SkillFX.boomMul() : 1), { type: 'frag', x: g.x, z: g.z, player: true });   // Boom
     if (IB.AI && IB.AI.hear) IB.AI.hear(g.x, g.z, 30);
   }
 

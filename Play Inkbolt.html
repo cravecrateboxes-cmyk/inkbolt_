@@ -6976,7 +6976,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
    (the tables below count level-ups gained, g = LV - 1; 2 on the first level-up and at LV 11 and 16, else 1).
      LV            2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 (21-30: none)
      points        2  3  4  5  6  7  8  9 10 12 13 14 15 16 18 19 20 21 22
-   The tree holds 43 points, so 22 buys a build, not the whole tree (respec to change it). The gates are low so the
+   The tree holds 42 normal points plus 2 endgame points, so 22 buys a build, not the whole tree (respec to change it). The gates are low so the
    top is always reachable: any 9 points below open the endgame row. The two endgame skills cost 1 point and you
    pick ONE of them (respec to switch), so even 21 points spent below still leave the point for it.
    In core/skills.js the skill functions take g (level-ups gained, = Skills.gained(slot)).
@@ -6991,7 +6991,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   }
 
   /* The tree is laid out as the player's sketch: six rows, the trunk at the bottom, the two endgame skills on top.
-     Tier 1 = bottom row (trunk) ... tier 6 = top row (endgame). Gates count points spent in lower tiers.
+     Tier 1 = bottom row (trunk) ... tier 7 = top row (endgame). Gates count points spent in lower tiers.
        row (top->bottom)  tier  skills
        1                  6     Handy Helpers* | Chain Reaction*        (* endgame, 5 points each)
        2                  5     Tank | Fast Fingers
@@ -7003,9 +7003,10 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     { tier: 1, name: 'Trunk', gate: 0 },
     { tier: 2, name: 'Rounds', gate: 1 },
     { tier: 3, name: 'Hazards', gate: 3 },
-    { tier: 4, name: 'Tricks', gate: 5 },
-    { tier: 5, name: 'Grit', gate: 7 },
-    { tier: 6, name: 'Endgame', gate: 9, capstone: true }
+    { tier: 4, name: 'Arsenal', gate: 5 },
+    { tier: 5, name: 'Tricks', gate: 5 },
+    { tier: 6, name: 'Grit', gate: 7 },
+    { tier: 7, name: 'Endgame', gate: 9, capstone: true }
   ];
 
   // params: the numbers the runtime uses (per rank where an array); text is the player-facing description
@@ -7026,21 +7027,28 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       'Your bullets have a chance to ricochet into another robot within 10 m for 60% damage.', 'ricochet'),
     S('healthy', 3, 2, 'Healthy', 'rank', [8, 16, 24], '%', 'Max health',
       'Increases your max health and slowly regenerates 0.5% of it per second per rank after 4 s without damage.', 'heart'),
-    // tier 4
-    S('stamina', 4, 0, 'Stamina', 'special', [1], '', 'Marathon',
+    // tier 4 (arsenal)
+    S('boom', 4, 0, 'Boom', 'rank', [10, 20, 30], '%', 'Blast damage',
+      'Rocket launcher and frag can damage +10 / 20 / 30%, and you carry one more frag can.', 'boom'),
+    S('dart', 4, 1, 'Dart', 'rank', [6, 12, 18], '%', 'Scoped damage',
+      'Bullets deal 6 / 12 / 18% more damage while you are zoomed in (aiming down the sights).', 'dart'),
+    S('surge', 4, 2, 'Surge Up', 'rank', [9, 18, 27], '%', 'Move speed after a kill',
+      'Each kill speeds you up 9 / 18 / 27% for 4 s. Kills refresh the boost; it does not stack.', 'surge'),
+    // tier 5 (tricks)
+    S('stamina', 5, 0, 'Stamina', 'special', [1], '', 'Marathon',
       'You move 15% faster, sprint 30% faster, your running lasts 2.5x longer, and stamina recharges in half the time.', 'run'),
-    S('hydrate', 4, 1, 'Hydrate', 'rank', [6, 12, 18], '%', 'Coat chance',
+    S('hydrate', 5, 1, 'Hydrate', 'rank', [6, 12, 18], '%', 'Coat chance',
       'Your bullets have a chance to coat a robot in electrified liquid for 6 s. Robots that come within 3 m of it take shock damage over time.', 'water'),
-    S('undercover', 4, 2, 'Undercover', 'special', [1], '', 'Cloak (F)',
+    S('undercover', 5, 2, 'Undercover', 'special', [1], '', 'Cloak (F)',
       'Press F: you go invisible and robots cannot see you for 7.5 s. Cooldown 23 s. The screen turns comic black, grey and white while it lasts.', 'cloak'),
-    // tier 5
-    S('tank', 5, 0, 'Tank', 'rank', [5, 10, 15], '%', 'Damage resistance',
+    // tier 6 (grit)
+    S('tank', 6, 0, 'Tank', 'rank', [5, 10, 15], '%', 'Damage resistance',
       'Increases damage resistance and repairs 1 health per second per rank, starting after 4 s without taking damage (like a shield).', 'armor'),
-    S('fastfingers', 5, 1, 'Fast Fingers', 'rank', [10, 20, 30], '%', 'Reload and swap speed', 'Increases weapon swap speed and reload speed.', 'reload'),
-    // tier 6: endgame (pick one)
-    S('handyhelpers', 6, 0, 'Handy Helpers', 'capstone', [1], '', 'Rogue bots',
+    S('fastfingers', 6, 1, 'Fast Fingers', 'rank', [10, 20, 30], '%', 'Reload and swap speed', 'Increases weapon swap speed and reload speed.', 'reload'),
+    // tier 7: endgame (pick one)
+    S('handyhelpers', 7, 0, 'Handy Helpers', 'capstone', [1], '', 'Rogue bots',
       'When you wreck a robot there is an 8% chance it turns rogue instead and fights for you until it is destroyed, with 3-5x its health and 1.5x its damage.', 'helper'),
-    S('chainreaction', 6, 1, 'Chain Reaction', 'capstone', [1], '', 'Group blast',
+    S('chainreaction', 7, 1, 'Chain Reaction', 'capstone', [1], '', 'Group blast',
       'Shooting a robot with 2 or more others within 4 m has a 10% chance to blow the whole group up for 40% of each robot\'s max health. They do not all die at once.', 'burst')
   ];
 
@@ -12108,19 +12116,23 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       ricochet: v('ricochet') / 100, ricochetRange: 10, ricochetFrac: 0.6,   // Ricochet
       maxHpMul: 1 + v('healthy') / 100,                // Healthy: max health
       regenPct: 0.5 * rk('healthy'),                   // ... and 0.5% of max health per second per rank
-      // tier 4
+      // tier 4 (arsenal)
+      boomMul: 1 + v('boom') / 100, grenadeCount: has('boom') ? 1 : 0,   // Boom: frag + rocket damage, one more frag can
+      dartMul: 1 + v('dart') / 100,                    // Dart: bullets while zoomed in
+      surgeMul: v('surge') / 100, surgeTime: 4,        // Surge Up: move speed after a kill (no stacking)
+      // tier 5 (tricks)
       // Stamina: sprint x1.3 on top of the +15% move speed (x1.5 in all; it was a too-fast x2), runs last 2.5x longer,
       // stamina refills in half the time
       sprintMul: stamina ? 1.15 : 1, moveMul: stamina ? 1.15 : 1, staminaMul: stamina ? 2.5 : 1, staminaRechargeMul: stamina ? 0.5 : 1,
       coat: v('hydrate') / 100, coatTime: 6, coatRadius: 3, coatFrac: 0.3, coatMin: 2, coatMax: 18, coatBurn: 5,   // Hydrate
       cloak: has('undercover'), cloakTime: 7.5, cloakCooldown: 23,   // Undercover (F)
-      // tier 5
+      // tier 6 (grit)
       dmgTakenMul: 1 - v('tank') / 100,                // Tank: damage resistance
       regenFlat: rk('tank'),                           // ... and 1 health per second per rank
       regenDelay: 4,                                   // both repairs start after 4 s without damage
       reloadMul: 1 / (1 + v('fastfingers') / 100),     // Fast Fingers: multiply reload TIME by this
       swapMul: 1 / (1 + v('fastfingers') / 100),       // ... and holster / draw time
-      // tier 6 (pick one)
+      // tier 7 (pick one)
       rogue: has('handyhelpers') ? 0.08 : 0, rogueTime: Infinity, rogueDmgMul: 1.5, rogueHpMul: [3, 5],   // Handy Helpers
       chain: has('chainreaction') ? 0.1 : 0, chainMin: 2, chainRadius: 4, chainFrac: 0.4, chainCooldown: 1,   // Chain Reaction
       // neutral fields older callers still read (Upgrade Bench stacking, field kit)
@@ -15614,7 +15626,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       if (fx && fx.slide) fx.slide(true);
     }
     p.crouching = !p.sliding && !!input.crouch && p.onGround;
-    var speed = (p.sprinting ? MOVE.sprint * (p.sprintMul || 1) : (p.crouching ? MOVE.crouchSpeed : MOVE.walk)) * p.speedMul * (p.skillMoveMul || 1) * (p.aiming ? 0.7 : 1) * (p.weaponMoveMul || 1);
+    var speed = (p.sprinting ? MOVE.sprint * (p.sprintMul || 1) : (p.crouching ? MOVE.crouchSpeed : MOVE.walk)) * p.speedMul * (p.skillMoveMul || 1) * (1 + (p.surgeMul || 0)) * (p.aiming ? 0.7 : 1) * (p.weaponMoveMul || 1);
     // wish dir in world space (camera forward is -Z at yaw 0)
     var sy = Math.sin(p.yaw), cy = Math.cos(p.yaw);
     var mx = input.mx, mz = input.mz, ml = Math.hypot(mx, mz);
@@ -18773,7 +18785,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     g.on = false; g.mesh.visible = false; g.ring.visible = false;
     var d = g.def, Rb = (d.radius || 5) * (g.mul > 0 ? 1 : 1);
     // the player takes at most selfCap (35) from their own can; robots the full splash (scaled with robot health)
-    if (IB.Projectiles) IB.Projectiles.explode(g.x, Math.max(0.3, g.y), g.z, Rb, d.selfCap || 35, (d.splash || d.damage) * g.mul, { type: 'frag', x: g.x, z: g.z, player: true });
+    if (IB.Projectiles) IB.Projectiles.explode(g.x, Math.max(0.3, g.y), g.z, Rb, d.selfCap || 35, (d.splash || d.damage) * g.mul * (IB.SkillFX && IB.SkillFX.boomMul ? IB.SkillFX.boomMul() : 1), { type: 'frag', x: g.x, z: g.z, player: true });   // Boom
     if (IB.AI && IB.AI.hear) IB.AI.hear(g.x, g.z, 30);
   }
 
@@ -19341,12 +19353,15 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
      Undercover      F: invisible for 7.5 s (ai.js AI.cloak: robots lose you and search), 23 s cooldown after it wears off
      Healthy / Tank  max health %, damage resistance, repair after 4 s without damage
      Handy Helpers   ai.js AI.rogueChance: a wreck may turn rogue instead and fight for you until destroyed (3-5x health, 1.5x damage)
+     Boom            rocket launcher and frag can damage +10/20/30% (SF.boomMul), one more frag can (game.js fragCarry)
+     Dart            bullets deal +6/12/18% while zoomed in (SF.dartMul, game.js shoot)
+     Surge Up        a kill raises move speed +9/18/27% for 4 s; a new kill refreshes it, the boost never stacks (SF.surgeKill)
      Chain Reaction  a hit on a robot with 2+ others within 4 m: 10% chance (1 s cooldown) the group blows up for 40% of
                      each one's max health (core/skills.js chainDamage: never all of them at once)
    Secondary hits (pierce, ricochet) carry Electrify but roll none of the chance skills, so nothing cascades. */
 (function (IB) {
   'use strict';
-  var SF = IB.SkillFX = { fx: null, pools: [], coats: [], cloakT: 0, cloakCd: 0, chainCd: 0, force: {}, stats: { pierce: 0, ricochet: 0, pools: 0, coats: 0, chains: 0 } };
+  var SF = IB.SkillFX = { fx: null, pools: [], coats: [], cloakT: 0, cloakCd: 0, chainCd: 0, surgeT: 0, surgeVal: 0, force: {}, stats: { pierce: 0, ricochet: 0, pools: 0, coats: 0, chains: 0 } };
   var PALE = 0x8ED2FF, WET = 0x5FC2FF, ACID = 0x7BE34A, ACID_LT = 0xC8FF8A;
   var POOL_CAP = 10, COAT_CAP = 10, TICK = 0.25;
   for (var i = 0; i < POOL_CAP; i++) SF.pools.push({ on: false, x: 0, z: 0, t: 0, life: 5, R: 1.3, dps: 0, tick: 0, puff: 0, seed: 0 });
@@ -19383,6 +19398,17 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   };
   // multiplier on one bullet's damage (Heavy Ink)
   SF.hitMul = function () { return SF.fx ? SF.fx.dmgMul : 1; };
+  // Boom: multiplier on rocket and frag blast damage; Dart: bullets while zoomed in
+  SF.boomMul = function () { return SF.fx ? SF.fx.boomMul : 1; };
+  SF.dartMul = function () { return SF.fx ? SF.fx.dartMul : 1; };
+  SF.grenadeBonus = function () { return SF.fx ? SF.fx.grenadeCount : 0; };
+  // Surge Up: a kill sets the boost to the rank's value and restarts its timer; overlapping kills never add up
+  SF.surgeKill = function () {
+    var f = SF.fx; if (!f || !(f.surgeMul > 0)) return;
+    SF.surgeVal = SF.surgeT > 0 ? Math.max(SF.surgeVal, f.surgeMul) : f.surgeMul;
+    SF.surgeT = f.surgeTime;
+  };
+  SF.surgeNow = function () { return SF.surgeT > 0 ? SF.surgeVal : 0; };
 
   function shock(r, dps, dur) { if (IB.Status && IB.Status.apply) IB.Status.apply(r, 'shock', dps, dur); }
   SF.shock = shock;
@@ -19599,6 +19625,8 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     if (SF.cloakT > 0) { SF.cloakT -= dt; if (SF.cloakT <= 0 || (p && !p.alive)) endCloak(); }
     else if (SF.cloakCd > 0) SF.cloakCd = Math.max(0, SF.cloakCd - dt);
     SF.chainCd = Math.max(0, SF.chainCd - dt);
+    if (SF.surgeT > 0) SF.surgeT = Math.max(0, SF.surgeT - dt);
+    if (p) p.surgeMul = SF.surgeNow();   // player.js: move speed
     updatePools(dt);
     updateCoats(dt);
   };
@@ -19606,7 +19634,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   SF.clear = function () {
     SF.pools.forEach(function (p) { p.on = false; });
     SF.coats.forEach(function (c) { if (c.r) c.r.wet = 0; c.on = false; c.r = null; });
-    SF.cloakT = 0; SF.cloakCd = 0; SF.chainCd = 0;
+    SF.cloakT = 0; SF.cloakCd = 0; SF.chainCd = 0; SF.surgeT = 0; SF.surgeVal = 0;
     if (AI()) AI().cloaked = false;
     if (SF.mesh) { SF.mesh.count = 0; SF.mesh.visible = false; }
   };
@@ -22665,6 +22693,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   /* the blast of one rocket: direct hit (robot | null), splash with falloff (x0.5 behind cover) on robots, the
      element on top, self damage like a frag (35 % of the splash, at most 35), canisters, comic explosion */
   function blast(x, y, z, def, el, mul, direct, ctx, small) {
+    mul *= IB.SkillFX && IB.SkillFX.boomMul ? IB.SkillFX.boomMul() : 1;   // Boom: rocket damage
     var g = G(), AI = IB.AI, world = ctx.world, p = ctx.player, Dm = IB.Damage;
     var R = Dm.blastRadius((def.radius || 3) * (el.radiusMul || 1), up('blast')) * (small ? small.R : 1);
     var D = (small ? small.D : def.splash * (el.splashMul || 1)) * mul, i, hits = [];
@@ -24482,6 +24511,35 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   }
 
   var ART = {
+    // Boom: a frag can with its lever, a rocket with a flame trail, and a burst
+    boom: function () {
+      return p('M24 22C14 22 8 29 8 38S15 56 26 56S44 47 44 38S34 22 24 22Z', '#6E8B3D', O) +
+        p('M14 26C18 22 24 21 30 22', 'none', ' stroke="#A9C96A" stroke-width="2.4" stroke-linecap="round"') +
+        p('M22 20H30V14H22Z', '#3B4A3A', O2) + p('M30 16C36 12 40 11 44 12', 'none', O2 + ' stroke-width="3"') +
+        p('M16 42C17 37 21 35 25 36', 'none', HL.replace('stroke-width="2.6"', 'stroke-width="2.2"')) +
+        p('M40 26L58 12L54 25Z', '#E9EEF7', O2) + p('M56 13L62 4L55 7Z', '#F0443A', O2) +
+        p('M44 30L34 40L40 42Z', '#FFB21E', O2) + p('M44 29L28 46L30 48L47 32Z', '#FF8A3D', O2) +
+        p('M42 34L54 22L48 32Z', '#C8D0DE', O2) +
+        p('M4 56l2 4 4-1-2 4 3 3-4 0-1 4-2-4-4 1 2-4-3-3 4 0z', '#FFD23F', O2);
+    },
+    // Dart: a scope glass with its crosshair, and a dart homing in on the centre
+    dart: function () {
+      return c(30, 30, 19, '#3E4963', O) + c(30, 30, 14.5, '#CFEFFF', O2) +
+        p('M22 25A11 11 0 0 1 35 19', 'none', HL.replace('stroke-width="2.6"', 'stroke-width="2.4"')) +
+        ink('M30 14V46M14 30H46', 2.4) + c(30, 30, 2.6, '#F0443A', O2) +
+        p('M40 42L56 58', 'none', O + ' stroke-width="4"') +
+        p('M56 58L50 56L55 50Z', '#FFB21E', O2) +
+        p('M42 42L36 44L40 48Z', '#E9EEF7', O2) + p('M42 42L44 36L48 40Z', '#8A94A8', O2);
+    },
+    // Surge Up: two speed chevrons with sparks
+    surge: function () {
+      return p('M10 14L30 32L10 50L16 56L38 32L16 8Z', '#2FB8FF', O) +
+        p('M12 17L26 32L12 47', 'none', HL.replace('stroke-width="2.6"', 'stroke-width="2.2"')) +
+        p('M30 14L50 32L30 50L36 56L58 32L36 8Z', '#FFD23F', O) +
+        p('M32 17L46 32L32 47', 'none', HL.replace('stroke-width="2.6"', 'stroke-width="2.2"')) +
+        p('M52 6l2 4 4-1-2 4 3 3-4 0-1 4-2-4-4 1 2-4-3-3 4 0z', '#FFFDF7', O2) +
+        c(6, 58, 2.6, '#FFD23F', O2);
+    },
     // Overload: a fat curved magazine, rounds spilling out of the top
     mag: function () {
       return round(25, 25, 21, -22) + round(39, 25, 21, 22) + round(32, 23, 22, 0) +
@@ -25304,10 +25362,10 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   var el = null, G = null;
   var TABS = [['inventory', 'Inventory'], ['skills', 'Skills'], ['character', 'Character']];
   var ALIAS = { loadout: 'inventory', gear: 'inventory' };
-  var ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI'];
+  var ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
   var FR = '<i class="fr" aria-hidden="true"><i></i></i>';
   // node x per tier in the player's sketch (units: -220..220 across the tree), tier 1 = bottom row
-  var LAYOUT = { 6: [-112, 112], 5: [-72, 72], 4: [-124, 0, 124], 3: [-158, 0, 158], 2: [-158, 0, 158], 1: [-72, 72] };
+  var LAYOUT = { 7: [-112, 112], 6: [-72, 72], 5: [-124, 0, 124], 4: [-124, 0, 124], 3: [-158, 0, 158], 2: [-158, 0, 158], 1: [-72, 72] };
 
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function touch() { return !!(IB.Input && IB.Input.touch); }
@@ -25935,6 +25993,8 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     if (G.store) G.store.save(s);
     return true;
   }
+  // frag cans carried: the base carry, +1 with Boom
+  function fragCarry() { return IB.WEAPONS.frag.carry + (IB.SkillFX && IB.SkillFX.grenadeBonus ? IB.SkillFX.grenadeBonus() : 0); }
   function takeLoot(L) {
     var ok;
     if (L.kind === 'gun') ok = takeRackGun(L.id, L.tier, L.level, L.roll);
@@ -26040,7 +26100,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     ensureSlot();
     if (def.cls === 'melee' || def.cls === 'grenade') {
       if (def.cls === 'melee') { grantMelee(w.id); G.slot.meleeSel = w.id; }
-      else { G.slot.frag = true; G.grenades = def.carry; }
+      else { G.slot.frag = true; G.grenades = fragCarry(); }
       w.taken = true; w.group.remove(w.gun); w.ring.visible = false;
       G.store.save(G.slot);
       if (HUD.pickup) HUD.pickup(def.name, def.cls, def.cls === 'melee' ? 'V' : 'G'); else HUD.toast('New: ' + def.name, 2.2);
@@ -26199,7 +26259,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     if (IB.GunLevel) IB.GunLevel.fill(G.slot);   // guns without an item level (older saves, granted guns) get one
     var owned = syncArmory();
     G.bank = {};
-    G.grenades = G.slot.frag ? IB.WEAPONS.frag.carry : 0;
+    G.grenades = G.slot.frag ? fragCarry() : 0;
     G.ws = W.create(owned, { magLevel: (G.slot.upgrades && G.slot.upgrades.mag) || 0, magMul: IB.SkillFX.fx.magMul });
     if (IB.Launchers) IB.Launchers.startLevel(G);   // rocket pool from the save, rolled magazines, ammo director
     applySkillStats(true);
@@ -26492,7 +26552,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
         if (pk.kind === 'health') { if (p.health >= p.maxHp) return; var heal = healAmount(); p.health = Math.min(p.maxHp, p.health + heal); HUD.toast('+' + heal + ' health', 1.2); }
         else {
           // full on every gun (and no frag can to gain): leave the box where it is
-          var gotCan = G.slot && G.slot.frag && G.grenades < IB.WEAPONS.frag.carry;
+          var gotCan = G.slot && G.slot.frag && G.grenades < fragCarry();
           if (!gotCan && W.ammoFull(G.ws)) { if (!(pk.fullT > 0) && HUD.toast) HUD.toast('Ammo full', 1.0); pk.fullT = 3; return; }
           W.addAmmo(G.ws, 0.5);
           if (gotCan) G.grenades++;
@@ -26537,7 +26597,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       var r = rh.robot, zone = rh.zone;
       var res = IB.Damage.hit({ weapon: def, dist: endT, zone: zone, dmgLevel: up('dmg'), coreLevel: up('core'), critLevel: up('crit'), rng: Math.random, blinded: r.state === 'blinded' });
       G.run.hits++; if (zone === 'core' || zone === 'head') G.run.coreHits++;
-      var dmg = res.damage *= IB.SkillFX.hitMul(zone) * (IB.WeaponDrops ? IB.WeaponDrops.dmgMul(def.id) : 1);   // Heavy Ink, the gun's tier
+      var dmg = res.damage *= IB.SkillFX.hitMul(zone) * (IB.WeaponDrops ? IB.WeaponDrops.dmgMul(def.id) : 1) * (G.ws && G.ws.aim > 0.5 ? IB.SkillFX.dartMul() : 1);   // Heavy Ink, the gun's tier, Dart when zoomed in
       _shot.ox = ox; _shot.oy = oy; _shot.oz = oz; _shot.dx = dx; _shot.dy = dy; _shot.dz = dz; _shot.t = rh.t; _shot.wt = wt; _shot.def = def;
       var killed = AI.damage(r, dmg, { kx: dx * 4, kz: dz * 4 }, onKill);
       // Electrify, Stream, Ricochet, Hazard, Hydrate, Chain Reaction
@@ -26557,6 +26617,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   function up(id) { return (G.slot && G.slot.upgrades && G.slot.upgrades[id]) || 0; }
   function onKill(r) {
     G.run.kills++;
+    if (IB.SkillFX) IB.SkillFX.surgeKill();   // Surge Up: a kill speeds you up for a few seconds
     var kx = IB.Skills.killXp(r.type, G.plan.level); G.run.xp += kx; addXp(kx);
     HUD.hit('kill'); A.play('crunch', { pos: r });
     var def = IB.ENEMIES[r.type];

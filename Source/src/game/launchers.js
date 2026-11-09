@@ -214,6 +214,7 @@
   /* the blast of one rocket: direct hit (robot | null), splash with falloff (x0.5 behind cover) on robots, the
      element on top, self damage like a frag (35 % of the splash, at most 35), canisters, comic explosion */
   function blast(x, y, z, def, el, mul, direct, ctx, small) {
+    mul *= IB.SkillFX && IB.SkillFX.boomMul ? IB.SkillFX.boomMul() : 1;   // Boom: rocket damage
     var g = G(), AI = IB.AI, world = ctx.world, p = ctx.player, Dm = IB.Damage;
     var R = Dm.blastRadius((def.radius || 3) * (el.radiusMul || 1), up('blast')) * (small ? small.R : 1);
     var D = (small ? small.D : def.splash * (el.splashMul || 1)) * mul, i, hits = [];

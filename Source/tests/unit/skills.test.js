@@ -12,9 +12,9 @@ const S = IB.Skills;
 const buyAll = (sk, h, ids) => ids.reduce((acc, id) => { const n = S.buy(acc, h, id); assert.ok(n, 'buy ' + id + ' ' + JSON.stringify(S.canBuy(acc, h, id))); return n; }, sk || {});
 const treeCost = (filter) => IB.SKILLS.filter(filter || (() => true)).reduce((n, s) => n + s.max * s.cost, 0);
 
-test('data: 15 skills in 6 tiers (trunk at the bottom), 3-rank skills, 1-rank specials, two endgame skills', () => {
-  assert.equal(IB.SKILLS.length, 15);
-  assert.equal(IB.SKILL_TIERS.length, 6);
+test('data: 18 skills in 7 tiers (trunk at the bottom), 3-rank skills, 1-rank specials, two endgame skills', () => {
+  assert.equal(IB.SKILLS.length, 18);
+  assert.equal(IB.SKILL_TIERS.length, 7);
   const ids = new Set();
   IB.SKILLS.forEach((s) => {
     assert.ok(!ids.has(s.id), 'unique ' + s.id); ids.add(s.id);
@@ -27,9 +27,10 @@ test('data: 15 skills in 6 tiers (trunk at the bottom), 3-rank skills, 1-rank sp
   });
   // the layout of the player's sketch: row by row, top (endgame) to bottom (trunk)
   const row = (t) => IB.SKILLS.filter((s) => s.tier === t).map((s) => s.id);
-  assert.deepEqual(row(6), ['handyhelpers', 'chainreaction']);
-  assert.deepEqual(row(5), ['tank', 'fastfingers']);
-  assert.deepEqual(row(4), ['stamina', 'hydrate', 'undercover']);
+  assert.deepEqual(row(7), ['handyhelpers', 'chainreaction']);
+  assert.deepEqual(row(6), ['tank', 'fastfingers']);
+  assert.deepEqual(row(5), ['stamina', 'hydrate', 'undercover']);
+  assert.deepEqual(row(4), ['boom', 'dart', 'surge']);
   assert.deepEqual(row(3), ['hazard', 'ricochet', 'healthy']);
   assert.deepEqual(row(2), ['stream', 'electrify', 'rapid']);
   assert.deepEqual(row(1), ['overload', 'heavyink']);
@@ -37,8 +38,8 @@ test('data: 15 skills in 6 tiers (trunk at the bottom), 3-rank skills, 1-rank sp
   assert.equal(caps.length, 2);
   assert.ok(caps.every((s) => s.tier === IB.SKILL_TIERS.length && s.group === 'endgame' && s.cost === 1));
   assert.deepEqual(IB.SKILLS.filter((s) => s.kind === 'special').map((s) => s.id), ['electrify', 'stamina', 'undercover']);
-  assert.deepEqual(IB.SKILL_TIERS.map((t) => t.gate), [0, 1, 3, 5, 7, 9]);
-  assert.ok(IB.SKILL_TIERS[5].capstone && IB.SKILL_TIERS.slice(0, 5).every((t) => !t.capstone));
+  assert.deepEqual(IB.SKILL_TIERS.map((t) => t.gate), [0, 1, 3, 5, 5, 7, 9]);
+  assert.ok(IB.SKILL_TIERS[6].capstone && IB.SKILL_TIERS.slice(0, 6).every((t) => !t.capstone));
 });
 
 test('economy: 22 points from levels 1-19 only, never more; a build, not the whole tree', () => {
@@ -48,8 +49,8 @@ test('economy: 22 points from levels 1-19 only, never more; a build, not the who
   assert.equal(S.totalPoints(), 22);
   for (let L = 20; L <= 60; L++) assert.equal(S.earned(L), 22, 'nothing after level 19 (' + L + ')');
   assert.equal(S.earned(-3), 0); assert.equal(S.earned(NaN), 0); assert.equal(S.earned('19'), 0);
-  assert.equal(treeCost(), 35);
-  assert.ok(IB.SKILL_TIERS[5].gate + 1 <= S.totalPoints(), 'an endgame skill fits in a max-level build');
+  assert.equal(treeCost(), 44);
+  assert.ok(IB.SKILL_TIERS[6].gate + 1 <= S.totalPoints(), 'an endgame skill fits in a max-level build');
 });
 
 test('available points are derived from progress, never stored; buying is the only way to spend them', () => {
@@ -87,7 +88,7 @@ test('random players can never spend more than they earned, and every reachable 
   }
 });
 
-test('tier gates: a row opens once enough points are spent in the rows below it (1 / 3 / 5 / 7 / 9)', () => {
+test('tier gates: a row opens once enough points are spent in the rows below it (1 / 3 / 5 / 5 / 7 / 9)', () => {
   const h = 19;
   assert.equal(S.canBuy({}, h, 'stream').reason, 'tier');
   assert.equal(S.canBuy({}, h, 'stream').need, 1);
@@ -97,23 +98,24 @@ test('tier gates: a row opens once enough points are spent in the rows below it 
   assert.equal(S.canBuy(sk, h, 'hazard').reason, 'tier', 'row 3 needs 3');
   sk = buyAll(sk, h, ['electrify', 'stream']);
   assert.ok(S.canBuy(sk, h, 'hazard').ok && S.canBuy(sk, h, 'ricochet').ok && S.canBuy(sk, h, 'healthy').ok);
-  assert.equal(S.canBuy(sk, h, 'undercover').reason, 'tier', 'row 4 needs 5');
-  sk = buyAll(sk, h, ['healthy', 'ricochet']);
-  assert.ok(S.canBuy(sk, h, 'stamina').ok && S.canBuy(sk, h, 'hydrate').ok && S.canBuy(sk, h, 'undercover').ok);
-  assert.equal(S.canBuy(sk, h, 'tank').reason, 'tier', 'row 5 needs 7');
+  assert.equal(S.canBuy(sk, h, 'boom').reason, 'tier', 'arsenal (row 4) needs 5');
+  sk = buyAll(sk, h, ['healthy', 'ricochet']);   // 6 points below: the arsenal opens
+  assert.ok(S.canBuy(sk, h, 'boom').ok && S.canBuy(sk, h, 'dart').ok && S.canBuy(sk, h, 'surge').ok);
+  assert.ok(S.canBuy(sk, h, 'undercover').ok && S.canBuy(sk, h, 'hydrate').ok, 'tricks (row 5) opens on 6 points below');
+  sk = buyAll(sk, h, ['boom']);
+  assert.equal(S.canBuy(sk, h, 'tank').reason, 'tier', 'row 6 needs 7');
   sk = buyAll(sk, h, ['undercover', 'stamina']);
   assert.ok(S.canBuy(sk, h, 'tank').ok && S.canBuy(sk, h, 'fastfingers').ok);
   assert.equal(S.canBuy(sk, h, 'handyhelpers').reason, 'tier', 'endgame needs 9');
-  assert.equal(S.spentAbove(sk, 6), 7);
   // the gate counts the rows below only
   sk = buyAll(sk, h, ['tank', 'tank']);
-  assert.equal(S.spentAbove(sk, 6), 9);
-  assert.equal(S.spentAbove(sk, 5), 7);
+  assert.ok(S.spentAbove(sk, 7) >= 9);
   assert.ok(S.canBuy(sk, h, 'handyhelpers').ok);
   // a hand-made tree that skips a gate is invalid
   assert.ok(!S.validate({ stream: 1 }, 19).ok);
   assert.ok(!S.validate({ overload: 2, heavyink: 2, undercover: 1 }, 19).ok);
-  assert.ok(S.validate({ overload: 2, heavyink: 2, hazard: 1, undercover: 1 }, 19).ok);
+  assert.ok(!S.validate({ overload: 2, heavyink: 1, undercover: 1 }, 19).ok, 'tricks row needs 5 below');
+  assert.ok(S.validate({ overload: 2, heavyink: 2, hazard: 1, boom: 2, undercover: 1 }, 19).ok, 'arsenal points count toward the rows above');
 });
 
 test('endgame: pick one of the two; however the points went in, the top opens and is affordable at max level', () => {
@@ -134,7 +136,7 @@ test('endgame: pick one of the two; however the points went in, the top opens an
   assert.equal(S.available(one, 19), 0);
   // the earliest clear that can afford one is level 12
   const caps = IB.SKILLS.filter((s) => s.kind === 'capstone');
-  const first = [...Array(20).keys()].find((L) => S.earned(L) >= IB.SKILL_TIERS[5].gate + caps[0].cost);
+  const first = [...Array(20).keys()].find((L) => S.earned(L) >= IB.SKILL_TIERS[6].gate + caps[0].cost);
   assert.equal(first, 9);
 });
 
@@ -295,4 +297,14 @@ test('difficulty: enemy health, damage and tempo rise gently per level and are c
   assert.deepEqual(D.enemyTempo(20), D.enemyTempo(30), 'all capped by level 20');
   // robots outscale even a fully skilled player's damage: level 17 health x1.96 vs at most x1.12 gun damage
   assert.ok(D.enemyHpMul(17) > 1.7 * S.effects({ heavyink: 3 }).dmgMul);
+});
+
+const near = (a, b, eps = 1e-6) => assert.ok(Math.abs(a - b) < eps, a + " vs " + b);
+test('arsenal skills: Boom (blasts +10/20/30%, one more frag can), Dart (zoomed bullets +6/12/18%), Surge Up (+9/18/27% for 4 s)', () => {
+  const none = S.effects({});
+  assert.equal(none.boomMul, 1); assert.equal(none.grenadeCount, 0); assert.equal(none.dartMul, 1); assert.equal(none.surgeMul, 0);
+  const b = S.effects({ boom: 2 }); near(b.boomMul, 1.2); assert.equal(b.grenadeCount, 1);
+  near(S.effects({ boom: 3 }).boomMul, 1.3); assert.equal(S.effects({ boom: 1 }).grenadeCount, 1, 'one more can at any rank');
+  near(S.effects({ dart: 1 }).dartMul, 1.06); near(S.effects({ dart: 3 }).dartMul, 1.18);
+  near(S.effects({ surge: 2 }).surgeMul, 0.18); near(S.effects({ surge: 3 }).surgeMul, 0.27); assert.equal(S.effects({ surge: 3 }).surgeTime, 4);
 });

@@ -12,7 +12,7 @@
    (the tables below count level-ups gained, g = LV - 1; 2 on the first level-up and at LV 11 and 16, else 1).
      LV            2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 (21-30: none)
      points        2  3  4  5  6  7  8  9 10 12 13 14 15 16 18 19 20 21 22
-   The tree holds 43 points, so 22 buys a build, not the whole tree (respec to change it). The gates are low so the
+   The tree holds 42 normal points plus 2 endgame points, so 22 buys a build, not the whole tree (respec to change it). The gates are low so the
    top is always reachable: any 9 points below open the endgame row. The two endgame skills cost 1 point and you
    pick ONE of them (respec to switch), so even 21 points spent below still leave the point for it.
    In core/skills.js the skill functions take g (level-ups gained, = Skills.gained(slot)).
@@ -27,7 +27,7 @@
   }
 
   /* The tree is laid out as the player's sketch: six rows, the trunk at the bottom, the two endgame skills on top.
-     Tier 1 = bottom row (trunk) ... tier 6 = top row (endgame). Gates count points spent in lower tiers.
+     Tier 1 = bottom row (trunk) ... tier 7 = top row (endgame). Gates count points spent in lower tiers.
        row (top->bottom)  tier  skills
        1                  6     Handy Helpers* | Chain Reaction*        (* endgame, 5 points each)
        2                  5     Tank | Fast Fingers
@@ -39,9 +39,10 @@
     { tier: 1, name: 'Trunk', gate: 0 },
     { tier: 2, name: 'Rounds', gate: 1 },
     { tier: 3, name: 'Hazards', gate: 3 },
-    { tier: 4, name: 'Tricks', gate: 5 },
-    { tier: 5, name: 'Grit', gate: 7 },
-    { tier: 6, name: 'Endgame', gate: 9, capstone: true }
+    { tier: 4, name: 'Arsenal', gate: 5 },
+    { tier: 5, name: 'Tricks', gate: 5 },
+    { tier: 6, name: 'Grit', gate: 7 },
+    { tier: 7, name: 'Endgame', gate: 9, capstone: true }
   ];
 
   // params: the numbers the runtime uses (per rank where an array); text is the player-facing description
@@ -62,21 +63,28 @@
       'Your bullets have a chance to ricochet into another robot within 10 m for 60% damage.', 'ricochet'),
     S('healthy', 3, 2, 'Healthy', 'rank', [8, 16, 24], '%', 'Max health',
       'Increases your max health and slowly regenerates 0.5% of it per second per rank after 4 s without damage.', 'heart'),
-    // tier 4
-    S('stamina', 4, 0, 'Stamina', 'special', [1], '', 'Marathon',
+    // tier 4 (arsenal)
+    S('boom', 4, 0, 'Boom', 'rank', [10, 20, 30], '%', 'Blast damage',
+      'Rocket launcher and frag can damage +10 / 20 / 30%, and you carry one more frag can.', 'boom'),
+    S('dart', 4, 1, 'Dart', 'rank', [6, 12, 18], '%', 'Scoped damage',
+      'Bullets deal 6 / 12 / 18% more damage while you are zoomed in (aiming down the sights).', 'dart'),
+    S('surge', 4, 2, 'Surge Up', 'rank', [9, 18, 27], '%', 'Move speed after a kill',
+      'Each kill speeds you up 9 / 18 / 27% for 4 s. Kills refresh the boost; it does not stack.', 'surge'),
+    // tier 5 (tricks)
+    S('stamina', 5, 0, 'Stamina', 'special', [1], '', 'Marathon',
       'You move 15% faster, sprint 30% faster, your running lasts 2.5x longer, and stamina recharges in half the time.', 'run'),
-    S('hydrate', 4, 1, 'Hydrate', 'rank', [6, 12, 18], '%', 'Coat chance',
+    S('hydrate', 5, 1, 'Hydrate', 'rank', [6, 12, 18], '%', 'Coat chance',
       'Your bullets have a chance to coat a robot in electrified liquid for 6 s. Robots that come within 3 m of it take shock damage over time.', 'water'),
-    S('undercover', 4, 2, 'Undercover', 'special', [1], '', 'Cloak (F)',
+    S('undercover', 5, 2, 'Undercover', 'special', [1], '', 'Cloak (F)',
       'Press F: you go invisible and robots cannot see you for 7.5 s. Cooldown 23 s. The screen turns comic black, grey and white while it lasts.', 'cloak'),
-    // tier 5
-    S('tank', 5, 0, 'Tank', 'rank', [5, 10, 15], '%', 'Damage resistance',
+    // tier 6 (grit)
+    S('tank', 6, 0, 'Tank', 'rank', [5, 10, 15], '%', 'Damage resistance',
       'Increases damage resistance and repairs 1 health per second per rank, starting after 4 s without taking damage (like a shield).', 'armor'),
-    S('fastfingers', 5, 1, 'Fast Fingers', 'rank', [10, 20, 30], '%', 'Reload and swap speed', 'Increases weapon swap speed and reload speed.', 'reload'),
-    // tier 6: endgame (pick one)
-    S('handyhelpers', 6, 0, 'Handy Helpers', 'capstone', [1], '', 'Rogue bots',
+    S('fastfingers', 6, 1, 'Fast Fingers', 'rank', [10, 20, 30], '%', 'Reload and swap speed', 'Increases weapon swap speed and reload speed.', 'reload'),
+    // tier 7: endgame (pick one)
+    S('handyhelpers', 7, 0, 'Handy Helpers', 'capstone', [1], '', 'Rogue bots',
       'When you wreck a robot there is an 8% chance it turns rogue instead and fights for you until it is destroyed, with 3-5x its health and 1.5x its damage.', 'helper'),
-    S('chainreaction', 6, 1, 'Chain Reaction', 'capstone', [1], '', 'Group blast',
+    S('chainreaction', 7, 1, 'Chain Reaction', 'capstone', [1], '', 'Group blast',
       'Shooting a robot with 2 or more others within 4 m has a 10% chance to blow the whole group up for 40% of each robot\'s max health. They do not all die at once.', 'burst')
   ];
 

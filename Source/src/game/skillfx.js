@@ -11,12 +11,15 @@
      Undercover      F: invisible for 7.5 s (ai.js AI.cloak: robots lose you and search), 23 s cooldown after it wears off
      Healthy / Tank  max health %, damage resistance, repair after 4 s without damage
      Handy Helpers   ai.js AI.rogueChance: a wreck may turn rogue instead and fight for you until destroyed (3-5x health, 1.5x damage)
+     Boom            rocket launcher and frag can damage +10/20/30% (SF.boomMul), one more frag can (game.js fragCarry)
+     Dart            bullets deal +6/12/18% while zoomed in (SF.dartMul, game.js shoot)
+     Surge Up        a kill raises move speed +9/18/27% for 4 s; a new kill refreshes it, the boost never stacks (SF.surgeKill)
      Chain Reaction  a hit on a robot with 2+ others within 4 m: 10% chance (1 s cooldown) the group blows up for 40% of
                      each one's max health (core/skills.js chainDamage: never all of them at once)
    Secondary hits (pierce, ricochet) carry Electrify but roll none of the chance skills, so nothing cascades. */
 (function (IB) {
   'use strict';
-  var SF = IB.SkillFX = { fx: null, pools: [], coats: [], cloakT: 0, cloakCd: 0, chainCd: 0, force: {}, stats: { pierce: 0, ricochet: 0, pools: 0, coats: 0, chains: 0 } };
+  var SF = IB.SkillFX = { fx: null, pools: [], coats: [], cloakT: 0, cloakCd: 0, chainCd: 0, surgeT: 0, surgeVal: 0, force: {}, stats: { pierce: 0, ricochet: 0, pools: 0, coats: 0, chains: 0 } };
   var PALE = 0x8ED2FF, WET = 0x5FC2FF, ACID = 0x7BE34A, ACID_LT = 0xC8FF8A;
   var POOL_CAP = 10, COAT_CAP = 10, TICK = 0.25;
   for (var i = 0; i < POOL_CAP; i++) SF.pools.push({ on: false, x: 0, z: 0, t: 0, life: 5, R: 1.3, dps: 0, tick: 0, puff: 0, seed: 0 });
@@ -53,6 +56,17 @@
   };
   // multiplier on one bullet's damage (Heavy Ink)
   SF.hitMul = function () { return SF.fx ? SF.fx.dmgMul : 1; };
+  // Boom: multiplier on rocket and frag blast damage; Dart: bullets while zoomed in
+  SF.boomMul = function () { return SF.fx ? SF.fx.boomMul : 1; };
+  SF.dartMul = function () { return SF.fx ? SF.fx.dartMul : 1; };
+  SF.grenadeBonus = function () { return SF.fx ? SF.fx.grenadeCount : 0; };
+  // Surge Up: a kill sets the boost to the rank's value and restarts its timer; overlapping kills never add up
+  SF.surgeKill = function () {
+    var f = SF.fx; if (!f || !(f.surgeMul > 0)) return;
+    SF.surgeVal = SF.surgeT > 0 ? Math.max(SF.surgeVal, f.surgeMul) : f.surgeMul;
+    SF.surgeT = f.surgeTime;
+  };
+  SF.surgeNow = function () { return SF.surgeT > 0 ? SF.surgeVal : 0; };
 
   function shock(r, dps, dur) { if (IB.Status && IB.Status.apply) IB.Status.apply(r, 'shock', dps, dur); }
   SF.shock = shock;
@@ -269,6 +283,8 @@
     if (SF.cloakT > 0) { SF.cloakT -= dt; if (SF.cloakT <= 0 || (p && !p.alive)) endCloak(); }
     else if (SF.cloakCd > 0) SF.cloakCd = Math.max(0, SF.cloakCd - dt);
     SF.chainCd = Math.max(0, SF.chainCd - dt);
+    if (SF.surgeT > 0) SF.surgeT = Math.max(0, SF.surgeT - dt);
+    if (p) p.surgeMul = SF.surgeNow();   // player.js: move speed
     updatePools(dt);
     updateCoats(dt);
   };
@@ -276,7 +292,7 @@
   SF.clear = function () {
     SF.pools.forEach(function (p) { p.on = false; });
     SF.coats.forEach(function (c) { if (c.r) c.r.wet = 0; c.on = false; c.r = null; });
-    SF.cloakT = 0; SF.cloakCd = 0; SF.chainCd = 0;
+    SF.cloakT = 0; SF.cloakCd = 0; SF.chainCd = 0; SF.surgeT = 0; SF.surgeVal = 0;
     if (AI()) AI().cloaked = false;
     if (SF.mesh) { SF.mesh.count = 0; SF.mesh.visible = false; }
   };

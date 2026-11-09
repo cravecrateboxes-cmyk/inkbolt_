@@ -23,6 +23,35 @@
   }
 
   var ART = {
+    // Boom: a frag can with its lever, a rocket with a flame trail, and a burst
+    boom: function () {
+      return p('M24 22C14 22 8 29 8 38S15 56 26 56S44 47 44 38S34 22 24 22Z', '#6E8B3D', O) +
+        p('M14 26C18 22 24 21 30 22', 'none', ' stroke="#A9C96A" stroke-width="2.4" stroke-linecap="round"') +
+        p('M22 20H30V14H22Z', '#3B4A3A', O2) + p('M30 16C36 12 40 11 44 12', 'none', O2 + ' stroke-width="3"') +
+        p('M16 42C17 37 21 35 25 36', 'none', HL.replace('stroke-width="2.6"', 'stroke-width="2.2"')) +
+        p('M40 26L58 12L54 25Z', '#E9EEF7', O2) + p('M56 13L62 4L55 7Z', '#F0443A', O2) +
+        p('M44 30L34 40L40 42Z', '#FFB21E', O2) + p('M44 29L28 46L30 48L47 32Z', '#FF8A3D', O2) +
+        p('M42 34L54 22L48 32Z', '#C8D0DE', O2) +
+        p('M4 56l2 4 4-1-2 4 3 3-4 0-1 4-2-4-4 1 2-4-3-3 4 0z', '#FFD23F', O2);
+    },
+    // Dart: a scope glass with its crosshair, and a dart homing in on the centre
+    dart: function () {
+      return c(30, 30, 19, '#3E4963', O) + c(30, 30, 14.5, '#CFEFFF', O2) +
+        p('M22 25A11 11 0 0 1 35 19', 'none', HL.replace('stroke-width="2.6"', 'stroke-width="2.4"')) +
+        ink('M30 14V46M14 30H46', 2.4) + c(30, 30, 2.6, '#F0443A', O2) +
+        p('M40 42L56 58', 'none', O + ' stroke-width="4"') +
+        p('M56 58L50 56L55 50Z', '#FFB21E', O2) +
+        p('M42 42L36 44L40 48Z', '#E9EEF7', O2) + p('M42 42L44 36L48 40Z', '#8A94A8', O2);
+    },
+    // Surge Up: two speed chevrons with sparks
+    surge: function () {
+      return p('M10 14L30 32L10 50L16 56L38 32L16 8Z', '#2FB8FF', O) +
+        p('M12 17L26 32L12 47', 'none', HL.replace('stroke-width="2.6"', 'stroke-width="2.2"')) +
+        p('M30 14L50 32L30 50L36 56L58 32L36 8Z', '#FFD23F', O) +
+        p('M32 17L46 32L32 47', 'none', HL.replace('stroke-width="2.6"', 'stroke-width="2.2"')) +
+        p('M52 6l2 4 4-1-2 4 3 3-4 0-1 4-2-4-4 1 2-4-3-3 4 0z', '#FFFDF7', O2) +
+        c(6, 58, 2.6, '#FFD23F', O2);
+    },
     // Overload: a fat curved magazine, rounds spilling out of the top
     mag: function () {
       return round(25, 25, 21, -22) + round(39, 25, 21, 22) + round(32, 23, 22, 0) +
