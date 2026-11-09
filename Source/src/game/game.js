@@ -916,6 +916,7 @@
     else if (G.player.health < G.player.maxHp * 0.4 && Math.random() < 0.25) G.spawnPickup('health', r.x, r.z, r.fy || r.y || 0);
     if (G.fx && G.fx.leech) G.player.health = Math.min(G.player.maxHp, G.player.health + G.fx.leech);
     if (IB.Drops) IB.Drops.onKill(r);   // ~5 % loot drop
+    if (IB.WeaponDrops && IB.WeaponDrops.roll) IB.WeaponDrops.roll(r);   // gun drops from every robot (soldiers 24 %, the others 5 %)
     if (IB.Launchers) IB.Launchers.onKill(r);   // launcher drops (levels 14+) and rocket crates (soldiers, when needed)
     if (IB.Gear && IB.Gear.onKill) IB.Gear.onKill(G, r);   // Overcharge shield cells
   }

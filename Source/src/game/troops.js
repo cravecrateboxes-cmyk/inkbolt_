@@ -71,7 +71,6 @@
       }
       return dmg - ab;
     },
-    onPlayerKill: function (r) { if (IB.WeaponDrops && IB.WeaponDrops.roll) IB.WeaponDrops.roll(r); },
     pose: function (r, P) {
       var v = VIS.soldier, ph = r.walk * 1.9, mv = r.legMove, bob = Math.abs(Math.sin(ph)) * 0.035 * mv - r.crouch * 0.06, i;
       // hips and legs face the way it walks (legRel off the torso yaw)
