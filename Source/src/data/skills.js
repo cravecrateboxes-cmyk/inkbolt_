@@ -8,11 +8,13 @@
    Every LV raises max health (core/damage.js playerMaxHp) and better gear keeps dropping (item level = the level
    you play).
 
-   SKILL POINTS: one point for every player level gained (LV 2 is the first point), 25 in total, so the last point
-   comes at LV 26 and levels 27-30 add health and gear only. Points are never stored: they are derived from the level.
-   The tree holds 42 normal points plus 2 endgame points, so 25 buys a build, not the whole tree (respec to change it).
-   The gates are low so the top is always reachable: any 9 points below open the endgame row. The two endgame skills
-   cost 1 point and you pick ONE of them (respec to switch), so 24 points spent below still leave the point for it.
+   SKILL POINTS come with player levels, up to LV 20 and never more than 22: reaching LV n pays POINTS_AT[n - 1]
+   (the tables below count level-ups gained, g = LV - 1; 2 on the first level-up and at LV 11 and 16, else 1).
+     LV            2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 (21-30: none)
+     points        2  3  4  5  6  7  8  9 10 12 13 14 15 16 18 19 20 21 22
+   The tree holds 42 normal points plus 2 endgame points, so 22 buys a build, not the whole tree (respec to change it). The gates are low so the
+   top is always reachable: any 9 points below open the endgame row. The two endgame skills cost 1 point and you
+   pick ONE of them (respec to switch), so even 21 points spent below still leave the point for it.
    In core/skills.js the skill functions take g (level-ups gained, = Skills.gained(slot)).
 */
 (function (IB) {
@@ -90,10 +92,8 @@
   IB.SKILLS.forEach(function (s) { IB.SKILL_BY_ID[s.id] = s; });
 
   // points paid on gaining a player level (key = level-ups gained, LV - 1); nothing after LV 20
-  IB.SKILL_POINTS_AT = {};
-  for (var pk = 1; pk <= 25; pk++) IB.SKILL_POINTS_AT[pk] = 1;   // one point per level-up (key = level-ups gained)
-  IB.SKILL_POINTS_MAX = 25;
-  IB.SKILL_LAST_LEVEL = IB.SKILL_POINTS_MAX;   // the 25th level-up is the last point
+  IB.SKILL_POINTS_AT = { 1: 2, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 1, 10: 2, 11: 1, 12: 1, 13: 1, 14: 1, 15: 2, 16: 1, 17: 1, 18: 1, 19: 1 };
+  IB.SKILL_LAST_LEVEL = 19;
   IB.PLAYER_LEVEL_CAP = 30;
   /* XP: per robot wrecked = kill[type] x (1 + 0.1 (L - 1)) at campaign level L; clearing level L pays clear(L).
      need(n) = total XP to reach LV n: 900 (n - 1) + 49.3 (n - 1)^2.73 (LV 2 900, LV 10 ~28k, LV 20 ~170k, LV 30 ~510k). */

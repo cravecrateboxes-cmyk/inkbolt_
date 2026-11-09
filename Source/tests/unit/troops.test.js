@@ -108,7 +108,7 @@ test('XP levelling: playing the campaign through (90% of robots) puts the player
   assert.equal(S.levelFromXp(S.xpForLevel(30) * 5), 30);
   assert.ok(S.killXp('soldier', 15) > S.killXp('soldier', 3) && S.killXp('soldier', 1) > S.killXp('crawler', 1));
   // skill points: 22 by LV 20 and none after
-  assert.equal(S.earned(19), 19); assert.equal(S.earned(29), 25);
+  assert.equal(S.earned(19), 22); assert.equal(S.earned(29), 22);
 });
 
 test('no exploding Bombers before level 4', () => {
