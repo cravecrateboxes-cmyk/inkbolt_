@@ -8,9 +8,9 @@
    Every LV raises max health (core/damage.js playerMaxHp) and better gear keeps dropping (item level = the level
    you play).
 
-   SKILL POINTS: one point for every player level gained (LV 2 is the first point), 25 in total, so the last point
-   comes at LV 26 and levels 27-30 add health and gear only. Points are never stored: they are derived from the level.
-   The tree holds 42 normal points plus 2 endgame points, so 25 buys a build, not the whole tree (respec to change it).
+   SKILL POINTS: one point for every player level gained, and the first level-up pays 2: 30 in total, the last at LV 30.
+   Points are never stored: they are derived from the level.
+   The tree holds 42 normal points plus 2 endgame points, so 30 buys a build, not the whole tree (respec to change it).
    The gates are low so the top is always reachable: any 9 points below open the endgame row. The two endgame skills
    cost 1 point and you pick ONE of them (respec to switch), so 24 points spent below still leave the point for it.
    In core/skills.js the skill functions take g (level-ups gained, = Skills.gained(slot)).
@@ -91,9 +91,10 @@
 
   // points paid on gaining a player level (key = level-ups gained, LV - 1); nothing after LV 20
   IB.SKILL_POINTS_AT = {};
-  for (var pk = 1; pk <= 25; pk++) IB.SKILL_POINTS_AT[pk] = 1;   // one point per level-up (key = level-ups gained)
-  IB.SKILL_POINTS_MAX = 25;
-  IB.SKILL_LAST_LEVEL = IB.SKILL_POINTS_MAX;   // the 25th level-up is the last point
+  for (var pk = 1; pk <= 29; pk++) IB.SKILL_POINTS_AT[pk] = 1;   // one point per level-up (key = level-ups gained)
+  IB.SKILL_POINTS_AT[1] = 2;                                   // the first level-up pays 2: 30 in total by LV 30
+  IB.SKILL_POINTS_MAX = 30;
+  IB.SKILL_LAST_LEVEL = IB.SKILL_POINTS_MAX;   // the last point (30) comes with LV 30
   IB.PLAYER_LEVEL_CAP = 30;
   /* XP: per robot wrecked = kill[type] x (1 + 0.1 (L - 1)) at campaign level L; clearing level L pays clear(L).
      need(n) = total XP to reach LV n: 900 (n - 1) + 49.3 (n - 1)^2.73 (LV 2 900, LV 10 ~28k, LV 20 ~170k, LV 30 ~510k). */
