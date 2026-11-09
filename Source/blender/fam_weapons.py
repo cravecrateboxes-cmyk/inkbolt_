@@ -1082,7 +1082,7 @@ def build_scrapper(pal):
     k.box((0.0, 0.052, 0.0045), (0.024, 0.080, 0.006), 'ink')                                                 # loading port
     k.box((0, 0.052, -0.0005), (0.016, 0.056, 0.006), 'red')                                                  # shell lifter
     stripe(k, -0.100, 0.100, 0.012, 0.019, 0.0265)
-    k.ext_y(rrect(0.040, 0.020, c=0.003, cy=-0.004), -0.080, 0.002, 'gun2', ch0=0.004, ch1=0.004)            # trigger plate
+    k.ext_y(rrect(0.040, 0.020, c=0.003, cy=-0.004), -0.080, 0.002, 'gunmetal', ch0=0.004, ch1=0.004)        # trigger plate: body colour, so it flows into the receiver
     barrel(k, 0.118, 0.560, 0.0125, bz + 0.004, seg=12)
     k.lathe([(0.118, 0), (0.118, 0.0100), (0.500, 0.0100), (0.500, 0)], 'steel2', 'y', (0, 0, bz - 0.024), 10)    # magazine tube
     k.cbox((0, 0.506, bz - 0.012), (0.034, 0.016, 0.048), 'gunmetal', ch=0.004, axis='y')                     # tube cap / barrel clamp
