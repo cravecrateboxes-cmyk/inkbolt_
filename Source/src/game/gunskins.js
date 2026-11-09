@@ -20,7 +20,7 @@
   GS.name = function (id, tier, base) { return D() ? D().name(id, tier, base) : base; };
   GS.feel = function (tier) { return D() ? D().feel(tier) : null; };
 
-  var FLAG_A = { pat: 223, glow: 191, shim: 159, patshim: 127 };
+  var FLAG_A = { pat: 223, glow: 191, shim: 159, patshim: 127, patshimgrad: 32 };   // patshimgrad (7): pattern + shimmer + height gradient
   var base = null;   // Uint8 RGBA of the weapons palette, one texel per cell (cell i -> texel (i % 8, 7 - i / 8))
   function basePixels() {
     if (base) return base;
@@ -51,7 +51,7 @@
   }
 
   var FRAG_PARS = [
-    'uniform float uPat, uPatS, uShim, uTime, uPatGlow; uniform vec3 uPatC, uGlowC, uShimC;',
+    'uniform float uPat, uPatS, uShim, uTime, uPatGlow; uniform vec3 uPatC, uGlowC, uShimC, uGradC; uniform vec2 uGradY;',
     'varying vec3 vIbP; varying vec3 vIbN;',
     'float ibH( vec3 p ) { return fract( sin( dot( p, vec3( 127.1, 311.7, 74.7 ) ) ) * 43758.5453 ); }',
     'float ibN( vec3 p ) { vec3 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f );',
@@ -97,11 +97,12 @@
     '#include <map_fragment>',
     'float ibF = floor( ( 1.0 - texelColor.a ) * 8.0 + 0.5 );',   // 0 none, 1 pat, 2 glow, 3 shim, 4 pat + shim
     'diffuseColor.a = opacity;',
-    'if ( ( ibF == 1.0 || ibF == 4.0 ) && uPat > 0.5 ) diffuseColor.rgb = mix( diffuseColor.rgb, ibPatCol( uPat, vIbP, vIbN ), ibPattern( uPat, vIbP * uPatS, vIbN ) );'
+    'if ( ibF == 7.0 ) diffuseColor.rgb = mix( diffuseColor.rgb, uGradC, smoothstep( uGradY.x, uGradY.y, vIbP.y ) );',   // height gradient
+    'if ( ( ibF == 1.0 || ibF == 4.0 || ibF == 7.0 ) && uPat > 0.5 ) diffuseColor.rgb = mix( diffuseColor.rgb, ibPatCol( uPat, vIbP, vIbN ), ibPattern( uPat, vIbP * uPatS, vIbN ) );'
   ].join('\n');
   var FRAG_END = [
     'if ( ibF == 2.0 ) gl_FragColor.rgb = mix( gl_FragColor.rgb, uGlowC * ( 1.05 + 0.18 * sin( uTime * 3.2 + vIbP.z * 9.0 ) ), 0.88 );',
-    'if ( uPatGlow > 0.5 && ( ibF == 1.0 || ibF == 4.0 ) ) gl_FragColor.rgb = mix( gl_FragColor.rgb, uPatC * ( 1.15 + 0.3 * sin( uTime * 2.2 + vIbP.z * 14.0 ) ), ibPattern( uPat, vIbP * uPatS, vIbN ) * 0.92 );',
+    'if ( uPatGlow > 0.5 && ( ibF == 1.0 || ibF == 4.0 || ibF == 7.0 ) ) gl_FragColor.rgb = mix( gl_FragColor.rgb, uPatC * ( 1.15 + 0.3 * sin( uTime * 2.2 + vIbP.z * 14.0 ) ), ibPattern( uPat, vIbP * uPatS, vIbN ) * 0.92 );',
     'if ( uShim > 0.5 && ( ibF >= 2.0 ) ) {',
     '  float s = fract( vIbP.z * 0.9 - vIbP.y * 0.6 - uTime * 0.32 ); float b = smoothstep( 0.0, 0.035, s ) * ( 1.0 - smoothstep( 0.035, 0.11, s ) );',
     '  gl_FragColor.rgb += uShimC * b * 0.55; }',
@@ -121,7 +122,8 @@
     var mat = R.toonMaterial({ uni: uni, map: texture(sk), baked: A.BAKED ? A.BAKED.weapons : 0 });
     var U = { uPat: { value: D().PATTERNS[sk.pat.type] || 0 }, uPatS: { value: sk.pat.scale }, uPatC: { value: C(sk.pat.col) },
       uGlowC: { value: C(sk.glow) }, uShim: { value: sk.shimmer }, uTime: time,
-      uShimC: { value: C(sk.shimCol || '#FFEBB3') }, uPatGlow: { value: sk.patGlow || 0 } };
+      uShimC: { value: C(sk.shimCol || '#FFEBB3') }, uPatGlow: { value: sk.patGlow || 0 },
+      uGradC: { value: C(sk.grad ? sk.grad.from : '#FFFFFF') }, uGradY: { value: new THREE.Vector2(sk.grad ? sk.grad.y0 : 0, sk.grad ? sk.grad.y1 : 1) } };
     var inner = mat.onBeforeCompile, key0 = mat.customProgramCacheKey;
     mat.onBeforeCompile = function (sh) {
       inner(sh);

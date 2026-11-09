@@ -76,7 +76,8 @@
       flag: { body: 'patshim', acc: 'patshim', steel: 'shim', steel2: 'shim', trim: 'glow', lens: 'glow', red: 'glow' } },
     crimson: { word: ['Bloodroyal', 'Cardinal', 'Vermilion'], pat: 'filigree', patCol: '#BCC1CB', patS: 0.62, glow: '#FF6A6A', shim: '#FFF4F0',
       c: { body: '#6E0F1E', frame: '#620D1B', acc: '#C9CED8', furn: '#5A0C18', steel: '#E7EAF0', steel2: '#A9AFBC', trim: '#F2F4F8', lens: '#FF8C8C', red: '#FF5A5A' },
-      flag: { body: 'patshim', frame: 'patshim', furn: 'pat', acc: 'shim', steel: 'shim', steel2: 'shim', trim: 'glow', lens: 'glow', red: 'glow' } },
+      flag: { body: 'patshim', frame: 'patshim', furn: 'patshimgrad', acc: 'shim', steel: 'shim', steel2: 'shim', trim: 'glow', lens: 'glow', red: 'glow' },
+      grad: [-0.11, -0.02] },   // furn fades from the body red (above y = -0.02) down to its own dark red (below y = -0.11)
     aurora: { word: ['Starfall', 'Nebula', 'Borealis'], pat: 'aurora', patCol: '#6AF0D0', glow: '#7CFFE0', shim: '#E6FFFA',
       c: { body: '#141A3A', frame: '#1A1433', acc: '#2A2F5E', furn: '#1D1840', steel: '#D9E2F5', steel2: '#9AA6C8', trim: '#7CFFE0', lens: '#E09BFF', red: '#FF7AD8' },
       flag: { body: 'patshim', frame: 'pat', acc: 'pat', furn: 'pat', steel: 'shim', trim: 'glow', lens: 'glow', red: 'glow' } },
@@ -102,7 +103,7 @@
     var k; for (k in ROLE) c[k] = g[k] || DEF[k] || null;
     c.steel = g.steel || STEEL; c.steel2 = g.steel2 || STEEL2; c.red = g.red || '#F0443A'; c.lens = g.lens || '#86EAF2';
     if (g.pat) { pat = { type: g.pat.type, col: g.pat.col, scale: 1 }; g.pat.on.forEach(function (role) { flag[role] = 'pat'; }); }
-    var glow = '#000000', shimmer = 0, legend = null;
+    var glow = '#000000', shimmer = 0, legend = null, grad = null;
     if (r === 1) {          // Tuned: green accents
       c.trim = '#6BE05A'; c.acc = mix(c.acc, '#4FB04A', 0.72); c.steel = mix(c.steel, '#FFFFFF', 0.2);
       if (g.pat && g.pat.on.indexOf('acc') >= 0) c.acc = g.acc;   // keep a wooden handguard wooden
@@ -124,13 +125,13 @@
       for (k in L.c) c[k] = L.c[k];
       pat = { type: L.pat, col: L.patCol, scale: L.patS || 1 };
       flag = {}; for (k in L.flag) flag[k] = L.flag[k];
-      glow = L.glow; shimmer = 1;
+      glow = L.glow; shimmer = 1; if (L.grad && L.c.furn) grad = { from: L.c.body, y0: L.grad[0], y1: L.grad[1] };
       legend = { id: S.LEGEND[g.leg] ? g.leg : 'gold', shimCol: L.shim, patGlow: L.patGlow || 0 };
     }
     var cells = {};
     for (k in ROLE) if (c[k]) cells[ROLE[k]] = { hex: c[k], flag: flag[k] || null };
     return { gun: gunId, tier: S.TIER_IDS[r], cells: cells, pat: pat, glow: glow, shimmer: shimmer,
-      shimCol: legend ? legend.shimCol : '#FFEBB3', patGlow: legend ? legend.patGlow : 0, legend: legend ? legend.id : null };
+      shimCol: legend ? legend.shimCol : '#FFEBB3', patGlow: legend ? legend.patGlow : 0, legend: legend ? legend.id : null, grad: grad };
   };
 
   // ---------- names ----------
