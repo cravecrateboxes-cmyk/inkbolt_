@@ -108,10 +108,22 @@
     return d;
   };
 
+  // grey crawlers and exploding bombers never drop armour; every other robot can, at double the armour rate
+  var NO_ARMOUR = { crawler: 1, bomber: 1 };
   D.onKill = function (r) {
     var G = IB.Game; if (!D.ready || !G.slot || !G.plan) return null;
-    var item = IB.Loot.rollDrop(Math.random, { level: G.plan.level, cleared: G.slot.highest || 0 });
-    return item ? D.spawn(item, r.x, r.z) : null;
+    var ctx = { level: G.plan.level, cleared: G.slot.highest || 0 }, armour = !NO_ARMOUR[r.type];
+    if (!armour) ctx.exclude = ['armor'];
+    var item = IB.Loot.rollDrop(Math.random, ctx), out = item ? D.spawn(item, r.x, r.z) : null;
+    if (armour) {   // the armour vest's share of the drop table, rolled once more: double the armour rate
+      var types = IB.Loot.allowedTypes(ctx), tot = 0, w = 0;
+      types.forEach(function (t) { tot += t.weight || 0; if (t.id === 'armor') w = t.weight || 0; });
+      if (tot > 0 && Math.random() < IB.LOOT.dropChance * (w / tot)) {
+        var extra = IB.Loot.makeItem('armor', IB.Loot.rollRarity(Math.random, G.plan.level), G.plan.level, Math.random);
+        D.spawn(extra, r.x, r.z);
+      }
+    }
+    return out;
   };
 
   function collect(d, G) {

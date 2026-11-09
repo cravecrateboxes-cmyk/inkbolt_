@@ -330,3 +330,12 @@ test('gear GLB has every model the loot runtime asks for', () => {
   for (const [n, max] of [['GEAR_Grip', 1000], ['GEAR_Scope', 2200], ['GEAR_Acid', 1500], ['GEAR_ShieldCell', 1200], ['GEAR_ShieldCell_Rare', 1500], ['GEAR_ShieldCell_Epic', 1800],
     ['GEAR_ShieldCell_Legendary', 2200], ['GEAR_Mag', 1000], ['GEAR_Vest', 2000], ['LOOT_Capsule', 1200]]) assert.ok(tris(n) <= max, n + ' ' + tris(n) + ' tris > ' + max);
 });
+
+test('armour can be excluded from a drop context (crawlers and bombers never drop armour)', () => {
+  const ctx = { cleared: 20, level: 10 };
+  assert.ok(L.allowedTypes(ctx).some((t) => t.id === 'armor'), 'armour is in the table by default');
+  assert.ok(!L.allowedTypes(Object.assign({ exclude: ['armor'] }, ctx)).some((t) => t.id === 'armor'), 'excluded');
+  let armour = 0;
+  for (let i = 0; i < 4000; i++) { const it = L.rollDrop(Math.random, Object.assign({ chance: 1, exclude: ['armor'] }, ctx)); if (it && it.type === 'armor') armour++; }
+  assert.equal(armour, 0);
+});

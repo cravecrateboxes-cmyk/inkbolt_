@@ -100,6 +100,9 @@
     c.strokeText(name.toUpperCase(), 128, 45); c.fillStyle = '#FFFDF7'; c.fillText(name.toUpperCase(), 128, 45);
     d.tex.needsUpdate = true;
   }
+  // enemies that never drop guns or armour: the grey crawler and the exploding bomber
+  var NO_GUN = { crawler: 1, bomber: 1 };
+  WD.OTHER_GUN_CHANCE = 0.025;
   function def0(id) { return IB.WEAPONS && IB.WEAPONS[id]; }
   function spawn(id, tier, x, z, melee, y, level, roll) {
     var A = IB.Assets, node = 'WPN_' + id.toUpperCase();
@@ -133,7 +136,13 @@
   /* a soldier (or any robot whose row has weaponDrops) was wrecked by the player: maybe drop a gun */
   WD.roll = function (r, rng) {
     rng = rng || Math.random;
-    var row = IB.ENEMIES && IB.ENEMIES[r.type], odds = row && row.weaponDrops; if (!odds) return null;
+    var row = IB.ENEMIES && IB.ENEMIES[r.type], odds = row && row.weaponDrops;
+    if (!odds) {   // every other robot: 2.5% per kill in total, split like the soldiers' gun drops (crawlers and bombers never)
+      if (NO_GUN[r.type]) return null;
+      var sold = IB.ENEMIES && IB.ENEMIES.soldier && IB.ENEMIES.soldier.weaponDrops || {}, tot = 0, k;
+      Object.keys(sold).forEach(function (t) { tot += sold[t]; });
+      odds = {}; Object.keys(sold).forEach(function (t) { odds[t] = tot ? sold[t] * WD.OTHER_GUN_CHANCE / tot : 0; });
+    }
     var x = rng(), acc = 0, tier = null;
     for (var i = TIERS.length - 1; i >= 0; i--) { acc += odds[TIERS[i].id] || 0; if (x < acc) { tier = TIERS[i].id; break; } }
     if (!tier) return null;

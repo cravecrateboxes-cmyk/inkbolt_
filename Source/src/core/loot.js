@@ -26,7 +26,8 @@
   /* ctx: {cleared} = highest campaign level completed. Shields / vests need cleared >= minCleared. */
   function allowedTypes(ctx) {
     var cleared = (ctx && ctx.cleared) || 0, out = [];
-    Object.keys(T().types).forEach(function (k) { var t = T().types[k]; if (!t.minCleared || cleared >= t.minCleared) out.push(t); });
+    var ex = (ctx && ctx.exclude) || [];
+    Object.keys(T().types).forEach(function (k) { var t = T().types[k]; if (ex.indexOf(k) >= 0) return; if (!t.minCleared || cleared >= t.minCleared) out.push(t); });
     return out;
   }
   function rollType(rng, ctx) { return pickWeighted(allowedTypes(ctx), rng).id; }

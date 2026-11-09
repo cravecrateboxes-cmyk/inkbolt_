@@ -12772,7 +12772,8 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   /* ctx: {cleared} = highest campaign level completed. Shields / vests need cleared >= minCleared. */
   function allowedTypes(ctx) {
     var cleared = (ctx && ctx.cleared) || 0, out = [];
-    Object.keys(T().types).forEach(function (k) { var t = T().types[k]; if (!t.minCleared || cleared >= t.minCleared) out.push(t); });
+    var ex = (ctx && ctx.exclude) || [];
+    Object.keys(T().types).forEach(function (k) { var t = T().types[k]; if (ex.indexOf(k) >= 0) return; if (!t.minCleared || cleared >= t.minCleared) out.push(t); });
     return out;
   }
   function rollType(rng, ctx) { return pickWeighted(allowedTypes(ctx), rng).id; }
@@ -22102,10 +22103,22 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     return d;
   };
 
+  // grey crawlers and exploding bombers never drop armour; every other robot can, at double the armour rate
+  var NO_ARMOUR = { crawler: 1, bomber: 1 };
   D.onKill = function (r) {
     var G = IB.Game; if (!D.ready || !G.slot || !G.plan) return null;
-    var item = IB.Loot.rollDrop(Math.random, { level: G.plan.level, cleared: G.slot.highest || 0 });
-    return item ? D.spawn(item, r.x, r.z) : null;
+    var ctx = { level: G.plan.level, cleared: G.slot.highest || 0 }, armour = !NO_ARMOUR[r.type];
+    if (!armour) ctx.exclude = ['armor'];
+    var item = IB.Loot.rollDrop(Math.random, ctx), out = item ? D.spawn(item, r.x, r.z) : null;
+    if (armour) {   // the armour vest's share of the drop table, rolled once more: double the armour rate
+      var types = IB.Loot.allowedTypes(ctx), tot = 0, w = 0;
+      types.forEach(function (t) { tot += t.weight || 0; if (t.id === 'armor') w = t.weight || 0; });
+      if (tot > 0 && Math.random() < IB.LOOT.dropChance * (w / tot)) {
+        var extra = IB.Loot.makeItem('armor', IB.Loot.rollRarity(Math.random, G.plan.level), G.plan.level, Math.random);
+        D.spawn(extra, r.x, r.z);
+      }
+    }
+    return out;
   };
 
   function collect(d, G) {
@@ -22397,6 +22410,9 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     c.strokeText(name.toUpperCase(), 128, 45); c.fillStyle = '#FFFDF7'; c.fillText(name.toUpperCase(), 128, 45);
     d.tex.needsUpdate = true;
   }
+  // enemies that never drop guns or armour: the grey crawler and the exploding bomber
+  var NO_GUN = { crawler: 1, bomber: 1 };
+  WD.OTHER_GUN_CHANCE = 0.025;
   function def0(id) { return IB.WEAPONS && IB.WEAPONS[id]; }
   function spawn(id, tier, x, z, melee, y, level, roll) {
     var A = IB.Assets, node = 'WPN_' + id.toUpperCase();
@@ -22430,7 +22446,13 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   /* a soldier (or any robot whose row has weaponDrops) was wrecked by the player: maybe drop a gun */
   WD.roll = function (r, rng) {
     rng = rng || Math.random;
-    var row = IB.ENEMIES && IB.ENEMIES[r.type], odds = row && row.weaponDrops; if (!odds) return null;
+    var row = IB.ENEMIES && IB.ENEMIES[r.type], odds = row && row.weaponDrops;
+    if (!odds) {   // every other robot: 2.5% per kill in total, split like the soldiers' gun drops (crawlers and bombers never)
+      if (NO_GUN[r.type]) return null;
+      var sold = IB.ENEMIES && IB.ENEMIES.soldier && IB.ENEMIES.soldier.weaponDrops || {}, tot = 0, k;
+      Object.keys(sold).forEach(function (t) { tot += sold[t]; });
+      odds = {}; Object.keys(sold).forEach(function (t) { odds[t] = tot ? sold[t] * WD.OTHER_GUN_CHANCE / tot : 0; });
+    }
     var x = rng(), acc = 0, tier = null;
     for (var i = TIERS.length - 1; i >= 0; i--) { acc += odds[TIERS[i].id] || 0; if (x < acc) { tier = TIERS[i].id; break; } }
     if (!tier) return null;
