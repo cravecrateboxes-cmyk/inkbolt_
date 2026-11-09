@@ -151,12 +151,12 @@
 
   // ---------------- Torpedo (endgame skill, skills.js): the last round of a gun's magazine ----------------
   // a fast rocket with no direct hit: torpedoMul x the gun's shot damage as a wide splash; the robots it hurts are slowed
-  var TORPEDO = { id: 'torpedo', name: 'Torpedo', damage: 0, splash: 0, radius: 4.5, exponent: 0.7, speed: 34, life: 2.2, turn: 0, knockback: 8, slow: 0.25, slowTime: 2 };
+  var TORPEDO = { id: 'torpedo', name: 'Torpedo', damage: 0, splash: 0, radius: 4.5, exponent: 0.7, speed: 34, life: 2.2, turn: 0, knockback: 8, slow: 0.25, slowTime: 5 };
   var TORPEDO_EL = { id: 'torpedo', name: '', color: '#5FE3FF', splashMul: 1, radiusMul: 1.15 };
   L.torpedo = function (gun, cam, spread) {
     var sk = IB.SkillFX && IB.SkillFX.fx ? IB.SkillFX.fx : {};
     var base = (GL() ? GL().shotDamage(gun) : gun.damage) * dmgMul(gun);
-    var def = Object.assign({}, TORPEDO, { splash: base * (sk.torpedoMul || 4), radius: sk.torpedoRadius || 4.5, slow: sk.torpedoSlow || 0, slowTime: sk.torpedoSlowTime || 2 });
+    var def = Object.assign({}, TORPEDO, { splash: base * (sk.torpedoMul || 5), radius: sk.torpedoRadius || 4.5, slow: sk.torpedoSlow || 0, slowTime: sk.torpedoSlowTime || 5 });
     IB.Weapons.muzzleWorld(cam, _mz);
     cam.getWorldDirection(_d); _mz.addScaledVector(_d, 0.25);
     aimPoint(cam, 160, _aim);
