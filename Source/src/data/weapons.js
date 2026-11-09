@@ -22,8 +22,8 @@
     return w;
   }
 
-  // every pistol shares one spare-ammo capacity (6 twin-tap magazines), like the SMG / rifle / sniper classes
-  var PISTOL_RESERVE = 96;
+  // every pistol shares one spare-ammo capacity, like the SMG / rifle / sniper classes
+  var PISTOL_RESERVE = 250;
 
   var WEAPONS = {
     pip: W({
