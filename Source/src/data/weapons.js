@@ -40,7 +40,8 @@
       // Wyrmforged: a very fast pistol (Maggie-style: click-fast, low recoil), 3x damage on crit spots (core, soldier head).
       // Each drop rolls its magazine (18-30, more at higher player levels) and a x2 or x3 damage multiplier (GunLevel.wyrmRoll).
       id: 'handcannon', name: 'Wyrmforged Ironjaw', cls: 'pistol', slot: 1, fire: 'semi', action: 'revolver',
-      damage: 22, rpm: 750, spreadHip: 0.5, spreadAim: 0.15, recoil: 1.0, recoilH: 0.3, reload: 2.2,
+      // revolver shot (def.action): heavier single kick, 1.6 (was 1.0); the extra vertical kick is in weapons.js fire()
+      damage: 22, rpm: 750, spreadHip: 0.5, spreadAim: 0.15, recoil: 1.6, recoilH: 0.3, reload: 2.2,
       mag: 18, reserve: PISTOL_RESERVE, unlock: 2, coreMul: 3, headMul: 3, wyrm: { mag: [18, 30], mult: [2, 3] },
       sound: '120 to 50 Hz thump, noise crack, metal ring'
     }),

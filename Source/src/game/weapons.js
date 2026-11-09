@@ -98,6 +98,7 @@
   // flash size per class (pistol 1); and which classes get side flares
   var FLASH_SCALE = { pistol: 0.95, smg: 1.0, rifle: 1.2, sniper: 1.55, shotgun: 1.7, rocket: 1.4, handcannon: 1.45 };
   var FLASH_SIDE = { smg: true, rifle: true, sniper: true, shotgun: true };
+  var REV_FLASH = 1.35;   // revolver (def.action) shots: the flash is this much bigger on top of FLASH_SCALE
   function model(id) {
     if (W.models[id]) return W.models[id];
     var A = IB.Assets, key = 'WPN_' + id.toUpperCase();
@@ -405,8 +406,10 @@
     var rec = d.recoil * (s.fx.recoilMul || 1) * climb * (s.aim > 0.5 ? 0.75 : 1);
     s.recoilP += rec * D2R;
     s.recoilY += (Math.random() * 2 - 1) * (d.recoilH || 0) * (s.fx.recoilMul || 1) * D2R;
-    s.kickZv += 1.6 + rec * 0.5; s.kickRv += 2.0 + rec * 1.2;
-    s.flashT = 0.055; s.flashCls = d.id === 'handcannon' ? 'handcannon' : d.cls;
+    // revolver (def.action): a heavier single kick, more of it vertical (kickR is the pitch spring); the bigger flash is in update()
+    var rev = d.action === 'revolver';
+    s.kickZv += (1.6 + rec * 0.5) * (rev ? 1.2 : 1); s.kickRv += (2.0 + rec * 1.2) * (rev ? 1.35 : 1);
+    s.flashT = 0.055; s.flashCls = d.id === 'handcannon' ? 'handcannon' : d.cls; s.flashRev = rev;
     W.anim(s, 'Fire', { once: true, fade: 0.02 });
     if (IB.Boom) IB.Boom.onFire(s, d);   // shell casing from the EJECT socket, muzzle smoke
     // layered shot per class; heavier guns pitch down, light ones up (+/-4% random per shot)
@@ -530,7 +533,7 @@
         var cls = s.flashCls || g.def.cls, big = s.flashT > 0.028 ? 1 : 0.62;   // frame 1 full, frame 2 smaller
         W.flash.position.set(0, 0, -0.03);
         W.flash.rotation.z = Math.random() * 6.28;
-        var fs = (FLASH_SCALE[cls] || 1) * (0.85 + Math.random() * 0.4) * big; W.flash.scale.set(fs, fs, fs);
+        var fs = (FLASH_SCALE[cls] || 1) * (0.85 + Math.random() * 0.4) * big * (s.flashRev ? REV_FLASH : 1); W.flash.scale.set(fs, fs, fs);
         W.flashSide.visible = !!FLASH_SIDE[cls]; W.flashSide.rotation.z = -W.flash.rotation.z + (Math.random() - 0.5) * 0.3;   // flares stay level
         W.flashCone.visible = big === 1;
       }

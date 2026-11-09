@@ -12,7 +12,7 @@ test('weapon table numbers (5.2)', () => {
     // id: [damage, rpm, hip, aim, recoil, recoilH, reload, mag, reserve, slot, cls, fire]
     // pistol fire rates raised from the brief at the user's request (pip 300->450, handcannon 110->150, twintap 220->300 bursts)
     pip: [18, 450, 0.8, 0.3, 1.2, 0.3, 1.1, 40, 250, 1, 'pistol', 'semi'],
-    handcannon: [22, 750, 0.5, 0.15, 1.0, 0.3, 2.2, 18, 250, 1, 'pistol', 'semi'],
+    handcannon: [22, 750, 0.5, 0.15, 1.6, 0.3, 2.2, 18, 250, 1, 'pistol', 'semi'],
     twintap: [16, 156, 1.0, 0.4, 0.9, 0, 1.3, 16, 250, 1, 'pistol', 'burst'],
     buzz: [11, 900, 2.2, 1.2, 0.5, 0.4, 1.6, 30, 180, 2, 'smg', 'auto'],
     whisk: [8, 1100, 3.2, 2.0, 0.35, 0.6, 1.4, 40, 240, 2, 'smg', 'auto'],

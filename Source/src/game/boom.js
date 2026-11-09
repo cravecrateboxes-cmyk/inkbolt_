@@ -799,10 +799,12 @@
     }
     // muzzle smoke wisp in the world
     var cam = IB.Render.camera;
-    if (Wp.muzzleWorld && cam && roomy() && Math.random() < (def.fire === 'auto' ? 0.35 : 0.8)) {
+    // a revolver (def.action): every shot, and a puff 1.5x the size
+    var rev = def.action === 'revolver';
+    if (Wp.muzzleWorld && cam && roomy() && Math.random() < (rev ? 1 : def.fire === 'auto' ? 0.35 : 0.8)) {
       Wp.muzzleWorld(cam, _v);
       cam.getWorldDirection(_a); _v.addScaledVector(_a, 0.5);
-      var c = card(C.dust, M_BILL, _v.x, _v.y, _v.z, rnd(0.35, 0.55), 0.02, rnd(0.08, 0.13), 0xE9E4F0); c.vx = _a.x * 0.8; c.vy = 0.45; c.vz = _a.z * 0.8; c.drag = 2.5; c.a0 = 0.5; c.fd = 0.15;
+      var c = card(C.dust, M_BILL, _v.x, _v.y, _v.z, rnd(0.35, 0.55) * (rev ? 1.5 : 1), 0.02, rnd(0.08, 0.13), 0xE9E4F0); c.vx = _a.x * 0.8; c.vy = 0.45; c.vz = _a.z * 0.8; c.drag = 2.5; c.a0 = 0.5; c.fd = 0.15;
     }
   };
 
