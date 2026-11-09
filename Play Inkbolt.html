@@ -6718,7 +6718,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     murmur: W({
       // homing salvo: locks up to 5 robots (or spots) in front, 6 missiles split over the locks; 2 rockets a salvo
       id: 'murmur', name: 'ML-6 Murmur', cls: 'rocket', slot: 5, fire: 'rocket', launcher: 'homing', ammo: 'rocket', ammoPer: 2,
-      noMods: true, damage: 36, splash: 58, radius: 3.0, exponent: 0.5, missiles: 6, locks: 5, lockRange: 60, lockCone: 26,
+      noMods: true, damage: 36, splash: 58, radius: 3.0, exponent: 0.5, missiles: 6, missilesLegend: 8, locks: 5, lockRange: 60, lockCone: 26,
       rpm: 60, spreadHip: 0.5, spreadAim: 0.2, recoil: 4.2, recoilH: 0.6, reload: 3.4, mag: 2, magRoll: [2, 4], reserve: 0, unlock: 0,
       speed: 30, turn: 6.5, projRadius: 0.1, life: 3.2, selfMul: 0.35, selfCap: 35, knockback: 4, moveMul: 0.9, aimZoom: 0.8, coreMul: 1,
       blurb: 'Locks up to 5 targets and fires 6 homing missiles.', sound: 'servo chirps, rippled launch, six booms'
@@ -22785,8 +22785,10 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     }
     return out;
   };
+  /* missiles a salvo: def.missiles, or def.missilesLegend on a Legendary (orange) gun */
+  L.missilesFor = function (def, tierId) { return tierId === 'orange' && def.missilesLegend ? def.missilesLegend : (def.missiles || 6); };
   function salvo(def, cam, el, mul) {
-    var locks = L.computeLocks(def, cam), n = def.missiles || 6;
+    var locks = L.computeLocks(def, cam), n = L.missilesFor(def, IB.WeaponDrops && IB.WeaponDrops.tierOf ? IB.WeaponDrops.tierOf(def.id).id : 'gray');
     L.stats.salvos++;
     showLocks(locks, true);
     _rt.set(1, 0, 0).applyQuaternion(cam.quaternion); _upv.set(0, 1, 0).applyQuaternion(cam.quaternion);
@@ -25122,7 +25124,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       if (def.ammo) {
         var rl0 = WDg && WDg.rollOf ? WDg.rollOf(w) : null, el0 = rl0 && def.elements && IB.GunLevel ? IB.GunLevel.element(rl0.elem) : null;
         if (el0) notes.push(el0.name ? el0.name + ' rockets: ' + ({ boom: 'bigger blast + bomblets', shock: 'shock over time, arcs to 2-3 robots', acid: 'acid over time + an acid pool' }[el0.id] || '') : 'Plain rockets (no element)');
-        if (def.launcher === 'homing') notes.push('Locks up to ' + def.locks + ' targets in front, ' + def.missiles + ' homing missiles a salvo');
+        if (def.launcher === 'homing') notes.push('Locks up to ' + def.locks + ' targets in front, ' + IB.Launchers.missilesFor(def, WDg.tierOf(w).id) + ' homing missiles a salvo');
         notes.push('Rocket ammo: ' + (def.ammoPer || 1) + ' a ' + (def.missiles ? 'salvo' : 'shot') + ' · soldiers drop rocket crates');
         notes.push('Launchers take no mods');
       }
@@ -25352,7 +25354,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     var name = WDg && WDg.skinName ? WDg.skinName(p.id, T.id, p.roll) : def.name, notes = [];
     var el = p.roll && def.elements && IB.GunLevel ? IB.GunLevel.element(p.roll.elem) : null;
     if (el && el.name) notes.push(el.name + ' rockets');
-    if (def.launcher === 'homing') notes.push('Homing salvo of ' + def.missiles);
+    if (def.launcher === 'homing') notes.push('Homing salvo of ' + IB.Launchers.missilesFor(def, T.id));
     if (st.def.acid) notes.push('Acid rounds');
     if (st.fx.shock) notes.push('Shock rounds');
     if (def.scopeZoom) notes.push('Built-in ' + def.scopeZoom + 'x scope');

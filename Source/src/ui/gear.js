@@ -173,7 +173,7 @@
       if (def.ammo) {
         var rl0 = WDg && WDg.rollOf ? WDg.rollOf(w) : null, el0 = rl0 && def.elements && IB.GunLevel ? IB.GunLevel.element(rl0.elem) : null;
         if (el0) notes.push(el0.name ? el0.name + ' rockets: ' + ({ boom: 'bigger blast + bomblets', shock: 'shock over time, arcs to 2-3 robots', acid: 'acid over time + an acid pool' }[el0.id] || '') : 'Plain rockets (no element)');
-        if (def.launcher === 'homing') notes.push('Locks up to ' + def.locks + ' targets in front, ' + def.missiles + ' homing missiles a salvo');
+        if (def.launcher === 'homing') notes.push('Locks up to ' + def.locks + ' targets in front, ' + IB.Launchers.missilesFor(def, WDg.tierOf(w).id) + ' homing missiles a salvo');
         notes.push('Rocket ammo: ' + (def.ammoPer || 1) + ' a ' + (def.missiles ? 'salvo' : 'shot') + ' · soldiers drop rocket crates');
         notes.push('Launchers take no mods');
       }
@@ -403,7 +403,7 @@
     var name = WDg && WDg.skinName ? WDg.skinName(p.id, T.id, p.roll) : def.name, notes = [];
     var el = p.roll && def.elements && IB.GunLevel ? IB.GunLevel.element(p.roll.elem) : null;
     if (el && el.name) notes.push(el.name + ' rockets');
-    if (def.launcher === 'homing') notes.push('Homing salvo of ' + def.missiles);
+    if (def.launcher === 'homing') notes.push('Homing salvo of ' + IB.Launchers.missilesFor(def, T.id));
     if (st.def.acid) notes.push('Acid rounds');
     if (st.fx.shock) notes.push('Shock rounds');
     if (def.scopeZoom) notes.push('Built-in ' + def.scopeZoom + 'x scope');

@@ -214,8 +214,10 @@
     }
     return out;
   };
+  /* missiles a salvo: def.missiles, or def.missilesLegend on a Legendary (orange) gun */
+  L.missilesFor = function (def, tierId) { return tierId === 'orange' && def.missilesLegend ? def.missilesLegend : (def.missiles || 6); };
   function salvo(def, cam, el, mul) {
-    var locks = L.computeLocks(def, cam), n = def.missiles || 6;
+    var locks = L.computeLocks(def, cam), n = L.missilesFor(def, IB.WeaponDrops && IB.WeaponDrops.tierOf ? IB.WeaponDrops.tierOf(def.id).id : 'gray');
     L.stats.salvos++;
     showLocks(locks, true);
     _rt.set(1, 0, 0).applyQuaternion(cam.quaternion); _upv.set(0, 1, 0).applyQuaternion(cam.quaternion);

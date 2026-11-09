@@ -179,3 +179,12 @@ test('Torpedo skill: the rocket pool cap is 50% bigger (16 -> 24)', () => {
   assert.equal(GL.rocketNeed({ owned: true, carried: true, ammo: 16, pending: 0 }), 0);
   assert.ok(GL.rocketNeed({ owned: true, carried: true, ammo: 16, pending: 0, cap: 24 }) > 0);
 });
+
+test('Murmur: a Legendary (orange) salvo is 8 missiles, the others 6', () => {
+  const W = IB.WEAPONS;
+  assert.equal(W.murmur.missiles, 6); assert.equal(W.murmur.missilesLegend, 8);
+  if (IB.Launchers && IB.Launchers.missilesFor) {
+    assert.equal(IB.Launchers.missilesFor(W.murmur, 'orange'), 8);
+    assert.equal(IB.Launchers.missilesFor(W.murmur, 'gray'), 6);
+  }
+});

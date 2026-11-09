@@ -192,7 +192,7 @@
     murmur: W({
       // homing salvo: locks up to 5 robots (or spots) in front, 6 missiles split over the locks; 2 rockets a salvo
       id: 'murmur', name: 'ML-6 Murmur', cls: 'rocket', slot: 5, fire: 'rocket', launcher: 'homing', ammo: 'rocket', ammoPer: 2,
-      noMods: true, damage: 36, splash: 58, radius: 3.0, exponent: 0.5, missiles: 6, locks: 5, lockRange: 60, lockCone: 26,
+      noMods: true, damage: 36, splash: 58, radius: 3.0, exponent: 0.5, missiles: 6, missilesLegend: 8, locks: 5, lockRange: 60, lockCone: 26,
       rpm: 60, spreadHip: 0.5, spreadAim: 0.2, recoil: 4.2, recoilH: 0.6, reload: 3.4, mag: 2, magRoll: [2, 4], reserve: 0, unlock: 0,
       speed: 30, turn: 6.5, projRadius: 0.1, life: 3.2, selfMul: 0.35, selfCap: 35, knockback: 4, moveMul: 0.9, aimZoom: 0.8, coreMul: 1,
       blurb: 'Locks up to 5 targets and fires 6 homing missiles.', sound: 'servo chirps, rippled launch, six booms'
