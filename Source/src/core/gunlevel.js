@@ -118,17 +118,19 @@
 
   // ---------------- rocket ammo director ----------------
   GL.ROCKET = { cap: 16, start: 6, carriedTarget: 0.7, packTarget: 0.3, useWindow: 90, useFull: 6, maxChance: 0.5, pity: 3,
-    budgetPerSoldier: 0.27, minBudget: 14, dropWeight: { soldier: 1, blader: 0.5 } };
+    budgetPerSoldier: 0.27, minBudget: 14, dropWeight: { soldier: 1, blader: 0.5 }, torpedoCapMul: 1.5 };
+  /* the rocket pool's cap: the Torpedo skill adds 50% (st.cap in rocketNeed / rocketDrop overrides the base) */
+  GL.rocketCap = function (torpedo) { return Math.round(GL.ROCKET.cap * (torpedo ? GL.ROCKET.torpedoCapMul : 1)); };
   /* which kills can drop a rocket crate, and how often vs a soldier (melee bladers: half the chance) */
   GL.rocketDropWeight = function (type) { return GL.ROCKET.dropWeight[type] || 0; };
   /* st: {owned, carried, ammo, pending (rockets in crates on the map), used (rockets fired in the last 90 s), per
      (rockets a shot of the carried launcher takes)} -> 0..1 */
   GL.rocketNeed = function (st) {
-    var R = GL.ROCKET;
+    var R = GL.ROCKET, cap = st && st.cap || R.cap;
     if (!st || !st.owned) return 0;
     var have = (st.ammo || 0) + (st.pending || 0);
-    if (have >= R.cap) return 0;
-    var target = R.cap * (st.carried ? R.carriedTarget : R.packTarget);
+    if (have >= cap) return 0;
+    var target = cap * (st.carried ? R.carriedTarget : R.packTarget);
     if (have >= target) return 0;
     var need = 1 - have / target, use = clamp((st.used || 0) / R.useFull, 0, 1);
     need *= st.carried ? 0.55 + 0.45 * use : 0.5;
@@ -141,7 +143,7 @@
      dropped (rockets dropped this level), budget, w (drop weight of the killed robot, default 1: a blader 0.5) */
   GL.rocketDrop = function (st, rng) {
     rng = rng || Math.random;
-    var R = GL.ROCKET, need = GL.rocketNeed(st);
+    var R = GL.ROCKET, need = GL.rocketNeed(st), cap = st.cap || R.cap;
     if (need <= 0) return 0;
     var left = (st.budget === undefined ? Infinity : st.budget) - (st.dropped || 0);
     if (left <= 0) return 0;
@@ -150,7 +152,7 @@
     var w = st.w === undefined ? 1 : st.w;
     if (w <= 0) return 0;
     if (!pity && rng() >= R.maxChance * need * w) return 0;
-    return Math.max(1, Math.min(R.cap - have, left, 2 + Math.round(3 * need)));
+    return Math.max(1, Math.min(cap - have, left, 2 + Math.round(3 * need)));
   };
 
   // ---------------- balance helpers (unit-tested intent) ----------------

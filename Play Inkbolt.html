@@ -7062,7 +7062,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     S('handyhelpers', 7, 0, 'Handy Helpers', 'capstone', [1], '', 'Rogue bots',
       'When you wreck a robot there is an 8% chance it turns rogue instead and fights for you until it is destroyed, with 3-5x its health and 1.5x its damage.', 'helper'),
     S('torpedo', 7, 2, 'Torpedo', 'capstone', [1], '', 'Last-round torpedo',
-      'Your last round in each magazine becomes a torpedo, 5x base damage (2x for rocket launchers) in a wide splash that slows what it hits for 5 s.', 'torpedo'),
+      'Your last round in each magazine becomes a torpedo, 5x base damage (2x for rocket launchers) in a wide splash that slows what it hits for 5 s. Rocket ammo capacity +50%.', 'torpedo'),
     S('chainreaction', 7, 1, 'Chain Reaction', 'capstone', [1], '', 'Group blast',
       'Shooting a robot with 2 or more others within 4 m has a 10% chance to blow the whole group up for 40% of each robot\'s max health. They do not all die at once.', 'burst')
   ];
@@ -11624,17 +11624,19 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
 
   // ---------------- rocket ammo director ----------------
   GL.ROCKET = { cap: 16, start: 6, carriedTarget: 0.7, packTarget: 0.3, useWindow: 90, useFull: 6, maxChance: 0.5, pity: 3,
-    budgetPerSoldier: 0.27, minBudget: 14, dropWeight: { soldier: 1, blader: 0.5 } };
+    budgetPerSoldier: 0.27, minBudget: 14, dropWeight: { soldier: 1, blader: 0.5 }, torpedoCapMul: 1.5 };
+  /* the rocket pool's cap: the Torpedo skill adds 50% (st.cap in rocketNeed / rocketDrop overrides the base) */
+  GL.rocketCap = function (torpedo) { return Math.round(GL.ROCKET.cap * (torpedo ? GL.ROCKET.torpedoCapMul : 1)); };
   /* which kills can drop a rocket crate, and how often vs a soldier (melee bladers: half the chance) */
   GL.rocketDropWeight = function (type) { return GL.ROCKET.dropWeight[type] || 0; };
   /* st: {owned, carried, ammo, pending (rockets in crates on the map), used (rockets fired in the last 90 s), per
      (rockets a shot of the carried launcher takes)} -> 0..1 */
   GL.rocketNeed = function (st) {
-    var R = GL.ROCKET;
+    var R = GL.ROCKET, cap = st && st.cap || R.cap;
     if (!st || !st.owned) return 0;
     var have = (st.ammo || 0) + (st.pending || 0);
-    if (have >= R.cap) return 0;
-    var target = R.cap * (st.carried ? R.carriedTarget : R.packTarget);
+    if (have >= cap) return 0;
+    var target = cap * (st.carried ? R.carriedTarget : R.packTarget);
     if (have >= target) return 0;
     var need = 1 - have / target, use = clamp((st.used || 0) / R.useFull, 0, 1);
     need *= st.carried ? 0.55 + 0.45 * use : 0.5;
@@ -11647,7 +11649,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
      dropped (rockets dropped this level), budget, w (drop weight of the killed robot, default 1: a blader 0.5) */
   GL.rocketDrop = function (st, rng) {
     rng = rng || Math.random;
-    var R = GL.ROCKET, need = GL.rocketNeed(st);
+    var R = GL.ROCKET, need = GL.rocketNeed(st), cap = st.cap || R.cap;
     if (need <= 0) return 0;
     var left = (st.budget === undefined ? Infinity : st.budget) - (st.dropped || 0);
     if (left <= 0) return 0;
@@ -11656,7 +11658,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     var w = st.w === undefined ? 1 : st.w;
     if (w <= 0) return 0;
     if (!pity && rng() >= R.maxChance * need * w) return 0;
-    return Math.max(1, Math.min(R.cap - have, left, 2 + Math.round(3 * need)));
+    return Math.max(1, Math.min(cap - have, left, 2 + Math.round(3 * need)));
   };
 
   // ---------------- balance helpers (unit-tested intent) ----------------
@@ -22666,10 +22668,12 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     L.soldiers = soldiers; L.bladers = bladers;
     L.budget = GL() ? GL().rocketBudget(soldiers) : 12;
   };
+  /* the rocket pool's cap: 16, or 24 with the Torpedo skill (+50%) */
+  function rocketCap() { return GL() ? GL().rocketCap(!!(IB.SkillFX && IB.SkillFX.fx && IB.SkillFX.fx.torpedo)) : 16; }
   /* a launcher joined the arsenal (isNew) or replaced yours: a new one comes with one magazine of rockets */
   L.onAcquire = function (id, isNew) {
     var g = G(), def = IB.WEAPONS[id]; if (!g || !def || !isNew) return;
-    var cap = GL() ? GL().ROCKET.cap : 16, P = pool();
+    var cap = rocketCap(), P = pool();
     P.rocket = Math.max(P.rocket, Math.min(cap - loaded(), P.rocket + L.magOf(def) * (def.ammoPer || 1)));
     if (g.slot) g.slot.rockets = L.total();
   };
@@ -23011,7 +23015,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     return c;
   };
   function syncCrates(dt, t, g) {
-    var p = g.player, cap = GL() ? GL().ROCKET.cap : 16;
+    var p = g.player, cap = rocketCap();
     L.crates.forEach(function (c, i) {
       if (!c.on) return;
       c.t += dt;
@@ -23036,7 +23040,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     if (ws) Object.keys(ws.guns).forEach(function (id) { var d = ws.guns[id].def; if (d.ammo) { carried = true; per = Math.max(per, d.ammoPer || 1); } });
     var now = g.run ? g.run.time : 0, win = GL() ? GL().ROCKET.useWindow : 90;
     while (L.used.length && L.used[0] < now - win) L.used.shift();
-    return { owned: owned, carried: carried, ammo: L.total(), pending: pending(), used: L.used.length, per: per || 1, dry: L.dry || 0, dropped: L.dropped || 0, budget: L.budget };
+    return { owned: owned, carried: carried, ammo: L.total(), pending: pending(), used: L.used.length, per: per || 1, dry: L.dry || 0, dropped: L.dropped || 0, budget: L.budget, cap: rocketCap() };
   };
   L.onKill = function (r) {
     if (IB.WeaponDrops && IB.WeaponDrops.rollLauncher) IB.WeaponDrops.rollLauncher(r);

@@ -170,3 +170,12 @@ test('Warden: magazine rolled 40-50 (kept as a roll), crit spots x3', () => {
   assert.deepEqual(GL.fixMagRange(def, { mag: 99 }), { mag: 50 });
   assert.deepEqual(GL.fixMagRange(def, undefined), { mag: 40 });
 });
+
+test('Torpedo skill: the rocket pool cap is 50% bigger (16 -> 24)', () => {
+  const GL = IB.GunLevel;
+  assert.equal(GL.rocketCap(false), 16);
+  assert.equal(GL.rocketCap(true), 24);
+  // 16 rockets: a full pool without Torpedo, still wanting more with it
+  assert.equal(GL.rocketNeed({ owned: true, carried: true, ammo: 16, pending: 0 }), 0);
+  assert.ok(GL.rocketNeed({ owned: true, carried: true, ammo: 16, pending: 0, cap: 24 }) > 0);
+});

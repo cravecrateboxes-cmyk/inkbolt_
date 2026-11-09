@@ -97,10 +97,12 @@
     L.soldiers = soldiers; L.bladers = bladers;
     L.budget = GL() ? GL().rocketBudget(soldiers) : 12;
   };
+  /* the rocket pool's cap: 16, or 24 with the Torpedo skill (+50%) */
+  function rocketCap() { return GL() ? GL().rocketCap(!!(IB.SkillFX && IB.SkillFX.fx && IB.SkillFX.fx.torpedo)) : 16; }
   /* a launcher joined the arsenal (isNew) or replaced yours: a new one comes with one magazine of rockets */
   L.onAcquire = function (id, isNew) {
     var g = G(), def = IB.WEAPONS[id]; if (!g || !def || !isNew) return;
-    var cap = GL() ? GL().ROCKET.cap : 16, P = pool();
+    var cap = rocketCap(), P = pool();
     P.rocket = Math.max(P.rocket, Math.min(cap - loaded(), P.rocket + L.magOf(def) * (def.ammoPer || 1)));
     if (g.slot) g.slot.rockets = L.total();
   };
@@ -442,7 +444,7 @@
     return c;
   };
   function syncCrates(dt, t, g) {
-    var p = g.player, cap = GL() ? GL().ROCKET.cap : 16;
+    var p = g.player, cap = rocketCap();
     L.crates.forEach(function (c, i) {
       if (!c.on) return;
       c.t += dt;
@@ -467,7 +469,7 @@
     if (ws) Object.keys(ws.guns).forEach(function (id) { var d = ws.guns[id].def; if (d.ammo) { carried = true; per = Math.max(per, d.ammoPer || 1); } });
     var now = g.run ? g.run.time : 0, win = GL() ? GL().ROCKET.useWindow : 90;
     while (L.used.length && L.used[0] < now - win) L.used.shift();
-    return { owned: owned, carried: carried, ammo: L.total(), pending: pending(), used: L.used.length, per: per || 1, dry: L.dry || 0, dropped: L.dropped || 0, budget: L.budget };
+    return { owned: owned, carried: carried, ammo: L.total(), pending: pending(), used: L.used.length, per: per || 1, dry: L.dry || 0, dropped: L.dropped || 0, budget: L.budget, cap: rocketCap() };
   };
   L.onKill = function (r) {
     if (IB.WeaponDrops && IB.WeaponDrops.rollLauncher) IB.WeaponDrops.rollLauncher(r);
