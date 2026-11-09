@@ -12,7 +12,7 @@ test('weapon table numbers (5.2)', () => {
     // id: [damage, rpm, hip, aim, recoil, recoilH, reload, mag, reserve, slot, cls, fire]
     // pistol fire rates raised from the brief at the user's request (pip 300->450, handcannon 110->150, twintap 220->300 bursts)
     pip: [18, 450, 0.8, 0.3, 1.2, 0.3, 1.1, 40, 250, 1, 'pistol', 'semi'],
-    handcannon: [22, 600, 0.5, 0.15, 1.0, 0.3, 2.2, 18, 250, 1, 'pistol', 'semi'],
+    handcannon: [22, 750, 0.5, 0.15, 1.0, 0.3, 2.2, 18, 250, 1, 'pistol', 'semi'],
     twintap: [16, 156, 1.0, 0.4, 0.9, 0, 1.3, 16, 250, 1, 'pistol', 'burst'],
     buzz: [11, 900, 2.2, 1.2, 0.5, 0.4, 1.6, 30, 180, 2, 'smg', 'auto'],
     whisk: [8, 1100, 3.2, 2.0, 0.35, 0.6, 1.4, 40, 240, 2, 'smg', 'auto'],
@@ -30,6 +30,7 @@ test('weapon table numbers (5.2)', () => {
     assert.deepEqual([w.damage, w.rpm, w.spreadHip, w.spreadAim, w.recoil, w.recoilH, w.reload, w.mag, w.reserve, w.slot, w.cls, w.fire], r, id);
   }
   assert.equal(W.twintap.burst, 5); assert.ok(Math.abs(W.twintap.cycle - 60 / 156) < 1e-12);
+  assert.deepEqual(W.pip.split, { chance: 0.1, range: 6 }); assert.deepEqual([W.twintap.acid, W.twintap.acidDur], [0.5, 3]);
   assert.equal(W.triplet.burst, 3); assert.equal(W.triplet.cycle, 0.32);
   assert.ok(Math.abs(W.pip.cycle - 60 / 450) < 1e-12);
   assert.equal(W.longtom.aimZoom, 0.67); assert.equal(W.pip.aimZoom, 0.85); assert.equal(W.needle.scopeZoom, 3.5);

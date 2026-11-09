@@ -160,7 +160,7 @@
       d.mods.scope = s;
     }
     if (m && m.type === 'acid') {
-      var as = acidStats(m.stats); d.acid = as.acid; d.acidDur = as.dur; d.quiet = T().types.acid.quiet;
+      var as = acidStats(m.stats); if (as.acid >= (d.acid || 0)) { d.acid = as.acid; d.acidDur = as.dur; } d.quiet = T().types.acid.quiet;   // the stronger of the gun's own acid and the can's
       d.mods.muzzle = m;
     }
     if (m && (m.type === 'shock' || m.type === 'blast' || m.type === 'void')) { d.can = { type: m.type, stats: m.stats }; d.mods.muzzle = m; }

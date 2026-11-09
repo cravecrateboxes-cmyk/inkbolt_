@@ -889,6 +889,15 @@
       if (IB.Boom) IB.Boom.robotHit(r, _end.x, _end.y, _end.z, dx, dy, dz, zone, killed);   // sparks, chips, core pop
       if (!killed) { HUD.hit(zone !== 'body' ? 'core' : 'hit'); A.play(zone !== 'body' ? 'core' : 'hit'); }
       if (IB.Gear) IB.Gear.onHit(r, res, zone, def, killed);   // damage number, acid DoT
+      // Warden split: a hit may split the round in two; the second half hits the nearest robot close by for the same damage
+      if (def.split && Math.random() < def.split.chance) {
+        var sp = AI.nearest(r.x, r.z, def.split.range, function (o) { return o !== r; });
+        if (sp) {
+          var sk = AI.damage(sp, dmg, { kx: dx * 2, kz: dz * 2 }, onKill);
+          FX.tracer(_end.x, _end.y, _end.z, sp.x, sp.y + 0.9, sp.z);
+          if (IB.Gear) IB.Gear.onHit(sp, { damage: dmg }, 'body', def, sk);
+        }
+      }
     } else if (whit) {
       if (whit.box && whit.box.kind === 'canister' && IB.Boom) IB.Boom.hitCan(whit.box, def.damage || 15);   // explosive canister
       else if (whit.box && whit.box.kind === 'gate') FX.puff(_end.x, _end.y, _end.z, 3, PAL.ink, 0.1, 0.3, 1.5);
