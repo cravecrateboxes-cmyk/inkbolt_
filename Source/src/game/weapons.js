@@ -386,8 +386,8 @@
   function fire(s, g, ctx) {
     if (g.mag <= 0) { s.burst = 0; return; }
     var d = g.def, p = ctx.player, cam = ctx.cam;
-    // Torpedo (endgame): the last round of a magazine, fired with 1 left, is a torpedo; guns only, not launchers
-    var torpedo = g.mag === 1 && s.fx && s.fx.torpedo && d.fire !== 'rocket' && d.cls !== 'rocket' && ctx.torpedo;
+    // Torpedo (endgame): the last round of a magazine, fired with 1 left, is a torpedo; guns and rocket launchers, not grenades
+    var torpedo = g.mag === 1 && s.fx && s.fx.torpedo && d.cls !== 'grenade' && d.cls !== 'melee' && ctx.torpedo;
     g.mag--;
     var spread = W.spread(s, p) * D2R;
     s.sinceShot = 0; s.shotsInRow++;

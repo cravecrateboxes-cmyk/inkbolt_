@@ -154,9 +154,12 @@
   var TORPEDO = { id: 'torpedo', name: 'Torpedo', damage: 0, splash: 0, radius: 4.5, exponent: 0.7, speed: 34, life: 2.2, turn: 0, knockback: 8, slow: 0.25, slowTime: 5 };
   var TORPEDO_EL = { id: 'torpedo', name: '', color: '#5FE3FF', splashMul: 1, radiusMul: 1.15 };
   L.torpedo = function (gun, cam, spread) {
-    var sk = IB.SkillFX && IB.SkillFX.fx ? IB.SkillFX.fx : {};
-    var base = (GL() ? GL().shotDamage(gun) : gun.damage) * dmgMul(gun);
-    var def = Object.assign({}, TORPEDO, { splash: base * (sk.torpedoMul || 5), radius: sk.torpedoRadius || 4.5, slow: sk.torpedoSlow || 0, slowTime: sk.torpedoSlowTime || 5 });
+    var g = G();
+    var sk = IB.SkillFX && IB.SkillFX.fx ? IB.SkillFX.fx : {}, launcher = GL() && GL().isLauncher(gun);
+    // guns: 5x the shot; rocket launchers: 2x one rocket (direct + splash)
+    var base = launcher ? ((gun.damage || 0) + (gun.splash || 0)) * dmgMul(gun) : (GL() ? GL().shotDamage(gun) : gun.damage) * dmgMul(gun);
+    var mul = launcher ? (sk.torpedoRocketMul || 2) : (sk.torpedoMul || 5);
+    var def = Object.assign({}, TORPEDO, { splash: base * mul, radius: sk.torpedoRadius || 4.5, slow: sk.torpedoSlow || 0, slowTime: sk.torpedoSlowTime || 5 });
     IB.Weapons.muzzleWorld(cam, _mz);
     cam.getWorldDirection(_d); _mz.addScaledVector(_d, 0.25);
     aimPoint(cam, 160, _aim);
@@ -165,6 +168,7 @@
     _rt.set(1, 0, 0).applyQuaternion(cam.quaternion); _upv.set(0, 1, 0).applyQuaternion(cam.quaternion);
     var a = Math.random() * Math.PI * 2, rr = Math.sqrt(Math.random()) * Math.tan(spread || 0);
     dx = dx / dl + (_rt.x * Math.cos(a) + _upv.x * Math.sin(a)) * rr; dy = dy / dl + (_rt.y * Math.cos(a) + _upv.y * Math.sin(a)) * rr; dz = dz / dl + (_rt.z * Math.cos(a) + _upv.z * Math.sin(a)) * rr;
+    if (launcher) { L.stats.fired += gun.ammoPer || 1; var now = g.run ? g.run.time : 0; for (var u = 0; u < (gun.ammoPer || 1); u++) L.used.push(now); if (g.addTrauma) g.addTrauma(0.16); }
     spawnRocket(def, _mz.x, _mz.y, _mz.z, dx, dy, dz, def.speed, { elem: TORPEDO_EL, mul: 1, sc: 0.8 });
     if (IB.Audio) IB.Audio.play('missile', { pitch: 1.25, gain: 0.5 });
     if (IB.FX) IB.FX.puff(_mz.x, _mz.y, _mz.z, 3, 0x5FE3FF, 0.1, 0.25, 1.2);

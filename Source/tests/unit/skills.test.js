@@ -313,7 +313,7 @@ test('arsenal skills: Boom (blasts +10/20/30%, one more frag can), Dart (zoomed 
 test('Torpedo: an endgame pick (one of three), 5x the shot as splash, slows what it hurts', () => {
   assert.equal(S.effects({}).torpedo, false);
   const t = S.effects({ torpedo: 1 });
-  assert.equal(t.torpedo, true); assert.equal(t.torpedoMul, 5); near(t.torpedoSlow, 0.25); assert.equal(t.torpedoSlowTime, 5);
+  assert.equal(t.torpedo, true); assert.equal(t.torpedoMul, 5); assert.equal(t.torpedoRocketMul, 2); near(t.torpedoSlow, 0.25); assert.equal(t.torpedoSlowTime, 5);
   const low = IB.SKILLS.filter((x) => x.kind !== 'capstone').flatMap((x) => Array(x.max).fill(x.id)).slice(0, 9);
   const sk = buyAll(buyAll({}, 19, low), 19, ['torpedo']);   // 9 points below: the endgame row is open
   assert.equal(S.spent(sk), 10);

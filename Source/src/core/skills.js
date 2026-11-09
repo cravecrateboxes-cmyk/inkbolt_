@@ -145,7 +145,7 @@
       swapMul: 1 / (1 + v('fastfingers') / 100),       // ... and holster / draw time
       // tier 7 (pick one)
       rogue: has('handyhelpers') ? 0.08 : 0, rogueTime: Infinity, rogueDmgMul: 1.5, rogueHpMul: [3, 5],   // Handy Helpers
-      torpedo: has('torpedo'), torpedoMul: 5, torpedoRadius: 4.5, torpedoSlow: 0.25, torpedoSlowTime: 5,   // Torpedo: last round of a magazine
+      torpedo: has('torpedo'), torpedoMul: 5, torpedoRocketMul: 2, torpedoRadius: 4.5, torpedoSlow: 0.25, torpedoSlowTime: 5,   // Torpedo: last round of a magazine
       chain: has('chainreaction') ? 0.1 : 0, chainMin: 2, chainRadius: 4, chainFrac: 0.4, chainCooldown: 1,   // Chain Reaction
       // neutral fields older callers still read (Upgrade Bench stacking, field kit)
       recoilMul: 1, spreadMul: 1, magnetMul: 1, coreMul: 1, leech: 0, maxHpAdd: 0, regen: rk('tank') + 0.5 * rk('healthy')
