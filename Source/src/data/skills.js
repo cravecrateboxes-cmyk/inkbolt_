@@ -65,11 +65,11 @@
       'Increases your max health and slowly regenerates 0.5% of it per second per rank after 4 s without damage.', 'heart'),
     // tier 4 (arsenal)
     S('boom', 4, 0, 'Boom', 'rank', [10, 20, 30], '%', 'Blast damage',
-      'Rocket launcher and frag can damage +10 / 20 / 30%, and you carry one more frag can.', 'boom'),
+      'Rocket launcher and frag can damage increase, and you carry one more frag can.', 'boom'),
     S('dart', 4, 1, 'Dart', 'rank', [6, 12, 18], '%', 'Scoped damage',
-      'Bullets deal 6 / 12 / 18% more damage while you are zoomed in (aiming down the sights).', 'dart'),
-    S('surge', 4, 2, 'Surge Up', 'rank', [9, 18, 27], '%', 'Move speed after a kill',
-      'Each kill speeds you up 9 / 18 / 27% for 4 s. Kills refresh the boost; it does not stack.', 'surge'),
+      'Bullets deal more damage while you are zoomed in (aiming down the sights).', 'dart'),
+    S('surge', 4, 2, 'Surge Up', 'rank', [9, 18, 27], '%', 'Move speed',
+      'Each kill speeds you up for 4 seconds. Kills refresh the boost; it does not stack.', 'surge'),
     // tier 5 (tricks)
     S('stamina', 5, 0, 'Stamina', 'special', [1], '', 'Marathon',
       'You move 15% faster, sprint 30% faster, your running lasts 2.5x longer, and stamina recharges in half the time.', 'run'),

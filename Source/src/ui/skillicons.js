@@ -23,25 +23,45 @@
   }
 
   var ART = {
-    // Boom: a frag can with its lever, a rocket with a flame trail, and a burst
+    // Boom: a ribbed frag can with a pulled pin and lever, a rocket blasting off with a flame, and smoke puffs
     boom: function () {
-      return p('M24 22C14 22 8 29 8 38S15 56 26 56S44 47 44 38S34 22 24 22Z', '#6E8B3D', O) +
-        p('M14 26C18 22 24 21 30 22', 'none', ' stroke="#A9C96A" stroke-width="2.4" stroke-linecap="round"') +
-        p('M22 20H30V14H22Z', '#3B4A3A', O2) + p('M30 16C36 12 40 11 44 12', 'none', O2 + ' stroke-width="3"') +
-        p('M16 42C17 37 21 35 25 36', 'none', HL.replace('stroke-width="2.6"', 'stroke-width="2.2"')) +
-        p('M40 26L58 12L54 25Z', '#E9EEF7', O2) + p('M56 13L62 4L55 7Z', '#F0443A', O2) +
-        p('M44 30L34 40L40 42Z', '#FFB21E', O2) + p('M44 29L28 46L30 48L47 32Z', '#FF8A3D', O2) +
-        p('M42 34L54 22L48 32Z', '#C8D0DE', O2) +
-        p('M4 56l2 4 4-1-2 4 3 3-4 0-1 4-2-4-4 1 2-4-3-3 4 0z', '#FFD23F', O2);
+      return '<g transform="translate(45 27) rotate(-42) scale(1.15)">' +
+          p('M-22 -2.5 L-30 -6 L-27 0 L-30 6 L-22 2.5Z', '#FFB21E', O2) + p('M-21 -1 L-26 0 L-21 1Z', '#FFF1A8') +
+          p('M-13 -4.5H12V4.5H-13Z', '#E9EEF7', O2) + hl('M-9 -2.2H7', .9) +
+          p('M12 -4.5 L19 0 L12 4.5Z', '#F0443A', O2) +
+          p('M-13 -4.5 L-19 -10 L-17 -3Z', '#F0443A', O2) + p('M-13 4.5 L-19 10 L-17 3Z', '#F0443A', O2) +
+          c(-2, 0, 2.6, '#3E86D8', O2) + c(-3, -1, 0.9, '#D8EEFF') +
+        '</g>' +
+        c(48, 46, 4, '#E9EEF7', O2) + c(55, 52, 3, '#E9EEF7', O2) + c(41, 53, 2.4, '#E9EEF7', O2) +
+        p('M24 21C13 21 7 29 7 39S15 57 25 57S42 48 42 38S35 21 24 21Z', '#6E8B3D', O) +
+        p('M36 29C40 33 41 38 40 43S35 53 27 55C33 52 35 46 35 40S34 33 36 29Z', '#44592A') +
+        p('M12 36C14 31 18 28 24 27', 'none', HL) +
+        p('M11 45C16 40 20 39 27 40', 'none', ' stroke="#A9C96A" stroke-width="2.4" stroke-linecap="round"') +
+        p('M14 35Q24 29 34 35', 'none', ' stroke="#44592A" stroke-width="2.2" stroke-linecap="round"') +
+        p('M15 46Q24 40 34 46', 'none', ' stroke="#44592A" stroke-width="2.2" stroke-linecap="round"') +
+        p('M20 21H29V14H20Z', '#3B4A3A', O2) + p('M22 15.5H27', 'none', ' stroke="#8A94A8" stroke-width="1.6"') +
+        p('M28 17C33 11 39 10 43 12L43 16C39 14 34 15 30 21Z', '#C8D0DE', O2) +
+        ink('M29 11a4 4 0 1 1 1 5', 2.2) +
+        p('M9 10l2 4 4-1-2 4 3 3-4 0-1 4-2-4-4 1 2-4-3-3 4 0z', '#FFD23F', O2) +
+        c(60, 6, 1.8, '#FFD23F', O2);
     },
-    // Dart: a scope glass with its crosshair, and a dart homing in on the centre
+    // Dart: a scope with a glass lens, reticle and mount screws, and a dart striking it
     dart: function () {
-      return c(30, 30, 19, '#3E4963', O) + c(30, 30, 14.5, '#CFEFFF', O2) +
-        p('M22 25A11 11 0 0 1 35 19', 'none', HL.replace('stroke-width="2.6"', 'stroke-width="2.4"')) +
-        ink('M30 14V46M14 30H46', 2.4) + c(30, 30, 2.6, '#F0443A', O2) +
-        p('M40 42L56 58', 'none', O + ' stroke-width="4"') +
-        p('M56 58L50 56L55 50Z', '#FFB21E', O2) +
-        p('M42 42L36 44L40 48Z', '#E9EEF7', O2) + p('M42 42L44 36L48 40Z', '#8A94A8', O2);
+      return c(30, 30, 21, '#2E3850', O) + c(30, 30, 17, '#5C6B8A', O2) +
+        c(30, 10, 2, '#C8D0DE', O2) + c(30, 50, 2, '#C8D0DE', O2) + c(10, 30, 2, '#C8D0DE', O2) + c(50, 30, 2, '#C8D0DE', O2) +
+        c(30, 30, 13, '#CFEFFF', O2) +
+        p('M30 17A13 13 0 0 1 43 30L36 30A6 6 0 0 0 30 24Z', '#8FD0F2') +
+        p('M20 26A11 11 0 0 1 29 19', 'none', HL.replace('stroke-width="2.6"', 'stroke-width="2.6"')) +
+        p('M26 30H34M30 26V34', 'none', ' stroke="#2E3850" stroke-width="1.8" stroke-linecap="round"') +
+        ink('M30 19V41M19 30H41', 1.8) +
+        c(30, 30, 2.8, '#F0443A', O2) + c(29, 29, 0.9, '#FFD2C8') +
+        '<g transform="translate(42 42) rotate(42) scale(1.1)">' +
+          p('M4 -2.6H17V2.6H4Z', '#C8D0DE', O2) + hl('M6 -1.2H15', .9) +
+          p('M17 -2.6 L22 -6 L21 -1Z', '#FFB21E', O2) + p('M17 2.6 L22 6 L21 1Z', '#FFB21E', O2) +
+          p('M0 0 L7 -4 L6 0 L7 4Z', '#E9EEF7', O2) +
+        '</g>' +
+        p('M55 27l2 4 4-1-2 4 3 3-4 0-1 4-2-4-4 1 2-4-3-3 4 0z', '#FFD23F', O2) +
+        c(58, 40, 1.8, '#FFD23F', O2) + c(4, 56, 2.4, '#8FD0F2', O2);
     },
     // Surge Up: two speed chevrons with sparks
     surge: function () {
