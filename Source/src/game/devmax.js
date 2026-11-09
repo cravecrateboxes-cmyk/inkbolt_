@@ -1,5 +1,6 @@
 /* INKBOLT - TEMPORARY tester switch (remove before release: delete this file and its <script> line in
-   index.src.html). While DEV_MAX is on, the newest save slot is maxed out when the title screen opens:
+   index.src.html). While DEV_MAX is on, the tester profile (the one save with devMax set) is kept as the newest save on
+   every title screen, so Continue loads it; it is made, maxed out, when missing. Its max contents:
    every campaign level cleared, player LV 30 (max XP, all 30 skill points to spend / respec freely, 3 loadout slots),
    every gun Legendary at gun level 30 (launchers with full magazines, Blast Hothead), a full rocket pool,
    lots of gems, every playable gun in the arsenal, legendary level-30 attachments (max rolls: grip, scope, acid
@@ -9,16 +10,27 @@
   'use strict';
   var DEV_MAX = true;
   if (!DEV_MAX || new URLSearchParams(location.search).get('autotest') === '1') return;
-  var G = IB.Game, toTitle = G.toTitle, done = false;
+  var G = IB.Game, toTitle = G.toTitle;
 
   function best() { return 0.999; }          // top of every stat range
-  // the max profile is applied once per save (slot.devMax); after that the save is the player's own progress.
-  // force = the level picker: re-max now, keeping the skills already spent
-  function maxOut(force) {
-    var store = G.store, slot = store.newest();
-    if (!slot) slot = store.newSlot(store.freeSlot() || 1, (Math.random() * 1e9) | 0);
-    if (slot.devMax && !force) { G.slot = slot; return; }
-    slot.devMax = 1;
+  // the tester profile: the one save with devMax set. Found on every title screen (ensureProfile) and kept as the
+  // newest save, so a New game can no longer push it out of reach. If it is missing it is made, maxed out.
+  function devSlot() {
+    var list = G.store.listSlots();
+    for (var i = 0; i < list.length; i++) if (list[i] && list[i].devMax) return list[i];
+    return null;
+  }
+  function makeSlot() {
+    var store = G.store, id = store.freeSlot();
+    if (!id) {   // all three slots are used: the least recently saved one makes way
+      var old = null; store.listSlots().forEach(function (s) { if (s && (!old || s.saved < old.saved)) old = s; });
+      id = old ? old.id : 1;
+    }
+    return store.newSlot(id, (Math.random() * 1e9) | 0);
+  }
+  // fills a slot with the max profile. force = the level picker: re-fills now, keeping the skills already spent
+  function fill(slot, force) {
+    slot.devMax = 1; slot.wyrmV = 1;
     var top = IB.CAMPAIGN.length, plans = IB.CAMPAIGN;
     slot.highest = Math.max(slot.highest || 0, 20, top);
     slot.gems = Math.max(slot.gems || 0, 999999);
@@ -61,8 +73,7 @@
     CANS.forEach(function (t) { put(L.makeItem(t, 'legendary', 30, best)); });   // a spare of each can in the bag
     slot.gear = g;
     if (!force) slot.skills = {};             // all points free: spend / respec as you like in Tab -> Skills
-    store.save(slot);
-    G.slot = slot;
+    return slot;
   }
 
   // DEV level selector (right edge, title screen and pause menu): click a level to start on it at once. The save is
@@ -83,7 +94,7 @@
         var plan = IB.LEVEL_PLANS[b.getAttribute('data-dev-plan')];
         el.hidden = true;
         var sk = G.slot && G.slot.skills;   // keep the skills already spent
-        try { maxOut(true); } catch (err) { G.errors.push('devmax: ' + err.message); }
+        try { var ps = devSlot() || makeSlot(); fill(ps, true); G.store.save(ps); G.slot = ps; } catch (err) { G.errors.push('devmax: ' + err.message); }
         if (sk) { G.slot.skills = sk; G.store.save(G.slot); }
         G.slot.plan = plan.id; G.slot.level = plan.level; G.store.save(G.slot);
         IB.Menus.wipe(function () { G.switchPlan(plan).then(function () { G.startLevel(); }); });
@@ -107,9 +118,16 @@
     G.store.save(slot);
   }
 
+  // every title screen: the tester profile is found (or made), saved last (so it is the newest save) and Continue loads it
+  function ensureProfile() {
+    var slot = devSlot();
+    if (!slot) slot = fill(makeSlot(), false);
+    else if (!slot.wyrmV) wyrmUpdate(slot);
+    G.store.save(slot);
+    G.slot = slot;
+  }
   G.toTitle = function () {
-    if (!done) { done = true; try { maxOut(false); } catch (e) { G.errors.push('devmax: ' + e.message); } }
-    try { wyrmUpdate(G.store.newest()); } catch (e) { G.errors.push('devmax: ' + e.message); }
+    try { ensureProfile(); } catch (e) { G.errors.push('devmax: ' + e.message); }
     toTitle.apply(this, arguments);
     picker();
   };
