@@ -642,53 +642,59 @@ def bipod_folded(k, y0, y1, z, x=0.014, color='steel2'):
 
 
 def build_handcannon(pal):
-    """R-50 Ironjaw: heavy revolver, full underlug, vent rib, ported barrel, fluted cylinder (the Mag)."""
+    """R-50 Ironjaw: classic six-shot revolver. Long barrel with a slotted vent rib, ejector-rod shroud on a long underlug,
+    open cylinder window (the fluted six-chamber cylinder is the Mag, on the bore axis), exposed hammer with spur,
+    two sight rings, grip frame and trigger guard. Palette cells are the ones the gun always used."""
     rake = 20
     k = Kit(pal)
-    bz, cz = 0.040, 0.023
-    # frame: recoil shield + topstrap + front block + bottom strap (the cylinder window between them)
-    k.ext_x([(-0.034, -0.008), (0.0, -0.008), (0.0, 0.058), (-0.020, 0.060), (-0.034, 0.040)], -0.0215, 0.0215, 'gunmetal', ch=0.003)
-    k.box((0, 0.025, 0.0545), (0.022, 0.046, 0.011), 'gunmetal', hull=True)
+    ZA = 0.032                  # cylinder axis = bore axis = barrel centre height
+    BE = 0.262                  # barrel end (the muzzle device stands a little past it)
+    # frame: rear frame (hammer block, grip frame), front yoke at the breech, top and bottom straps; the sides between
+    # them stay open so the cylinder shows through the window
+    k.ext_x([(-0.034, -0.008), (0.0, -0.008), (0.0, 0.060), (-0.020, 0.060), (-0.034, 0.040)], -0.0215, 0.0215, 'gunmetal', ch=0.003)
+    k.box((0, 0.0245, 0.0562), (0.022, 0.048, 0.0076), 'gunmetal', hull=True)                # top strap over the cylinder
     k.ext_x([(0.049, -0.008), (0.078, -0.008), (0.078, 0.060), (0.049, 0.060)], -0.017, 0.017, 'gunmetal', ch=0.003)
-    k.box((0, 0.025, -0.0055), (0.025, 0.046, 0.010), 'gunmetal', hull=True)
-    # barrel with full underlug, vent rib, top ports, amber stripe on the lug
-    k.ext_y(rrect(0.027, 0.046, ct=0.012, cb=0.004, cy=0.032, seg=2), 0.074, 0.238, 'gunmetal', ch1=0.006)
-    k.box((0, 0.1425, 0.059), (0.008, 0.125, 0.008), 'gun3')
+    k.box((0, 0.025, 0.001), (0.025, 0.046, 0.010), 'gunmetal', hull=True)                   # bottom strap under the cylinder
+    # barrel: long, vent rib with slots on top, ported muzzle device
+    k.ext_y(rrect(0.027, 0.046, ct=0.012, cb=0.004, cy=ZA, seg=2), 0.074, BE, 'gunmetal', ch1=0.006)
+    k.box((0, 0.155, 0.059), (0.008, 0.140, 0.008), 'gun3')
     for i in range(5):
-        k.box((0, 0.094 + i * 0.022, 0.0565), (0.014, 0.006, 0.006), 'ink', skip=('-z',))
+        k.box((0, 0.100 + i * 0.022, 0.0565), (0.020, 0.006, 0.006), 'ink', skip=('-z',))
     for i in range(2):
-        k.box((0, 0.210 + i * 0.008, 0.0555), (0.012, 0.004, 0.006), 'ink', skip=('-z',))
-    muzzle(k, 0.230, 0.250, 0.0105, bz, rb=0.0055, hull=True, seg=8)
-    k.box((0, 0.160, 0.019), (0.0335, 0.120, 0.006), 'trim')
-    k.lathe([(0.076, 0), (0.076, 0.0045), (0.228, 0.0045), (0.234, 0.0025), (0.234, 0)], 'steel', 'y', (0, 0, 0.004), 6, hull=False)   # ejector rod
-    # sights: front post with red insert, adjustable rear on the topstrap
-    k.box((0, 0.226, 0.065), (0.008, 0.012, 0.018), 'ink', hull=True)
-    k.box((0, 0.2172, 0.069), (0.004, 0.0055, 0.005), 'red')
-    for s in (-1, 1):
-        k.box((s * 0.008, 0.002, 0.066), (0.006, 0.012, 0.012), 'ink', hull=True)
-        k.box((s * 0.008, -0.0055, 0.068), (0.003, 0.003, 0.004), 'paper')
-    # hammer spur, cylinder latch, side-plate screws
-    k.xbar(-0.0045, 0.0045, [(-0.030, 0.034), (-0.044, 0.050), (-0.060, 0.058), (-0.062, 0.052), (-0.044, 0.038), (-0.034, 0.020)], 'steel2', ch=0)
+        k.box((0, 0.210 + i * 0.008, 0.0555), (0.016, 0.004, 0.006), 'ink', skip=('-z',))
+    muzzle(k, BE - 0.008, BE + 0.014, 0.0105, ZA, rb=0.0055, hull=False, seg=8)
+    # underlug (amber stripe) runs the length of the barrel; the ejector-rod shroud hangs under it
+    k.box((0, 0.160, 0.0075), (0.0335, 0.152, 0.007), 'trim')
+    k.lathe([(0.080, 0), (0.080, 0.0055), (0.254, 0.0055), (0.258, 0.0040), (0.258, 0)], 'steel', 'y', (0, 0, 0.0), 8, hull=False)
+    # sights: front sight ring on the barrel with a red bead, rear sight ring on the top strap
+    k.ring('x', (0, 0.238, 0.0655), -0.005, 0.005, 0.0075, 0.0105, 'ink', seg=8, hull=False)
+    k.box((0, 0.238, 0.0605), (0.003, 0.004, 0.004), 'red')
+    k.ring('x', (0, 0.008, 0.069), -0.005, 0.005, 0.0060, 0.0095, 'ink', seg=8, hull=False)
+    # hammer: exposed, rounded cock at the back of the frame with a spur, plus the hammer pin screw
+    k.xbar(-0.0045, 0.0045, [(-0.022, 0.040), (-0.030, 0.058), (-0.040, 0.064), (-0.050, 0.060), (-0.060, 0.050), (-0.064, 0.043),
+                             (-0.052, 0.046), (-0.040, 0.044), (-0.028, 0.034)], 'steel2', ch=0)
     k.cbox((-0.0245, -0.016, 0.034), (0.006, 0.014, 0.008), 'gun3', ch=0.0015, hull=False)
     k.screw((-0.0215, -0.012, 0.004), (-1, 0, 0))
     k.pin(-0.020, 0.020, 0.066, 0.004, 0.003)
     trigger_guard(k, rake, front=0.060, depth=-0.046, hook=False, top=-0.006)
     trigger(k, rake, ext=0.006)
     grip(k, rake, 'rubber', w=0.036, top=-0.004, ptop=-0.026)
-    # cylinder (the Mag): 6 flutes, chamfered front, 6 ink chambers, ratchet star at the rear
+    # cylinder (the Mag): six flutes, six chambers on the flats (ink rims 4 mm proud, visible through the window)
     mk = Kit(pal)
     R = 0.0215
     prof = []
     for i in range(6):
         a = 60 * i
         prof += [(R * math.cos(D(a - 18)), R * math.sin(D(a - 18))), (R * math.cos(D(a + 18)), R * math.sin(D(a + 18))),
-                 ((R - 0.006) * math.cos(D(a + 30)), (R - 0.006) * math.sin(D(a + 30)))]
-    mk.ext_y(prof, -0.022, 0.022, 'steel2', ch1=0.003)
-    for i in range(6):
-        a = D(60 * i + 30 + 30)
-        mk.lathe([(0.016, 0), (0.016, 0.0052), (0.0255, 0.0052), (0.0255, 0)], 'ink', 'y', (0.0128 * math.cos(a), 0, 0.0128 * math.sin(a)), 5, hull=False)
-    return k, mk, {'rake': rake, 'mrake': 0, 'mag': (0, 0.025, cz), 'muzzle': (0, 0.252, bz), 'eject': (-0.03, 0.025, cz),
-                   'sight': (0, -0.012, 0.072), 'cls': 'pistol', 'pivot': (-0.012, 0.025, 0.000)}
+                 ((R - 0.008) * math.cos(D(a + 30)), (R - 0.008) * math.sin(D(a + 30)))]
+    mk.ext_y(prof, -0.022, 0.022, 'steel2')
+    for i in range(6):         # chamber bosses: ink discs on the flats, 3 mm proud of the cylinder
+        a = D(60 * i)
+        d = V((math.cos(a), 0.0, math.sin(a)))
+        u = V((-math.sin(a), 0.0, math.cos(a)))
+        mk.lathe([(R + 0.003, 0), (R + 0.003, 0.0080), (R - 0.004, 0.0080), (R - 0.004, 0)], 'ink', (d, u, d.cross(u)), (0, 0, 0), 6, hull=False)
+    return k, mk, {'rake': rake, 'mrake': 0, 'mag': (0, 0.025, ZA), 'muzzle': (0, BE + 0.016, ZA), 'eject': (-0.03, 0.025, ZA),
+                   'sight': (0, -0.012, 0.072), 'cls': 'pistol', 'pivot': (-0.024, 0.050, ZA)}
 
 
 def build_twintap(pal):
@@ -2484,7 +2490,9 @@ FPS = 30
 # carry: where the whole viewmodel sits (rig space) so long guns tuck their stocks off-screen.
 ANIM = {
     'PIP': {'fire': 60 / 450, 'reload': 1.1, 'style': 'pistol', 'charge': ((0, -0.068, 0.044), (0, -0.030, 0))},
-    'HANDCANNON': {'fire': 60 / 750, 'reload': 2.2, 'style': 'revolver', 'heavy': 1.6},   # Wyrmforged: very fast
+    # Wyrmforged: very fast. Fire clip = one shot (trigger, small muzzle kick, cylinder indexes 60 deg), 2 frames < 0.08 s
+    'HANDCANNON': {'fire': 60 / 750, 'reload': 2.2, 'style': 'revolver', 'heavy': 1.6,
+                   'handling': {'kick': {'loc': (0.0, -0.005, 0.0015), 'rot': (1.0, 0.0, 0.0)}}},
     'TWINTAP': {'fire': 60 / 300, 'reload': 1.3, 'burst': 2, 'gap': 0.06, 'style': 'pistol', 'charge': ((0, -0.066, 0.050), (0, -0.030, 0))},
     'BUZZ': {'fire': 60 / 900, 'reload': 1.6, 'style': 'smg', 'charge': ((-0.036, 0.150, 0.060), (0, -0.060, 0))},
     'WHISK': {'fire': 60 / 1100, 'reload': 1.4, 'style': 'smg', 'charge': ((0, -0.086, 0.050), (0, -0.035, 0))},
@@ -3028,6 +3036,8 @@ def build_actions(rig):
             action(wid + '_Fire', bolt_cycle(p, n, kick))
         elif a['style'] == 'shell':
             action(wid + '_Fire', pump_fire(p, n, kick))
+        elif a['style'] == 'revolver':
+            action(wid + '_Fire', revolver_fire(p, n, kick))
         else:
             keys = [(0, p(trig=1)), (1, p(*kick, trig=1))]
             if n >= 4:
@@ -3122,13 +3132,21 @@ def mag_reload(p, r):
     return keys
 
 
+def revolver_fire(p, n, kick):
+    """One shot: the trigger breaks, the muzzle kicks up a little, and the cylinder (the Mag part) turns one chamber,
+    60 deg about the bore. The cylinder is six-fold symmetric, so the clip ends on the indexed cylinder and the rest
+    poses (which the game crossfades to) show it unchanged. The whole clip is n frames (round(60/rpm * 30))."""
+    idx = lambda Wm: p.mag_at(Wm, mat_trs((0, 0, 0), (0, 60, 0)))
+    return [(0, p(trig=1)), (1, p(*kick, trig=1, mag=idx(p.wm(*kick)))), (n, p(mag=idx(p.wm())))]
+
+
 def revolver_reload(p, r):
-    """Cylinder swings out to the left, muzzle up to dump the cases, fresh rounds from the support hand,
-    cylinder snaps shut."""
+    """Cylinder swings out to the left on its crane (a turn about the vertical pin at the front of the frame), muzzle up
+    to dump the cases, fresh rounds from the support hand, cylinder snaps shut."""
     info = p.info
     fr = lambda t: round(r * t)
     piv = V(info['pivot'])
-    swing = lambda Wm, ang: Wm @ T(piv) @ mat_trs((0, 0, 0), (0, -ang, 0)) @ T(-piv) @ T(p.magT)
+    swing = lambda Wm, ang: Wm @ T(piv) @ mat_trs((0, 0, 0), (0, 0, -ang)) @ T(-piv) @ T(p.magT)
     side = lambda Wm: Wm @ T((-0.040, 0.030, 0.005)) @ mat_trs((0, 0, 0), (-90, 0, -90))
     keys = [(0, p())]
     p.off()
