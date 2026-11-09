@@ -42,12 +42,12 @@ test('overwhelm control: a few melee robots close in at once, a wave trickles in
   assert.ok(D.SLOPPY.spreadMul > 1 && D.SLOPPY.spreadMul <= 2.5 && D.SLOPPY.leadMul < 1 && D.SLOPPY.leadMul > 0.3);
 });
 
-test('Undercover: 7.5 s invisible, 23 s cooldown, and the skill text says so', () => {
+test('Undercover: 7.5 s invisible, 25 s cooldown, and the skill text says so', () => {
   const uc = IB.Skills.effects({ undercover: 1 });
-  assert.equal(uc.cloakTime, 7.5); assert.equal(uc.cloakCooldown, 23);
+  assert.equal(uc.cloakTime, 7.5); assert.equal(uc.cloakCooldown, 25);
   const sk = IB.SKILLS.find((s) => s.id === 'undercover');
   assert.match(sk.desc || sk.text || JSON.stringify(sk), /7\.5 s/);
-  assert.match(sk.desc || sk.text || JSON.stringify(sk), /Cooldown 23 s/);
+  assert.match(sk.desc || sk.text || JSON.stringify(sk), /Cooldown 25 s/);
 });
 
 test('health director: critically hurt -> twice the cans, twice as often, closer (never on top of the player)', () => {

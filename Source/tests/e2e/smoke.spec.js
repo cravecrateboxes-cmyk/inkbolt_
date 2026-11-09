@@ -288,7 +288,7 @@ async function skillsRun(browser, base) {
   await pg.keyboard.press('KeyF');
   check('F turns Undercover on', await until(pg, () => __TEST__.skillState().cloak.active, null, 3000));
   ss = await pg.evaluate(() => __TEST__.skillState());
-  check('cloak: 7.5 s, then a 23 s cooldown; the AI is told', ss.cloaked && ss.cloak.t <= 7.5 && ss.cloak.t > 5.5 && ss.cloak.cd === 23, JSON.stringify(ss.cloak));
+  check('cloak: 7.5 s, then a 25 s cooldown; the AI is told', ss.cloaked && ss.cloak.t <= 7.5 && ss.cloak.t > 5.5 && ss.cloak.cd === 25, JSON.stringify(ss.cloak));
   check('after a quick flicker the world sinks into the ink-black stealth look (robots glow a bright stealth blue)', await until(pg, () => document.body.classList.contains('cloak-on') &&
     IB.Render.cloak.value > 0.9 && IB.Render.robotHull.value > 1.8 && IB.Render.robotHull.value < 2.3 && +getComputedStyle(document.getElementById('cloakFx')).opacity > 0.9 &&
     IB.Render.robotOutline.uInk.value.b > 0.5, null, 5000));

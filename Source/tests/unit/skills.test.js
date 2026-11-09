@@ -193,7 +193,7 @@ test('effects: every skill changes the runtime numbers its text promises', () =>
   // row 4
   const sm = S.effects({ stamina: 1 }); assert.deepEqual([sm.sprintMul, sm.moveMul, sm.staminaMul, sm.staminaRechargeMul], [1.15, 1.15, 2.5, 0.5]);
   const hy = S.effects({ hydrate: 3 }); near(hy.coat, 0.18); assert.equal(hy.coatTime, 6); assert.equal(hy.coatRadius, 3); assert.ok(hy.coatBurn >= 5 && hy.coatBurn <= 7);
-  const uc = S.effects({ undercover: 1 }); assert.ok(uc.cloak); assert.equal(uc.cloakTime, 7.5); assert.equal(uc.cloakCooldown, 23);
+  const uc = S.effects({ undercover: 1 }); assert.ok(uc.cloak); assert.equal(uc.cloakTime, 7.5); assert.equal(uc.cloakCooldown, 25);
   // row 5
   const tk = S.effects({ tank: 3 }); near(tk.dmgTakenMul, 0.85); assert.equal(tk.regenFlat, 3); near(S.regenRate(tk, 150), 3);
   near(S.regenRate(S.effects({ tank: 2, healthy: 1 }), 100), 2.5);
