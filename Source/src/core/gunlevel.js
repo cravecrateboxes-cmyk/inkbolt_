@@ -99,7 +99,7 @@
     return e.name + ' ' + (p.length > 1 ? p.slice(1).join(' ') : def.name);
   };
   /* chance that a player kill on campaign level L drops a launcher (soldiers more often), and which one */
-  GL.LAUNCHER_DROP = { soldier: 0.006, other: 0.0008 };
+  GL.LAUNCHER_DROP = { soldier: 0.012, other: 0.0016 };   // doubled with the other guns
   GL.launcherDropChance = function (type, L) {
     if ((L || 0) < GL.LAUNCHER_LEVEL) return 0;
     return type === 'soldier' ? GL.LAUNCHER_DROP.soldier : GL.LAUNCHER_DROP.other;

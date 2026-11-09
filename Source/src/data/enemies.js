@@ -90,7 +90,7 @@
       armour: ['#EEF1F5', '#9EA5B0', '#6F95D8', '#9B7BD8', '#474C59', '#C46C6C'],
       torsos: ['A', 'B'], helmets: ['A', 'B', 'C'],
       radius: 0.36, height: 1.88, coreOffset: [0, 1.32, 0.17], coreRadius: 0.11,
-      weaponDrops: { gray: 0.06, green: 0.03, blue: 0.02, purple: 0.008, orange: 0.002 },
+      weaponDrops: { gray: 0.12, green: 0.06, blue: 0.04, purple: 0.016, orange: 0.004 },   // doubled: guns drop twice as often
       notes: 'Shield bar soaks damage first and recharges; 3 grenades each; rifle-butt up close'
     },
     /* Blade Bot (game/troops.js): hover saucer with a spinning hub arm that wields a katana or a Voltaxe (weapons).

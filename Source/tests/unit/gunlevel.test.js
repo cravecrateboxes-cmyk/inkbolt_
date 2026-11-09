@@ -73,7 +73,7 @@ test('launchers: no mods, rocket ammo, rolled magazines and elements', () => {
 test('launchers drop only after level 13, soldiers more often', () => {
   for (let L = 1; L <= 13; L++) { assert.equal(GL.launcherDropChance('soldier', L), 0); assert.equal(GL.launcherDropChance('crawler', L), 0); }
   assert.ok(GL.launcherDropChance('soldier', 14) > GL.launcherDropChance('crawler', 14));
-  assert.ok(GL.launcherDropChance('soldier', 14) <= 0.01);
+  assert.ok(GL.launcherDropChance('soldier', 14) <= 0.02);
 });
 
 test('rocket ammo director: nothing without a launcher or when full, more when short and in use', () => {

@@ -19,7 +19,7 @@ test('soldier row: armoured trooper with a shield pool, grenades, melee and weap
   assert.equal(s.grenades, 3);
   assert.ok(s.grenadeDamage > 0 && s.grenadeRadius > 2 && s.grenadeFuse >= 1.5);
   assert.ok(s.meleeRange >= 2 && s.meleeRange <= 2.5 && s.meleeDamage > s.damage);
-  assert.deepEqual(s.weaponDrops, { gray: 0.06, green: 0.03, blue: 0.02, purple: 0.008, orange: 0.002 });
+  assert.deepEqual(s.weaponDrops, { gray: 0.12, green: 0.06, blue: 0.04, purple: 0.016, orange: 0.004 });   // doubled
   assert.ok(s.armour.length >= 5 && s.armour.every((c) => /^#[0-9A-F]{6}$/.test(c)), 'armour colours');
   assert.ok(s.torsos.length >= 2 && s.helmets.length >= 3, 'shape sets');
   assert.ok(s.windup >= 0.35 && s.windup <= 0.9);
