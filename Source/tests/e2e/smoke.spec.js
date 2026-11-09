@@ -80,7 +80,7 @@ async function hookRun(browser, base) {
   const resultsShown = await pg.evaluate(() => /Level cleared/i.test(document.getElementById('overlay').textContent));
   check('results screen shows', resultsShown);
   const lvText = await pg.evaluate(() => document.getElementById('overlay').textContent);
-  check('results show the XP and the level-up (LV 2, +2 skill points)', /XP earned\+\d/.test(lvText) && /LV 2/.test(lvText) && /\+2 skill pts/.test(lvText), lvText.slice(-90));
+  check('results show the XP and the level-up (LV 2, +1 skill point)', /XP earned\+\d/.test(lvText) && /LV 2/.test(lvText) && /\+1 skill pt/.test(lvText), lvText.slice(-90));
   const saved =await pg.evaluate(() => { const v = localStorage.getItem('inkbolt.slot1'); return v && JSON.parse(v).highest >= 1; });
   check('save written', !!saved);
   const plat = (await st(pg)).plat;
@@ -189,10 +189,10 @@ async function tabMenuRun(browser, base) {
   console.log('\n# field kit (Tab): pause, inventory, spend a skill point, character, change the loadout, respec, resume');
   const pg = await newPage(browser, base + '?autotest=1&plan=greybox');
   await until(pg, () => IB.Game.run.started, null, 5000);
-  // progress as if the player reached LV 4 (4 skill points) and a rifle was picked up earlier
+  // progress as if the player reached LV 4 (3 skill points) and a rifle was picked up earlier
   await pg.evaluate(() => { const G = IB.Game; G.slot.highest = 3; G.slot.xp = IB.Skills.xpForLevel(4); G.slot.gems = 100; G.slot.arsenal.push('rivet'); G.slot.owned = G.slot.arsenal.slice(); G.applyProgress(); });
   const p0 = await pg.evaluate(() => __TEST__.progress());
-  check('progress derived from the save', p0.level === 4 && p0.points === 4 && p0.loadoutMax === 2, JSON.stringify(p0));
+  check('progress derived from the save', p0.level === 4 && p0.points === 3 && p0.loadoutMax === 2, JSON.stringify(p0));
   check('HUD shows the level tag', await pg.evaluate(() => /LV\s*4/.test(document.getElementById('lvTag').textContent) && !document.getElementById('lvPts').hidden));
   await pg.mouse.move(640, 360);
   await pg.keyboard.press('Tab');
@@ -208,10 +208,10 @@ async function tabMenuRun(browser, base) {
   await pg.click('[data-skill="overload"]');
   await pg.click('[data-act="buy"]');
   let pr = await pg.evaluate(() => __TEST__.progress());
-  check('Spend buys Overload rank 1', pr.skills.overload === 1 && pr.points === 3, JSON.stringify(pr.skills) + ' points=' + pr.points);
+  check('Spend buys Overload rank 1', pr.skills.overload === 1 && pr.points === 2, JSON.stringify(pr.skills) + ' points=' + pr.points);
   await pg.focus('[data-skill="overload"]'); await pg.keyboard.press('Enter');
   pr = await pg.evaluate(() => __TEST__.progress());
-  check('Enter on the selected skill spends again', pr.skills.overload === 2 && pr.points === 2, JSON.stringify(pr.skills));
+  check('Enter on the selected skill spends again', pr.skills.overload === 2 && pr.points === 1, JSON.stringify(pr.skills));
   check('locked tier refuses (Hazard needs 3 points below)', await pg.evaluate(() => { document.querySelector('[data-skill="hazard"]').click(); return document.querySelector('[data-act="buy"]').disabled; }));
   const saved1 = await pg.evaluate(() => JSON.parse(localStorage.getItem('inkbolt.slot1')).skills);
   check('skills saved at once', saved1 && saved1.overload === 2, JSON.stringify(saved1));
@@ -244,7 +244,7 @@ async function tabMenuRun(browser, base) {
   await pg.click('[data-act="respec"]'); await pg.click('[data-act="respec"]');
   pr = await pg.evaluate(() => __TEST__.progress());
   const gems = await pg.evaluate(() => IB.Game.slot.gems);
-  check('respec resets the tree for ' + 40 + ' gems', Object.keys(pr.skills).length === 0 && pr.points === 4 && gems === 60, JSON.stringify(pr.skills) + ' gems=' + gems);
+  check('respec resets the tree for ' + 40 + ' gems', Object.keys(pr.skills).length === 0 && pr.points === 3 && gems === 60, JSON.stringify(pr.skills) + ' gems=' + gems);
   await pg.keyboard.press('Escape');
   check('Esc closes it too', await until(pg, () => IB.Game.mode === 'play', null, 3000));
   check('respec applied (magazine back to 12)', await pg.evaluate(() => IB.Weapons.magSize(IB.Game.ws, IB.WEAPONS.pip) === 12));

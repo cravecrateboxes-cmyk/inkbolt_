@@ -178,17 +178,17 @@ test('ago()', () => {
 
 test('skills are validated against progress on load (spent <= earned, gates, one endgame skill)', () => {
   const { be, store } = setup();
-  // highest 1 earns 2 points: 2 ranks are fine, 3 are not
-  be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 1, skills: { overload: 2 } }));
+  // LV 3 (highest 2) has 2 points: 2 ranks are fine, 3 are not
+  be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 2, skills: { overload: 2 } }));
   assert.deepEqual(store.load(1).skills, { overload: 2 });
-  be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 1, skills: { overload: 3 } }));
+  be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 2, skills: { overload: 3 } }));
   assert.deepEqual(store.load(1).skills, {}, 'overspent tree is reset (points refunded)');
   // a row-3 skill without the 3 points below it, unknown (or retired) ids, bad ranks, non-objects: all reset
   for (const bad of [{ hazard: 1 }, { nope: 1 }, { overboard: 2 }, { overload: 4 }, { overload: -1 }, { overload: 1.5 }, [1, 2], 'x']) {
     be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 17, skills: bad }));
     assert.deepEqual(store.load(1).skills, {}, JSON.stringify(bad));
   }
-  // an endgame skill is kept once it is paid for (10 points); both at once is not allowed
+  // an endgame skill is kept once it is paid for (10 points, LV 30 has 25); both at once is not allowed
   const both = { overload: 3, heavyink: 2, electrify: 1, healthy: 2, undercover: 1, handyhelpers: 1 };
   be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 99, skills: both }));
   assert.deepEqual(store.load(1).skills, both);
@@ -196,10 +196,10 @@ test('skills are validated against progress on load (spent <= earned, gates, one
   assert.deepEqual(store.load(1).skills, {}, 'both endgame skills: reset');
   be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 8, skills: both }));
   assert.deepEqual(store.load(1).skills, {}, 'not enough points yet');
-  // a tree from the old 43-point economy is over the 22-point cap: reset, every point back
+  // a tree that spends more than the level has earned (23 spent, 19 earned at LV 20): reset, every point back
   const old = { overload: 3, heavyink: 3, stream: 3, electrify: 1, rapid: 3, hazard: 3, ricochet: 3, healthy: 3, undercover: 1 };
   be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 19, skills: old }));
-  assert.deepEqual(store.load(1).skills, {}, '23 points spent > 22');
+  assert.deepEqual(store.load(1).skills, {}, 'more points spent than earned at LV 20 (19)');
 });
 
 test('settings v2: old 85 default becomes 100, a chosen field of view is kept, range 60-130', () => {

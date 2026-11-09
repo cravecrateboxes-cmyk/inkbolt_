@@ -42,12 +42,11 @@ test('data: 18 skills in 7 tiers (trunk at the bottom), 3-rank skills, 1-rank sp
   assert.ok(IB.SKILL_TIERS[6].capstone && IB.SKILL_TIERS.slice(0, 6).every((t) => !t.capstone));
 });
 
-test('economy: 22 points from levels 1-19 only, never more; a build, not the whole tree', () => {
-  // the schedule documented in data/skills.js
-  const after = [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 18, 19, 20, 21, 22];
-  for (let L = 0; L <= 19; L++) assert.equal(S.earned(L), after[L], 'after level ' + L);
-  assert.equal(S.totalPoints(), 22);
-  for (let L = 20; L <= 60; L++) assert.equal(S.earned(L), 22, 'nothing after level 19 (' + L + ')');
+test('economy: one point per level-up, 25 in total (the 25th at LV 26), never more; a build, not the whole tree', () => {
+  // the schedule documented in data/skills.js: g = level-ups gained (LV - 1)
+  for (let g = 0; g <= 25; g++) assert.equal(S.earned(g), g, 'after ' + g + ' level-ups');
+  assert.equal(S.totalPoints(), 25);
+  for (let g = 26; g <= 60; g++) assert.equal(S.earned(g), 25, 'nothing after 25 level-ups (' + g + ')');
   assert.equal(S.earned(-3), 0); assert.equal(S.earned(NaN), 0); assert.equal(S.earned('19'), 0);
   assert.equal(treeCost(), 44);
   assert.ok(IB.SKILL_TIERS[6].gate + 1 <= S.totalPoints(), 'an endgame skill fits in a max-level build');
@@ -57,11 +56,11 @@ test('available points are derived from progress, never stored; buying is the on
   let sk = {};
   assert.equal(S.available(sk, 0), 0);
   assert.equal(S.buy(sk, 0, 'overload'), null, 'no points before the first clear');
-  sk = buyAll(sk, 1, ['overload', 'overload']);
-  assert.equal(S.available(sk, 1), 0);
-  assert.equal(S.buy(sk, 1, 'overload'), null);
-  assert.equal(S.canBuy(sk, 1, 'overload').reason, 'points');
-  assert.equal(S.available(sk, 2), 1, 'the next clear pays one more');
+  sk = buyAll(sk, 2, ['overload', 'overload']);
+  assert.equal(S.available(sk, 2), 0);
+  assert.equal(S.buy(sk, 2, 'overload'), null);
+  assert.equal(S.canBuy(sk, 2, 'overload').reason, 'points');
+  assert.equal(S.available(sk, 3), 1, 'the next level-up pays one more');
   // buy() never mutates its input
   const before = JSON.stringify(sk); S.buy(sk, 5, 'overload'); assert.equal(JSON.stringify(sk), before);
   // ranks stop at max; specials have one rank
@@ -128,16 +127,16 @@ test('endgame: pick one of the two; however the points went in, the top opens an
   assert.ok(!S.validate({ ...one0, chainreaction: 1 }, 19).ok);
   // the reported bug: 21 points in the rows below still leave the point for an endgame skill
   const low = IB.SKILLS.filter((s) => s.kind !== 'capstone').flatMap((s) => Array(s.max).fill(s.id)).slice(0, 21);
-  const before = buyAll({}, 19, low);
+  const before = buyAll({}, 25, low);
   assert.equal(S.spent(before), 21);
-  for (const cap of ['handyhelpers', 'chainreaction']) assert.ok(S.canBuy(before, 19, cap).ok, cap);
-  const one = buyAll(before, 19, ['chainreaction']);
+  for (const cap of ['handyhelpers', 'chainreaction']) assert.ok(S.canBuy(before, 25, cap).ok, cap);
+  const one = buyAll(before, 25, ['chainreaction']);
   assert.equal(S.spent(one), 22);
-  assert.equal(S.available(one, 19), 0);
-  // the earliest clear that can afford one is level 12
+  assert.equal(S.available(one, 25), 3, 'the 3 points not spent yet');
+  // the earliest level-up that can afford one is LV 11 (10 points: 9 below plus the endgame point)
   const caps = IB.SKILLS.filter((s) => s.kind === 'capstone');
   const first = [...Array(20).keys()].find((L) => S.earned(L) >= IB.SKILL_TIERS[6].gate + caps[0].cost);
-  assert.equal(first, 9);
+  assert.equal(first, 10);
 });
 
 test('old saves: trees with the retired skill ids are refunded in full, never crash', () => {
@@ -149,14 +148,14 @@ test('old saves: trees with the retired skill ids are refunded in full, never cr
     const r = S.sanitize(sk, 17);
     assert.deepEqual(r.skills, {}, JSON.stringify(sk));
     assert.equal(r.reset, true);
-    assert.equal(S.available(r.skills, 20), 22, 'every point back');
+    assert.equal(S.available(r.skills, 25), 25, "every point back");
     assert.doesNotThrow(() => S.effects(r.skills));
   }
   // effects() of a raw old tree (before sanitize) ignores what it does not know instead of throwing
   assert.doesNotThrow(() => S.effects({ overboard: 3, heavyink: 2 }));
   assert.equal(S.effects({ overboard: 3, heavyink: 2 }).dmgMul, 1.08);
   // a valid new tree passes untouched
-  assert.deepEqual(S.sanitize({ overload: 2, heavyink: 1 }, 2), { skills: { overload: 2, heavyink: 1 }, reset: false });
+  assert.deepEqual(S.sanitize({ overload: 2, heavyink: 1 }, 3), { skills: { overload: 2, heavyink: 1 }, reset: false });
   // through the save loader: old ids -> empty tree, a one-time refund flag for the game's notice
   const be = IB.Saves.memoryBackend(), store = IB.Saves.create(be);
   be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 12, skills: { overboard: 3, coredump: 2, lightningrod: 1 } }));

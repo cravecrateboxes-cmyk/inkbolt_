@@ -1,6 +1,6 @@
 /* INKBOLT - TEMPORARY tester switch (remove before release: delete this file and its <script> line in
    index.src.html). While DEV_MAX is on, the newest save slot is maxed out when the title screen opens:
-   every campaign level cleared, player LV 30 (max XP, all 22 skill points to spend / respec freely, 3 loadout slots),
+   every campaign level cleared, player LV 30 (max XP, all 25 skill points to spend / respec freely, 3 loadout slots),
    every gun Legendary at gun level 30 (launchers with full magazines, Blast Hothead), a full rocket pool,
    lots of gems, every playable gun in the arsenal, legendary level-30 attachments (max rolls: grip, scope, acid
    muzzle, extended mag) fitted to every gun that takes them, a legendary level-30 Nova shield cell and a legendary
