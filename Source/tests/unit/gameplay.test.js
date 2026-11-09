@@ -62,6 +62,6 @@ test('health director: critically hurt -> twice the cans, twice as often, closer
 
 test('rocket crates: soldiers and (at half the chance) bladers; others never', () => {
   const GL = IB.GunLevel;
-  assert.equal(GL.rocketDropWeight('blader') * 2, GL.rocketDropWeight('soldier'));
+  assert.equal(GL.rocketDropWeight('blader') * 4, GL.rocketDropWeight('soldier'));
   for (const t of ['crawler', 'gunner', 'bomber', 'drone']) assert.equal(GL.rocketDropWeight(t), 0, t);
 });

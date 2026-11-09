@@ -11624,7 +11624,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
 
   // ---------------- rocket ammo director ----------------
   GL.ROCKET = { cap: 16, start: 6, carriedTarget: 0.7, packTarget: 0.3, useWindow: 90, useFull: 6, maxChance: 0.5, pity: 3,
-    budgetPerSoldier: 0.27, minBudget: 14, dropWeight: { soldier: 1.05, blader: 0.525 }, torpedoCapMul: 1.5 };
+    budgetPerSoldier: 0.27, minBudget: 14, dropWeight: { soldier: 4, blader: 1 }, torpedoCapMul: 1.5 };
   /* the rocket pool's cap: the Torpedo skill adds 50% (st.cap in rocketNeed / rocketDrop overrides the base) */
   GL.rocketCap = function (torpedo) { return Math.round(GL.ROCKET.cap * (torpedo ? GL.ROCKET.torpedoCapMul : 1)); };
   /* which kills can drop a rocket crate, and how often vs a soldier (melee bladers: half the chance) */
@@ -23044,7 +23044,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   };
   L.onKill = function (r) {
     if (IB.WeaponDrops && IB.WeaponDrops.rollLauncher) IB.WeaponDrops.rollLauncher(r);
-    var w = GL() ? GL().rocketDropWeight(r.type) : 0;   // soldiers 1.05, melee bladers 0.525 (+5% on the old 1 and 0.5)
+    var w = GL() ? GL().rocketDropWeight(r.type) : 0;   // soldiers 4, melee bladers 1
     if (w <= 0) return;
     var st = L.directorState(); st.w = w;
     var n = GL().rocketDrop(st);
