@@ -25043,7 +25043,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     var mag = IB.Weapons.magSize({ fx: { magMul: fx.magMul, magLevel: wfx.magLevel || 0 } }, d);
     var rl = d.reload * fx.reloadMul * ((G.fx && G.fx.reloadMul) || 1);
     var acc = Math.max(5, Math.min(99.5, 100 - d.spreadHip * 12));
-    var out = [{ key: 'dmg', label: 'Damage', icon: 'dmg', v: dmg, txt: (d.pellets > 1 ? Math.round(d.damage * fx.dmgMul * lvMul) + ' x' + Math.round(d.pellets * tm.pellets) : d.missiles > 1 ? Math.round(dmg / d.missiles) + ' x' + d.missiles : String(Math.round(dmg))), better: 'high' }];
+    var out = [{ key: 'dmg', label: 'Damage', icon: 'dmg', v: dmg, txt: (d.pellets > 1 ? Math.round(d.damage * fx.dmgMul * lvMul) + ' x' + Math.round(d.pellets * tm.pellets) : d.missiles > 1 ? Math.round(dmg / IB.Launchers.missilesFor(d, IB.WeaponDrops ? IB.WeaponDrops.tierOf(w).id : 'gray')) + ' x' + IB.Launchers.missilesFor(d, IB.WeaponDrops ? IB.WeaponDrops.tierOf(w).id : 'gray') : String(Math.round(dmg))), better: 'high' }];
     if (d.spreadHip > 0) out.push({ key: 'acc', label: 'Accuracy', icon: 'acc', v: acc, txt: acc.toFixed(1), better: 'high' });
     if (rate > 0) out.push({ key: 'rate', label: 'Fire rate', icon: 'rate', v: rate, txt: rate.toFixed(1) + '/s', better: 'high' });
     if (d.reload > 0) out.push({ key: 'reload', label: 'Reload', icon: 'reload', v: rl, txt: rl.toFixed(1) + ' s', better: 'low' });
