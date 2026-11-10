@@ -6,7 +6,8 @@
                                         (IB.Gear.refresh) and are saved.
      IB.GearUI.open(G)                  the same screen in the overlay, paused (tests, or a menu without tabs).
      IB.GearUI.reset(G)                 cursor back to the first free weapon slot (the field kit calls it on open).
-   Selecting: mouse and keyboard act at once (hover / focus previews the card, click / Enter equips);
+   Selecting: the card shows what was clicked and stays there until another click (hover does not change it); keyboard focus
+   previews the card, click / Enter acts at once;
    touch taps select first (the card shows the item with its actions), a second tap on the same tile equips.
    Pictures are the real models rendered by IB.Thumbs (ui/thumbs.js); styles in ui/fieldkit.css.
    Buttons use data-gact (not data-act) so the host menu's click handler never sees them. */
@@ -197,6 +198,7 @@
       } else {
         var tgt = Math.min(S.slot, max - 1);
         acts += '<button class="btn gu-btn primary" data-gact="equipgun" data-gun="' + w + '">' + (lo[tgt] ? 'Swap into slot ' + (tgt + 1) : 'Carry in slot ' + (tgt + 1)) + '</button>';
+        acts += '<button class="btn gu-btn" data-gact="dropgun" data-w="' + w + '">Drop</button>';
       }
     } else if (spec.k === 'item') {
       var it = IB.Loot.find(g, spec.id); if (!it) return cardFor(G, g, null);
@@ -228,6 +230,7 @@
           if (pl && pl.w) acts += '<button class="btn gu-btn" data-gact="detach" data-id="' + it.id + '">Take off</button>';
         } else acts += '<span class="gu-nofit">Fits none of your carried guns</span>';
       }
+      if (!pl) acts += '<button class="btn gu-btn" data-gact="drop" data-id="' + it.id + '">Drop</button>';
       var sure = S.confirm === it.id;
       acts += '<button class="btn danger gu-btn gu-discard' + (sure ? ' sure' : '') + '" data-gact="discard" data-id="' + it.id + '">' + (sure ? (touch() ? 'Tap again to scrap' : 'Click again to scrap') : 'Scrap') + '</button>';
     }
@@ -443,12 +446,13 @@
         var b = e.target.closest('[data-gact]'); if (!b || !root.contains(b)) return;
         e.stopPropagation();
         var how = ptr; ptr = null;
+        // the card stays on the item that was clicked, until the next click
+        var clicked = specFor(b); if (clicked && b.dataset.gact !== 'slot' && b.dataset.gact !== 'lock') S.sel = clicked;
         GU.act(root, root._G || IB.Game, b.dataset.gact, b.dataset.id || b.dataset.item, b.dataset.w, b, how);
       });
-      // hover / focus previews the card; leaving the screen shows the selection again
+      // keyboard focus previews the card (the mouse does not: hovering never changes the card); leaving the screen shows the selection again
       var preview = function (e) { if (root !== curRoot || quiet) return; var t = e.target.closest && e.target.closest('[data-gact]'); var sp = t && specFor(t); if (sp) setCard(sp); };
-      root.addEventListener('pointerover', function (e) { if (e.pointerType === 'mouse') preview(e); });
-      root.addEventListener('focusin', function (e) { if (!touch()) preview(e); });
+      root.addEventListener('focusin', function (e) { if (!touch() && ptr !== 'mouse') preview(e); });
       root.addEventListener('pointerleave', function () { if (root === curRoot && curG) setCard(selSpec(curG)); });
     }
     root._G = G;
@@ -498,6 +502,16 @@
       case 'unequip': { var ws = L.wornSlot(g, id); ok = !!ws && L.equipWorn(g, ws, null); gearChanged = ok; break; }
       case 'fit': ok = L.attach(g, w, IB.WEAPONS[w], id); gearChanged = ok; S.sel = { k: 'item', id: id }; S.target = null; break;
       case 'detach': { var at = L.attachedTo(g, id); ok = !!at && L.detach(g, at.weapon, at.slot); gearChanged = ok; S.sel = { k: 'item', id: id }; break; }
+      case 'drop': {   // a loose bag item falls to the floor by the player (it can be picked up again)
+        var dropIt = L.find(g, id), spot = dropSpot(G);
+        var dd = dropIt && IB.Drops.spawn(dropIt, spot[0], spot[1]);
+        if (dd) { dd.dropped = true; ok = L.discard(g, id); }
+        gearChanged = ok; S.sel = null; if (ok) sfx('uiBack'); break;
+      }
+      case 'dropgun': {   // a backpack gun falls to the floor by the player (its attachments stay in the bag)
+        var gspot = dropSpot(G);
+        ok = !!IB.WeaponDrops && IB.WeaponDrops.dropGun(w, gspot[0], gspot[1]); gearChanged = ok; S.sel = null; if (ok) sfx('uiBack'); break;
+      }
       case 'discard':
         if (S.confirm !== id) { S.confirm = id; sfx('ui'); GU.render(root, G); return false; }
         S.confirm = null; ok = L.discard(g, id); gearChanged = ok; S.sel = null; break;
@@ -522,6 +536,8 @@
     var free = lo.filter(function (x) { return ok(x) && !L.weaponItems(g, x)[sl]; });
     return free[0] || lo.filter(ok)[0] || null;
   }
+  // where a dropped item lands: just in front of the player
+  function dropSpot(G) { var p = G.player; return [p.x - Math.sin(p.yaw) * 1.2, p.z - Math.cos(p.yaw) * 1.2]; }
   function pickGun(G, id) {
     var max = maxSlots(G), lo = loadout(G);
     var next = IB.Loadout.assign(lo, max, S.slot, id);

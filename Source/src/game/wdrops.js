@@ -119,7 +119,7 @@
     if (melee) d.mesh.rotation.set(0, 0, 0.5); else d.mesh.rotation.set(0, 0, 0);
     d.spin.add(d.mesh);
     var floor = IB.Zones && IB.Zones.floorY ? IB.Zones.floorY(x, z, (y || 0) + 0.6) : 0;   // the floor (or deck) it fell on
-    d.on = true; d.id = id; d.tier = tier; d.melee = !!melee; d.x = x; d.z = z; d.t = 0; d.y = floor;
+    d.on = true; d.dropped = false; d.id = id; d.tier = tier; d.melee = !!melee; d.x = x; d.z = z; d.t = 0; d.y = floor;
     d.level = Math.max(1, level || curLevel()); d.roll = roll || null;
     if (!d.roll && !melee && IB.GunLevel && def0(id) && def0(id).wyrm) d.roll = IB.GunLevel.wyrmRoll(def0(id), playerLv());
     if (d.label) drawLabel(d);
@@ -202,7 +202,9 @@
       d.spin.rotation.y = t * 1.6 + i; d.spin.position.y = 0.7 + Math.sin(t * 2.4 + i) * 0.08;
       var k = 1 + Math.sin(t * 4 + i) * 0.08; d.ring.scale.set(k, k, k);
       d.beam.material.opacity = 0.2 + 0.1 * Math.sin(t * 3 + i);
-      if (p && p.alive && d.t > 0.6 && Math.hypot(p.x - d.x, p.z - d.z) < R && Math.abs(p.y - d.y) < 1.2) take(d, G);
+      var near = p && Math.hypot(p.x - d.x, p.z - d.z) < R && Math.abs(p.y - d.y) < 1.2;
+      if (d.dropped) { if (!near) d.dropped = false; }   // dropped by the player: taken again only after stepping away
+      else if (p && p.alive && d.t > 0.6 && near) take(d, G);
     }
     // weapon card for the drop you walk up to and look at (HUD peek panel; rebuilt only when the target changes)
     var best = null, bs = 0;
@@ -219,6 +221,19 @@
   };
   WD.radar = function () { return WD.list.filter(function (d) { return d.on; }).map(function (d) { return { x: d.x, z: d.z, kind: 'weapon' }; }); };
   WD.live = function () { return WD.list.filter(function (d) { return d.on; }).map(function (d) { return { id: d.id, tier: d.tier, melee: d.melee, x: d.x, z: d.z, level: d.level, roll: d.roll }; }); };
+  // the player drops a backpack gun: it lands at x, z with its tier, level and roll; it leaves the arsenal (its attachments
+  // go back to the bag, see Gear.refresh prune). Returns false if the gun is not in the backpack or has no model.
+  WD.dropGun = function (id, x, z) {
+    var G = IB.Game, s = G && G.slot, p = G && G.player;
+    if (!s || !p || !s.arsenal || s.arsenal.indexOf(id) < 0) return false;
+    if ((s.loadout || []).indexOf(id) >= 0) return false;
+    var d = spawn(id, WD.tierOf(id).id, x, z, false, p.y, WD.ownLevel(id), s.gunRoll ? s.gunRoll[id] : null);
+    if (!d) return false;
+    d.dropped = true;
+    s.arsenal = s.arsenal.filter(function (k) { return k !== id; }); s.owned = s.arsenal.slice();
+    if (s.gunTier) delete s.gunTier[id]; if (s.gunLevel) delete s.gunLevel[id]; if (s.gunRoll) delete s.gunRoll[id];
+    return true;
+  };
   // tests: put a drop right in front of the player (level / roll optional)
   WD.testDrop = function (id, tier, melee, level, roll) {
     var p = IB.Game.player, def = IB.WEAPONS[id], gl = GL();

@@ -83,7 +83,7 @@
     for (i = 0; i < D.pool.length; i++) if (!D.pool[i].on) { d = D.pool[i]; break; }
     if (!d) { d = D.pool[0]; for (i = 1; i < D.pool.length; i++) if (D.pool[i].born < d.born) d = D.pool[i]; }
     var pos = freeSpot(x, z, G);
-    d.on = true; d.it = item; d.x = pos[0]; d.z = pos[1]; d.t = 0; d.born = performance.now(); d.fullT = 0;
+    d.on = true; d.dropped = false; d.it = item; d.x = pos[0]; d.z = pos[1]; d.t = 0; d.born = performance.now(); d.fullT = 0;
     var rc = IB.LOOT.rarityById[item.rarity], col = new THREE.Color(rc.color);
     d.glow.color.copy(col); d.beamMat.color.copy(col); d.ringMat.color.copy(col);
     var bs = BEAM[item.rarity] || BEAM.common;
@@ -167,7 +167,9 @@
       d.ring.scale.setScalar(1 + pulse * 0.08);
       d.ringMat.opacity = 0.55 + pulse * 0.4;
       if (IB.FX) IB.FX.blob(d.x, 0, d.z, 0.42);
-      if (p.alive && d.t > IB.LOOT.armTime && p.y < 1.2 && Math.hypot(p.x - d.x, p.z - d.z) < R) collect(d, G);
+      var near = Math.hypot(p.x - d.x, p.z - d.z) < R;
+      if (d.dropped) { if (!near) d.dropped = false; }   // dropped by the player: taken again only after stepping away
+      else if (p.alive && d.t > IB.LOOT.armTime && p.y < 1.2 && near) collect(d, G);
     }
   };
 })(window.IB = window.IB || {});
