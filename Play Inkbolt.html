@@ -14846,6 +14846,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     Object.keys(td.stats).forEach(function (k) {
       var s = td.stats[k], r = s[rarity], v = r[0] + (r[1] - r[0]) * rng();
       if (s.scale) v *= growth(s, L);
+      if (s.scale && L >= 21) v *= ({ rare: 1.03, epic: 1.05, legendary: 1.1 })[rarity] || 1;   // level 21+: top rarities a step up
       if (s.curve) { var lc = Math.min(L, 50) - 1; v *= 1 + s.curve * lc * lc; }
       if (s.max !== undefined) v = Math.min(s.max, v);
       item.stats[k] = roundTo(v, s.round);
@@ -25699,7 +25700,10 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   /* the level a gun fights at (its own, or player level - 4); melee weapons have none and ride the floor */
   WD.ownLevel = function (gunId) { var s = slot(); return (s && s.gunLevel && s.gunLevel[gunId]) || 1; };
   WD.levelOf = function (gunId) { return GL() ? GL().effective(WD.ownLevel(gunId), playerLv(), curLevel()) : 1; };
-  WD.dmgMul = function (gunId) { var r = WD.rollOf(gunId); return WD.tierOf(gunId).dmg * (GL() ? GL().mul(WD.levelOf(gunId)) : 1) * (r && r.mult ? r.mult : 1); };
+  /* level 21+ guns (their own gun level): the top tiers hit harder on top of the tier multiplier, orange the most */
+  WD.LATE_BOOST = { level: 21, blue: 1.04, purple: 1.07, orange: 1.15 };
+  WD.lateBoost = function (tierId, lv) { return lv >= WD.LATE_BOOST.level ? WD.LATE_BOOST[tierId] || 1 : 1; };
+  WD.dmgMul = function (gunId) { var r = WD.rollOf(gunId); return WD.lateBoost(WD.tierOf(gunId).id, WD.ownLevel(gunId)) * WD.tierOf(gunId).dmg * (GL() ? GL().mul(WD.levelOf(gunId)) : 1) * (r && r.mult ? r.mult : 1); };
   WD.rollOf = function (gunId) {
     var s = slot(), def = IB.WEAPONS[gunId], gl = GL(), saved = s && s.gunRoll && s.gunRoll[gunId];
     if (!def || !gl) return null;
@@ -30929,7 +30933,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   }
   // fills a slot with the max profile. force = the level picker: re-fills now, keeping the skills already spent
   function fill(slot, force) {
-    slot.devMax = 1; slot.wyrmV = 1; slot.devV = 52;
+    slot.devMax = 1; slot.wyrmV = 1; slot.devV = 53;
     var top = IB.CAMPAIGN.length, plans = IB.CAMPAIGN;
     slot.highest = Math.max(slot.highest || 0, 20, top);
     slot.gems = Math.max(slot.gems || 0, 999999);
@@ -31021,7 +31025,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   function ensureProfile() {
     var slot = devSlot();
     if (!slot) slot = fill(makeSlot(), false);
-    else if ((slot.devV || 0) < 52) fill(slot, true);   // older tester profile: refilled at LV 50 with level-50 gear (51: gear grows to 50)
+    else if ((slot.devV || 0) < 53) fill(slot, true);   // older tester profile: refilled at LV 50 with level-50 gear (51: gear grows to 50)
     else if (!slot.wyrmV) wyrmUpdate(slot);
     G.store.save(slot);
     G.slot = slot;

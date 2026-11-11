@@ -36,7 +36,10 @@
   /* the level a gun fights at (its own, or player level - 4); melee weapons have none and ride the floor */
   WD.ownLevel = function (gunId) { var s = slot(); return (s && s.gunLevel && s.gunLevel[gunId]) || 1; };
   WD.levelOf = function (gunId) { return GL() ? GL().effective(WD.ownLevel(gunId), playerLv(), curLevel()) : 1; };
-  WD.dmgMul = function (gunId) { var r = WD.rollOf(gunId); return WD.tierOf(gunId).dmg * (GL() ? GL().mul(WD.levelOf(gunId)) : 1) * (r && r.mult ? r.mult : 1); };
+  /* level 21+ guns (their own gun level): the top tiers hit harder on top of the tier multiplier, orange the most */
+  WD.LATE_BOOST = { level: 21, blue: 1.04, purple: 1.07, orange: 1.15 };
+  WD.lateBoost = function (tierId, lv) { return lv >= WD.LATE_BOOST.level ? WD.LATE_BOOST[tierId] || 1 : 1; };
+  WD.dmgMul = function (gunId) { var r = WD.rollOf(gunId); return WD.lateBoost(WD.tierOf(gunId).id, WD.ownLevel(gunId)) * WD.tierOf(gunId).dmg * (GL() ? GL().mul(WD.levelOf(gunId)) : 1) * (r && r.mult ? r.mult : 1); };
   WD.rollOf = function (gunId) {
     var s = slot(), def = IB.WEAPONS[gunId], gl = GL(), saved = s && s.gunRoll && s.gunRoll[gunId];
     if (!def || !gl) return null;

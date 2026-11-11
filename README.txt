@@ -35,6 +35,8 @@ CONTROLS
 
 PROGRESSION
   Player level: +1 for every campaign level cleared (LV 20 cap), shown above the health bar with a rank title.
+  Level 21+ boost: guns of gun level 21+ hit harder on top of their tier (blue x1.04, purple x1.07, orange x1.15);
+    gear of item level 21+ gets its level-scaled stats raised (rare x1.03, epic x1.05, legendary x1.1).
   Health regen: from campaign level 21 the player repairs a % of max health per second after 4 s without damage
     (0.6 % on 21, 1.4 % on 25, 2.9 % on 30, a bigger step every level; IB.Damage.levelRegenPct), on top of bench / skills.
   Skill points: from clearing levels 1-17 only (22 in total, see src/data/skills.js); the tree holds 43, so pick.
