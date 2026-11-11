@@ -191,7 +191,7 @@
             [['crawler', 10], ['bomber', 2], ['gunner', 6], ['blader', 6]],
             [['crawler', 12], ['drone', 7], ['gunner', 7], ['soldier', 10]],
             [['crawler', 14], ['drone', 3], ['bomber', 2], ['gunner', 9], ['soldier', 6], ['blader', 5]],
-            [['crawler', 8], ['gunner', 6], ['soldier', 4]]] },
+            [['crawler', 8], ['gunner', 6], ['soldier', 5]]] },
           // Stockroom: tall racks, the docks, the mezzanine office
           { map: 'megastore_2', waves: [
             [['crawler', 16], ['gunner', 10], ['soldier', 6]],
