@@ -59,6 +59,13 @@ CAMPAIGN (src/data/levelplans.js ORDER)
     shuttered. Zone layers: tools/mall_zones.py; rooms: blender/mall_rooms.py; doorways: theme wall.passage.
   Lagoon Island (island): a wide island with wadeable ponds, tide pools and a lagoon, sea walls on the shore and open
     ocean to the horizon all round (theme backdrop.build paints the island ground and the sea).
+  Downtown Standoff (downtown): a wide daylight downtown braced for a battle -- Commerce Avenue (a checkpoint and an
+    overturned truck across a six-lane avenue), Liberty Square (sandbag nests round the Founders monument) and Market
+    Street (a stalled tram among market stalls, a service lane behind); five building styles, cars, taxis, police
+    cruisers, a bus, vans, trucks and bikes everywhere, ten walk-in shops with furnished 7 x 8 m rooms and back rooms
+    (pharmacy, diner, electronics, convenience store, books, barber, sporting goods, hardware, pawn, laundromat).
+    Kit: blender/fam_kit_downtown.py (downtown_*.py); zones: tools/downtown_zones.py. The everyday vehicles are
+    kit-parking pieces: theme option `families` loads more kits for a level (zones.js Z.themeFamilies).
 
 MELEE, GRENADES AND NEW GUNS
   Melee weapons (V, src/game/weapons.js W.meleeStart + game.js meleeHit): Stinger dagger (fast stab, x2.5 on a
