@@ -608,7 +608,7 @@ async function campaignRun(browser, base) {
   console.log('\n# campaign: big levels, no z-fighting, waypath -> loading -> next level');
   // PLANS=castle,city2 checks a subset (the full level-1 flow runs only when mountains is in the list);
   // campaign levels whose theme isn't built are skipped
-  const plans = process.env.PLANS ? process.env.PLANS.split(',') : ['mountains', 'smallcity', 'classroom', 'office', 'bedroom', 'coalmine', 'castle', 'city2', 'factory', 'livingroom', 'garden', 'factory2', 'island', 'mall', 'police', 'grove', 'spire', 'foundry', 'parking', 'downtown'];
+  const plans = process.env.PLANS ? process.env.PLANS.split(',') : ['mountains', 'smallcity', 'classroom', 'office', 'bedroom', 'coalmine', 'castle', 'city2', 'factory', 'livingroom', 'garden', 'factory2', 'island', 'mall', 'police', 'grove', 'spire', 'foundry', 'parking', 'hotel', 'techhq', 'cargoship', 'datacenter', 'downtown', 'highrise'];
   for (const plan of plans) {
     const pg = await newPage(browser, base + '?autotest=1&zcheck=1&plan=' + plan);
     if (!(await pg.evaluate(p => !!IB.LEVEL_PLANS[p], plan))) { console.log('SKIP ' + plan + ' (not built)'); await pg.context().close(); continue; }
