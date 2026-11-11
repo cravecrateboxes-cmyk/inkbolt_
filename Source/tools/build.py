@@ -67,7 +67,9 @@ def inline_js(code):
     return code.replace('</script', '<\\/script')
 
 
-def bundle(platform='plain', standalone=False):
+def bundle(platform='plain', standalone=False, split=None):
+    # split: a folder; the GLB data goes into glb-<n>.js files there (each under ~6 MB, loaded by <script src> before
+    # the game), so the page itself stays small (the published artifact: page and each file under 16 MB)
     html = read('src/index.src.html')
     # every stylesheet linked in the BUILD:CSS block, in order; every vendored font url('../../vendor/fonts/X.woff2')
     # is inlined as a data URL
@@ -86,7 +88,21 @@ def bundle(platform='plain', standalone=False):
         for fam, fn in ASSETS.items():
             # gzip before base64: GLBs shrink 4-7x; the game inflates them with the browser's DecompressionStream
             data[fam] = base64.b64encode(gzip.compress(open(os.path.join(SRC, 'assets', fn), 'rb').read(), 9, mtime=0)).decode()
-        game.append('window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = ' + json.dumps(data) + ';')
+        if split:
+            parts, cur, size = [], {}, 0
+            for fam in data:
+                if cur and size + len(data[fam]) > 6e6:
+                    parts.append(cur); cur, size = {}, 0
+                cur[fam] = data[fam]; size += len(data[fam])
+            parts.append(cur)
+            data_tags = []
+            for i, part in enumerate(parts):
+                fn = 'glb-%d.js' % (i + 1)
+                write(os.path.join(split, fn), 'window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = IB.GLB_DATA || {};\n' +
+                      ''.join('IB.GLB_DATA[%s] = %s;\n' % (json.dumps(k), json.dumps(v)) for k, v in part.items()))
+                data_tags.append('<script src="%s"></script>' % fn)
+        else:
+            game.append('window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = ' + json.dumps(data) + ';')
     vendor_tags = []
     for s in scripts:
         if s.startswith('vendor/'):
@@ -96,6 +112,8 @@ def bundle(platform='plain', standalone=False):
                 vendor_tags.append('<script src="%s"></script>' % os.path.basename(s))
         else:
             game.append('/* ---- %s ---- */\n%s' % (s, read(s)))
+    if standalone and split:
+        vendor_tags += data_tags
     js = '\n'.join(vendor_tags) + '\n<script>\n' + inline_js('\n'.join(game)) + '\n</script>'
     html = re.sub(r'<!--BUILD:JS-->.*?<!--/BUILD:JS-->', lambda m: js, html, flags=re.S)
     return html
@@ -120,6 +138,12 @@ def main():
     # single-file offline build
     play = os.path.join(ROOT, 'Play Inkbolt.html')
     write(play, bundle('plain', True))
+    # published artifact build: the single-file game with its model data in side files
+    art = os.path.join(SRC, 'dist/artifact')
+    if os.path.isdir(art):
+        shutil.rmtree(art)
+    os.makedirs(art)
+    write(os.path.join(art, 'index.html'), bundle('plain', True, art))
     for p in [play, os.path.join(up, 'index.html')] + [os.path.join(SRC, 'assets', f) for f in ASSETS.values()]:
         print('%-60s %8.1f KB' % (os.path.relpath(p, ROOT), os.path.getsize(p) / 1024))
 
