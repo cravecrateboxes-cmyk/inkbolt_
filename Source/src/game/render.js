@@ -320,6 +320,7 @@
     // env.far (optional): the camera's far plane for levels that look a long way out (a city hundreds of metres down)
     R.camera.far = env.far || 420; R.camera.updateProjectionMatrix();
     var s = env.sun || [0.42, 0.82, 0.38]; R.sun.position.set(s[0], s[1], s[2]);
+    R.sun.color.set(env.sunColor || '#FFFFFF');   // env.sunColor (optional): a tinted sun (a warm low evening light); white by default
   };
   // fog end: the theme's, capped by the graphics tier (120 m on high); a theme with fog.tierScale (a skyline far out
   // that must stay readable) scales its own distance by the tier instead (high = 120 = x1)

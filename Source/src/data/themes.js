@@ -8,6 +8,8 @@
        sky: ['#top', '#horizon'] | null (indoor: no sky dome),   clear: '#hex' (background when sky is null),
        fog: { color: '#hex', near: 40, far: 120 },
        sun: [x, y, z] (light direction, optional),
+       sunColor: '#hex' (optional: the sun light's colour, white by default; a warm low evening sun),
+       far: 420 (optional: the camera's far plane, for levels that look a long way out),
        ceiling: null | { height: 4, color: '#hex', light: 'PieceName' | ['BayA', 'BayB'] (optional, a list is mixed
                  per bay), every: 4 },
        clouds: true|false

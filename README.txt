@@ -129,6 +129,23 @@ CAMPAIGN (src/data/levelplans.js ORDER)
     pool (one InstancedMesh per kind and zone, shader ripples) and wading ripples round the player and robots. No
     living creatures. Kit: blender/fam_kit_seabase.py (sb_*.py); zones: tools/seabase_zones.py.
 
+  Fort Highwatch (stronghold, 2 zones): a remote military stronghold built and carved into the west face of a huge
+    mountain massif, late afternoon going to sunset. The Outer Works (72 m): a broad cliff ledge behind a concrete
+    parapet over a sheer drop -- the fortified rock gate (blast portal, two bastions), bunker doors and gun casemates in
+    the cliff, sandbagged gun emplacements, pillboxes, the helipad with a parked helicopter and its fuel bowser, the
+    supply dump under camouflage nets, comms masts, floodlights; terrace 1 (3.6 m) and terrace 2 (7.2 m, the radome)
+    against the cliff, each reached by a switchback (a concrete flight, a landing, a flight back), plus a long ramp.
+    Inside the Mountain (75 m): carved rock halls under a 12 m rock roof -- the vehicle hangar (armoured truck, blast
+    door, mezzanine), the ammo depot (racks, shell pallets, the armory cage), the barracks, the main gallery and the
+    command centre with its big tactical table (a sand-table of the valley), consoles, video wall and ops balcony;
+    four doorways open onto the observation terrace cut into the cliff face (AA guns, spotting scopes, an observation
+    post). The vista is code-built by the theme (backdrop.build) and level-wide: the massif's rock shell over the halls
+    and above the faces, cliffs down to the valley 300 m below, drifting valley mist, a waterfall on the opposite
+    range ~500 m away and a second, smaller and hazier one far up the valley at the headwall (both scrolling, into
+    churning plunge mist), a sunset band round the horizon with a low sun and pink cloud streaks. Engine: theme option
+    env.sunColor (render.js applyEnv; the sun light's colour, white by default). Kit: blender/fam_kit_stronghold.py
+    (sh_base / sh_outer / sh_inner); zones: tools/stronghold_zones.py; test: node tests/e2e/stronghold-walk.spec.js.
+
 BREAKABLE DOORS (src/game/doors.js, theme symbol option `breakable`; first used by Helix Vault)
   A prefab symbol with breakable: { hp, debris: 'metal' | 'glass' | 'mesh' | 'field', word, leaf, blend } places its
   frame like any prefab and its leaf (<Piece>_Leaf, _Leaf_D1, _Leaf_D2, _Broken) as its own mesh and collision. The
