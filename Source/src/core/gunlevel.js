@@ -28,7 +28,7 @@
   function clamp(x, a, b) { return x < a ? a : x > b ? b : x; }
 
   // ---------------- gun levels ----------------
-  GL.STEP = 0.055; GL.CATCHUP = 4; GL.MAX = 40;
+  GL.STEP = 0.055; GL.CATCHUP = 4; GL.MAX = 50;
   GL.mul = function (L) { return 1 + GL.STEP * (clamp(Math.round(+L || 1), 1, GL.MAX) - 1); };
   /* the level a gun fights at: its own, or 4 below the player level when that is higher. The floor never runs ahead of
      the campaign level being played (planLv; the player level is XP-based and can outrun it). */

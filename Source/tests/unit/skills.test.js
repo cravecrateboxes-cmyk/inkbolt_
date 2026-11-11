@@ -256,13 +256,13 @@ test('respec: cost scales with progress (40% of EXPECTED_INCOME), never free, ab
   assert.equal(S.respec(poor).reason, 'gems'); assert.equal(poor.gems, 89); assert.deepEqual(poor.skills, { overload: 1 });
 });
 
-test('player level: +1 per completed campaign level, capped at 30, with a rank title each', () => {
+test('player level: +1 per completed campaign level, capped at 50, with a rank title each', () => {
   assert.equal(S.playerLevel(0), 1);
   for (let h = 0; h <= 19; h++) assert.equal(S.playerLevel(h), h + 1);
-  assert.equal(S.playerLevel(20), 21); assert.equal(S.playerLevel(29), 30); assert.equal(S.playerLevel(45), 30);
-  for (let lv = 1; lv <= 30; lv++) assert.ok(typeof S.rankTitle(lv) === 'string' && S.rankTitle(lv).length > 3, 'title ' + lv);
-  assert.equal(new Set(IB.RANK_TITLES.slice(1)).size, 30, 'titles are unique');
-  assert.equal(S.rankTitle(99), S.rankTitle(30));
+  assert.equal(S.playerLevel(20), 21); assert.equal(S.playerLevel(29), 30); assert.equal(S.playerLevel(45), 46); assert.equal(S.playerLevel(80), 50);
+  for (let lv = 1; lv <= 50; lv++) assert.ok(typeof S.rankTitle(lv) === 'string' && S.rankTitle(lv).length > 3, 'title ' + lv);
+  assert.equal(new Set(IB.RANK_TITLES.slice(1)).size, 50, 'titles are unique');
+  assert.equal(S.rankTitle(99), S.rankTitle(50));
 });
 
 test('loadout: 2 guns until level 10 is cleared, then 3; assign / pickup rules', () => {

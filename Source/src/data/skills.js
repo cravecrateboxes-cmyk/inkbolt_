@@ -2,7 +2,7 @@
 
    ECONOMY (see tests/unit/skills.test.js)
    PLAYER LEVEL comes from XP, as in a looter shooter: every robot you wreck pays XP (by type, x the level you are
-   playing), and clearing a level pays a bonus (IB.XP). LV 1-30 (PLAYER_LEVEL_CAP); the XP needed for LV n is
+   playing), and clearing a level pays a bonus (IB.XP). LV 1-50 (PLAYER_LEVEL_CAP); the XP needed for LV n is
    IB.XP.need(n), tuned so that playing the campaign through (most robots wrecked) puts you around LV N+1 after
    level N, and maps added later keep carrying you towards LV 30. Replaying earlier maps also pays, just less.
    Every LV raises max health (core/damage.js playerMaxHp) and better gear keeps dropping (item level = the level
@@ -98,7 +98,7 @@
   IB.SKILL_POINTS_AT[1] = 2;                                   // the first level-up pays 2: 30 in total by LV 30
   IB.SKILL_POINTS_MAX = 30;
   IB.SKILL_LAST_LEVEL = IB.SKILL_POINTS_MAX;   // the last point (30) comes with LV 30
-  IB.PLAYER_LEVEL_CAP = 30;
+  IB.PLAYER_LEVEL_CAP = 50;
   /* XP: per robot wrecked = kill[type] x (1 + 0.1 (L - 1)) at campaign level L; clearing level L pays clear(L).
      need(n) = total XP to reach LV n: 900 (n - 1) + 49.3 (n - 1)^2.73 (LV 2 900, LV 10 ~28k, LV 20 ~170k, LV 30 ~510k). */
   IB.XP = {
@@ -119,5 +119,9 @@
     'Ink Slinger', 'Wire Wrangler', 'Dent Dealer', 'Piston Puncher', 'Chrome Cracker',
     'Circuit Smasher', 'Scrapyard Sheriff', 'Tin Terror', 'Robot Wrecker', 'Inkbolt Legend',
     'Iron Inker', 'Steel Scribbler', 'Titan Tagger', 'Mech Marker', 'Chassis Chaser',
-    'Gantry Ghost', 'Foundry Phantom', 'Core Cracker', 'Overlord Breaker', 'Inkbolt Eternal'];
+    'Gantry Ghost', 'Foundry Phantom', 'Core Cracker', 'Overlord Breaker', 'Inkbolt Eternal',
+    'Vault Breaker', 'Deck Raider', 'Hull Ripper', 'Rooftop Runner', 'Plank Walker',
+    'Server Smasher', 'Signal Jammer', 'Grid Ghost', 'Hawk Hunter', 'Trooper Toppler',
+    'Skyline Stalker', 'Penthouse Raider', 'Harbor Hammer', 'Downtown Dread', 'Armory Ace',
+    'Steel Sovereign', 'Chrome Crusader', 'Ink Overlord', 'Bolt Paragon', 'Inkbolt Immortal'];
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));

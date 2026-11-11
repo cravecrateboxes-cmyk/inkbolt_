@@ -104,10 +104,10 @@ test('XP levelling: playing the campaign through (90% of robots) puts the player
     const lv = S.levelFromXp(xp);
     assert.ok(lv >= L && lv <= L + 2, id + ' (level ' + L + ') -> LV ' + lv);
   });
-  assert.ok(S.levelFromXp(xp) < IB.PLAYER_LEVEL_CAP, 'LV 30 is for the maps still to come');
+  assert.ok(S.levelFromXp(xp) < IB.PLAYER_LEVEL_CAP, 'the top levels are for the maps still to come');
   // the XP table climbs, killXp grows with the level, replays of early maps pay less
-  for (let n = 2; n <= 30; n++) assert.ok(S.xpForLevel(n) > S.xpForLevel(n - 1));
-  assert.equal(S.levelFromXp(S.xpForLevel(30) * 5), 30);
+  for (let n = 2; n <= IB.PLAYER_LEVEL_CAP; n++) assert.ok(S.xpForLevel(n) > S.xpForLevel(n - 1));
+  assert.equal(S.levelFromXp(S.xpForLevel(IB.PLAYER_LEVEL_CAP) * 5), IB.PLAYER_LEVEL_CAP);
   assert.ok(S.killXp('soldier', 15) > S.killXp('soldier', 3) && S.killXp('soldier', 1) > S.killXp('crawler', 1));
   // skill points: 22 by LV 20 and none after
   assert.equal(S.earned(19), 20); assert.equal(S.earned(29), 30);

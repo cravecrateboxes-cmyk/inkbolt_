@@ -1,10 +1,10 @@
 /* INKBOLT - TEMPORARY tester switch (remove before release: delete this file and its <script> line in
    index.src.html). While DEV_MAX is on, the tester profile (the one save with devMax set) is kept as the newest save on
    every title screen, so Continue loads it; it is made, maxed out, when missing. Its max contents:
-   every campaign level cleared, player LV 30 (max XP, all 30 skill points to spend / respec freely, 3 loadout slots),
-   every gun Legendary at gun level 30 (launchers with full magazines, Blast Hothead), a full rocket pool,
-   lots of gems, every playable gun in the arsenal, legendary level-30 attachments (max rolls: grip, scope, acid
-   muzzle, extended mag) fitted to every gun that takes them, a legendary level-30 Nova shield cell and a legendary
+   every campaign level cleared, player LV 50 (max XP, all 30 skill points to spend / respec freely, 3 loadout slots),
+   every gun Legendary at gun level 50 (launchers with full magazines, Blast Hothead), a full rocket pool,
+   lots of gems, every playable gun in the arsenal, legendary level-50 attachments (max rolls: grip, scope, acid
+   muzzle, extended mag) fitted to every gun that takes them, a legendary level-50 Nova shield cell and a legendary
    vest worn, and a spare legendary Overcharge cell in the bag. Never runs in ?autotest=1. */
 (function (IB) {
   'use strict';
@@ -30,16 +30,16 @@
   }
   // fills a slot with the max profile. force = the level picker: re-fills now, keeping the skills already spent
   function fill(slot, force) {
-    slot.devMax = 1; slot.wyrmV = 1;
+    slot.devMax = 1; slot.wyrmV = 1; slot.devV = 50;
     var top = IB.CAMPAIGN.length, plans = IB.CAMPAIGN;
     slot.highest = Math.max(slot.highest || 0, 20, top);
     slot.gems = Math.max(slot.gems || 0, 999999);
-    slot.xp = Math.max(slot.xp || 0, IB.Skills.xpForLevel(IB.PLAYER_LEVEL_CAP));   // LV 30
+    slot.xp = Math.max(slot.xp || 0, IB.Skills.xpForLevel(IB.PLAYER_LEVEL_CAP));   // LV 50
     slot.plan = slot.plan && IB.LEVEL_PLANS[slot.plan] ? slot.plan : plans[0];
     var guns = IB.WEAPON_ORDER.filter(function (id) { return IB.Weapons.playable(id); });
     slot.arsenal = guns.slice(); slot.owned = guns.slice();
     slot.gunTier = {}; guns.forEach(function (id) { slot.gunTier[id] = 'orange'; });   // every gun at the top (Legendary) tier
-    slot.gunLevel = {}; guns.forEach(function (id) { slot.gunLevel[id] = 30; });       // gun level 30
+    slot.gunLevel = {}; guns.forEach(function (id) { slot.gunLevel[id] = 50; });       // gun level 50
     slot.gunRoll = {}; guns.forEach(function (id) {                                     // launchers: biggest magazine
       var d = IB.WEAPONS[id]; if (d.magRoll) slot.gunRoll[id] = { mag: d.magRoll[1], elem: d.elements ? 'boom' : 'none' };
       if (d.wyrm) slot.gunRoll[id] = { mag: d.wyrm.mag[1], mult: d.wyrm.mult[1] };   // Wyrmforged: biggest magazine, x3
@@ -55,22 +55,22 @@
     IB.LOOT.starters.forEach(function (s) { g[s.flag] = true; });
     function put(item) { if (L.addItem(g, item)) return item; item.id = 'g' + (g.next++); g.inv.push(item); g.found++; return item; }
     function rolls(perkPick) { var i = 0; return function () { return i++ === 3 ? perkPick : 0.999; }; }   // 4th roll: the shield perk
-    L.equipShield(g, put(L.makeItem('shield', 'legendary', 30, rolls(0.9))).id);       // Nova
-    put(L.makeItem('shield', 'legendary', 30, rolls(0.1)));                             // Overcharge, spare
-    L.equipWorn(g, 'armor', put(L.makeItem('armor', 'legendary', 30, best)).id);
+    L.equipShield(g, put(L.makeItem('shield', 'legendary', 50, rolls(0.9))).id);       // Nova
+    put(L.makeItem('shield', 'legendary', 50, rolls(0.1)));                             // Overcharge, spare
+    L.equipWorn(g, 'armor', put(L.makeItem('armor', 'legendary', 50, best)).id);
     var CANS = ['acid', 'shock', 'blast', 'void'];
     guns.forEach(function (id, gi) {
       var def = IB.WEAPONS[id];
       Object.keys(IB.LOOT.types).forEach(function (type) {
         if (!L.isAttachment({ type: type })) return;
         // one muzzle can per gun, the four kinds in turn (acid, Arc, Boom, Void) so every kind is in play
-        if (CANS.indexOf(type) >= 0) { var want = CANS[gi % 4]; if (!L.compatible(L.makeItem(want, 'legendary', 30, best), id, def)) want = 'shock'; if (type !== want) return; }
-        var probe = L.makeItem(type, 'legendary', 30, best);
+        if (CANS.indexOf(type) >= 0) { var want = CANS[gi % 4]; if (!L.compatible(L.makeItem(want, 'legendary', 50, best), id, def)) want = 'shock'; if (type !== want) return; }
+        var probe = L.makeItem(type, 'legendary', 50, best);
         if (!L.compatible(probe, id, def)) return;
         L.attach(g, id, def, put(probe).id);
       });
     });
-    CANS.forEach(function (t) { put(L.makeItem(t, 'legendary', 30, best)); });   // a spare of each can in the bag
+    CANS.forEach(function (t) { put(L.makeItem(t, 'legendary', 50, best)); });   // a spare of each can in the bag
     slot.gear = g;
     if (!force) slot.skills = {};             // all points free: spend / respec as you like in Tab -> Skills
     return slot;
@@ -112,7 +112,7 @@
     var id = 'handcannon';
     slot.gunRoll = slot.gunRoll || {}; slot.gunRoll[id] = { mag: IB.WEAPONS[id].wyrm.mag[1], mult: IB.WEAPONS[id].wyrm.mult[1] };
     slot.gunTier = slot.gunTier || {}; slot.gunTier[id] = 'orange';
-    slot.gunLevel = slot.gunLevel || {}; slot.gunLevel[id] = 30;
+    slot.gunLevel = slot.gunLevel || {}; slot.gunLevel[id] = 50;
     if (slot.arsenal && slot.arsenal.indexOf(id) < 0) slot.arsenal.push(id);
     slot.owned = (slot.arsenal || []).slice();
     G.store.save(slot);
@@ -122,6 +122,7 @@
   function ensureProfile() {
     var slot = devSlot();
     if (!slot) slot = fill(makeSlot(), false);
+    else if ((slot.devV || 0) < 50) fill(slot, true);   // older tester profile: refilled at LV 50 with level-50 gear
     else if (!slot.wyrmV) wyrmUpdate(slot);
     G.store.save(slot);
     G.slot = slot;
