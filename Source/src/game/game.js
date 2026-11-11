@@ -329,6 +329,7 @@
     L.zones.forEach(function (z) { z.pickups.forEach(function (pk) { G.spawnPickup(pk.kind, pk.x, pk.z, pk.y); }); });
     placeWeaponStands(G.plan.weapons || []);
     placeLoot();
+    if (IB.Rooftops) IB.Rooftops.reset(L);   // planks robots threw last time are gone again
     if (IB.Boom) IB.Boom.levelStart(L, G.plan.level);   // VFX intensity for this level, explosive canisters in later zones
     if (IB.Doors) IB.Doors.reset(L);   // breakable doors whole and shut again
   }
@@ -1007,6 +1008,10 @@
     }
     HUD.elim(true, G.killer.toUpperCase(), 3, G.run.retries);
   }
+  // a fall off a roof (rooftops.js): the usual death, no shield or skill saves you
+  G.fallDeath = function () { if (G.player.alive && !G.complete) die({ killer: (G.level.theme.rooftop && G.level.theme.rooftop.killer) || 'The Long Drop' }); };
+  // a robot that fell: the kill counts (XP), its gems and drops are lost in the street below
+  G.fallKill = function (r) { G.run.kills++; var kx = IB.Skills.killXp(r.type, G.plan.level); G.run.xp += kx; addXp(kx); };
   function respawn() {
     var p = G.player, z = G.level.zones[G.zone];
     document.body.classList.remove('dead');
@@ -1200,6 +1205,7 @@
         IB.Projectiles.update(STEP, actx);
         if (IB.Throwables) IB.Throwables.update(STEP, G.level.world);
         if (IB.Launchers) IB.Launchers.update(STEP, actx);   // rockets and homing missiles in flight
+        if (IB.Rooftops && G.level.roofZones) IB.Rooftops.update(STEP, actx);   // falls off roofs, planks thrown across gaps
       }
       if (G.run.started && !G.dead) updateZones(STEP);
     }
