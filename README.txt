@@ -77,6 +77,16 @@ CAMPAIGN (src/data/levelplans.js ORDER)
     cylinders, an energy test chamber, the Forge). Glow companions (theme option `glow`, zones.js): LEDs, screens and
     holograms drawn unlit, blinked / turned by the theme.
 
+  BULKBARN Warehouse Club (megastore, 2 zones): the inside of a huge warehouse store under a 10 m steel roof on
+    open-web joists (skylights, high-bay lamps, hanging aisle and department boards). Sales Floor (80 m): eight rows of
+    5.6 m pallet racks (goods on the shelves, shrink-wrapped pallets above; every rack, endcap and pallet repainted
+    per copy from a dozen product colours, theme symbol option `paint`), produce, dairy / drink coolers and walk-ins,
+    a TV wall, apparel, the pharmacy / optical counter, freezer bunkers, checkout lanes, cart corrals, the entrance
+    vestibule and the BULKBARN CAFE food court. Stockroom (72 m), behind the EMPLOYEES ONLY doors: 8.6 m racks,
+    forklifts (kit-parking via `families`), dock doors with trailers backed in, a baler, a stretch wrapper, the break
+    room under a mezzanine and the receiving office up on it (steel stair, high ground). Kit: blender/fam_kit_megastore.py
+    (ms_*.py); zones: tools/megastore_zones.py.
+
 BREAKABLE DOORS (src/game/doors.js, theme symbol option `breakable`; first used by Helix Vault)
   A prefab symbol with breakable: { hp, debris: 'metal' | 'glass' | 'mesh' | 'field', word, leaf, blend } places its
   frame like any prefab and its leaf (<Piece>_Leaf, _Leaf_D1, _Leaf_D2, _Broken) as its own mesh and collision. The
