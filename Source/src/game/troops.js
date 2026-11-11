@@ -235,8 +235,8 @@
         if (r.st >= rt) {
           K.setState(r, 'keep'); r.thinkT = 0;
           if (r.act === 'melee') r.mcool = 1.4 + Math.random() * 0.8;
-          else if (r.act === 'nade') { var ge = def.grenadeEvery || [6, 10]; r.ncool = rnd(ge[0], ge[1]) * T.coolMul; r.cool = Math.max(r.cool, 0.6); }
-          else if (r.act === 'gl') { var fe = def.fireEvery || [3.4, 5]; r.cool = rnd(fe[0], fe[1]) * T.coolMul; }
+          else if (r.act === 'nade') { var ge = def.grenadeEvery || [6, 10]; r.ncool = rnd(ge[0], ge[1]) * T.coolMul * (IB.Damage && IB.Damage.lateBoom ? IB.Damage.lateBoom() : { dmg: 1, cool: 1 }).cool; r.cool = Math.max(r.cool, 0.6); }
+          else if (r.act === 'gl') { var fe = def.fireEvery || [3.4, 5]; r.cool = rnd(fe[0], fe[1]) * T.coolMul * (IB.Damage && IB.Damage.lateBoom ? IB.Damage.lateBoom() : { dmg: 1, cool: 1 }).cool; }
           else r.cool = (1.1 + Math.random() * 1.3) * T.coolMul;
           r.act = '';
         }
@@ -265,8 +265,9 @@
     var Pj = IB.Projectiles, b = Pj && Pj.fire ? Pj.fire(m.x, m.y, m.z, dx, dy, dz, speed, r.rogue > 0 ? dmg * AI.rogueDmgMul : dmg, r, r.rogue > 0 ? 1 : p.robot ? 2 : 0) : null;
     if (b) {
       var sp = r.def.specialRounds || {}, x = Math.random(), acc = 0, kind = kind0 || 'bullet';
-      if (!kind0) for (var k in sp) { acc += sp[k]; if (x < acc) { kind = k; break; } }
+      if (!kind0) { var bc = (IB.Damage && IB.Damage.lateBoom ? IB.Damage.lateBoom() : { dmg: 1, cool: 1 }).cool; for (var k in sp) { acc += k === 'boom' ? sp[k] / bc : sp[k]; if (x < acc) { kind = k; break; } } }
       b.kind = kind;
+      if (kind === 'boom' && !(r.rogue > 0) && IB.Damage && IB.Damage.lateBoom) b.dmg *= IB.Damage.lateBoom().dmg;   // levels 20+: explosive rounds hit a little softer
     }
     if (IB.Boom) IB.Boom.muzzle(m.x, m.y, m.z, 0.3);
     if (IB.FX) IB.FX.puff(m.x, m.y, m.z, 1, PAL.paper, 0.06, 0.18, 1.4);
@@ -300,7 +301,7 @@
     g.on = true; g.t = 0; g.x = h.x; g.y = h.y; g.z = h.z; g.rest = false; g.spin = rnd(8, 13); g.rx = 0; g.rz = 0; g.impact = false;
     g.vx = (tx - h.x) / t; g.vz = (tz - h.z) / t; g.vy = (ty - h.y + 0.5 * G * t * t) / t;
     g.fuse = (def.grenadeFuse || 2.1) * Math.max(0.85, K.tempo().tellMul);
-    g.R = def.grenadeRadius || 3.4; g.dmg = r.rogue > 0 ? 0 : (def.grenadeDamage || 30) * r.dmgMul;
+    g.R = def.grenadeRadius || 3.4; g.dmg = r.rogue > 0 ? 0 : (def.grenadeDamage || 30) * r.dmgMul * (IB.Damage && IB.Damage.lateBoom ? IB.Damage.lateBoom() : { dmg: 1, cool: 1 }).dmg;
     g.rdmg = (def.grenadeRobotDamage || 20) * (AI.hpMul || 1) * (r.rogue > 0 ? AI.rogueDmgMul : 1);
     g.src.x = r.x; g.src.z = r.z; g.src.type = r.type;
     K.play('shove', r, 0.7);
@@ -320,7 +321,7 @@
     g.on = true; g.t = 0; g.x = m.x; g.y = m.y; g.z = m.z; g.rest = false; g.spin = rnd(14, 20); g.rx = 0; g.rz = 0;
     g.vx = (tx - m.x) / t; g.vz = (tz - m.z) / t; g.vy = (ty - m.y + 0.5 * G * t * t) / t;
     g.impact = true; g.lx = tx; g.ly = ty; g.lz = tz; g.fuse = t + 2.5; g.shellFuse = def.shellFuse || 0.45;
-    g.R = def.shellRadius || 3; g.dmg = r.rogue > 0 ? 0 : (def.shellDamage || 26) * r.dmgMul;
+    g.R = def.shellRadius || 3; g.dmg = r.rogue > 0 ? 0 : (def.shellDamage || 26) * r.dmgMul * (IB.Damage && IB.Damage.lateBoom ? IB.Damage.lateBoom() : { dmg: 1, cool: 1 }).dmg;
     g.rdmg = (def.shellRobotDamage || 14) * (AI.hpMul || 1) * (r.rogue > 0 ? AI.rogueDmgMul : 1);
     g.src.x = r.x; g.src.z = r.z; g.src.type = r.type;
     r.kick = 1; Tr.shells = (Tr.shells || 0) + 1;
@@ -598,7 +599,7 @@
         if (r.token) K.releaseToken(r);
         K.move(ox, oz, speed * 0.8 * boost);
         r.aim += (-0.25 - r.aim) * Math.min(1, dt * 3);
-        if (r.st >= (def.recover || 0.75)) { K.setState(r, 'keep'); r.cool = (1.2 + Math.random() * 1.5) * T.coolMul; }
+        if (r.st >= (def.recover || 0.75)) { K.setState(r, 'keep'); r.cool = (1.2 + Math.random() * 1.5) * T.coolMul * (r.round === 'boom' ? (IB.Damage && IB.Damage.lateBoom ? IB.Damage.lateBoom() : { dmg: 1, cool: 1 }).cool : 1); }
         break;
     }
   }

@@ -149,7 +149,7 @@
      short damage-over-time (IB.Troops.dot) */
   function special(b, x, y, z, onPlayer) {
     var k = b.kind; if (!k || k === 'bullet') return;
-    if (k === 'boom') { Pj.explode(x, y, z, 1.7, b.dmg * 0.8, 0, null); return; }
+    if (k === 'boom') { var LB = IB.Damage && IB.Damage.lateBoom ? IB.Damage.lateBoom().dmg : 1; Pj.explode(x, y, z, 1.7, b.dmg * 0.8 * (b.vs === 1 ? 1 : LB), 0, null); return; }
     var c = KIND[k][1].getHex();
     if (IB.Boom && IB.Boom.ready) { if (k === 'shock') IB.Boom.zap(x, y, z, 0.6, c); else IB.Boom.sparks(x, y, z, 0, 0.6, 0, 8, c); }
     if (IB.FX) IB.FX.puff(x, y, z, 5, c, 0.12, 0.4, 2.2);

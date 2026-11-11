@@ -630,13 +630,18 @@
     var spawns = z.spawns.filter(function (s) { return Math.hypot(s.x - p.x, s.z - p.z) >= 6; });
     if (!spawns.length) spawns = z.spawns.slice();
     var off = (Math.random() * spawns.length) | 0, GAP = (IB.Damage && IB.Damage.SPAWN_GAP) || 0.18;   // a wave trickles in
-    list.forEach(function (entry) {
-      for (var n = 0; n < entry[1]; n++) {
-        var s = spawns[(off + k) % spawns.length];
-        var type = AI.types[entry[0]] ? entry[0] : 'crawler';   // robots without a model yet fall back to the Crawler
-        z.queue.push({ type: type, x: s.x, y: s.y || 0, z: s.z, t: GAP * k + Math.floor(k / spawns.length) * 0.8, wait: 0 });
-        k++;
-      }
+    // levels 20+: the wave comes in chunks (IB.Damage.LATE.CHUNK) with the robot types mixed through every chunk
+    var CH = IB.Damage && IB.Damage.lateChunk ? IB.Damage.lateChunk(G.plan.level || 1) : null;
+    var types = [];
+    if (CH) { var left = list.map(function (e) { return e[1]; }), any = true; while (any) { any = false; list.forEach(function (e, j) { if (left[j] > 0) { types.push(e[0]); left[j]--; any = true; } }); } }
+    else list.forEach(function (entry) { for (var n = 0; n < entry[1]; n++) types.push(entry[0]); });
+    z.chunk = 0; z.chunkT = 0;
+    types.forEach(function (id) {
+      var s = spawns[(off + k) % spawns.length];
+      var type = AI.types[id] ? id : 'crawler';   // robots without a model yet fall back to the Crawler
+      var c = CH ? Math.floor(k / CH.size) : 0, kk = CH ? k % CH.size : k;
+      z.queue.push({ type: type, x: s.x, y: s.y || 0, z: s.z, t: GAP * kk + Math.floor(kk / spawns.length) * 0.8, wait: 0, chunk: c });
+      k++;
     });
   }
   function updateZones(dt) {
@@ -654,8 +659,17 @@
         // overwhelm control (core/damage.js crowdCap): while the player is already crowded, the next robot waits in
         // its can a moment (at most SPAWN_WAIT_MAX s each); a wave's robots all still come
         var D0 = IB.Damage, crowded = D0 && D0.crowdCap && z.queue.length && AI.crowd(p, D0.CROWD_R) >= D0.crowdCap(G.plan.level || 1);
+        // chunked waves (levels 20+): the next chunk opens when the zone has thinned out or after CH.maxWait s
+        var CH = IB.Damage && IB.Damage.lateChunk ? IB.Damage.lateChunk(G.plan.level || 1) : null;
+        if (CH) z.chunkT = (z.chunkT || 0) + dt;
+        if (CH && z.queue.length) {
+          var curLeft = 0; for (var cq = 0; cq < z.queue.length; cq++) if (z.queue[cq].chunk <= z.chunk) curLeft++;
+          if (!curLeft && (AI.alive(i) <= CH.openAt || z.chunkT > CH.maxWait)) { z.chunk++; z.chunkT = 0; }
+        }
         for (var q = z.queue.length - 1; q >= 0; q--) {
-          var e = z.queue[q]; e.t -= dt;
+          var e = z.queue[q];
+          if (CH && e.chunk > z.chunk) continue;   // a later chunk still waits
+          e.t -= dt;
           if (e.t <= 0 && crowded && e.wait < D0.SPAWN_WAIT_MAX) { e.wait += 0.4 - e.t; e.t = 0.4; continue; }
           if (e.t <= 0) {
             var dx = p.x - e.x, dz = p.z - e.z, d = Math.hypot(dx, dz) || 1, tx = e.x + dx / d * 1.3, tz = e.z + dz / d * 1.3;
@@ -665,7 +679,7 @@
           }
         }
         var alive = AI.alive(i) + z.queue.length;
-        if (z.wave >= 0 && z.wave < z.plan.waves.length - 1 && z.queue.length === 0 && (alive <= 6 || z.waveT > 22)) queueWave(z, z.wave + 1);
+        if (z.wave >= 0 && z.wave < z.plan.waves.length - 1 && z.queue.length === 0 && (CH ? AI.alive(i) <= CH.openAt || z.chunkT > CH.maxWait : alive <= 6 || z.waveT > 22)) queueWave(z, z.wave + 1);
         if (z.wave === z.plan.waves.length - 1 && alive === 0 && z.queue.length === 0) {
           if (z.clearT < 0) z.clearT = 0;
           z.clearT += dt;

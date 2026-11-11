@@ -17031,9 +17031,20 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   function staggers(dmg, maxHp, charged) { return !!charged || dmg >= 0.25 * maxHp; }
 
   var HEAD_MUL = 2.0;
+  /* Levels 20+ (LATE): robots come in chunks and their explosives ease off.
+     - CHUNK: a wave is split into chunks of `size` robots (types mixed). The next chunk is let out once `openAt` or fewer
+       robots of the zone are left standing, or after `maxWait` s. The next wave waits for its last chunk and for the
+       zone to thin out (no time-out flood).
+     - BOOM: robot explosives (frag grenades, launcher shells, explosive rounds' blasts) do x`dmg` damage and come x`cool`
+       less often (longer cooldowns; explosive rounds turn up 1/cool as often). */
+  var LATE = { level: 20, CHUNK: { size: 14, openAt: 5, maxWait: 30 }, BOOM: { dmg: 0.85, cool: 1.4 } };
+  function curLevel() { return (IB.Game && IB.Game.plan && IB.Game.plan.level) || 1; }
+  function lateBoom(L) { L = L || curLevel(); return L >= LATE.level ? LATE.BOOM : { dmg: 1, cool: 1 }; }
+  function lateChunk(L) { return L >= LATE.level ? LATE.CHUNK : null; }
   IB.Damage = {
     HEAD_MUL: HEAD_MUL,
     enemyHpMul: enemyHpMul, enemyDmgMul: enemyDmgMul, enemyAt: enemyAt, enemyTempo: enemyTempo, playerMaxHp: playerMaxHp, levelRegenPct: levelRegenPct, enemyPressure: enemyPressure, attackTokens: attackTokens, falloff: falloff,
+    LATE: LATE, lateBoom: lateBoom, lateChunk: lateChunk,
     closeCap: closeCap, crowdCap: crowdCap, sloppyAim: sloppyAim, healthPlan: healthPlan, HOLD: HOLD, CROWD_R: CROWD_R, SPAWN_WAIT_MAX: SPAWN_WAIT_MAX, SPAWN_GAP: SPAWN_GAP, SLOPPY: SLOPPY, HEALTH_CRIT: HEALTH_CRIT,
     hit: hit, splash: splash, blastRadius: blastRadius, rocketSplash: rocketSplash, frag: frag,
     flashDamage: flashDamage, selfDamage: selfDamage, knockback: knockback, blindDuration: blindDuration,
@@ -24023,8 +24034,8 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
         if (r.st >= rt) {
           K.setState(r, 'keep'); r.thinkT = 0;
           if (r.act === 'melee') r.mcool = 1.4 + Math.random() * 0.8;
-          else if (r.act === 'nade') { var ge = def.grenadeEvery || [6, 10]; r.ncool = rnd(ge[0], ge[1]) * T.coolMul; r.cool = Math.max(r.cool, 0.6); }
-          else if (r.act === 'gl') { var fe = def.fireEvery || [3.4, 5]; r.cool = rnd(fe[0], fe[1]) * T.coolMul; }
+          else if (r.act === 'nade') { var ge = def.grenadeEvery || [6, 10]; r.ncool = rnd(ge[0], ge[1]) * T.coolMul * (IB.Damage && IB.Damage.lateBoom ? IB.Damage.lateBoom() : { dmg: 1, cool: 1 }).cool; r.cool = Math.max(r.cool, 0.6); }
+          else if (r.act === 'gl') { var fe = def.fireEvery || [3.4, 5]; r.cool = rnd(fe[0], fe[1]) * T.coolMul * (IB.Damage && IB.Damage.lateBoom ? IB.Damage.lateBoom() : { dmg: 1, cool: 1 }).cool; }
           else r.cool = (1.1 + Math.random() * 1.3) * T.coolMul;
           r.act = '';
         }
@@ -24053,8 +24064,9 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     var Pj = IB.Projectiles, b = Pj && Pj.fire ? Pj.fire(m.x, m.y, m.z, dx, dy, dz, speed, r.rogue > 0 ? dmg * AI.rogueDmgMul : dmg, r, r.rogue > 0 ? 1 : p.robot ? 2 : 0) : null;
     if (b) {
       var sp = r.def.specialRounds || {}, x = Math.random(), acc = 0, kind = kind0 || 'bullet';
-      if (!kind0) for (var k in sp) { acc += sp[k]; if (x < acc) { kind = k; break; } }
+      if (!kind0) { var bc = (IB.Damage && IB.Damage.lateBoom ? IB.Damage.lateBoom() : { dmg: 1, cool: 1 }).cool; for (var k in sp) { acc += k === 'boom' ? sp[k] / bc : sp[k]; if (x < acc) { kind = k; break; } } }
       b.kind = kind;
+      if (kind === 'boom' && !(r.rogue > 0) && IB.Damage && IB.Damage.lateBoom) b.dmg *= IB.Damage.lateBoom().dmg;   // levels 20+: explosive rounds hit a little softer
     }
     if (IB.Boom) IB.Boom.muzzle(m.x, m.y, m.z, 0.3);
     if (IB.FX) IB.FX.puff(m.x, m.y, m.z, 1, PAL.paper, 0.06, 0.18, 1.4);
@@ -24088,7 +24100,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     g.on = true; g.t = 0; g.x = h.x; g.y = h.y; g.z = h.z; g.rest = false; g.spin = rnd(8, 13); g.rx = 0; g.rz = 0; g.impact = false;
     g.vx = (tx - h.x) / t; g.vz = (tz - h.z) / t; g.vy = (ty - h.y + 0.5 * G * t * t) / t;
     g.fuse = (def.grenadeFuse || 2.1) * Math.max(0.85, K.tempo().tellMul);
-    g.R = def.grenadeRadius || 3.4; g.dmg = r.rogue > 0 ? 0 : (def.grenadeDamage || 30) * r.dmgMul;
+    g.R = def.grenadeRadius || 3.4; g.dmg = r.rogue > 0 ? 0 : (def.grenadeDamage || 30) * r.dmgMul * (IB.Damage && IB.Damage.lateBoom ? IB.Damage.lateBoom() : { dmg: 1, cool: 1 }).dmg;
     g.rdmg = (def.grenadeRobotDamage || 20) * (AI.hpMul || 1) * (r.rogue > 0 ? AI.rogueDmgMul : 1);
     g.src.x = r.x; g.src.z = r.z; g.src.type = r.type;
     K.play('shove', r, 0.7);
@@ -24108,7 +24120,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     g.on = true; g.t = 0; g.x = m.x; g.y = m.y; g.z = m.z; g.rest = false; g.spin = rnd(14, 20); g.rx = 0; g.rz = 0;
     g.vx = (tx - m.x) / t; g.vz = (tz - m.z) / t; g.vy = (ty - m.y + 0.5 * G * t * t) / t;
     g.impact = true; g.lx = tx; g.ly = ty; g.lz = tz; g.fuse = t + 2.5; g.shellFuse = def.shellFuse || 0.45;
-    g.R = def.shellRadius || 3; g.dmg = r.rogue > 0 ? 0 : (def.shellDamage || 26) * r.dmgMul;
+    g.R = def.shellRadius || 3; g.dmg = r.rogue > 0 ? 0 : (def.shellDamage || 26) * r.dmgMul * (IB.Damage && IB.Damage.lateBoom ? IB.Damage.lateBoom() : { dmg: 1, cool: 1 }).dmg;
     g.rdmg = (def.shellRobotDamage || 14) * (AI.hpMul || 1) * (r.rogue > 0 ? AI.rogueDmgMul : 1);
     g.src.x = r.x; g.src.z = r.z; g.src.type = r.type;
     r.kick = 1; Tr.shells = (Tr.shells || 0) + 1;
@@ -24386,7 +24398,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
         if (r.token) K.releaseToken(r);
         K.move(ox, oz, speed * 0.8 * boost);
         r.aim += (-0.25 - r.aim) * Math.min(1, dt * 3);
-        if (r.st >= (def.recover || 0.75)) { K.setState(r, 'keep'); r.cool = (1.2 + Math.random() * 1.5) * T.coolMul; }
+        if (r.st >= (def.recover || 0.75)) { K.setState(r, 'keep'); r.cool = (1.2 + Math.random() * 1.5) * T.coolMul * (r.round === 'boom' ? (IB.Damage && IB.Damage.lateBoom ? IB.Damage.lateBoom() : { dmg: 1, cool: 1 }).cool : 1); }
         break;
     }
   }
@@ -25077,7 +25089,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
      short damage-over-time (IB.Troops.dot) */
   function special(b, x, y, z, onPlayer) {
     var k = b.kind; if (!k || k === 'bullet') return;
-    if (k === 'boom') { Pj.explode(x, y, z, 1.7, b.dmg * 0.8, 0, null); return; }
+    if (k === 'boom') { var LB = IB.Damage && IB.Damage.lateBoom ? IB.Damage.lateBoom().dmg : 1; Pj.explode(x, y, z, 1.7, b.dmg * 0.8 * (b.vs === 1 ? 1 : LB), 0, null); return; }
     var c = KIND[k][1].getHex();
     if (IB.Boom && IB.Boom.ready) { if (k === 'shock') IB.Boom.zap(x, y, z, 0.6, c); else IB.Boom.sparks(x, y, z, 0, 0.6, 0, 8, c); }
     if (IB.FX) IB.FX.puff(x, y, z, 5, c, 0.12, 0.4, 2.2);
@@ -33564,13 +33576,18 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     var spawns = z.spawns.filter(function (s) { return Math.hypot(s.x - p.x, s.z - p.z) >= 6; });
     if (!spawns.length) spawns = z.spawns.slice();
     var off = (Math.random() * spawns.length) | 0, GAP = (IB.Damage && IB.Damage.SPAWN_GAP) || 0.18;   // a wave trickles in
-    list.forEach(function (entry) {
-      for (var n = 0; n < entry[1]; n++) {
-        var s = spawns[(off + k) % spawns.length];
-        var type = AI.types[entry[0]] ? entry[0] : 'crawler';   // robots without a model yet fall back to the Crawler
-        z.queue.push({ type: type, x: s.x, y: s.y || 0, z: s.z, t: GAP * k + Math.floor(k / spawns.length) * 0.8, wait: 0 });
-        k++;
-      }
+    // levels 20+: the wave comes in chunks (IB.Damage.LATE.CHUNK) with the robot types mixed through every chunk
+    var CH = IB.Damage && IB.Damage.lateChunk ? IB.Damage.lateChunk(G.plan.level || 1) : null;
+    var types = [];
+    if (CH) { var left = list.map(function (e) { return e[1]; }), any = true; while (any) { any = false; list.forEach(function (e, j) { if (left[j] > 0) { types.push(e[0]); left[j]--; any = true; } }); } }
+    else list.forEach(function (entry) { for (var n = 0; n < entry[1]; n++) types.push(entry[0]); });
+    z.chunk = 0; z.chunkT = 0;
+    types.forEach(function (id) {
+      var s = spawns[(off + k) % spawns.length];
+      var type = AI.types[id] ? id : 'crawler';   // robots without a model yet fall back to the Crawler
+      var c = CH ? Math.floor(k / CH.size) : 0, kk = CH ? k % CH.size : k;
+      z.queue.push({ type: type, x: s.x, y: s.y || 0, z: s.z, t: GAP * kk + Math.floor(kk / spawns.length) * 0.8, wait: 0, chunk: c });
+      k++;
     });
   }
   function updateZones(dt) {
@@ -33588,8 +33605,17 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
         // overwhelm control (core/damage.js crowdCap): while the player is already crowded, the next robot waits in
         // its can a moment (at most SPAWN_WAIT_MAX s each); a wave's robots all still come
         var D0 = IB.Damage, crowded = D0 && D0.crowdCap && z.queue.length && AI.crowd(p, D0.CROWD_R) >= D0.crowdCap(G.plan.level || 1);
+        // chunked waves (levels 20+): the next chunk opens when the zone has thinned out or after CH.maxWait s
+        var CH = IB.Damage && IB.Damage.lateChunk ? IB.Damage.lateChunk(G.plan.level || 1) : null;
+        if (CH) z.chunkT = (z.chunkT || 0) + dt;
+        if (CH && z.queue.length) {
+          var curLeft = 0; for (var cq = 0; cq < z.queue.length; cq++) if (z.queue[cq].chunk <= z.chunk) curLeft++;
+          if (!curLeft && (AI.alive(i) <= CH.openAt || z.chunkT > CH.maxWait)) { z.chunk++; z.chunkT = 0; }
+        }
         for (var q = z.queue.length - 1; q >= 0; q--) {
-          var e = z.queue[q]; e.t -= dt;
+          var e = z.queue[q];
+          if (CH && e.chunk > z.chunk) continue;   // a later chunk still waits
+          e.t -= dt;
           if (e.t <= 0 && crowded && e.wait < D0.SPAWN_WAIT_MAX) { e.wait += 0.4 - e.t; e.t = 0.4; continue; }
           if (e.t <= 0) {
             var dx = p.x - e.x, dz = p.z - e.z, d = Math.hypot(dx, dz) || 1, tx = e.x + dx / d * 1.3, tz = e.z + dz / d * 1.3;
@@ -33599,7 +33625,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
           }
         }
         var alive = AI.alive(i) + z.queue.length;
-        if (z.wave >= 0 && z.wave < z.plan.waves.length - 1 && z.queue.length === 0 && (alive <= 6 || z.waveT > 22)) queueWave(z, z.wave + 1);
+        if (z.wave >= 0 && z.wave < z.plan.waves.length - 1 && z.queue.length === 0 && (CH ? AI.alive(i) <= CH.openAt || z.chunkT > CH.maxWait : alive <= 6 || z.waveT > 22)) queueWave(z, z.wave + 1);
         if (z.wave === z.plan.waves.length - 1 && alive === 0 && z.queue.length === 0) {
           if (z.clearT < 0) z.clearT = 0;
           z.clearT += dt;
