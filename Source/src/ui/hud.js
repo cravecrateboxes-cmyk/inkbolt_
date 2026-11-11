@@ -275,7 +275,7 @@
     if (!el) return;
     var on = !!d;
     if (on !== USE.on) { USE.on = on; el.hidden = !on; if (tb) tb.hidden = !on; }
-    H.peek('rack', on && d.gun ? d.gun : null);
+    H.peek('rack', on && d.gun ? d.gun : on && d.item ? { item: d.item, uid: d.uid, wx: d.wx, wy: d.wy, wz: d.wz } : null);
     if (on && (d.text !== USE.text || d.color !== USE.color)) {
       USE.text = d.text; USE.color = d.color;
       var tk = ('ontouchstart' in window); el.classList.toggle('tk', tk);
@@ -285,15 +285,18 @@
       el.style.setProperty('--rar', d.color || '#12C7B6');
     }
   };
-  /* weapon card for a gun in the world you walk up to / look at (armory rack: source 'rack', ground drop: 'drop'; the
-     rack wins). spec {id, tier, level, roll, melee} or null. The card (IB.GearUI.peekHtml) is rebuilt only when the
-     target changes; a picture still being drawn swaps in by itself (IB.Thumbs). */
-  var PEEK = { rack: null, drop: null, key: '' };
+  /* item card for a gun or a piece of gear in the world you walk up to / look at (what E would take: source 'use';
+     armory rack: 'rack'; gun on the floor: 'drop'; gear on the floor: 'gear'; in that order). spec for a gun
+     {id, tier, level, roll, melee}, for gear {item, uid}; plus the world point wx, wy, wz the card floats over; or null.
+     The card (IB.GearUI.peekHtml / peekItemHtml) is rebuilt only when the target changes; a picture still being drawn
+     swaps in by itself (IB.Thumbs). */
+  var PEEK = { use: null, rack: null, drop: null, gear: null, key: '' };
+  function peekCur() { return PEEK.use || PEEK.rack || PEEK.drop || PEEK.gear; }
   /* the card floats in the world over its gun: project the gun's point each frame, anchor the card's bottom centre
      there, scale with distance, keep it on screen */
   var _pv = null;
   H.peekTrack = function () {
-    var p = PEEK.rack || PEEK.drop, el = H.el.peek, cam = IB.Render && IB.Render.camera;
+    var p = peekCur(), el = H.el.peek, cam = IB.Render && IB.Render.camera;
     if (!p || !el || el.hidden || !cam || p.wx === undefined) return;
     _pv = _pv || new THREE.Vector3(); _pv.set(p.wx, p.wy, p.wz).project(cam);
     if (_pv.z > 1) { el.style.opacity = 0; return; }
@@ -306,8 +309,9 @@
   };
   H.peek = function (src, spec) {
     PEEK[src] = spec || null;
-    var p = PEEK.rack || PEEK.drop, el = H.el.peek;
-    var key = p ? [p.id, p.tier, p.level, p.melee ? 1 : 0, p.roll ? p.roll.mag + p.roll.elem : '', IB.WeaponDrops ? IB.WeaponDrops.tierOf(p.id).id : ''].join('|') : '';
+    var p = peekCur(), el = H.el.peek;
+    var key = !p ? '' : p.item ? ['item', p.uid, p.item.name, p.item.rarity, p.item.level, IB.Game && IB.Game.ws ? IB.Game.ws.cur : ''].join('|') :
+      [p.id, p.tier, p.level, p.melee ? 1 : 0, p.roll ? p.roll.mag + p.roll.elem : '', IB.WeaponDrops ? IB.WeaponDrops.tierOf(p.id).id + IB.WeaponDrops.ownLevel(p.id) : ''].join('|');
     if (key === PEEK.key) return;
     PEEK.key = key;
     if (!el) {
@@ -317,9 +321,9 @@
     }
     el.hidden = !p;
     if (p) {
-      var html = IB.GearUI && IB.GearUI.peekHtml ? IB.GearUI.peekHtml(IB.Game, p) : '';
-      el.innerHTML = html; el.hidden = !html;
-      el.style.setProperty('--rar', p.melee ? '#FFC23A' : IB.WeaponDrops ? IB.WeaponDrops.tier(p.tier).color : '#2EEAD8');
+      var GUi = IB.GearUI, html = !GUi ? '' : p.item ? (GUi.peekItemHtml ? GUi.peekItemHtml(IB.Game, p.item) : '') : (GUi.peekHtml ? GUi.peekHtml(IB.Game, p) : '');
+      el.innerHTML = html; el.hidden = !html; el.style.opacity = 0;   // placed by peekTrack before it shows
+      el.style.setProperty('--rar', p.item ? IB.LOOT.rarityById[p.item.rarity].color : p.melee ? '#FFC23A' : IB.WeaponDrops ? IB.WeaponDrops.tier(p.tier).color : '#2EEAD8');
     }
   };
   H.peekKey = function () { return PEEK.key; };

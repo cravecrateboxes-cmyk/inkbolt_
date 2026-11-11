@@ -183,13 +183,13 @@ test('skills are validated against progress on load (spent <= earned, gates, one
   assert.deepEqual(store.load(1).skills, { overload: 2 });
   be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 1, skills: { overload: 3 } }));
   assert.deepEqual(store.load(1).skills, {}, 'overspent tree is reset (points refunded)');
-  // a row-3 skill without the 3 points below it, unknown (or retired) ids, bad ranks, non-objects: all reset
+  // a row-3 skill without the 5 points below it, unknown (or retired) ids, bad ranks, non-objects: all reset
   for (const bad of [{ hazard: 1 }, { nope: 1 }, { overboard: 2 }, { overload: 4 }, { overload: -1 }, { overload: 1.5 }, [1, 2], 'x']) {
     be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 17, skills: bad }));
     assert.deepEqual(store.load(1).skills, {}, JSON.stringify(bad));
   }
-  // an endgame skill is kept once it is paid for (10 points, LV 30 has 30); both at once is not allowed
-  const both = { overload: 3, heavyink: 2, electrify: 1, healthy: 2, undercover: 1, handyhelpers: 1 };
+  // an endgame skill is kept once it is paid for (18 points below it, LV 30 has 30); both at once is not allowed
+  const both = { overload: 3, heavyink: 3, electrify: 1, stream: 2, healthy: 3, boom: 3, undercover: 1, tank: 2, handyhelpers: 1 };
   be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 99, skills: both }));
   assert.deepEqual(store.load(1).skills, both);
   be.setItem('inkbolt.slot1', JSON.stringify({ v: 1, id: 1, highest: 99, skills: Object.assign({ chainreaction: 1 }, both) }));

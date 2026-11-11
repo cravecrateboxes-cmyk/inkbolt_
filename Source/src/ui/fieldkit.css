@@ -190,7 +190,7 @@ body.kbd .tabmenu button:focus-visible { outline: 3px solid var(--fk-txt); outli
 .inv-gems { display: inline-flex; align-items: center; gap: 10px; }
 .inv-gems b { display: inline-flex; gap: 4px; }
 .inv-gems b i { font-style: normal; min-width: 30px; height: 40px; padding-top: 6px; display: grid; place-items: center; font-size: 30px; line-height: 1; background: #0C1A3A; box-shadow: inset 0 0 0 2px var(--fk-cyan-d); border-radius: 3px; text-shadow: 0 2px 0 var(--fk-ink); }
-.inv-bag { font-size: 20px; color: var(--fk-txt2); text-shadow: 0 2px 0 var(--fk-ink); } .inv-bag b { color: var(--fk-txt); }
+.inv-bag { font-size: 20px; color: var(--fk-txt2); text-shadow: 0 2px 0 var(--fk-ink); } .inv-bag b { color: var(--fk-txt); } .inv-bag.full b { color: #FF6B5E; }
 /* backpack */
 .inv-bplist { flex: 1 1 auto; min-height: 0; padding: 4px 6px 6px 2px; }
 .inv-grid { display: grid; gap: 10px; }

@@ -38,7 +38,7 @@ test('data: 19 skills in 7 tiers (trunk at the bottom), 3-rank skills, 1-rank sp
   assert.equal(caps.length, 3);
   assert.ok(caps.every((s) => s.tier === IB.SKILL_TIERS.length && s.group === 'endgame' && s.cost === 1));
   assert.deepEqual(IB.SKILLS.filter((s) => s.kind === 'special').map((s) => s.id), ['electrify', 'stamina', 'undercover']);
-  assert.deepEqual(IB.SKILL_TIERS.map((t) => t.gate), [0, 1, 3, 5, 5, 7, 9]);
+  assert.deepEqual(IB.SKILL_TIERS.map((t) => t.gate), [0, 2, 5, 8, 11, 14, 18]);
   assert.ok(IB.SKILL_TIERS[6].capstone && IB.SKILL_TIERS.slice(0, 6).every((t) => !t.capstone));
 });
 
@@ -88,46 +88,54 @@ test('random players can never spend more than they earned, and every reachable 
   }
 });
 
-test('tier gates: a row opens once enough points are spent in the rows below it (1 / 3 / 5 / 5 / 7 / 9)', () => {
-  const h = 19;
+test('tier gates: a row opens once enough points are spent in the rows below it (2 / 5 / 8 / 11 / 14 / 18)', () => {
+  const h = 29;
   assert.equal(S.canBuy({}, h, 'stream').reason, 'tier');
-  assert.equal(S.canBuy({}, h, 'stream').need, 1);
+  assert.equal(S.canBuy({}, h, 'stream').need, 2);
   let sk = buyAll({}, h, ['overload']);
+  assert.equal(S.canBuy(sk, h, 'stream').reason, 'tier', 'row 2 needs 2');
+  sk = buyAll(sk, h, ['overload']);
   assert.ok(S.tierUnlocked(sk, 2));
   assert.ok(S.canBuy(sk, h, 'stream').ok && S.canBuy(sk, h, 'electrify').ok && S.canBuy(sk, h, 'rapid').ok);
-  assert.equal(S.canBuy(sk, h, 'hazard').reason, 'tier', 'row 3 needs 3');
-  sk = buyAll(sk, h, ['electrify', 'stream']);
+  assert.equal(S.canBuy(sk, h, 'hazard').reason, 'tier', 'row 3 needs 5');
+  sk = buyAll(sk, h, ['electrify', 'stream', 'heavyink']);   // 5 below
   assert.ok(S.canBuy(sk, h, 'hazard').ok && S.canBuy(sk, h, 'ricochet').ok && S.canBuy(sk, h, 'healthy').ok);
-  assert.equal(S.canBuy(sk, h, 'boom').reason, 'tier', 'arsenal (row 4) needs 5');
-  sk = buyAll(sk, h, ['healthy', 'ricochet']);   // 6 points below: the arsenal opens
+  // the reported case: six points spent open the first three rows only
+  sk = buyAll(sk, h, ['healthy']);
+  assert.equal(S.spent(sk), 6);
+  assert.deepEqual([1, 2, 3, 4, 5, 6, 7].map((t) => S.tierUnlocked(sk, t)), [true, true, true, false, false, false, false]);
+  assert.equal(S.canBuy(sk, h, 'boom').reason, 'tier', 'arsenal (row 4) needs 8');
+  sk = buyAll(sk, h, ['healthy', 'ricochet']);   // 8 below
   assert.ok(S.canBuy(sk, h, 'boom').ok && S.canBuy(sk, h, 'dart').ok && S.canBuy(sk, h, 'surge').ok);
-  assert.ok(S.canBuy(sk, h, 'undercover').ok && S.canBuy(sk, h, 'hydrate').ok, 'tricks (row 5) opens on 6 points below');
-  sk = buyAll(sk, h, ['boom']);
-  assert.equal(S.canBuy(sk, h, 'tank').reason, 'tier', 'row 6 needs 7');
-  sk = buyAll(sk, h, ['undercover', 'stamina']);
+  assert.equal(S.canBuy(sk, h, 'undercover').reason, 'tier', 'tricks (row 5) needs 11');
+  sk = buyAll(sk, h, ['boom', 'boom', 'dart']);   // 11 below
+  assert.ok(S.canBuy(sk, h, 'undercover').ok && S.canBuy(sk, h, 'hydrate').ok && S.canBuy(sk, h, 'stamina').ok);
+  assert.equal(S.canBuy(sk, h, 'tank').reason, 'tier', 'grit (row 6) needs 14');
+  sk = buyAll(sk, h, ['undercover', 'stamina', 'hydrate']);   // 14 below
   assert.ok(S.canBuy(sk, h, 'tank').ok && S.canBuy(sk, h, 'fastfingers').ok);
-  assert.equal(S.canBuy(sk, h, 'handyhelpers').reason, 'tier', 'endgame needs 9');
+  assert.equal(S.canBuy(sk, h, 'handyhelpers').reason, 'tier', 'endgame needs 18');
+  assert.equal(S.canBuy(sk, h, 'handyhelpers').need, 4);
   // the gate counts the rows below only
-  sk = buyAll(sk, h, ['tank', 'tank']);
-  assert.ok(S.spentAbove(sk, 7) >= 9);
+  sk = buyAll(sk, h, ['tank', 'tank', 'tank', 'fastfingers']);
+  assert.equal(S.spentAbove(sk, 7), 18);
   assert.ok(S.canBuy(sk, h, 'handyhelpers').ok);
   // a hand-made tree that skips a gate is invalid
-  assert.ok(!S.validate({ stream: 1 }, 19).ok);
-  assert.ok(!S.validate({ overload: 2, heavyink: 2, undercover: 1 }, 19).ok);
-  assert.ok(!S.validate({ overload: 2, heavyink: 1, undercover: 1 }, 19).ok, 'tricks row needs 5 below');
-  assert.ok(S.validate({ overload: 2, heavyink: 2, hazard: 1, boom: 2, undercover: 1 }, 19).ok, 'arsenal points count toward the rows above');
+  assert.ok(!S.validate({ stream: 1 }, h).ok);
+  assert.ok(!S.validate({ overload: 1, stream: 1 }, h).ok, 'row 2 needs 2 below');
+  assert.ok(!S.validate({ overload: 3, heavyink: 3, stream: 2, undercover: 1 }, h).ok, 'tricks row needs 11 below');
+  assert.ok(S.validate({ overload: 3, heavyink: 3, stream: 2, hazard: 1, boom: 2, undercover: 1 }, h).ok, 'arsenal points count toward the rows above');
 });
 
-test('endgame: pick one of the two; however the points went in, the top opens and is affordable at max level', () => {
-  const route = ['overload', 'overload', 'overload', 'heavyink', 'heavyink', 'electrify', 'healthy', 'healthy',
-    'undercover'];   // 9 points: every row is open
-  const sk = buyAll({}, 19, route);
-  assert.ok(S.tierUnlocked(sk, 6));
-  const one0 = buyAll(sk, 19, ['handyhelpers']);
-  assert.equal(S.canBuy(one0, 19, 'chainreaction').reason, 'exclusive', 'only one of the three endgame skills');
-  assert.equal(S.canBuy(one0, 19, 'torpedo').reason, 'exclusive', 'Torpedo is an endgame choice too');
-  assert.ok(!S.validate({ ...one0, chainreaction: 1 }, 19).ok);
-  // the reported bug: 21 points in the rows below still leave the point for an endgame skill
+test('endgame: pick one of the three; the top opens with 18 points below and is affordable from LV 19', () => {
+  const route = ['overload', 'overload', 'overload', 'heavyink', 'heavyink', 'heavyink', 'electrify', 'stream', 'stream', 'healthy', 'healthy',
+    'boom', 'boom', 'boom', 'undercover', 'stamina', 'tank', 'tank'];   // 18 points: every row is open
+  const sk = buyAll({}, 29, route);
+  assert.ok(S.tierUnlocked(sk, 7));
+  const one0 = buyAll(sk, 29, ['handyhelpers']);
+  assert.equal(S.canBuy(one0, 29, 'chainreaction').reason, 'exclusive', 'only one of the three endgame skills');
+  assert.equal(S.canBuy(one0, 29, 'torpedo').reason, 'exclusive', 'Torpedo is an endgame choice too');
+  assert.ok(!S.validate({ ...one0, chainreaction: 1 }, 29).ok);
+  // 21 points in the rows below still leave the point for an endgame skill
   const low = IB.SKILLS.filter((s) => s.kind !== 'capstone').flatMap((s) => Array(s.max).fill(s.id)).slice(0, 21);
   const before = buyAll({}, 25, low);
   assert.equal(S.spent(before), 21);
@@ -135,10 +143,10 @@ test('endgame: pick one of the two; however the points went in, the top opens an
   const one = buyAll(before, 25, ['chainreaction']);
   assert.equal(S.spent(one), 22);
   assert.equal(S.available(one, 25), 4, 'the 4 points not spent yet');
-  // the earliest level-up that can afford one is LV 11 (10 points: 9 below plus the endgame point)
+  // the earliest level-up that can afford one is LV 19 (19 points: 18 below plus the endgame point)
   const caps = IB.SKILLS.filter((s) => s.kind === 'capstone');
-  const first = [...Array(20).keys()].find((L) => S.earned(L) >= IB.SKILL_TIERS[6].gate + caps[0].cost);
-  assert.equal(first, 9);
+  const first = [...Array(30).keys()].find((L) => S.earned(L) >= IB.SKILL_TIERS[6].gate + caps[0].cost);
+  assert.equal(first, 18);
 });
 
 test('old saves: trees with the retired skill ids are refunded in full, never crash', () => {
@@ -310,13 +318,13 @@ test('arsenal skills: Boom (blasts +10/20/30%, one more frag can), Dart (zoomed 
   near(S.effects({ surge: 2 }).surgeMul, 0.18); near(S.effects({ surge: 3 }).surgeMul, 0.27); assert.equal(S.effects({ surge: 3 }).surgeTime, 4);
 });
 
-test('Torpedo: an endgame pick (one of three), 5x the shot as splash, slows what it hurts', () => {
+test('Torpedo: an endgame pick (one of three), 3x the shot as splash, slows what it hurts', () => {
   assert.equal(S.effects({}).torpedo, false);
   const t = S.effects({ torpedo: 1 });
-  assert.equal(t.torpedo, true); assert.equal(t.torpedoMul, 5); assert.equal(t.torpedoRocketMul, 2); near(t.torpedoSlow, 0.25); assert.equal(t.torpedoSlowTime, 5);
-  const low = IB.SKILLS.filter((x) => x.kind !== 'capstone').flatMap((x) => Array(x.max).fill(x.id)).slice(0, 9);
-  const sk = buyAll(buyAll({}, 19, low), 19, ['torpedo']);   // 9 points below: the endgame row is open
-  assert.equal(S.spent(sk), 10);
-  assert.equal(S.canBuy(sk, 19, 'handyhelpers').reason, 'exclusive');
-  assert.ok(S.validate(sk, 19).ok);
+  assert.equal(t.torpedo, true); assert.equal(t.torpedoMul, 3); assert.equal(t.torpedoRocketMul, 2); near(t.torpedoSlow, 0.25); assert.equal(t.torpedoSlowTime, 5);
+  const low = IB.SKILLS.filter((x) => x.kind !== 'capstone').flatMap((x) => Array(x.max).fill(x.id)).slice(0, 18);
+  const sk = buyAll(buyAll({}, 29, low), 29, ['torpedo']);   // 18 points below: the endgame row is open
+  assert.equal(S.spent(sk), 19);
+  assert.equal(S.canBuy(sk, 29, 'handyhelpers').reason, 'exclusive');
+  assert.ok(S.validate(sk, 29).ok);
 });

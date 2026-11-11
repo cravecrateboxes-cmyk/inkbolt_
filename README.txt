@@ -36,7 +36,7 @@ CONTROLS
 PROGRESSION
   Player level: +1 for every campaign level cleared (LV 20 cap), shown above the health bar with a rank title.
   Skill points: from clearing levels 1-17 only (22 in total, see src/data/skills.js); the tree holds 43, so pick.
-  Skill tree: six rows, trunk at the bottom (gates 2 / 5 / 8 / 11 / 14 points in the rows below), two pick-one endgame
+  Skill tree: seven rows, trunk at the bottom (gates 2 / 5 / 8 / 11 / 14 points in the rows below, 18 for the endgame row), three pick-one endgame
   skills on top. Runtime: src/game/skillfx.js (procs, acid pools, wet coats, Undercover), ai.js (cloak search, rogue
   robots), ui/skillhud.js (Undercover badge + comic black-and-white look). Saves with the old tree are refunded on load.
   Damage over time lasts: Electrify 5 s, Hazard / Hydrate burns 5 s, acid muzzles 5 / 6 / 7 / 8 s by rarity.
@@ -81,7 +81,10 @@ WEAPON DROPS, MELEE STAMINA, MUZZLE CANS (round 4)
   Gun tiers (src/game/wdrops.js): every gun has a quality tier, gray Standard x1.00, green Tuned x1.07, blue Rare x1.14,
   purple Epic x1.22, orange Legendary x1.32 damage (shown as its colour in the inventory). Soldiers drop guns at
   6 / 3 / 2 / 0.8 / 0.2 % (gray / green / blue / purple / orange); blade bots drop the katana or Voltaxe they wield at 7 %.
-  A drop you do not own joins the arsenal; a better tier upgrades your gun; anything else is broken down into gems.
+  Nothing is taken by walking over it and nothing is broken down into gems: walk up to a dropped gun (its card shows)
+  and press E (touch: USE). A model you do not own joins the arsenal: carried at once if a loadout slot is free, else in
+  the backpack. A model you own is swapped and the one you had is laid on the floor in its place. Or leave it there.
+  A gun stands in a tall beam of its tier colour with ribbons of light and sparks, about twice the size of a gear beam.
   Melee costs stamina per swing (dagger 12 %, nunchucks 13 %, katana 20 %, Voltaxe 32 % of the pool) and ends a sprint;
   out of stamina a swing is 50 % slower and hits for 60 %.
   Muzzle cans (one per gun): acid, Arc Can (shock + arcs to the nearest robot, after level 3), Boom Can (small blast on
@@ -90,14 +93,14 @@ WEAPON DROPS, MELEE STAMINA, MUZZLE CANS (round 4)
   Undercover (F): a quick fade-flicker in, then a dark blue stealth look with every robot outlined in glowing blue.
 
 GUN LEVELS AND LAUNCHERS (round 5; src/core/gunlevel.js, src/game/launchers.js, tests/unit/gunlevel.test.js)
-  Gun levels: every gun has an item level (Lv N on the drop's beam label, the rack prompt, the gun card and the HUD
+  Gun levels: every gun has an item level (Lv N on the E prompt, the rack prompt, the gun card and the HUD
   weapon panel). A drop is the campaign level it dropped on; a rack or stand gun the level it was taken on; guns from
   older saves get the highest level cleared (saved per gun in slot.gunLevel). Damage x (1 + 0.055 (Lv - 1)): x1.72 on
   14, x2.60 on 30, a little under the robots' health growth (x1.78 / x2.74), so a fresh gray gun kills a robot of its
   level in about as many hits as on level 1; tier, Upgrade Bench and skills put it ahead. A gun never counts below
   (player level - 4, the player level capped at the level being played), so old favourites stay usable but new drops
   are ~8-20% better. Melee weapons ride that floor. A pickup of a gun you own replaces it when tier x level (launchers:
-  also x (mag / base)^0.35) beats yours now; otherwise it is broken down into gems (tier value).
+  also x (mag / base)^0.35) beats yours now; taking it is always the player's call (E), the card compares the two.
   Launchers (no mods fit them; from campaign level 14 on, i.e. after level 13 is beaten):
     RL-3 Hothead: rapid-fire rockets (0.5 s), 3-5 per cassette (rolled per drop), 220 direct + 140 splash (3.2 m),
       reload 3.2 s, 42 m/s. Element rolled per drop: none (34%), Blast (22%: +30% radius, +10% splash, 3 bomblets),
@@ -131,7 +134,12 @@ SOLDIERS AND BLADE BOTS (src/game/troops.js, rows in src/data/enemies.js, models
 
 LOOT AND GEAR
   About one robot in twenty drops an item: a drop pod with a beam in its rarity colour, also marked on the radar as a
-  diamond. Walk over it to bag it; an empty slot is filled right away. Bag: 40 items (worn and fitted ones included).
+  diamond. Walk over it to bag it; an empty slot is filled right away. Walking up to it shows its item card (stats,
+  perk, compare with what you wear or have fitted), like a gun's. Bag (worn and fitted items included): 16 slots at
+  player LV 1, a slot or two more every level, the full 40 from LV 20 (LOOT.invStart / invCap / invCapLevel).
+  Legendary gun attachments: a Legendary attachment roll stays Legendary one time in three, otherwise it drops as an
+  Epic or a Rare one (LOOT.legendaryAttachKeep); shield cells and vests are not affected.
+  Inventory: every gun and item has a Drop button (the last carried gun cannot be dropped).
   Rarities: Common (white), Rare (blue), Epic (purple), Legendary (orange, only from campaign level 6). Rarer gear
   drops more often the further you get (LOOT.rarityOdds in src/data/loot.js; levels 1-3 roll as they always did):
       level      1-3   4    5    6    7    8    9    10   11   12   13   15   17+
@@ -195,3 +203,10 @@ BUILD AND TEST (from the Source folder)
   node tests/e2e/troops.spec.js             (Soldier shield / grenades / melee, Blade Bot dash; SHOTS=1 -> review/troops-*.png)
   node tests/e2e/hud-shots.js              (HUD, enemy health bars and loader at 3 sizes -> tests/e2e/review/hud-*.png, loader-*.png)
   Dev page: serve the repo folder over http and open Source/dev.html  (add ?autotest=1 to skip the title).
+
+SAVING
+  Progress lives in the save slot as it is earned (XP, gems, items, guns, skills, the loadout in key order) and is
+  written: at level start and clear, at every zone clear, on pause, on quitting to the title, when the page is hidden
+  or closed (visibilitychange / pagehide / beforeunload), and by an autosave within 12 s of anything earned
+  (game.js G.saveNow / G.touchSave). The gun in hand is saved too (slot.curGun) and comes to hand at the next start.
+  A level itself is not checkpointed: Continue starts the level you were on from its first zone.

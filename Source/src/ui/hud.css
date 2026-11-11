@@ -375,7 +375,7 @@ body.touch-on .hud .kit { display: none; }
 .hud .prompt.reload .prompt-bar { display: none; }
 
 /* ---- use prompt (armory: take a gun / gear): key cap, name, rarity accent ---- */
-.hud .use-prompt { top: calc(50% + 96px); gap: 1px 12px; padding: 7px 18px 7px 7px; background: linear-gradient(90deg, rgba(9, 12, 22, .82), rgba(9, 12, 22, .6));
+.hud .use-prompt { top: calc(50% + 62px); gap: 1px 12px; padding: 7px 18px 7px 7px; background: linear-gradient(90deg, rgba(9, 12, 22, .82), rgba(9, 12, 22, .6));
   border: 0; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--hx-line), 0 6px 18px rgba(0, 0, 0, .35); font-family: var(--hf); color: var(--hx-txt);
   clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px)); overflow: hidden; }
 .hud .use-prompt .uacc { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--rar, var(--hx-teal)); box-shadow: 0 0 10px var(--rar, var(--hx-teal)); }

@@ -480,12 +480,20 @@ async function round4Run(browser, base) {
   const pg = await newPage(browser, base + '?autotest=1&plan=bedroom', { viewport: { width: 640, height: 360 } });
   await pg.evaluate(() => { __TEST__.setTier('potato'); const G = IB.Game; G.slot.highest = 5; G.slot.melee = ['dagger']; G.slot.meleeSel = 'dagger'; G.startLevel(); G.player.protect = 1e9; });
   await until(pg, () => IB.Game.run.started, null, 15000);
-  // a purple Vanguard lands in front: walking over it adds it to the arsenal at that tier
-  await pg.evaluate(() => { IB.WeaponDrops.testDrop('vanguard', 'purple'); const d = IB.WeaponDrops.live()[0], p = IB.Game.player; setTimeout(() => { p.x = d.x; p.z = d.z; }, 900); });
-  check('a dropped gun joins the arsenal at its tier', await until(pg, () => IB.Game.slot.arsenal.includes('vanguard') && IB.Game.slot.gunTier.vanguard === 'purple', null, 30000));
+  // a purple Vanguard lands in front: standing on it takes nothing; the E prompt shows; E adds it to the arsenal at that tier
+  const pressE = () => pg.evaluate(() => new Promise(done => { let n = 0; (function k() { IB.Input.usePressed = true; if (++n > 40) return done(); setTimeout(k, 100); })(); }));
+  const gems0 = await pg.evaluate(() => { IB.WeaponDrops.testDrop('vanguard', 'purple'); const d = IB.WeaponDrops.live()[0], p = IB.Game.player; p.x = d.x; p.z = d.z; return IB.Game.slot.gems || 0; });
+  await until(pg, () => !document.getElementById('usePrompt').hidden, null, 30000);
+  const stood = await pg.evaluate(() => ({ has: IB.Game.slot.arsenal.includes('vanguard'), live: IB.WeaponDrops.live().length, prompt: document.getElementById('usePrompt').textContent, label: IB.WeaponDrops.list.some(d => d.label) }));
+  check('walking over a dropped gun takes nothing: the E prompt offers it', !stood.has && stood.live === 1 && /Take/.test(stood.prompt) && /Epic/.test(stood.prompt) && !stood.label, JSON.stringify(stood));
+  await pressE();
+  check('E takes the dropped gun: it joins the arsenal at its tier, no gems change hands', await until(pg, () => IB.Game.slot.arsenal.includes('vanguard') && IB.Game.slot.gunTier.vanguard === 'purple', null, 30000) &&
+    await pg.evaluate((g0) => (IB.Game.slot.gems || 0) === g0 && IB.WeaponDrops.live().length === 0, gems0));
   check('its tier raises its damage (purple x1.22, x its item level)', await pg.evaluate(() => IB.WeaponDrops.tierOf('vanguard').dmg === 1.22 && IB.WeaponDrops.ownLevel('vanguard') === IB.Game.plan.level &&
     Math.abs(IB.WeaponDrops.dmgMul('vanguard') - 1.22 * IB.GunLevel.mul(IB.WeaponDrops.levelOf('vanguard'))) < 1e-9));
-  await pg.evaluate(() => { IB.Game.slot.melee = ['dagger']; IB.Game.slot.meleeSel = 'dagger'; IB.WeaponDrops.testDrop('katana', null, true); const d = IB.WeaponDrops.live()[0], p = IB.Game.player; setTimeout(() => { p.x = d.x; p.z = d.z; }, 900); });
+  await pg.evaluate(() => { IB.Game.slot.melee = ['dagger']; IB.Game.slot.meleeSel = 'dagger'; IB.WeaponDrops.testDrop('katana', null, true); const d = IB.WeaponDrops.live()[0], p = IB.Game.player; p.x = d.x; p.z = d.z; });
+  await until(pg, () => !document.getElementById('usePrompt').hidden, null, 30000);
+  await pressE();
   const kat = await until(pg, () => IB.Game.slot.melee.includes('katana') && IB.Game.meleeId() === 'katana', null, 30000);
   check('a dropped katana goes on V', kat, kat ? '' : await pg.evaluate(() => JSON.stringify({ live: IB.WeaponDrops.live(), p: [IB.Game.player.x, IB.Game.player.y, IB.Game.player.z], m: IB.Game.slot.melee, sel: IB.Game.slot.meleeSel })));
   // melee costs stamina (katana: 20% of the pool), and ends a sprint
@@ -956,18 +964,22 @@ async function launcherRun(browser, base) {
   const pg = await newPage(browser, base + '?autotest=1&plan=mall');
   await until(pg, () => IB.Game.run.started, null, 8000);
   const wait = ms => pg.waitForTimeout(ms);
-  // gun levels: a gray Lv 14 pistol beats the Lv 1 starter and replaces it; a worse one turns into gems
+  // gun levels: E on a gray Lv 14 pistol swaps it for the Lv 1 starter, which is laid on the floor in its place (never gems)
+  const pressE = () => pg.evaluate(() => new Promise(done => { let n = 0; (function k() { IB.Input.usePressed = true; if (++n > 40) return done(); setTimeout(k, 100); })(); }));
   const lv = await pg.evaluate(() => {
     const G = IB.Game, WD = IB.WeaponDrops; G.player.protect = 999;
     const before = WD.ownLevel('pip');
-    WD.testDrop('pip', 'gray', false, 14); const d = WD.live().pop(); G.player.x = d.x; G.player.z = d.z; return { before, lvl: G.plan.level };
+    WD.testDrop('pip', 'gray', false, 14); const d = WD.live().pop(); G.player.x = d.x; G.player.z = d.z; return { before, lvl: G.plan.level, gems: G.slot.gems || 0 };
   });
-  await until(pg, () => IB.WeaponDrops.live().length === 0, null, 8000);
-  const lv2 = await pg.evaluate(() => ({ own: IB.WeaponDrops.ownLevel('pip'), eff: IB.WeaponDrops.levelOf('pip'), mul: IB.WeaponDrops.dmgMul('pip') }));
-  check('a Lv 14 gun drop replaces a Lv 1 one (damage x level)', lv.before === 1 && lv2.own === 14 && Math.abs(lv2.mul - IB_mul(14)) < 1e-6, JSON.stringify([lv, lv2]));
+  await until(pg, () => !document.getElementById('usePrompt').hidden && /Swap/.test(document.getElementById('usePrompt').textContent), null, 30000);
+  for (let k = 0; k < 8 && !(await pg.evaluate(() => IB.WeaponDrops.ownLevel('pip') === 14)); k++) await pressE();   // the headless renderer runs far below real time
+  const lv2 = await pg.evaluate(() => ({ own: IB.WeaponDrops.ownLevel('pip'), eff: IB.WeaponDrops.levelOf('pip'), mul: IB.WeaponDrops.dmgMul('pip'), floor: IB.WeaponDrops.live().map(d => d.id + ':' + d.tier + ':' + d.level), gems: IB.Game.slot.gems || 0 }));
+  check('E on a Lv 14 gun drop swaps it for the Lv 1 one (damage x level); the old gun lies on the floor, no gems', lv.before === 1 && lv2.own === 14 && Math.abs(lv2.mul - IB_mul(14)) < 1e-6 &&
+    lv2.floor.length === 1 && lv2.floor[0] === 'pip:gray:1' && lv2.gems === lv.gems, JSON.stringify([lv, lv2]));
   // a launcher drop: joins the backpack with its roll and a magazine of rockets
-  await pg.evaluate(() => { IB.WeaponDrops.testDrop('hothead', 'blue', false, 14, { mag: 5, elem: 'acid' }); const d = IB.WeaponDrops.live().pop(), p = IB.Game.player; p.x = d.x; p.z = d.z; });
-  await until(pg, () => IB.WeaponDrops.live().length === 0, null, 8000);
+  await pg.evaluate(() => { IB.WeaponDrops.clear(); IB.WeaponDrops.testDrop('hothead', 'blue', false, 14, { mag: 5, elem: 'acid' }); const d = IB.WeaponDrops.live().pop(), p = IB.Game.player; p.x = d.x; p.z = d.z; });
+  await until(pg, () => !document.getElementById('usePrompt').hidden, null, 30000);
+  for (let k = 0; k < 8 && (await pg.evaluate(() => IB.WeaponDrops.live().length)) > 0; k++) await pressE();
   const got = await pg.evaluate(() => { const s = IB.Game.slot; return { has: s.arsenal.includes('hothead'), roll: s.gunRoll.hothead, lv: s.gunLevel.hothead, rockets: s.rockets }; });
   check('a launcher drop joins the arsenal with its magazine roll, element, level and rockets', got.has && got.roll.mag === 5 && got.roll.elem === 'acid' && got.lv === 14 && got.rockets >= 5, JSON.stringify(got));
   // rarity skins + weapon peek card: a drop in front shows its card (tier name, stats, compare vs yours), then hides
@@ -985,6 +997,19 @@ async function launcherRun(browser, base) {
     return r;
   });
   check('looking at a gun drop shows its weapon card (rarity name, stats, compare), and it hides again', pk.shown && pk.hidden && /Legendary/.test(pk.text) && pk.text.toUpperCase().includes(pk.name.toUpperCase()) && pk.rows >= 4 && pk.cmp > 0 && pk.skin === 1 && pk.ring, JSON.stringify(pk).slice(0, 300));
+  // gear on the floor shows its item card too (shield cells, vests, attachments), without being picked up from afar
+  const gk = await pg.evaluate(async () => {
+    const G = IB.Game, p = G.player; IB.WeaponDrops.clear(); IB.Drops.clear(); p.pitch = 0;
+    const bag0 = IB.Gear.gear(G).inv.length, it = __TEST__.forceDrop('shield', 'epic', 3.5);
+    const d = IB.Drops.pool.find(q => q.on); if (d) p.yaw = Math.atan2(-(d.x - p.x), -(d.z - p.z));
+    await window.__poll(() => { const e = document.getElementById('peekCard'); return e && !e.hidden && /Storm Cell/i.test(e.textContent); }, 6000);
+    const e = document.getElementById('peekCard'), r = { item: it && it.name, shown: !!e && !e.hidden, text: e ? e.textContent : '', rows: e ? e.querySelectorAll('.inv-card .ic-stats li').length : 0,
+      bag: IB.Gear.gear(G).inv.length - bag0, dist: d ? Math.hypot(d.x - p.x, d.z - p.z) : -1 };
+    IB.Drops.clear(); await window.__poll(() => document.getElementById('peekCard').hidden, 3000);
+    r.hidden = document.getElementById('peekCard').hidden;
+    return r;
+  });
+  check('looking at a gear drop shows its item card (rarity, name, stats), and it hides again', gk.shown && gk.hidden && /Epic/.test(gk.text) && /Storm Cell/i.test(gk.text) && gk.rows >= 3 && (gk.bag === 0 || gk.dist < 1.3), JSON.stringify(gk).slice(0, 300));
   // in-page wait for a condition (the headless GPU runs the game well below real time)
   await pg.evaluate(() => { window.__poll = (f, ms) => new Promise(done => { const t0 = performance.now(); (function k() { let v = false; try { v = f(); } catch (e) { v = false; } if (v || performance.now() - t0 > ms) return done(!!v); setTimeout(k, 100); })(); }); });
   // Hothead: direct hit + splash on the robot next to it

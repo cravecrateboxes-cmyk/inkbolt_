@@ -164,7 +164,12 @@
 
   IB.LOOT = {
     dropChance: 0.05,          // per player kill, any item
-    invCap: 40,                // items carried (equipped ones included)
+    invCap: 40,                // the full-size bag: items carried (equipped ones included), reached at player LV invCapLevel
+    invStart: 16,              // bag size at player LV 1; it grows a slot or two every level (core/loot.js bagCap)
+    invCapLevel: 20,
+    /* Legendary gun attachments are rare finds: a Legendary attachment roll stays Legendary one time in three,
+       otherwise it drops as an Epic or a Rare one (even odds). Shield cells and vests are not affected. */
+    legendaryAttachKeep: 1 / 3,
     /* stat growth with the campaign level L: x(1 + k (min(L, knee) - 1) + k2 max(0, L - knee)), capped.
        Levels 1-3 grow as before (k); past the knee shields grow about as fast as the robots' pressure
        (core/damage.js), so a cell on levels 10-13 soaks a similar share of a health bar as on level 4.

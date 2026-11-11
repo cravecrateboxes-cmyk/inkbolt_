@@ -136,8 +136,7 @@ def curtain(pal, name, merlon, extra, seed, ao):
             m.bx(-0.04, 0.04, -0.807, -0.79, WALK + 0.4, WALK + 1.0, 'ink', hull='none', cull='k')
     if extra == 'slit':                                                                        # arrow slit
         m.det(-0.2, 0.2, 0.03, 0.0, 3.75, 5.25, 'stoneL', hull='full')
-        m.det(-0.055, 0.055, 0.045, 0.02, 3.9, 5.1, 'ink')
-        m.det(-0.15, 0.15, 0.05, 0.025, 4.42, 4.53, 'ink')
+        m.det(-0.055, 0.055, 0.045, 0.02, 3.9, 5.1, 'ink')                                    # a plain vertical loop (no cross arm)
     elif extra in ('bannerR', 'bannerB'):
         c = extra
         m.cy((-0.5, -0.98, 6.55), 0.035, 0.035, 1.0, 'iron', seg=6, rot=(0, 90, 0))           # pole
@@ -293,8 +292,7 @@ def build_gate(pal, ao):
             m.bx(x - 0.2, x + 0.2, -GD - 0.1, -GD + 0.02, 2.95, 3.2, 'stoneL')
         # shield over the arch
         poly_y(m, [(-0.55, 6.9), (0.55, 6.9), (0.55, 6.25), (0.0, 5.55), (-0.55, 6.25)], -GD - 0.06, -GD + 0.02, 'bannerB')
-        poly_y(m, [(-0.08, 6.82), (0.08, 6.82), (0.08, 5.75), (-0.08, 5.75)], -GD - 0.075, -GD - 0.05, 'gold', hull='none')
-        poly_y(m, [(-0.47, 6.42), (0.47, 6.42), (0.47, 6.27), (-0.47, 6.27)], -GD - 0.085, -GD - 0.055, 'gold', hull='none')
+        poly_y(m, [(0.0, 6.74), (0.26, 6.32), (0.0, 5.86), (-0.26, 6.32)], -GD - 0.075, -GD - 0.05, 'gold', hull='none')   # lozenge, as on the banners
         # banners on poles beside the arch
         for x in (-2.25, 2.25):
             m.cy((x - 0.45, -GD - 0.32, 7.35), 0.035, 0.035, 0.9, 'iron', seg=6, rot=(0, 90, 0))
@@ -328,7 +326,8 @@ def build_gate(pal, ao):
 
 
 def build_shutter(pal):
-    """Timber portcullis: oak lattice (both faces) on a dark backing (no see-through), iron spikes at the foot."""
+    """Timber gate: upright oak bars (both faces) on a dark backing (no see-through), held by one head beam and one
+    foot beam with a row of studs each, iron spikes at the foot. No bars cross in the open field."""
     m = PM(pal)
     H = 3.05
     m.bx(-1.49, 1.49, -0.03, 0.03, 0.35, H, 'woodD', hull='none')
@@ -336,15 +335,16 @@ def build_shutter(pal):
         y0, y1 = sorted((sy * 0.03, sy * 0.085))
         for k in range(7):
             x = -1.29 + k * 0.43
-            m.bx(x - 0.065, x + 0.065, y0, y1, 0.2, H, 'woodL', hull='none')
+            m.bx(x - 0.105, x + 0.105, y0, y1, 0.2, H - 0.26, 'woodL', hull='none')
+        y0, y1 = sorted((sy * 0.03, sy * 0.13))
+        m.bx(-1.49, 1.49, y0, y1, H - 0.26, H, 'wood', hull='none')                              # head beam
         y0, y1 = sorted((sy * 0.085, sy * 0.13))
-        for z in (0.75, 1.4, 2.05, 2.7):
-            m.bx(-1.49, 1.49, y0, y1, z - 0.06, z + 0.06, 'wood', hull='none')
+        m.bx(-1.49, 1.49, y0, y1, 0.35, 0.53, 'wood', hull='none')                               # foot beam
         y0, y1 = sorted((sy * 0.13, sy * 0.145))
-        for z in (0.75, 1.4, 2.05, 2.7):
-            for k in range(7):
-                x = -1.29 + k * 0.43
-                m.bx(x - 0.035, x + 0.035, y0, y1, z - 0.035, z + 0.035, 'iron', hull='none')
+        for z in (0.44, H - 0.13):
+            for k in range(8):
+                x = -1.505 + k * 0.43
+                m.cy((x, (y0 + y1) / 2, z), 0.04, 0.04, 0.015, 'iron', seg=6, rot=(90, 0, 0), hull='none')
     for k in range(7):
         x = -1.29 + k * 0.43
         m.cy((x, 0, 0.0), 0.0, 0.07, 0.22, 'iron', seg=4, hull='none')
@@ -498,46 +498,36 @@ def build_fence(pal, ao):
 
 
 def build_dummy(pal, ao):
-    """Training dummy: post in a cross base, straw body tied with rope, sack head, arms on a crossbar, a shield."""
+    """Training dummy: a post on a round foot, straw body tied with rope, sack head with a straw tuft, a round
+    painted target on the chest. No crossbar and no crossed foot: nothing on it reads as a cross."""
     m = PM(pal)
-    for rot, h in ((0, 0.1), (90, 0.125)):
-        m.parent = Matrix.Rotation(math.radians(rot), 4, 'Z')
-        m.bx(-0.42, 0.42, -0.06, 0.06, 0, h, 'woodD')
-    m.parent = Matrix.Identity(4)
+    m.cy((0, 0, 0), 0.4, 0.36, 0.1, 'woodD', seg=10)
     m.cy((0, 0, 0.1), 0.06, 0.05, 1.05, 'wood', seg=6)
-    m.cy((0, 0, 0.95), 0.22, 0.26, 0.65, 'hay', seg=8)
-    for z in (1.08, 1.42):
-        m.cy((0, 0, z), 0.255, 0.255, 0.04, 'rope', seg=8, hull='none', caps=False)
-    m.sp((0, 0, 1.82), 0.17, 'canvas', seg=(7, 4))
-    m.bx(-0.07, 0.07, -0.18, -0.15, 1.84, 1.88, 'ink', hull='none')
-    m.bx(-0.5, 0.5, -0.04, 0.04, 1.42, 1.5, 'woodL')
-    for sx in (-1, 1):
-        m.cy((sx * 0.5 - 0.035, 0, 1.46), 0.07, 0.07, 0.07, 'hay', seg=6, rot=(0, 90, 0))
-    poly_y(m, [(-0.2, 1.38), (0.2, 1.38), (0.2, 1.1), (0.0, 0.9), (-0.2, 1.1)], -0.31, -0.27, 'bannerB')
-    poly_y(m, [(-0.03, 1.34), (0.03, 1.34), (0.03, 0.98), (-0.03, 0.98)], -0.32, -0.309, 'gold', hull='none')
+    m.cy((0, 0, 0.95), 0.2, 0.3, 0.7, 'hay', seg=8)
+    for z in (1.08, 1.5):
+        m.cy((0, 0, z), 0.3, 0.3, 0.04, 'rope', seg=8, hull='none', caps=False)
+    m.sp((0, 0, 1.84), 0.17, 'canvas', seg=(7, 4))
+    m.bx(-0.07, 0.07, -0.18, -0.15, 1.86, 1.9, 'ink', hull='none')
+    m.cy((0, 0, 1.98), 0.09, 0.03, 0.14, 'hay', seg=6)
+    m.cy((0, -0.24, 1.3), 0.19, 0.19, 0.04, 'bannerR', seg=10, rot=(90, 0, 0))
+    m.cy((0, -0.27, 1.3), 0.08, 0.08, 0.02, 'gold', seg=8, rot=(90, 0, 0), hull='none')
     obj = make('Dummy', m, ao=ao)
     col_box(obj, 0, -0.28, 0.28, -0.28, 0.28, 0, 1.95)
 
 
 def build_rack(pal, ao):
-    """Weapon rack along X: two A-frame ends, a top rail with spears, a lower rail with swords, a shield."""
+    """Spear tub: an oak tub with iron hoops, four spears standing in it and fanning out, a round shield leaning on
+    its front. (It was a rack with rails; spears crossing rails read as crosses.) Same footprint and cover box."""
     m = PM(pal)
-    for sx in (-1, 1):
-        x = sx * 0.42
-        m.bm_((x - 0.04, -0.28, 0), (x - 0.04, 0, 1.35), 0.07, 'wood')
-        m.bm_((x + 0.04, 0.28, 0), (x + 0.04, 0, 1.35), 0.07, 'wood')
-    m.bx(-0.5, 0.5, -0.05, 0.05, 1.22, 1.32, 'woodL', hull='noside')
-    m.bx(-0.5, 0.5, -0.17, -0.11, 0.52, 0.6, 'woodL', hull='noside')
-    for k in range(4):
-        x = -0.3 + k * 0.2
-        m.bm_((x, -0.16, 0.02), (x, 0.02, 1.85), 0.03, 'woodD', hull='none')
-        m.cy((x, 0.03, 1.85), 0.035, 0.0, 0.2, 'ironL', seg=4, hull='none')
-    for k in range(3):
-        x = -0.25 + k * 0.25
-        m.bx(x - 0.025, x + 0.025, -0.2, -0.17, 0.35, 1.12, 'ironL', hull='none')
-        m.bx(x - 0.09, x + 0.09, -0.21, -0.165, 0.33, 0.37, 'gold', hull='none')
-    m.cy((0.0, 0.1, 0.62), 0.3, 0.3, 0.05, 'bannerR', seg=10, rot=(90, 0, 0))
-    m.cy((0.0, 0.06, 0.62), 0.12, 0.12, 0.07, 'gold', seg=8, rot=(90, 0, 0), hull='none')
+    m.cy((0, 0, 0), 0.3, 0.36, 0.62, 'wood', seg=8)
+    for z in (0.12, 0.46):
+        m.cy((0, 0, z), 0.34 + z * 0.1, 0.345 + z * 0.1, 0.06, 'iron', seg=8, hull='none', caps=False)
+    for (x, y) in ((-0.13, -0.06), (0.13, -0.06), (-0.07, 0.1), (0.09, 0.09)):
+        tx, ty = x * 2.4, y * 2.4
+        m.bm_((x, y, 0.3), (tx, ty, 1.9), 0.035, 'woodD', hull='none')
+        m.cy((tx, ty, 1.88), 0.045, 0.0, 0.24, 'ironL', seg=4, hull='none')
+    m.cy((0.0, -0.42, 0.32), 0.3, 0.3, 0.05, 'bannerR', seg=10, rot=(80, 0, 0))
+    m.cy((0.0, -0.45, 0.325), 0.11, 0.11, 0.06, 'gold', seg=8, rot=(80, 0, 0), hull='none')
     obj = make('Rack', m, ao=ao)
     col_box(obj, 0, -0.5, 0.5, -0.3, 0.3, 0, 1.4)
 

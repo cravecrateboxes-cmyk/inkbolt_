@@ -499,12 +499,11 @@ def iron_front(k, y, z, w=0.028, h=0.014, post=0.020, color='gunmetal'):
 
 
 def red_dot(k, y, z, L=0.05, r=0.017, color='gunmetal'):
-    """Tube red-dot on a rail at height z: clamp, hollow tube with recessed lenses, turret, amber ring."""
+    """Tube red-dot on a rail at height z: clamp, open tube you look straight through (no glass: a lens plate would
+    hide the target when aiming down the sight), dark rims front and back, turret."""
     cz = z + 0.010 + r
     k.cbox((0, y, z + 0.006), (0.030, L * 0.45, 0.012), color, ch=0.002, axis='y')
-    k.lathe([(y - L / 2 + 0.006, 0), (y - L / 2 + 0.006, r - 0.004), (y - L / 2, r - 0.004), (y - L / 2, r), (y + L / 2, r),
-             (y + L / 2, r - 0.004), (y + L / 2 - 0.008, r - 0.004), (y + L / 2 - 0.008, 0)], color, 'y', (0, 0, cz), 10,
-            bands=['lens', 'ink', None, None, None, 'ink', 'lens'])
+    k.ring('y', (0, 0, cz), y - L / 2, y + L / 2, r - 0.004, r, color, seg=10, bands=['ink', None, 'ink', None])
     k.lathe([(0, 0), (0, 0.0065), (0.009, 0.0065), (0.009, 0)], 'gun3', 'z', (0, y - L * 0.1, cz + r - 0.003), 8, hull=False)
     return cz
 
@@ -601,13 +600,13 @@ def build_rivet(pal):
 
 
 def hood_sight(k, y0, y1, zb, w=0.034, h=0.026, t=0.005, color='gunmetal'):
-    """Open reflex / holo sight: a hollow rectangular hood on a base with a tinted lens plate inside."""
+    """Open reflex / holo sight: a hollow rectangular hood on a base with a red bead; nothing fills the window (a
+    lens plate would hide the target when aiming down the sight)."""
     k.cbox((0, (y0 + y1) / 2, zb + 0.004), (w - 0.004, y1 - y0 + 0.006, 0.008), color, ch=0.002, axis='y')
     z0 = zb + 0.007
     oc, ic = rrect(w, h, ct=0.007, cb=0.002, cy=z0 + h / 2), rrect(w - 2 * t, h - 2 * t, ct=0.004, cb=0.001, cy=z0 + h / 2)
     ring = lambda p, y: [(q[0], y, q[1]) for q in p]
     k.loft([ring(ic, y0), ring(oc, y0), ring(oc, y1), ring(ic, y1)], color, closed=True, bands=[None, None, None, 'ink'])
-    k.box((0, (y0 + y1) / 2, z0 + h / 2), (w - 2 * t + 0.003, 0.002, h - 2 * t + 0.003), 'lens')
     k.box((0, y0 + 0.004, z0 + t + 0.0025), (0.005, 0.004, 0.005), 'red')
     return z0 + h / 2
 
@@ -3214,14 +3213,14 @@ def build_pickups(pal):
         k.lathe([(0, 0), (0, 0.03), (0.09, 0.03), (0.13, 0.0)], 'brass', 'z', (i * 0.1, -0.24, 0.145), 6, hull=False)
     k.box((0, 0, 0.12), (0.66, 0.44, 0.04), 'ammo2')
     finish('PICKUP_Ammo', k, ht=0.018)
-    # health can: canister with rim bands, cap and a white cross
+    # health can: canister with rim bands, cap and a white heart (no cross or plus sign anywhere in the game world)
     k = Kit(pal)
     k.lathe([(0, 0), (0, 0.19), (0.46, 0.19), (0.50, 0.15), (0.50, 0)], 'health', 'z', (0, 0, 0), 8, a0=0)
     k.ring('z', (0, 0, 0), 0.06, 0.12, 0.17, 0.215, 'health2', seg=10, hull=False)
     k.lathe([(0.49, 0), (0.49, 0.10), (0.58, 0.10), (0.58, 0)], 'health3', 'z', (0, 0, 0), 8, hull=False)
-    a, b = 0.10, 0.035
-    plus = [(b, -a), (b, -b), (a, -b), (a, b), (b, b), (b, a), (-b, a), (-b, b), (-a, b), (-a, -b), (-b, -b), (-b, -a)]
-    k.ext_y(plus, -0.20, -0.17, 'paper', z=0.25, hull=False)
+    heart = [(0, -0.10), (0.085, -0.02), (0.105, 0.03), (0.095, 0.075), (0.06, 0.10), (0.025, 0.09), (0, 0.06),
+             (-0.025, 0.09), (-0.06, 0.10), (-0.095, 0.075), (-0.105, 0.03), (-0.085, -0.02)]
+    k.ext_y(heart, -0.20, -0.17, 'paper', z=0.25, hull=False)
     finish('PICKUP_Health', k, ht=0.018)
     # rocket ammo crate (launchers only; soldiers drop it): olive crate, rope handles, a stencilled rocket on the
     # front, two red-tipped rockets strapped on the lid

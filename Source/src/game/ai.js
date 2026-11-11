@@ -319,7 +319,11 @@
     for (t = 0; t < ix.length; t += 3) {
       var mn = 1e9, mx = -1e9, rr = 0, hh = isHull(ix[t]);
       for (k = 0; k < 3; k++) { v = ix[t + k]; var y = pos[v * 3 + 1]; mn = Math.min(mn, y); mx = Math.max(mx, y); rr = Math.max(rr, Math.hypot(pos[v * 3], pos[v * 3 + 2])); }
-      var isLid = mn >= ys && !(mx - mn < 0.004 && rr <= bodyR[hh] + 0.005);
+      var flatTop = mn >= ys && mx - mn < 0.004 && rr <= bodyR[hh] + 0.005;   // the body's own top face, under the lid
+      var isLid = mn >= ys && !flatTop;
+      // the can is open under its lid: the body's solid top face is left out, so a swung-up lid shows the dark inside
+      // of the can (the inside of the outline shell, which keeps its top face: that one only shows from within)
+      if (flatTop && !hh) continue;
       (isLid ? lid : body).push(ix[t], ix[t + 1], ix[t + 2]);
       if (isLid && !hh) { lidLo = Math.min(lidLo, mn); for (k = 0; k < 3; k++) { v = ix[t + k]; lidZ = Math.min(lidZ, pos[v * 3 + 2]); } }
     }

@@ -34,7 +34,7 @@
     return { uInk: { value: new THREE.Color(PAL.ink) }, uOutBase: { value: base }, uOutK: { value: 0.002 }, px: px };
   }
 
-  var VERT_PARS = 'attribute vec3 aHull;\nvarying float vHull;\nuniform float uOutBase;\nuniform float uOutK;\nuniform float uBaked;\nuniform float uHullK;\n';
+  var VERT_PARS = 'attribute vec3 aHull;\nvarying float vHull;\nuniform float uOutBase;\nuniform float uOutK;\nuniform float uBaked;\nuniform float uHullK;\nuniform float uOutMax;\n';
   var VERT_PROJECT = [
     'vec4 mvPosition = vec4( transformed, 1.0 );',
     '#ifdef USE_INSTANCING',
@@ -51,7 +51,7 @@
     '   hd = instanceMatrix * hd;',
     '  #endif',
     '  hd = modelViewMatrix * hd;',
-    '  mvPosition.xyz += hd.xyz * max( 0.0, max( uOutBase, uOutK * -mvPosition.z ) * uHullK - uBaked );',
+    '  mvPosition.xyz += hd.xyz * max( 0.0, min( uOutMax, max( uOutBase, uOutK * -mvPosition.z ) * uHullK ) - uBaked );',
     '  vHull = 1.0;',
     '}',
     'gl_Position = projectionMatrix * mvPosition;'
@@ -78,7 +78,11 @@
     '}'
   ].join('\n');
 
-  /* opts: { uni: outline uniforms, fx: per-instance flash/ink attribute, vertexColors, color, opacityAttr } */
+  /* opts: { uni: outline uniforms, fx: per-instance flash/ink attribute, vertexColors, color, opacityAttr,
+       outMax: cap on the outline width in the mesh's own units (default: none). The outline normally widens with
+       distance to stay about 3 px on screen; on a small object drawn enlarged (loot, pickups, a gun turning in its
+       beam) that swallows the whole thing in black and makes it look several times its size from afar, so those
+       materials cap it and the object keeps its real silhouette at any distance. } */
   function toonMaterial(opts) {
     opts = opts || {};
     var mat = new THREE.MeshToonMaterial({
@@ -88,11 +92,11 @@
       map: opts.map || null
     });
     if (opts.skinning) mat.skinning = true;
-    var baked = { value: opts.baked || 0 };
+    var baked = { value: opts.baked || 0 }, outMax = { value: opts.outMax > 0 ? opts.outMax : 1e6 };
     var uni = opts.uni || IB.Render.worldOutline;
     var fx = !!opts.fx, robot = uni === IB.Render.robotOutline;
     mat.onBeforeCompile = function (sh) {
-      sh.uniforms.uInk = uni.uInk; sh.uniforms.uOutBase = uni.uOutBase; sh.uniforms.uOutK = uni.uOutK; sh.uniforms.uBaked = baked;
+      sh.uniforms.uInk = uni.uInk; sh.uniforms.uOutBase = uni.uOutBase; sh.uniforms.uOutK = uni.uOutK; sh.uniforms.uBaked = baked; sh.uniforms.uOutMax = outMax;
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', '#include <common>\n' + VERT_PARS + (fx ? 'attribute vec2 aFx;\nvarying vec2 vFx;\n' : ''))
         .replace('#include <project_vertex>', VERT_PROJECT + (fx ? '\nvFx = aFx;' : ''));
@@ -104,6 +108,7 @@
           'if ( vHull > 0.5 ) gl_FragColor = vec4( uInk, 1.0 );\n#include <fog_fragment>\n' + (robot ? CLOAK_ROBOT : CLOAK_WORLD));
     };
     mat.customProgramCacheKey = function () { return 'ibtoon' + (fx ? 'fx' : '') + (robot ? 'r' : uni === IB.Render.worldOutline ? 'w' : 'v') + (opts.skinning ? 's' : ''); };
+    mat.userData.outMax = outMax;   // the cap can be set later: mat.userData.outMax.value = 0.02
     return mat;
   }
 

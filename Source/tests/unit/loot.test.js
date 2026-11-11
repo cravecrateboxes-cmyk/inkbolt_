@@ -339,3 +339,44 @@ test('armour can be excluded from a drop context (crawlers and bombers never dro
   for (let i = 0; i < 4000; i++) { const it = L.rollDrop(Math.random, Object.assign({ chance: 1, exclude: ['armor'] }, ctx)); if (it && it.type === 'armor') armour++; }
   assert.equal(armour, 0);
 });
+
+test('legendary gun attachments: one roll in three stays Legendary, the rest come down to Epic or Rare; cells and vests keep theirs', () => {
+  assert.ok(Math.abs(T.legendaryAttachKeep - 1 / 3) < 1e-9);
+  const r = rng(77), N = 30000, c = { legendary: 0, epic: 0, rare: 0, common: 0 };
+  for (let i = 0; i < N; i++) c[L.dropRarity('grip', 'legendary', r)]++;
+  assert.equal(c.common, 0);
+  assert.ok(Math.abs(c.legendary / N - 1 / 3) < 0.012, JSON.stringify(c));
+  assert.ok(Math.abs(c.epic / N - 1 / 3) < 0.012 && Math.abs(c.rare / N - 1 / 3) < 0.012, JSON.stringify(c));
+  // every attachment type is covered, worn gear is not; other rarities pass through untouched
+  Object.keys(T.types).forEach((k) => {
+    const att = T.slots.indexOf(T.types[k].slot) >= 0;
+    let kept = 0; for (let i = 0; i < 300; i++) if (L.dropRarity(k, 'legendary', r) === 'legendary') kept++;
+    if (att) assert.ok(kept > 60 && kept < 140, k + ' ' + kept); else assert.equal(kept, 300, k);
+    for (const q of ['common', 'rare', 'epic']) assert.equal(L.dropRarity(k, q, r), q);
+  });
+  // through the real drop roll on a late level: attachments turn up Legendary about a third as often as the odds table says
+  const ctx = { level: 17, cleared: 16, chance: 1 }, odds = L.rarityOdds(17)[3] / 100;
+  let att = 0, attLeg = 0, worn = 0, wornLeg = 0;
+  for (let i = 0; i < 60000; i++) {
+    const it = L.rollDrop(r, ctx);
+    if (L.isAttachment(it)) { att++; if (it.rarity === 'legendary') attLeg++; } else { worn++; if (it.rarity === 'legendary') wornLeg++; }
+  }
+  assert.ok(Math.abs(attLeg / att - odds / 3) < 0.006, 'attachments ' + (attLeg / att).toFixed(4));
+  assert.ok(Math.abs(wornLeg / worn - odds) < 0.012, 'worn ' + (wornLeg / worn).toFixed(4));
+});
+
+test('bag size grows with the player level: 16 at LV 1, a slot or two a level, the full 40 from LV 20', () => {
+  assert.equal(L.bagCap(1), T.invStart); assert.equal(T.invStart, 16);
+  assert.equal(L.bagCap(T.invCapLevel), T.invCap); assert.equal(L.bagCap(30), T.invCap); assert.equal(L.bagCap(99), T.invCap);
+  assert.equal(L.bagCap(0), T.invStart); assert.equal(L.bagCap(undefined), T.invStart);
+  for (let lv = 2; lv <= T.invCapLevel; lv++) {
+    const step = L.bagCap(lv) - L.bagCap(lv - 1);
+    assert.ok(step >= 1 && step <= 2, 'LV ' + lv + ' adds ' + step);
+  }
+  assert.deepEqual([1, 5, 10, 15, 20].map(L.bagCap), [16, 21, 27, 34, 40]);
+  // addItem honours the size it is given
+  const g = L.defaultGear(), r = rng(5);
+  for (let i = 0; i < 16; i++) assert.ok(L.addItem(g, L.makeItem('grip', 'common', 1, r), L.bagCap(1)));
+  assert.equal(L.addItem(g, L.makeItem('grip', 'common', 1, r), L.bagCap(1)), null, 'full at LV 1');
+  assert.ok(L.addItem(g, L.makeItem('grip', 'common', 1, r), L.bagCap(2)), 'room again at LV 2');
+});

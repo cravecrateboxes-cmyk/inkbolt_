@@ -74,6 +74,8 @@
     return G.slot.gear;
   };
   Gear.save = function (G) { if (G.store && G.slot) G.store.save(G.slot); };
+  // bag size right now: grows with the player level (IB.Loot.bagCap: 16 at LV 1 to 40 at LV 20)
+  Gear.bagCap = function (G) { var lv = G && G.progress ? G.progress().level : 1; return L().bagCap ? L().bagCap(lv) : IB.LOOT.invCap; };
 
   // ---------------- first-person attachments ----------------
   // per weapon: mount points in gun space, found once from its sockets and its mesh
@@ -377,8 +379,11 @@
     }
     if (Gear.novaQ > 0) { Gear.novaQ -= dt; if (Gear.novaQ <= 0) { Gear.novaQ = 0; Gear.nova(G); } }
     if (IB.LootHUD) { IB.LootHUD.shield(st); IB.LootHUD.tick(dt); }
-    // a mounted scope: past ~70 % aim the comic scope view fades in and the viewmodel steps aside
-    var w = G.ws && IB.Weapons.current(G.ws), k = w && w.def.optic && p.alive ? Math.max(0, Math.min(1, (G.ws.aim - 0.7) / 0.22)) : 0;
+    // a scope (a fitted one, or the tube scope built into the gun: def.scopeZoom / def.scopeView): past ~70 % aim the
+    // comic scope view fades in and the viewmodel steps aside. Without it the eye sits inside the gun's own scope tube
+    // and the target is hidden behind its dark barrel and lens.
+    var w = G.ws && IB.Weapons.current(G.ws), scoped = w && (w.def.optic || w.def.scopeZoom > 0 || w.def.scopeView);
+    var k = scoped && p.alive && !G.ws.melee ? Math.max(0, Math.min(1, (G.ws.aim - 0.7) / 0.22)) : 0;
     if (IB.LootHUD) IB.LootHUD.scope(k);
     if (G.ws) G.ws.hidden = k >= 0.98;
     if (Gear.glowMat) { var k = 0.5 + 0.5 * Math.sin(performance.now() * 0.006); Gear.glowMat.color.setRGB(0.48 + 0.3 * k, 0.89 + 0.1 * k, 0.29 + 0.25 * k);
@@ -399,7 +404,7 @@
     forceDrop: function (type, rarity, dist, level, perk) {
       var G = IB.Game, p = G.player, d = dist === undefined ? 4 : dist;
       var item = Gear.testItem(type, rarity, level, perk);
-      return IB.Drops.spawn(item, p.x - Math.sin(p.yaw) * d, p.z - Math.cos(p.yaw) * d) ? item : null;
+      return IB.Drops.spawn(item, p.x - Math.sin(p.yaw) * d, p.z - Math.cos(p.yaw) * d, p.y) ? item : null;
     },
     // put an item straight into the bag (no drop): returns its id
     giveItem: function (type, rarity, level, perk) {

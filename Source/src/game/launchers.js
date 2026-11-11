@@ -160,7 +160,7 @@
     var sk = IB.SkillFX && IB.SkillFX.fx ? IB.SkillFX.fx : {}, launcher = GL() && GL().isLauncher(gun);
     // guns: 5x the shot; rocket launchers: 2x one rocket (direct + splash)
     var base = launcher ? ((gun.damage || 0) + (gun.splash || 0)) * dmgMul(gun) : (GL() ? GL().shotDamage(gun) : gun.damage) * dmgMul(gun);
-    var mul = launcher ? (sk.torpedoRocketMul || 2) : (sk.torpedoMul || 5);
+    var mul = launcher ? (sk.torpedoRocketMul || 2) : (sk.torpedoMul || 3);
     var def = Object.assign({}, TORPEDO, { splash: base * mul, radius: sk.torpedoRadius || 4.5, slow: sk.torpedoSlow || 0, slowTime: sk.torpedoSlowTime || 5 });
     IB.Weapons.muzzleWorld(cam, _mz);
     cam.getWorldDirection(_d); _mz.addScaledVector(_d, 0.25);

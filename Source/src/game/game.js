@@ -68,7 +68,10 @@
     window.addEventListener('resize', onResize);
     window.addEventListener('orientationchange', function () { setTimeout(onResize, 60); });
     if (window.visualViewport) window.visualViewport.addEventListener('resize', onResize);
-    document.addEventListener('visibilitychange', function () { if (!document.hidden) return; if (G.mode === 'play') G.pause(); IB.Plat.stop(); });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) return; if (G.mode === 'play') G.pause(); G.saveNow(); IB.Plat.stop(); });
+    // leaving the page (tab closed, reload, the phone app sent to the background): everything is written first
+    window.addEventListener('pagehide', function () { G.saveNow(); });
+    window.addEventListener('beforeunload', function () { G.saveNow(); });
     Inp.onUnlock = function () { if (G.mode === 'play' && !G.dead && !AUTOTEST) G.pause(); };
     document.addEventListener('pointerdown', firstGesture, { once: false });
     document.addEventListener('keydown', firstGesture);
@@ -198,7 +201,7 @@
     var A = IB.Assets, guns = rackGuns(), WD = IB.WeaponDrops, LT = IB.LOOT, AR = G.level.theme.armory || {}, TIERS = AR.tiers || ARMORY_TIERS, GEAR = AR.gear || ARMORY_GEAR;
     var attach = Object.keys(LT.types).filter(function (k) { return LT.slots.indexOf(LT.types[k].slot) >= 0; });
     var worn = Object.keys(LT.types).filter(function (k) { return LT.worn.indexOf(LT.types[k].slot) >= 0; });
-    if (!G.worldWpnMat) G.worldWpnMat = R.toonMaterial({ map: A.palette.weapons, baked: A.BAKED ? A.BAKED.weapons : 0 });
+    if (!G.worldWpnMat) G.worldWpnMat = R.toonMaterial({ map: A.palette.weapons, baked: A.BAKED ? A.BAKED.weapons : 0, outMax: 0.02 });
     G.level.zones.forEach(function (z, zi) {
       var groups = {}, tags = [];
       (z.mounts || []).forEach(function (m) {
@@ -224,7 +227,7 @@
       });
       Object.keys(groups).forEach(function (key) {
         var list = groups[key], isGun = key.indexOf('WPN:') === 0;
-        var geo = isGun ? G.gunGeo(list[0].id) : A.get(key), mat = isGun ? (IB.GunSkins ? IB.GunSkins.material(list[0].id, list[0].tier) : G.worldWpnMat) : A.material(key);
+        var geo = isGun ? G.gunGeo(list[0].id) : A.get(key), mat = isGun ? (IB.GunSkins ? IB.GunSkins.material(list[0].id, list[0].tier, null, 0.02) : G.worldWpnMat) : A.material(key);
         var im = new THREE.InstancedMesh(geo, mat, list.length);
         im.frustumCulled = false;
         var local = isGun ? null : itemLocal(geo, new THREE.Matrix4());
@@ -264,12 +267,15 @@
     });
     return best;
   }
-  // a rack gun joins the arsenal like a weapon drop (IB.WeaponDrops.acquire): new gun at its tier and level, a better
-  // one replaces yours, else gems
-  function takeRackGun(id, tier, level, roll) {
-    var s = G.slot, line = IB.WeaponDrops.acquire(id, tier, level || G.plan.level, roll);
-    HUD.toast(line, 2.4);
-    if (HUD.gems) HUD.gems(s.gems || 0, true);
+  // a rack gun is taken like a gun on the floor (IB.WeaponDrops.acquire): a new model joins the arsenal (carried at once
+  // when a slot is free); a model you own is swapped and yours is laid on the floor in front of the rack
+  function takeRackGun(id, tier, level, roll, x, z) {
+    var s = G.slot, p = G.player, r = IB.WeaponDrops.acquire(id, tier, level || G.plan.level, roll);
+    if (r.old && IB.WeaponDrops.layDown) {
+      var dx = p.x - x, dz = p.z - z, dl = Math.hypot(dx, dz) || 1, k = Math.min(0.9, dl * 0.5);
+      IB.WeaponDrops.layDown(r.old, x + dx / dl * k, z + dz / dl * k, p.y);
+    }
+    HUD.toast(r.line, 2.4);
     A.play('pickup');
     if (G.store) G.store.save(s);
     return true;
@@ -278,18 +284,29 @@
   function fragCarry() { return IB.WEAPONS.frag.carry + (IB.SkillFX && IB.SkillFX.grenadeBonus ? IB.SkillFX.grenadeBonus() : 0); }
   function takeLoot(L) {
     var ok;
-    if (L.kind === 'gun') ok = takeRackGun(L.id, L.tier, L.level, L.roll);
+    if (L.kind === 'gun') ok = takeRackGun(L.id, L.tier, L.level, L.roll, L.x, L.z);
     else ok = IB.Drops && IB.Drops.collect ? IB.Drops.collect({ it: L.item, x: L.x, z: L.z, on: true, fullT: 0, grp: { visible: true } }, G) : false;
     if (!ok) return false;
     L.taken = true; L.im.setMatrixAt(L.idx, _lZ); L.im.instanceMatrix.needsUpdate = true;
     if (L.tag) { L.tag.setMatrixAt(L.tagIdx, _lZ); L.tag.instanceMatrix.needsUpdate = true; }
     return true;
   }
+  /* the E prompt: an armory rack item within reach wins, else the gun on the floor you stand at or look at
+     (IB.WeaponDrops.useTarget). Its card floats over it (HUD.peek); gear on the floor shows its card too
+     (IB.Drops.peekTarget) and is bagged by walking over it. */
   function updateLoot() {
-    if (!G.loot || !G.loot.length) { if (HUD.use) HUD.use(null); return; }
-    var L = G.dead || G.complete || !G.player.alive ? null : nearestLoot();
-    if (HUD.use) HUD.use(L ? { key: 'E', text: L.label, sub: L.sub, color: L.color, gun: L.kind === 'gun' ? { id: L.id, tier: L.tier, level: L.level, roll: L.roll, wx: L.x, wy: (L.y || 1) + 0.6, wz: L.z } : null } : null);
-    if (L && Inp.usePressed) takeLoot(L);
+    var live = !(G.dead || G.complete || !G.player.alive), WD = IB.WeaponDrops;
+    var L = live && G.loot && G.loot.length ? nearestLoot() : null, D = !L && live && WD && WD.useTarget ? WD.useTarget(G) : null;
+    if (HUD.use) {
+      if (L) HUD.use({ key: 'E', text: L.label, sub: L.sub, color: L.color,
+        gun: L.kind === 'gun' ? { id: L.id, tier: L.tier, level: L.level, roll: L.roll, wx: L.x, wy: (L.y || 1) + 0.6, wz: L.z } : null,
+        item: L.kind !== 'gun' ? L.item : null, uid: 'rack' + G.loot.indexOf(L), wx: L.x, wy: (L.y || 1) + 0.55, wz: L.z });
+      else if (D) HUD.use({ key: 'E', text: D.text, sub: D.sub, color: D.color, gun: D.gun });
+      else HUD.use(null);
+    }
+    if (HUD.peek && IB.Drops && IB.Drops.peekTarget) HUD.peek('gear', live ? IB.Drops.peekTarget(G) : null);
+    if (HUD.peekTrack) HUD.peekTrack();   // keep the card floating over its item
+    if (Inp.usePressed) { if (L) takeLoot(L); else if (D) WD.take(D.d, G); }
   }
   G.nearestLoot = nearestLoot; G.takeLoot = takeLoot;
 
@@ -340,7 +357,7 @@
     G.weaponStands = [];
     if (G.mode === 'title') return;
     var z0 = G.level.zones[0], theme = G.level.theme, A = IB.Assets, standName = IB.themePiece(theme, theme.stand || 'Crate');
-    if (!G.worldWpnMat) G.worldWpnMat = R.toonMaterial({ map: A.palette.weapons, baked: A.BAKED.weapons });
+    if (!G.worldWpnMat) G.worldWpnMat = R.toonMaterial({ map: A.palette.weapons, baked: A.BAKED.weapons, outMax: 0.02 });
     ensureSlot();
     ids = ids.filter(function (id) {
       var def = IB.WEAPONS[id]; if (!def) return false;
@@ -466,7 +483,7 @@
       if (h < s.cleared || g[s.flag]) return;
       g[s.flag] = true; given = true;
       var item = IB.Loot.makeItem(s.type, 'common', s.cleared, Math.random), slot = IB.Loot.slotOf(item);
-      if (IB.Loot.addItem(g, item) && !g[slot]) IB.Loot.equipWorn(g, slot, item.id);
+      if (IB.Loot.addItem(g, item, Infinity) && !g[slot]) IB.Loot.equipWorn(g, slot, item.id);   // a starter always fits
       (G.starterNotes = G.starterNotes || []).push({ item: item, note: s.note });
     });
     if (given) G.store.save(G.slot);
@@ -483,14 +500,15 @@
     ensureSlot();
     if (!(n > 0)) return;
     var before = IB.Skills.levelFromXp(G.slot.xp);
-    G.slot.xp = (G.slot.xp || 0) + n;
+    G.slot.xp = (G.slot.xp || 0) + n; G.touchSave();
     var after = IB.Skills.levelFromXp(G.slot.xp);
     if (after > before) {
       var pts = IB.Skills.earned(after - 1) - IB.Skills.earned(before - 1), hp0 = G.player.maxHp || 100;
       applySkillStats(false);
       G.player.health = Math.min(G.player.maxHp, G.player.health + Math.max(0, G.player.maxHp - hp0));
       if (G.mode === 'play') {
-        HUD.toast('LEVEL UP · LV ' + after + ' · max health ' + Math.round(G.player.maxHp) + (pts ? ' · +' + pts + ' skill point' + (pts > 1 ? 's' : '') + ' (Tab)' : ''), 3.2);
+        var bag0 = IB.Loot && IB.Loot.bagCap ? IB.Loot.bagCap(before) : 0, bag1 = IB.Loot && IB.Loot.bagCap ? IB.Loot.bagCap(after) : 0;
+        HUD.toast('LEVEL UP · LV ' + after + ' · max health ' + Math.round(G.player.maxHp) + (pts ? ' · +' + pts + ' skill point' + (pts > 1 ? 's' : '') + ' (Tab)' : '') + (bag1 > bag0 ? ' · bag ' + bag1 : ''), 3.2);
         A.play('hatch');
       }
       G.store.save(G.slot);
@@ -545,7 +563,9 @@
     G.ws = W.create(owned, { magLevel: (G.slot.upgrades && G.slot.upgrades.mag) || 0, magMul: IB.SkillFX.fx.magMul });
     if (IB.Launchers) IB.Launchers.startLevel(G);   // rocket pool from the save, rolled magazines, ammo director
     applySkillStats(true);
-    var first = Object.keys(G.ws.guns).sort(function (a, b) { return IB.WEAPONS[b].slot - IB.WEAPONS[a].slot; })[0] || 'pip';
+    // the gun that was in hand when the game was last saved comes to hand again; otherwise the biggest one carried
+    var first = G.slot.curGun && G.ws.guns[G.slot.curGun] ? G.slot.curGun :
+      Object.keys(G.ws.guns).sort(function (a, b) { return IB.WEAPONS[b].slot - IB.WEAPONS[a].slot; })[0] || 'pip';
     W.equip(G.ws, first, true);
     grantStarterShield();
     if (IB.Gear) IB.Gear.startLevel(G);   // attachments on the guns, shield full
@@ -566,6 +586,22 @@
     Inp.enabled = true; Inp.reset();
     if (!AUTOTEST) Inp.requestLock();
   };
+  /* Write the save now. Progress lives in G.slot as it is earned (XP, gems, items, guns, skills, the loadout in key
+     order); this adds the gun in hand (slot.curGun, drawn again when the next level starts) and stores it. Called when
+     the page is hidden or closed, on pause, on leaving for the title, at every zone clear, and by the autosave below
+     (within AUTOSAVE seconds of anything earned), so quitting at any moment loses nothing. */
+  var AUTOSAVE = 12;
+  G.saveNow = function () {
+    if (!G.slot || !G.store || G.mode === 'boot') return false;
+    if (G.ws && G.ws.cur && G.run && (G.slot.loadout || []).indexOf(G.ws.cur) >= 0) G.slot.curGun = G.ws.cur;
+    if (IB.Launchers && IB.Launchers.total && G.ws && G.run && G.run.started) G.slot.rockets = IB.Launchers.total();
+    try { G.store.save(G.slot); } catch (e) { return false; }
+    G.dirtyT = 0;
+    return true;
+  };
+  // something was earned: the autosave writes it within AUTOSAVE seconds
+  G.touchSave = function () { if (!(G.dirtyT > 0)) G.dirtyT = AUTOSAVE; };
+  function tickAutosave(dt) { if (G.dirtyT > 0) { G.dirtyT -= dt; if (G.dirtyT <= 0) G.saveNow(); } }
   function ensureSlot() {
     if (G.slot) return;
     var newest = G.store.newest();
@@ -667,6 +703,7 @@
     A.play('gate', { pos: z.exitGate });
     G.level.trails[i].litT = 0;
     Z.setVisible(G.level, i);   // keep this zone (the player stands in it) and the next one drawn
+    G.saveNow();
     HUD.pips(G.level.zones.length, i + 1, i + 1);
     HUD.toast(i + 1 < G.level.zones.length ? 'Zone clear. Follow the arrows.' : 'Level clear. Get to the hatch.', 2.4);
     if (IB.Boom) IB.Boom.zoneClear(G.level, i, i + 1 >= G.level.zones.length);   // confetti at the gate, fireworks on a level clear
@@ -787,10 +824,12 @@
   function initPickups() {
     G.pickups = [];
     var geo = { ammo: IB.Assets.get('PICKUP_Ammo'), health: IB.Assets.get('PICKUP_Health') };
+    // their own material: the ink outline is capped at 2 cm, so a box across the zone is not swallowed in black
+    var pkMat = R.toonMaterial({ map: IB.Assets.palette.weapons, baked: IB.Assets.BAKED ? IB.Assets.BAKED.weapons : 0, outMax: 0.02 });
     // big levels place up to ~10 of each on the map; robots drop more (ammo) and the health director adds cans
     for (var i = 0; i < 44; i++) {
       var kind = i < 22 ? 'ammo' : 'health';
-      var m = new THREE.Mesh(geo[kind], IB.Assets.mat.weapons); m.visible = false; R.scene.add(m);
+      var m = new THREE.Mesh(geo[kind], pkMat); m.visible = false; R.scene.add(m);
       G.pickups.push({ kind: kind, mesh: m, on: false, x: 0, y: 0, z: 0 });
     }
   }
@@ -932,7 +971,7 @@
   G.onKill = onKill;
   function collectGem(kind) {
     var v = IB.Gems ? IB.Gems.VALUES[kind] : 1;
-    G.run.gems += v; if (G.slot) G.slot.gems = (G.slot.gems || 0) + v;
+    G.run.gems += v; if (G.slot) { G.slot.gems = (G.slot.gems || 0) + v; G.touchSave(); }
     HUD.gems(G.slot ? G.slot.gems : G.run.gems, true);
     A.gem(performance.now() / 1000);
   }
@@ -984,6 +1023,7 @@
   G.pause = function () {
     if (G.mode !== 'play' || G.dead) return;
     G.mode = 'paused'; Inp.enabled = false; Inp.reset(); Inp.releaseLock(); IB.Plat.stop();
+    G.saveNow();
     HUD.show(false); document.getElementById('touch').hidden = true;
     M.pause({ level: G.plan.level, levelName: G.plan.name, zone: G.zone + 1, zones: G.level.zones.length, gems: G.slot ? G.slot.gems : 0 });
   };
@@ -994,6 +1034,7 @@
     IB.Plat.start();
   };
   G.toTitle = function () {
+    if (G.mode === 'play' || G.mode === 'paused' || G.mode === 'menu') G.saveNow();   // quitting a level keeps what it earned
     setDim(0);
     G.mode = 'title'; Inp.enabled = false; Inp.releaseLock(); IB.Plat.stop();
     HUD.show(false); document.getElementById('touch').hidden = true; document.body.classList.remove('dead');
@@ -1064,6 +1105,7 @@
     var dt = dtRaw;
     if (G.hitstop > 0) { G.hitstop -= dt; dt = 0; }
     tAll += dtRaw;
+    tickAutosave(dtRaw);
     Inp.update();
     R.renderer.info.reset();
     if (G.mode === 'play') playFrame(dt, dtRaw);

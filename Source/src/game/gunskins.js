@@ -110,16 +110,17 @@
   ].join('\n');
 
   function C(h) { return new THREE.Color(h); }
-  GS.material = function (gunId, tier, uni) {
+  /* outMax (optional): outline width cap for a gun shown enlarged in the world (IB.Render.toonMaterial) */
+  GS.material = function (gunId, tier, uni, outMax) {
     var R = IB.Render, A = IB.Assets;
     uni = uni || R.worldOutline;
     tier = tier || 'gray';
-    if (!D() || !A.palette || !A.palette.weapons) return R.toonMaterial({ uni: uni, map: A.palette && A.palette.weapons, baked: A.BAKED ? A.BAKED.weapons : 0 });
+    if (!D() || !A.palette || !A.palette.weapons) return R.toonMaterial({ uni: uni, map: A.palette && A.palette.weapons, baked: A.BAKED ? A.BAKED.weapons : 0, outMax: outMax });
     if (!uni._skinId) uni._skinId = 'u' + (GS._u = (GS._u || 0) + 1);
-    var key = gunId + '|' + tier + '|' + uni._skinId;
+    var key = gunId + '|' + tier + '|' + uni._skinId + (outMax ? '|' + outMax : '');
     if (GS.cache[key]) return GS.cache[key];
     var sk = D().skin(gunId, tier);
-    var mat = R.toonMaterial({ uni: uni, map: texture(sk), baked: A.BAKED ? A.BAKED.weapons : 0 });
+    var mat = R.toonMaterial({ uni: uni, map: texture(sk), baked: A.BAKED ? A.BAKED.weapons : 0, outMax: outMax });
     var U = { uPat: { value: D().PATTERNS[sk.pat.type] || 0 }, uPatS: { value: sk.pat.scale }, uPatC: { value: C(sk.pat.col) },
       uGlowC: { value: C(sk.glow) }, uShim: { value: sk.shimmer }, uTime: time,
       uShimC: { value: C(sk.shimCol || '#FFEBB3') }, uPatGlow: { value: sk.patGlow || 0 },

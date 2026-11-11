@@ -2532,6 +2532,7 @@
       lines: [{ dir: 'x', every: 1, width: 0.03, color: '#A9B5C3', y: 0.008 }, { dir: 'z', every: 1, width: 0.03, color: '#A9B5C3', y: 0.0105 }]
     },
     wall: { height: 4.0, roof: '#C9CED6', faceOpen: true, choose: chooseWall },
+    showAllZones: true,   // glass walls all round: every wing of the floor stays drawn (Z.setVisible)
     symbols: {
       '=': { pieces: ['File_A', 'File_B', 'File_C', 'File_A'], h: 1.03, rotate: 'run', kind: 'cover' },
       'c': { pieces: ['Copier', 'Printer', 'Boxes'], h: 1.1, rotate: 'random90', kind: 'cover' },

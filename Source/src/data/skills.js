@@ -11,8 +11,9 @@
    SKILL POINTS: one point for every player level gained, and the first level-up pays 2: 30 in total, the last at LV 30.
    Points are never stored: they are derived from the level.
    The tree holds 42 normal points plus 2 endgame points, so 30 buys a build, not the whole tree (respec to change it).
-   The gates are low so the top is always reachable: any 9 points below open the endgame row. The two endgame skills
-   cost 1 point and you pick ONE of them (respec to switch), so 24 points spent below still leave the point for it.
+   The gates climb steadily (2 / 5 / 8 / 11 / 14 points spent in the rows below, 18 for the endgame row), so the upper
+   rows open over the whole campaign: six points open the first three rows only, and the endgame row opens at LV 19.
+   The three endgame skills cost 1 point and you pick ONE of them (respec to switch).
    In core/skills.js the skill functions take g (level-ups gained, = Skills.gained(slot)).
 */
 (function (IB) {
@@ -35,12 +36,12 @@
        6                  1     Overload | Heavy Ink */
   IB.SKILL_TIERS = [
     { tier: 1, name: 'Trunk', gate: 0 },
-    { tier: 2, name: 'Rounds', gate: 1 },
-    { tier: 3, name: 'Hazards', gate: 3 },
-    { tier: 4, name: 'Arsenal', gate: 5 },
-    { tier: 5, name: 'Tricks', gate: 5 },
-    { tier: 6, name: 'Grit', gate: 7 },
-    { tier: 7, name: 'Endgame', gate: 9, capstone: true }
+    { tier: 2, name: 'Rounds', gate: 2 },
+    { tier: 3, name: 'Hazards', gate: 5 },
+    { tier: 4, name: 'Arsenal', gate: 8 },
+    { tier: 5, name: 'Tricks', gate: 11 },
+    { tier: 6, name: 'Grit', gate: 14 },
+    { tier: 7, name: 'Endgame', gate: 18, capstone: true }
   ];
 
   // params: the numbers the runtime uses (per rank where an array); text is the player-facing description
@@ -83,7 +84,7 @@
     S('handyhelpers', 7, 0, 'Handy Helpers', 'capstone', [1], '', 'Rogue bots',
       'When you wreck a robot there is an 8% chance it turns rogue instead and fights for you until it is destroyed, with 3-5x its health and 1.5x its damage.', 'helper'),
     S('torpedo', 7, 2, 'Torpedo', 'capstone', [1], '', 'Last-round torpedo',
-      'Your last round in each magazine becomes a torpedo, 5x base damage (2x for rocket launchers) in a wide splash that slows what it hits for 5 s. Rocket ammo capacity +50%.', 'torpedo'),
+      'Your last round in each magazine becomes a torpedo, 3x base damage (2x for rocket launchers) in a wide splash that slows what it hits for 5 s. Rocket ammo capacity +50%.', 'torpedo'),
     S('chainreaction', 7, 1, 'Chain Reaction', 'capstone', [1], '', 'Group blast',
       'Shooting a robot with 2 or more others within 4 m has a 10% chance to blow the whole group up for 40% of each robot\'s max health. They do not all die at once.', 'burst')
   ];

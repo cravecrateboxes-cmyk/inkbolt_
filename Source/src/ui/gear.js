@@ -73,6 +73,7 @@
   function loadout(G) { return (G.slot && G.slot.loadout && G.slot.loadout.length) ? G.slot.loadout.slice() : (G.ws ? IB.Weapons.ownedSlots(G.ws).map(function (k) { return G.ws.slots[k]; }) : []); }
   function arsenal(G) { return (G.slot && G.slot.arsenal) || loadout(G); }
   function maxSlots(G) { return G.progress ? G.progress().loadoutMax : IB.Skills.loadoutMax((G.slot && G.slot.highest) || 0); }
+  function bagCap(G) { return IB.Gear && IB.Gear.bagCap ? IB.Gear.bagCap(G) : IB.LOOT.invCap; }
   function skillFx(G) { return IB.Skills.effects((G.slot && G.slot.skills) || {}); }
   function modsDef(g, w) { return IB.Loot.applyMods(IB.WEAPONS[w], g ? IB.Loot.weaponItems(g, w) : {}); }
   // where an item is: {worn, slot} | {w, slot, carried} | null (loose in the backpack)
@@ -195,6 +196,7 @@
       if (at >= 0) {
         for (var k = 0; k < max; k++) if (k !== at && (k < lo.length || (k === lo.length && at !== lo.length - 1))) acts += '<button class="btn gu-btn" data-gact="moveslot" data-w="' + w + '" data-to="' + k + '">To slot ' + (k + 1) + '</button>';
         if (lo.length > 1) acts += '<button class="btn gu-btn" data-gact="unequipgun" data-w="' + w + '">Unequip</button>';
+        if (lo.length > 1) acts += '<button class="btn gu-btn" data-gact="dropgun" data-w="' + w + '">Drop</button>';
       } else {
         var tgt = Math.min(S.slot, max - 1);
         acts += '<button class="btn gu-btn primary" data-gact="equipgun" data-gun="' + w + '">' + (lo[tgt] ? 'Swap into slot ' + (tgt + 1) : 'Carry in slot ' + (tgt + 1)) + '</button>';
@@ -230,7 +232,7 @@
           if (pl && pl.w) acts += '<button class="btn gu-btn" data-gact="detach" data-id="' + it.id + '">Take off</button>';
         } else acts += '<span class="gu-nofit">Fits none of your carried guns</span>';
       }
-      if (!pl) acts += '<button class="btn gu-btn" data-gact="drop" data-id="' + it.id + '">Drop</button>';
+      acts += '<button class="btn gu-btn" data-gact="drop" data-id="' + it.id + '">Drop</button>';   // worn / fitted ones come off first
       var sure = S.confirm === it.id;
       acts += '<button class="btn danger gu-btn gu-discard' + (sure ? ' sure' : '') + '" data-gact="discard" data-id="' + it.id + '">' + (sure ? (touch() ? 'Tap again to scrap' : 'Click again to scrap') : 'Scrap') + '</button>';
     }
@@ -301,7 +303,7 @@
       '<h3 class="ep-h">' + IB.Menus.glyph('emblem') + 'Equipped<span>' + lo.length + '/' + max + '</span></h3>' +
       '<div class="inv-eqbody tm-scroll" data-pane="eq"><div class="inv-wslots">' + rows + '</div>' + worn + meleeRow(G) + '</div>' +
       '<div class="inv-bar"><span class="inv-gems" aria-label="' + gems + ' gems"><i class="gem-glyph" aria-hidden="true"></i><b aria-hidden="true">' + gems.split('').map(function (c) { return '<i>' + c + '</i>'; }).join('') + '</b></span>' +
-        '<span class="inv-bag">Bag <b>' + g.inv.length + '/' + IB.LOOT.invCap + '</b></span></div>' +
+        '<span class="inv-bag' + (g.inv.length >= bagCap(G) ? ' full' : '') + '" title="Bag space grows with your level, up to ' + IB.LOOT.invCap + ' at LV ' + IB.LOOT.invCapLevel + '">Bag <b>' + g.inv.length + '/' + bagCap(G) + '</b></span></div>' +
       '</section>';
   }
 
@@ -418,6 +420,25 @@
       (notes.length ? '<ul class="ic-notes">' + notes.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul>' : ''),
       pic, mine ? 'Owned' : 'New gun', '', 'peek');
   };
+  /* the card for a piece of gear lying in the world (a drop pod, an armory bench or shelf): the same card as in the
+     backpack without the buttons, compared (▲/▼) with what you wear in that slot, or with the attachment in that slot
+     on the gun in hand. how: the last line ('Walk over it to take it', 'Press E to take it'). */
+  GU.peekItemHtml = function (G, it, how) {
+    var g = gearOf(G); if (!it || !g || !IB.LOOT.types[it.type]) return '';
+    var L = IB.Loot, rc = rarity(it), isWorn = L.isWorn(it), sl = L.slotOf(it), other = null, notes = [], w = G.ws && G.ws.cur;
+    if (isWorn) other = L.worn(g, sl);
+    else {
+      if (w && L.compatible(it, w, IB.WEAPONS[w])) other = L.weaponItems(g, w)[sl] || null;
+      notes.push(fitsNote(IB.LOOT.types[it.type]));
+    }
+    if (it.type === 'armor') notes.push('Cuts the damage that gets past your shield');
+    if (other && other.perk && !it.perk) notes.push('No perk (yours: ' + L.perkLine(other).name + ')');
+    var full = g.inv.length >= bagCap(G);
+    var body = (other ? '<div class="ic-vs">vs yours · ' + esc(other.name) + '</div>' : '') + statList(itemStats(it), other ? itemStats(other) : null) + perkRow(it) +
+      (notes.length ? '<ul class="ic-notes">' + notes.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul>' : '');
+    return cardShell(rc.color, '<span>' + rc.name + ' ' + esc(IB.LootHUD.typeName(it.type)) + '</span><span>Lv ' + it.level + '</span>', esc(it.name), body,
+      itemPic(it, 'ic-pic gear'), full ? 'Bag full' : (how || 'New'), '', 'peek');
+  };
   GU.reset = function (G) {
     var lo = loadout(G), max = maxSlots(G);
     S.slot = Math.min(lo.length, max - 1); S.sel = null; S.target = null; S.confirm = null;
@@ -502,15 +523,17 @@
       case 'unequip': { var ws = L.wornSlot(g, id); ok = !!ws && L.equipWorn(g, ws, null); gearChanged = ok; break; }
       case 'fit': ok = L.attach(g, w, IB.WEAPONS[w], id); gearChanged = ok; S.sel = { k: 'item', id: id }; S.target = null; break;
       case 'detach': { var at = L.attachedTo(g, id); ok = !!at && L.detach(g, at.weapon, at.slot); gearChanged = ok; S.sel = { k: 'item', id: id }; break; }
-      case 'drop': {   // a loose bag item falls to the floor by the player (it can be picked up again)
+      case 'drop': {   // a bag item (loose, worn or fitted) falls to the floor by the player; it can be picked up again
         var dropIt = L.find(g, id), spot = dropSpot(G);
-        var dd = dropIt && IB.Drops.spawn(dropIt, spot[0], spot[1]);
+        var dd = dropIt && IB.Drops.spawn(dropIt, spot[0], spot[1], G.player.y);
         if (dd) { dd.dropped = true; ok = L.discard(g, id); }
         gearChanged = ok; S.sel = null; if (ok) sfx('uiBack'); break;
       }
-      case 'dropgun': {   // a backpack gun falls to the floor by the player (its attachments stay in the bag)
-        var gspot = dropSpot(G);
-        ok = !!IB.WeaponDrops && IB.WeaponDrops.dropGun(w, gspot[0], gspot[1]); gearChanged = ok; S.sel = null; if (ok) sfx('uiBack'); break;
+      case 'dropgun': {   // a gun (backpack or carried, never the last carried one) falls to the floor by the player; its attachments stay in the bag
+        var gspot = dropSpot(G), wasCarried = lo.indexOf(w) >= 0;
+        ok = !!IB.WeaponDrops && IB.WeaponDrops.dropGun(w, gspot[0], gspot[1]); gearChanged = ok; S.sel = null;
+        if (ok) { sfx('uiBack'); if (wasCarried) { S.slot = Math.min(S.slot, Math.max(0, (G.slot.loadout || []).length - 1)); if (G.ws) IB.Weapons.setLoadout(G.ws, G.slot.loadout, G.bank); } }
+        break;
       }
       case 'discard':
         if (S.confirm !== id) { S.confirm = id; sfx('ui'); GU.render(root, G); return false; }

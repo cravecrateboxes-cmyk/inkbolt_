@@ -78,7 +78,22 @@
     var chance = ctx && ctx.chance !== undefined ? ctx.chance : T().dropChance;
     if (rng() >= chance) return null;
     var type = rollType(rng, ctx);
-    return makeItem(type, rollRarity(rng, ctx && ctx.level), ctx && ctx.level, rng);
+    return makeItem(type, dropRarity(type, rollRarity(rng, ctx && ctx.level), rng), ctx && ctx.level, rng);
+  }
+  /* the rarity a rolled drop really has: a Legendary gun attachment stays Legendary one time in three
+     (LOOT.legendaryAttachKeep), otherwise it comes down to Epic or Rare (even odds) */
+  function dropRarity(type, rarity, rng) {
+    var td = T().types[type], keep = T().legendaryAttachKeep;
+    if (rarity !== 'legendary' || !td || T().slots.indexOf(td.slot) < 0 || keep === undefined || keep >= 1) return rarity;
+    if (rng() < keep) return rarity;
+    return rng() < 0.5 ? 'epic' : 'rare';
+  }
+  /* bag size at player level lv: LOOT.invStart at LV 1, growing evenly (a slot or two a level) to LOOT.invCap at
+     LV LOOT.invCapLevel:  LV 1 16 · 5 21 · 10 27 · 15 34 · 20+ 40 */
+  function bagCap(lv) {
+    var t = T(), a = t.invStart === undefined ? t.invCap : t.invStart, top = Math.max(2, t.invCapLevel || 20);
+    var k = (clamp(Math.floor(lv || 1), 1, top) - 1) / (top - 1);
+    return Math.round(a + (t.invCap - a) * k);
   }
   /* Blender model node for an item ({type, rarity}): shield cells have one per rarity */
   function modelOf(item) {
@@ -250,9 +265,10 @@
     return out;
   }
   function find(g, id) { for (var i = 0; i < g.inv.length; i++) if (g.inv[i].id === id) return g.inv[i]; return null; }
-  /* add a rolled item; returns it with an id, or null when the bag is full */
-  function addItem(g, item) {
-    if (g.inv.length >= T().invCap) return null;
+  /* add a rolled item; returns it with an id, or null when the bag is full (cap: the bag size right now, see bagCap;
+     the full-size bag when left out) */
+  function addItem(g, item, cap) {
+    if (g.inv.length >= (cap === undefined ? T().invCap : cap)) return null;
     item.id = 'g' + (g.next++);
     g.inv.push(item); g.found = (g.found || 0) + 1;
     return item;
@@ -299,7 +315,7 @@
 
   IB.Loot = {
     levelMul: levelMul, allowedTypes: allowedTypes, rollType: rollType, rarityOdds: rarityOdds, rollRarity: rollRarity, rollPerk: rollPerk,
-    makeItem: makeItem, rollDrop: rollDrop, modelOf: modelOf,
+    makeItem: makeItem, rollDrop: rollDrop, dropRarity: dropRarity, bagCap: bagCap, modelOf: modelOf,
     acidStats: acidStats, statLines: statLines, summary: summary, perkLine: perkLine,
     slotOf: slotOf, isAttachment: isAttachment, isWorn: isWorn, typeForSlot: typeForSlot, compatible: compatible, slotsFor: slotsFor,
     applyMods: applyMods, shieldState: shieldState, absorb: absorb, shieldKill: shieldKill, tickShield: tickShield, armorOf: armorOf, armorCut: armorCut,

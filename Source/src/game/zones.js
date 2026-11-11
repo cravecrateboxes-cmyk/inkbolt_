@@ -887,6 +887,41 @@
   }
 
   // ---------------- gates ----------------
+  /* How high the closed shutter has to reach: the underside of the frame's lintel, measured on the frame's own
+     model (and the pieces dressing it). Seen along the gate's axis, straight up from the top of the shutter model at
+     seven places across the opening: the first height where the frame closes the view; the highest of them counts,
+     so nothing shows over the shutter anywhere (a shutter top inside a lower part of the lintel is hidden by it).
+     A place that stays open for 0.9 m has no lintel (an open-air gate between posts) and is left out. Every kit's
+     shutter is 3.05 m tall and most frames open a little higher (4 to 46 cm): without this you see through the
+     gap above a closed gate. Cached per theme. */
+  function gateOpening(theme, GT, stop) {
+    if (theme._gateTop !== undefined) return theme._gateTop;
+    var tris = [];
+    [GT.frame || 'GateFrame'].concat(GT.dress || []).forEach(function (n) {
+      var g = IB.Assets.geo[IB.themePiece(theme, n)]; if (!g || !g.index) return;
+      var p = g.attributes.position.array, h = g.attributes.aHull ? g.attributes.aHull.array : null, ix = g.index.array;
+      for (var t = 0; t < ix.length; t += 3) {
+        var a = ix[t] * 3, b = ix[t + 1] * 3, c = ix[t + 2] * 3;
+        if (h && (h[a] || h[a + 1] || h[a + 2] || h[b] || h[b + 1] || h[b + 2] || h[c] || h[c + 1] || h[c + 2])) continue;   // outline shell
+        if (Math.max(p[a + 1], p[b + 1], p[c + 1]) < stop || Math.min(p[a + 1], p[b + 1], p[c + 1]) > stop + 1) continue;
+        tris.push(p[a], p[a + 1], p[b], p[b + 1], p[c], p[c + 1]);
+      }
+    });
+    function closed(x, y) {
+      for (var i = 0; i < tris.length; i += 6) {
+        var d1 = (tris[i + 2] - tris[i]) * (y - tris[i + 1]) - (tris[i + 3] - tris[i + 1]) * (x - tris[i]);
+        var d2 = (tris[i + 4] - tris[i + 2]) * (y - tris[i + 3]) - (tris[i + 5] - tris[i + 3]) * (x - tris[i + 2]);
+        var d3 = (tris[i] - tris[i + 4]) * (y - tris[i + 5]) - (tris[i + 1] - tris[i + 5]) * (x - tris[i + 4]);
+        if ((d1 >= 0 && d2 >= 0 && d3 >= 0) || (d1 <= 0 && d2 <= 0 && d3 <= 0)) return true;
+      }
+      return false;
+    }
+    var top = stop;
+    if (tris.length) [-1.3, -0.9, -0.45, 0, 0.45, 0.9, 1.3].forEach(function (x) {
+      for (var y = stop + 0.005; y < stop + 0.9; y += 0.01) if (closed(x, y)) { top = Math.max(top, y); return; }
+    });
+    return (theme._gateTop = top);
+  }
   // the frame is merged into the zone mesh; the shutter is its own mesh so it can roll up
   function makeGate(P, cx, cz, width, theme, zoneIdx, world, kind) {
     var GT = theme.gate || {};
@@ -896,12 +931,15 @@
     var fcols = colsOf(IB.themePiece(theme, GT.frame || 'GateFrame'));
     if (fcols) addCols(world, fcols, cx, cz, 0, 'wall', zoneIdx);
     var sname = IB.themePiece(theme, GT.shutter || 'GateShutter');
-    var shutter = new THREE.Mesh(IB.Assets.get(sname), IB.Assets.material(sname));
+    var sgeo = IB.Assets.get(sname), shutter = new THREE.Mesh(sgeo, IB.Assets.material(sname));
     shutter.scale.x = width / 3;
+    // closed, the shutter reaches the underside of the lintel (a touch into it, so no hairline of light is left)
+    var stop = sgeo.boundingBox ? sgeo.boundingBox.max.y : (GT.shutterHeight || 3.05), reach = gateOpening(theme, GT, stop);
+    var sy = reach > stop + 0.004 ? (reach + 0.02) / stop : 1;
     var grp = new THREE.Group(); grp.add(shutter);
     grp.position.set(cx, 0, cz);
     var box = world.add(cx - width / 2, 0, cz - 0.3, cx + width / 2, GT.height || 3.2, cz + 0.3, 'gate', zoneIdx);
-    return { group: grp, shutter: shutter, box: box, open: 1, target: 1, x: cx, z: cz, w: width, kind: kind, speed: 1 / 1.2, h: GT.shutterHeight || 3.05 };
+    return { group: grp, shutter: shutter, box: box, open: 1, target: 1, x: cx, z: cz, w: width, kind: kind, speed: 1 / 1.2, h: (GT.shutterHeight || 3.05) * sy, sy: sy };
   }
   /* The zone's outer ring of cells is solid at every height (tools: tests/e2e/bounds.spec.js). Wall collision stops
      at the wall height and a gate's at the gate height, so without this a player on a deck, a tree platform or a
@@ -934,7 +972,7 @@
     var o = gate.open;
     if (o <= 0 && gate.target === 0 && gate.was > 0 && IB.Boom) IB.Boom.gateSlam(gate);   // shutter hits the floor: dust, chips, CLANG!
     gate.was = o;
-    gate.shutter.scale.y = Math.max(0.02, 1 - o);
+    gate.shutter.scale.y = Math.max(0.02, 1 - o) * (gate.sy || 1);
     gate.shutter.position.y = o * (gate.h || 3.05);
     gate.shutter.visible = o < 0.98;
     gate.box.on = o < 0.7;
@@ -1303,20 +1341,24 @@
   //     on the horizon
   function buildCityBelow(level, theme, cz, rad, B) {
     var C = theme.below, D = C.depth || 170;
-    var pos = [], colr = [], win = [], fac = [], edge = [], idx = [];
+    var pos = [], colr = [], win = [], fac = [], edge = [], push = [], idx = [];
     // fac: (u along the face in m, floor height in m (0 = plain, < 0 = diagrid), light factor); win: window colour
     // edge: (u, v, width, height) of the quad in metres, so the shader can ink every outer edge at a constant
     // screen width (the comic outline the rest of the game has); width < 0 = no outline (streets, lane marks)
     // E (optional): [[u, v] x 4, width, height]: the quad's corners inside a larger face (a face split round an opening
     // is inked on the whole face's outline only)
+    // push (optional): [[sx, sz] x 4] the outward corner direction of each vertex: the shader moves it out by the
+    // world's ink outline width at that distance and inks the face 3.2 px wide instead of 1.7, so a shaft under a
+    // kit building has exactly the silhouette and outline of the building standing on it
     var NOWIN = new THREE.Color(0, 0, 0);
-    function quad(a, b, c2, d, c, w, fh, k, ua, ub, noInk, E) {
+    function quad(a, b, c2, d, c, w, fh, k, ua, ub, noInk, E, P) {
       var n = pos.length / 3, U = [ua || 0, ub || 0, ub || 0, ua || 0];
       var Lu = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]), Lv = Math.hypot(d[0] - a[0], d[1] - a[1], d[2] - a[2]);
       var EE = E ? E[0] : [[0, 0], [Lu, 0], [Lu, Lv], [0, Lv]], eu = E ? E[1] : Lu, ev = E ? E[2] : Lv;
       [a, b, c2, d].forEach(function (p, i) {
         pos.push(p[0], p[1], p[2]); colr.push(c.r, c.g, c.b); var ww = w || NOWIN; win.push(ww.r, ww.g, ww.b); fac.push(U[i], fh || 0, k);
         edge.push(EE[i][0], EE[i][1], noInk ? -1 : eu, ev);
+        push.push(P ? P[i][0] : 0, P ? P[i][1] : 0);
       });
       idx.push(n, n + 1, n + 2, n, n + 2, n + 3);
     }
@@ -1339,6 +1381,18 @@
       });
       if (roof === false) return;
       roofCap(x0, z0, x1, z1, y1, roof);
+    }
+    /* the lower part of a skyline building (the kit piece stands on it): same footprint as the piece, its walls moved
+       out by the outline width and inked like the piece's own outline (see `push`); the top edge carries no ink (the
+       building goes on above it) and a cap in the wall colour closes the narrow step between the two */
+    function shaft(x0, z0, x1, z1, y0, y1, base, winC, fh) {
+      var sg = function (px, pz) { return [px === x0 ? -1 : 1, pz === z0 ? -1 : 1]; };
+      FACES(x0, z0, x1, z1).forEach(function (F) {
+        var a = F[0], b = F[1], L = Math.hypot(b[0] - a[0], b[1] - a[1]), Hh = y1 - y0, pa = sg(a[0], a[1]), pb = sg(b[0], b[1]);
+        quad([a[0], y0, a[1]], [b[0], y0, b[1]], [b[0], y1, b[1]], [a[0], y1, a[1]], base, winC, fh, LIGHT[F[2]], 0, L, false,
+          [[[0, 0], [L, 0], [L, Hh], [0, Hh]], L, Hh + 1e4], [pa, pb, pb, pa]);
+      });
+      quad([x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0], base, null, 0, 0.8, 0, 0, true, null, [sg(x0, z1), sg(x1, z1), sg(x1, z0), sg(x0, z0)]);
     }
     // a tower's outside skin with openings: holes = [{ face: 2 (south) | 3 (north), x0, x1, y0, y1 }]; node = [x, z]
     // a point the facade pattern is aligned to (a diagrid node of the curtain wall modules); plugs (optional): the
@@ -1424,7 +1478,7 @@
         if (!list.length) continue;
         var pl = ringPlace(ring, ri, i, cz, rad), pm = M(pl.x, 0, pl.z, pl.yaw);
         list.forEach(function (bk, j) {
-          var lx0 = bk[0] - bk[2] / 2 + 0.4, lx1 = bk[0] + bk[2] / 2 - 0.4, ly0 = bk[1] + 0.4, ly1 = bk[1] + bk[3] - 0.4;
+          var lx0 = bk[0] - bk[2] / 2, lx1 = bk[0] + bk[2] / 2, ly0 = bk[1], ly1 = bk[1] + bk[3];   // the building's own footprint
           var ax0 = 1e9, ax1 = -1e9, az0 = 1e9, az1 = -1e9;
           [[lx0, ly0], [lx1, ly0], [lx0, ly1], [lx1, ly1]].forEach(function (q) {
             _c.set(q[0], 0, -q[1]).applyMatrix4(pm); ax0 = Math.min(ax0, _c.x); ax1 = Math.max(ax1, _c.x); az0 = Math.min(az0, _c.z); az1 = Math.max(az1, _c.z);
@@ -1432,7 +1486,7 @@
           if (used(ax0 + 0.5, az0 + 0.5, ax1 - 0.5, az1 - 0.5)) return;   // corners where two rows cross: first one wins
           keep.push([ax0, az0, ax1, az1]);
           var pc = col(bk[4]), wc = col(bk[5] || '#64798E');
-          tower(ax0, az0, ax1, az1, Y0, STOP, pc, wc, 3.4 + (j % 3) * 0.3, col('#4A4756'));
+          shaft(ax0, az0, ax1, az1, Y0, STOP, pc, wc, 3.4 + (j % 3) * 0.3);
         });
       }
     });
@@ -1486,6 +1540,7 @@
       geo.setAttribute('aWin', new THREE.Float32BufferAttribute(win, 3));
       geo.setAttribute('aFac', new THREE.Float32BufferAttribute(fac, 3));
       geo.setAttribute('aEdge', new THREE.Float32BufferAttribute(edge, 4));
+      geo.setAttribute('aPush', new THREE.Float32BufferAttribute(push, 2));
       geo.setIndex(pos.length / 3 > 65535 ? new THREE.Uint32BufferAttribute(idx, 1) : new THREE.Uint16BufferAttribute(idx, 1));
       geo.computeBoundingSphere();
       return geo;
@@ -1496,12 +1551,17 @@
     var HD = C.hazeDist || [120, 260, 0.3], DG = C.diagrid || [6, 9];
     var mat = new THREE.ShaderMaterial({
       uniforms: { uInk: { value: col('#221E2C') }, uHaze: { value: col(C.haze || '#CCDCE8') }, uDepth: { value: D }, uTop: { value: C.hazeTop || 0.18 }, uBot: { value: C.hazeBottom || 0.6 },
-        uHz: { value: new THREE.Vector3(HD[0], HD[1], HD[2]) }, uMaxH: { value: C.hazeMax || 0.92 }, uDia: { value: new THREE.Vector2(DG[0], DG[1]) } },
+        uHz: { value: new THREE.Vector3(HD[0], HD[1], HD[2]) }, uMaxH: { value: C.hazeMax || 0.92 }, uDia: { value: new THREE.Vector2(DG[0], DG[1]) },
+        uOutBase: IB.Render.worldOutline.uOutBase, uOutK: IB.Render.worldOutline.uOutK, uOutPx: { value: IB.Render.worldOutline.px || 3.2 } },
       extensions: { derivatives: true },
-      vertexShader: 'attribute vec3 color; attribute vec3 aWin; attribute vec3 aFac; attribute vec4 aEdge; varying vec3 vC; varying vec3 vW; varying vec3 vF; varying vec4 vE; varying float vY; varying float vDist;\n' +
-        'void main(){ vC = color; vW = aWin; vF = aFac; vE = aEdge; vY = position.y; vec4 mv = modelViewMatrix * vec4(position, 1.0); vDist = length(mv.xyz); gl_Position = projectionMatrix * mv; }',
+      vertexShader: 'attribute vec3 color; attribute vec3 aWin; attribute vec3 aFac; attribute vec4 aEdge; attribute vec2 aPush; uniform float uOutBase; uniform float uOutK; uniform float uOutPx;\n' +
+        'varying vec3 vC; varying vec3 vW; varying vec3 vF; varying vec4 vE; varying float vY; varying float vDist; varying float vInk;\n' +
+        'void main(){ vC = color; vW = aWin; vF = aFac; vE = aEdge; vY = position.y; vec3 p = position; vInk = 1.7;\n' +
+        '  vec4 mv = modelViewMatrix * vec4(p, 1.0);\n' +
+        '  if (aPush.x != 0.0 || aPush.y != 0.0) { float w = max(uOutBase, uOutK * -mv.z); p.x += aPush.x * w; p.z += aPush.y * w; mv = modelViewMatrix * vec4(p, 1.0); vInk = uOutPx; }\n' +
+        '  vDist = length(mv.xyz); gl_Position = projectionMatrix * mv; }',
       fragmentShader: 'uniform vec3 uHaze; uniform float uDepth; uniform float uTop; uniform float uBot; uniform vec3 uInk; uniform vec3 uHz; uniform float uMaxH; uniform vec2 uDia;\n' +
-        'varying vec3 vC; varying vec3 vW; varying vec3 vF; varying vec4 vE; varying float vY; varying float vDist;\n' +
+        'varying vec3 vC; varying vec3 vW; varying vec3 vF; varying vec4 vE; varying float vY; varying float vDist; varying float vInk;\n' +
         'void main(){ vec3 c = vC;\n' +
         '  if (vF.y > 0.0) { float fy = fract(vY / vF.y); float fu = fract(vF.x / 2.6);\n' +
         '    if (fy > 0.38 && fy < 0.9 && fu > 0.14) c = vW; }\n' +
@@ -1514,7 +1574,7 @@
         '    vec3 cc = mix(gl, vC, 1.0 - smoothstep(0.17 - aa, 0.17 + aa, d));\n' +
         '    c = mix(cc, mix(vW, vC, 0.2), clamp(aa * 5.0 - 0.25, 0.0, 1.0)); }\n' +
         '  c *= vF.z;\n' +
-        '  if (vE.z > 0.0) { vec2 d = min(vE.xy, vE.zw - vE.xy); vec2 px = fwidth(vE.xy) * 1.7;\n' +
+        '  if (vE.z > 0.0) { vec2 d = min(vE.xy, vE.zw - vE.xy); vec2 px = fwidth(vE.xy) * vInk;\n' +
         '    if (d.x < px.x || d.y < px.y) c = uInk; }\n' +
         '  float h = mix(uTop, uBot, clamp(-vY / uDepth, 0.0, 1.0)) + clamp((vDist - uHz.x) / uHz.y, 0.0, uHz.z);\n' +
         '  gl_FragColor = vec4(mix(c, uHaze, clamp(h, 0.0, uMaxH)), 1.0); }'
@@ -1614,8 +1674,12 @@
   };
 
   // brief 4.2: only the current zone, the next zone and the trail between them are drawn
+  /* Zones drawn while the player is in zone `cur`: the one behind, this one and the next, so looking back through a
+     window or over a wall never shows a hole where the last zone stood. A theme whose walls are mostly glass
+     (theme.showAllZones, the office tower) keeps every zone drawn. */
   Z.setVisible = function (level, cur) {
-    level.zones.forEach(function (z, i) { z.group.visible = (i === cur || i === cur + 1); });
+    var all = !!(level.theme && level.theme.showAllZones);
+    level.zones.forEach(function (z, i) { z.group.visible = all || (i >= cur - 1 && i <= cur + 1); });
     level.trails.forEach(function (t, i) { t.group.visible = (i === cur || i === cur - 1); });
     if (level.hatch) level.hatch.group.visible = cur >= level.zones.length - 1;
     (level.plugs || []).forEach(function (p) { p.mesh.visible = !level.zones[p.zone].group.visible; });   // theme.below bridge openings

@@ -79,12 +79,12 @@
       // rpm 1000 is the in-burst rate (burstGap = 0.06 s); cycle 0.32 s between bursts.
       id: 'triplet', name: 'AR-3 Tribolt', cls: 'rifle', slot: 3, fire: 'burst', damage: 26, burst: 3,
       rpm: 1000, cycle: 0.32, burstGap: 60 / 1000, spreadHip: 1.0, spreadAim: 0.25, recoil: 0.8, recoilH: 0,
-      reload: 2.2, mag: 24, reserve: 144, unlock: 3, sound: 'three cracks, rising pitch, burst-end clack'
+      reload: 2.2, mag: 24, reserve: 144, unlock: 3, scopeView: true, sound: 'three cracks, rising pitch, burst-end clack'   // scopeView: aiming shows the scope view (the model carries a tube scope)
     }),
     longtom: W({
       id: 'longtom', name: 'DMR-60 Longtom', cls: 'rifle', slot: 3, fire: 'semi', damage: 60, rpm: 240,
       spreadHip: 0.6, spreadAim: 0.05, recoil: 2.8, recoilH: 0.4, reload: 2.4, mag: 10, reserve: 60,
-      unlock: 4, aimZoom: 0.67, coreMul: 2.0, sound: 'heavy crack, long tail, bolt slap'
+      unlock: 4, aimZoom: 0.67, scopeView: true, coreMul: 2.0, sound: 'heavy crack, long tail, bolt slap'
     }),
     brick: W({
       id: 'brick', name: 'LMG-26 Bricklayer', cls: 'rifle', slot: 3, fire: 'auto', damage: 26, rpm: 500,
