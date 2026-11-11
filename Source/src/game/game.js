@@ -620,7 +620,7 @@
     if (i > 0 && AI.dropRogues) AI.dropRogues(z, i);
     if (z.entryGate && i > 0) { Z.setGate(z.entryGate, false); A.play('gateShut', { pos: z.entryGate, gain: 0.9 }); }
     HUD.pips(G.level.zones.length, i, i);
-    if (i > 0) HUD.toast('Zone ' + (i + 1) + ' of ' + G.level.zones.length, 1.6);
+    if (i > 0) HUD.toast('Zone ' + (i + 1) + ' of ' + G.level.zones.length + (z.plan.label ? ' \u00b7 ' + z.plan.label : ''), 1.6);
   }
   function queueWave(z, w) {
     z.wave = w; z.waveT = 0;
@@ -1112,6 +1112,7 @@
     else if (G.mode === 'title') titleFrame(dtRaw);
     else idleFrame(dtRaw);
     Z.updateClouds(G.level, dtRaw);
+    if (Z.updateBelow && G.player) Z.updateBelow(G.level, G.player);   // theme.below.levels: the street under this zone
     Z.updateLines(G.level, G.mode === 'paused' || G.mode === 'menu' ? 0 : dtRaw, G.mode === 'play' ? G.player : null);   // moving assembly lines
     if (IB.SkillHUD) IB.SkillHUD.update(G, dtRaw);   // Undercover badge + cloak look
     R.render(G.mode === 'play' ? !G.dead && !G.ws.hidden : G.mode === 'title');
