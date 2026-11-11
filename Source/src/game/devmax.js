@@ -30,7 +30,7 @@
   }
   // fills a slot with the max profile. force = the level picker: re-fills now, keeping the skills already spent
   function fill(slot, force) {
-    slot.devMax = 1; slot.wyrmV = 1; slot.devV = 51;
+    slot.devMax = 1; slot.wyrmV = 1; slot.devV = 52;
     var top = IB.CAMPAIGN.length, plans = IB.CAMPAIGN;
     slot.highest = Math.max(slot.highest || 0, 20, top);
     slot.gems = Math.max(slot.gems || 0, 999999);
@@ -122,7 +122,7 @@
   function ensureProfile() {
     var slot = devSlot();
     if (!slot) slot = fill(makeSlot(), false);
-    else if ((slot.devV || 0) < 51) fill(slot, true);   // older tester profile: refilled at LV 50 with level-50 gear (51: gear grows to 50)
+    else if ((slot.devV || 0) < 52) fill(slot, true);   // older tester profile: refilled at LV 50 with level-50 gear (51: gear grows to 50)
     else if (!slot.wyrmV) wyrmUpdate(slot);
     G.store.save(slot);
     G.slot = slot;

@@ -73,6 +73,7 @@
     Object.keys(td.stats).forEach(function (k) {
       var s = td.stats[k], r = s[rarity], v = r[0] + (r[1] - r[0]) * rng();
       if (s.scale) v *= growth(s, L);
+      if (s.curve) { var lc = Math.min(L, 50) - 1; v *= 1 + s.curve * lc * lc; }
       if (s.max !== undefined) v = Math.min(s.max, v);
       item.stats[k] = roundTo(v, s.round);
     });

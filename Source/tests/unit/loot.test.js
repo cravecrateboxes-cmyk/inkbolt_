@@ -97,7 +97,7 @@ test('campaign level scales stats: levels 1-3 as before, faster from level 4, wi
   assert.ok(L.levelMul('shield', 99) <= T.levelScale.shield.cap && L.levelMul('mod', 99) <= T.levelScale.mod.cap);
   const s1 = L.makeItem('shield', 'rare', 1, seq([0.5])), s10 = L.makeItem('shield', 'rare', 10, seq([0.5])), s99 = L.makeItem('shield', 'rare', 99, seq([0.5]));
   assert.ok(s10.stats.capacity > s1.stats.capacity && s10.stats.rate > s1.stats.rate);
-  assert.ok(s99.stats.capacity <= Math.ceil(T.types.shield.stats.capacity.rare[1] * T.levelScale.shield.cap));
+  assert.ok(s99.stats.capacity <= Math.ceil(T.types.shield.stats.capacity.rare[1] * T.levelScale.shield.cap * (1 + T.types.shield.stats.capacity.curve * 49 * 49)));
   assert.equal(s10.stats.delay, s1.stats.delay, 'delay does not scale');
   const g99 = L.makeItem('grip', 'legendary', 99, seq([0.999]));
   assert.ok(g99.stats.recoil <= T.types.grip.stats.recoil.max && g99.stats.spread <= T.types.grip.stats.spread.max);
@@ -107,9 +107,11 @@ test('campaign level scales stats: levels 1-3 as before, faster from level 4, wi
   const share = (rar, lv) => L.makeItem('shield', rar, lv, seq([0.5])).stats.capacity / IB.Damage.playerMaxHp(lv);
   for (const lv of [10, 11, 12, 13]) assert.ok(share('epic', lv) > share('rare', 4) * 0.95, 'epic on ' + lv + ': ' + share('epic', lv).toFixed(2));
   assert.ok(share('common', 13) > share('common', 4) * 0.9, 'a common cell still counts on level 13');
-  // balance: a top legendary cell at level 20 stays under one full health bar
-  const top = L.makeItem('shield', 'legendary', 20, seq([0.999]));
-  assert.ok(top.stats.capacity < IB.Damage.playerMaxHp(20) * 0.6, 'legendary L20 ' + top.stats.capacity);
+  // balance: a top legendary cell holds a big share of a health bar, never more than one bar (levels 20-50)
+  for (const lv of [20, 30, 40, 50]) {
+    const top = L.makeItem('shield', 'legendary', lv, seq([0.999]));
+    assert.ok(top.stats.capacity > IB.Damage.playerMaxHp(lv) * 0.7 && top.stats.capacity < IB.Damage.playerMaxHp(lv), 'legendary L' + lv + ' ' + top.stats.capacity);
+  }
 });
 
 test('items have names, rarity, level and display lines', () => {
@@ -196,11 +198,11 @@ test('applyMods changes a copy of the weapon def', () => {
 });
 
 test('shield absorbs damage before health, then recharges after the delay', () => {
-  const item = L.makeItem('shield', 'common', 1, seq([0]));   // 15 cap, 5 s delay, 6/s
+  const item = L.makeItem('shield', 'common', 1, seq([0]));   // 22 cap, 5 s delay, 9/s
   const st = L.shieldState(item);
-  assert.equal(st.cur, 15);
-  let r = L.absorb(st, 10);
-  assert.deepEqual([r.through, r.absorbed, r.broke], [0, 10, false]);
+  assert.equal(st.cur, 22);
+  let r = L.absorb(st, 17);
+  assert.deepEqual([r.through, r.absorbed, r.broke], [0, 17, false]);
   r = L.absorb(st, 9);
   assert.deepEqual([r.through, r.absorbed, r.broke, r.nova], [4, 5, true, false]);
   assert.equal(st.cur, 0);
@@ -217,7 +219,7 @@ test('shield absorbs damage before health, then recharges after the delay', () =
   assert.ok(t > 2 && t < 3.2, 'refill takes cap / rate seconds: ' + t.toFixed(2));
   // a hit during recharge restarts the delay
   L.absorb(st, 5); L.tickShield(st, 1);
-  assert.equal(st.cur, 10);
+  assert.equal(st.cur, 17);
   assert.equal(L.absorb(null, 12).through, 12, 'no shield: all damage goes through');
   assert.equal(L.shieldKill(st), false, 'no perk: a kill does nothing');
 });

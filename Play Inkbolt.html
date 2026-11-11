@@ -12995,9 +12995,9 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       models: { common: 'GEAR_ShieldCell', rare: 'GEAR_ShieldCell_Rare', epic: 'GEAR_ShieldCell_Epic', legendary: 'GEAR_ShieldCell_Legendary' },
       perks: ['overcharge', 'nova'],
       stats: {
-        capacity: { common: [15, 24], rare: [24, 34], epic: [34, 45], legendary: [45, 58], scale: 'shield', round: 1 },
+        capacity: { common: [22, 36], rare: [36, 51], epic: [51, 68], legendary: [68, 87], scale: 'shield', curve: 0.0008, round: 1 },   // x1.5 base; curve: x(1 + c (L - 1)^2) more on top, so late cells hold far more
         delay: { common: [5.0, 4.4], rare: [4.4, 3.7], epic: [3.7, 3.0], legendary: [3.0, 2.5], better: 'low', round: 0.1 },
-        rate: { common: [6, 9], rare: [9, 13], epic: [13, 18], legendary: [18, 24], scale: 'shield', round: 0.5 }
+        rate: { common: [9, 13.5], rare: [13.5, 19.5], epic: [19.5, 27], legendary: [27, 36], scale: 'shield', curve: 0.0008, round: 0.5 }   // grows with capacity: refill time unchanged
       }
     },
     armor: {
@@ -14843,6 +14843,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     Object.keys(td.stats).forEach(function (k) {
       var s = td.stats[k], r = s[rarity], v = r[0] + (r[1] - r[0]) * rng();
       if (s.scale) v *= growth(s, L);
+      if (s.curve) { var lc = Math.min(L, 50) - 1; v *= 1 + s.curve * lc * lc; }
       if (s.max !== undefined) v = Math.min(s.max, v);
       item.stats[k] = roundTo(v, s.round);
     });
@@ -30922,7 +30923,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   }
   // fills a slot with the max profile. force = the level picker: re-fills now, keeping the skills already spent
   function fill(slot, force) {
-    slot.devMax = 1; slot.wyrmV = 1; slot.devV = 51;
+    slot.devMax = 1; slot.wyrmV = 1; slot.devV = 52;
     var top = IB.CAMPAIGN.length, plans = IB.CAMPAIGN;
     slot.highest = Math.max(slot.highest || 0, 20, top);
     slot.gems = Math.max(slot.gems || 0, 999999);
@@ -31014,7 +31015,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   function ensureProfile() {
     var slot = devSlot();
     if (!slot) slot = fill(makeSlot(), false);
-    else if ((slot.devV || 0) < 51) fill(slot, true);   // older tester profile: refilled at LV 50 with level-50 gear (51: gear grows to 50)
+    else if ((slot.devV || 0) < 52) fill(slot, true);   // older tester profile: refilled at LV 50 with level-50 gear (51: gear grows to 50)
     else if (!slot.wyrmV) wyrmUpdate(slot);
     G.store.save(slot);
     G.slot = slot;

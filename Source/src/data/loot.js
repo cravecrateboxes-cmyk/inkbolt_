@@ -67,9 +67,9 @@
       models: { common: 'GEAR_ShieldCell', rare: 'GEAR_ShieldCell_Rare', epic: 'GEAR_ShieldCell_Epic', legendary: 'GEAR_ShieldCell_Legendary' },
       perks: ['overcharge', 'nova'],
       stats: {
-        capacity: { common: [15, 24], rare: [24, 34], epic: [34, 45], legendary: [45, 58], scale: 'shield', round: 1 },
+        capacity: { common: [22, 36], rare: [36, 51], epic: [51, 68], legendary: [68, 87], scale: 'shield', curve: 0.0008, round: 1 },   // x1.5 base; curve: x(1 + c (L - 1)^2) more on top, so late cells hold far more
         delay: { common: [5.0, 4.4], rare: [4.4, 3.7], epic: [3.7, 3.0], legendary: [3.0, 2.5], better: 'low', round: 0.1 },
-        rate: { common: [6, 9], rare: [9, 13], epic: [13, 18], legendary: [18, 24], scale: 'shield', round: 0.5 }
+        rate: { common: [9, 13.5], rare: [13.5, 19.5], epic: [19.5, 27], legendary: [27, 36], scale: 'shield', curve: 0.0008, round: 0.5 }   // grows with capacity: refill time unchanged
       }
     },
     armor: {
