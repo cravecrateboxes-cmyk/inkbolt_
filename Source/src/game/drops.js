@@ -133,7 +133,12 @@
     if (!D.ready || !item) return null;
     var G = IB.Game, d = null, i;
     for (i = 0; i < D.pool.length; i++) if (!D.pool[i].on) { d = D.pool[i]; break; }
-    if (!d) { d = D.pool[0]; for (i = 1; i < D.pool.length; i++) if (D.pool[i].born < d.born) d = D.pool[i]; }
+    // pool full: recycle the lowest-rarity drop (oldest of those); a rarer drop is never pushed out by a lesser one
+    if (!d) {
+      var R = IB.LOOT.rarities.map(function (r) { return r.id; }), rank = function (q) { return q.it ? R.indexOf(q.it.rarity) : -1; };
+      for (i = 0; i < D.pool.length; i++) { var q = D.pool[i]; if (!d || rank(q) < rank(d) || (rank(q) === rank(d) && q.born < d.born)) d = q; }
+      if (rank(d) > R.indexOf(item.rarity)) return null;   // every drop out there is rarer than this one: this one is skipped
+    }
     var pos = freeSpot(x, z, G);
     d.on = true; d.dropped = false; d.it = item; d.x = pos[0]; d.z = pos[1]; d.t = 0; d.born = performance.now(); d.fullT = 0; d.uid = ++D.uid;
     d.y = typeof y === 'number' && IB.Zones && IB.Zones.floorY ? Math.max(0, IB.Zones.floorY(d.x, d.z, y + 0.6)) : 0;

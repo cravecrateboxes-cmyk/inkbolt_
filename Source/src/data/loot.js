@@ -191,6 +191,6 @@
     // starter items handed out once (game.js): a common shield cell after level 3, a common vest after level 5
     starters: [{ flag: 'starter', type: 'shield', cleared: 3, note: 'Shields unlocked' }, { flag: 'starterVest', type: 'armor', cleared: 5, note: 'Armour unlocked' }],
     // world drop: how close the player walks to collect it, and how long it waits before it may be collected
-    pickupRadius: 1.25, armTime: 0.6, maxWorld: 8
+    pickupRadius: 1.25, armTime: 0.6, maxWorld: 40
   };
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));

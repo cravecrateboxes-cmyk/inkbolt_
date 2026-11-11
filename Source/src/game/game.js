@@ -518,7 +518,13 @@
     hudLevel(n);
   }
   G.addXp = addXp;
-  function hudLevel(gain) { if (HUD.level) { var pr = G.progress(); HUD.level(pr.level, pr.points, IB.Skills.xpProgress(pr.xp), gain || 0); } }
+  // player LV 20+: a third more ammo in every gun (magazines and reserves, launchers too)
+  IB.AMMO_LEVEL = 20; IB.AMMO_BONUS = 1.33;
+  function setAmmoMul() { var lv = G.slot ? IB.Skills.levelFromXp(G.slot.xp || 0) : 1, k = lv >= IB.AMMO_LEVEL ? IB.AMMO_BONUS : 1, was = IB.AMMO_MUL || 1; IB.AMMO_MUL = k; return k !== was; }
+  function topUp() { if (!G.ws) return; Object.keys(G.ws.guns).forEach(function (k) { var g = G.ws.guns[k]; if (g.def.ammo) return; g.mag = Math.max(g.mag, W.magSize(G.ws, g.def)); if (g.reserve !== Infinity) g.reserve = Math.max(g.reserve, W.reserveOf(g.def)); }); }
+  function hudLevel(gain) {
+    if (setAmmoMul() && IB.AMMO_MUL > 1) topUp();   // reaching LV 20 mid-level: the bigger magazines come loaded
+ if (HUD.level) { var pr = G.progress(); HUD.level(pr.level, pr.points, IB.Skills.xpProgress(pr.xp), gain || 0); } }
   // after the Tab menu: skills may have changed (stats, effects) and so may the loadout
   G.applyProgress = function () {
     ensureSlot();
@@ -561,6 +567,7 @@
     if (IB.GunLevel) IB.GunLevel.fill(G.slot);   // guns without an item level (older saves, granted guns) get one
     var owned = syncArmory();
     G.bank = {};
+    setAmmoMul();
     G.grenades = G.slot.frag ? fragCarry() : 0;
     G.ws = W.create(owned, { magLevel: (G.slot.upgrades && G.slot.upgrades.mag) || 0, magMul: IB.SkillFX.fx.magMul });
     if (IB.Launchers) IB.Launchers.startLevel(G);   // rocket pool from the save, rolled magazines, ammo director
@@ -571,6 +578,7 @@
     W.equip(G.ws, first, true);
     grantStarterShield();
     if (IB.Gear) IB.Gear.startLevel(G);   // attachments on the guns, shield full
+    topUp();   // the loadout starts fully loaded (attachments / skills above may have grown the magazines)
     G.run = { time: 0, kills: 0, shots: 0, hits: 0, coreHits: 0, deaths: 0, gems: 0, retries: 3, started: false, introT: AUTOTEST ? 0.05 : 2.3,
       xp: 0, g0: G.slot ? IB.Skills.gained(G.slot) : 0 };   // XP earned this run; level-ups gained when it started
     G.shake = 0; G.trauma = 0; G.hitstop = 0; G.deathT = 0;
@@ -631,7 +639,7 @@
     if (!spawns.length) spawns = z.spawns.slice();
     var off = (Math.random() * spawns.length) | 0, GAP = (IB.Damage && IB.Damage.SPAWN_GAP) || 0.18;   // a wave trickles in
     // levels 20+: the wave comes in chunks (IB.Damage.LATE.CHUNK) with the robot types mixed through every chunk
-    var CH = IB.Damage && IB.Damage.lateChunk ? IB.Damage.lateChunk(G.plan.level || 1) : null;
+    var CH = IB.Damage && IB.Damage.lateChunk ? IB.Damage.lateChunk(G.plan.level || 1, G.level.zones.indexOf(z)) : null;
     var types = [];
     if (CH) { var left = list.map(function (e) { return e[1]; }), any = true; while (any) { any = false; list.forEach(function (e, j) { if (left[j] > 0) { types.push(e[0]); left[j]--; any = true; } }); } }
     else list.forEach(function (entry) { for (var n = 0; n < entry[1]; n++) types.push(entry[0]); });
@@ -660,7 +668,7 @@
         // its can a moment (at most SPAWN_WAIT_MAX s each); a wave's robots all still come
         var D0 = IB.Damage, crowded = D0 && D0.crowdCap && z.queue.length && AI.crowd(p, D0.CROWD_R) >= D0.crowdCap(G.plan.level || 1);
         // chunked waves (levels 20+): the next chunk opens when the zone has thinned out or after CH.maxWait s
-        var CH = IB.Damage && IB.Damage.lateChunk ? IB.Damage.lateChunk(G.plan.level || 1) : null;
+        var CH = IB.Damage && IB.Damage.lateChunk ? IB.Damage.lateChunk(G.plan.level || 1, i) : null;
         if (CH) z.chunkT = (z.chunkT || 0) + dt;
         if (CH && z.queue.length) {
           var curLeft = 0; for (var cq = 0; cq < z.queue.length; cq++) if (z.queue[cq].chunk <= z.chunk) curLeft++;

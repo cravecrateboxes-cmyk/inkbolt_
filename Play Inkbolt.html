@@ -16634,7 +16634,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     // starter items handed out once (game.js): a common shield cell after level 3, a common vest after level 5
     starters: [{ flag: 'starter', type: 'shield', cleared: 3, note: 'Shields unlocked' }, { flag: 'starterVest', type: 'armor', cleared: 5, note: 'Armour unlocked' }],
     // world drop: how close the player walks to collect it, and how long it waits before it may be collected
-    pickupRadius: 1.25, armTime: 0.6, maxWorld: 8
+    pickupRadius: 1.25, armTime: 0.6, maxWorld: 40
   };
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
 
@@ -17032,15 +17032,21 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
 
   var HEAD_MUL = 2.0;
   /* Levels 20+ (LATE): robots come in chunks and their explosives ease off.
-     - CHUNK: a wave is split into chunks of `size` robots (types mixed). The next chunk is let out once `openAt` or fewer
-       robots of the zone are left standing, or after `maxWait` s. The next wave waits for its last chunk and for the
+     - CHUNK: a wave is split into big chunks (types mixed) that grow with the level and with each zone of it (22 on
+       level 20 zone 1 ... 44 max). The next chunk is let out once a quarter of a chunk or fewer robots of the zone are
+       left standing, or after `maxWait` s. The next wave waits for its last chunk and for the
        zone to thin out (no time-out flood).
      - BOOM: robot explosives (frag grenades, launcher shells, explosive rounds' blasts) do x`dmg` damage and come x`cool`
        less often (longer cooldowns; explosive rounds turn up 1/cool as often). */
-  var LATE = { level: 20, CHUNK: { size: 14, openAt: 5, maxWait: 30 }, BOOM: { dmg: 0.85, cool: 1.4 } };
+  // chunk size: base + perLevel x (L - 20) + perZone x zone index, at most max; the next chunk opens at openFrac of it
+  var LATE = { level: 20, CHUNK: { base: 22, perLevel: 1, perZone: 5, max: 44, openFrac: 0.25, maxWait: 35 }, BOOM: { dmg: 0.85, cool: 1.4 } };
   function curLevel() { return (IB.Game && IB.Game.plan && IB.Game.plan.level) || 1; }
   function lateBoom(L) { L = L || curLevel(); return L >= LATE.level ? LATE.BOOM : { dmg: 1, cool: 1 }; }
-  function lateChunk(L) { return L >= LATE.level ? LATE.CHUNK : null; }
+  function lateChunk(L, zi) {
+    if (L < LATE.level) return null;
+    var C = LATE.CHUNK, n = Math.min(C.max, Math.round(C.base + C.perLevel * (L - LATE.level) + C.perZone * (zi || 0)));
+    return { size: n, openAt: Math.max(5, Math.round(n * C.openFrac)), maxWait: C.maxWait };
+  }
   IB.Damage = {
     HEAD_MUL: HEAD_MUL,
     enemyHpMul: enemyHpMul, enemyDmgMul: enemyDmgMul, enemyAt: enemyAt, enemyTempo: enemyTempo, playerMaxHp: playerMaxHp, levelRegenPct: levelRegenPct, enemyPressure: enemyPressure, attackTokens: attackTokens, falloff: falloff,
@@ -17834,11 +17840,19 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
      (guns: {id: {def, reserve}}; infinite reserves and rocket launchers (def.ammo) never take boxes). A box walked over
      while this is true stays where it is (game.js updatePickups). */
   var RESERVE_CAP = 1.5;
-  function reserveCap(def) { return Math.floor(def.reserve * RESERVE_CAP); }
+  function reserveCap(def) { return Math.floor(classReserve(def) * RESERVE_CAP * (IB.AMMO_MUL || 1)); }
+  // every gun of a type (pistol, smg, rifle, shotgun, sniper...) draws on ONE shared reserve; its size is the biggest
+  // reserve any gun of that type has (data/weapons.js)
+  var CLS_MAX = null;
+  function classReserve(def) {
+    if (!def || def.reserve == null || def.reserve === Infinity || def.ammo) return def ? def.reserve : 0;
+    if (!CLS_MAX) { CLS_MAX = {}; Object.keys(IB.WEAPONS || {}).forEach(function (k) { var d = IB.WEAPONS[k]; if (d.reserve == null || d.reserve === Infinity || d.ammo) return; CLS_MAX[d.cls] = Math.max(CLS_MAX[d.cls] || 0, d.reserve); }); }
+    return CLS_MAX[def.cls] || def.reserve;
+  }   // x AMMO_MUL from player LV 20
   function ammoFull(guns) {
     return Object.keys(guns || {}).every(function (k) { var g = guns[k]; return g.reserve === Infinity || !!g.def.ammo || g.reserve >= reserveCap(g.def); });
   }
-  IB.Loadout = { uniq: uniq, fixArsenal: fixArsenal, fix: fix, assign: assign, pickup: pickup, reserveCap: reserveCap, ammoFull: ammoFull, RESERVE_CAP: RESERVE_CAP };
+  IB.Loadout = { uniq: uniq, fixArsenal: fixArsenal, fix: fix, assign: assign, pickup: pickup, reserveCap: reserveCap, classReserve: classReserve, ammoFull: ammoFull, RESERVE_CAP: RESERVE_CAP };
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
 
 /* ---- src/core/saves.js ---- */
@@ -25577,7 +25591,8 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   W.give = function (s, id) {
     if (!W.playable(id) || !model(id)) return;
     var def = IB.WEAPONS[id];
-    s.guns[id] = { id: id, def: def, mag: W.magSize(s, def), reserve: (def.reserve === null || def.reserve === undefined || def.reserve === Infinity) ? Infinity : def.reserve };
+    s.guns[id] = { id: id, def: def, mag: W.magSize(s, def), reserve: (def.reserve === null || def.reserve === undefined || def.reserve === Infinity) ? Infinity : W.reserveOf(def) };
+    sharePool(s, s.guns[id]);
     if (def.ammo) {   // launchers: the spare ammo is the shared pool (s.ammo.rocket), not per gun
       var pool = s.ammo || (s.ammo = {}), kind = def.ammo; if (!(pool[kind] >= 0)) pool[kind] = 0;
       Object.defineProperty(s.guns[id], 'reserve', { enumerable: true, get: function () { return pool[kind]; }, set: function (v) { pool[kind] = Math.max(0, v); } });
@@ -25592,19 +25607,28 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     Object.keys(s.guns).forEach(function (k) { bank[k] = { mag: s.guns[k].mag, reserve: s.guns[k].reserve }; });
     var cur = s.cur;
     s.guns = {}; s.slots = {};
-    ids.forEach(function (id) { W.give(s, id); var b = bank[id], g = s.guns[id]; if (g && b) { g.mag = Math.min(b.mag, W.magSize(s, g.def)); if (!g.def.ammo) g.reserve = b.reserve; else g._fromBank = true; } });
+    ids.forEach(function (id) { W.give(s, id); var b = bank[id], g = s.guns[id]; if (g && b) { g.mag = Math.min(b.mag, W.magSize(s, g.def)); if (g.def.ammo) g._fromBank = true; else if (g.reserve === Infinity) g.reserve = b.reserve;   /* shared type pools live on s.pool and carry over */ } });
     if (!s.guns[cur]) { var first = s.slots[1]; s.cur = null; if (first) W.equip(s, first, true); else Object.keys(W.models).forEach(function (k) { showModel(k, false); }); }
     return bank;
   };
   W.magSize = function (s, def) {
-    if (def.ammo) return IB.Launchers && IB.Launchers.magOf ? IB.Launchers.magOf(def) : def.mag;   // a launcher's rolled magazine; no bench / skill bonus
+    if (def.ammo) return W.capped(IB.Launchers && IB.Launchers.magOf ? IB.Launchers.magOf(def) : def.mag);   // a launcher's rolled magazine; no bench / skill bonus
     var base = def.mag, rr = (def.wyrm || def.magRange) && IB.WeaponDrops && IB.WeaponDrops.rollOf ? IB.WeaponDrops.rollOf(def.id) : null;   // Wyrmforged / rolled magazine
     if (rr && rr.mag) base = rr.mag;
     var m = IB.Upgrades ? IB.Upgrades.magSize(base, s.fx.magLevel || 0) : base;
-    return s.fx.magMul && m !== Infinity ? Math.ceil(m * s.fx.magMul - 1e-9) : m;   // Overload skill
+    return W.capped(s.fx.magMul && m !== Infinity ? Math.ceil(m * s.fx.magMul - 1e-9) : m);   // Overload skill
   };
+  // player LV 20+: every gun's magazine and reserve hold a third more (IB.AMMO_MUL, set by game.js from the player level)
+  W.capped = function (m) { var k = IB.AMMO_MUL || 1; return m === Infinity || k === 1 ? m : Math.ceil(m * k - 1e-9); };
+  W.reserveOf = function (def) { return W.capped(IB.Loadout && IB.Loadout.classReserve ? IB.Loadout.classReserve(def) : def.reserve); };
+  // guns of one type share one reserve: g.reserve reads and writes s.pool[type]
+  function sharePool(s, g) {
+    var def = g.def; if (def.ammo || g.reserve === Infinity) return;
+    s.pool = s.pool || {}; var c = def.cls; if (s.pool[c] === undefined) s.pool[c] = g.reserve; delete g.reserve;
+    Object.defineProperty(g, 'reserve', { get: function () { return s.pool[c]; }, set: function (v) { s.pool[c] = v; }, enumerable: true, configurable: true });
+  }
   // refill (respawn) and ammo boxes leave the launchers alone: rocket ammo only comes in rocket crates
-  W.refill = function (s) { Object.keys(s.guns).forEach(function (k) { var g = s.guns[k]; if (g.def.ammo) return; g.mag = W.magSize(s, g.def); g.reserve = (g.def.reserve == null || g.def.reserve === Infinity) ? Infinity : g.def.reserve; }); };
+  W.refill = function (s) { Object.keys(s.guns).forEach(function (k) { var g = s.guns[k]; if (g.def.ammo) return; g.mag = W.magSize(s, g.def); g.reserve = (g.def.reserve == null || g.def.reserve === Infinity) ? Infinity : W.reserveOf(g.def); }); };
   W.addAmmo = function (s, frac) { Object.keys(s.guns).forEach(function (k) { var g = s.guns[k]; if (g.reserve !== Infinity && !g.def.ammo) g.reserve = Math.min(g.def.reserve * 1.5, g.reserve + Math.ceil(g.def.reserve * frac)); }); };
   /* every gun that takes ammo boxes is at its reserve cap (an ammo box would add nothing) */
   W.ammoFull = function (s) {
@@ -28945,7 +28969,12 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     if (!D.ready || !item) return null;
     var G = IB.Game, d = null, i;
     for (i = 0; i < D.pool.length; i++) if (!D.pool[i].on) { d = D.pool[i]; break; }
-    if (!d) { d = D.pool[0]; for (i = 1; i < D.pool.length; i++) if (D.pool[i].born < d.born) d = D.pool[i]; }
+    // pool full: recycle the lowest-rarity drop (oldest of those); a rarer drop is never pushed out by a lesser one
+    if (!d) {
+      var R = IB.LOOT.rarities.map(function (r) { return r.id; }), rank = function (q) { return q.it ? R.indexOf(q.it.rarity) : -1; };
+      for (i = 0; i < D.pool.length; i++) { var q = D.pool[i]; if (!d || rank(q) < rank(d) || (rank(q) === rank(d) && q.born < d.born)) d = q; }
+      if (rank(d) > R.indexOf(item.rarity)) return null;   // every drop out there is rarer than this one: this one is skipped
+    }
     var pos = freeSpot(x, z, G);
     d.on = true; d.dropped = false; d.it = item; d.x = pos[0]; d.z = pos[1]; d.t = 0; d.born = performance.now(); d.fullT = 0; d.uid = ++D.uid;
     d.y = typeof y === 'number' && IB.Zones && IB.Zones.floorY ? Math.max(0, IB.Zones.floorY(d.x, d.z, y + 0.6)) : 0;
@@ -29242,7 +29271,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   ];
   var BY = {}; TIERS.forEach(function (t, i) { t.rank = i; BY[t.id] = t; });
   WD.tier = function (id) { return BY[id] || BY.gray; };
-  var CAP = 8, USE_R = 2.4, CLOSE_R = 1.2, PEEK_R = 7;   // E reach (looking at it), reach whatever you look at, card distance
+  var CAP = 40, USE_R = 2.4, CLOSE_R = 1.2, PEEK_R = 7;   // E reach (looking at it), reach whatever you look at, card distance
 
   function slot() { return IB.Game && IB.Game.slot; }
   WD.tierOf = function (gunId) { var s = slot(); return WD.tier(s && s.gunTier && s.gunTier[gunId]); };
@@ -29410,7 +29439,12 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     var A = IB.Assets, node = 'WPN_' + id.toUpperCase();
     if (!A.geo[node]) return null;
     var d = null; for (var i = 0; i < CAP; i++) if (!WD.list[i].on) { d = WD.list[i]; break; }
-    if (!d) { d = WD.list[0]; for (i = 1; i < CAP; i++) if (WD.list[i].t > d.t) d = WD.list[i]; }
+    // list full: recycle the lowest-tier gun (the oldest of those); a better gun is never pushed out by a lesser one
+    if (!d) {
+      var TR = ['gray', 'green', 'blue', 'purple', 'orange'], rk = function (q) { return q.melee ? 2 : TR.indexOf(q.tier); };
+      for (i = 0; i < CAP; i++) { var q = WD.list[i]; if (!d || rk(q) < rk(d) || (rk(q) === rk(d) && q.t > d.t)) d = q; }
+      if (rk(d) > (melee ? 2 : TR.indexOf(tier))) return null;
+    }
     if (d.mesh) d.spin.remove(d.mesh);
     if (!WD.mat) WD.mat = IB.Render.toonMaterial({ map: A.palette.weapons, baked: A.BAKED ? A.BAKED.weapons : 0, outMax: OUT_MAX });
     d.mesh = new THREE.Mesh(G0() && G0().gunGeo && !melee ? G0().gunGeo(id) : A.get(node), !melee && IB.GunSkins ? IB.GunSkins.material(id, tier, null, OUT_MAX) : WD.mat);   // rarity skin, magazine in
@@ -33464,7 +33498,13 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     hudLevel(n);
   }
   G.addXp = addXp;
-  function hudLevel(gain) { if (HUD.level) { var pr = G.progress(); HUD.level(pr.level, pr.points, IB.Skills.xpProgress(pr.xp), gain || 0); } }
+  // player LV 20+: a third more ammo in every gun (magazines and reserves, launchers too)
+  IB.AMMO_LEVEL = 20; IB.AMMO_BONUS = 1.33;
+  function setAmmoMul() { var lv = G.slot ? IB.Skills.levelFromXp(G.slot.xp || 0) : 1, k = lv >= IB.AMMO_LEVEL ? IB.AMMO_BONUS : 1, was = IB.AMMO_MUL || 1; IB.AMMO_MUL = k; return k !== was; }
+  function topUp() { if (!G.ws) return; Object.keys(G.ws.guns).forEach(function (k) { var g = G.ws.guns[k]; if (g.def.ammo) return; g.mag = Math.max(g.mag, W.magSize(G.ws, g.def)); if (g.reserve !== Infinity) g.reserve = Math.max(g.reserve, W.reserveOf(g.def)); }); }
+  function hudLevel(gain) {
+    if (setAmmoMul() && IB.AMMO_MUL > 1) topUp();   // reaching LV 20 mid-level: the bigger magazines come loaded
+ if (HUD.level) { var pr = G.progress(); HUD.level(pr.level, pr.points, IB.Skills.xpProgress(pr.xp), gain || 0); } }
   // after the Tab menu: skills may have changed (stats, effects) and so may the loadout
   G.applyProgress = function () {
     ensureSlot();
@@ -33507,6 +33547,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     if (IB.GunLevel) IB.GunLevel.fill(G.slot);   // guns without an item level (older saves, granted guns) get one
     var owned = syncArmory();
     G.bank = {};
+    setAmmoMul();
     G.grenades = G.slot.frag ? fragCarry() : 0;
     G.ws = W.create(owned, { magLevel: (G.slot.upgrades && G.slot.upgrades.mag) || 0, magMul: IB.SkillFX.fx.magMul });
     if (IB.Launchers) IB.Launchers.startLevel(G);   // rocket pool from the save, rolled magazines, ammo director
@@ -33517,6 +33558,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     W.equip(G.ws, first, true);
     grantStarterShield();
     if (IB.Gear) IB.Gear.startLevel(G);   // attachments on the guns, shield full
+    topUp();   // the loadout starts fully loaded (attachments / skills above may have grown the magazines)
     G.run = { time: 0, kills: 0, shots: 0, hits: 0, coreHits: 0, deaths: 0, gems: 0, retries: 3, started: false, introT: AUTOTEST ? 0.05 : 2.3,
       xp: 0, g0: G.slot ? IB.Skills.gained(G.slot) : 0 };   // XP earned this run; level-ups gained when it started
     G.shake = 0; G.trauma = 0; G.hitstop = 0; G.deathT = 0;
@@ -33577,7 +33619,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     if (!spawns.length) spawns = z.spawns.slice();
     var off = (Math.random() * spawns.length) | 0, GAP = (IB.Damage && IB.Damage.SPAWN_GAP) || 0.18;   // a wave trickles in
     // levels 20+: the wave comes in chunks (IB.Damage.LATE.CHUNK) with the robot types mixed through every chunk
-    var CH = IB.Damage && IB.Damage.lateChunk ? IB.Damage.lateChunk(G.plan.level || 1) : null;
+    var CH = IB.Damage && IB.Damage.lateChunk ? IB.Damage.lateChunk(G.plan.level || 1, G.level.zones.indexOf(z)) : null;
     var types = [];
     if (CH) { var left = list.map(function (e) { return e[1]; }), any = true; while (any) { any = false; list.forEach(function (e, j) { if (left[j] > 0) { types.push(e[0]); left[j]--; any = true; } }); } }
     else list.forEach(function (entry) { for (var n = 0; n < entry[1]; n++) types.push(entry[0]); });
@@ -33606,7 +33648,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
         // its can a moment (at most SPAWN_WAIT_MAX s each); a wave's robots all still come
         var D0 = IB.Damage, crowded = D0 && D0.crowdCap && z.queue.length && AI.crowd(p, D0.CROWD_R) >= D0.crowdCap(G.plan.level || 1);
         // chunked waves (levels 20+): the next chunk opens when the zone has thinned out or after CH.maxWait s
-        var CH = IB.Damage && IB.Damage.lateChunk ? IB.Damage.lateChunk(G.plan.level || 1) : null;
+        var CH = IB.Damage && IB.Damage.lateChunk ? IB.Damage.lateChunk(G.plan.level || 1, i) : null;
         if (CH) z.chunkT = (z.chunkT || 0) + dt;
         if (CH && z.queue.length) {
           var curLeft = 0; for (var cq = 0; cq < z.queue.length; cq++) if (z.queue[cq].chunk <= z.chunk) curLeft++;

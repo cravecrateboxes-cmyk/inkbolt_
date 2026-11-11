@@ -177,7 +177,8 @@
   W.give = function (s, id) {
     if (!W.playable(id) || !model(id)) return;
     var def = IB.WEAPONS[id];
-    s.guns[id] = { id: id, def: def, mag: W.magSize(s, def), reserve: (def.reserve === null || def.reserve === undefined || def.reserve === Infinity) ? Infinity : def.reserve };
+    s.guns[id] = { id: id, def: def, mag: W.magSize(s, def), reserve: (def.reserve === null || def.reserve === undefined || def.reserve === Infinity) ? Infinity : W.reserveOf(def) };
+    sharePool(s, s.guns[id]);
     if (def.ammo) {   // launchers: the spare ammo is the shared pool (s.ammo.rocket), not per gun
       var pool = s.ammo || (s.ammo = {}), kind = def.ammo; if (!(pool[kind] >= 0)) pool[kind] = 0;
       Object.defineProperty(s.guns[id], 'reserve', { enumerable: true, get: function () { return pool[kind]; }, set: function (v) { pool[kind] = Math.max(0, v); } });
@@ -192,19 +193,28 @@
     Object.keys(s.guns).forEach(function (k) { bank[k] = { mag: s.guns[k].mag, reserve: s.guns[k].reserve }; });
     var cur = s.cur;
     s.guns = {}; s.slots = {};
-    ids.forEach(function (id) { W.give(s, id); var b = bank[id], g = s.guns[id]; if (g && b) { g.mag = Math.min(b.mag, W.magSize(s, g.def)); if (!g.def.ammo) g.reserve = b.reserve; else g._fromBank = true; } });
+    ids.forEach(function (id) { W.give(s, id); var b = bank[id], g = s.guns[id]; if (g && b) { g.mag = Math.min(b.mag, W.magSize(s, g.def)); if (g.def.ammo) g._fromBank = true; else if (g.reserve === Infinity) g.reserve = b.reserve;   /* shared type pools live on s.pool and carry over */ } });
     if (!s.guns[cur]) { var first = s.slots[1]; s.cur = null; if (first) W.equip(s, first, true); else Object.keys(W.models).forEach(function (k) { showModel(k, false); }); }
     return bank;
   };
   W.magSize = function (s, def) {
-    if (def.ammo) return IB.Launchers && IB.Launchers.magOf ? IB.Launchers.magOf(def) : def.mag;   // a launcher's rolled magazine; no bench / skill bonus
+    if (def.ammo) return W.capped(IB.Launchers && IB.Launchers.magOf ? IB.Launchers.magOf(def) : def.mag);   // a launcher's rolled magazine; no bench / skill bonus
     var base = def.mag, rr = (def.wyrm || def.magRange) && IB.WeaponDrops && IB.WeaponDrops.rollOf ? IB.WeaponDrops.rollOf(def.id) : null;   // Wyrmforged / rolled magazine
     if (rr && rr.mag) base = rr.mag;
     var m = IB.Upgrades ? IB.Upgrades.magSize(base, s.fx.magLevel || 0) : base;
-    return s.fx.magMul && m !== Infinity ? Math.ceil(m * s.fx.magMul - 1e-9) : m;   // Overload skill
+    return W.capped(s.fx.magMul && m !== Infinity ? Math.ceil(m * s.fx.magMul - 1e-9) : m);   // Overload skill
   };
+  // player LV 20+: every gun's magazine and reserve hold a third more (IB.AMMO_MUL, set by game.js from the player level)
+  W.capped = function (m) { var k = IB.AMMO_MUL || 1; return m === Infinity || k === 1 ? m : Math.ceil(m * k - 1e-9); };
+  W.reserveOf = function (def) { return W.capped(IB.Loadout && IB.Loadout.classReserve ? IB.Loadout.classReserve(def) : def.reserve); };
+  // guns of one type share one reserve: g.reserve reads and writes s.pool[type]
+  function sharePool(s, g) {
+    var def = g.def; if (def.ammo || g.reserve === Infinity) return;
+    s.pool = s.pool || {}; var c = def.cls; if (s.pool[c] === undefined) s.pool[c] = g.reserve; delete g.reserve;
+    Object.defineProperty(g, 'reserve', { get: function () { return s.pool[c]; }, set: function (v) { s.pool[c] = v; }, enumerable: true, configurable: true });
+  }
   // refill (respawn) and ammo boxes leave the launchers alone: rocket ammo only comes in rocket crates
-  W.refill = function (s) { Object.keys(s.guns).forEach(function (k) { var g = s.guns[k]; if (g.def.ammo) return; g.mag = W.magSize(s, g.def); g.reserve = (g.def.reserve == null || g.def.reserve === Infinity) ? Infinity : g.def.reserve; }); };
+  W.refill = function (s) { Object.keys(s.guns).forEach(function (k) { var g = s.guns[k]; if (g.def.ammo) return; g.mag = W.magSize(s, g.def); g.reserve = (g.def.reserve == null || g.def.reserve === Infinity) ? Infinity : W.reserveOf(g.def); }); };
   W.addAmmo = function (s, frac) { Object.keys(s.guns).forEach(function (k) { var g = s.guns[k]; if (g.reserve !== Infinity && !g.def.ammo) g.reserve = Math.min(g.def.reserve * 1.5, g.reserve + Math.ceil(g.def.reserve * frac)); }); };
   /* every gun that takes ammo boxes is at its reserve cap (an ammo box would add nothing) */
   W.ammoFull = function (s) {

@@ -201,15 +201,21 @@
 
   var HEAD_MUL = 2.0;
   /* Levels 20+ (LATE): robots come in chunks and their explosives ease off.
-     - CHUNK: a wave is split into chunks of `size` robots (types mixed). The next chunk is let out once `openAt` or fewer
-       robots of the zone are left standing, or after `maxWait` s. The next wave waits for its last chunk and for the
+     - CHUNK: a wave is split into big chunks (types mixed) that grow with the level and with each zone of it (22 on
+       level 20 zone 1 ... 44 max). The next chunk is let out once a quarter of a chunk or fewer robots of the zone are
+       left standing, or after `maxWait` s. The next wave waits for its last chunk and for the
        zone to thin out (no time-out flood).
      - BOOM: robot explosives (frag grenades, launcher shells, explosive rounds' blasts) do x`dmg` damage and come x`cool`
        less often (longer cooldowns; explosive rounds turn up 1/cool as often). */
-  var LATE = { level: 20, CHUNK: { size: 14, openAt: 5, maxWait: 30 }, BOOM: { dmg: 0.85, cool: 1.4 } };
+  // chunk size: base + perLevel x (L - 20) + perZone x zone index, at most max; the next chunk opens at openFrac of it
+  var LATE = { level: 20, CHUNK: { base: 22, perLevel: 1, perZone: 5, max: 44, openFrac: 0.25, maxWait: 35 }, BOOM: { dmg: 0.85, cool: 1.4 } };
   function curLevel() { return (IB.Game && IB.Game.plan && IB.Game.plan.level) || 1; }
   function lateBoom(L) { L = L || curLevel(); return L >= LATE.level ? LATE.BOOM : { dmg: 1, cool: 1 }; }
-  function lateChunk(L) { return L >= LATE.level ? LATE.CHUNK : null; }
+  function lateChunk(L, zi) {
+    if (L < LATE.level) return null;
+    var C = LATE.CHUNK, n = Math.min(C.max, Math.round(C.base + C.perLevel * (L - LATE.level) + C.perZone * (zi || 0)));
+    return { size: n, openAt: Math.max(5, Math.round(n * C.openFrac)), maxWait: C.maxWait };
+  }
   IB.Damage = {
     HEAD_MUL: HEAD_MUL,
     enemyHpMul: enemyHpMul, enemyDmgMul: enemyDmgMul, enemyAt: enemyAt, enemyTempo: enemyTempo, playerMaxHp: playerMaxHp, levelRegenPct: levelRegenPct, enemyPressure: enemyPressure, attackTokens: attackTokens, falloff: falloff,

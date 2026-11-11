@@ -26,7 +26,7 @@
   ];
   var BY = {}; TIERS.forEach(function (t, i) { t.rank = i; BY[t.id] = t; });
   WD.tier = function (id) { return BY[id] || BY.gray; };
-  var CAP = 8, USE_R = 2.4, CLOSE_R = 1.2, PEEK_R = 7;   // E reach (looking at it), reach whatever you look at, card distance
+  var CAP = 40, USE_R = 2.4, CLOSE_R = 1.2, PEEK_R = 7;   // E reach (looking at it), reach whatever you look at, card distance
 
   function slot() { return IB.Game && IB.Game.slot; }
   WD.tierOf = function (gunId) { var s = slot(); return WD.tier(s && s.gunTier && s.gunTier[gunId]); };
@@ -194,7 +194,12 @@
     var A = IB.Assets, node = 'WPN_' + id.toUpperCase();
     if (!A.geo[node]) return null;
     var d = null; for (var i = 0; i < CAP; i++) if (!WD.list[i].on) { d = WD.list[i]; break; }
-    if (!d) { d = WD.list[0]; for (i = 1; i < CAP; i++) if (WD.list[i].t > d.t) d = WD.list[i]; }
+    // list full: recycle the lowest-tier gun (the oldest of those); a better gun is never pushed out by a lesser one
+    if (!d) {
+      var TR = ['gray', 'green', 'blue', 'purple', 'orange'], rk = function (q) { return q.melee ? 2 : TR.indexOf(q.tier); };
+      for (i = 0; i < CAP; i++) { var q = WD.list[i]; if (!d || rk(q) < rk(d) || (rk(q) === rk(d) && q.t > d.t)) d = q; }
+      if (rk(d) > (melee ? 2 : TR.indexOf(tier))) return null;
+    }
     if (d.mesh) d.spin.remove(d.mesh);
     if (!WD.mat) WD.mat = IB.Render.toonMaterial({ map: A.palette.weapons, baked: A.BAKED ? A.BAKED.weapons : 0, outMax: OUT_MAX });
     d.mesh = new THREE.Mesh(G0() && G0().gunGeo && !melee ? G0().gunGeo(id) : A.get(node), !melee && IB.GunSkins ? IB.GunSkins.material(id, tier, null, OUT_MAX) : WD.mat);   // rarity skin, magazine in

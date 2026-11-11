@@ -46,9 +46,17 @@
      (guns: {id: {def, reserve}}; infinite reserves and rocket launchers (def.ammo) never take boxes). A box walked over
      while this is true stays where it is (game.js updatePickups). */
   var RESERVE_CAP = 1.5;
-  function reserveCap(def) { return Math.floor(def.reserve * RESERVE_CAP); }
+  function reserveCap(def) { return Math.floor(classReserve(def) * RESERVE_CAP * (IB.AMMO_MUL || 1)); }
+  // every gun of a type (pistol, smg, rifle, shotgun, sniper...) draws on ONE shared reserve; its size is the biggest
+  // reserve any gun of that type has (data/weapons.js)
+  var CLS_MAX = null;
+  function classReserve(def) {
+    if (!def || def.reserve == null || def.reserve === Infinity || def.ammo) return def ? def.reserve : 0;
+    if (!CLS_MAX) { CLS_MAX = {}; Object.keys(IB.WEAPONS || {}).forEach(function (k) { var d = IB.WEAPONS[k]; if (d.reserve == null || d.reserve === Infinity || d.ammo) return; CLS_MAX[d.cls] = Math.max(CLS_MAX[d.cls] || 0, d.reserve); }); }
+    return CLS_MAX[def.cls] || def.reserve;
+  }   // x AMMO_MUL from player LV 20
   function ammoFull(guns) {
     return Object.keys(guns || {}).every(function (k) { var g = guns[k]; return g.reserve === Infinity || !!g.def.ammo || g.reserve >= reserveCap(g.def); });
   }
-  IB.Loadout = { uniq: uniq, fixArsenal: fixArsenal, fix: fix, assign: assign, pickup: pickup, reserveCap: reserveCap, ammoFull: ammoFull, RESERVE_CAP: RESERVE_CAP };
+  IB.Loadout = { uniq: uniq, fixArsenal: fixArsenal, fix: fix, assign: assign, pickup: pickup, reserveCap: reserveCap, classReserve: classReserve, ammoFull: ammoFull, RESERVE_CAP: RESERVE_CAP };
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
