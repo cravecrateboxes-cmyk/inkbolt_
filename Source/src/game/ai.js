@@ -25,6 +25,8 @@
   var AI = IB.AI = { robots: [], corpses: [], types: {}, typeList: [], tokens: 0, tokenMax: 3, level: 1,
     cloaked: false, lkx: 0, lkz: 0, rogueChance: 0, rogueTime: 15, rogueDmgMul: 2, hitRogues: false };
   var CAP = 40, CORPSE_CAP = 16, TAU = Math.PI * 2;
+  // share of Crawlers in the old look: all before level 20, then phased out (1/2 on 20, 1/4 on 21, none from 22)
+  AI.oldShare = function (L) { return L < AI.SKIN2_LEVEL ? 1 : L === AI.SKIN2_LEVEL ? 0.5 : L === AI.SKIN2_LEVEL + 1 ? 0.25 : 0; };
   AI.SKIN2_LEVEL = 20; AI.SKIN2 = { grey: '#9AA1AB', black: '#2A2D34', specks: 1 / 3 };   // the Crawler's advanced skin
   var STEP_UP = 0.4;   // the highest walkable step a ground robot climbs onto (matches IB.Zones NAV_STEP)
   var ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
@@ -59,7 +61,7 @@
         var c = sock('BOT_CRAWLER_CORE'); v.coreY = c[1]; v.coreZ = 0;
       },
       init: function (r) {
-        r.skin = (AI.level || 1) >= AI.SKIN2_LEVEL && Math.random() < 0.5 ? 1 : 0;
+        r.skin = Math.random() >= AI.oldShare(AI.level || 1) ? 1 : 0;
         if (!r.skin) return;
         var dark = Math.random() < 0.5, S = AI.SKIN2;   // dark: 66 % black / 33 % grey
         if (!r.tint) { r.tint = new THREE.Color(); r.tint2 = new THREE.Color(); }

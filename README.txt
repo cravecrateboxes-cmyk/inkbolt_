@@ -163,7 +163,7 @@ ROBOTS OF LEVELS 20+ (rows mech / grenadier / hawk in src/data/enemies.js; src/g
   end of tuneWaves, after the 5%-a-level climb is settled on the old robots; IB.LATE_WAVES holds the numbers):
     gunner + bomber -> Robot Trooper ('mech'), 0.6 per robot (it is about twice as tough as a Gunner);
     drone -> Hawk ('hawk'), 0.75 per robot; a quarter of the soldiers -> Grenadier ('grenadier').
-  The robots those shares leave out come back as Crawlers (half of them in the new skin), so a level keeps its count
+  The robots those shares leave out come back as Crawlers (in the new skin from level 22), so a level keeps its count
   and the campaign's robot totals keep climbing; the threat climbs through the tougher robots.
   The shares are carried over the waves of the whole level, so a level holds exactly the rounded share (3/4 Soldiers,
   1/4 Grenadiers) and each wave is within one robot of it; a wave of 4 or more soldiers always has a Grenadier, a wave
@@ -184,7 +184,7 @@ ROBOTS OF LEVELS 20+ (rows mech / grenadier / hawk in src/data/enemies.js; src/g
     its accent strips, duct rims, thruster glow and eye: steel white = normal, blue = shock (electric damage over time),
     green = acid (acid damage over time), orange = explosive (a small blast); 40 / 20 / 20 / 20%. Shot down, it drops
     out of the air and blows up where it lands.
-  Crawler: from level 20, half the Crawlers wear an advanced skin of the same silhouette (plated shell, sloped head ring,
+  Crawler: the old look is phased out (1/2 of the Crawlers on level 20, 1/4 on 21, none from 22); the others wear an advanced skin of the same silhouette (plated shell, sloped head ring,
     wrap-around cyan visor, panel lines and bolts), painted per crawler by a two-colour key-tint material (ai.js keyMat2):
     66% grey / 33% black or 66% black / 33% grey, half each; one in three also carries white specks and a stencil chevron.
   Review: node tests/e2e/latebots.spec.js (SHOTS=1 -> tests/e2e/review/latebots-*.png), tests/unit/latebots.test.js.
