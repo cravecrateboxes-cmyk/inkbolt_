@@ -198,6 +198,8 @@
   // ---------------- themes (Blender kit families; src/data/themes/*.js) ----------------
   function themeOf(plan) { return IB.THEME_DEFS[plan.themeId] || IB.THEME_DEFS.toytown; }
   Z.themeOf = themeOf;
+  // theme.families (optional): other kit families a theme places pieces from (by their full KIT_<FAMILY>_ names)
+  Z.themeFamilies = function (plan) { var t = themeOf(plan); return [t.family].concat(t.families || []); };
   function col(hex, fallback) { return new THREE.Color(hex || fallback || '#CCCCCC'); }
   var _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _up = new THREE.Vector3(0, 1, 0), _p = new THREE.Vector3(), _s1 = new THREE.Vector3(1, 1, 1);
   function M(x, y, z, yaw) { _q.setFromAxisAngle(_up, yaw || 0); _p.set(x, y, z); return _m.clone().compose(_p, _q, _s1); }

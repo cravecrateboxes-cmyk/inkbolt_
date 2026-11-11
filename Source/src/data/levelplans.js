@@ -33,7 +33,7 @@
   // campaign order (user's beta plan: mountains, small city, classroom, office tower, big bedroom, ... up to 20)
   // the Toy Town district levels (tt1-tt3) are retired from the campaign (kept registered for tests / ?plan=);
   // levels whose theme is not built yet are skipped by the filter below
-  var ORDER = ['mountains', 'smallcity', 'classroom', 'office', 'bedroom', 'coalmine', 'castle', 'city2', 'factory', 'livingroom', 'garden', 'factory2', 'island', 'mall', 'police', 'grove', 'spire', 'foundry', 'parking'];   // 14-19: Galleria Mall, Strike Team HQ (armory racks), Redwood Hollow (climbable redwoods), The Spire (sky-bridged supertalls), Titan Foundry, Deep Park (multi-level car park)
+  var ORDER = ['mountains', 'smallcity', 'classroom', 'office', 'bedroom', 'coalmine', 'castle', 'city2', 'factory', 'livingroom', 'garden', 'factory2', 'island', 'mall', 'police', 'grove', 'spire', 'foundry', 'parking', 'hotel', 'techhq', 'cargoship', 'datacenter', 'downtown', 'highrise'];   // 14-19: Galleria Mall, Strike Team HQ (armory racks), Redwood Hollow (climbable redwoods), The Spire (sky-bridged supertalls), Titan Foundry, Deep Park (multi-level car park)
   // new weapons waiting at the start of each campaign level (index = level - 1)
   // (melee weapons and the frag cans stand there too: every melee weapon and grenades are in hand by level 5)
   var WEAPONS = [];
@@ -119,9 +119,13 @@
       z.waves = (z.waves || []).map(function (w) {
         var out = {}, order = [];
         w.forEach(function (e) { if (!(e[0] in out)) { out[e[0]] = 0; order.push(e[0]); } out[e[0]] += e[1]; });
-        var gb = (out.gunner || 0) + (out.bomber || 0);
-        if (gb) { var m = share('mech', gb, true); delete out.gunner; delete out.bomber; out.mech = (out.mech || 0) + m; if (order.indexOf('mech') < 0) order.push('mech'); }
-        if (out.drone) { var h = share('hawk', out.drone, true); delete out.drone; out.hawk = (out.hawk || 0) + h; if (order.indexOf('hawk') < 0) order.push('hawk'); }
+        var gb = (out.gunner || 0) + (out.bomber || 0), m = 0, h = 0;
+        if (gb) { m = share('mech', gb, true); delete out.gunner; delete out.bomber; out.mech = (out.mech || 0) + m; if (order.indexOf('mech') < 0) order.push('mech'); }
+        if (out.drone) { h = share('hawk', out.drone, true); delete out.drone; out.hawk = (out.hawk || 0) + h; if (order.indexOf('hawk') < 0) order.push('hawk'); }
+        // the robots the tougher replacements leave out come back as Crawlers, so every level still has more robots
+        // than the one before (the threat climbs through the mechs and hawks, the count through cheap fodder)
+        var gone = gb - (gb ? m : 0) + (w.reduce(function (a, e) { return a + (e[0] === 'drone' ? e[1] : 0); }, 0)) - (h || 0);
+        if (gone > 0) { if (!('crawler' in out)) order.unshift('crawler'); out.crawler = (out.crawler || 0) + gone; }
         if (out.soldier) {
           var g = share('grenadier', out.soldier, out.soldier >= 4);
           out.soldier -= g; if (g) { out.grenadier = (out.grenadier || 0) + g; if (order.indexOf('grenadier') < 0) order.push('grenadier'); }

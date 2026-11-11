@@ -71,10 +71,11 @@ test('level 20: gunner + bomber -> mech (x0.6), drone -> hawk (x0.75), a quarter
   const W0 = all(src), W1 = all(p);
   // no old light robots left, nothing else touched
   for (const w of W1) for (const e of w) assert.ok(!['gunner', 'bomber', 'drone'].includes(e[0]), e[0]);
-  assert.equal(sum(W1, (k) => k === 'crawler'), sum(W0, (k) => k === 'crawler'));
   assert.equal(sum(W1, (k) => k === 'blader'), sum(W0, (k) => k === 'blader'));
-  // level totals: the rounded shares exactly
+  // level totals: the rounded shares exactly; the robots the shares leave out come back as Crawlers (same count)
   const gb = sum(W0, (k) => k === 'gunner' || k === 'bomber'), dr = sum(W0, (k) => k === 'drone'), so = sum(W0, (k) => k === 'soldier');
+  assert.equal(sum(W1, (k) => k === 'crawler'), sum(W0, (k) => k === 'crawler') + gb - Math.round(gb * LATE.mech) + dr - Math.round(dr * LATE.hawk));
+  assert.equal(sum(W1, () => true), sum(W0, () => true));
   assert.equal(sum(W1, (k) => k === 'mech'), Math.round(gb * LATE.mech));
   assert.equal(sum(W1, (k) => k === 'hawk'), Math.round(dr * LATE.hawk));
   assert.equal(sum(W1, (k) => k === 'grenadier'), Math.round(so / 4));
@@ -106,9 +107,9 @@ test('the level-19 waves converted for level 20 keep the difficulty on a smooth 
   const p = plan(L19.zones.map((z) => z.waves)), before = cost(p), n0 = all(p).reduce((a, w) => a + w.reduce((b, e) => b + e[1], 0), 0);
   IB.lateWaves(p, 20);
   const after = cost(p), n1 = all(p).reduce((a, w) => a + w.reduce((b, e) => b + e[1], 0), 0);
-  // fewer, tougher robots: the level's weighted cost moves by a few percent, never a wall or a dip
-  assert.ok(after >= before * 0.92 && after <= before * 1.15, 'cost ' + before + ' -> ' + after);
-  assert.ok(n1 < n0 && n1 > n0 * 0.75, 'robots ' + n0 + ' -> ' + n1);
+  // tougher robots plus Crawler fodder: the same count, the level's weighted cost climbs a step, never a wall or a dip
+  assert.ok(after >= before && after <= before * 1.25, 'cost ' + before + ' -> ' + after);
+  assert.equal(n1, n0, 'robots ' + n0 + ' -> ' + n1);
   // each mech is worth about a gunner and two thirds in health x damage (so 0.6 per gunner holds the pressure)
   const tough = (id) => D.enemyAt(E[id], 20).hp + (E[id].shield || 0) * D.enemyHpMul(20);
   assert.ok(tough('mech') * LATE.mech > tough('gunner') * 0.9 && tough('mech') * LATE.mech < tough('gunner') * 1.6);

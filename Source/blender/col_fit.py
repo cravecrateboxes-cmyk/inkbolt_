@@ -41,6 +41,7 @@ FIT = {
     'kit-coalmine': ['Landmark_DrillRig', 'Landmark_Hopper'],
     'kit-castle': ['Barrels', 'Landmark_Trebuchet', 'Landmark_Well'],
     'kit-city2': ['Landmark_Subway'],
+    'kit-downtown': ['TruckOver', 'Bus', 'Landmark_Tram', 'Hedgehog'],
     'kit-factory': ['Arm_A', 'Arm_B', 'Landmark_Booth', 'Landmark_Press', 'TestCage'],
     'kit-livingroom': ['Ball', 'Basket', 'Controller', 'Island', 'Mug', 'Plant_Fig', 'Plant_Snake'],
     'kit-garden': ['Landmark_Fountain', 'Landmark_PlayShip'],
