@@ -396,7 +396,7 @@ def build_station(pal, ao):
             fq(m, 0.18, 0.22, -0.003, 0.9, 1.1, 'steelD')
         else:   # door hanging open, a parka inside
             fq(m, -0.27, 0.27, -0.003, 0.05, 1.85, 'panelK')
-            m.bxr(-0.48, -0.2, 0.95, 0.03, 0.55, 1.8, 'panelB', rot=(0, 0, 40))
+            m.bxr(-0.336, -0.285, 0.95, 0.54, 0.03, 1.8, 'panelB', rot=(0, 0, -100))   # hinged at the left edge, swung wide (stays in its cell)
             lump(m, RND(541), 0.0, 0.2, 0.22, 0.14, 0.9, 0.8, 'orange', n=6, top=2)
         make('Locker_' + v, m, ao, cols=[cb(-0.3, 0.0, 0, 0.3, 0.48, 1.9)])
     # ---- desk [2, 1] and the dead terminal [2, 1] (back on +Y)

@@ -272,18 +272,28 @@ def build_walls(pal, ao):
             text_front(m, '%d' % (12 - k), 0.16, -0.513, -0.2, k - 0.08, 'orange')
     make('Firn_Mark', m, ao)
     # ---- the entry ramp: a snow road up to the surface, buried at its foot by a fresh snow slide
-    for v in ('L', 'M', 'N', 'R'):
+    for v in ('L', 'M', 'N', 'R', 'S'):
         m = new(pal)
-        rnd = RND({'L': 21, 'M': 22, 'N': 23, 'R': 24}[v])
+        rnd = RND({'L': 21, 'M': 22, 'N': 23, 'R': 24, 'S': 25}[v])
         L = 32.0
         pts = [(-0.5, -0.5, 0.0), (0.5, -0.5, 0.0), (0.5, L, H), (-0.5, L, H)]
         poly(m, pts, 'snowL', (0, -0.5, 1))
         for x in (-0.3, 0.3):   # vehicle ruts up the road
             poly(m, [(x - 0.08, -0.4, 0.004), (x + 0.08, -0.4, 0.004), (x + 0.08, L, H + 0.004), (x - 0.08, L, H + 0.004)], 'snowS', (0, -0.5, 1))
-        dz = 0.03 * 'LMNR'.index(v)   # neighbouring modules' lumps never share a level face
-        for i in range(3):   # the snow slide: big lumps over the road foot
-            lump(m, rnd, rnd.uniform(-0.3, 0.3), -0.05 + i * 0.9, 0.75, 0.6, 2.4 - i * 0.4 + rnd.uniform(0, 0.4), i * 0.35 + dz, 'snowW' if i else 'snowL', n=7)
-        lump(m, rnd, 0.0, 2.6, 0.7, 1.0, 1.4, 1.0 + dz, 'snowS', n=6)
+        # the snow slide: one rolling drift across the road foot. Each module's mound runs a little into its
+        # neighbours' (they cross, never share a face) and crests at its own height, so the row reads as one slide
+        k, dy = {'L': (0.93, 0.10), 'M': (1.0, 0.0), 'N': (0.86, 0.22), 'R': (0.95, 0.14), 'S': (1.06, 0.06)}[v]
+        prof = [(-0.75, 0.0), (-0.42, 0.72), (0.3, 1.5), (1.3, 1.98), (2.5, 2.08), (3.6, 1.95), (4.6, 1.86)]
+        mound = []
+        for (x, f) in ((-0.64, 0.8), (-0.3, 1.0), (0.3, 1.0), (0.64, 0.8)):
+            for (y, z) in prof:
+                road = H * (y + dy + 0.5) / (L + 0.5)
+                zz = road + (z - road) * f * k if z > road else z
+                mound.append((x, y + dy, max(zz, 0.0)))
+            mound.append((x, -0.75 + dy, -0.05))
+            mound.append((x, 4.6 + dy, H * (4.6 + dy + 0.5) / (L + 0.5) - 0.06))
+        hullp(m, mound, lambda f: 'snowW' if f.normal.z > 0.55 else 'snowL')
+        lump(m, rnd, rnd.uniform(-0.2, 0.2), 1.6 + dy, 0.45, 0.6, 0.5, 1.75 * k + 0.1, 'snowS', n=6)
         if v in ('L', 'R'):
             sx = -1 if v == 'L' else 1
             x = sx * 0.5
@@ -299,7 +309,7 @@ def build_walls(pal, ao):
                 z = H * (y + 0.5) / (L + 0.5)
                 m.cy((-sx * 0.15 + x * 0.6, y, z), 0.02, 0.02, 1.6, 'black', seg=5, hull='none')
                 m.bx(x * 0.6 - sx * 0.15, x * 0.6 - sx * 0.15 + 0.32, y - 0.01, y + 0.01, z + 1.25, z + 1.55, 'orange', hull='none')
-        if v == 'M':   # the road sign at the top, half buried
+        if v == 'S':   # the road sign at the top, half buried (one, mid-road)
             m.cy((0.0, L - 3, H - 0.6), 0.04, 0.04, 2.6, 'steelD', seg=6)
             m.bx(-0.9, 0.9, L - 3.06, L - 3.0, H + 1.2, H + 1.9, 'orange')
             text_front(m, 'K-7', 0.4, L - 3.065, 0.0, H + 1.33, 'black', maxw=1.4)

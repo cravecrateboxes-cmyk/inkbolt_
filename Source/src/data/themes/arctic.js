@@ -109,7 +109,7 @@
     var sign = hallSide && doorBeside(grid, c, r, d) ? 'Sign_' + roomWord(grid, c - d[0], r - d[1]) : null;
     var base;
     if (st === 'F') {
-      if (surface(grid) && r === H - 1 && c >= 27 && c <= 36) return c === 27 ? 'Ramp_L' : c === 36 ? 'Ramp_R' : (c % 2 ? 'Ramp_M' : 'Ramp_N');
+      if (surface(grid) && r === H - 1 && c >= 27 && c <= 36) return c === 27 ? 'Ramp_L' : c === 36 ? 'Ramp_R' : c === 31 ? 'Ramp_S' : (c % 2 ? 'Ramp_M' : 'Ramp_N');
       base = u % 9 === 4 ? 'Firn_Lamp' : h0 < 0.06 ? 'Firn_Pipe' : h0 < 0.1 ? 'Firn_Mark' : ['Firn_A', 'Firn_B', 'Firn_C'][Math.floor(hash(c * 3, r * 5) * 3) % 3];
     } else if (st === 'X') {
       if (r === 33 && c === 34) return ['Fac_A', 'NameBoard'];
@@ -298,7 +298,7 @@
     return null;
   }
 
-  var WALLS = ['Firn_A', 'Firn_B', 'Firn_C', 'Firn_Lamp', 'Firn_Pipe', 'Firn_Mark', 'Ramp_L', 'Ramp_M', 'Ramp_N', 'Ramp_R', 'CornerF',
+  var WALLS = ['Firn_A', 'Firn_B', 'Firn_C', 'Firn_Lamp', 'Firn_Pipe', 'Firn_Mark', 'Ramp_L', 'Ramp_M', 'Ramp_N', 'Ramp_R', 'Ramp_S', 'CornerF',
     'Fac_A', 'Fac_B', 'Fac_Window', 'Fac_Broken', 'Fac_Vent', 'Fac_Light', 'NameBoard', 'CornerX',
     'S_A', 'S_B', 'S_Window', 'S_Heater', 'S_Notice', 'S_Pipe', 'S_Breach', 'S_Map', 'CornerS',
     'M_A', 'M_B', 'M_Window', 'M_Heater', 'M_Breach', 'M_Menu', 'CornerM',
