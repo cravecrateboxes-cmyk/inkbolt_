@@ -359,7 +359,7 @@ TRIG = (0.040, -0.013)                                  # trigger face in the gr
 
 
 def grip(k, rake, style='pistol', color='furn', panel='gun3', w=0.034, ay=0.0, az=0.0, top=0.012, bottom=-0.100,
-         ptop=-0.022, grooves=3, ch=0.004):
+         ptop=-0.022, grooves=3, ch=0.004, chequer=0):
     """Pistol grip around the standard hand section; texture panels + ink grooves on both sides + a cross screw."""
     hy, cy = HAND['hy'], HAND['cy']
     f, b = cy + hy, cy - hy
@@ -370,6 +370,9 @@ def grip(k, rake, style='pistol', color='furn', panel='gun3', w=0.034, ay=0.0, a
     elif style == 'ar':        # A2 style with the finger nub
         pts = [(f - 0.004, top), (f, -0.030), (f + 0.006, -0.044), (f, -0.056), (f + 0.002, bottom),
                (b + 0.004, bottom - 0.004), (b - 0.004, -0.040), (b - 0.006, -0.004), (b + 0.004, top)]
+    elif style == 'flare':     # hand-cannon: curved back strap, butt flared fore and aft
+        pts = [(f - 0.003, top), (f + 0.003, -0.030), (f + 0.001, -0.060), (f + 0.006, bottom + 0.006), (f + 0.011, bottom - 0.004),
+               (b - 0.008, bottom - 0.008), (b - 0.015, bottom + 0.004), (b - 0.007, -0.052), (b - 0.002, -0.012), (b + 0.006, top)]
     elif style == 'rubber':    # revolver: finger grooves, rounded butt
         pts = [(f - 0.003, top), (f + 0.003, -0.026), (f - 0.002, -0.045), (f + 0.003, -0.064), (f - 0.004, bottom + 0.002),
                (b + 0.004, bottom - 0.004), (b - 0.004, bottom + 0.010), (b - 0.005, -0.040), (b + 0.006, top)]
@@ -387,6 +390,12 @@ def grip(k, rake, style='pistol', color='furn', panel='gun3', w=0.034, ay=0.0, a
             b2 = g2w(rake, b + 0.007, gz, ay, az)
             xm = s * (w / 2 + 0.0045)
             k.bar((xm, a[0], a[1]), (xm, b2[0], b2[1]), 0.004, 0.0035, 'ink')
+        for j in range(chequer):     # chequering: cross lines over the panel
+            gy = f - 0.012 - j * (hy * 2 - 0.022) / max(1, chequer - 1)
+            a = g2w(rake, gy, ptop - 0.004, ay, az)
+            b2 = g2w(rake, gy, bottom + 0.020, ay, az)
+            xm = s * (w / 2 + 0.0080)
+            k.bar((xm, a[0], a[1]), (xm, b2[0], b2[1]), 0.0035, 0.003, 'ink')
     zc = (gzs[0] + gzs[1]) / 2 if grooves > 1 else gzs[0] - 0.012
     k.pin(-w / 2 - 0.0065, w / 2 + 0.0065, *g2w(rake, cy - 0.004, zc, ay, az), 0.0035, color='steel2')
 
@@ -647,28 +656,29 @@ def build_handcannon(pal):
     rake = 20
     k = Kit(pal)
     ZA = 0.032                  # cylinder axis = bore axis = barrel centre height
-    BE = 0.262                  # barrel end (the muzzle device stands a little past it)
+    BE = 0.290                  # barrel end (the muzzle device stands a little past it)
     # frame: rear frame (hammer block, grip frame), front yoke at the breech, top and bottom straps; the sides between
     # them stay open so the cylinder shows through the window
     k.ext_x([(-0.034, -0.008), (0.0, -0.008), (0.0, 0.060), (-0.020, 0.060), (-0.034, 0.040)], -0.0215, 0.0215, 'gunmetal', ch=0.003)
     k.box((0, 0.0245, 0.0562), (0.022, 0.048, 0.0076), 'gunmetal', hull=True)                # top strap over the cylinder
     k.ext_x([(0.049, -0.008), (0.078, -0.008), (0.078, 0.060), (0.049, 0.060)], -0.017, 0.017, 'gunmetal', ch=0.003)
     k.box((0, 0.025, 0.001), (0.025, 0.046, 0.010), 'gunmetal', hull=True)                   # bottom strap under the cylinder
-    # barrel: long, vent rib with slots on top, ported muzzle device
-    k.ext_y(rrect(0.027, 0.046, ct=0.012, cb=0.004, cy=ZA, seg=2), 0.074, BE, 'gunmetal', ch1=0.006)
-    k.box((0, 0.155, 0.059), (0.008, 0.140, 0.008), 'gun3')
+    # barrel: long squared hand-cannon barrel, raised vent rib on posts, ported muzzle device
+    k.ext_y(rrect(0.026, 0.044, ct=0.005, cb=0.003, cy=ZA, seg=1), 0.074, BE, 'gunmetal', ch1=0.005)
+    k.box((0, 0.172, 0.0635), (0.010, 0.186, 0.005), 'gun3')                                   # top rib
     for i in range(5):
-        k.box((0, 0.100 + i * 0.022, 0.0565), (0.020, 0.006, 0.006), 'ink', skip=('-z',))
-    for i in range(2):
-        k.box((0, 0.210 + i * 0.008, 0.0555), (0.016, 0.004, 0.006), 'ink', skip=('-z',))
+        k.box((0, 0.094 + i * 0.039, 0.0570), (0.006, 0.010, 0.008), 'gun3', hull=False)        # rib posts (vents between)
     muzzle(k, BE - 0.008, BE + 0.014, 0.0105, ZA, rb=0.0055, hull=False, seg=8)
-    # underlug (amber stripe) runs the length of the barrel; the ejector-rod shroud hangs under it
-    k.box((0, 0.160, 0.0075), (0.0335, 0.152, 0.007), 'trim')
-    k.lathe([(0.080, 0), (0.080, 0.0055), (0.254, 0.0055), (0.258, 0.0040), (0.258, 0)], 'steel', 'y', (0, 0, 0.0), 8, hull=False)
-    # sights: front sight ring on the barrel with a red bead, rear sight ring on the top strap
-    k.ring('x', (0, 0.238, 0.0655), -0.005, 0.005, 0.0075, 0.0105, 'ink', seg=8, hull=False)
-    k.box((0, 0.238, 0.0605), (0.003, 0.004, 0.004), 'red')
-    k.ring('x', (0, 0.008, 0.069), -0.005, 0.005, 0.0060, 0.0095, 'ink', seg=8, hull=False)
+    # full underlug (amber), deep at the frame and tapering toward the muzzle; ejector rod rides in it
+    k.ext_x([(0.077, 0.012), (BE - 0.004, 0.012), (BE - 0.004, 0.002), (0.200, -0.004), (0.100, -0.014), (0.077, -0.014)],
+            -0.010, 0.010, 'trim', ch=0.002)
+    k.lathe([(0.080, 0), (0.080, 0.0045), (BE - 0.003, 0.0045), (BE + 0.001, 0.0032), (BE + 0.001, 0)], 'steel', 'y', (0, 0, 0.004), 8, hull=False)
+    # sights: tall front blade with a red insert, tall notched rear blade on the top strap
+    k.ext_x([(BE - 0.030, 0.066), (BE - 0.010, 0.066), (BE - 0.012, 0.080), (BE - 0.020, 0.080)], -0.003, 0.003, 'ink', ch=0)
+    k.box((0, BE - 0.018, 0.0735), (0.012, 0.005, 0.004), 'red')
+    for sd in (-1, 1):
+        k.box((sd * 0.0065, -0.012, 0.0715), (0.006, 0.008, 0.017), 'ink')
+    k.box((0, -0.012, 0.0625), (0.025, 0.016, 0.006), 'gun3')
     # hammer: exposed, rounded cock at the back of the frame with a spur, plus the hammer pin screw
     k.xbar(-0.0045, 0.0045, [(-0.022, 0.040), (-0.030, 0.058), (-0.040, 0.064), (-0.050, 0.060), (-0.060, 0.050), (-0.064, 0.043),
                              (-0.052, 0.046), (-0.040, 0.044), (-0.028, 0.034)], 'steel2', ch=0)
@@ -677,7 +687,7 @@ def build_handcannon(pal):
     k.pin(-0.020, 0.020, 0.066, 0.004, 0.003)
     trigger_guard(k, rake, front=0.060, depth=-0.046, hook=False, top=-0.006)
     trigger(k, rake, ext=0.006)
-    grip(k, rake, 'rubber', w=0.036, top=-0.004, ptop=-0.026)
+    grip(k, rake, 'flare', w=0.036, top=-0.004, ptop=-0.026, grooves=3, chequer=3)
     # cylinder (the Mag): six flutes, six chambers on the flats (ink rims 4 mm proud, visible through the window)
     mk = Kit(pal)
     R = 0.0215
@@ -693,7 +703,7 @@ def build_handcannon(pal):
         u = V((-math.sin(a), 0.0, math.cos(a)))
         mk.lathe([(R + 0.003, 0), (R + 0.003, 0.0080), (R - 0.004, 0.0080), (R - 0.004, 0)], 'ink', (d, u, d.cross(u)), (0, 0, 0), 6, hull=False)
     return k, mk, {'rake': rake, 'mrake': 0, 'mag': (0, 0.025, ZA), 'muzzle': (0, BE + 0.016, ZA), 'eject': (-0.03, 0.025, ZA),
-                   'sight': (0, -0.012, 0.072), 'cls': 'pistol', 'pivot': (-0.024, 0.050, ZA)}
+                   'sight': (0, -0.012, 0.078), 'cls': 'pistol', 'pivot': (-0.024, 0.050, ZA)}
 
 
 def build_twintap(pal):
