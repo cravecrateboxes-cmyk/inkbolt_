@@ -247,7 +247,7 @@ def zone2():
         for c in range(44, 50):
             z.g[r][c] = 'Z'
     # the monument, trees, lamps and benches round it
-    z.block(28, 24, 8, 8, 'M')
+    # (the Founders monument was removed at the player's request; its granite pad stays)
     z.paving(28, 24, 8, 8, '.')                        # the monument stands on its own granite
     for (c, r) in ((22, 12), (41, 12), (22, 43), (41, 43), (22, 21), (41, 21), (22, 34), (41, 34), (26, 17), (37, 17), (26, 38), (37, 38)):
         z.put(c, r, 't')

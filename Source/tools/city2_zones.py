@@ -112,7 +112,7 @@ def avenue():
 def plaza():
     z = shell('city2_plaza', 60, 54, 44, 14)
     z.pave(12, 12, 36, 30, ';')                              # the plaza (cols 12-47, rows 12-41)
-    z.block(28, 25, 4, 4, 'Q', over=';')
+    # (the statue was removed at the player's request; the plaza centre stays open granite)
     z.block(15, 15, 3, 5, 'U', over=';')
     z.block(42, 33, 3, 5, 'U', over=';')
     z.puts([(24, 22), (35, 22), (24, 31), (35, 31), (12, 12), (47, 12), (12, 41), (47, 41)], 'I', over=';')
