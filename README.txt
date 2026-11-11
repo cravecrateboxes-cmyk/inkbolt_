@@ -35,6 +35,8 @@ CONTROLS
 
 PROGRESSION
   Player level: +1 for every campaign level cleared (LV 20 cap), shown above the health bar with a rank title.
+  Health regen: from campaign level 21 the player repairs a % of max health per second after 4 s without damage
+    (0.6 % on 21, 1.4 % on 25, 2.9 % on 30, a bigger step every level; IB.Damage.levelRegenPct), on top of bench / skills.
   Skill points: from clearing levels 1-17 only (22 in total, see src/data/skills.js); the tree holds 43, so pick.
   Skill tree: seven rows, trunk at the bottom (gates 2 / 5 / 8 / 11 / 14 points in the rows below, 18 for the endgame row), three pick-one endgame
   skills on top. Runtime: src/game/skillfx.js (procs, acid pools, wet coats, Undercover), ai.js (cloak search, rogue

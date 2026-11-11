@@ -1215,6 +1215,9 @@
     // regen (Nanite Welders)
     if (G.fx && G.fx.regen && p.alive && p.lastHurt > 3) p.health = Math.min(p.maxHp, p.health + G.fx.regen * dt);
     IB.SkillFX.regen(p, dt);   // Healthy + Tank repair
+    // campaign level 21+: base regen, % of max health per second after 4 s without damage (IB.Damage.levelRegenPct)
+    var lrp = IB.Damage.levelRegenPct(IB.AI.level || 0);
+    if (lrp && p.alive && p.lastHurt > 4) p.health = Math.min(p.maxHp, p.health + lrp / 100 * p.maxHp * dt);
     if (G.run.started) IB.SkillFX.update(dt, onKill, p);   // acid pools, wet coats, Undercover timer
     // weapons
     W.update(G.ws, dt, { player: p, cam: R.camera, input: { fire: Inp.fire && p.alive && G.run.started, firePressed: Inp.firePressed && p.alive && G.run.started, aim: Inp.aim && p.alive }, shoot: shoot,

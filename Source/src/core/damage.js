@@ -66,6 +66,9 @@
     var k = Math.max(1, Math.min(50, lv || 1)) - 1, x = Math.max(0, k - 29);
     return Math.round(100 + 9 * k + 0.3 * k * k + x * x + 0.01 * x * x * x);
   }
+  /* base health regen from campaign level 21 on: % of max health per second after 4 s without damage, a bigger step
+     every level (0.6 % on 21, 1.4 % on 25, 2.9 % on 30), on top of the bench and skill repairs */
+  function levelRegenPct(L) { if (!L || L < 21) return 0; var k = L - 21; return 0.6 + 0.15 * k + 0.0125 * k * k; }
   function enemyPressure(L) { var t = enemyTempo(L); return enemyDmgMul(L) / t.coolMul / Math.sqrt(t.aimMul); }
 
   // 4.4: at most 3 + floor(L/5) robots in Windup or Attack.
@@ -199,7 +202,7 @@
   var HEAD_MUL = 2.0;
   IB.Damage = {
     HEAD_MUL: HEAD_MUL,
-    enemyHpMul: enemyHpMul, enemyDmgMul: enemyDmgMul, enemyAt: enemyAt, enemyTempo: enemyTempo, playerMaxHp: playerMaxHp, enemyPressure: enemyPressure, attackTokens: attackTokens, falloff: falloff,
+    enemyHpMul: enemyHpMul, enemyDmgMul: enemyDmgMul, enemyAt: enemyAt, enemyTempo: enemyTempo, playerMaxHp: playerMaxHp, levelRegenPct: levelRegenPct, enemyPressure: enemyPressure, attackTokens: attackTokens, falloff: falloff,
     closeCap: closeCap, crowdCap: crowdCap, sloppyAim: sloppyAim, healthPlan: healthPlan, HOLD: HOLD, CROWD_R: CROWD_R, SPAWN_WAIT_MAX: SPAWN_WAIT_MAX, SPAWN_GAP: SPAWN_GAP, SLOPPY: SLOPPY, HEALTH_CRIT: HEALTH_CRIT,
     hit: hit, splash: splash, blastRadius: blastRadius, rocketSplash: rocketSplash, frag: frag,
     flashDamage: flashDamage, selfDamage: selfDamage, knockback: knockback, blindDuration: blindDuration,

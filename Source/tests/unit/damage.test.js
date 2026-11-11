@@ -203,3 +203,9 @@ test('soldier headshots: a crit spot worth x2 and flagged as a crit (CRIT damage
   near(head.damage / body.damage, IB.Damage.HEAD_MUL); assert.ok(head.crit && !body.crit);
   assert.ok(IB.Damage.HEAD_MUL >= 1.75 && IB.Damage.HEAD_MUL <= 2.5, 'a reasonable amount more than a body shot');
 });
+
+test('base health regen from campaign level 21, every step bigger', () => {
+  const R = IB.Damage.levelRegenPct;
+  assert.equal(R(1), 0); assert.equal(R(20), 0); assert.ok(R(21) > 0);
+  for (let L = 22; L <= 50; L++) assert.ok(R(L) - R(L - 1) > (L > 22 ? R(L - 1) - R(L - 2) : 0) - 1e-9 && R(L) > R(L - 1), 'L' + L);
+});
