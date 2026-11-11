@@ -207,7 +207,7 @@ LOOT AND GEAR
       Legendary    0    0    0    3    4    5    6    7    8    9   10   12   14
   Stats roll inside the rarity's range, then grow with the campaign level (LOOT.levelScale): levels 1-3 as before,
   past level 3 shields (capacity, recharge, vest health, Nova damage) grow about as fast as the robots' pressure
-  (x1.35 on level 6, x1.71 on 10, x1.98 on 13, cap x2.8) and attachments a little (x1.12 / 1.24 / 1.33, cap x1.5).
+  (x1.35 on level 6, x1.71 on 10, x1.98 on 13, cap x5.78 at level 50) and attachments a little (x1.12 / 1.24 / 1.33, cap x2.44 at level 50); a stat with a hard ceiling grows on a gentler slope so a top Legendary roll reaches it at level 50 (both keep growing to the beta level cap, 50).
   Shield cells (after level 3 is cleared; a common one is handed out then) soak damage before health and recharge
   after a short delay. Each rarity has its own cell model and HUD bar colour: Tin Cell (cyan), Volt Cell (blue,
   twin terminals), Storm Cell (purple, lightning fins), Nova Cell (orange, gold trim and an orb in a halo). Epic and

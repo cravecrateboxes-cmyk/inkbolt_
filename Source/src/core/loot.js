@@ -23,6 +23,15 @@
     return Math.min(s.cap, 1 + s.k * (Math.min(L, s.knee) - 1) + s.k2 * Math.max(0, L - s.knee));
   }
 
+  /* a scaled stat's level growth: levelMul, but a stat with a hard ceiling (max) grows on a gentler slope, so a top
+     Legendary roll reaches the ceiling at the level where the scale caps (level 50), not earlier: it grows all the way */
+  function growth(s, L) {
+    var m = levelMul(s.scale, L);
+    if (s.max === undefined || !s.legendary) return m;
+    var cap = T().levelScale[s.scale].cap, g = Math.min(1, (s.max / s.legendary[1] - 1) / (cap - 1));
+    return 1 + (m - 1) * g;
+  }
+
   /* ctx: {cleared} = highest campaign level completed. Shields / vests need cleared >= minCleared. */
   function allowedTypes(ctx) {
     var cleared = (ctx && ctx.cleared) || 0, out = [];
@@ -63,7 +72,7 @@
     var item = { type: type, rarity: rarity, level: L, name: td.names[rarity], stats: {} };
     Object.keys(td.stats).forEach(function (k) {
       var s = td.stats[k], r = s[rarity], v = r[0] + (r[1] - r[0]) * rng();
-      if (s.scale) v *= levelMul(s.scale, L);
+      if (s.scale) v *= growth(s, L);
       if (s.max !== undefined) v = Math.min(s.max, v);
       item.stats[k] = roundTo(v, s.round);
     });
