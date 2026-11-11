@@ -134,8 +134,8 @@ def win_pier(k):
         k.qy(x - 0.02, x + 0.02, 0.8, H - 0.95, -0.563, -1, 'marble2')
     k.bx(-0.38, 0.38, -0.62, -0.5, H - 0.85, H - 0.6, 'gold')
     k.bx(-0.34, 0.34, -0.6, -0.497, H - 0.95, H - 0.85, 'brass', ink=False)
-    k.bx(-0.5, 0.5, -0.6, -0.5, DECK - 0.36, DECK - 0.04, 'stone2', ink=False)
-    k.bx(-0.5, 0.5, -0.6, -0.5, H - 0.35, H, 'stone2')
+    k.bx(-0.497, 0.497, -0.6, -0.494, DECK - 0.36, DECK - 0.04, 'stone2', ink=False)
+    k.bx(-0.497, 0.497, -0.6, -0.494, H - 0.35, H - 0.004, 'stone2')  # 3 mm in: a corner neighbour's band ends on the wall face
     sconce(k, 0, -0.563, 2.9)
     sconce(k, 0, -0.563, 6.8)
     return k
@@ -144,10 +144,10 @@ def win_pier(k):
 def core(k):
     """Four-sided block (corners, junctions, lone columns): marble with a black plinth and a stone cornice."""
     k.begin()
-    k.bx(-0.5, 0.5, -0.5, 0.5, 0.14, H - 0.35, 'stone')
-    k.bx(-0.52, 0.52, -0.52, 0.52, 0, 0.14, 'nero', ink=False)
-    k.bx(-0.53, 0.53, -0.53, 0.53, H - 0.35, H, 'stone2', ink=False)
-    k.bx(-0.52, 0.52, -0.52, 0.52, DECK - 0.36, DECK - 0.04, 'stone2', ink=False)
+    k.bx(-0.497, 0.497, -0.497, 0.497, 0.16, H - 0.33, 'stone')
+    k.bx(-0.5, 0.5, -0.5, 0.5, 0, 0.16, 'nero', ink=False)
+    k.bx(-0.5, 0.5, -0.5, 0.5, H - 0.33, H - 0.012, 'stone2', ink=False)
+    k.bx(-0.5, 0.5, -0.5, 0.5, DECK - 0.34, DECK - 0.06, 'stone2', ink=False)
     return k
 
 
@@ -166,20 +166,21 @@ def gate_side(k):
 
 
 # ================================================================ interior walls (two-sided)
-def panel_face(k, kind, v):
+def panel_face(k, kind, v, dz=0.0):
     """One face of an interior wall module (face at y = -0.5, facing -Y): walnut wainscot, a gilt-framed silk panel,
-    the belt course at the mezzanine height, a tall upper panel, the cornice."""
-    y = -0.5
-    k.bx(-0.5, 0.5, y - 0.04, y, 0, 1.0, 'walnut')
-    k.bx(-0.5, 0.5, y - 0.05, y, 1.0, 1.05, 'gold', ink=False)
+    the belt course at the mezzanine height, a tall upper panel, the cornice. dz lifts the protruding bands (the _V
+    modules of N-S runs): where two runs meet in a room corner their bands cross, at heights 6 mm apart."""
+    y = -0.497   # 3 mm in from the cell edge: a corner neighbour's bands end on the cell edge
+    k.bx(-0.5, 0.5, y - 0.04, y, dz, 1.0 + dz, 'walnut')
+    k.bx(-0.5, 0.5, y - 0.05, y, 1.0 + dz, 1.05 + dz, 'gold', ink=False)
     for (x0, x1) in ((-0.42, -0.06), (0.06, 0.42)):
         k.qy(x0, x1, 0.18, 0.86, y - 0.043, -1, 'walnut2')
     k.qy(-0.5, 0.5, 1.05, DECK - 0.4, y - 0.003, -1, 'silk')
-    k.bx(-0.5, 0.5, y - 0.06, y, DECK - 0.4, DECK, 'stone2')
-    k.bx(-0.5, 0.5, y - 0.03, y, DECK - 0.55, DECK - 0.4, 'stone', ink=False)
+    k.bx(-0.5, 0.5, y - 0.06, y, DECK - 0.4 + dz, DECK + dz, 'stone2')
+    k.bx(-0.5, 0.5, y - 0.03, y, DECK - 0.55 + dz, DECK - 0.4 + dz, 'stone', ink=False)
     k.qy(-0.5, 0.5, DECK, H - 0.4, y - 0.003, -1, 'silk')
-    k.bx(-0.5, 0.5, y - 0.08, y, H - 0.4, H, 'stone2')
-    k.bx(-0.5, 0.5, y - 0.1, y - 0.08, H - 0.32, H - 0.24, 'gold', ink=False)
+    k.bx(-0.5, 0.5, y - 0.08, y, H - 0.4 + dz, H - 2 * dz, 'stone2')
+    k.bx(-0.37, 0.37, y - 0.1, y - 0.08, H - 0.32, H - 0.24, 'gold', ink=False)
     # gilt mouldings framing the panels
     for (z0, z1) in ((1.25, DECK - 0.75), (DECK + 0.3, H - 0.7)):
         for (a, b, c, d) in ((-0.4, 0.4, z0, z0 + 0.03), (-0.4, 0.4, z1 - 0.03, z1), (-0.4, -0.37, z0 + 0.03, z1 - 0.03), (0.37, 0.4, z0 + 0.03, z1 - 0.03)):
@@ -198,13 +199,21 @@ def panel_face(k, kind, v):
         sconce(k, 0, y - 0.003, 6.7)
 
 
-def inner_wall(k, kind, v=0):
+def inner_wall(k, kind, v=0, dz=0.0):
     k.begin()
-    k.bx(-0.5, 0.5, -0.5, 0.5, 0, H, 'stone', ink=False)
-    panel_face(k, kind, v)
+    k.bx(-0.5, 0.5, -0.497, 0.497, 0, H, 'stone', ink=False)
+    panel_face(k, kind, v, dz)
     k.push(0, 0, 180)
-    panel_face(k, kind, v + 1)
+    panel_face(k, kind, v + 1, dz)
     k.pop()
+    return k
+
+
+def suite_front(k, kind):
+    """One-sided corridor wall in front of a suite (the suite piece draws the room side): the panelled face only."""
+    k.begin()
+    k.bx(-0.5, 0.5, -0.497, 0.497, 0, H, 'stone', ink=False)
+    panel_face(k, kind, 0)
     return k
 
 
@@ -212,14 +221,14 @@ def lift_half(k, side):
     """One cell of a pair of bronze lift doors (two-sided interior module; the door pair spans two cells, side +1: the
     pair's centre on this cell's +X edge): an etched leaf, the architrave, an arched floor dial above."""
     k.begin()
-    k.bx(-0.5, 0.5, -0.5, 0.5, 0, H, 'stone', ink=False)
+    k.bx(-0.5, 0.5, -0.497, 0.497, 0, H, 'stone', ink=False)
     sx = side
     cx = 0.5 * sx
     for f in (-1, 1):
         k.push(0, 0, 0 if f < 0 else 180)
         s_ = sx if f < 0 else -sx
         c_ = 0.5 * s_
-        y = -0.5
+        y = -0.497
         k.bx(-0.5, 0.5, y - 0.04, y, 0, 0.12, 'nero', ink=False)
         lo, hi = srt(c_ * 0.994, c_ - s_ * 0.7)
         k.bx(lo, hi, y - 0.025, y + 0.003, 0.0, 2.55, 'bronze')                 # leaf (half of the pair)
@@ -253,8 +262,8 @@ def suite_window(k):
     suite's ceiling is at 3.3 m (stone above it)."""
     k.begin()
     k.bx(-0.5, 0.5, -0.5, 0.5, 0, 0.6, 'stone')
-    k.bx(-0.5, 0.5, -0.56, -0.5, 0, 0.12, 'walnut2', ink=False)
-    k.bx(-0.5, 0.5, -0.58, -0.5, 0.58, 0.64, 'marble')
+    k.bx(-0.497, 0.497, -0.56, -0.497, 0, 0.12, 'walnut2', ink=False)
+    k.bx(-0.497, 0.497, -0.58, -0.494, 0.58, 0.64, 'marble')
     k.bx(-0.5, 0.5, -0.5, 0.5, RH - 0.25, H, 'stone')
     k.bx(-0.5, 0.5, -0.05, 0.05, 0.6, 0.68, 'bronze', ink=False)
     k.bx(-0.5, 0.5, -0.05, 0.05, RH - 0.31, RH - 0.25, 'bronze', ink=False)
@@ -287,9 +296,9 @@ def doorway(k, part, lintel=2.7):
     """Passage cell (two-sided): open below `lintel`, a gilt architrave on the outer jamb(s), a carved transom
     panel above. part: 'L' (jamb at local -X), 'R' (jamb at +X), 'M' (no jamb)."""
     k.begin()
-    k.bx(-0.5, 0.5, -0.5, 0.5, lintel, H, 'stone', ink=False)
+    k.bx(-0.5, 0.5, -0.497, 0.497, lintel, H, 'stone', ink=False)
     for f in (-1, 1):
-        y = f * 0.5
+        y = f * 0.497
         y0, y1 = srt(y, y + f * 0.08)
         k.bx(-0.497, 0.497, y0, y1, lintel, lintel + 0.18, 'gold')
         ya, yb = srt(y, y + f * 0.003)
@@ -318,11 +327,11 @@ def sky_glass(k, fin=False):
     k.bx(-0.5, 0.5, -0.5, 0.5, 0, 0.12, 'nero')
     for s in (-1, 1):
         x0, x1 = srt(s * 0.5, s * 0.465)
-        k.bx(x0, x1, -0.06, 0.06, 0.12, H - 0.4, 'bronze')
+        k.bx(x0, x1, -0.06, 0.06, 0.12, H - 0.42, 'bronze')
     for z in (3.0, 6.0):
         k.bx(-0.465, 0.465, -0.03, 0.03, z, z + 0.05, 'bronze', ink=False)
-    k.bx(-0.5, 0.5, -0.5, 0.5, H - 0.4, H, 'bronze')
-    k.bx(-0.5, 0.5, -0.52, -0.5, H - 0.36, H - 0.3, 'gold', ink=False)
+    k.bx(-0.5, 0.5, -0.5, 0.5, H - 0.42, H, 'bronze')
+    k.bx(-0.497, 0.497, -0.52, -0.497, H - 0.36, H - 0.3, 'gold', ink=False)
     k.bx(-0.5, 0.5, -0.38, -0.31, 1.02, 1.08, 'brass')                              # rail of the glass balustrade
     k.bx(-0.03, 0.03, -0.37, -0.32, 0.12, 1.02, 'bronze', ink=False)
     for s in (-1, 1):
@@ -547,7 +556,7 @@ def rails(k):
     k.col(-0.1, 0.1, -0.5, 0.5, 0, 1.1)
     k.finish('RailFull')
     k.begin()
-    k.bx(-0.1, 0.1, -0.1, 0.1, 0, 1.0, 'marble')
+    k.bx(-0.1, 0.1, -0.1, 0.1, 0.004, 1.0, 'marble')
     k.bx(-0.12, 0.12, -0.12, 0.12, 1.0, 1.08, 'walnut')
     k.sph(0, 0, 1.15, 0.07, 'gold', seg=(6, 4), ink=False)
     k.finish('RailPost')

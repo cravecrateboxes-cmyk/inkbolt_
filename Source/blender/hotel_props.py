@@ -38,9 +38,10 @@ def reception(k):
     for x in (-0.9, 0.9):
         dining_chair(k, x, 0.35, 0, 'wine')
     # backdrop (y 1.6 .. 1.9): walnut wall, crest, clocks
+    k.push(0, -0.16)
     k.bx(-2.8, 2.8, 1.6, 1.95, 0, 3.4, 'walnut')
-    k.bx(-2.9, 2.9, 1.55, 2.0, 3.4, 3.6, 'gold')
-    k.bx(-2.9, 2.9, 1.55, 2.0, 0, 0.12, 'nero', ink=False)
+    k.bx(-2.9, 2.9, 1.55, 1.97, 3.4, 3.6, 'gold')
+    k.bx(-2.9, 2.9, 1.55, 1.97, 0, 0.12, 'nero', ink=False)
     for x in (-2.0, 0.0, 2.0):
         k.qy(x - 0.75, x + 0.75, 0.3, 3.2, 1.597, -1, 'walnut2')
     for i, (x, city) in enumerate(((-2.0, 'LONDON'), (0.0, 'NEW YORK'), (2.0, 'TOKYO'))):
@@ -51,8 +52,9 @@ def reception(k):
         k.poly([(x - 0.012, 1.585, 2.35), (x + 0.012, 1.585, 2.35), (x, 1.585, 2.58)], 'black', (0, -1, 0))
         txt(k, city, x, 1.594, 1.8, 0.1, 'gold', font='sans', valign='m', maxw=1.2)
     txt(k, 'THE AURELIAN', 0, 1.594, 2.98, 0.2, 'gold', font='serif', valign='m', maxw=3.0)
+    k.pop()
     k.col(-2.7, 2.7, -1.1, -0.3, 0, 1.15)
-    k.col(-2.8, 2.8, 1.6, 1.95, 0, 3.4)
+    k.col(-2.8, 2.8, 1.44, 1.79, 0, 3.4)
     return k
 
 
@@ -386,11 +388,11 @@ def stage(k):
     k.bx(-3.9, 3.9, -1.93, -1.9, 0.05, Hs - 0.04, 'gold', ink=False)
     k.col(-3.9, 3.9, -1.9, 1.6, 0, Hs, True)
     # drape backdrop
-    k.bx(-3.95, 3.95, 1.6, 1.95, 0, 5.6, 'wine')
+    k.bx(-3.95, 3.95, 1.6, 1.88, 0, 5.6, 'wine')
     for i in range(16):
         x = -3.8 + i * 0.5
         k.qy(x, x + 0.18, 0.4, 5.1, 1.597, -1, 'wine2')
-    k.bx(-4.0, 4.0, 1.3, 2.0, 5.1, 5.9, 'gold')
+    k.bx(-4.0, 4.0, 1.3, 1.86, 5.1, 5.9, 'gold')
     for i in range(8):
         x = -3.5 + i * 1.0
         k.poly([(x - 0.45, 1.297, 5.1), (x + 0.45, 1.297, 5.1), (x, 1.297, 4.75)], 'gold', (0, -1, 0))
@@ -399,7 +401,7 @@ def stage(k):
         x0, x1 = srt(s * 3.95, s * 3.3)
         k.bx(x0, x1, 1.0, 1.596, 0, 5.1, 'wine')
         k.bx(min(s * 3.6, s * 3.7), max(s * 3.6, s * 3.7), 0.95, 1.65, 1.6, 1.7, 'gold', ink=False)
-    k.col(-3.95, 3.95, 1.6, 1.95, 0, 5.6)
+    k.col(-3.95, 3.95, 1.6, 1.88, 0, 5.6)
     for s in (-1, 1):
         x0, x1 = srt(s * 3.95, s * 3.3)
         k.col(x0, x1, 1.0, 1.6, 0, 5.1)

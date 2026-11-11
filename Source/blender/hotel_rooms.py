@@ -35,10 +35,7 @@ def shell(k, paper, accent, carpet):
         k.bx(a0, a1, WY0, WY0 + 0.035, 0.86, 0.9, accent, ink=False)
     k.qy(-DOOR, DOOR, 2.7, RH, WY0, 1, paper)
     k.bx(-WX + 0.08, WX - 0.08, WY0, WY0 + 0.08, RH - 0.16, RH, 'cream', ink=False)
-    for s in (-1, 1):   # door architrave on the room side
-        x0, x1 = srt(s * DOOR, s * (DOOR + 0.12))
-        k.bx(x0, x1, WY0, WY0 + 0.05, 0.0, 2.7, 'ivory')
-    k.bx(-DOOR - 0.12, DOOR + 0.12, WY0, WY0 + 0.05, 2.7, 2.82, 'ivory')
+    # (the doorway modules' gilt jambs and lintel frame the door on this side too)
     # ceiling, a cove light and a small gilt pendant
     k.qz(-WX, WX, WY0, WY1, RH, -1, 'cream')
     disc(k, 0, 0.4, RH - 0.004, 0.35, 'silk2', n=12, up=False)

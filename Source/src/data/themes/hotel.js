@@ -52,13 +52,14 @@
     }
     return cache[r];
   }
-  var INNER = ['Wall_Sconce', 'Wall_Plain', 'Wall_Art', 'Wall_Sconce', 'Wall_Mirror', 'Wall_Plain', 'Wall_Art'];
+  var INNER = ['Wall_Sconce', 'Wall_Plain', 'Wall_Art'];
   var SUITE = 'MNW';
   // panelled walls in a rhythm along the run: a pair of sconces every 4 m, a painting or a mirror between them
-  function panel(a, hash, c, r) {
+  function panel(a, hash, c, r, grid) {
     var k = ((a % 4) + 4) % 4;
+    if (grid && [grid.at(c - 1, r), grid.at(c + 1, r), grid.at(c, r - 1), grid.at(c, r + 1)].indexOf('g') >= 0) return 'Wall_Plain';   // behind a fireplace
     if (k === 0) return 'Wall_Sconce';
-    if (k === 2) { var h = hash(c * 5 + 1, r * 11 + 7); return h < 0.45 ? 'Wall_Art' : h < 0.7 ? 'Wall_Mirror' : 'Wall_Plain'; }
+    if (k === 2) { var h = hash(c * 5 + 1, r * 11 + 7); return h < 0.6 ? 'Wall_Art' : 'Wall_Plain'; }
     return 'Wall_Plain';
   }
   /* The 3 m bays of a facade or a lift wall: a pier, then an arch pair (the two cells' partner sides). N / S walls run
@@ -84,10 +85,13 @@
       var lo = along ? grid.at(c - 1, r) !== 'n' : grid.at(c, r + 1) !== 'n', hi = along ? grid.at(c + 1, r) !== 'n' : grid.at(c, r - 1) !== 'n';
       return lo ? 'Door_L' : hi ? 'Door_R' : 'Door_M';
     }
-    if ((west || east) && (north || south)) return 'Core';
+    // the outer corner cell stays empty (hidden behind its two neighbours); the E / W walls end on a plain core, whose
+    // bands sit at their own heights, where they meet the N / S walls' bands in the room's corner
+    if ((west || east) && (north || south)) return null;
     if (west || east || north || south) {
       var inward = west ? grid.at(1, r) : east ? grid.at(W - 2, r) : north ? grid.at(c, 1) : grid.at(c, Hh - 2);
       if (wallish(inward) || face === 'corner' || face === 'none') return 'Core';
+      if ((west || east) && (r === 1 || r === Hh - 2)) return 'Core';
       if (K === 'ball' && west && SUITE.indexOf(inward) >= 0) return 'SuiteWin';
       var ns = north || south, b = bay(c, r, grid, ns);
       if (b.pos === 'side') return null;   // the gate portal's posts stand there
@@ -99,7 +103,7 @@
       var inner = (K === 'lobby' && north) || (K === 'ball' && ns) || (K === 'sky' && north);
       if (K === 'sky' && !inner) return (ns ? Math.abs(c + 0.5 - W / 2) : r) % 4 < 1 ? 'SkyFin' : 'SkyGlass';
       if (inner) {   // interior lift walls: lift pairs in the bays, panels on the piers (the ballroom's north wall: panels)
-        if (b.pos === 'pier' || (K === 'ball' && north) || K === 'sky' || b.bay < 1 || b.bay > 2) return panel(ns ? c : r, hash, c, r);
+        if (b.pos === 'pier' || (K === 'ball' && north) || K === 'sky' || b.bay < 1 || b.bay > 2) return panel(ns ? c : r, hash, c, r, grid);
         return 'Lift' + half(b, south, west);
       }
       if (b.pos === 'pier') return 'Pier';
@@ -111,8 +115,11 @@
     if (K === 'ball' && c >= 1 && c <= 6 && [grid.at(c, r - 1), grid.at(c, r + 1)].every(function (q) { return wallish(q) || SUITE.indexOf(q) >= 0; })) return null;
     var vert = wallish(grid.at(c, r - 1)) || wallish(grid.at(c, r + 1));
     if (corner || !(horiz || vert)) return 'Core';
-    if (grid.at(c - 1, r) === 'n' || grid.at(c + 1, r) === 'n' || grid.at(c, r - 1) === 'n' || grid.at(c, r + 1) === 'n') return 'Wall_Sconce';
-    return panel(horiz ? c : r, hash, c, r);
+    var byDoor = grid.at(c - 1, r) === 'n' || grid.at(c + 1, r) === 'n' || grid.at(c, r - 1) === 'n' || grid.at(c, r + 1) === 'n';
+    if (K === 'ball' && SUITE.indexOf(grid.at(c - 1, r)) >= 0) return byDoor ? 'SuiteFront_Sconce' : 'SuiteFront_Plain';   // the suite draws its side
+    var V = horiz ? '' : '_V';   // N-S runs: bands lifted 6 mm (they cross the E-W runs' bands in the corners)
+    if (byDoor) return 'Wall_Sconce' + V;
+    return panel(horiz ? c : r, hash, c, r, grid) + V;
   }
 
   // upholstery: palette cells (blender/hotel_base.py order, BASE first) wine 21 -> emerald 24 / navy 26 / teal 28
@@ -164,7 +171,7 @@
       'Q': { size: [3, 2], pieces: ['Concierge'], kind: 'cover' },
       'X': { size: [8, 4], pieces: ['Landmark_Bar'], orient: 'wall', kind: 'cover' },
       'b': { pieces: ['Stool'], rotate: 'random90', kind: 'cover' },
-      'L': { size: [4, 3], pieces: ['Lounge_A', 'Lounge_B'], flip: true, paint: FABRIC, kind: 'cover' },
+      'L': { size: [4, 3], pieces: ['Lounge_A'], flip: true, paint: FABRIC, kind: 'cover' },
       'K': { size: [3, 3], pieces: ['Piano'], flip: true, kind: 'cover' },
       'F': { size: [3, 3], pieces: ['Landmark_Flowers'], kind: 'cover' },
       'c': { pieces: ['LuggageCart'], rotate: 'random90', kind: 'cover' },
@@ -241,9 +248,9 @@
     budget: { prop: 3600, landmark: 6000, total: 100000 },
     allPieces: function () {
       var out = ['Win_A', 'Win_B', 'Revolve_A', 'Revolve_B', 'Pier', 'Core', 'Lift_A', 'Lift_B', 'SuiteWin', 'SkyGlass', 'SkyFin',
-        'Door_L', 'Door_M', 'Door_R', 'GateFrame', 'GateShutter', 'TrailWall', 'TrailWall_Pipe', 'TrailWall_Hose', 'TrailWall_Lift',
+        'Door_L', 'Door_M', 'Door_R', 'SuiteFront_Plain', 'SuiteFront_Sconce', 'GateFrame', 'GateShutter', 'TrailWall', 'TrailWall_Pipe', 'TrailWall_Hose', 'TrailWall_Lift',
         'TrailWall_F24', 'TrailWall_F56', 'TrailWall_FR', 'TrailEnd', 'Hatch', 'Stand', 'Rail', 'RailFull', 'RailPost', 'Street_Canopy', 'Street_Taxi', 'Street_Lamp'];
-      INNER.forEach(function (n) { if (out.indexOf(n) < 0) out.push(n); });
+      INNER.forEach(function (n) { if (out.indexOf(n) < 0) out.push(n, n + '_V'); });
       var sym = this.symbols;
       Object.keys(sym).forEach(function (ch) {
         var d = sym[ch]; (d.pieces || []).concat(d.full ? [d.full] : [], d.post ? [d.post] : []).forEach(function (n) { if (out.indexOf(n) < 0) out.push(n); });

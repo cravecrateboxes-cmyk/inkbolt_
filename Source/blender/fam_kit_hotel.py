@@ -23,8 +23,11 @@ def build_kit_hotel(ao):
     S.win_half(k, -1, revolve=True).finish('Revolve_B', ao=ao)
     S.win_pier(k).finish('Pier', ao=ao)
     S.core(k).finish('Core', ao=ao)
-    for i, kind in enumerate(('Plain', 'Sconce', 'Art', 'Mirror')):
+    for i, kind in enumerate(('Plain', 'Sconce', 'Art')):
         S.inner_wall(k, kind, i).finish('Wall_' + kind, ao=ao)
+        S.inner_wall(k, kind, i + 1, 0.006).finish('Wall_' + kind + '_V', ao=ao)
+    for kind in ('Plain', 'Sconce'):
+        S.suite_front(k, kind).finish('SuiteFront_' + kind, ao=ao)
     S.lift_half(k, 1).finish('Lift_A', ao=ao)
     S.lift_half(k, -1).finish('Lift_B', ao=ao)
     S.suite_window(k).finish('SuiteWin', ao=ao)
@@ -71,7 +74,6 @@ def build_kit_hotel(ao):
     PR.bar(k).finish('Landmark_Bar', ao=ao)
     PR.stool(k).finish('Stool', ao=ao)
     PR.lounge(k, 'A').finish('Lounge_A', ao=ao)
-    PR.lounge(k, 'B').finish('Lounge_B', ao=ao)
     PR.piano(k).finish('Piano', ao=ao)
     PR.flower_table(k).finish('Landmark_Flowers', ao=ao)
     PR.luggage_cart(k).finish('LuggageCart', ao=ao)

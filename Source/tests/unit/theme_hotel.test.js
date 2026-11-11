@@ -178,7 +178,8 @@ test('wall chooser: every wall cell resolves to a kit piece; arch halves pair up
       const horiz = solid(c - 1, r) || solid(c + 1, r), vert = solid(c, r - 1) || solid(c, r + 1);
       const got = TH.wall.choose(c, r, horiz, horiz && vert, hash, g, face);
       if (got === null) {   // the suite band (each suite draws its walls) and the gate portal's posts
-        assert.ok((m.name === 'hotel_ballroom' && c >= 1 && c <= 6) || ('GE'.includes(g.at(c - 1, r)) || 'GE'.includes(g.at(c + 1, r))), 'no module at ' + c + ',' + r);
+        const cornerCell = (c === 0 || c === g.w - 1) && (r === 0 || r === g.h - 1);
+        assert.ok(cornerCell || (m.name === 'hotel_ballroom' && c >= 1 && c <= 6) || ('GE'.includes(g.at(c - 1, r)) || 'GE'.includes(g.at(c + 1, r))), 'no module at ' + c + ',' + r);
         continue;
       }
       assert.ok(pieces.has(got), m.name + ' ' + c + ',' + r + ' ' + got);
