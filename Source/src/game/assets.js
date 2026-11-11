@@ -49,6 +49,13 @@
     var c = toFloat(g.attributes.color), cc = new Float32Array(g.attributes.color.count * 3);
     for (var i = 0, n = g.attributes.color.count, s = g.attributes.color.itemSize; i < n; i++) { cc[i * 3] = c[i * s]; cc[i * 3 + 1] = c[i * s + 1]; cc[i * 3 + 2] = c[i * s + 2]; }
     out.setAttribute('color', new THREE.BufferAttribute(cc, 3));
+    // vertex colour alpha marks a removable piece (the Soldier's carbine, which the Grenadier swaps for its launcher):
+    // kept as aMask (1 shown, 0 the piece) only on meshes that have such vertices
+    if (g.attributes.color.itemSize === 4) {
+      var am = null, cs = g.attributes.color.count;
+      for (var ai = 0; ai < cs; ai++) if (c[ai * 4 + 3] < 0.5) { am = new Float32Array(cs); break; }
+      if (am) { for (ai = 0; ai < cs; ai++) am[ai] = c[ai * 4 + 3] < 0.5 ? 0 : 1; out.setAttribute('aMask', new THREE.BufferAttribute(am, 1)); }
+    }
     // _HULL is written in Blender axes (Z-up): convert to Y-up (x, z, -y)
     var h = toFloat(g.attributes._hull), hh = new Float32Array(h.length);
     for (var k = 0; k < h.length; k += 3) { hh[k] = h[k] * HULL_SCALE; hh[k + 1] = h[k + 2] * HULL_SCALE; hh[k + 2] = -h[k + 1] * HULL_SCALE; }

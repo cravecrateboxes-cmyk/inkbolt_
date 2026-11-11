@@ -152,7 +152,7 @@
     if (k === 'boom') { Pj.explode(x, y, z, 1.7, b.dmg * 0.8, 0, null); return; }
     var c = KIND[k][1].getHex();
     if (IB.Boom && IB.Boom.ready) { if (k === 'shock') IB.Boom.zap(x, y, z, 0.6, c); else IB.Boom.sparks(x, y, z, 0, 0.6, 0, 8, c); }
-    if (FX) FX.puff(x, y, z, 5, c, 0.12, 0.4, 2.2);
+    if (IB.FX) IB.FX.puff(x, y, z, 5, c, 0.12, 0.4, 2.2);
     if (onPlayer && IB.Troops && IB.Troops.dot) IB.Troops.dot(k, b.src, k === 'shock' ? 3 : 2.5, k === 'shock' ? 2 : 3.5);
   }
   Pj.fire = function (x, y, z, dx, dy, dz, speed, dmg, src, vs) {

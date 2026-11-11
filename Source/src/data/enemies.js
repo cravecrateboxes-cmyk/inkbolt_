@@ -110,6 +110,53 @@
     }
   };
 
+  /* ---- levels 20+ (levelplans.js lateWaves turns the theme files' gunner / bomber / drone / soldier entries into these)
+     Robot Trooper (game/troops.js + trooperrig.js): a gun-wielding robot built like the Soldier (same rig, animations
+     and brain) from robotic parts: servo joints, piston limbs, a segmented chassis, a sensor head with one optic.
+     Normal carbine rounds only, no grenades, a light armour pool (shield) that recharges slowly; a threat between a
+     Gunner and a Soldier. Its guns drop at 40 % of a Soldier's rates. */
+  ENEMIES.mech = {
+    id: 'mech', name: 'Robot Trooper', built: 'Gun-wielding robot trooper: servo joints, piston limbs, sensor optic', first: 20,
+    hp: 85, shield: 25, shieldPool: true, shieldDelay: 5, shieldRate: 12, speed: 3.0, chargeSpeed: 0,
+    attack: '3-round carbine bursts (normal rounds), rifle-butt strike', damage: 6, bolts: 3, boltSpeed: 52,
+    windup: 0.5, recover: 0.8, range: 24, keepDistance: [8, 16], usesCover: true, grenades: 0,
+    meleeDamage: 12, meleeRange: 2.1, meleeWindup: 0.45, meleeKnock: 5,
+    gems: { chip: 3, shard: 0, core: 0 }, cost: 3, color: '#A9B3BF',
+    radius: 0.36, height: 1.88, coreOffset: [0, 1.36, -0.17], coreRadius: 0.11,
+    weaponDrops: { gray: 0.048, green: 0.024, blue: 0.016, purple: 0.0064, orange: 0.0016 },   // 40 % of a Soldier's
+    notes: 'Robot Trooper: tougher than a Gunner, no grenades; its light armour recharges slowly'
+  };
+  /* Grenadier: a Soldier (same kit, armour colours, shield, rifle butt and drops) holding a 6-shot grenade launcher
+     instead of the carbine. One 40 mm grenade per volley on a high arc, a red ring on the ground where it will land,
+     it bursts on impact (or after shellFuse s if it comes to rest), far slower than a Soldier's bursts (fireEvery s). */
+  ENEMIES.grenadier = {
+    id: 'grenadier', name: 'Grenadier', built: 'Soldier with a 6-shot grenade launcher', first: 20,
+    hp: 80, shield: 60, shieldPool: true, shieldDelay: 3.5, shieldRate: 24, speed: 3.0, chargeSpeed: 0,
+    attack: 'Lobs 40 mm grenades (red ring where they land, burst on impact), rifle-butt strike', damage: 26,
+    launcher: true, shellDamage: 26, shellRobotDamage: 14, shellRadius: 3.0, shellFuse: 0.45, fireEvery: [3.4, 5.0], minRange: 5,
+    windup: 0.7, recover: 0.9, range: 26, keepDistance: [9, 17], usesCover: true, grenades: 0,
+    meleeDamage: 14, meleeRange: 2.2, meleeWindup: 0.4, meleeKnock: 6,
+    gems: { chip: 4, shard: 0, core: 0 }, cost: 3.5, color: '#D9A441',
+    armour: ['#EEF1F5', '#9EA5B0', '#6F95D8', '#9B7BD8', '#474C59', '#C46C6C'], torsos: ['A', 'B'], helmets: ['A', 'B', 'C'],
+    radius: 0.36, height: 1.88, coreOffset: [0, 1.32, 0.17], coreRadius: 0.11,
+    weaponDrops: { gray: 0.12, green: 0.06, blue: 0.04, purple: 0.016, orange: 0.004 },
+    notes: 'Watch for the red ring and step out of it; slow to reload'
+  };
+  /* Hawk: an advanced aerial robot (sleek armoured fuselage, ducted fans, sensor eye, chin turret). Hovers and strafes
+     like the Drone, a little faster and tougher, dodges when hit. Each Hawk fires one round type, shown by its accent
+     colour (rounds: odds per Hawk): normal (steel white), shock (blue: electric damage over time), acid (green: acid
+     damage over time) or explosive (orange: a small blast). */
+  ENEMIES.hawk = {
+    id: 'hawk', name: 'Hawk', built: 'Armoured aerial robot with ducted fans and a chin turret', first: 20,
+    hp: 50, shield: 0, speed: 5.4, chargeSpeed: 0, attack: '3-round bursts of normal, shock, acid or explosive rounds',
+    damage: 5, bolts: 3, boltSpeed: 30, windup: 0.4, recover: 0.75, range: 22, flying: true, hover: 3.3,
+    rounds: { bullet: 0.4, shock: 0.2, acid: 0.2, boom: 0.2 },
+    roundColors: { bullet: '#E6ECF5', shock: '#3FC8FF', acid: '#6BE03A', boom: '#FF7A1E' },
+    gems: { chip: 3, shard: 0, core: 0 }, cost: 2.5, color: '#3FC8FF', keepDistance: [9, 17],
+    radius: 0.45, height: 0.6, coreOffset: [0, 0.17, 0.17], coreRadius: 0.12,
+    notes: 'Its accent colour tells its rounds: white normal, blue shock, green acid, orange explosive'
+  };
+
   var BOSSES = {
     skimmer: {
       id: 'skimmer', name: 'Skimmer', level: 5, theme: 'pool', hp: 2500,
@@ -167,7 +214,7 @@
   };
 
   IB.ENEMIES = ENEMIES;
-  IB.ENEMY_ORDER = ['crawler', 'gunner', 'bomber', 'tosser', 'drone', 'shieldbot', 'bruiser', 'binhive', 'soldier', 'blader'];
+  IB.ENEMY_ORDER = ['crawler', 'gunner', 'bomber', 'tosser', 'drone', 'shieldbot', 'bruiser', 'binhive', 'soldier', 'blader', 'mech', 'grenadier', 'hawk'];
   IB.BOSSES = BOSSES;
   IB.BOSS_ORDER = ['skimmer', 'dumpstertank', 'cartcolossus', 'compactorprime'];
   IB.BOSS_RULES = BOSS_RULES;

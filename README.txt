@@ -132,6 +132,37 @@ SOLDIERS AND BLADE BOTS (src/game/troops.js, rows in src/data/enemies.js, models
   also shocks you for 2 s), overshoots and stays dizzy for 1.4 s, taking 35% more damage. Stand next to it and it spin
   slashes in place. Kills have a 7% chance to drop its weapon. Both grow with the level like every robot.
 
+ROBOTS OF LEVELS 20+ (rows mech / grenadier / hawk in src/data/enemies.js; src/game/troops.js, trooperrig.js, ai.js;
+  models in blender/fam_trooper.py (fps-troopers.glb) and blender/fam_bots.py (fps-bots.glb))
+  From campaign level 20 on, the Gunner (green trash-can robot) and the Bomber (blue bomb bot) are gone; levels 1-19
+  play exactly as before. The mapping runs once per level plan in src/data/levelplans.js (IB.lateWaves, called at the
+  end of tuneWaves, after the 5%-a-level climb is settled on the old robots; IB.LATE_WAVES holds the numbers):
+    gunner + bomber -> Robot Trooper ('mech'), 0.6 per robot (it is about twice as tough as a Gunner);
+    drone -> Hawk ('hawk'), 0.75 per robot; a quarter of the soldiers -> Grenadier ('grenadier').
+  The shares are carried over the waves of the whole level, so a level holds exactly the rounded share (3/4 Soldiers,
+  1/4 Grenadiers) and each wave is within one robot of it; a wave of 4 or more soldiers always has a Grenadier, a wave
+  that had gunners / bombers / drones keeps at least one Robot Trooper / Hawk. Theme files keep writing gunner, drone,
+  soldier (bomber 0-2 a wave); a plan with lateRobots: false keeps the old robots, and waves may name mech / hawk /
+  grenadier directly (left as written).
+  Robot Trooper: built like the Soldier (same rig, animations and brain) but a robot: segmented armoured chassis with a
+    back reactor (its weak spot), servo joints, piston forearms and shins, cable runs, a sensor head with one red optic,
+    each segment skinned to one bone; four colourways (gunmetal, olive, sand, arctic). Fires 3-round carbine bursts of
+    normal rounds only, no grenades, rifle-butts up close; a light armour pool (25 vs the Soldier's 60, slower recharge).
+    Guns drop at 40% of a Soldier's rates.
+  Grenadier: a Soldier (same kit colours, shield, rifle butt and drops) holding a 6-shot 40 mm grenade launcher (olive,
+    revolving drum) with a bandolier of grenades across the chest; its carbine is hidden (the carbine's vertices carry
+    vertex alpha 0 -> aMask). One grenade per volley every 3.4-5 s on a high arc; a red ring waits where it will land;
+    it bursts on impact (or 0.45 s after it comes to rest): 3 m blast.
+  Hawk: an armoured aerial robot (graphite fuselage, V-tail, two ducted fans that tilt with its flight, a chin turret, a
+    sensor eye). Orbits like the Drone, faster and tougher, darts aside when hit. Each Hawk fires one round type, shown by
+    its accent strips, duct rims, thruster glow and eye: steel white = normal, blue = shock (electric damage over time),
+    green = acid (acid damage over time), orange = explosive (a small blast); 40 / 20 / 20 / 20%. Shot down, it drops
+    out of the air and blows up where it lands.
+  Crawler: from level 20, half the Crawlers wear an advanced skin of the same silhouette (plated shell, sloped head ring,
+    wrap-around cyan visor, panel lines and bolts), painted per crawler by a two-colour key-tint material (ai.js keyMat2):
+    66% grey / 33% black or 66% black / 33% grey, half each; one in three also carries white specks and a stencil chevron.
+  Review: node tests/e2e/latebots.spec.js (SHOTS=1 -> tests/e2e/review/latebots-*.png), tests/unit/latebots.test.js.
+
 LOOT AND GEAR
   About one robot in twenty drops an item: a drop pod with a beam in its rarity colour, also marked on the radar as a
   diamond. Walk over it to bag it; an empty slot is filled right away. Walking up to it shows its item card (stats,

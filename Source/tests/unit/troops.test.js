@@ -37,7 +37,7 @@ test('blade bot row: slow patrol, fast dizzy-ending dash, a katana or a Voltaxe 
 });
 
 test('new robots: registered, gem drops, models', () => {
-  assert.deepEqual(IB.ENEMY_ORDER.slice(-2), ['soldier', 'blader']);
+  assert.deepEqual(IB.ENEMY_ORDER.slice(8, 10), ['soldier', 'blader']);
   assert.ok(IB.GLB_BOT_NAMES.includes('BOT_SOLDIER') && IB.GLB_BOT_NAMES.includes('BOT_BLADER'));
   assert.equal(IB.Gems.robotDrop('soldier', 6, 0).total, 4);
   assert.equal(IB.Gems.robotDrop('blader', 6, 0).total, 3);
@@ -67,7 +67,9 @@ test('health, shield and damage grow with the level like every robot (never a wa
 });
 
 test('campaign waves: Soldiers from level 4, Blade Bots from level 7, growing with the level, totals climb', () => {
-  const count = (plan, t) => plan.zones.reduce((a, z) => a + z.waves.reduce((b, w) => b + w.filter((e) => e[0] === t).reduce((c, e) => c + e[1], 0), 0), 0);
+  // a Grenadier is a Soldier with a launcher (levels 20+: a quarter of the soldiers, levelplans.js lateWaves)
+  const same = (id, t) => id === t || (t === 'soldier' && id === 'grenadier');
+  const count = (plan, t) => plan.zones.reduce((a, z) => a + z.waves.reduce((b, w) => b + w.filter((e) => same(e[0], t)).reduce((c, e) => c + e[1], 0), 0), 0);
   let lastS = 0, lastB = 0;
   IB.CAMPAIGN.forEach((id) => {
     const p = IB.LEVEL_PLANS[id], L = p.level, s = count(p, 'soldier'), b = count(p, 'blader');
@@ -80,9 +82,9 @@ test('campaign waves: Soldiers from level 4, Blade Bots from level 7, growing wi
     assert.ok(all >= (globalThis.__lastAll || 0), id + ' has at least as many robots as the level before');
     globalThis.__lastAll = all;
     // the first wave of the first zone stays as it was (no new robots while the player settles in)
-    assert.ok(p.zones[0].waves[0].every((e) => e[0] !== 'soldier' && e[0] !== 'blader'), id + ' opening wave');
+    assert.ok(p.zones[0].waves[0].every((e) => e[0] !== 'soldier' && e[0] !== 'grenadier' && e[0] !== 'blader'), id + ' opening wave');
     for (const z of p.zones) for (const w of z.waves) {
-      const n = w.reduce((a, e) => a + e[1], 0), special = w.filter((e) => e[0] === 'soldier' || e[0] === 'blader').reduce((a, e) => a + e[1], 0);
+      const n = w.reduce((a, e) => a + e[1], 0), special = w.filter((e) => e[0] === 'soldier' || e[0] === 'grenadier' || e[0] === 'blader').reduce((a, e) => a + e[1], 0);
       assert.ok(special <= Math.ceil(n * 0.5), id + ' ' + z.map + ' never mostly elites');
     }
     lastS = s; lastB = b;

@@ -16,7 +16,7 @@
   var MAX = 24;                     // bars drawn at once (closest / most relevant win); keeps a 40-robot swarm readable
   var mesh = null, geo = null, aPos, aVal, aMeta, aCol, uni = null, _v = null, _d = null, _c = null;
   var TYPE_COL = {};                // robot type -> THREE.Color of its tab
-  var TOP = { crawler: 0.98, gunner: 1.12, bomber: 1.0, drone: 0.74, soldier: 1.98, blader: 1.02 };   // model top above r.y (m); others: hit capsule top + 0.3
+  var TOP = { crawler: 0.98, gunner: 1.12, bomber: 1.0, drone: 0.74, soldier: 1.98, blader: 1.02, mech: 1.98, grenadier: 1.98, hawk: 0.72 };   // model top above r.y (m); others: hit capsule top + 0.3
   var list = [], ALLY = null;                    // scratch: robots that want a bar this frame
 
   var VS = [

@@ -44,8 +44,10 @@
        light robots (crawler, drone, bomber, gunner); soldiers and blade bots keep their count, so the shooting
        grows faster than the danger.
      - The next wave drops in when 6 or fewer are left (game.js WAVE_NEXT), so there is little dead time. */
-  IB.MIN_LEVEL = { soldier: 4, blader: 7, bomber: 4 };   // no exploding Bombers before level 4
-  var LIGHT = { crawler: 1, drone: 1, bomber: 1, gunner: 1 };
+  IB.MIN_LEVEL = { soldier: 4, blader: 7, bomber: 4, mech: 20, hawk: 20, grenadier: 20 };   // no exploding Bombers before level 4
+  // what a robot named too early becomes (the levels 20+ robots step back to the robots they replace)
+  var EARLIER = { soldier: 'gunner', mech: 'gunner', hawk: 'drone', grenadier: 'soldier' };
+  var LIGHT = { crawler: 1, drone: 1, bomber: 1, gunner: 1, mech: 1, hawk: 1 };
   var ELITE_MUL = 2.5;   // Soldiers and Blade Bots: 2.5x the theme files' counts, light robots make room
   IB.WAVE_MUL = function (L) { return 1.15 + 0.45 * Math.min(1, Math.max(0, (L - 1) / 12)); };
   function total(p) { var t = 0; p.zones.forEach(function (z) { z.waves.forEach(function (w) { w.forEach(function (e) { t += e[1]; }); }); }); return t; }
@@ -68,7 +70,7 @@
         var out = {};
         w.forEach(function (e) {
           var id = e[0], n = e[1];
-          if (IB.MIN_LEVEL[id] && L < IB.MIN_LEVEL[id]) id = id === 'soldier' ? 'gunner' : 'crawler';
+          while (IB.MIN_LEVEL[id] && L < IB.MIN_LEVEL[id]) id = EARLIER[id] || 'crawler';
           if (LIGHT[id]) n = Math.round(n * m);
           out[id] = (out[id] || 0) + n;
         });
@@ -88,7 +90,47 @@
         return Object.keys(out).map(function (k) { return [k, out[k]]; });
       });
     });    smooth(p);
+    IB.lateWaves(p, L);
   }
+  /* Levels 20+ (LATE.level): the new robots take over from the old light ones, after the counts above are settled (so
+     the level-to-level climb is measured on the same robots as levels 1-19):
+       - gunner + bomber -> Robot Trooper ('mech'), LATE.mech per robot (they are tougher than a Gunner): 0.6
+       - drone -> Hawk ('hawk'), LATE.hawk per robot: 0.75
+       - a quarter of the soldiers -> Grenadier ('grenadier')
+     Every share is carried across the waves of the whole level (error diffusion), so the level as a whole holds
+     exactly the rounded share and each wave is within one robot of it; a wave that had gunners / bombers keeps at
+     least one mech, one that had drones at least one hawk, and a wave of 4 or more soldiers has at least one
+     grenadier. Theme options: plan.lateRobots === false keeps the old robots on that level; waves may also name
+     'mech', 'hawk' and 'grenadier' directly (they are left as written). Returns the plan. */
+  var LATE = IB.LATE_WAVES = { level: 20, mech: 0.6, hawk: 0.75, grenadier: 0.25 };
+  IB.lateWaves = function (p, L) {
+    if (!p || L < LATE.level || p.lateRobots === false || p.lateDone) return p;
+    p.lateDone = true;
+    var acc = { mech: [0, 0], hawk: [0, 0], grenadier: [0, 0] };   // [source robots so far, converted so far]
+    function share(k, n, minOne) {
+      if (n <= 0) return 0;
+      var a = acc[k]; a[0] += n;
+      var c = Math.round(a[0] * LATE[k]) - a[1];
+      c = Math.max(minOne ? 1 : 0, Math.min(k === 'grenadier' ? n : Math.max(1, n), c));
+      a[1] += c;
+      return c;
+    }
+    (p.zones || []).forEach(function (z) {
+      z.waves = (z.waves || []).map(function (w) {
+        var out = {}, order = [];
+        w.forEach(function (e) { if (!(e[0] in out)) { out[e[0]] = 0; order.push(e[0]); } out[e[0]] += e[1]; });
+        var gb = (out.gunner || 0) + (out.bomber || 0);
+        if (gb) { var m = share('mech', gb, true); delete out.gunner; delete out.bomber; out.mech = (out.mech || 0) + m; if (order.indexOf('mech') < 0) order.push('mech'); }
+        if (out.drone) { var h = share('hawk', out.drone, true); delete out.drone; out.hawk = (out.hawk || 0) + h; if (order.indexOf('hawk') < 0) order.push('hawk'); }
+        if (out.soldier) {
+          var g = share('grenadier', out.soldier, out.soldier >= 4);
+          out.soldier -= g; if (g) { out.grenadier = (out.grenadier || 0) + g; if (order.indexOf('grenadier') < 0) order.push('grenadier'); }
+        }
+        return order.filter(function (k) { return out[k] > 0; }).map(function (k) { return [k, out[k]]; });
+      });
+    });
+    return p;
+  };
   IB.CAMPAIGN = ORDER.filter(function (id) { return P[id]; });
   IB.CAMPAIGN.forEach(function (id, i) {
     var p = P[id];

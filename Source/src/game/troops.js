@@ -14,6 +14,9 @@
      seeing the player it homes in, spins up (whine, flashing tell), dashes spinning at ~19 rev/s with a smear arc,
      cuts on contact (the axe also shocks: damage over time on the player), overshoots and stays dizzy (takes extra
      damage). Standing next to it triggers a spin slash in place.
+   Levels 20+: the Robot Trooper ('mech') and the Grenadier share the Soldier's brain and rig (a Grenadier fires 40 mm
+     grenades from its launcher: launchShell, impact bursts, a red ring at the landing spot); the Hawk is a flyer with
+     its own parts and brain (thinkHawk), one special-round type per Hawk painted on its accents.
    Weapon drops: player kills call IB.WeaponDrops.roll(r) (Soldier) / IB.WeaponDrops.melee(r, r.weaponId) if present.
    Also here: the enemy grenade pool (rendered + simulated through AI.update / AI.sync / AI.clear wrappers), the
    blade smear arcs and the player's shock from the Voltaxe. Test hooks: IB.Troops.stats(), IB.Troops.grenades. */
@@ -51,7 +54,7 @@
       r.torso = (d.torsos || ['A'])[(Math.random() * (d.torsos || ['A']).length) | 0];
       r.helm = (d.helmets || ['A'])[(Math.random() * (d.helmets || ['A']).length) | 0];
       r.maxShield = r.shield = (d.shield || 0) * (AI.hpMul || 1); r.shT = 99; r.shFx = 0;
-      r.nades = d.grenades || 3; r.ncool = rnd(2.5, 5); r.mcool = 0; r.act = '';
+      r.nades = d.grenades !== undefined ? d.grenades : 3; r.ncool = rnd(2.5, 5); r.mcool = 0; r.act = '';
       // overwhelm control: about 40 % of soldiers are poorer shots (core/damage.js sloppyAim / SLOPPY)
       AI.soldierSeq = (AI.soldierSeq || 0) + 1;
       r.sloppy = !opts || !opts.pose ? !!(IB.Damage && IB.Damage.sloppyAim && IB.Damage.sloppyAim(AI.soldierSeq)) : false;
@@ -125,6 +128,13 @@
     }
   };
 
+  /* Robot Trooper ('mech') and Grenadier: drawn by trooperrig.js on the Soldier's rig (TROOPER_MECH: a robot body;
+     the Soldier's own mesh with its carbine hidden + TROOPER_GL: the grenade launcher). They share the Soldier's
+     brain (thinkSoldier: a Grenadier fires its launcher where a Soldier fires a burst, a Robot Trooper throws nothing)
+     and its rigid fallback parts, hit volumes and death. */
+  VIS.mech = Object.assign({}, VIS.soldier);
+  VIS.grenadier = Object.assign({}, VIS.soldier);
+
   // world position of a point given in a shoulder's arm space (aim rig rotated by th, pushed along its z)
   var _w = { x: 0, y: 0, z: 0 };
   function armPoint(r, shi, pt, th, push) {
@@ -138,7 +148,7 @@
   function liveNades() { var n = 0; for (var i = 0; i < Tr.grenades.length; i++) if (Tr.grenades[i].on) n++; return n; }
 
   function thinkSoldier(r, dt, ctx, zone, dx, dz, dist) {
-    var p = ctx.player, def = r.def, speed = def.speed || 3.2, T = K.tempo(), lv = K.offLevel(r, p, zone);
+    var p = ctx.player, def = r.def, speed = def.speed || 3.2, T = K.tempo(), lv = K.offLevel(r, p, zone), GL = !!def.launcher;
     var wuF = (def.windup || 0.45) * T.tellMul, wuN = (def.grenadeWindup || 0.6) * T.tellMul, wuM = (def.meleeWindup || 0.4) * T.tellMul;
     var k;
     r.ncool -= dt; r.mcool -= dt;
@@ -156,7 +166,7 @@
           r.act = 'melee'; K.setState(r, 'windup'); K.play('servo', r, 0.6);
         } else if (r.seesPlayer && r.nades > 0 && r.ncool <= 0 && dist > gr[0] && dist < gr[1] && liveNades() < Tr.liveNadeMax && K.takeToken(r)) {
           r.act = 'nade'; K.setState(r, 'windup'); r.holdNade = true; K.play('clank', r, 0.8);
-        } else if (K.canFire(r, ctx, dist)) { r.act = 'fire'; K.setState(r, 'windup'); K.play('servo', r, 0.45); }
+        } else if ((!GL || dist > def.minRange) && K.canFire(r, ctx, dist)) { r.act = GL ? 'gl' : 'fire'; K.setState(r, 'windup'); K.play(GL ? 'clank' : 'servo', r, 0.45); }
         break;
       }
       case 'windup':
@@ -172,6 +182,12 @@
           r.throwL = -2.5 * ease(r.st / wuN);
           K.tell(r, r.st / wuN);
           if (r.st >= wuN) { throwNade(r, p); K.setState(r, 'attack'); }
+        } else if (r.act === 'gl') {   // Grenadier: brings the launcher up, aims high, a longer tell
+          K.turnTo(r, Math.atan2(dx, dz), 9, dt);
+          r.aim += (aimAt(r, p) + 0.12 - r.aim) * Math.min(1, dt * 7);
+          K.tell(r, r.st / wuF);
+          K.move(-dz * r.sdir, dx * r.sdir, speed * 0.2);
+          if (r.st >= wuF) { launchShell(r, p); K.setState(r, 'attack'); }
         } else {
           r.aim += (aimAt(r, p) - r.aim) * Math.min(1, dt * 9);
           K.tell(r, r.st / wuF);
@@ -196,6 +212,9 @@
         } else if (r.act === 'nade') {
           r.throwL += (0.5 - r.throwL) * Math.min(1, dt * 22);   // follow-through
           if (r.st >= 0.25) K.setState(r, 'recover');
+        } else if (r.act === 'gl') {
+          r.kick *= Math.max(0, 1 - dt * 5);
+          if (r.st >= 0.3) K.setState(r, 'recover');
         } else {
           r.aim += (aimAt(r, p) - r.aim) * Math.min(1, dt * 6);
           K.move(-dz * r.sdir, dx * r.sdir, speed * 0.3);
@@ -217,6 +236,7 @@
           K.setState(r, 'keep'); r.thinkT = 0;
           if (r.act === 'melee') r.mcool = 1.4 + Math.random() * 0.8;
           else if (r.act === 'nade') { var ge = def.grenadeEvery || [6, 10]; r.ncool = rnd(ge[0], ge[1]) * T.coolMul; r.cool = Math.max(r.cool, 0.6); }
+          else if (r.act === 'gl') { var fe = def.fireEvery || [3.4, 5]; r.cool = rnd(fe[0], fe[1]) * T.coolMul; }
           else r.cool = (1.1 + Math.random() * 1.3) * T.coolMul;
           r.act = '';
         }
@@ -229,10 +249,11 @@
     if (r.state !== 'windup' || r.act !== 'nade') r.holdNade = false;
   }
   BEH.soldier = { think: thinkSoldier, tick: tickSoldier };
+  BEH.mech = BEH.grenadier = BEH.soldier;
 
   /* a carbine round: a fast tracer bullet; now and then (def.specialRounds odds) an explosive, shock or acid round,
      which also hurts over time on a hit (projectiles.js special(), Tr.dot) */
-  function fireRound(r, m, p, speed, dmg, lead, spread) {
+  function fireRound(r, m, p, speed, dmg, lead, spread, kind0) {
     var T = K.tempo(), tx = p.x, ty = p.y + 1.15, tz = p.z;
     var dx = tx - m.x, dy = ty - m.y, dz = tz - m.z, d = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
     lead = (lead || 0) + T.leadAdd; spread = (spread || 0) * T.aimMul;
@@ -243,8 +264,8 @@
     if (spread) { dx += (Math.random() - 0.5) * spread; dy += (Math.random() - 0.5) * spread * 0.6; dz += (Math.random() - 0.5) * spread; }
     var Pj = IB.Projectiles, b = Pj && Pj.fire ? Pj.fire(m.x, m.y, m.z, dx, dy, dz, speed, r.rogue > 0 ? dmg * AI.rogueDmgMul : dmg, r, r.rogue > 0 ? 1 : p.robot ? 2 : 0) : null;
     if (b) {
-      var sp = r.def.specialRounds || {}, x = Math.random(), acc = 0, kind = 'bullet';
-      for (var k in sp) { acc += sp[k]; if (x < acc) { kind = k; break; } }
+      var sp = r.def.specialRounds || {}, x = Math.random(), acc = 0, kind = kind0 || 'bullet';
+      if (!kind0) for (var k in sp) { acc += sp[k]; if (x < acc) { kind = k; break; } }
       b.kind = kind;
     }
     if (IB.Boom) IB.Boom.muzzle(m.x, m.y, m.z, 0.3);
@@ -276,15 +297,40 @@
     var sh = Math.min(0.9, d * 0.1) / (d || 1);
     var tx = p.x - dx * sh + (p.vx || 0) * t * lead + rnd(-0.6, 0.6), tz = p.z - dz * sh + (p.vz || 0) * t * lead + rnd(-0.6, 0.6), ty = (p.y || 0) + NR;
     var def = r.def;
-    g.on = true; g.t = 0; g.x = h.x; g.y = h.y; g.z = h.z; g.rest = false; g.spin = rnd(8, 13); g.rx = 0; g.rz = 0;
+    g.on = true; g.t = 0; g.x = h.x; g.y = h.y; g.z = h.z; g.rest = false; g.spin = rnd(8, 13); g.rx = 0; g.rz = 0; g.impact = false;
     g.vx = (tx - h.x) / t; g.vz = (tz - h.z) / t; g.vy = (ty - h.y + 0.5 * G * t * t) / t;
     g.fuse = (def.grenadeFuse || 2.1) * Math.max(0.85, K.tempo().tellMul);
     g.R = def.grenadeRadius || 3.4; g.dmg = r.rogue > 0 ? 0 : (def.grenadeDamage || 30) * r.dmgMul;
     g.rdmg = (def.grenadeRobotDamage || 20) * (AI.hpMul || 1) * (r.rogue > 0 ? AI.rogueDmgMul : 1);
-    g.src.x = r.x; g.src.z = r.z;
+    g.src.x = r.x; g.src.z = r.z; g.src.type = r.type;
     K.play('shove', r, 0.7);
   }
+  /* Grenadier: a 40 mm grenade on a high arc from the launcher's muzzle at the player's feet (a little lead and
+     scatter). It bursts on impact (floor, a wall, the player), or shellFuse s after coming to rest; while it flies a red
+     ring marks where it will land (g.lx / g.lz). */
+  function launchShell(r, p) {
+    var g = null, i;
+    for (i = 0; i < Tr.grenades.length; i++) if (!Tr.grenades[i].on) { g = Tr.grenades[i]; break; }
+    if (!g) return;
+    var def = r.def, m = r.muzzleW || armPoint(r, 0, VIS.soldier.muzzle, -r.aim + r.rigPitch, r.rigPush);
+    var dx = p.x - m.x, dz = p.z - m.z, d = Math.hypot(dx, dz);
+    var t = K.clamp(0.6 + d * 0.032, 0.75, 1.35);
+    var SL = r.sloppy ? 1.6 : 1, tx = p.x + (p.vx || 0) * t * 0.45 + rnd(-0.7, 0.7) * SL, tz = p.z + (p.vz || 0) * t * 0.45 + rnd(-0.7, 0.7) * SL;
+    var W = IB.Zones && IB.Zones.world, ty = (W && W.floorAt ? W.floorAt(tx, tz, (p.y || 0) + 0.4) : (p.y || 0)) + NR;
+    g.on = true; g.t = 0; g.x = m.x; g.y = m.y; g.z = m.z; g.rest = false; g.spin = rnd(14, 20); g.rx = 0; g.rz = 0;
+    g.vx = (tx - m.x) / t; g.vz = (tz - m.z) / t; g.vy = (ty - m.y + 0.5 * G * t * t) / t;
+    g.impact = true; g.lx = tx; g.ly = ty; g.lz = tz; g.fuse = t + 2.5; g.shellFuse = def.shellFuse || 0.45;
+    g.R = def.shellRadius || 3; g.dmg = r.rogue > 0 ? 0 : (def.shellDamage || 26) * r.dmgMul;
+    g.rdmg = (def.shellRobotDamage || 14) * (AI.hpMul || 1) * (r.rogue > 0 ? AI.rogueDmgMul : 1);
+    g.src.x = r.x; g.src.z = r.z; g.src.type = r.type;
+    r.kick = 1; Tr.shells = (Tr.shells || 0) + 1;
+    if (IB.Boom) IB.Boom.muzzle(m.x, m.y, m.z, 0.55);
+    if (IB.FX) { IB.FX.puff(m.x, m.y, m.z, 4, PAL.paper, 0.1, 0.35, 1.6); IB.FX.puff(m.x, m.y, m.z, 2, PAL.ink, 0.08, 0.3, 1); }
+    sfx('gun', r, 0.7, 0.55);
+  }
+  function burst(g) { g.t = g.fuse; }
   function bounce(g, nx, ny, nz) {
+    if (g.impact && g.t > 0.06) { burst(g); return; }   // a launcher grenade bursts on impact
     var e = 0.3, vn = g.vx * nx + g.vy * ny + g.vz * nz;
     if (vn >= 0) return;
     g.vx -= (1 + e) * vn * nx; g.vy -= (1 + e) * vn * ny; g.vz -= (1 + e) * vn * nz;
@@ -292,11 +338,16 @@
     g.spin *= 0.6;
     if (Math.abs(vn) > 1.5) sfx('step', g, Math.min(1, Math.abs(vn) / 6), 1.7);
   }
-  function updateNades(dt, world) {
+  function updateNades(dt, world, P) {
     for (var i = 0; i < Tr.grenades.length; i++) {
       var g = Tr.grenades[i]; if (!g.on) continue;
       g.t += dt;
-      if (g.t >= g.fuse) { g.on = false; if (IB.Projectiles && IB.Projectiles.explode) IB.Projectiles.explode(g.x, Math.max(0.3, g.y), g.z, g.R, g.dmg, g.rdmg, g.src); if (AI.hear) AI.hear(g.x, g.z, 25); continue; }
+      if (g.impact) {
+        if (P && P.alive && !g.rest && Math.hypot(g.x - P.x, g.z - P.z) < 0.5 && g.y > (P.y || 0) - 0.1 && g.y < (P.y || 0) + 1.8) burst(g);   // hits the player
+        if (g.rest && g.t < g.fuse - g.shellFuse) g.fuse = g.t + g.shellFuse;
+        if (IB.FX && !g.rest && Math.random() < 0.6) IB.FX.puff(g.x, g.y, g.z, 1, PAL.paper, 0.05, 0.16, 0.5);
+      }
+      if (g.t >= g.fuse) { g.on = false; g.impact = false; if (IB.Projectiles && IB.Projectiles.explode) IB.Projectiles.explode(g.x, Math.max(0.3, g.y), g.z, g.R, g.dmg, g.rdmg, g.src); if (AI.hear) AI.hear(g.x, g.z, 25); continue; }
       if (g.rest || !world) continue;
       g.vy -= G * dt; g.x += g.vx * dt; g.y += g.vy * dt; g.z += g.vz * dt;
       var fl = world.floorAt ? world.floorAt(g.x, g.z, g.y + 0.3) : 0;
@@ -459,6 +510,107 @@
   }
   BEH.blader = { think: thinkBlader, tick: tickBlader };
 
+  // ======================================================================= HAWK (levels 20+)
+  /* An advanced aerial robot: armoured fuselage, two ducted fans that vector with its flight (Fan, Rotor), a chin
+     turret (Gun) and a sensor eye (Light). Orbits the player like the Drone, a little faster, and darts aside when hit.
+     Each Hawk has one round type (def.rounds odds), painted on its accents (key-tint material: r.tint) and its eye:
+     'bullet' normal rounds, 'shock' / 'acid' damage over time on the player, 'boom' a small blast (projectiles.js
+     special rounds, the Soldier's plumbing). */
+  function hk(n) { return K.sock('BOT_HAWK_' + n); }
+  var HAWK_KINDS = ['bullet', 'shock', 'acid', 'boom'];
+  VIS.hawk = {
+    radius: 0.42, y0: 0.08, y1: 0.56, coreR: 0.13, shadow: 0.55, eye: 0.3, home: 'keep', flying: true, centre: 0.3,
+    parts: { Body: { count: 1, asset: 'BOT_HAWK_Body', tint: true }, Fan: { count: 2, asset: 'BOT_HAWK_Fan', tint: true },
+      Rotor: { count: 2, asset: 'BOT_HAWK_Rotor' }, Gun: { count: 1, asset: 'BOT_HAWK_Gun', tint: true },
+      Light: { count: 1, light: true, asset: 'BOT_HAWK_Light' } },
+    sockets: function (v) {
+      var c = hk('CORE'); v.coreY = c[1]; v.coreZ = c[2];
+      v.fans = [hk('FAN0'), hk('FAN1')]; v.pivot = hk('GUNPIVOT'); v.muzzle = hk('GUN'); v.light = hk('LIGHT');
+    },
+    init: function (r) {
+      var o = r.def.rounds || { bullet: 1 }, x = Math.random(), acc = 0, k;
+      r.round = 'bullet';
+      for (k in o) { acc += o[k]; if (x < acc) { r.round = k; break; } }
+      if (!r.tint) r.tint = new THREE.Color();
+      r.tint.set((r.def.roundColors || {})[r.round] || '#E6ECF5'); r.tintHex = r.tint.getHex();
+      r.fanT = 0; r.dodge = 0; r.dodgeT = 0; r.hit0 = r.hp;
+    },
+    pose: function (r, P) {
+      var v = VIS.hawk, c = v.centre, i;
+      P.root().t(0, c, 0).rx(r.bankX).rz(r.bankZ + r.wob).t(0, -c, 0).emit('Body', 0);
+      for (i = 0; i < 2; i++) P.push().tv(v.fans[i]).rx(r.fanT).rz((i ? -1 : 1) * r.bankZ * 0.8).emit('Fan', i).ry((i ? 1 : -1) * r.spin * 1.6).emit('Rotor', i).pop();
+      P.push().tv(v.pivot).rx(-r.aim).t(0, 0, -r.kick * 0.03).emit('Gun', 0).pop();
+      P.tv(v.light).emit('Light', 0);
+    },
+    lightColor: function (r) {
+      if (r.state === 'windup' && (r.st * 14 | 0) % 2 === 0) return PAL.red;
+      if (r.alert > 0) return Math.sin(r.alert * 40) > 0 ? PAL.red : r.tintHex;
+      return r.state === 'idle' ? 0x4A5A66 : r.tintHex;
+    },
+    corpse: function (v, add) {
+      var M = new THREE.Matrix4();
+      add('BOT_HAWK_Body', M.identity());
+      v.fans.forEach(function (f) { add('BOT_HAWK_Fan', M.makeTranslation(f[0], f[1], f[2])); });
+      add('BOT_HAWK_Gun', M.makeTranslation(v.pivot[0], v.pivot[1], v.pivot[2]));
+    }
+  };
+  function thinkHawk(r, dt, ctx, zone, dx, dz, dist) {
+    var p = ctx.player, def = r.def, v = VIS.hawk, T = K.tempo(), speed = def.speed || 5.4, wu = (def.windup || 0.4) * T.tellMul;
+    var kd = def.keepDistance || [9, 17], mid = (kd[0] + kd[1]) / 2;
+    // hit: a quick dodge to the side (a second at most every 2.5 s)
+    r.dodgeT -= dt; r.dodge = Math.max(0, r.dodge - dt);
+    if (r.hp < r.hit0 - 0.01) { if (r.dodgeT <= 0) { r.dodge = 0.55; r.dodgeT = 2.5; r.sdir = -r.sdir; } }
+    r.hit0 = r.hp;
+    var boost = r.dodge > 0 ? 1.8 : 1;
+    // orbit: tangential strafe + radial correction toward the middle of the band
+    var rad = K.clamp((dist - mid) / 4, -1, 1), tx = -dz / dist * r.sdir, tz = dx / dist * r.sdir;
+    var ox = tx * 0.85 + dx / dist * rad, oz = tz * 0.85 + dz / dist * rad;
+    r.thinkT -= dt;
+    if (r.thinkT <= 0 || r.bump > 0.25) { r.thinkT = 1.4 + Math.random() * 2; if (r.bump > 0.25 || Math.random() < 0.6) r.sdir = -r.sdir; r.bump = 0; }
+    if (p.alive) K.turnTo(r, Math.atan2(dx, dz), 6, dt);
+    switch (r.state) {
+      case 'keep':
+        r.aim += (-0.25 - r.aim) * Math.min(1, dt * 4);
+        if (!p.alive) break;
+        if (!r.seesPlayer && r.lost > 1.5) K.towardPlayer(r, ctx, zone, dx, dz, dist, speed);
+        else K.move(ox, oz, speed * boost);
+        if (K.canFire(r, ctx, dist)) { K.setState(r, 'windup'); K.play('rotor', r, 0.7); }
+        break;
+      case 'windup':
+        K.move(ox, oz, speed * 0.5 * boost);
+        r.aim += (K.aimPitch(r, v, p) - r.aim) * Math.min(1, dt * 9);
+        K.tell(r, r.st / wu);
+        if (r.st >= wu) { K.setState(r, 'attack'); r.shots = 0; r.shotT = 0; }
+        break;
+      case 'attack':
+        K.move(ox, oz, speed * boost);
+        r.aim += (K.aimPitch(r, v, p) - r.aim) * Math.min(1, dt * 10);
+        r.shotT -= dt;
+        var n = r.round === 'boom' ? Math.max(1, (def.bolts || 3) - 1) : (def.bolts || 3);
+        if (r.shots < n && r.shotT <= 0) {
+          var m = K.muzzleWorld(r, v, 0);
+          fireRound(r, { x: m.x, y: m.y, z: m.z }, p, def.boltSpeed || 30, (def.damage || 5) * r.dmgMul, 0.2, r.shots ? 0.05 : 0.02, r.round);
+          r.shots++; r.shotT = 0.13;
+        }
+        if (r.shots >= n && r.shotT <= -0.05) K.setState(r, 'recover');
+        break;
+      case 'recover':
+        if (r.token) K.releaseToken(r);
+        K.move(ox, oz, speed * 0.8 * boost);
+        r.aim += (-0.25 - r.aim) * Math.min(1, dt * 3);
+        if (r.st >= (def.recover || 0.75)) { K.setState(r, 'keep'); r.cool = (1.2 + Math.random() * 1.5) * T.coolMul; }
+        break;
+    }
+  }
+  function tickHawk(r, dt) {
+    // the fans vector with the flight: tipped forward when it flies forward, back when it brakes
+    var fwd = (r.vx || 0) * Math.sin(r.yaw) + (r.vz || 0) * Math.cos(r.yaw);
+    r.fanT += (K.clamp(fwd * 0.09, -0.45, 0.45) - r.fanT) * Math.min(1, dt * 6);
+    r.kick = Math.max(0, r.kick - dt * 6);
+  }
+  BEH.hawk = { think: thinkHawk, tick: tickHawk };
+  Tr.HAWK_KINDS = HAWK_KINDS;
+
   // ======================================================================= runtime: grenades, smears, shock
   // smear arc: an annulus sector trailing the blade (local +X = the blade, the trail sweeps toward +Z behind it),
   // alpha fading along the arc, a thin ink line at the outer edge (comic speed arc)
@@ -530,8 +682,10 @@
       var left = g.fuse - g.t, blink = Math.sin(_t * (left < 0.6 ? 40 : left < 1.2 ? 22 : 9)) > 0.3 ? 1 : 0;
       _v4.set(g.x, g.y, g.z);
       if (g.rest) _q4.setFromEuler(_e.set(Math.PI / 2, g.rx, 0)); else _q4.setFromEuler(_e.set(g.rx, 0, g.rz));
-      _s4.set(1.15, 1.15, 1.15); _m4.compose(_v4, _q4, _s4); nadeMesh.setMatrixAt(m, _m4); fxa.setXYZW(m, blink, 0, 0, 0); m++;
-      if (left < 1.2 && Math.sin(_t * (left < 0.5 ? 40 : 22)) > -0.2) {
+      var gs = g.impact ? 0.95 : 1.15; _s4.set(gs, gs, gs); _m4.compose(_v4, _q4, _s4); nadeMesh.setMatrixAt(m, _m4); fxa.setXYZW(m, g.impact ? 0 : blink, 0, 0, 0); m++;
+      if (g.impact && !g.rest) {   // launcher grenade in flight: the ring waits where it will land
+        if (Math.sin(_t * 26) > -0.3) { _v4.set(g.lx, g.ly - NR + 0.03, g.lz); _q4.identity(); _s4.set(g.R, 1, g.R); _m4.compose(_v4, _q4, _s4); ringMesh.setMatrixAt(rn++, _m4); }
+      } else if (left < 1.2 && Math.sin(_t * (left < 0.5 ? 40 : 22)) > -0.2) {
         _v4.set(g.x, Math.max(0.02, g.y - NR + 0.02), g.z); _q4.identity(); _s4.set(g.R, 1, g.R); _m4.compose(_v4, _q4, _s4); ringMesh.setMatrixAt(rn++, _m4);
       }
       if (IB.FX && Math.random() < 0.2) IB.FX.puff(g.x, g.y + 0.08, g.z, 1, PAL.paper, 0.04, 0.12, 0.4);
@@ -562,22 +716,25 @@
       sfx('hit', p, 0.3, 0.7);
     }
   }
-  function clearRuntime() { Tr.grenades.forEach(function (g) { g.on = false; }); Tr.shock.left = 0; Tr.shock.tick = 0; Tr.acid.left = 0; Tr.acid.tick = 0; }
+  function clearRuntime() { Tr.grenades.forEach(function (g) { g.on = false; g.impact = false; }); Tr.shock.left = 0; Tr.shock.tick = 0; Tr.acid.left = 0; Tr.acid.tick = 0; }
 
   // ---- hook into the robot runtime (init / update / sync / clear)
   var baseInit = AI.init, baseUpdate = AI.update, baseSync = AI.sync, baseClear = AI.clear, baseDespawn = AI.despawn;
   AI.init = function (scene) { baseInit.apply(AI, arguments); _e = new THREE.Euler(); initRuntime(scene); };
-  AI.update = function (dt, ctx) { baseUpdate.apply(AI, arguments); updateNades(dt, ctx.world); updateShock(dt, ctx); updateAcid(dt, ctx); };
+  AI.update = function (dt, ctx) { baseUpdate.apply(AI, arguments); updateNades(dt, ctx.world, ctx.player); updateShock(dt, ctx); updateAcid(dt, ctx); };
   AI.sync = function () { baseSync.apply(AI, arguments); syncRuntime(); };
   AI.clear = function () { baseClear.apply(AI, arguments); clearRuntime(); };
   AI.despawn = function () { baseDespawn.apply(AI, arguments); clearRuntime(); };
 
   Tr.stats = function () {
-    var out = { nades: liveNades(), shock: +Tr.shock.left.toFixed(2), smears: smear ? smear.count : 0, soldiers: [], bladers: [] };
+    var out = { nades: liveNades(), shock: +Tr.shock.left.toFixed(2), acid: +Tr.acid.left.toFixed(2), smears: smear ? smear.count : 0, soldiers: [], bladers: [],
+      mechs: [], grenadiers: [], hawks: [], shells: Tr.shells || 0 };
     AI.robots.forEach(function (r) {
       if (!r.on) return;
       if (r.type === 'soldier') out.soldiers.push({ slot: r.slot, state: r.state, act: r.act, hp: +r.hp.toFixed(1), shield: +r.shield.toFixed(1), nades: r.nades, armour: r.armour, torso: r.torso, helm: r.helm });
       if (r.type === 'blader') out.bladers.push({ slot: r.slot, state: r.state, act: r.act, weapon: r.weaponId, spinRev: +(r.spinV / TAU).toFixed(1) });
+      if (r.type === 'mech' || r.type === 'grenadier') out[r.type + 's'].push({ slot: r.slot, state: r.state, act: r.act, hp: +r.hp.toFixed(1), shield: +r.shield.toFixed(1), nades: r.nades, variant: r.trVariant });
+      if (r.type === 'hawk') out.hawks.push({ slot: r.slot, state: r.state, round: r.round, tint: r.tintHex, hp: +r.hp.toFixed(1), y: +r.y.toFixed(2) });
     });
     return out;
   };

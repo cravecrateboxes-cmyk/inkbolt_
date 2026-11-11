@@ -25,6 +25,7 @@
   var AI = IB.AI = { robots: [], corpses: [], types: {}, typeList: [], tokens: 0, tokenMax: 3, level: 1,
     cloaked: false, lkx: 0, lkz: 0, rogueChance: 0, rogueTime: 15, rogueDmgMul: 2, hitRogues: false };
   var CAP = 40, CORPSE_CAP = 16, TAU = Math.PI * 2;
+  AI.SKIN2_LEVEL = 20; AI.SKIN2 = { grey: '#9AA1AB', black: '#2A2D34', specks: 1 / 3 };   // the Crawler's advanced skin
   var STEP_UP = 0.4;   // the highest walkable step a ground robot climbs onto (matches IB.Zones NAV_STEP)
   var ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
   var _m = new THREE.Matrix4(), _m2 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _v = new THREE.Vector3(), _s = new THREE.Vector3(1, 1, 1), _up = new THREE.Vector3(0, 1, 0), _ax = new THREE.Vector3(1, 0, 0), _c = new THREE.Color(), _dir = { x: 0, z: 0 }, _tmp = [], _mz = { x: 0, y: 0, z: 0 };
@@ -44,21 +45,36 @@
        coreY/coreZ/coreR (weak point sphere, from the CORE socket), eye (sight height), home (engaged state),
        parts {Name: {count, asset, light}}, sockets(v), pose(r, P) every frame, corpse(v, add) rest pose for the silhouette. */
   var VIS = AI.VIS = {
+    /* levels 20+ (AI.level >= SKIN2_LEVEL): half the Crawlers wear the advanced skin (Body2 / Leg2: plated shell, sloped
+       head ring, wrap-around visor, panel lines; same silhouette, pivots and hit volumes), its armour painted per
+       crawler in two key colours (keyMat2: r.tint on 'plate', r.tint2 on 'plate2'): 66 % grey / 33 % black or
+       66 % black / 33 % grey, half each; about one in three also carries white specks and a stencil chevron. */
     crawler: {
       radius: 0.42, y0: 0.12, y1: 0.86, coreR: 0.17, shadow: 0.5, eye: 0.8, home: 'chase',
-      parts: { Body: { count: 1, asset: 'BOT_CRAWLER_Body' }, Leg: { count: 4, asset: 'BOT_CRAWLER_Leg' }, Light: { count: 1, light: true, asset: 'BOT_CRAWLER_Light' } },
+      parts: { Body: { count: 1, asset: 'BOT_CRAWLER_Body' }, Leg: { count: 4, asset: 'BOT_CRAWLER_Leg' }, Light: { count: 1, light: true, asset: 'BOT_CRAWLER_Light' },
+        Body2: { count: 1, asset: 'BOT_CRAWLER_Body2', tint: 2, opt: true }, Leg2: { count: 4, asset: 'BOT_CRAWLER_Leg2', tint: 2, opt: true },
+        Specks: { count: 1, asset: 'BOT_CRAWLER_Specks', opt: true } },
       sockets: function (v) {
         v.hips = [0, 1, 2, 3].map(function (i) { return sock('BOT_CRAWLER_HIP' + i); });
         var c = sock('BOT_CRAWLER_CORE'); v.coreY = c[1]; v.coreZ = 0;
       },
+      init: function (r) {
+        r.skin = (AI.level || 1) >= AI.SKIN2_LEVEL && Math.random() < 0.5 ? 1 : 0;
+        if (!r.skin) return;
+        var dark = Math.random() < 0.5, S = AI.SKIN2;   // dark: 66 % black / 33 % grey
+        if (!r.tint) { r.tint = new THREE.Color(); r.tint2 = new THREE.Color(); }
+        r.tint.set(dark ? S.black : S.grey); r.tint2.set(dark ? S.grey : S.black);
+        r.split = dark ? 'black' : 'grey'; r.specks = Math.random() < S.specks;
+      },
       pose: function (r, P) {
         var v = VIS.crawler, bob = Math.abs(Math.sin(r.walk * 2)) * 0.05, crouch = r.crouch;
-        var bodyY = bob - crouch * 0.12;
-        P.set('Body', 0, 0, bodyY, 0, 0, 1);
+        var bodyY = bob - crouch * 0.12, sk = r.skin === 1, B = sk ? 'Body2' : 'Body', L = sk ? 'Leg2' : 'Leg';
+        P.set(B, 0, 0, bodyY, 0, 0, 1).hide(sk ? 'Body' : 'Body2', 0);
+        if (sk && r.specks) P.set('Specks', 0, 0, bodyY, 0, 0, 1); else P.hide('Specks', 0);
         for (var i = 0; i < 4; i++) {
           var h = v.hips[i], ph = Math.sin(r.walk * 2 + (i % 2) * Math.PI);
           var sc = (h[1] + bodyY) / h[1] * (1 + ph * 0.06);
-          P.set('Leg', i, h[0], h[1] + bodyY, h[2], 0, Math.max(0.5, sc));
+          P.set(L, i, h[0], h[1] + bodyY, h[2], 0, Math.max(0.5, sc)).hide(sk ? 'Leg' : 'Leg2', i);
         }
         P.set('Light', 0, 0.12, 1.08 + bodyY, -0.08, 0, 1);
       },
@@ -181,6 +197,9 @@
     // armour recolour (Soldier variants): the palette's key armour texels take a per-instance colour (aTint)
     AI.keyMat = IB.Render.toonMaterial({ fx: true, map: A.palette.bots, baked: bake, uni: IB.Render.robotOutline });
     tintMaterial(AI.keyMat); keyTintMaterial(AI.keyMat);
+    // two-colour recolour (the Crawler's advanced skin): 'plate' takes aTint, 'plate2' its own aTint2
+    AI.keyMat2 = IB.Render.toonMaterial({ fx: true, map: A.palette.bots, baked: bake, uni: IB.Render.robotOutline });
+    tintMaterial(AI.keyMat2); keyTintMaterial(AI.keyMat2, true);
     Object.keys(VIS).forEach(function (id) {
       var v = VIS[id], T = { id: id, vis: v, parts: {}, partList: [], slots: [], corpse: null, hi: -1 };
       v.sockets(v);
@@ -189,12 +208,14 @@
         var geo = A.get(P.asset).clone(), n = CAP * P.count;
         if (!P.light) { var fx = new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4); fx.setUsage(THREE.DynamicDrawUsage); geo.setAttribute('aFx', fx); }
         if (P.tint) { var ta = new THREE.InstancedBufferAttribute(new Float32Array(n * 3).fill(1), 3); ta.setUsage(THREE.DynamicDrawUsage); geo.setAttribute('aTint', ta); }
-        var im = new THREE.InstancedMesh(geo, P.light ? AI.lightMat : P.tint ? AI.keyMat : AI.mat, n);
+        if (P.tint === 2) { var t2 = new THREE.InstancedBufferAttribute(new Float32Array(n * 3).fill(1), 3); t2.setUsage(THREE.DynamicDrawUsage); geo.setAttribute('aTint2', t2); }
+        var im = new THREE.InstancedMesh(geo, P.light ? AI.lightMat : P.tint === 2 ? AI.keyMat2 : P.tint ? AI.keyMat : AI.mat, n);
         im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); im.frustumCulled = false;
         for (var i = 0; i < n; i++) { im.setMatrixAt(i, ZERO); if (P.light) im.setColorAt(i, _c.set(LIGHT_DIM)); }
         scene.add(im);
         // opt: a shape variant (only some robots wear it): drawn only in frames where a live robot uses it
-        T.parts[pn] = { name: pn, mesh: im, count: P.count, fx: im.geometry.attributes.aFx || null, tint: im.geometry.attributes.aTint || null, opt: !!P.opt, used: false };
+        T.parts[pn] = { name: pn, mesh: im, count: P.count, fx: im.geometry.attributes.aFx || null, tint: im.geometry.attributes.aTint || null,
+          tint2: im.geometry.attributes.aTint2 || null, opt: !!P.opt, used: false };
         T.partList.push(T.parts[pn]);
       });
       // corpse geometry: whole robot in rest pose, all ink
@@ -231,22 +252,22 @@
   ].join('\n');
   /* key-colour recolour: texels of the two armour key swatches ('plate' #F4F6F9, 'plate2' #B8BEC7 in fam_bots.py)
      take the instance colour aTint (plate2 a shade darker); everything else keeps its palette colour */
-  function keyTintMaterial(mat) {
+  function keyTintMaterial(mat, dual) {
     var base = mat.onBeforeCompile, key = mat.customProgramCacheKey;
     mat.onBeforeCompile = function (sh) {
       base(sh);
-      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec3 aTint;\nvarying vec3 vTint;')
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvTint = aTint;');
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vTint;')
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec3 aTint;\nvarying vec3 vTint;' + (dual ? '\nattribute vec3 aTint2;\nvarying vec3 vTint2;' : ''))
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvTint = aTint;' + (dual ? '\nvTint2 = aTint2;' : ''));
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vTint;' + (dual ? '\nvarying vec3 vTint2;' : ''))
         .replace('#include <map_fragment>', ['#include <map_fragment>',
           '#ifdef USE_MAP',
           'float ibK1 = step( distance( texelColor.rgb, vec3( 0.957, 0.965, 0.976 ) ), 0.012 );',
           'float ibK2 = step( distance( texelColor.rgb, vec3( 0.722, 0.745, 0.780 ) ), 0.012 );',
           'diffuseColor.rgb = mix( diffuseColor.rgb, vTint, ibK1 );',
-          'diffuseColor.rgb = mix( diffuseColor.rgb, vTint * 0.66, ibK2 );',
+          dual ? 'diffuseColor.rgb = mix( diffuseColor.rgb, vTint2, ibK2 );' : 'diffuseColor.rgb = mix( diffuseColor.rgb, vTint * 0.66, ibK2 );',
           '#endif'].join('\n'));
     };
-    mat.customProgramCacheKey = function () { return key() + 'key'; };
+    mat.customProgramCacheKey = function () { return key() + (dual ? 'key2' : 'key'); };
   }
   function tintMaterial(mat) {
     var base = mat.onBeforeCompile, key = mat.customProgramCacheKey;
@@ -891,6 +912,7 @@
   // helpers shared with the robot types in other files (game/troops.js)
   AI.K = { move: move, mv: _mv, setState: setState, takeToken: takeToken, releaseToken: releaseToken, tell: tell, play: play, turnTo: turnTo,
     towardPlayer: towardPlayer, holdRing: holdRing, offLevel: offLevel, planKeep: planKeep, keepMove: keepMove, canFire: canFire, fireFrom: fireFrom,
+    muzzleWorld: muzzleWorld, aimPitch: aimPitch,
     wrapAngle: wrapAngle, clamp: clamp, sock: sock, tempo: tempo, lightDefault: lightDefault, ZERO: ZERO };
 
   // ---------------- targets: the player, or a robot in a rogue fight ----------------
@@ -1215,6 +1237,7 @@
       var Pt = _T.parts[name], idx = _rob.slot * Pt.count + k;
       Pt.mesh.setMatrixAt(idx, _cur); Pt.used = true;
       if (Pt.tint && _rob.tint) Pt.tint.setXYZ(idx, _rob.tint.r, _rob.tint.g, _rob.tint.b);
+      if (Pt.tint2 && _rob.tint2) Pt.tint2.setXYZ(idx, _rob.tint2.r, _rob.tint2.g, _rob.tint2.b);
       if (Pt.fx) Pt.fx.setXYZW(idx, _rob.flash > 0 ? 1 : 0, 0, _tk, _ta);
       else if (Pt.mesh.instanceColor) Pt.mesh.setColorAt(idx, _c.set(_T.vis.lightColor ? _T.vis.lightColor(_rob) : lightDefault(_rob)));
       return P;
@@ -1264,6 +1287,7 @@
         Pt.mesh.visible = hi >= 0 && (!Pt.opt || Pt.used);   // and no draw call at all for a type with none alive
         if (Pt.fx) Pt.fx.needsUpdate = true;
         if (Pt.tint) Pt.tint.needsUpdate = true;
+        if (Pt.tint2) Pt.tint2.needsUpdate = true;
         if (Pt.mesh.instanceColor) Pt.mesh.instanceColor.needsUpdate = true;
       }
       T.hi = hi;
