@@ -1255,7 +1255,7 @@
       zone.entry = { x: ox + Pc.c + 0.5, z: oz + Pc.r + 0.5 };
       var g = new IB.Geo(), P = new Parts(theme);
       if (theme.terrain) buildTerrain(g, zone, grid, theme, world);
-      else paintFloor(g, ox, oz, grid.w, grid.h, theme, false);
+      else paintFloor(g, ox, oz, grid.w, grid.h, zp.floor ? { floor: zp.floor } : theme, false);   // zone plan `floor` (optional): this zone's own floor paint and lines (a ship's deck, hold and engine room)
       buildSymbols(P, zone, grid, theme, world, g, 0);
       grid.layers.forEach(function (lg) { buildSymbols(P, zone, lg, theme, world, g, lg.y, true); });
       var roofCol = col(theme.wall && theme.wall.roof, '#D9D2E6'), roofY = ((theme.wall && theme.wall.height) || 3) + 0.04;
