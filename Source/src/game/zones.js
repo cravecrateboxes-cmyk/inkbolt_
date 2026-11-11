@@ -1339,6 +1339,10 @@
   //   detail: radius of the detailed blocks (simple ones beyond, to `extent`); horizon: flat painted blocks and the
   //     street out to here, so the city runs into the horizon haze; far: { count, radius, height, width } hazy towers
   //     on the horizon
+  //   For a lower floor, where the street reads in detail (see cityLife below): winBand: [floor height, sill, head,
+  //     mullion spacing, mullion share] our skin's glazing; topMax: city roofs scaled to stay this far below our floor;
+  //     cars: { every, colors, radius } traffic in the lanes; trees: { every, color, dark, radius } sidewalk trees;
+  //     roofs: { radius } plant rooms, roof gardens, solar rows and skylights on the buildings near the tower
   function buildCityBelow(level, theme, cz, rad, B) {
     var C = theme.below, D = C.depth || 170;
     var pos = [], colr = [], win = [], fac = [], edge = [], push = [], idx = [];
@@ -1443,7 +1447,7 @@
     // the tower: each zone is a wing with its own curtain wall down to the street; between wings (where the trail
     // corridors run) a lower set-back block with a roof 4 m down, so every floor plate stands on a building
     var wings = level.zones.map(function (z) { return [z.ox - 0.6, z.oz - 0.3, z.ox + z.w + 0.6, z.oz + z.h + 0.3]; });
-    var TT = C.towerTop, FH = C.diagrid ? -1 : 4, BH = C.bridgeHole || [2.6, -1.2, ((theme.wall && theme.wall.height) || 4) + 0.5];
+    var TT = C.towerTop, FH = C.diagrid ? -1 : C.winBand ? 1000 + C.winBand[0] : 4, BH = C.bridgeHole || [2.6, -1.2, ((theme.wall && theme.wall.height) || 4) + 0.5];
     function hole(face, x, top) { return { face: face, x0: x - BH[0], x1: x + BH[0], y0: BH[1], y1: top === undefined ? BH[2] : top }; }
     var plugs = level.zones.map(function () { return []; });
     wings.forEach(function (w, i) {
@@ -1494,6 +1498,7 @@
     // ones out to `horizon`)
     var ext = C.extent || 250, BLK = 26, ST = 9, street = col(C.street || '#5B616D'), walk = col('#A9A69D'), lane = col('#E8D47C'), park = col('#7FAA66');
     var DET = C.detail || 1e9, HOR = C.horizon || 0, EXT = Math.max(ext, HOR);
+    var life = cityLife(C, { quad: quad, tower: tower, ground: ground, col: col, hash: hash, Y0: Y0, cz: cz, BLK: BLK, ST: ST });
     ground(-EXT, cz - EXT, EXT, cz + EXT, Y0, street);
     var BPAL = (C.blocks || ['#CDB89A', '#B39C86', '#9DB0C2', '#C9C3B6', '#AC8F78', '#8E9FB2', '#D2A58C']).map(function (h) { return col(h); });
     var bc = 0;
@@ -1510,6 +1515,7 @@
       ground(gx + ST / 2 - 0.14, gz, gx + ST / 2 + 0.14, gz + BLK + ST, Y0 + 0.05, lane);     // avenue centre line
       ground(gx, gz + ST / 2 - 0.14, gx + BLK + ST, gz + ST / 2 + 0.14, Y0 + 0.06, lane);     // street centre line
       ground(bx0 - 0.8, bz0 - 0.8, bx1 + 0.8, bz1 + 0.8, Y0 + 0.15, walk, true);                    // sidewalk slab
+      if (C.cars || C.trees) life.street(gx, gz, bx0, bz0, bx1, bz1, dc);
       if (hh < 0.06) { ground(bx0, bz0, bx1, bz1, Y0 + 0.3, park, true); continue; }
       var parts = hh < 0.38 ? 1 : hh < 0.74 ? 2 : 4, mx = (bx0 + bx1) / 2, mz = (bz0 + bz1) / 2;
       for (var q = 0; q < parts; q++) {
@@ -1520,9 +1526,11 @@
         var r2 = hash(bc, 51), dist = Math.hypot((qx0 + qx1) / 2, (qz0 + qz1) / 2 - cz);
         // downtown towers near the centre, walk-ups toward the edges; every roof stays far below our floor
         var top = Y0 + 16 + r2 * r2 * Math.max(24, 125 - dist * 0.38), tc = BPAL[bc % BPAL.length];
+        if (C.topMax !== undefined) top = Y0 + (top - Y0) * Math.min(1, (C.topMax - Y0) / 141);
         tower(qx0, qz0, qx1, qz1, Y0, top, tc, tc.clone().multiplyScalar(0.55), 3.4 + hash(bc, 55) * 0.8, ROOF.clone().lerp(tc, 0.3));
         if (r2 > 0.42) tank(qx0 + 3 + hash(bc, 52) * Math.max(0, qx1 - qx0 - 6), qz0 + 3 + hash(bc, 53) * Math.max(0, qz1 - qz0 - 6), top, 1 + hash(bc, 54) * 0.4);
         if (r2 < 0.75 && qx1 - qx0 > 8) tower(qx1 - 6, qz0 + 2, qx1 - 2, qz0 + 5, top, top + 1.6, col('#8A8794'), null, 0, col('#77747F'));   // roof bulkhead
+        if (C.roofs && dist < (C.roofs.radius || 200)) life.roof(qx0, qz0, qx1, qz1, top, bc, r2);
         bc++;
       }
     }
@@ -1551,6 +1559,7 @@
     var HD = C.hazeDist || [120, 260, 0.3], DG = C.diagrid || [6, 9];
     var mat = new THREE.ShaderMaterial({
       uniforms: { uInk: { value: col('#221E2C') }, uHaze: { value: col(C.haze || '#CCDCE8') }, uDepth: { value: D }, uTop: { value: C.hazeTop || 0.18 }, uBot: { value: C.hazeBottom || 0.6 },
+        uWB: { value: C.winBand ? new THREE.Vector4(C.winBand[1], C.winBand[2], C.winBand[3], C.winBand[4]) : new THREE.Vector4(0.38, 0.9, 2.6, 0.14) },
         uHz: { value: new THREE.Vector3(HD[0], HD[1], HD[2]) }, uMaxH: { value: C.hazeMax || 0.92 }, uDia: { value: new THREE.Vector2(DG[0], DG[1]) },
         uOutBase: IB.Render.worldOutline.uOutBase, uOutK: IB.Render.worldOutline.uOutK, uOutPx: { value: IB.Render.worldOutline.px || 3.2 } },
       extensions: { derivatives: true },
@@ -1560,10 +1569,12 @@
         '  vec4 mv = modelViewMatrix * vec4(p, 1.0);\n' +
         '  if (aPush.x != 0.0 || aPush.y != 0.0) { float w = max(uOutBase, uOutK * -mv.z); p.x += aPush.x * w; p.z += aPush.y * w; mv = modelViewMatrix * vec4(p, 1.0); vInk = uOutPx; }\n' +
         '  vDist = length(mv.xyz); gl_Position = projectionMatrix * mv; }',
-      fragmentShader: 'uniform vec3 uHaze; uniform float uDepth; uniform float uTop; uniform float uBot; uniform vec3 uInk; uniform vec3 uHz; uniform float uMaxH; uniform vec2 uDia;\n' +
+      fragmentShader: 'uniform vec4 uWB; uniform vec3 uHaze; uniform float uDepth; uniform float uTop; uniform float uBot; uniform vec3 uInk; uniform vec3 uHz; uniform float uMaxH; uniform vec2 uDia;\n' +
         'varying vec3 vC; varying vec3 vW; varying vec3 vF; varying vec4 vE; varying float vY; varying float vDist; varying float vInk;\n' +
         'void main(){ vec3 c = vC;\n' +
-        '  if (vF.y > 0.0) { float fy = fract(vY / vF.y); float fu = fract(vF.x / 2.6);\n' +
+        '  if (vF.y > 999.0) { float fy = fract(vY / (vF.y - 1000.0)); float fu = fract(vF.x / uWB.z);\n' +   // theme.below.winBand
+        '    if (fy > uWB.x && fy < uWB.y && fu > uWB.w) c = vW; }\n' +
+        '  else if (vF.y > 0.0) { float fy = fract(vY / vF.y); float fu = fract(vF.x / 2.6);\n' +
         '    if (fy > 0.38 && fy < 0.9 && fu > 0.14) c = vW; }\n' +
         '  else if (vF.y < 0.0) {\n' +   // diagrid: steel diagonals (bay uDia.x wide, climbing uDia.y per half diamond) and floor beams over glass
         '    float sl = uDia.x / uDia.y, kk = inversesqrt(1.0 + sl * sl), s1 = vF.x - vY * sl, s2 = vF.x + vY * sl;\n' +
@@ -1594,6 +1605,78 @@
       pm.frustumCulled = false; pm.name = 'CityPlug' + i; pm.visible = false;
       level.root.add(pm); level.plugs.push({ zone: i, mesh: pm });
     });
+  }
+  /* Street life and rooftop detail for a city seen from a mid-rise floor (theme.below cars / trees / roofs), drawn with
+     the city's own quad / tower / ground helpers (K). street(): per detailed block, cars in the two lanes each side of
+     the avenue and the street centre lines, zebra crossings at the corner, trees along the block's north and south
+     sidewalks; roof(): per building, one of plant units, a raised roof garden, solar rows or a skylight, kept clear of
+     the bulkhead (north-east corner) the city already puts there. Everything is a few boxes, inked like the city. */
+  function cityLife(C, K) {
+    var Y0 = K.Y0, ST = K.ST, BLK = K.BLK, hash = K.hash, col = K.col, CR = C.cars || {}, TR = C.trees || {};
+    var cars = (CR.colors || ['#EEEEEA', '#2C2F36', '#C8312C', '#3B6FB6', '#9AA2AC']).map(function (h) { return col(h); });
+    var glass = col('#2B3442'), white = col('#F4F2EC'), leaf = col(TR.color || '#6FA352'), leafD = col(TR.dark || '#4C7F3E');
+    var roofG = col('#7FAE5E'), soil = col('#8A7158'), solar = col('#2E4A78'), unit = col('#C9CCD1'), unitD = col('#9A9EA6'), sky = col('#BFE3F2');
+    function car(x, z, along, seed) {   // along: 'z' (avenue) or 'x' (street); body + cabin
+      var L = 4.2 + hash(seed, 3) * 0.8, W = 1.8, cc = cars[Math.floor(hash(seed, 4) * cars.length) % cars.length];
+      var hx = along === 'z' ? W / 2 : L / 2, hz = along === 'z' ? L / 2 : W / 2;
+      K.tower(x - hx, z - hz, x + hx, z + hz, Y0 + 0.25, Y0 + 1.0, cc, null, 0, cc);
+      var cx = along === 'z' ? W / 2 - 0.12 : L * 0.27, czz = along === 'z' ? L * 0.27 : W / 2 - 0.12;
+      K.tower(x - cx, z - czz, x + cx, z + czz, Y0 + 1.0, Y0 + 1.55, glass, null, 0, cc);
+    }
+    function lane(a0, a1, fixed, along, seed) {   // cars along one lane from a0 to a1 (away from the crossings)
+      var ev = CR.every || 8;
+      for (var a = a0 + 3; a < a1 - 3; a += ev) {
+        var hh = hash(seed + Math.round(a * 3), 17);
+        if (hh < 0.45) continue;
+        var p = a + (hh - 0.45) * 2.5;
+        if (along === 'z') car(fixed, p, 'z', seed + Math.round(a)); else car(p, fixed, 'x', seed + Math.round(a));
+      }
+    }
+    return {
+      street: function (gx, gz, bx0, bz0, bx1, bz1, dc) {
+        var seed = Math.round(gx) * 31 + Math.round(gz) * 7;
+        if (C.cars && dc < (CR.radius || 220)) {
+          // the avenue runs north-south on x = gx, the street east-west on z = gz (the junction is round (gx, gz));
+          // this block's stretch of each runs from ST / 2 to ST / 2 + BLK past it
+          var s0 = ST / 2, s1 = ST / 2 + BLK;
+          lane(gz + s0, gz + s1, gx - 1.7, 'z', seed); lane(gz + s0, gz + s1, gx + 1.7, 'z', seed + 5);
+          lane(gx + s0, gx + s1, gz - 1.7, 'x', seed + 9); lane(gx + s0, gx + s1, gz + 1.7, 'x', seed + 13);
+          for (var i = 0; i < 5; i++) {      // zebra crossings on the avenue and the street, next to the junction
+            var o = -2.4 + i * 1.2;
+            K.ground(gx + o - 0.3, gz + s0 + 0.4, gx + o + 0.3, gz + s0 + 2.4, Y0 + 0.08, white);
+            K.ground(gx + s0 + 0.4, gz + o - 0.3, gx + s0 + 2.4, gz + o + 0.3, Y0 + 0.08, white);
+          }
+        }
+        if (C.trees && dc < (TR.radius || 200)) {
+          var ev = TR.every || 7;
+          [bz0 - 0.4, bz1 + 0.4].forEach(function (tz, s) {
+            for (var tx = bx0 + 2; tx < bx1 - 1; tx += ev) {
+              var r = 1.1 + hash(seed + Math.round(tx), 21 + s) * 0.5, y = Y0 + 2.4;
+              K.tower(tx - r, tz - r, tx + r, tz + r, y, y + 1.6 + r * 0.6, hash(seed + Math.round(tx), 23) < 0.5 ? leaf : leafD, null, 0, leaf);
+            }
+          });
+        }
+      },
+      roof: function (x0, z0, x1, z1, top, bc, r2) {
+        var w = x1 - x0, d = z1 - z0, k = hash(bc, 61), y = top;
+        if (w < 7 || d < 7) return;
+        var ax0 = x0 + 1.5, az0 = z0 + (d > 12 ? 6 : 1.5), ax1 = x0 + w * 0.62, az1 = z1 - 1.5;   // clear of the bulkhead
+        if (k < 0.3) {                // a raised roof garden: planter bed, lawn, a few shrubs
+          K.tower(ax0, az0, ax1, az1, y, y + 0.45, soil, null, 0, roofG);
+          for (var i = 0; i < 3; i++) {
+            var sx = ax0 + 1 + hash(bc, 62 + i) * Math.max(0.5, ax1 - ax0 - 2), sz = az0 + 1 + hash(bc, 66 + i) * Math.max(0.5, az1 - az0 - 2);
+            K.tower(sx - 0.8, sz - 0.8, sx + 0.8, sz + 0.8, y + 0.45, y + 1.9, i % 2 ? leaf : leafD, null, 0, leaf);
+          }
+        } else if (k < 0.55) {        // solar rows on low frames
+          for (var zz = az0; zz + 1.4 < az1; zz += 2.2) K.tower(ax0, zz, ax1, zz + 1.4, y + 0.2, y + 0.55, unitD, null, 0, solar);
+        } else if (k < 0.8) {         // plant units: chillers and condensers in a row
+          for (var xx = ax0; xx + 2 < ax1; xx += 2.8) K.tower(xx, az0, xx + 2, az0 + 1.6, y, y + 1.3, unit, null, 0, unitD);
+          K.tower(ax0, az1 - 1.2, ax1, az1 - 0.6, y, y + 0.6, unitD, null, 0, unitD);   // a duct run
+        } else {                      // a skylight with its upstand
+          K.tower(ax0 + 1, az0 + 1, ax1 - 1, az1 - 1, y, y + 0.5, unit, null, 0, sky);
+        }
+      }
+    };
   }
   // where copy i of backdrop ring ri stands (and faces): shared by the ring placement and the city's skyline shafts
   function ringPlace(ring, ri, i, cz, rad) {
