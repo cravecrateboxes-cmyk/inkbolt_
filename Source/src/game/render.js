@@ -313,7 +313,7 @@
     if (env.sky) R.setSky(env.sky[0], env.sky[1]);
     R.renderer.setClearColor(new THREE.Color(env.clear || fog.color || '#15121C'), 1);
     R.scene.fog.color.set(fog.color || '#FFF0DC');
-    R.scene.fog.near = fog.near || 45;
+    R.scene.fog.near = R.envFogNear = fog.near || 45;
     R.envFogFar = fog.far || 120;
     R.envFogScale = !!fog.tierScale;
     R.applyFogFar();
@@ -327,6 +327,9 @@
     if (!R.scene.fog) return;
     var t = R.tierFogFar || 999, e = R.envFogFar || 120;
     R.scene.fog.far = R.envFogScale && t < 999 ? e * t / 120 : Math.min(e, t);
+    // a low tier's short fog end must not land on or before the theme's fog start (the whole view would turn fog
+    // colour): keep the start at most 55% of the end. High / medium never hit this (end 120+, starts are 45-62).
+    if (R.envFogNear !== undefined) R.scene.fog.near = Math.min(R.envFogNear, R.scene.fog.far * 0.55);
   };
   R.setSky = function (top, horizon) { R.sky.material.uniforms.top.value.set(top); R.sky.material.uniforms.horizon.value.set(horizon); };
 

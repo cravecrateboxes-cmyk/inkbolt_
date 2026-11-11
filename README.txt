@@ -70,6 +70,13 @@ CAMPAIGN (src/data/levelplans.js ORDER)
     (pharmacy, diner, electronics, convenience store, books, barber, sporting goods, hardware, pawn, laundromat).
     Kit: blender/fam_kit_downtown.py (downtown_*.py); zones: tools/downtown_zones.py. The everyday vehicles are
     kit-parking pieces: theme option `families` loads more kits for a level (zones.js Z.themeFamilies).
+  Larkspur Glen (townhomes): a gated town-house community at midday, two zones -- the stone-and-iron entrance
+    (gatehouse, boom barriers, keypad post, open iron gates), the boulevard's planted median, the clubhouse and its
+    fenced pool deck, the mailbox kiosk and the first rows of houses; then Thistle Court with a cul-de-sac at each
+    end, rear garage lanes, a house under construction (scaffold perch) and the park with a playground and gazebo.
+    Rows of brick, lap-siding, stucco and modern garage houses repainted per house (symbol option `paint`); six
+    walk-in houses with furnished ground floors and stairs to an upper floor and a balcony robots follow you onto.
+    Kit: blender/fam_kit_townhomes.py (townhomes_*.py); zones: tools/townhomes_zones.py.
 
   Helix Vault (datacenter): a 74 m wide hyperscale data center (hot / cold aisles of blinking rack rows, CRAC units,
     a NOC with a video wall), the secure core (colocation cages round a quantum computer), a vault, a UPS room, and the
@@ -94,6 +101,18 @@ CAMPAIGN (src/data/levelplans.js ORDER)
     forklifts (kit-parking via `families`), dock doors with trailers backed in, a baler, a stretch wrapper, the break
     room under a mezzanine and the receiving office up on it (steel stair, high ground). Kit: blender/fam_kit_megastore.py
     (ms_*.py); zones: tools/megastore_zones.py.
+
+  Palmyra Cove Resort (resort, 2 zones): a luxury tropical resort on an island's west shore, open ocean all round.
+    Resort grounds (72 m): the open-air lobby pavilion under a two-tier thatched roof, the lagoon pool with a thatched
+    swim-up bar, loungers, umbrellas and cabanas on the pool deck, tiki torches, the beach with a boardwalk, kayaks and
+    the towel hut, and the first treehouse villa on a platform in two giant palms. The canopy (76 m): four long, wide
+    platforms 7.5 m up in eight enormous palms (the CANOPY SUITE on the centre one), rope bridges between them, and
+    broken limbs and fallen fronds leaning against them as ramps (52 walkable steps of 0.144 m: the player and the
+    robots climb them, the nav grid holds ground, ramps and platforms); fallen trunks, stumps, coconut piles, crates
+    and a broken-down golf cart below. A fall only drops you to the sand. Platforms are the engine's deck slab with a
+    plank / joist decal; terrain paint (flat) lays lawn, paths and wet sand and shades the ground under the
+    platforms. Kit: blender/fam_kit_resort.py (rs_*.py); zones: tools/resort_zones.py; test:
+    node tests/e2e/resort-climb.spec.js.
 
 BREAKABLE DOORS (src/game/doors.js, theme symbol option `breakable`; first used by Helix Vault)
   A prefab symbol with breakable: { hp, debris: 'metal' | 'glass' | 'mesh' | 'field', word, leaf, blend } places its

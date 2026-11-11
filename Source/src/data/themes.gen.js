@@ -4389,7 +4389,7 @@
             [['crawler', 10], ['bomber', 2], ['gunner', 6], ['blader', 6]],
             [['crawler', 12], ['drone', 7], ['gunner', 7], ['soldier', 10]],
             [['crawler', 14], ['drone', 3], ['bomber', 2], ['gunner', 9], ['soldier', 6], ['blader', 5]],
-            [['crawler', 8], ['gunner', 6], ['soldier', 4]]] },
+            [['crawler', 8], ['gunner', 6], ['soldier', 5]]] },
           // Stockroom: tall racks, the docks, the mezzanine office
           { map: 'megastore_2', waves: [
             [['crawler', 16], ['gunner', 10], ['soldier', 6]],
@@ -5147,6 +5147,258 @@
   });
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
 
+/* ---- themes/resort.js ---- */
+/* Theme: Palmyra Cove Resort (kit-resort) -- a luxury tropical resort (made-up Palmyra Cove brand) on the west shore
+   of an island, bright tropical daylight, open ocean all round. Two zones:
+   1 The resort grounds (72 x 64): the open-air lobby pavilion under a two-tier thatched roof (reception, woven screen
+     with the resort's name), the lagoon pool with its thatched swim-up bar, loungers, umbrellas and cabanas round the
+     paved pool deck, tiki torches, the beach with lounger pairs, kayak racks and the towel hut, a boardwalk over the
+     sand, a garden lounge, the service yard, and the first treehouse villa on a platform in two giant palms.
+   2 The canopy (76 x 68): four long, wide tree platforms 7.5 m up in eight enormous palms (the landmark: the CANOPY
+     SUITE on the centre platform), rope bridges between them, five broken limbs and fallen fronds leaning against
+     them as ramps (walkable by the player and the robots), and ground cover below: fallen trunks, snapped stumps,
+     coconut piles, crates, a broken-down golf cart. A fall from the canopy just drops you to the ground.
+   Built by blender/fam_kit_resort.py (rs_*.py); zone layers by tools/resort_zones.py (src/data/zones/resort_*.txt).
+
+   A zone file has the floor plan and five layers: "@layer 0.2" boardwalk slabs, "@layer 0.2" their plank decals,
+   "@layer 7.5" platform slabs and rope bridges, "@layer 7.5" the platforms' plank / joist decals, "@layer 7.5" what
+   stands on the platforms. The ground is flat sand; theme.terrain paints lawn, paths and wet sand from the plan
+   (and a shade under each platform).
+   Floor plan (1 cell = 1 m; prefab sizes [x, z]):
+     #  hedge walls on a coral-stone kerb (2 m modules; some with a palm behind), round corner clumps
+     {  shore rocks and a rope fence on the west edge (the beach and the sea lie behind)
+     , lawn   ; paved path / pool deck   ~ wet sand   . sand   (ground paint only)
+     L lobby pavilion [14,10]   Q lagoon pool with the swim-up bar [20,12]   C K N cabana [4,4] open south / west / east
+     l sun lounger [1,2] (head north)   j sun lounger [2,1] (head east, facing the sea)   u thatched umbrella + table
+     t tiki torch   o rattan lounge set [3,2]   q stone planter   p palm   Y tall palm [2,2]   f hibiscus bush
+     g dune grass   k coconut pile   c supply crates   y kayak rack [3,1]   T towel hut [3,2]   n signpost
+     X broken-down golf cart [2,3]   F fallen palm trunk [6,2]   U snapped stump [2,2]   e fallen frond [2,4]
+     Z giant treehouse palm [4,4] (its collar and knee braces carry the platform above)   I deck post
+     ^ v > <  broken limb / fallen frond ramp [2,13] rising north / south / east / west (its top end against a
+              platform edge; 52 walkable steps of 0.144 m)
+   Layer 0.2: w boardwalk slab   d b plank decal [4,2] (two symbols for neighbouring strips)
+   Layer 7.5: D platform slab   = rope bridge [3,2]   J plank + joist decal [4,2]
+              r rail (runs)   V W [ ] villa [6,5] open south / north / east / west   M CANOPY SUITE [8,6] open south
+              H hammock [3,1]   (o t c k q as on the ground) */
+(function (IB) {
+  'use strict';
+  var R90 = Math.PI / 2;
+  var SOLID = '#GE{';
+  function solid(g, c, r) { return SOLID.indexOf(g.at(c, r)) >= 0; }
+  function faceOf(g, c, r) {
+    var oS = !solid(g, c, r + 1), oN = !solid(g, c, r - 1), oE = !solid(g, c + 1, r), oW = !solid(g, c - 1, r);
+    var n = oS + oN + oE + oW;
+    if (n === 0) return 'none';
+    if (n === 1) return oS ? 'S' : oN ? 'N' : oE ? 'E' : 'W';
+    return ((oS || oN) && (oE || oW)) ? 'corner' : (oS ? 'S' : 'E');
+  }
+  function gateDist(g, c, r) {   // cells from a north / south edge wall cell to the centre of that edge's gate
+    if (r !== 0 && r !== g.h - 1) return 99;
+    var ch = r === 0 ? 'G' : 'E', a = -1, b = -1;
+    for (var x = 0; x < g.w; x++) if (g.at(x, r) === ch) { if (a < 0) a = x; b = x; }
+    return a < 0 ? 99 : Math.abs(c + 0.5 - (a + b + 1) / 2);
+  }
+  function inRun(g, c, r, F) { return g.at(c, r) === '#' && faceOf(g, c, r) === F && gateDist(g, c, r) > 2.6; }
+  function chooseWall(c, r, horiz, corner, hash, g) {
+    var F = faceOf(g, c, r);
+    if (F === 'none' || F === 'corner') return hash(c * 3 + 1, r * 7 + 2) < 0.5 ? 'Corner_A' : 'Corner_B';
+    if (gateDist(g, c, r) < 2.6) return null;          // the gate frame's posts and hedge clumps fill the cells beside a gate
+    var along = F === 'S' || F === 'N', u = along ? c : r;
+    var pc = along ? faceOf(g, c - 1, r) : faceOf(g, c, r - 1), nc = along ? faceOf(g, c + 1, r) : faceOf(g, c, r + 1);
+    if (u % 2 === 0) {
+      // a module poking half a cell into a corner: A on north / south runs, B on east / west runs (kerb tops never coplanar)
+      if (pc === 'corner' || pc === 'none' || nc === 'corner' || nc === 'none') return along ? 'Hedge_A' : 'Hedge_B';
+      var h = hash(c * 5 + 1, r * 3 + 7); return h < 0.16 ? 'Hedge_C' : h < 0.55 ? 'Hedge_B' : 'Hedge_A';
+    }
+    var prev = along ? inRun(g, c - 1, r, F) : inRun(g, c, r - 1, F), next = along ? inRun(g, c + 1, r, F) : inRun(g, c, r + 1, F);
+    if ((!prev && (pc === 'corner' || pc === 'none')) || (!next && (nc === 'corner' || nc === 'none'))) return null;   // the corner clump covers it
+    return (!prev || !next) ? 'Hedge_1' : null;        // odd cells are covered by their neighbours' 2 m modules
+  }
+
+  // ---------------------------------------------------------------- ground paint (flat sand + lawn / paths / wet sand)
+  var PAINT = { ',': 'lawn', ';': 'path', '~': 'wet', '.': 'sand' };
+  function deckOver(g, c, r) {
+    var L = g.layers || [];
+    for (var i = 0; i < L.length; i++) if (L[i].y > 5 && L[i].at(c, r) === 'D') return true;
+    return false;
+  }
+  function paint(c, r, zi, g) {
+    var n = { lawn: 0, path: 0, wet: 0, sand: 0 }, tot = 0, shade = 0, dc, dr, k;
+    for (var rad = 1; rad <= 3 && !tot; rad++) {
+      for (dr = -rad; dr < rad; dr++) for (dc = -rad; dc < rad; dc++) {
+        k = PAINT[g.at(c + dc, r + dr)];
+        if (k) { n[k]++; tot++; }
+      }
+    }
+    for (dr = -1; dr <= 0; dr++) for (dc = -1; dc <= 0; dc++) if (deckOver(g, c + dc, r + dr)) shade++;
+    if (!tot) return null;
+    var best = 'sand';
+    ['lawn', 'path', 'wet'].forEach(function (q) { if (n[q] > n[best]) best = q; });
+    var a = n[best] / tot;
+    if (shade >= 2) return best === 'lawn' ? ['#5C9C47', 0.95] : ['#CBAE78', 0.85];
+    if (best === 'lawn') return [Math.floor(c / 3) % 2 ? '#7DC65A' : '#88CD63', 0.35 + 0.65 * a];
+    if (best === 'path') return ['#EFE5CF', 0.3 + 0.7 * a];
+    if (best === 'wet') return ['#D7BB86', 0.3 + 0.6 * a];
+    return null;
+  }
+
+  // ---------------------------------------------------------------- the island round the level and the sea (backdrop.build)
+  function superellipse(cx, cz, hx, hz, n, N) {
+    var out = [];
+    for (var i = 0; i < N; i++) {
+      var a = i / N * Math.PI * 2, c = Math.cos(a), s = Math.sin(a);
+      out.push([cx + hx * (c < 0 ? -1 : 1) * Math.pow(Math.abs(c), 2 / n), cz + hz * (s < 0 ? -1 : 1) * Math.pow(Math.abs(s), 2 / n)]);
+    }
+    return out;
+  }
+  function buildIsland(level, api) {
+    var THREE = (typeof window !== 'undefined' && window.THREE) || globalThis.THREE;
+    var zones = level.zones, hash = api.hash;
+    var x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
+    zones.forEach(function (z) { x0 = Math.min(x0, z.ox); x1 = Math.max(x1, z.ox + z.w); z0 = Math.min(z0, z.oz); z1 = Math.max(z1, z.oz + z.h); });
+    if (level.hatch) z0 = Math.min(z0, level.hatch.z - 12);
+    // bands from the beach out: [west offset, other sides offset, y, colour]; the west wall is the shore line
+    var BANDS = [[30, 58, -0.36, '#2DB9D7'], [12.5, 40, -0.3, '#52D8E2'], [9.2, 36.6, -0.24, '#F2FFFF'], [8.6, 36, -0.18, '#D7BB86'],
+      [6.5, 34, -0.12, '#F1DCA4'], [0, 27, -0.06, '#7DBF58']];
+    api.geo.flat([[x0 - 700, z0 - 700], [x1 + 700, z0 - 700], [x1 + 700, z1 + 700], [x0 - 700, z1 + 700]], -0.42, new THREE.Color('#1F90C5'));
+    BANDS.forEach(function (B) {
+      var a = x0 - B[0], b = x1 + B[1], c = z0 - B[1], d = z1 + B[1];
+      api.geo.flat(superellipse((a + b) / 2, (c + d) / 2, (b - a) / 2, (d - c) / 2, 9, 72), B[2], new THREE.Color(B[3]));
+    });
+    // keep-outs: the zones and their walls, the trails, the hatch room
+    var keep = [];
+    zones.forEach(function (z) { keep.push([z.ox - 1.5, z.oz - 1.5, z.ox + z.w + 1.5, z.oz + z.h + 1.5]); });
+    level.trails.forEach(function (t) { keep.push([t.x - 4.5, Math.min(t.z0, t.z1) - 1, t.x + 4.5, Math.max(t.z0, t.z1) + 1]); });
+    if (level.hatch) keep.push([level.hatch.x - 7, level.hatch.z - 7, level.hatch.x + 7, (level.hatch.z0 || level.hatch.z) + 1]);
+    function clear(x, z, r) {
+      for (var i = 0; i < keep.length; i++) { var k = keep[i]; if (x > k[0] - r && x < k[2] + r && z > k[1] - r && z < k[3] + r) return false; }
+      return true;
+    }
+    var n = 0;
+    // palms and jungle on the land (north, east, south of the zones), palms leaning out over the beach (west)
+    for (var gx = x0 - 4; gx <= x1 + 26; gx += 8) for (var gz = z0 - 26; gz <= z1 + 26; gz += 8) {
+      n++;
+      var x = gx + (hash(n, 3) - 0.5) * 6, z = gz + (hash(n, 5) - 0.5) * 6;
+      if (x < x0 - 1) { if (x > x0 - 5 && hash(n, 7) < 0.55 && clear(x, z, 2)) api.add(hash(n, 9) < 0.5 ? 'Backdrop_Palm_A' : 'Backdrop_Palm_B', x, -0.1, z, -R90 + (hash(n, 11) - 0.5) * 1.2, 0.9 + hash(n, 13) * 0.3); continue; }
+      var out = Math.max(x0 - x, x - x1, z0 - z, z - z1, 0);
+      if (out > 22 || !clear(x, z, 2.5) || hash(n, 17) < 0.25) continue;
+      if (out < 8 || hash(n, 15) < 0.35) api.add(hash(n, 9) < 0.5 ? 'Backdrop_Palm_A' : 'Backdrop_Palm_B', x, -0.06, z, hash(n, 11) * 6.28, 0.85 + hash(n, 13) * 0.4);
+      else api.add(hash(n, 9) < 0.5 ? 'Backdrop_Jungle_A' : 'Backdrop_Jungle_B', x, -0.04 - hash(n, 19) * 0.3, z, hash(n, 11) * 6.28, 0.9 + hash(n, 13) * 0.5);
+    }
+    // overwater bungalows on jetties off the beach, islets far out
+    zones.forEach(function (Z, zi) {
+      var zc = Z.oz + Z.h * (zi ? 0.35 : 0.6);
+      api.add('Backdrop_Jetty', x0 - 13, -0.36, zc, R90, 1);
+      api.add('Backdrop_Jetty', x0 - 25, -0.36, zc, R90, 1);
+      api.add('Backdrop_Bungalow', x0 - 34, -0.36, zc - 4, -R90, 1);
+      api.add('Backdrop_Bungalow', x0 - 34, -0.36, zc + 5, -R90 + 0.1, 1);
+      api.add('Backdrop_Bungalow', x0 - 26, -0.36, zc - 9, Math.PI, 1);
+    });
+    [[x0 - 150, z0 + 40, 2.2], [x0 - 230, z1 - 30, 3.0], [(x0 + x1) / 2 - 40, z0 - 200, 2.6], [x1 + 170, z1 + 60, 2.4], [x0 - 120, z1 + 150, 1.8]].forEach(function (I, i) {
+      api.add('Backdrop_Islet', I[0], -0.45, I[1], i * 1.7, I[2]);
+    });
+  }
+
+  var LIMB = ['Ramp_Limb', 'Ramp_LimbB', 'Ramp_Frond'];
+  var SYMBOLS = {
+    '{': { pieces: ['Shore_A', 'Shore_B', 'Shore_A', 'Shore_C', 'Shore_B', 'Shore_A', 'Shore_C'], rotate: R90, kind: 'wall' },
+    'L': { size: [14, 10], pieces: ['Landmark_Lobby'], face: 0, kind: 'cover' },
+    'Q': { size: [20, 12], pieces: ['Landmark_Pool'], face: 0, kind: 'cover' },
+    'C': { size: [4, 4], pieces: ['Cabana'], face: 0, kind: 'cover' },
+    'K': { size: [4, 4], pieces: ['Cabana'], face: -R90, kind: 'cover' },
+    'N': { size: [4, 4], pieces: ['Cabana'], face: R90, kind: 'cover' },
+    'l': { size: [1, 2], pieces: ['Lounger_A', 'Lounger_B'], face: 0, kind: 'cover' },
+    'j': { size: [1, 2], pieces: ['Lounger_A', 'Lounger_B'], face: -R90, kind: 'cover' },
+    'u': { pieces: ['Umbrella'], rotate: 'random90', kind: 'cover' },
+    't': { pieces: ['Torch'], rotate: 'random90', kind: 'cover' },
+    'o': { size: [3, 2], pieces: ['LoungeSet'], flip: true, kind: 'cover' },
+    'q': { pieces: ['Planter'], rotate: 'random90', kind: 'cover' },
+    'p': { pieces: ['Palm_A', 'Palm_B', 'Palm_C'], rotate: 'random90', kind: 'cover' },
+    'Y': { size: [2, 2], pieces: ['TallPalm_A', 'TallPalm_B'], flip: true, kind: 'cover' },
+    'f': { pieces: ['Bush_A', 'Bush_B'], rotate: 'random90', kind: 'cover' },
+    'g': { pieces: ['DuneGrass'], rotate: 'random90', collide: false },
+    'k': { pieces: ['CoconutPile'], rotate: 'random90', kind: 'cover' },
+    'c': { pieces: ['Crate_A', 'Crate_B', 'Crate_A'], rotate: 'random90', kind: 'cover' },
+    'y': { size: [3, 1], pieces: ['Kayaks'], flip: true, kind: 'cover' },
+    'T': { size: [3, 2], pieces: ['TowelHut'], face: 0, kind: 'cover' },
+    'n': { pieces: ['Signpost'], rotate: 'edge', edge: ',', kind: 'cover' },
+    'X': { size: [2, 3], pieces: ['GolfCart'], flip: true, kind: 'cover' },
+    'F': { size: [6, 2], pieces: ['FallenTrunk'], flip: true, kind: 'cover' },
+    'U': { size: [2, 2], pieces: ['Stump'], flip: true, kind: 'cover' },
+    'e': { size: [2, 4], pieces: ['FallenFrond'], flip: true, collide: false },
+    'Z': { size: [4, 4], pieces: ['Landmark_GiantPalm_A', 'Landmark_GiantPalm_B'], face: 0, kind: 'cover' },
+    'I': { pieces: ['DeckPost'], kind: 'cover' },
+    '^': { size: [2, 13], pieces: LIMB, face: 0, kind: 'cover' },
+    'v': { size: [2, 13], pieces: LIMB, face: Math.PI, kind: 'cover' },
+    '>': { size: [2, 13], pieces: LIMB, face: -R90, kind: 'cover' },
+    '<': { size: [2, 13], pieces: LIMB, face: R90, kind: 'cover' },
+    // boardwalks (layer 0.2)
+    'w': { deck: { thick: 0.2, color: '#D9A56E', edge: '#9A6238', under: '#6A4428' } },
+    'd': { size: [4, 2], pieces: ['Planks'], collide: false },
+    'b': { size: [4, 2], pieces: ['Planks'], collide: false },
+    // tree platforms (layer 7.5)
+    'D': { deck: { thick: 0.35, color: '#D29A62', edge: '#8E5832', under: '#6E4426' } },
+    'J': { size: [4, 2], pieces: ['PlanksJ'], collide: false },
+    '=': { size: [3, 2], pieces: ['Bridge'], kind: 'cover' },
+    'r': { pieces: ['RailHalf'], full: 'RailFull', links: 'r', post: 'RailPost', kind: 'wall' },
+    'V': { size: [6, 5], pieces: ['Villa'], face: 0, kind: 'cover' },
+    'W': { size: [6, 5], pieces: ['Villa'], face: Math.PI, kind: 'cover' },
+    '[': { size: [6, 5], pieces: ['Villa'], face: R90, kind: 'cover' },
+    ']': { size: [6, 5], pieces: ['Villa'], face: -R90, kind: 'cover' },
+    'M': { size: [8, 6], pieces: ['Landmark_Villa'], face: 0, kind: 'cover' },
+    'H': { size: [3, 1], pieces: ['Hammock'], flip: true, kind: 'cover' }
+  };
+  var GLOW = { Torch: { piece: 'Torch_Flame' } };
+
+  var PIECES = ['Hedge_A', 'Hedge_B', 'Hedge_C', 'Hedge_1', 'Corner_A', 'Corner_B', 'GateFrame', 'GateShutter', 'TrailWall',
+    'TrailWall_B', 'TrailWall_C', 'Hatch', 'Torch_Flame', 'Backdrop_Palm_A', 'Backdrop_Palm_B', 'Backdrop_Jungle_A', 'Backdrop_Jungle_B',
+    'Backdrop_Islet', 'Backdrop_Bungalow', 'Backdrop_Jetty'];
+  Object.keys(SYMBOLS).forEach(function (ch) {
+    var d = SYMBOLS[ch];
+    if (d.deck) return;
+    d.pieces.concat(d.full ? [d.full] : [], d.post ? [d.post] : []).forEach(function (n) { if (PIECES.indexOf(n) < 0) PIECES.push(n); });
+  });
+
+  IB.registerTheme({
+    id: 'resort', name: 'Palmyra Cove Resort', family: 'kit-resort', prefix: 'KIT_RESORT_',
+    palette: ['#3FAE58', '#52D8E2', '#F07A52', '#F3DFA8'],
+    env: { sky: ['#2F9BEA', '#D2F0FF'], fog: { color: '#D2F0FF', near: 50, far: 190, tierScale: true }, sun: [0.45, 0.85, 0.3], clouds: true, ceiling: null },
+    floor: { color: '#F1DCA4', trail: '#EFE5CF', outside: '#7DBF58' },
+    terrain: { height: function () { return 0; }, paint: paint, flat: '', ramp: [1, 2], low: '#F1DCA4', high: '#F1DCA4', patch: '#EAD196', top: 3 },
+    wall: { height: 3.6, roof: '#3E9A50', facing: 'open', choose: chooseWall },
+    symbols: SYMBOLS,
+    glow: GLOW,
+    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.4, shutterHeight: 3.05 },
+    trail: { wall: 'TrailWall', variants: ['TrailWall_B', 'TrailWall', 'TrailWall_C', 'TrailWall'], height: 2.6 },
+    hatch: 'Hatch', stand: 'Crate_A',
+    backdrop: { build: buildIsland },
+    budget: { prop: 1600, landmark: 3500, total: 45000 },
+    allPieces: function () { return PIECES.slice(); },
+    levels: {
+      resort: {
+        name: 'Palmyra Cove Resort',
+        intro: 'Robots have taken over Palmyra Cove. Clear the resort grounds, then climb the broken limbs into the canopy villas. A fall only drops you to the sand.',
+        zones: [
+          // the resort grounds: lobby, lagoon pool, beach, the first treehouse
+          { map: 'resort_1', waves: [
+            [['crawler', 20], ['gunner', 10], ['drone', 4]],
+            [['crawler', 16], ['gunner', 7], ['bomber', 2], ['soldier', 5], ['blader', 3]],
+            [['crawler', 12], ['drone', 7], ['gunner', 7], ['soldier', 6], ['blader', 3]],
+            [['crawler', 14], ['gunner', 8], ['bomber', 2], ['soldier', 6], ['blader', 3]],
+            [['crawler', 14], ['gunner', 6], ['drone', 3], ['soldier', 5], ['blader', 3]]] },
+          // the canopy: platforms, bridges, broken-limb ramps, cover below
+          { map: 'resort_2', waves: [
+            [['crawler', 16], ['gunner', 9], ['drone', 4], ['soldier', 5]],
+            [['crawler', 14], ['drone', 6], ['gunner', 7], ['blader', 3]],
+            [['crawler', 15], ['gunner', 8], ['bomber', 2], ['soldier', 6], ['blader', 3]],
+            [['crawler', 14], ['drone', 6], ['gunner', 8], ['soldier', 6], ['blader', 3]],
+            [['crawler', 15], ['gunner', 7], ['bomber', 2], ['soldier', 4], ['blader', 2]]] }
+        ]
+      }
+    }
+  });
+})(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
+
 /* ---- themes/smallcity.js ---- */
 /* Theme: Small City (kit-smallcity). Campaign level 2: a warm late-afternoon downtown of 2-4 storey brick and
    cream-stone buildings with painted shop fronts and striped awnings, concrete sidewalks, grey-blue asphalt with lane
@@ -5796,6 +6048,242 @@
             [['crawler', 7], ['bomber', 2], ['drone', 6], ['gunner', 4], ['soldier', 9]],
             [['crawler', 9], ['gunner', 9], ['drone', 6], ['blader', 10]],
             [['crawler', 10], ['gunner', 11], ['bomber', 2], ['drone', 5], ['soldier', 12], ['blader', 5]]] }
+        ]
+      }
+    }
+  });
+})(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
+
+/* ---- themes/townhomes.js ---- */
+/* Theme: Larkspur Glen (kit-townhomes) -- a gated town-house community at midday, overrun. Not Downtown's shop
+   blocks nor Small City's main street: two- and three-storey town houses in rows (brick with bracketed cornices, lap
+   siding under gable roofs and dormers, stucco under clay-tile front gables, modern brick-and-board houses with front
+   garages), porches, stoops and small fenced front yards, rear garage lanes, the clubhouse and its pool, a playground
+   and a park, and the stone-and-iron entrance with its gatehouse. Every row repaints its siding, stucco, brick, front
+   doors and shutters per house (symbol option `paint`), so no two neighbours match.
+     townhomes_1  The gated entrance: the approach road and its sign walls outside the community wall, the gate
+                  across the boulevard (gatehouse on the island, boom barriers, the keypad call post, iron gates swung
+                  open, a pedestrian gate: landmark), the boulevard's planted median, the clubhouse on Larkspur Lane
+                  with its fenced pool deck (loungers, umbrellas), the mailbox kiosk, the first rows of town houses
+                  either side of the Commons green that leads to the north gate, a rear garage lane behind each row.
+     townhomes_2  Thistle Court: the court between two rows of town houses with a cul-de-sac turnaround at each end,
+                  rear garage lanes with bins and parked cars, the lot under construction in the north row (scaffold,
+                  framing, a skip, materials: landmark), the park with the playground, swings and the gazebo.
+   Walk-in houses (1-6): open front and back doors, a furnished ground floor 0.32 m up (living room at the front,
+   kitchen at the back), a stair along the party wall to the upper floor (3.32 m): an open front room with French
+   doors onto the balcony over the porch -- a sniper perch over the street -- and a back bedroom. Robots follow the
+   player up (walkable stairs, floors and balconies give the zones a layered nav grid). "@layer 0.32" / "@layer 3.32"
+   hold pickups on those floors.
+   Built by blender/fam_kit_townhomes.py (townhomes_*.py); layouts by tools/townhomes_zones.py. The parked cars and
+   the wheelie bins are kit-parking pieces (option `families`), repainted per car.
+
+   Symbols (1 cell = 1 m; prefab sizes are [x, z] cells; built-ins # P S a h G E)
+     Town-house lots [6, 12], front to the south / north:  H U siding   J V stucco   K X brick   Q Y garage
+       1 4 walk-in siding (+ Int_A)   2 5 walk-in stucco (+ Int_B)   3 6 walk-in brick (+ Int_C)   7 8 under construction
+     R the gated entrance [17, 6] (zone 1 landmark)   N sign wall [8, 2]   c clubhouse [14, 11] (front north)
+     O pool [12, 6] (a movement bound over the water)  l lounger [1, 2]   u patio table [2, 2]   k pool rules sign
+     M mailbox kiosk [4, 3]   p playground [8, 6]   i swings [4, 2]   e see-saw [3, 1]   r spring rider   d sandbox [3, 3]
+     Z gazebo [6, 6]   W skip [2, 4]   w lumber [2, 1]   x brick pallet   q cement mixer   % site toilet   & site sign [2, 1]
+     @ median bed [3, 6]   A cul-de-sac island [6, 6]
+     Runs (links, a post at ends and corners): F picket fence  I iron fence  L community wall  D hedge  f pool fence
+       g j pool gate in an E-W / N-S fence line   y site fence
+     s lamp  ] hydrant  m post box  v street sign  0 speed sign  9 kids-at-play sign  B bench [2, 1]  n litter bin
+     $ transformer  [ AC unit  * grill  } urn  { basketball hoop  < recycling carts  > kid's bike  ? hose reel
+     t tree  b columnar tree  z cherry in blossom  ) shrub  ( shrubs [2, 1]
+     C parked car [3, 5]  T pickup / van [3, 6]  / wheelie bins [2, 1]   (kit-parking)
+     Paint on the road (no collision): - | lane dash along X / Z   ` ! double yellow along X / Z   + ^ stop line X / Z
+       ' crosswalk bar along X   o manhole
+   "@layer 0" paving (no collision): , sidewalk   ; lawn   : driveway / lane apron   _ stepping-stone path
+     = pool deck   ~ rubber mulch   " flower bed
+   The wall ('#', the zone edge) is the community wall: coursed stone with an iron railing (2.3 m) inside, a tall
+   hedge outside the gate; the cells beside a zone gate are left to the gate's piers. */
+(function (IB) {
+  'use strict';
+  var R90 = Math.PI / 2;
+  var KP = 'KIT_PARKING_';
+  function kp(list) { return list.map(function (n) { return KP + n; }); }
+  // house paint jobs: palette cells (blender/townhomes_base.py) sid 8, stu 9, brk 10, door 11, shut 12
+  // -> [siding, stucco, brick, door, shutters]
+  var HOUSE = { from: [8, 9, 10, 11, 12], to: [
+    [8, 9, 10, 11, 12], [13, 18, 21, 23, 27], [14, 19, 22, 24, 12], [15, 20, 10, 25, 28], [16, 9, 21, 26, 27],
+    [17, 18, 22, 27, 12], [13, 20, 10, 24, 28], [14, 9, 21, 11, 27], [15, 19, 22, 23, 12], [8, 18, 10, 26, 28],
+    [16, 20, 21, 25, 12], [17, 19, 22, 11, 27]] };
+  var PAINT = 48;   // kit-parking 'paint' cell; 49 blue 50 yellow 51 green 52 white 53 black 54 silver 55 orange 56 teal 57 purple 58 mint 59 brown
+  var CAR = { from: [PAINT], to: [[48], [49], [52], [53], [54], [56], [57], [58], [59], [52], [54], [53], [49], [51]] };
+  var CARS = kp(['Sedan', 'Hatchback', 'SUV', 'Sedan', 'SUV_Boot', 'Hatchback', 'Sports', 'SUV', 'CarCovered', 'Sedan_Door']);
+  var WALK = { '1': ['Walk_Siding', 'Int_A'], '2': ['Walk_Stucco', 'Int_B'], '3': ['Walk_Brick', 'Int_C'],
+    '4': ['Walk_Siding', 'Int_A'], '5': ['Walk_Stucco', 'Int_B'], '6': ['Walk_Brick', 'Int_C'] };
+  function lot(piece, face) { return { size: [6, 12], pieces: [piece], face: face, kind: 'cover', paint: HOUSE }; }
+  function walkIn(ch) {
+    var w = WALK[ch], d = lot(w[0], '123'.indexOf(ch) >= 0 ? 0 : Math.PI), with_ = {};
+    with_[w[0]] = [w[1] + '_GF', w[1] + '_UF'];
+    d.with = with_;
+    return d;
+  }
+  function flat(pieces, rot, alt) { return { pieces: pieces, collide: false, rotate: rot || 0, alternate: !!alt }; }
+  function links(name, set, kind) { return { pieces: [name], full: name + 'Full', post: name + 'Post', links: set, kind: kind || 'cover' }; }
+
+  var SYMBOLS = {
+    // town houses
+    'H': lot('House_Siding', 0), 'J': lot('House_Stucco', 0), 'K': lot('House_Brick', 0), 'Q': lot('House_Garage', 0),
+    'U': lot('House_Siding', Math.PI), 'V': lot('House_Stucco', Math.PI), 'X': lot('House_Brick', Math.PI), 'Y': lot('House_Garage', Math.PI),
+    '7': lot('Landmark_Build', 0), '8': lot('Landmark_Build', Math.PI),
+    // landmarks and site
+    'R': { size: [17, 6], pieces: ['Landmark_Gate'], face: 0, kind: 'cover' },
+    'N': { size: [8, 2], pieces: ['EntrySign'], face: 0, kind: 'cover' },
+    'c': { size: [14, 11], pieces: ['Clubhouse'], face: Math.PI, kind: 'cover' },
+    'O': { size: [12, 6], pieces: ['Pool'], face: 0, kind: 'bound' },
+    'l': { size: [1, 2], pieces: ['Lounger'], flip: true, kind: 'cover' },
+    'u': { size: [2, 2], pieces: ['PatioTable'], flip: true, kind: 'cover' },
+    'k': { pieces: ['PoolSign'], rotate: Math.PI, kind: 'cover' },
+    'M': { size: [4, 3], pieces: ['MailKiosk'], face: Math.PI, kind: 'cover' },
+    'p': { size: [8, 6], pieces: ['Playground'], face: 0, kind: 'cover' },
+    'i': { size: [4, 2], pieces: ['Swings'], face: 0, kind: 'cover' },
+    'e': { size: [3, 1], pieces: ['SeeSaw'], face: 0, kind: 'cover' },
+    'r': { pieces: ['SpringRider'], rotate: 'random90', kind: 'cover' },
+    'd': { size: [3, 3], pieces: ['Sandbox'], face: 0, kind: 'cover' },
+    'Z': { size: [6, 6], pieces: ['Gazebo'], face: 0, kind: 'cover' },
+    'W': { size: [2, 4], pieces: ['Skip'], flip: true, kind: 'cover' },
+    'w': { size: [2, 1], pieces: ['Lumber'], flip: true, kind: 'cover' },
+    'x': { pieces: ['Bricks'], rotate: 'random90', kind: 'cover' },
+    'q': { pieces: ['Mixer'], rotate: 'random90', kind: 'cover' },
+    '%': { pieces: ['SiteToilet'], rotate: 0, kind: 'cover' },
+    '&': { size: [2, 1], pieces: ['SiteSign'], face: 0, kind: 'cover' },
+    '@': { size: [3, 6], pieces: ['Median'], face: 0, kind: 'cover' },
+    'A': { size: [6, 6], pieces: ['Island'], face: 0, kind: 'cover' },
+    // runs
+    'F': links('Picket', 'F'), 'I': links('Iron', 'I'), 'L': links('Wall', 'LR'), 'D': links('Hedge', 'D'),
+    'f': links('PoolFence', 'fgj'), 'y': links('SiteFence', 'y'),
+    'g': { pieces: ['PoolGate'], rotate: 0, kind: 'cover' }, 'j': { pieces: ['PoolGate'], rotate: R90, kind: 'cover' },
+    // street furniture, yard props, trees
+    's': { pieces: ['Lamp'], rotate: 0, kind: 'cover' },
+    ']': { pieces: ['Hydrant'], rotate: 'random90', kind: 'cover' },
+    'm': { pieces: ['PostBox'], rotate: 0, kind: 'cover' },
+    'v': { pieces: ['StreetSign'], rotate: 0, kind: 'cover' },
+    '0': { pieces: ['SpeedSign'], rotate: 0, kind: 'cover' },
+    '9': { pieces: ['KidsSign'], rotate: 0, kind: 'cover' },
+    'B': { size: [2, 1], pieces: ['Bench'], flip: true, kind: 'cover' },
+    'n': { pieces: ['TrashCan'], kind: 'cover' },
+    '$': { pieces: ['Transformer'], rotate: 'random90', kind: 'cover' },
+    '[': { pieces: ['ACUnit'], rotate: 'random90', kind: 'cover' },
+    '*': { pieces: ['Grill'], kind: 'cover' },
+    '}': { pieces: ['Urn'], kind: 'cover' },
+    '{': { pieces: ['Hoop'], rotate: 'random90', kind: 'cover' },
+    '<': { pieces: ['Carts'], rotate: 'random90', kind: 'cover' },
+    '>': { pieces: ['KidBike'], rotate: 'random90', kind: 'cover' },
+    '?': { pieces: ['HoseReel'], rotate: 'random90', kind: 'cover' },
+    't': { pieces: ['Tree'], rotate: 'random90', kind: 'cover' },
+    'b': { pieces: ['TreeB'], rotate: 'random90', kind: 'cover' },
+    'z': { pieces: ['TreeC'], rotate: 'random90', kind: 'cover' },
+    ')': { pieces: ['Shrub'], rotate: 'random90', kind: 'cover' },
+    '(': { size: [2, 1], pieces: ['Shrubs'], flip: true, kind: 'cover' },
+    // kit-parking vehicles and bins
+    'C': { size: [3, 5], pieces: CARS, flip: true, kind: 'cover', paint: CAR },
+    'T': { size: [3, 6], pieces: kp(['Pickup', 'Van', 'Pickup_B']), flip: true, kind: 'cover', paint: CAR },
+    '/': { size: [2, 1], pieces: kp(['Bins']), flip: true, kind: 'cover' },
+    // road paint
+    '-': flat(['LaneW'], 0), '|': flat(['LaneW'], R90), '`': flat(['LaneY'], 0), '!': flat(['LaneY'], R90),
+    '+': flat(['StopLine'], 0), '^': flat(['StopLine'], R90), "'": flat(['Zebra'], 0), 'o': flat(['Manhole']),
+    // paving layer
+    ',': flat(['Walk', 'WalkB'], 0, true), ';': flat(['Lawn', 'LawnB'], 0, true), ':': flat(['Drive']),
+    '_': flat(['Path'], 0), '=': flat(['Deck']), '~': flat(['Mulch']), '"': flat(['Bed'], 0)
+  };
+  Object.keys(WALK).forEach(function (ch) { SYMBOLS[ch] = walkIn(ch); });
+
+  /* the zone edge: the community wall (stone with an iron railing), a tall hedge south of the gate line on the
+     approach (zone 1), stone piers on the corners; the cells either side of a zone gate are the gate's piers */
+  function gateRow(grid) {
+    if (grid._thGate === undefined) {
+      grid._thGate = -1;
+      for (var r = 0; r < grid.h && grid._thGate < 0; r++) if (grid.rows[r].indexOf('RRRRRRRRRRRRRRRRR') >= 0) grid._thGate = r;
+    }
+    return grid._thGate;
+  }
+  // the single-cell module a '#' cell would get, or null (gate piers), with its open side (zones.js buildWalls rules)
+  var DIRS = { S: [0, 1], N: [0, -1], E: [1, 0], W: [-1, 0] };
+  function solidAt(grid, c, r) { var ch = grid.at(c, r); return ch === '#' || ch === 'G' || ch === 'E'; }
+  function faceAt(grid, c, r) {
+    var oS = !solidAt(grid, c, r + 1), oN = !solidAt(grid, c, r - 1), oE = !solidAt(grid, c + 1, r), oW = !solidAt(grid, c - 1, r);
+    var n = oS + oN + oE + oW;
+    return n === 0 ? 'none' : n === 1 ? (oS ? 'S' : oN ? 'N' : oE ? 'E' : 'W') : ((oS || oN) && (oE || oW) ? 'corner' : (oS ? 'S' : 'E'));
+  }
+  function single(c, r, grid, face) {
+    for (var k = -1; k <= 1; k++) {
+      var q1 = grid.at(c + k, r), q2 = grid.at(c, r + k);
+      if (q1 === 'G' || q1 === 'E' || q2 === 'G' || q2 === 'E') return null;
+    }
+    if (face === 'corner' || face === 'none') return 'Perim_Pier';
+    var g = gateRow(grid);
+    return g >= 0 && r > g ? 'Perim_Hedge' : 'Perim';
+  }
+  /* straight runs of the stone wall are drawn two cells per module (Perim2 reaches over its neighbour on the module's
+     local +X: east for a south-facing cell, west for north, north for east, south for west); cells pair by parity */
+  var NEXT = { S: [1, 0], N: [-1, 0], E: [0, -1], W: [0, 1] };
+  function chooseWall(c, r, horiz, corner, hash, grid, face) {
+    var me = single(c, r, grid, face);
+    if (me !== 'Perim' || !NEXT[face]) return me;
+    var n = NEXT[face], along = n[0] ? c : r, lead = (along % 2 === 0) === (n[0] + n[1] > 0);
+    var pc = lead ? c + n[0] : c - n[0], pr = lead ? r + n[1] : r - n[1];
+    var ok = grid.at(pc, pr) === '#' && faceAt(grid, pc, pr) === face && single(pc, pr, grid, face) === 'Perim';
+    if (!ok) return 'Perim';
+    return lead ? 'Perim2' : null;
+  }
+
+  IB.registerTheme({
+    id: 'townhomes', name: 'Larkspur Glen', family: 'kit-townhomes', prefix: 'KIT_TOWNHOMES_', families: ['kit-parking'],
+    palette: ['#9DB89A', '#B5523B', '#E9DCC0', '#2B3A67'],
+    // midday: a clear blue sky, light haze, the sun high in the south-west
+    env: { sky: ['#56A6EA', '#DCEFFA'], fog: { color: '#D3E5EF', near: 60, far: 170 }, sun: [-0.35, 0.86, 0.38], clouds: true, ceiling: null },
+    floor: { color: '#5E616A', trail: '#B9AE9A', outside: '#78AE58' },
+    wall: { height: 2.3, roof: '#9E8F76', facing: 'open', choose: chooseWall },
+    symbols: SYMBOLS,
+    // between the zones: a brick-walled garden path through an iron gateway
+    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
+    trail: { wall: 'TrailWall', variants: ['TrailWall_B', 'TrailWall_C'], height: 3.2 },
+    hatch: 'Hatch', stand: 'Lumber',
+    backdrop: {
+      ring: [
+        { piece: 'Backdrop_Trees', count: 16, radius: [14, 22], scale: [0.9, 1.25], face: true, squeezeX: 0.72 },
+        { piece: 'Backdrop_Row', count: 12, radius: [28, 36], scale: [0.95, 1.1], face: true, squeezeX: 0.78 },
+        { piece: 'Backdrop_Hill', count: 3, radius: [62, 72], scale: [1.0, 1.2], face: true, squeezeX: 0.8 }
+      ]
+    },
+    budget: { prop: 3600, landmark: 6000, total: 60000 },
+    allPieces: function () {
+      var out = ['Perim', 'Perim2', 'Perim_Hedge', 'Perim_Pier', 'GateFrame', 'GateShutter', 'TrailWall', 'TrailWall_B', 'TrailWall_C', 'Hatch',
+        'Backdrop_Trees', 'Backdrop_Row', 'Backdrop_Hill'];
+      Object.keys(SYMBOLS).forEach(function (ch) {
+        var d = SYMBOLS[ch];
+        d.pieces.concat(d.full ? [d.full] : [], d.post ? [d.post] : []).forEach(function (n) { if (n.indexOf(KP) !== 0 && out.indexOf(n) < 0) out.push(n); });
+        Object.keys(d.with || {}).forEach(function (k) { d.with[k].forEach(function (n) { if (out.indexOf(n) < 0) out.push(n); }); });
+      });
+      return out;
+    },
+    // the kit-parking pieces this theme places (tests check they exist in fps-kit-parking.glb)
+    parkingPieces: function () {
+      var out = [];
+      Object.keys(SYMBOLS).forEach(function (ch) { SYMBOLS[ch].pieces.forEach(function (n) { if (n.indexOf(KP) === 0 && out.indexOf(n) < 0) out.push(n); }); });
+      return out;
+    },
+    levels: {
+      townhomes: {
+        name: 'Larkspur Glen',
+        intro: 'The robots took the gated estate overnight. Get through the gate, clear the clubhouse and the rows, then push on to Thistle Court. Use the houses: through the front, out the back, up to the balconies.',
+        zones: [
+          // the gated entrance: gunners behind the gatehouse and the cars, blade bots through the houses, drones over the pool
+          { map: 'townhomes_1', waves: [
+            [['crawler', 22], ['gunner', 8], ['drone', 4]],
+            [['crawler', 12], ['bomber', 2], ['gunner', 6], ['blader', 6]],
+            [['crawler', 10], ['drone', 6], ['gunner', 6], ['soldier', 7]],
+            [['crawler', 16], ['bomber', 2], ['gunner', 7], ['soldier', 7], ['blader', 3]],
+            [['crawler', 13], ['drone', 5], ['gunner', 8], ['soldier', 7], ['blader', 2]]] },
+          // Thistle Court: soldiers on the scaffold and the balconies, blade bots down the garage lanes, a heavy last wave
+          { map: 'townhomes_2', waves: [
+            [['crawler', 20], ['gunner', 9], ['drone', 4], ['blader', 4]],
+            [['crawler', 12], ['bomber', 2], ['gunner', 7], ['soldier', 7]],
+            [['crawler', 12], ['drone', 6], ['gunner', 6], ['blader', 4], ['soldier', 4]],
+            [['crawler', 13], ['bomber', 2], ['gunner', 8], ['soldier', 6], ['blader', 2]],
+            [['crawler', 14], ['drone', 5], ['gunner', 8], ['soldier', 4], ['blader', 2]]] }
         ]
       }
     }
