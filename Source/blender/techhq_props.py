@@ -88,8 +88,8 @@ def chair(k, x, y, deg, c='violet'):
 
 
 def stool(k, x, y, c='oak', h=0.75):
-    k.cyl(x, y, 0, 0.2, 0.2, 0.02, 'steelD', seg=8, ink=False)
-    k.cyl(x, y, 0.02, 0.025, 0.025, h - 0.05, 'steel', seg=6, ink=False)
+    k.cyl(x, y, 0, 0.2, 0.2, 0.03, 'steelD', seg=8, ink=False)
+    k.cyl(x, y, 0.03, 0.025, 0.025, h - 0.06, 'steel', seg=6, ink=False)
     k.cyl(x, y, h - 0.05, 0.19, 0.19, 0.06, c, seg=7)
 
 
@@ -625,8 +625,8 @@ def dev_desk(k, v):
             if seat:
                 chair(k, sx + 0.08 * f, f * 1.05, deg + 180 + (10 if sx > 0 else -8), ('violet', 'coral', 'mint', 'sun')[(si * 2 + (f > 0)) % 4])
             elif v == 'C' and si == 0:
-                k.bx(sx - 0.3, sx + 0.3, f * 0.95 - 0.15, f * 0.95 + 0.15, 0.02, 0.07, 'oak')
-                k.cyl(sx, f * 0.95, 0.0, 0.08, 0.08, 0.02, 'black', seg=6, ink=False)
+                k.bx(sx - 0.3, sx + 0.3, f * 0.95 - 0.15, f * 0.95 + 0.15, 0.03, 0.08, 'oak')
+                k.cyl(sx, f * 0.95, 0.0, 0.08, 0.08, 0.03, 'black', seg=6, ink=False)
     for fi, f in enumerate((-1, 1)):
         y0, y1 = srt(f * 0.06, f * 0.8)
         for si, sx in enumerate((-0.98, 0.98)):

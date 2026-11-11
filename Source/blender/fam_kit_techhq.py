@@ -178,7 +178,7 @@ def window(k, kind):
     black frame; Win_M adds the bay's mullion and an aluminium fin outside, Win_B an oak window bench."""
     k.begin()
     k.bx(-0.5, 0.5, -0.5, 0.2, 0.0, 0.1, 'wallW', ink=False)                         # floor upstand
-    k.bx(-0.5, 0.5, -0.515, -0.5, 0.0, 0.1, 'black', ink=False)                      # skirting line
+    k.qy(-0.5, 0.5, 0.0, 0.1, -0.503, -1, 'black')                                   # skirting line (painted: no overlap at corners)
     k.bx(-0.5, 0.5, -0.5, 0.2, DECK - 0.42, DECK + 0.08, 'wallW')                     # slab band (the floor line)
     k.bx(-0.5, 0.5, 0.2, 0.26, DECK - 0.5, DECK + 0.14, 'mullion', ink=False)        # dark spandrel glass outside
     k.bx(-0.5, 0.5, -0.5, 0.2, H - 0.5, H, 'wallW')                                   # head / ceiling bulkhead
@@ -200,7 +200,7 @@ def window(k, kind):
         k.bx(-0.5, 0.5, -0.5, 0.05, 0.1, 0.42, 'oak2')
         k.bx(-0.5, 0.5, -0.5, 0.05, 0.42, 0.46, 'oak')
         k.bx(-0.48, 0.48, -0.46, 0.0, 0.46, 0.53, 'cushion', ink=False)
-        k.bx(-0.5, 0.5, -0.52, -0.5, 0.12, 0.36, 'black', ink=False)                  # toe recess shadow
+        k.qy(-0.5, 0.5, 0.12, 0.36, -0.503, -1, 'black')                              # toe recess shadow
     return k
 
 
@@ -245,11 +245,11 @@ def gate_side(k):
     """Lift-core cladding beside a gate (one-sided): oak lower storey with a slot light, white above."""
     k.begin()
     E = 0.496     # 4 mm short of the cell edges: the gate frame's posts stand on the gate's side of them
-    k.bx(-E, E, -0.5, 0.5, 0, H, 'wallW')
+    k.bx(-E, E, -0.5, 0.5, 0.004, H, 'wallW')   # lifted 4 mm: its foot never shares the floor plane with the gate frame's posts
     k.bx(-E, E, -0.56, -0.5, 0.08, 3.6, 'oak')
     for x in (-0.3, -0.1, 0.1, 0.3):
         k.qy(x - 0.006, x + 0.006, 0.13, 3.55, -0.563, -1, 'oak2')
-    k.bx(-E, E, -0.57, -0.5, 0.0, 0.08, 'black', ink=False)
+    k.bx(-E, E, -0.57, -0.5, 0.004, 0.08, 'black', ink=False)
     k.qy(-0.03, 0.03, 3.7, H - 0.6, -0.503, -1, 'violet')
     return k
 
@@ -265,7 +265,7 @@ def inner_wall(k, kind):
     oak battens, a living green wall, a whiteboard full of diagrams or the brand supergraphic on it."""
     k.begin()
     k.bx(-0.5, 0.5, -0.5, 0.5, 0, H, 'wallW')
-    k.bx(-0.5, 0.5, -0.515, -0.5, 0, 0.1, 'black', ink=False)
+    k.qy(-0.5, 0.5, 0.0, 0.1, -0.503, -1, 'black')
     if kind == 'Oak':
         k.bx(-0.5, 0.5, -0.53, -0.5, 0.1, H - 0.3, 'oak2', ink=False)
         for x in (-0.4, -0.2, 0.0, 0.2, 0.4):
@@ -412,8 +412,8 @@ def gate_frame(k):
         x0, x1 = srt(s * 1.5, s * 2.1)
         k.bx(x0, x1, -0.6, 0.6, 0, 3.4, 'wallW')
         lx0, lx1 = srt(s * 1.47, s * 1.53)
-        k.bx(lx0, lx1, -0.5, 0.5, 0.05, 3.35, 'oak', ink=False)
-        k.bx(x0 + 0.01, x1 - 0.01, -0.61, 0.61, 0, 0.08, 'black', ink=False)
+        k.bx(lx0, lx1, -0.47, 0.47, 0.05, 3.35, 'oak', ink=False)
+        k.bx(x0 + 0.01, x1 - 0.01, -0.61, 0.61, 0, 0.11, 'black', ink=False)
     k.bx(-2.1, 2.1, -0.6, 0.6, 3.4, 3.9, 'graphite')
     k.bx(-2.1, 2.1, -0.47, 0.47, 3.9, H - 0.005, 'wallW')
     for f in (-1, 1):

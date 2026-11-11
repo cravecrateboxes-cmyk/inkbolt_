@@ -195,7 +195,7 @@
     },
     gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.4, shutterHeight: 3.05 },
     // the lift lobbies: oak and white, lift doors with floor numbers, a gallery at 4 m, a stair door, a green wall
-    trail: { wall: 'TrailWall', height: 8.0, variants: ['TrailWall_Lift', 'TrailWall_Lift', 'TrailWall_Plant', 'TrailWall_Stair'], end: 'TrailWall_Plant' },
+    trail: { wall: 'TrailWall', height: 8.0, variants: ['TrailWall_Lift', 'TrailWall_Lift', 'TrailWall_Plant', 'TrailWall_Stair'], end: 'TrailWall_Plant', endLift: 0.012 },   // lifted clear of the side walls' gallery ledges where they cross
     hatch: 'Hatch', stand: 'Stand',
     // skyline rows: count 4 lands due east, south, west and north of the level (rows A, B, A, B), each facing it
     backdrop: { ring: [
