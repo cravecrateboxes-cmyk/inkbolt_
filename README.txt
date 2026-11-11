@@ -60,6 +60,23 @@ CAMPAIGN (src/data/levelplans.js ORDER)
   Lagoon Island (island): a wide island with wadeable ponds, tide pools and a lagoon, sea walls on the shore and open
     ocean to the horizon all round (theme backdrop.build paints the island ground and the sea).
 
+  Helix Vault (datacenter): a 74 m wide hyperscale data center (hot / cold aisles of blinking rack rows, CRAC units,
+    a NOC with a video wall), the secure core (colocation cages round a quantum computer), a vault, a UPS room, and the
+    HELIXA R&D wing (robot chassis on gantries, holo design tables, weapon prototypes in containment fields, cryo
+    cylinders, an energy test chamber, the Forge). Glow companions (theme option `glow`, zones.js): LEDs, screens and
+    holograms drawn unlit, blinked / turned by the theme.
+
+BREAKABLE DOORS (src/game/doors.js, theme symbol option `breakable`; first used by Helix Vault)
+  A prefab symbol with breakable: { hp, debris: 'metal' | 'glass' | 'mesh' | 'field', word, leaf, blend } places its
+  frame like any prefab and its leaf (<Piece>_Leaf, _Leaf_D1, _Leaf_D2, _Broken) as its own mesh and collision. The
+  leaf blocks movement, shots, sight lines and the nav grid. It takes damage from the player's bullets and melee, robot
+  bolts, and every blast in reach (frag cans, rockets, soldier grenades, bombers, canisters; x4 against doors); hp is in
+  level-1 units (hits are divided by the robots' health multiplier). Under 2/3 and 1/3 hp it shows dents / cracks and
+  sparks, at 0 it bursts (Boom.shatter: debris, dust, a comic word), its boxes switch off and Zones.renav rebuilds the
+  zone's nav grid so robots path through. orient: 'span' lines a door up with its wall; doorway cells in 2-cell walls
+  are wall.passage cells (several symbols allowed). Loot mounts inside a breakable prefab stay locked until it breaks.
+  Doors are whole again on a restart. Test: node tests/e2e/doors.spec.js.
+
 MELEE, GRENADES AND NEW GUNS
   Melee weapons (V, src/game/weapons.js W.meleeStart + game.js meleeHit): Stinger dagger (fast stab, x2.5 on a
   robot that has not seen you or is struck from behind), Twin Strikers nunchucks (two hits per swing in a wide arc,

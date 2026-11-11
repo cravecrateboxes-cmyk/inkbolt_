@@ -218,6 +218,7 @@
     }
     // explosive canisters in reach light up and go off next (chains ripple)
     if (Boom) Boom.onBlast(x, y, z, R);
+    if (IB.Doors) IB.Doors.blast(x, y, z, R, Math.max(q.Dr || 0, (q.D || 0) * 3));   // breakable doors in reach (robot blasts too)
   }
   // the original lobe cloud (used only when game/boom.js is not loaded)
   function blastBall(x, y, z, R, ctx) {
@@ -297,6 +298,7 @@
         b.on = false;
         if (FX) { FX.impact(hx, hy, hz, nnx, nny, nnz, false); FX.puff(hx + nnx * 0.05, hy + nny * 0.05, hz + nnz * 0.05, 2, PAL.amber, 0.08, 0.22, 2); }
         if (IB.Boom) { IB.Boom.boltHit(hx, hy, hz, nnx, nny, nnz); if (hbox && hbox.kind === 'canister') IB.Boom.hitCan(hbox, b.dmg * 2); }   // robot fire sets canisters off too
+        if (hbox && hbox.door && IB.Doors) IB.Doors.hit(hbox, b.dmg, hx, hy, hz, nnx, nny, nnz, 'robot');   // and wears breakable doors down
         special(b, hx + nnx * 0.1, hy + nny * 0.1, hz + nnz * 0.1, false);
         sfx('boltHit', hx, hz, 0.45);
         continue;

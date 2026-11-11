@@ -217,7 +217,55 @@
       g.setAttribute('pid', new THREE.BufferAttribute(a, 1)); Z.pidNames[PID] = name;
     }
     (this.lists[fam] || (this.lists[fam] = [])).push(g);
+    var GL = glowOf(this.theme, name);
+    if (GL) {
+      var gm = (m || M(x, y, z, yaw)).clone(), ge = gm.elements, gh = hash(Math.round(ge[12] * 7 + ge[13] * 3), Math.round(ge[14] * 13)), self = this;
+      [].concat(GL).forEach(function (D) { (self.glow || (self.glow = [])).push({ def: D, m: gm, k: Math.floor(gh * (D.groups || 1)) }); });
+    }
   };
+  /* theme.glow (optional): { 'Piece': { piece: 'Piece_Glow', groups: 3, blend: 'add' | 'basic', spin: false } | [defs] }. A
+     companion piece (modelled without an outline shell) placed with the same transform as every copy of Piece, drawn
+     unlit (blend 'add': additive, a hologram or a force field) in one mesh per zone and phase group (copies are dealt
+     to `groups` groups by position), or one mesh per copy with spin (so the theme can turn it). level.glows lists
+     them ({ mesh, piece, group, zone, def }) for the theme to blink, pulse or turn (backdrop.build api.tick). */
+  function glowOf(theme, full) {
+    if (!theme.glow) return null;
+    if (!theme._glowFull) { theme._glowFull = {}; Object.keys(theme.glow).forEach(function (k) { theme._glowFull[IB.themePiece(theme, k)] = theme.glow[k]; }); }
+    return theme._glowFull[full] || null;
+  }
+  var glowMats = {};
+  function glowMat(fam, blend) {
+    var key = fam + blend;
+    if (!glowMats[key]) {
+      var add = blend === 'add';
+      glowMats[key] = new THREE.MeshBasicMaterial({ map: IB.Assets.mat[fam].map, transparent: add, blending: add ? THREE.AdditiveBlending : THREE.NormalBlending, depthWrite: !add, side: add ? THREE.DoubleSide : THREE.FrontSide });
+    }
+    return glowMats[key];
+  }
+  function buildGlows(level, zone, P) {
+    var by = {};
+    (P.glow || []).forEach(function (e) {
+      var full = IB.themePiece(P.theme, e.def.piece), fam = IB.Assets.family[full];
+      if (!fam || !IB.Assets.geo[full]) throw new Error('INKBOLT glow piece missing: ' + full);
+      var mat = glowMat(fam, e.def.blend || 'basic');
+      if (e.def.spin) {
+        var one = new THREE.Mesh(IB.Assets.get(full), mat);
+        e.m.decompose(one.position, one.quaternion, one.scale);
+        one.userData.yaw0 = new THREE.Euler().setFromQuaternion(one.quaternion, 'YXZ').y;
+        zone.group.add(one);
+        level.glows.push({ mesh: one, piece: e.def.piece, group: e.k, zone: zone.idx, def: e.def });
+        return;
+      }
+      var key = full + '#' + e.k;
+      (by[key] || (by[key] = { full: full, mat: mat, def: e.def, k: e.k, list: [] })).list.push(IB.Assets.placed(full, e.m));
+    });
+    Object.keys(by).forEach(function (key) {
+      var B = by[key], mesh = new THREE.Mesh(IB.Assets.merge(B.list), B.mat);
+      if (B.def.blend === 'add') mesh.renderOrder = 2;
+      zone.group.add(mesh);
+      level.glows.push({ mesh: mesh, piece: B.def.piece, group: B.k, zone: zone.idx, def: B.def });
+    });
+  }
   /* Symbol option `paint` (generic): one model in many paint jobs. Kit pieces colour their faces by palette cell (an
      8 x 8 grid on the family's 64 px palette texture; cell index = row * 8 + column, the order the Blender palette lists
      them), so a placed copy is repainted by moving the UVs of its `from` cells onto other cells:
@@ -337,12 +385,16 @@
     /* wall.passage = { ch, solid: [[y0, y1], ...] } (optional): a doorway cell in a wall line. It counts as wall for the
        modules around it (facing, exposure) and gets a module from the chooser like any wall cell, but it is solid only
        in the given height bands (lintels), so people walk through it (a walk-in shop's open front, on each storey) */
-    if (PS) rects(grid, PS.ch).forEach(function (R) {
-      PS.solid.forEach(function (b) { world.add(z.ox + R.c, b[0], z.oz + R.r, z.ox + R.c + R.w, b[1], z.oz + R.r + R.h, 'wall', z.idx); });
+    // (ch may list several symbols: doorways of different doors, see game/doors.js)
+    var PCH = PS ? PS.ch.split('') : [];
+    PCH.forEach(function (pc) {
+      rects(grid, pc).forEach(function (R) {
+        PS.solid.forEach(function (b) { world.add(z.ox + R.c, b[0], z.oz + R.r, z.ox + R.c + R.w, b[1], z.oz + R.r + R.h, 'wall', z.idx); });
+      });
     });
     var WALLISH = '#GE' + (PS ? PS.ch : '');
     function solid(c, r) { return cellIs(grid, c, r, WALLISH); }
-    find(grid, '#').concat(PS ? find(grid, PS.ch) : []).forEach(function (p) {
+    PCH.reduce(function (a, pc) { return a.concat(find(grid, pc)); }, find(grid, '#')).forEach(function (p) {
       var exposed = !solid(p.c - 1, p.r) || !solid(p.c + 1, p.r) || !solid(p.c, p.r - 1) || !solid(p.c, p.r + 1) ||
         !solid(p.c - 1, p.r - 1) || !solid(p.c + 1, p.r - 1) || !solid(p.c - 1, p.r + 1) || !solid(p.c + 1, p.r + 1);
       if (!exposed) { P.roof.push(p); return; }
@@ -602,6 +654,17 @@
     var f = [[n / R.w, Math.PI], [s / R.w, 0], [w / R.h, -Math.PI / 2], [e / R.h, Math.PI / 2]].sort(function (a, b) { return a[0] - b[0]; });
     return f[0][0] < f[1][0] ? f[0][1] : y;
   }
+  // orient: 'span': the prefab's local X runs along the wall line it stands in (a door: the block's sides holding wall
+  // cells or wall-kind symbols are its ends, the open sides its faces); the given yaw's half turn is kept
+  function spanYaw(grid, theme, R, y) {
+    var S = theme.symbols || {};
+    function wallAt(c, r) { var ch = grid.at(c, r); return ch === '#' || !!(S[ch] && S[ch].kind === 'wall'); }
+    var ns = 0, ew = 0, i;
+    for (i = 0; i < R.w; i++) { if (wallAt(R.c + i, R.r - 1)) ns++; if (wallAt(R.c + i, R.r + R.h)) ns++; }
+    for (i = 0; i < R.h; i++) { if (wallAt(R.c - 1, R.r + i)) ew++; if (wallAt(R.c + R.w, R.r + i)) ew++; }
+    var flip = Math.abs(Math.cos(y)) > 0.5 ? (Math.cos(y) < 0 ? Math.PI : 0) : (Math.sin(y) < 0 ? Math.PI : 0);
+    return (ew >= ns ? 0 : Math.PI / 2) + flip;
+  }
   // a multi-cell prefab symbol: each connected block is tiled with prefabs of size [w, d] (rotated 90 if that fits)
   function buildPrefabs(P, z, grid, theme, world, ch, d, yb) {
     var sw = d.size[0], sd = d.size[1];
@@ -620,6 +683,7 @@
         if (typeof d.face === 'number') y = d.face;
         if (d.orient === 'wall') y = wallYaw(grid, R, y);
         else if (d.orient === 'open') y = openYaw(grid, R, y);
+        else if (d.orient === 'span') y = spanYaw(grid, theme, R, y);
         var seq = yaw ? nz - 1 - k : i; if (back) seq = nRun - 1 - seq;
         // sequence 'run': the first and last pieces cap each run (feed / dispatch), the middle ones repeat in order
         var L = d.pieces.length, name = d.sequence === 'run' ? d.pieces[seq === 0 ? 0 : seq === nRun - 1 ? L - 1 : 1 + (seq - 1) % Math.max(1, L - 2)]
@@ -633,10 +697,13 @@
         if (d.fence) for (var fb = nb0, nb1 = world.boxes.length; fb < nb1; fb++) { var FB = world.boxes[fb]; if (FB.y1 < py + d.fence) world.bound(FB.x0, FB.y1, FB.z0, FB.x1, py + d.fence, FB.z1, z.idx); }
         addWith(P, world, theme, d, name, x, py, zz, y, z.idx);
         if (d.elevator) z.elevators.push(makeElevator(P, z, theme, world, d.elevator, x, y0, zz, y));
+        var m0 = z.mounts.length;
         if (d.mounts) d.mounts.forEach(function (m) {   // pickup mounts inside the prefab (guns on a wall rack), prefab-local
           var c = Math.round(Math.cos(y)), s2 = Math.round(Math.sin(y));
           z.mounts.push({ x: x + m[0] * c + m[2] * s2, y: y0 + m[1], z: zz - m[0] * s2 + m[2] * c, yaw: y + (m[3] || 0), kind: m[4] || 'gun', piece: name, fill: d.fill === undefined ? 1 : d.fill, opt: m[5] || null });
         });
+        // breakable (game/doors.js): the leaf is its own mesh and collision, the prefab's mounts stay locked until it breaks
+        if (d.breakable && IB.Doors) IB.Doors.build(z, theme, world, d, name, x, py, zz, y, z.mounts.slice(m0));
         if (lanes) {
           if (d.conveyor.path) addLine(P, z, theme, world, ch, d, x, zz, y, 0, [{ at: 0, name: name }]);   // a loop per prefab
           else { var li = yaw ? i : k; (lanes[li] || (lanes[li] = [])).push({ x: x, z: zz, name: name }); }
@@ -1074,6 +1141,18 @@
     }
     zone.nav = { nx: nx, nz: nz, layers: NL, blocked: blocked, h: hgt, dist: new Int16Array(NC * NL), queue: new Int32Array(NC * NL), t: 0 };
   }
+  /* rebuild a zone's nav grid from the world's boxes as they are now (a box switched off: a broken door, game/doors.js);
+     the arrays are refilled in place and the flow field is due at once */
+  Z.renav = function (zone, world) {
+    var old = zone.nav;
+    buildNav(zone, world || zone.world);
+    var N = zone.nav;
+    if (old && old.blocked.length === N.blocked.length && !!old.h === !!N.h) {
+      old.blocked.set(N.blocked); if (old.h) old.h.set(N.h);
+      zone.nav = old;
+    }
+    zone.nav.t = 0;
+  };
   Z.navCell = function (zone, x, z) {
     var i = Math.floor((x - zone.ox) / NAV), j = Math.floor((z - zone.oz) / NAV);
     if (i < 0 || j < 0 || i >= zone.nav.nx || j >= zone.nav.nz) return -1;
@@ -1240,7 +1319,7 @@
     if (!Z.mat) Z.mat = IB.Render.toonMaterial({});
     var world = new World(), theme = themeOf(plan);
     Z.world = world;   // floor queries for effects (Z.floorY)
-    var level = { world: world, zones: [], trails: [], plan: plan, root: new THREE.Group(), theme: theme, tris: 0, elevators: [] };
+    var level = { world: world, zones: [], trails: [], plan: plan, root: new THREE.Group(), theme: theme, tris: 0, elevators: [], glows: [] };
     scene.add(level.root);
     var prevExit = null;
     plan.zones.forEach(function (zp, idx) {
@@ -1251,7 +1330,7 @@
       if (!prevExit) { ox = -ecx; oz = -grid.h; }
       else { ox = prevExit.x - ecx; oz = prevExit.z - TRAIL_LEN - grid.h; }
       var zone = { idx: idx, ox: ox, oz: oz, w: grid.w, h: grid.h, grid: grid, plan: zp, group: new THREE.Group(), state: 'idle',
-        world: world, spawns: [], pickups: [], elevators: [], mounts: [] };
+        world: world, spawns: [], pickups: [], elevators: [], mounts: [], doors: [] };
       zone.entry = { x: ox + Pc.c + 0.5, z: oz + Pc.r + 0.5 };
       var g = new IB.Geo(), P = new Parts(theme);
       if (theme.terrain) buildTerrain(g, zone, grid, theme, world);
@@ -1271,6 +1350,7 @@
       zone.ground = new THREE.Mesh(g.build(), Z.mat);
       zone.group.add(zone.ground);
       zone.meshes = meshesFor(P, zone.group);
+      if (P.glow) buildGlows(level, zone, P);   // theme.glow companions: LEDs, screens, holograms (unlit)
       buildLines(level, zone);   // moving lines (conveyor symbols): instanced items + belt cleats
       zone.tris = zone.meshes.reduce(function (t, m) { return t + m.geometry.index.count / 3; }, 0);
       level.tris += zone.tris;

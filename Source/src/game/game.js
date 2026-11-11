@@ -206,7 +206,7 @@
       var groups = {}, tags = [];
       (z.mounts || []).forEach(function (m) {
         if (m.fill < 1 && Math.random() > m.fill) return;   // an empty peg
-        var L = { x: m.x, y: m.y, z: m.z, yaw: m.yaw, zone: zi, kind: m.kind, opt: m.opt || null, taken: false }, key;
+        var L = { x: m.x, y: m.y, z: m.z, yaw: m.yaw, zone: zi, kind: m.kind, opt: m.opt || null, taken: false, lock: m.lock || null }, key;
         if (m.kind === 'gun') {
           L.id = guns[(Math.random() * guns.length) | 0]; L.tier = rollW(TIERS); L.level = G.plan.level;
           if (IB.Launchers) IB.Launchers.rackPick(L);   // levels 14+: now and then a launcher on the rack
@@ -259,7 +259,7 @@
     var p = G.player, best = null, bs = 0.52, eye = p.y + 1.5, cp = Math.cos(p.pitch);
     var fx = -Math.sin(p.yaw) * cp, fy = Math.sin(p.pitch), fz = -Math.cos(p.yaw) * cp;
     (G.loot || []).forEach(function (L) {
-      if (L.taken || L.zone !== G.zone && L.zone !== G.zone + 1) return;
+      if (L.taken || L.zone !== G.zone && L.zone !== G.zone + 1 || (L.lock && !L.lock.broken)) return;   // lock: a breakable pod still shut (doors.js)
       var dx = L.x - p.x, dy = L.y + 0.05 - eye, dz = L.z - p.z, d = Math.sqrt(dx * dx + dy * dy + dz * dz);
       if (d > 1.9) return;
       var ang = Math.acos(Math.max(-1, Math.min(1, (dx * fx + dy * fy + dz * fz) / (d || 1))));
@@ -330,6 +330,7 @@
     placeWeaponStands(G.plan.weapons || []);
     placeLoot();
     if (IB.Boom) IB.Boom.levelStart(L, G.plan.level);   // VFX intensity for this level, explosive canisters in later zones
+    if (IB.Doors) IB.Doors.reset(L);   // breakable doors whole and shut again
   }
 
   // ---------------- new weapons waiting at the start of a level ----------------
@@ -939,6 +940,7 @@
       }
     } else if (whit) {
       if (whit.box && whit.box.kind === 'canister' && IB.Boom) IB.Boom.hitCan(whit.box, def.damage || 15);   // explosive canister
+      else if (whit.box && whit.box.door && IB.Doors) IB.Doors.hit(whit.box, (def.damage || 15) * (IB.WeaponDrops ? IB.WeaponDrops.dmgMul(def.id) : 1), _end.x, _end.y, _end.z, whit.nx, whit.ny, whit.nz, 'player');   // breakable door (doors.js)
       else if (whit.box && whit.box.kind === 'gate') FX.puff(_end.x, _end.y, _end.z, 3, PAL.ink, 0.1, 0.3, 1.5);
       else FX.impact(_end.x, _end.y, _end.z, whit.nx, whit.ny, whit.nz, Math.random() < 1 / 3);
       if (IB.Boom) IB.Boom.impact(_end.x, _end.y, _end.z, whit.nx, whit.ny, whit.nz, whit.box);   // sparks / chips / dust by surface
@@ -1246,6 +1248,7 @@
     if (IB.Drops) { IB.Drops.update(dtRaw, tAll, G); IB.Gear.update(dtRaw, G); }
     if (IB.WeaponDrops) IB.WeaponDrops.update(dtRaw, tAll, G);
     if (IB.Launchers) IB.Launchers.sync(dtRaw, tAll, G);   // rocket meshes, lock brackets, rocket crates
+    if (IB.Doors && G.mode === 'play') IB.Doors.update(dtRaw, p);   // sparks off damaged doors
     if (G.mode === 'play') updateLoot();
     var magnet = 2.5 * (1 + 0.5 * up('magnet')) * IB.SkillFX.fx.magnetMul;   // Scrap Magnet
     FX.update(dtRaw, R.camera, p, magnet, collectGem);
@@ -1362,6 +1365,7 @@
       if (wh && hitNo === 0) {
         var ex = R.camera.position.x + _mv.x * wh.t, ey = R.camera.position.y + _mv.y * wh.t, ez = R.camera.position.z + _mv.z * wh.t;
         if (wh.box && wh.box.kind === 'canister' && IB.Boom) IB.Boom.hitCan(wh.box, def.damage);
+        else if (wh.box && wh.box.door && IB.Doors) IB.Doors.hit(wh.box, base, ex, ey, ez, wh.nx, wh.ny, wh.nz, 'melee');   // a blade into a breakable door
         else { FX.impact(ex, ey, ez, wh.nx, wh.ny, wh.nz, false); if (IB.Boom) IB.Boom.impact(ex, ey, ez, wh.nx, wh.ny, wh.nz, wh.box); }
         A.play('hit', { pitch: 0.6, gain: 0.6 });
       }
