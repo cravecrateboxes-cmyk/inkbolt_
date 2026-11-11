@@ -31,6 +31,9 @@ BAND = 1.6     # height band above the box base (or 0.2 m above the floor)
 # per family: piece names (without the KIT_<FAMILY>_ prefix) whose _COL boxes are re-cut; a name ending in '*' is a
 # prefix match. Only pieces that the in-game audit flagged as blocking open air are listed.
 FIT = {
+    'kit-arctic': ['FuelTank', 'Snowbank_*', 'Mast_*', 'IceIntrusion', 'CryoTank', 'Boiler', 'IcePillar', 'IceSpike', 'Landmark_Relic',
+                   'Snowcat', 'Sled', 'Dewars', 'Drums_*', 'GenSet', 'Pump', 'WeatherMast', 'Winch', 'Chair_*', 'BuriedHut', 'Landmark_Radome',
+                   'S_Breach', 'M_Breach'],
     'kit-parking': ['Landmark_CarWash', 'BikeRack', 'Wreck_Burnt', 'Wreck_Burnt_B', 'Wreck_Smash', 'CarJack', 'CarCovered',
                     'Cage', 'Sedan', 'Sedan_Door', 'Hatchback', 'Hatch_Hazard', 'Hatch_Boot', 'SUV', 'SUV_Boot', 'Sports',
                     'Motorbike', 'Scooter', 'Buggy', 'Forklift'],
