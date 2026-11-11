@@ -2419,6 +2419,252 @@
   });
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
 
+/* ---- themes/gemmine.js ---- */
+/* Theme: Glimmerdeep Colliery (kit-gemmine). A working coal mine whose No. 3 Seam broke into a cavern of gems.
+   Zone 1, No. 3 Seam: a room-and-pillar coal district under a 9 m rock roof. The haulage gallery runs from the entry
+   to the exit between two lines of coal pillars under steel arch sets every 4 m, with two tracks and ore carts; the
+   ore chute stands over the east track, fed by the raised conveyor catwalk (a belt at 3 m with a walkway and stairs at
+   both ends) from the north-east coal face; the haulage winch house, the auxiliary fan with its riser and vent duct,
+   lamp strings across the gallery, timbered drifts through the big pillars, roof jacks, cribs, coal heaps; the first
+   gem veins glint in the coal faces.
+   Zone 2, the Glimmer Vault: a vast natural cavern (walls to 18.4 m, a rock roof with stalactites and hanging
+   crystals at 18 m). Giant faceted crystals (diamond, ruby, emerald, sapphire) glow in the dark (theme.glow); the Gem
+   Heart in the middle with its scaffold, mining galleries at 4.8 m along the west and north walls, timber platforms at
+   2.4 m, rock ledges with ramps at 1.4 m, crystal spires, clusters and clumps, the chasm along the east wall (a
+   railing, the hoist at its lip, the far cliff beyond: backdrop.build), the sorting and cutting station on plank
+   decking with a track from the entry. Robots climb every stair and ramp (walkable boxes: a layered nav grid).
+   Built by blender/fam_kit_gemmine.py (gem_base / gem_seam / gem_cavern.py; the coal mine kit's helpers are imported);
+   zone layers by tools/gemmine_zones.py (src/data/zones/gemmine_*.txt).
+
+   Symbols (1 cell = 1 m; prefab sizes are [x, z] in cells):
+     #  rock: zone 1 coal-mine faces (strata, coal seams, gem veins, lamps on brackets, props, signs, a lamp string);
+        zone 2 tall cavern faces (veins, crystal clusters, lanterns) and the chasm edge; corners get all-round lumps
+     Y  timbered drift [6, 1] (posts, cap, lagging, plank bulkhead to the roof): runs of Y across a 6 m gap make a tunnel
+     A  steel arch set over the 12 m haulage gallery [12, 1] (legs collide, the gallery stays open under it)
+     C  ore cart on its rails [1, 2] (coal, empty, or coal with rough gems)
+     c  powder / tool crates (stacked)   u  sacks   =  stacked timbers (runs)   b  oil drums   I  roof jack
+     O  coal heap [2, 2]   X  timber crib with a roof post [2, 2]   k  belt conveyor (runs)   l  lantern post
+     L  work light on a tripod   w  puddle [2, 2]   d  coal dust [2, 2] (no collision)
+     Z  ore chute and bin over the east track [10, 8] (track along local x -3.5; the feed belt rises from its east edge)
+     B  raised conveyor catwalk [20, 3] (belt at 3 m along the back row, walkway deck along the front, stairs at both
+        ends, the belt's incline down to the face conveyor past the east end)
+     W  haulage winch house [6, 5] (open to the track; turns its back to the wall)
+     F  auxiliary fan [4, 2] against a wall (its riser meets the "@layer 9" vent duct on the cell beyond the block's end)
+     H  the Gem Heart [12, 12] (giant crystals on a mound, scaffold deck at 2.4 m on the south flank, stair east)
+     N  mining gallery [16, 4] against a wall (deck at 4.8 m, stairs down to both ends, rails)
+     M  timber platform [6, 4] (deck at 2.4 m, a stair along its front)   R  rock ledge [8, 4] (1.4 m, plank ramp)
+     Q  crystal cluster [2, 2] (ruby, emerald, sapphire, diamond)   q  low crystal clump   V  crystal spire [3, 3]
+     D  rock stalagmite [2, 2]
+     J  sieve / jig [2, 2]   K  lapidary saw bench [2, 1]   T  lit sorting table [2, 1]   x  crate of rough gems (stacked)
+     U  hoist at the chasm lip [4, 4] (back to the chasm: its jib and bucket hang out over the drop)
+   "@layer 0" (no walls): -  rail (runs)   p  plank decking [2, 2]; on wall cells the wall codes the chooser reads:
+     zone 1: 1 2 3 4 a ruby / emerald / sapphire / diamond vein in the coal, 8 a plain coal seam, 5 6 7 signs (seam,
+     haulage, gem vein); zone 2: 1 2 3 4 vein modules, 9 the chasm edge (railing; lamp and sign variants by row)
+   "@layer 9" (zone 1, hanging from the roof): v  vent duct (runs)   ~  lamp string (runs, a bulb a metre)
+   "@layer 18" (zone 2, no theme ceiling there): r  cavern roof [10, 12]
+   Light pools are painted on the floor. Each kind has its own height, so wall lamps (one kind per facing), lantern
+   posts, work lights and the prefabs' pools may overlap one another; the maps keep posts >= 5 m apart. */
+(function (IB) {
+  'use strict';
+  var SOLID = '#GE';
+  function solid(grid, c, r) { return SOLID.indexOf(grid.at(c, r)) >= 0; }
+  // same facing rule as zones.js buildWalls: the open side of a wall cell ('S','N','E','W', 'corner' or 'none')
+  function faceOf(grid, c, r) {
+    var oS = !solid(grid, c, r + 1), oN = !solid(grid, c, r - 1), oE = !solid(grid, c + 1, r), oW = !solid(grid, c - 1, r);
+    var n = oS + oN + oE + oW;
+    if (n === 0) return 'none';
+    if (n === 1) return oS ? 'S' : oN ? 'N' : oE ? 'E' : 'W';
+    return ((oS || oN) && (oE || oW)) ? 'corner' : (oS ? 'S' : 'E');
+  }
+  // cells u-k0 .. u+k1 along the run are all straight wall with the same facing and no wall code
+  function runOK(grid, c, r, F, k0, k1) {
+    var along = F === 'S' || F === 'N';
+    for (var d = -k0; d <= k1; d++) {
+      var x = along ? c + d : c, y = along ? r : r + d;
+      if (grid.at(x, y) !== '#' || faceOf(grid, x, y) !== F || codeAt(grid, x, y) !== '.') return false;
+    }
+    return true;
+  }
+  function layerAt(grid, test) {
+    var L = grid.layers || [];
+    for (var i = 0; i < L.length; i++) if (test(L[i].y)) return L[i];
+    return null;
+  }
+  // zone 2 is the zone with the roof grid (no theme ceiling there)
+  function isCave(grid) {
+    if (grid._gmCave === undefined) grid._gmCave = !!layerAt(grid, function (y) { return y > 12; });
+    return grid._gmCave;
+  }
+  function codeAt(grid, c, r) {
+    if (grid._gmL0 === undefined) grid._gmL0 = layerAt(grid, function (y) { return y < 1; });
+    return grid._gmL0 ? grid._gmL0.at(c, r) : '.';
+  }
+  var GEM = { '1': 'Ruby', '2': 'Emer', '3': 'Saph', '4': 'Dia' };
+  var ROCK = ['Rock_A', 'Rock_B', 'Rock_C'], CAVE = ['Cave_A', 'Cave_B', 'Cave_C'];
+  function chooseWall(c, r, horiz, corner, hash, grid, face) {
+    var F = face || faceOf(grid, c, r), code = codeAt(grid, c, r), u = (F === 'S' || F === 'N') ? c : r;
+    if (isCave(grid)) {
+      if (code === '9') {
+        if (F === 'none' || F === 'corner') return 'Cave_Corner_A';
+        return u % 12 === 6 ? 'Chasm_Sign' : u % 6 === 3 ? 'Chasm_Lamp' : (u % 2 ? 'Chasm' : 'Chasm_B');
+      }
+      // the ends of the chasm edge: all-round rock lumps (the tall faces never end in a flat cut)
+      if (codeAt(grid, c, r - 1) === '9' || codeAt(grid, c, r + 1) === '9' || codeAt(grid, c - 1, r) === '9' || codeAt(grid, c + 1, r) === '9') return 'Cave_Corner_B';
+      if (F === 'none' || F === 'corner') return hash(c * 7 + 1, r * 5 + 3) < 0.5 ? 'Cave_Corner_A' : 'Cave_Corner_B';
+      if (GEM[code]) return 'Cave_' + GEM[code];
+      if (u % 8 === 4 && runOK(grid, c, r, F, 3, 3)) return 'Cave_Lamp' + F;
+      var hv = hash(c * 11 + 3, r * 17 + 5);
+      if (hv < 0.14) return 'Cave_' + ['Ruby', 'Emer', 'Saph', 'Dia'][Math.floor(hv / 0.035)];
+      return CAVE[Math.min(2, Math.floor(hash(c * 5 + 1, r * 11 + 7) * 3))];
+    }
+    if (F === 'none' || F === 'corner') return hash(c * 7 + 1, r * 5 + 3) < 0.5 ? 'Rock_Corner_A' : 'Rock_Corner_B';
+    if (GEM[code]) return 'Gem_' + GEM[code];
+    if (code === '8') return (u % 2) ? 'Seam_A' : 'Seam_B';
+    if (code === '5') return 'Sign_Seam';
+    if (code === '6') return 'Sign_Haul';
+    if (code === '7') return 'Sign_Gem';
+    // wall lamps every 8 m on long straight runs (one pool kind per facing, so facing pools never fight)
+    if (u % 8 === 4 && runOK(grid, c, r, F, 4, 4)) return 'Rock_Lamp' + F;
+    if (u % 8 === 0 && runOK(grid, c, r, F, 1, 1) && hash(c * 3 + 5, r * 7 + 2) < 0.55) return 'Rock_Prop';
+    // coal seams in stretches of 7 m, now and then a glint of gems in them
+    var line = (F === 'S' || F === 'N') ? r : c, reg = Math.floor((u + line * 3) / 7);
+    if (hash(reg * 13 + 5, line * 7 + 17) < 0.3) {
+      var g = hash(c * 19 + 7, r * 23 + 1);
+      return g < 0.12 ? 'Gem_' + ['Ruby', 'Emer', 'Saph', 'Dia'][Math.floor(g / 0.03)] : ((u % 2) ? 'Seam_A' : 'Seam_B');
+    }
+    return ROCK[Math.min(2, Math.floor(hash(c * 5 + 1, r * 11 + 7) * 3))];
+  }
+  var WALLS = ['Rock_A', 'Rock_B', 'Rock_C', 'Seam_A', 'Seam_B', 'Gem_Ruby', 'Gem_Emer', 'Gem_Saph', 'Gem_Dia',
+    'Rock_LampS', 'Rock_LampN', 'Rock_LampE', 'Rock_LampW', 'Rock_Prop', 'Sign_Seam', 'Sign_Haul', 'Sign_Gem',
+    'Rock_Corner_A', 'Rock_Corner_B', 'Cave_A', 'Cave_B', 'Cave_C', 'Cave_Ruby', 'Cave_Emer', 'Cave_Saph', 'Cave_Dia',
+    'Cave_LampS', 'Cave_LampN', 'Cave_LampE', 'Cave_LampW', 'Cave_Corner_A', 'Cave_Corner_B', 'Chasm', 'Chasm_B',
+    'Chasm_Sign', 'Chasm_Lamp'];
+
+  var R90 = Math.PI / 2;
+  var SYMBOLS = {
+    // ---- zone 1: the coal seam
+    'Y': { size: [6, 1], pieces: ['Drift_Plain', 'Drift_Plain', 'Drift_Lamp'], kind: 'wall' },
+    'A': { size: [12, 1], pieces: ['Arch', 'Arch', 'Arch_Lamp'], sequence: true, face: 0, kind: 'cover' },
+    'C': { size: [1, 2], pieces: ['OreCart_Full', 'OreCart_Gem', 'OreCart_Empty'], kind: 'cover' },
+    'c': { pieces: ['Crate_Powder', 'Crate_Tools', 'Crate_Plain'], h: 0.9, rotate: 'random90', stack: { piece: 'Crate_Lid', chance: 0.3, h: 0.65 }, kind: 'cover' },
+    'u': { pieces: ['Sacks'], rotate: 'random90', kind: 'cover' },
+    '=': { pieces: ['Timbers'], rotate: 'run', kind: 'cover' },
+    'b': { pieces: ['Drums'], rotate: 'random90', kind: 'cover' },
+    'O': { size: [2, 2], pieces: ['CoalHeap_A', 'CoalHeap_B'], flip: true, kind: 'cover' },
+    'X': { size: [2, 2], pieces: ['Crib'], kind: 'wall' },
+    'I': { pieces: ['RoofJack'], rotate: 'random90', kind: 'wall' },
+    'k': { pieces: ['Conveyor_A', 'Conveyor_B'], rotate: 'run', alternate: true, kind: 'cover' },
+    'l': { pieces: ['LanternPost'], rotate: 'random90', kind: 'cover' },
+    'L': { pieces: ['WorkLight'], rotate: 'random90', kind: 'cover' },
+    'w': { size: [2, 2], pieces: ['Puddle_A', 'Puddle_B'], flip: true, collide: false },
+    'd': { size: [2, 2], pieces: ['Dust_A', 'Dust_B'], flip: true, collide: false },
+    'Z': { size: [10, 8], pieces: ['Landmark_Chute'], face: 0, kind: 'wall' },
+    'B': { size: [20, 3], pieces: ['Landmark_BeltBridge'], face: 0, kind: 'wall' },
+    'W': { size: [6, 5], pieces: ['Landmark_Winch'], orient: 'wall', kind: 'wall' },
+    'F': { size: [4, 2], pieces: ['FanUnit'], orient: 'wall', kind: 'wall' },
+    // ---- zone 2: the cavern
+    'H': { size: [12, 12], pieces: ['Landmark_GemHeart'], face: 0, kind: 'wall' },
+    'N': { size: [16, 4], pieces: ['Landmark_Gallery'], orient: 'wall', kind: 'wall' },
+    'M': { size: [6, 4], pieces: ['Platform'], flip: true, kind: 'wall' },
+    'R': { size: [8, 4], pieces: ['Ledge'], flip: true, kind: 'wall' },
+    'Q': { size: [2, 2], pieces: ['Crystal_Ruby', 'Crystal_Emer', 'Crystal_Saph', 'Crystal_Dia'], flip: true, kind: 'cover' },
+    'q': { pieces: ['Clump_A', 'Clump_B'], rotate: 'random90', kind: 'cover' },
+    'V': { size: [3, 3], pieces: ['Spire_A', 'Spire_B'], flip: true, kind: 'wall' },
+    'D': { size: [2, 2], pieces: ['Stalagmite_A', 'Stalagmite_B'], flip: true, kind: 'wall' },
+    'J': { size: [2, 2], pieces: ['Sieve'], flip: true, kind: 'cover' },
+    'K': { size: [2, 1], pieces: ['CutBench'], flip: true, kind: 'cover' },
+    'T': { size: [2, 1], pieces: ['WorkTable_A', 'WorkTable_B'], flip: true, kind: 'cover' },
+    'x': { pieces: ['GemCrate_A', 'GemCrate_B'], h: 0.62, rotate: 'random90', stack: { piece: 'Crate_Lid', chance: 0.25, h: 0.65 }, kind: 'cover' },
+    'U': { size: [4, 4], pieces: ['Landmark_Hoist'], orient: 'wall', kind: 'wall' },
+    // ---- "@layer 0": rails, decking
+    '-': { pieces: ['Rail'], rotate: 'run', collide: false },
+    'p': { size: [2, 2], pieces: ['Planks_A', 'Planks_B'], collide: false },
+    // ---- "@layer 9": roof fittings (zone 1); "@layer 18": the cavern roof (zone 2)
+    'v': { pieces: ['VentDuct'], rotate: 'run', collide: false },
+    '~': { pieces: ['LampString_A', 'LampString_B'], rotate: 'run', alternate: true, collide: false },
+    'r': { size: [10, 12], pieces: ['CaveRoof_A', 'CaveRoof_B', 'CaveRoof_C'], flip: true, collide: false }
+  };
+
+  // glow companions (zones.js theme.glow): every piece with gems, bulbs, lantern glass or lenses has a <Piece>_Glow
+  // drawn unlit (its ink outline stays in the piece itself)
+  var GLOWING = ['Rock_A', 'Seam_A', 'Gem_Ruby', 'Gem_Emer', 'Gem_Saph', 'Gem_Dia', 'Rock_LampS', 'Rock_LampN', 'Rock_LampE',
+    'Rock_LampW', 'Rock_Prop', 'LampString_A', 'LanternPost', 'OreCart_Gem', 'Drift_Lamp', 'Arch_Lamp',
+    'Landmark_Chute', 'Landmark_BeltBridge', 'Landmark_Winch', 'FanUnit', 'Cave_Ruby', 'Cave_Emer', 'Cave_Saph', 'Cave_Dia',
+    'Cave_LampS', 'Cave_LampN', 'Cave_LampE', 'Cave_LampW', 'Chasm_Lamp', 'CaveRoof_A', 'CaveRoof_B', 'CaveRoof_C',
+    'Crystal_Ruby', 'Crystal_Emer', 'Crystal_Saph', 'Crystal_Dia', 'Clump_A', 'Clump_B', 'Spire_A', 'Spire_B', 'Stalagmite_A', 'Stalagmite_B',
+    'Landmark_GemHeart', 'Landmark_Gallery', 'Platform', 'Ledge', 'Sieve', 'CutBench', 'WorkTable_A', 'WorkTable_B',
+    'GemCrate_A', 'GemCrate_B', 'Landmark_Hoist'];
+  var GLOW = {};
+  GLOWING.forEach(function (n) { GLOW[n] = { piece: n + '_Glow' }; });
+
+  /* backdrop.build: the chasm beyond zone 2's east edge (the far cliff, its end walls, glowing veins); there is no
+     flat outside plane (nothing outside the zones is ever seen but the chasm) */
+  var CHASM = { rows: [18, 51] };
+  function backdrop(level, api) {
+    var Z = level.zones[1];
+    if (!Z) return;
+    var x = Z.ox + Z.w, z = Z.oz + (CHASM.rows[0] + CHASM.rows[1] + 1) / 2, gn = 'KIT_GEMMINE_Backdrop_Chasm_Glow';
+    api.add('Backdrop_Chasm', x, 0, z, 0, 1);
+    // its veins drawn unlit like every other glow (backdrop pieces get no glow companions of their own)
+    if (typeof THREE !== 'undefined' && IB.Assets && IB.Assets.geo && IB.Assets.geo[gn]) {
+      var m = new THREE.Mesh(IB.Assets.get(gn), new THREE.MeshBasicMaterial({ map: IB.Assets.mat['kit-gemmine'].map }));
+      m.position.set(x, 0, z);
+      level.root.add(m);
+    }
+  }
+
+  var PIECES = WALLS.concat(['CeilRock', 'GateFrame', 'GateShutter', 'TrailWall', 'Hatch', 'Stand', 'Backdrop_Chasm', 'Backdrop_Chasm_Glow']);
+  Object.keys(SYMBOLS).forEach(function (ch) {
+    var d = SYMBOLS[ch];
+    d.pieces.concat(d.stack ? [d.stack.piece] : []).forEach(function (n) { if (PIECES.indexOf(n) < 0) PIECES.push(n); });
+  });
+  Object.keys(GLOW).forEach(function (k) { if (PIECES.indexOf(GLOW[k].piece) < 0) PIECES.push(GLOW[k].piece); });
+
+  IB.registerTheme({
+    id: 'gemmine', name: 'Glimmerdeep Colliery', family: 'kit-gemmine', prefix: 'KIT_GEMMINE_',
+    palette: ['#25242B', '#A8743F', '#E3264B', '#1FC46C'],
+    env: {
+      // no sky underground: a dark rock roof over the seam (the cavern brings its own); violet-brown smoky fog
+      sky: null, clear: '#120F14', clouds: false,
+      fog: { color: '#1E1820', near: 20, far: 92 },
+      sun: [0.3, 0.88, 0.37],
+      ceiling: { height: 9.0, color: '#2E2724', light: 'CeilRock', every: 16, clear: 'XIZFB#', clearR: 1 }
+    },
+    floor: { color: '#4A413C', trail: '#5A4B3F', outside: '#0F0C0B' },
+    wall: { height: 9.4, roof: '#3B332E', facing: 'open', choose: chooseWall },
+    symbols: SYMBOLS,
+    glow: GLOW,
+    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
+    trail: { wall: 'TrailWall', height: 9.4, end: 'Rock_B', endYaw: 0 },   // the hatch room's back wall: a plain face module
+    hatch: 'Hatch', stand: 'Stand',
+    backdrop: { build: backdrop },
+    budget: { prop: 3200, landmark: 4000, total: 60000 },
+    allPieces: function () { return PIECES.slice(); },
+    levels: {
+      gemmine: {
+        name: 'Glimmerdeep Colliery',
+        intro: 'No. 3 Seam broke into a cavern of gems. Clear the haulage, then the Glimmer Vault, and ride the cage out.',
+        zones: [
+          // No. 3 Seam: the haulage gallery, the chute and the catwalk, the coal faces
+          { map: 'gemmine_1', waves: [
+            [['crawler', 20], ['gunner', 12]],
+            [['crawler', 9], ['bomber', 2], ['gunner', 7], ['drone', 4], ['soldier', 5], ['blader', 3]],
+            [['crawler', 8], ['drone', 6], ['gunner', 8], ['soldier', 6], ['blader', 2]],
+            [['crawler', 8], ['bomber', 2], ['gunner', 8], ['drone', 4], ['blader', 3], ['soldier', 5]],
+            [['crawler', 8], ['gunner', 10], ['drone', 4], ['soldier', 4], ['blader', 2]]] },
+          // the Glimmer Vault: the Gem Heart, the galleries and platforms, the chasm, the sorting station
+          { map: 'gemmine_2', ceiling: false, waves: [
+            [['crawler', 18], ['gunner', 10], ['drone', 4]],
+            [['crawler', 9], ['bomber', 2], ['gunner', 7], ['drone', 4], ['blader', 3], ['soldier', 5]],
+            [['crawler', 8], ['drone', 6], ['gunner', 8], ['soldier', 6], ['blader', 2]],
+            [['crawler', 8], ['bomber', 2], ['gunner', 8], ['drone', 4], ['soldier', 5], ['blader', 3]],
+            [['crawler', 8], ['bomber', 2], ['gunner', 10], ['drone', 4], ['soldier', 4], ['blader', 2]]] }
+        ]
+      }
+    }
+  });
+})(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
+
 /* ---- themes/grove.js ---- */
 /* Theme: Redwood Hollow (kit-grove) -- an old-growth redwood forest on rolling ground, with a walkway level 9 m up.
    Rolling mounds and diagonal ridges (theme.terrain: a heightfield the player, robots, bullets, pickups and props all
@@ -3949,6 +4195,213 @@
   });
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
 
+/* ---- themes/megastore.js ---- */
+/* Theme: BULKBARN Warehouse Club (kit-megastore) -- the inside of a huge warehouse store (made-up BULKBARN brand) under
+   a 10 m steel deck roof on open-web joists, with skylights, high-bay lamps and hanging aisle signs. Two zones:
+   1 Sales Floor (80 m wide): eight rows of 5.6 m pallet racks (goods on the shelves, shrink-wrapped pallets above)
+     in two blocks with a cross aisle, endcaps at every row end; produce and walk-in coolers in the north-west, dairy
+     and drink coolers along the back wall, electronics with a TV wall and apparel in the east, the pharmacy / optical
+     counter on the west wall, freezer bunkers and pallet drops in the front aisle, a row of checkout lanes, cart
+     corrals, the entrance vestibule (the player starts inside) and the landmark BULKBARN CAFE food court.
+   2 Stockroom (72 m wide), behind the EMPLOYEES ONLY doors: 9 m racks, forklifts and pallet jacks, seven dock doors
+     on the east wall (four with a trailer backed in), a baler with cardboard bales, a stretch wrapper, the break room
+     under the mezzanine and the landmark receiving office up on the mezzanine deck (a steel stair: high ground).
+   Built by blender/fam_kit_megastore.py (ms_*.py); zone layers by tools/megastore_zones.py. Forklifts, pallet stacks,
+   drums and bins are kit-parking pieces (theme option `families`).
+
+   A zone file has a floor plan and three layers: "@layer 0.01" (floor marks; on wall cells, wall-art codes; the
+   cell (0, 0) holds ',' in the stockroom), "@layer 3.5" (the mezzanine deck) and "@layer 10" (roof bays and hanging
+   signs, from the 10 m roof plane).
+   Floor plan:  R sales rack row [3,2] (runs N-S, capped by end frames)   T stockroom rack row [3,2]
+     n s endcap [2,1] facing north / south   p floor pallet (water, tissue, TVs, mixed, sacks)   l low pallet
+     m empty pallet stack   F freezer bunker [4,2]   V produce stand [2,2]   K electronics demo table [3,2]
+     A apparel table [2,2]   Q round clothes rail [2,2]   H pharmacy / optical counter [8,3] (back to the wall)
+     L checkout lane [3,5] (exit south)   c shopping cart (some knocked over)   C cart corral [4,1]
+     q vestibule glass (runs)   D automatic doors [4,1] (in the glass line)   g greeter podium
+     Z BULKBARN CAFE counter [10,4] (back to the wall)   t cafe table [2,2]   O steel column
+     j pallet jack   X forklift [2,3] (kit-parking)   x pallet stack [2,2] (kit-parking)   k drums (kit-parking)
+     w bins [2,1] (kit-parking)   B baler [2,2]   b cardboard bale   y gaylord   W stretch wrapper [2,2]
+     M break table [2,2]   v vending machine (against a wall)   U lockers [2,1]   Y kitchenette [3,1]
+     i block partition (runs)   J break-room door [3,1] (in the partition line)   N steel stair [2,7] rising north
+     I deck column
+   Mezzanine (3.5): u deck   r guard rail (runs)   o receiving office [8,5] (faces south)
+   Floor marks (0.01): - yellow aisle line (runs)   z green walkway   / keep-clear hatch   + entrance mat [3,2]
+     Wall-art codes (on wall cells; never a symbol): d dairy cooler door  e drinks cooler door  < walk-in cooler door
+       f fire point  > fire exit  { sprinkler riser  ( ) banners  8 9 TV wall  ] dock door with a trailer (centre cell; the cells
+       either side are '_')  [ closed dock door (centre)  ? notice board  ` electrical panel
+       * the BULKBARN logo (a run of exactly eight cells)
+   Roof (10): = joist bay [4,4]  ~ bay with a high-bay lamp  : bay with a skylight  ; girder bay  | girder + lamp
+     1 - 7 aisle signs   ! produce  @ electronics  $ apparel  % frozen  ^ receiving  & staging (hanging boards) */
+(function (IB) {
+  'use strict';
+  var R90 = Math.PI / 2;
+  var ART = {
+    S: { d: 'WC_Dairy', e: 'WC_Drinks', '<': 'WC_WalkIn', f: 'WS_Fire', '>': 'WS_Exit', '{': 'WS_Riser', '(': 'WS_BannerA', ')': 'WS_BannerB', '8': 'WE_TVA', '9': 'WE_TVB' },
+    K: { f: 'WK_Fire', ']': 'WK_Dock', '[': 'WK_DockShut', '?': 'WK_Board', '`': 'WK_Panel', '_': null }
+  };
+  function floorOf(grid) {
+    if (grid._msF === undefined) {
+      grid._msF = null;
+      (grid.layers || []).forEach(function (l) { if (!grid._msF && l.y < 1) grid._msF = l; });
+    }
+    return grid._msF;
+  }
+  // the BULKBARN logo: a run of eight '*' wall cells, each module drawing its slice of the word (read from the
+  // viewer's left: the module's local -X end)
+  var LEFT = { S: [-1, 0], N: [1, 0], E: [0, 1], W: [0, -1] };
+  function chooseWall(c, r, horiz, corner, hash, grid, face) {
+    var F = floorOf(grid), S = F && F.at(0, 0) === ',' ? 'K' : 'S';
+    if (face === 'corner' || face === 'none') return 'Corner' + S;
+    var code = F ? F.at(c, r) : '.', A = ART[S];
+    if (code === '*' && LEFT[face]) {
+      var L = LEFT[face], k = 0;
+      while (k < 8 && F.at(c + L[0] * (k + 1), r + L[1] * (k + 1)) === '*') k++;
+      return 'WS_Logo' + Math.min(7, k);
+    }
+    if (A.hasOwnProperty(code)) return A[code];   // null: a dock door's side cell (the centre module draws the 3 m bay)
+    return 'W' + S;
+  }
+  function flat(pieces, rot) { return { pieces: pieces, collide: false, rotate: rot || 0 }; }
+
+  // goods colours: the kit models stock in four cells (gA - gD, 30 - 33) and the theme deals each placed copy one of
+  // these mixes of the product colours (30 - 42: red, blue, yellow, green, orange, purple, white, black, pink, teal,
+  // brown, lime, sky)
+  var MIX = [[30, 31, 32, 33], [34, 35, 36, 31], [39, 32, 30, 36], [33, 41, 34, 37], [38, 31, 42, 32], [40, 36, 33, 30],
+    [31, 34, 39, 35], [32, 37, 38, 41], [36, 30, 42, 40], [35, 33, 34, 36], [30, 39, 41, 31], [42, 38, 32, 37]];
+  var GOODS = { from: [30, 31, 32, 33], to: MIX };
+  var FRUIT = { from: [30, 31, 32, 33], to: [[30, 34, 32, 33], [35, 30, 41, 32], [34, 33, 30, 32], [32, 41, 35, 34], [30, 32, 33, 35]] };
+  var SALES = ['Rack_EndL', 'Rack_A', 'Rack_B', 'Rack_EndR'];
+  var TALL = ['Tall_EndL', 'Tall_A', 'Tall_B', 'Tall_EndR'];
+  var KP = 'KIT_PARKING_';
+
+  var SYMBOLS = {
+    // ---- sales floor
+    'R': { size: [3, 2], pieces: SALES, sequence: 'run', kind: 'cover', paint: GOODS },
+    'n': { size: [2, 1], pieces: ['Endcap_A', 'Endcap_B'], face: Math.PI, kind: 'cover', paint: GOODS },
+    's': { size: [2, 1], pieces: ['Endcap_B', 'Endcap_A'], face: 0, kind: 'cover', paint: GOODS },
+    'p': { pieces: ['Pal_Water', 'Pal_Paper', 'Pal_TV', 'Pal_Mixed', 'Pal_Bags', 'Pal_Water', 'Pal_Mixed'], rotate: 'random90', kind: 'cover', paint: GOODS },
+    'l': { pieces: ['Pal_Low', 'Pal_Bags', 'Pal_Low'], rotate: 'random90', kind: 'cover', paint: GOODS },
+    'm': { pieces: ['Pal_Empty'], rotate: 'random90', kind: 'cover' },
+    'F': { size: [4, 2], pieces: ['Bunker'], flip: true, kind: 'cover', paint: GOODS },
+    'V': { size: [2, 2], pieces: ['Produce'], flip: true, kind: 'cover', paint: FRUIT },
+    'K': { size: [3, 2], pieces: ['TechTable'], flip: true, kind: 'cover' },
+    'A': { size: [2, 2], pieces: ['ClothesTable'], flip: true, kind: 'cover', paint: GOODS },
+    'Q': { size: [2, 2], pieces: ['ClothesRack'], flip: true, kind: 'cover', paint: GOODS },
+    'H': { size: [8, 3], pieces: ['Pharmacy'], orient: 'wall', kind: 'cover' },
+    'L': { size: [3, 5], pieces: ['Checkout'], face: 0, kind: 'cover', paint: GOODS },
+    'c': { pieces: ['Cart', 'Cart', 'Cart_B'], rotate: 'random90', kind: 'cover' },
+    'C': { size: [4, 1], pieces: ['CartCorral'], flip: true, kind: 'cover' },
+    'q': { pieces: ['VGlassHalf'], full: 'VGlassFull', links: 'qD#', post: 'VGlassPost', kind: 'wall' },
+    'D': { size: [4, 1], pieces: ['VDoor'], orient: 'span', kind: 'wall' },
+    'g': { pieces: ['Podium'], rotate: 'edge', kind: 'cover' },
+    'Z': { size: [10, 4], pieces: ['Landmark_FoodCourt'], orient: 'wall', kind: 'cover' },
+    't': { size: [2, 2], pieces: ['CafeTable'], kind: 'cover' },
+    'O': { pieces: ['Column'], kind: 'cover' },
+    // ---- stockroom
+    'T': { size: [3, 2], pieces: TALL, sequence: 'run', kind: 'cover', paint: GOODS },
+    'j': { pieces: ['PalletJack'], rotate: 'random90', kind: 'cover' },
+    'X': { size: [2, 3], pieces: [KP + 'Forklift'], flip: true, kind: 'cover' },
+    'x': { size: [2, 2], pieces: [KP + 'Pallets'], flip: true, kind: 'cover' },
+    'k': { pieces: [KP + 'Drums'], rotate: 'random90', kind: 'cover' },
+    'w': { size: [2, 1], pieces: [KP + 'Bins'], flip: true, kind: 'cover' },
+    'B': { size: [2, 2], pieces: ['Baler'], orient: 'wall', kind: 'cover' },
+    'b': { pieces: ['Bale_1', 'Bale_2', 'Bale_1', 'Bale_2', 'Bale_2'], rotate: 'random90', kind: 'cover' },
+    'y': { pieces: ['Gaylord'], rotate: 'random90', kind: 'cover' },
+    'W': { size: [2, 2], pieces: ['Wrapper'], flip: true, kind: 'cover' },
+    'M': { size: [2, 2], pieces: ['BreakTable'], kind: 'cover' },
+    'v': { size: [1, 1], pieces: ['Vending', 'Vending_B'], sequence: true, orient: 'wall', kind: 'cover' },
+    'U': { size: [2, 1], pieces: ['Lockers'], orient: 'wall', kind: 'cover' },
+    'Y': { size: [3, 1], pieces: ['Kitchen'], orient: 'wall', kind: 'cover' },
+    'i': { pieces: ['PartHalf'], full: 'PartFull', links: 'iJ#', post: 'PartPost', kind: 'wall' },
+    'J': { size: [3, 1], pieces: ['BreakDoor'], orient: 'span', kind: 'wall' },
+    'N': { size: [2, 7], pieces: ['Stair'], face: 0, kind: 'step' },
+    'I': { pieces: ['DeckColumn'], kind: 'cover' },
+    // ---- mezzanine (layer 3.5)
+    'u': { deck: { thick: 0.4, color: '#B9C2CB', edge: '#F7C531', under: '#D6DCE3', with: '*' } },
+    'r': { pieces: ['RailHalf'], full: 'RailFull', links: 'r', post: 'RailPost', kind: 'wall' },
+    'o': { size: [8, 5], pieces: ['Landmark_Office'], face: 0, kind: 'cover' },
+    // ---- floor marks (layer 0.01)
+    '-': { pieces: ['F_Line'], rotate: 'run', collide: false },
+    'z': flat(['F_Walk']), '/': flat(['F_Hatch']), '+': { size: [3, 2], pieces: ['F_Mat'], collide: false },
+    // ---- roof (layer 10): bays and hanging signs
+    '=': { size: [4, 4], pieces: ['Roof_J'], collide: false }, '~': { size: [4, 4], pieces: ['Roof_L'], collide: false },
+    ':': { size: [4, 4], pieces: ['Roof_S'], collide: false }, ';': { size: [4, 4], pieces: ['Roof_G'], collide: false },
+    '|': { size: [4, 4], pieces: ['Roof_GL'], collide: false },
+    '!': flat(['Dept_Produce']), '@': flat(['Dept_Tech'], R90), '$': flat(['Dept_Apparel'], R90), '%': flat(['Dept_Frozen']),
+    '^': flat(['Dept_Receiving'], R90), '&': flat(['Dept_Staging'])
+  };
+  for (var a = 1; a <= 7; a++) SYMBOLS[String(a)] = flat(['Aisle_' + a]);
+
+  // glow companions (zones.js theme.glow): screens, menu boards, lamp lenses, skylights, the cooler cases' light
+  var GLOW = {
+    WS_Exit: { piece: 'WS_Exit_LED' }, WC_Dairy: { piece: 'WC_Glow' }, WC_Drinks: { piece: 'WC_Glow' },
+    WE_TVA: { piece: 'WE_TVA_LED' }, WE_TVB: { piece: 'WE_TVB_LED' }, GateFrame: { piece: 'GateFrame_LED' },
+    Roof_L: { piece: 'Roof_L_LED' }, Roof_GL: { piece: 'Roof_GL_LED' }, Roof_S: { piece: 'Roof_S_LED' },
+    TechTable: { piece: 'TechTable_LED' }, Checkout: { piece: 'Checkout_LED' }, Landmark_FoodCourt: { piece: 'Landmark_FoodCourt_LED' },
+    Vending: { piece: 'Vending_LED' }, Vending_B: { piece: 'Vending_B_LED' }, Landmark_Office: { piece: 'Landmark_Office_LED' }
+  };
+
+  var WALLS = ['WS', 'CornerS', 'WK', 'CornerK'];
+  for (var lg = 0; lg < 8; lg++) WALLS.push('WS_Logo' + lg);
+  Object.keys(ART).forEach(function (S) { Object.keys(ART[S]).forEach(function (k) { var p = ART[S][k]; if (p && WALLS.indexOf(p) < 0) WALLS.push(p); }); });
+  var PIECES = WALLS.concat(['GateFrame', 'GateShutter', 'TrailWall', 'TrailWall_B', 'TrailWall_C', 'Hatch']);
+  var BORROWED = [];   // kit-parking pieces (named in full; tests check they exist in fps-kit-parking.glb)
+  Object.keys(SYMBOLS).forEach(function (ch) {
+    var d = SYMBOLS[ch];
+    if (d.deck) return;
+    d.pieces.concat(d.full ? [d.full] : [], d.post ? [d.post] : []).forEach(function (n) {
+      if (n.indexOf(KP) === 0) { if (BORROWED.indexOf(n) < 0) BORROWED.push(n); } else if (PIECES.indexOf(n) < 0) PIECES.push(n);
+    });
+  });
+  Object.keys(GLOW).forEach(function (k) { [].concat(GLOW[k]).forEach(function (g) { if (PIECES.indexOf(g.piece) < 0) PIECES.push(g.piece); }); });
+
+  IB.registerTheme({
+    id: 'megastore', name: 'BULKBARN Warehouse Club', family: 'kit-megastore', prefix: 'KIT_MEGASTORE_', families: ['kit-parking'],
+    palette: ['#2C63B8', '#D8392F', '#F7C531', '#EEF0EC'],
+    env: {
+      sky: null, clear: '#B9C0C6', fog: { color: '#C9CDCF', near: 55, far: 150 }, clouds: false,
+      sun: [0.32, 0.86, 0.4],
+      ceiling: { height: 10.0, color: '#A7AFB6' }   // roof bays and signs come from the zone's "@layer 10" grid
+    },
+    // polished concrete with saw-cut joints every 4 m
+    floor: {
+      color: '#CBC8C0', trail: '#C2BFB6', outside: '#CBC8C0',
+      lines: [{ dir: 'x', every: 4, width: 0.02, color: '#A9A59C', y: 0.008 }, { dir: 'z', every: 4, width: 0.02, color: '#A9A59C', y: 0.0105 }]
+    },
+    wall: { height: 10.0, roof: '#A7AFB6', facing: 'open', choose: chooseWall },
+    symbols: SYMBOLS,
+    glow: GLOW,
+    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.3, shutterHeight: 3.05 },
+    trail: { wall: 'TrailWall', variants: ['TrailWall_B', 'TrailWall_C', 'TrailWall_B'], height: 10.0 },
+    hatch: 'Hatch', stand: 'Pal_Low',
+    backdrop: null,
+    budget: { prop: 1600, landmark: 2000, total: 40000 },
+    allPieces: function () { return PIECES.slice(); },
+    borrowed: function () { return BORROWED.slice(); },
+    levels: {
+      megastore: {
+        name: 'BULKBARN Warehouse Club',
+        intro: 'Robots have overrun the warehouse club. Clear the sales floor, then push through the EMPLOYEES ONLY doors into the stockroom.',
+        zones: [
+          // Sales Floor: rack aisles, departments, the front end and the food court
+          { map: 'megastore_1', waves: [
+            [['crawler', 20], ['gunner', 10], ['drone', 3]],
+            [['crawler', 10], ['bomber', 2], ['gunner', 6], ['blader', 6]],
+            [['crawler', 12], ['drone', 7], ['gunner', 7], ['soldier', 10]],
+            [['crawler', 14], ['drone', 3], ['bomber', 2], ['gunner', 9], ['soldier', 6], ['blader', 5]],
+            [['crawler', 8], ['gunner', 6], ['soldier', 5]]] },
+          // Stockroom: tall racks, the docks, the mezzanine office
+          { map: 'megastore_2', waves: [
+            [['crawler', 16], ['gunner', 10], ['soldier', 6]],
+            [['crawler', 12], ['drone', 6], ['gunner', 8], ['blader', 6]],
+            [['crawler', 12], ['bomber', 2], ['gunner', 9], ['soldier', 8]],
+            [['crawler', 14], ['drone', 6], ['gunner', 10], ['soldier', 6], ['blader', 5]]] }
+        ]
+      }
+    }
+  });
+})(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
+
 /* ---- themes/mountains.js ---- */
 /* Theme: Mountains (kit-mountains) -- campaign level 1, "Pine Ridge".
    An alpine valley chain: slate-blue cliff ridges with snow ledges, snowy pines and spruce stands, a log cabin,
@@ -4694,6 +5147,258 @@
   });
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
 
+/* ---- themes/resort.js ---- */
+/* Theme: Palmyra Cove Resort (kit-resort) -- a luxury tropical resort (made-up Palmyra Cove brand) on the west shore
+   of an island, bright tropical daylight, open ocean all round. Two zones:
+   1 The resort grounds (72 x 64): the open-air lobby pavilion under a two-tier thatched roof (reception, woven screen
+     with the resort's name), the lagoon pool with its thatched swim-up bar, loungers, umbrellas and cabanas round the
+     paved pool deck, tiki torches, the beach with lounger pairs, kayak racks and the towel hut, a boardwalk over the
+     sand, a garden lounge, the service yard, and the first treehouse villa on a platform in two giant palms.
+   2 The canopy (76 x 68): four long, wide tree platforms 7.5 m up in eight enormous palms (the landmark: the CANOPY
+     SUITE on the centre platform), rope bridges between them, five broken limbs and fallen fronds leaning against
+     them as ramps (walkable by the player and the robots), and ground cover below: fallen trunks, snapped stumps,
+     coconut piles, crates, a broken-down golf cart. A fall from the canopy just drops you to the ground.
+   Built by blender/fam_kit_resort.py (rs_*.py); zone layers by tools/resort_zones.py (src/data/zones/resort_*.txt).
+
+   A zone file has the floor plan and five layers: "@layer 0.2" boardwalk slabs, "@layer 0.2" their plank decals,
+   "@layer 7.5" platform slabs and rope bridges, "@layer 7.5" the platforms' plank / joist decals, "@layer 7.5" what
+   stands on the platforms. The ground is flat sand; theme.terrain paints lawn, paths and wet sand from the plan
+   (and a shade under each platform).
+   Floor plan (1 cell = 1 m; prefab sizes [x, z]):
+     #  hedge walls on a coral-stone kerb (2 m modules; some with a palm behind), round corner clumps
+     {  shore rocks and a rope fence on the west edge (the beach and the sea lie behind)
+     , lawn   ; paved path / pool deck   ~ wet sand   . sand   (ground paint only)
+     L lobby pavilion [14,10]   Q lagoon pool with the swim-up bar [20,12]   C K N cabana [4,4] open south / west / east
+     l sun lounger [1,2] (head north)   j sun lounger [2,1] (head east, facing the sea)   u thatched umbrella + table
+     t tiki torch   o rattan lounge set [3,2]   q stone planter   p palm   Y tall palm [2,2]   f hibiscus bush
+     g dune grass   k coconut pile   c supply crates   y kayak rack [3,1]   T towel hut [3,2]   n signpost
+     X broken-down golf cart [2,3]   F fallen palm trunk [6,2]   U snapped stump [2,2]   e fallen frond [2,4]
+     Z giant treehouse palm [4,4] (its collar and knee braces carry the platform above)   I deck post
+     ^ v > <  broken limb / fallen frond ramp [2,13] rising north / south / east / west (its top end against a
+              platform edge; 52 walkable steps of 0.144 m)
+   Layer 0.2: w boardwalk slab   d b plank decal [4,2] (two symbols for neighbouring strips)
+   Layer 7.5: D platform slab   = rope bridge [3,2]   J plank + joist decal [4,2]
+              r rail (runs)   V W [ ] villa [6,5] open south / north / east / west   M CANOPY SUITE [8,6] open south
+              H hammock [3,1]   (o t c k q as on the ground) */
+(function (IB) {
+  'use strict';
+  var R90 = Math.PI / 2;
+  var SOLID = '#GE{';
+  function solid(g, c, r) { return SOLID.indexOf(g.at(c, r)) >= 0; }
+  function faceOf(g, c, r) {
+    var oS = !solid(g, c, r + 1), oN = !solid(g, c, r - 1), oE = !solid(g, c + 1, r), oW = !solid(g, c - 1, r);
+    var n = oS + oN + oE + oW;
+    if (n === 0) return 'none';
+    if (n === 1) return oS ? 'S' : oN ? 'N' : oE ? 'E' : 'W';
+    return ((oS || oN) && (oE || oW)) ? 'corner' : (oS ? 'S' : 'E');
+  }
+  function gateDist(g, c, r) {   // cells from a north / south edge wall cell to the centre of that edge's gate
+    if (r !== 0 && r !== g.h - 1) return 99;
+    var ch = r === 0 ? 'G' : 'E', a = -1, b = -1;
+    for (var x = 0; x < g.w; x++) if (g.at(x, r) === ch) { if (a < 0) a = x; b = x; }
+    return a < 0 ? 99 : Math.abs(c + 0.5 - (a + b + 1) / 2);
+  }
+  function inRun(g, c, r, F) { return g.at(c, r) === '#' && faceOf(g, c, r) === F && gateDist(g, c, r) > 2.6; }
+  function chooseWall(c, r, horiz, corner, hash, g) {
+    var F = faceOf(g, c, r);
+    if (F === 'none' || F === 'corner') return hash(c * 3 + 1, r * 7 + 2) < 0.5 ? 'Corner_A' : 'Corner_B';
+    if (gateDist(g, c, r) < 2.6) return null;          // the gate frame's posts and hedge clumps fill the cells beside a gate
+    var along = F === 'S' || F === 'N', u = along ? c : r;
+    var pc = along ? faceOf(g, c - 1, r) : faceOf(g, c, r - 1), nc = along ? faceOf(g, c + 1, r) : faceOf(g, c, r + 1);
+    if (u % 2 === 0) {
+      // a module poking half a cell into a corner: A on north / south runs, B on east / west runs (kerb tops never coplanar)
+      if (pc === 'corner' || pc === 'none' || nc === 'corner' || nc === 'none') return along ? 'Hedge_A' : 'Hedge_B';
+      var h = hash(c * 5 + 1, r * 3 + 7); return h < 0.16 ? 'Hedge_C' : h < 0.55 ? 'Hedge_B' : 'Hedge_A';
+    }
+    var prev = along ? inRun(g, c - 1, r, F) : inRun(g, c, r - 1, F), next = along ? inRun(g, c + 1, r, F) : inRun(g, c, r + 1, F);
+    if ((!prev && (pc === 'corner' || pc === 'none')) || (!next && (nc === 'corner' || nc === 'none'))) return null;   // the corner clump covers it
+    return (!prev || !next) ? 'Hedge_1' : null;        // odd cells are covered by their neighbours' 2 m modules
+  }
+
+  // ---------------------------------------------------------------- ground paint (flat sand + lawn / paths / wet sand)
+  var PAINT = { ',': 'lawn', ';': 'path', '~': 'wet', '.': 'sand' };
+  function deckOver(g, c, r) {
+    var L = g.layers || [];
+    for (var i = 0; i < L.length; i++) if (L[i].y > 5 && L[i].at(c, r) === 'D') return true;
+    return false;
+  }
+  function paint(c, r, zi, g) {
+    var n = { lawn: 0, path: 0, wet: 0, sand: 0 }, tot = 0, shade = 0, dc, dr, k;
+    for (var rad = 1; rad <= 3 && !tot; rad++) {
+      for (dr = -rad; dr < rad; dr++) for (dc = -rad; dc < rad; dc++) {
+        k = PAINT[g.at(c + dc, r + dr)];
+        if (k) { n[k]++; tot++; }
+      }
+    }
+    for (dr = -1; dr <= 0; dr++) for (dc = -1; dc <= 0; dc++) if (deckOver(g, c + dc, r + dr)) shade++;
+    if (!tot) return null;
+    var best = 'sand';
+    ['lawn', 'path', 'wet'].forEach(function (q) { if (n[q] > n[best]) best = q; });
+    var a = n[best] / tot;
+    if (shade >= 2) return best === 'lawn' ? ['#5C9C47', 0.95] : ['#CBAE78', 0.85];
+    if (best === 'lawn') return [Math.floor(c / 3) % 2 ? '#7DC65A' : '#88CD63', 0.35 + 0.65 * a];
+    if (best === 'path') return ['#EFE5CF', 0.3 + 0.7 * a];
+    if (best === 'wet') return ['#D7BB86', 0.3 + 0.6 * a];
+    return null;
+  }
+
+  // ---------------------------------------------------------------- the island round the level and the sea (backdrop.build)
+  function superellipse(cx, cz, hx, hz, n, N) {
+    var out = [];
+    for (var i = 0; i < N; i++) {
+      var a = i / N * Math.PI * 2, c = Math.cos(a), s = Math.sin(a);
+      out.push([cx + hx * (c < 0 ? -1 : 1) * Math.pow(Math.abs(c), 2 / n), cz + hz * (s < 0 ? -1 : 1) * Math.pow(Math.abs(s), 2 / n)]);
+    }
+    return out;
+  }
+  function buildIsland(level, api) {
+    var THREE = (typeof window !== 'undefined' && window.THREE) || globalThis.THREE;
+    var zones = level.zones, hash = api.hash;
+    var x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
+    zones.forEach(function (z) { x0 = Math.min(x0, z.ox); x1 = Math.max(x1, z.ox + z.w); z0 = Math.min(z0, z.oz); z1 = Math.max(z1, z.oz + z.h); });
+    if (level.hatch) z0 = Math.min(z0, level.hatch.z - 12);
+    // bands from the beach out: [west offset, other sides offset, y, colour]; the west wall is the shore line
+    var BANDS = [[30, 58, -0.36, '#2DB9D7'], [12.5, 40, -0.3, '#52D8E2'], [9.2, 36.6, -0.24, '#F2FFFF'], [8.6, 36, -0.18, '#D7BB86'],
+      [6.5, 34, -0.12, '#F1DCA4'], [0, 27, -0.06, '#7DBF58']];
+    api.geo.flat([[x0 - 700, z0 - 700], [x1 + 700, z0 - 700], [x1 + 700, z1 + 700], [x0 - 700, z1 + 700]], -0.42, new THREE.Color('#1F90C5'));
+    BANDS.forEach(function (B) {
+      var a = x0 - B[0], b = x1 + B[1], c = z0 - B[1], d = z1 + B[1];
+      api.geo.flat(superellipse((a + b) / 2, (c + d) / 2, (b - a) / 2, (d - c) / 2, 9, 72), B[2], new THREE.Color(B[3]));
+    });
+    // keep-outs: the zones and their walls, the trails, the hatch room
+    var keep = [];
+    zones.forEach(function (z) { keep.push([z.ox - 1.5, z.oz - 1.5, z.ox + z.w + 1.5, z.oz + z.h + 1.5]); });
+    level.trails.forEach(function (t) { keep.push([t.x - 4.5, Math.min(t.z0, t.z1) - 1, t.x + 4.5, Math.max(t.z0, t.z1) + 1]); });
+    if (level.hatch) keep.push([level.hatch.x - 7, level.hatch.z - 7, level.hatch.x + 7, (level.hatch.z0 || level.hatch.z) + 1]);
+    function clear(x, z, r) {
+      for (var i = 0; i < keep.length; i++) { var k = keep[i]; if (x > k[0] - r && x < k[2] + r && z > k[1] - r && z < k[3] + r) return false; }
+      return true;
+    }
+    var n = 0;
+    // palms and jungle on the land (north, east, south of the zones), palms leaning out over the beach (west)
+    for (var gx = x0 - 4; gx <= x1 + 26; gx += 8) for (var gz = z0 - 26; gz <= z1 + 26; gz += 8) {
+      n++;
+      var x = gx + (hash(n, 3) - 0.5) * 6, z = gz + (hash(n, 5) - 0.5) * 6;
+      if (x < x0 - 1) { if (x > x0 - 5 && hash(n, 7) < 0.55 && clear(x, z, 2)) api.add(hash(n, 9) < 0.5 ? 'Backdrop_Palm_A' : 'Backdrop_Palm_B', x, -0.1, z, -R90 + (hash(n, 11) - 0.5) * 1.2, 0.9 + hash(n, 13) * 0.3); continue; }
+      var out = Math.max(x0 - x, x - x1, z0 - z, z - z1, 0);
+      if (out > 22 || !clear(x, z, 2.5) || hash(n, 17) < 0.25) continue;
+      if (out < 8 || hash(n, 15) < 0.35) api.add(hash(n, 9) < 0.5 ? 'Backdrop_Palm_A' : 'Backdrop_Palm_B', x, -0.06, z, hash(n, 11) * 6.28, 0.85 + hash(n, 13) * 0.4);
+      else api.add(hash(n, 9) < 0.5 ? 'Backdrop_Jungle_A' : 'Backdrop_Jungle_B', x, -0.04 - hash(n, 19) * 0.3, z, hash(n, 11) * 6.28, 0.9 + hash(n, 13) * 0.5);
+    }
+    // overwater bungalows on jetties off the beach, islets far out
+    zones.forEach(function (Z, zi) {
+      var zc = Z.oz + Z.h * (zi ? 0.35 : 0.6);
+      api.add('Backdrop_Jetty', x0 - 13, -0.36, zc, R90, 1);
+      api.add('Backdrop_Jetty', x0 - 25, -0.36, zc, R90, 1);
+      api.add('Backdrop_Bungalow', x0 - 34, -0.36, zc - 4, -R90, 1);
+      api.add('Backdrop_Bungalow', x0 - 34, -0.36, zc + 5, -R90 + 0.1, 1);
+      api.add('Backdrop_Bungalow', x0 - 26, -0.36, zc - 9, Math.PI, 1);
+    });
+    [[x0 - 150, z0 + 40, 2.2], [x0 - 230, z1 - 30, 3.0], [(x0 + x1) / 2 - 40, z0 - 200, 2.6], [x1 + 170, z1 + 60, 2.4], [x0 - 120, z1 + 150, 1.8]].forEach(function (I, i) {
+      api.add('Backdrop_Islet', I[0], -0.45, I[1], i * 1.7, I[2]);
+    });
+  }
+
+  var LIMB = ['Ramp_Limb', 'Ramp_LimbB', 'Ramp_Frond'];
+  var SYMBOLS = {
+    '{': { pieces: ['Shore_A', 'Shore_B', 'Shore_A', 'Shore_C', 'Shore_B', 'Shore_A', 'Shore_C'], rotate: R90, kind: 'wall' },
+    'L': { size: [14, 10], pieces: ['Landmark_Lobby'], face: 0, kind: 'cover' },
+    'Q': { size: [20, 12], pieces: ['Landmark_Pool'], face: 0, kind: 'cover' },
+    'C': { size: [4, 4], pieces: ['Cabana'], face: 0, kind: 'cover' },
+    'K': { size: [4, 4], pieces: ['Cabana'], face: -R90, kind: 'cover' },
+    'N': { size: [4, 4], pieces: ['Cabana'], face: R90, kind: 'cover' },
+    'l': { size: [1, 2], pieces: ['Lounger_A', 'Lounger_B'], face: 0, kind: 'cover' },
+    'j': { size: [1, 2], pieces: ['Lounger_A', 'Lounger_B'], face: -R90, kind: 'cover' },
+    'u': { pieces: ['Umbrella'], rotate: 'random90', kind: 'cover' },
+    't': { pieces: ['Torch'], rotate: 'random90', kind: 'cover' },
+    'o': { size: [3, 2], pieces: ['LoungeSet'], flip: true, kind: 'cover' },
+    'q': { pieces: ['Planter'], rotate: 'random90', kind: 'cover' },
+    'p': { pieces: ['Palm_A', 'Palm_B', 'Palm_C'], rotate: 'random90', kind: 'cover' },
+    'Y': { size: [2, 2], pieces: ['TallPalm_A', 'TallPalm_B'], flip: true, kind: 'cover' },
+    'f': { pieces: ['Bush_A', 'Bush_B'], rotate: 'random90', kind: 'cover' },
+    'g': { pieces: ['DuneGrass'], rotate: 'random90', collide: false },
+    'k': { pieces: ['CoconutPile'], rotate: 'random90', kind: 'cover' },
+    'c': { pieces: ['Crate_A', 'Crate_B', 'Crate_A'], rotate: 'random90', kind: 'cover' },
+    'y': { size: [3, 1], pieces: ['Kayaks'], flip: true, kind: 'cover' },
+    'T': { size: [3, 2], pieces: ['TowelHut'], face: 0, kind: 'cover' },
+    'n': { pieces: ['Signpost'], rotate: 'edge', edge: ',', kind: 'cover' },
+    'X': { size: [2, 3], pieces: ['GolfCart'], flip: true, kind: 'cover' },
+    'F': { size: [6, 2], pieces: ['FallenTrunk'], flip: true, kind: 'cover' },
+    'U': { size: [2, 2], pieces: ['Stump'], flip: true, kind: 'cover' },
+    'e': { size: [2, 4], pieces: ['FallenFrond'], flip: true, collide: false },
+    'Z': { size: [4, 4], pieces: ['Landmark_GiantPalm_A', 'Landmark_GiantPalm_B'], face: 0, kind: 'cover' },
+    'I': { pieces: ['DeckPost'], kind: 'cover' },
+    '^': { size: [2, 13], pieces: LIMB, face: 0, kind: 'cover' },
+    'v': { size: [2, 13], pieces: LIMB, face: Math.PI, kind: 'cover' },
+    '>': { size: [2, 13], pieces: LIMB, face: -R90, kind: 'cover' },
+    '<': { size: [2, 13], pieces: LIMB, face: R90, kind: 'cover' },
+    // boardwalks (layer 0.2)
+    'w': { deck: { thick: 0.2, color: '#D9A56E', edge: '#9A6238', under: '#6A4428' } },
+    'd': { size: [4, 2], pieces: ['Planks'], collide: false },
+    'b': { size: [4, 2], pieces: ['Planks'], collide: false },
+    // tree platforms (layer 7.5)
+    'D': { deck: { thick: 0.35, color: '#D29A62', edge: '#8E5832', under: '#6E4426' } },
+    'J': { size: [4, 2], pieces: ['PlanksJ'], collide: false },
+    '=': { size: [3, 2], pieces: ['Bridge'], kind: 'cover' },
+    'r': { pieces: ['RailHalf'], full: 'RailFull', links: 'r', post: 'RailPost', kind: 'wall' },
+    'V': { size: [6, 5], pieces: ['Villa'], face: 0, kind: 'cover' },
+    'W': { size: [6, 5], pieces: ['Villa'], face: Math.PI, kind: 'cover' },
+    '[': { size: [6, 5], pieces: ['Villa'], face: R90, kind: 'cover' },
+    ']': { size: [6, 5], pieces: ['Villa'], face: -R90, kind: 'cover' },
+    'M': { size: [8, 6], pieces: ['Landmark_Villa'], face: 0, kind: 'cover' },
+    'H': { size: [3, 1], pieces: ['Hammock'], flip: true, kind: 'cover' }
+  };
+  var GLOW = { Torch: { piece: 'Torch_Flame' } };
+
+  var PIECES = ['Hedge_A', 'Hedge_B', 'Hedge_C', 'Hedge_1', 'Corner_A', 'Corner_B', 'GateFrame', 'GateShutter', 'TrailWall',
+    'TrailWall_B', 'TrailWall_C', 'Hatch', 'Torch_Flame', 'Backdrop_Palm_A', 'Backdrop_Palm_B', 'Backdrop_Jungle_A', 'Backdrop_Jungle_B',
+    'Backdrop_Islet', 'Backdrop_Bungalow', 'Backdrop_Jetty'];
+  Object.keys(SYMBOLS).forEach(function (ch) {
+    var d = SYMBOLS[ch];
+    if (d.deck) return;
+    d.pieces.concat(d.full ? [d.full] : [], d.post ? [d.post] : []).forEach(function (n) { if (PIECES.indexOf(n) < 0) PIECES.push(n); });
+  });
+
+  IB.registerTheme({
+    id: 'resort', name: 'Palmyra Cove Resort', family: 'kit-resort', prefix: 'KIT_RESORT_',
+    palette: ['#3FAE58', '#52D8E2', '#F07A52', '#F3DFA8'],
+    env: { sky: ['#2F9BEA', '#D2F0FF'], fog: { color: '#D2F0FF', near: 50, far: 190, tierScale: true }, sun: [0.45, 0.85, 0.3], clouds: true, ceiling: null },
+    floor: { color: '#F1DCA4', trail: '#EFE5CF', outside: '#7DBF58' },
+    terrain: { height: function () { return 0; }, paint: paint, flat: '', ramp: [1, 2], low: '#F1DCA4', high: '#F1DCA4', patch: '#EAD196', top: 3 },
+    wall: { height: 3.6, roof: '#3E9A50', facing: 'open', choose: chooseWall },
+    symbols: SYMBOLS,
+    glow: GLOW,
+    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.4, shutterHeight: 3.05 },
+    trail: { wall: 'TrailWall', variants: ['TrailWall_B', 'TrailWall', 'TrailWall_C', 'TrailWall'], height: 2.6 },
+    hatch: 'Hatch', stand: 'Crate_A',
+    backdrop: { build: buildIsland },
+    budget: { prop: 1600, landmark: 3500, total: 45000 },
+    allPieces: function () { return PIECES.slice(); },
+    levels: {
+      resort: {
+        name: 'Palmyra Cove Resort',
+        intro: 'Robots have taken over Palmyra Cove. Clear the resort grounds, then climb the broken limbs into the canopy villas. A fall only drops you to the sand.',
+        zones: [
+          // the resort grounds: lobby, lagoon pool, beach, the first treehouse
+          { map: 'resort_1', waves: [
+            [['crawler', 20], ['gunner', 10], ['drone', 4]],
+            [['crawler', 16], ['gunner', 7], ['bomber', 2], ['soldier', 5], ['blader', 3]],
+            [['crawler', 12], ['drone', 7], ['gunner', 7], ['soldier', 6], ['blader', 3]],
+            [['crawler', 14], ['gunner', 8], ['bomber', 2], ['soldier', 6], ['blader', 3]],
+            [['crawler', 14], ['gunner', 6], ['drone', 3], ['soldier', 5], ['blader', 3]]] },
+          // the canopy: platforms, bridges, broken-limb ramps, cover below
+          { map: 'resort_2', waves: [
+            [['crawler', 16], ['gunner', 9], ['drone', 4], ['soldier', 5]],
+            [['crawler', 14], ['drone', 6], ['gunner', 7], ['blader', 3]],
+            [['crawler', 15], ['gunner', 8], ['bomber', 2], ['soldier', 6], ['blader', 3]],
+            [['crawler', 14], ['drone', 6], ['gunner', 8], ['soldier', 6], ['blader', 3]],
+            [['crawler', 15], ['gunner', 7], ['bomber', 2], ['soldier', 4], ['blader', 2]]] }
+        ]
+      }
+    }
+  });
+})(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
+
 /* ---- themes/smallcity.js ---- */
 /* Theme: Small City (kit-smallcity). Campaign level 2: a warm late-afternoon downtown of 2-4 storey brick and
    cream-stone buildings with painted shop fronts and striped awnings, concrete sidewalks, grey-blue asphalt with lane
@@ -5343,6 +6048,242 @@
             [['crawler', 7], ['bomber', 2], ['drone', 6], ['gunner', 4], ['soldier', 9]],
             [['crawler', 9], ['gunner', 9], ['drone', 6], ['blader', 10]],
             [['crawler', 10], ['gunner', 11], ['bomber', 2], ['drone', 5], ['soldier', 12], ['blader', 5]]] }
+        ]
+      }
+    }
+  });
+})(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
+
+/* ---- themes/townhomes.js ---- */
+/* Theme: Larkspur Glen (kit-townhomes) -- a gated town-house community at midday, overrun. Not Downtown's shop
+   blocks nor Small City's main street: two- and three-storey town houses in rows (brick with bracketed cornices, lap
+   siding under gable roofs and dormers, stucco under clay-tile front gables, modern brick-and-board houses with front
+   garages), porches, stoops and small fenced front yards, rear garage lanes, the clubhouse and its pool, a playground
+   and a park, and the stone-and-iron entrance with its gatehouse. Every row repaints its siding, stucco, brick, front
+   doors and shutters per house (symbol option `paint`), so no two neighbours match.
+     townhomes_1  The gated entrance: the approach road and its sign walls outside the community wall, the gate
+                  across the boulevard (gatehouse on the island, boom barriers, the keypad call post, iron gates swung
+                  open, a pedestrian gate: landmark), the boulevard's planted median, the clubhouse on Larkspur Lane
+                  with its fenced pool deck (loungers, umbrellas), the mailbox kiosk, the first rows of town houses
+                  either side of the Commons green that leads to the north gate, a rear garage lane behind each row.
+     townhomes_2  Thistle Court: the court between two rows of town houses with a cul-de-sac turnaround at each end,
+                  rear garage lanes with bins and parked cars, the lot under construction in the north row (scaffold,
+                  framing, a skip, materials: landmark), the park with the playground, swings and the gazebo.
+   Walk-in houses (1-6): open front and back doors, a furnished ground floor 0.32 m up (living room at the front,
+   kitchen at the back), a stair along the party wall to the upper floor (3.32 m): an open front room with French
+   doors onto the balcony over the porch -- a sniper perch over the street -- and a back bedroom. Robots follow the
+   player up (walkable stairs, floors and balconies give the zones a layered nav grid). "@layer 0.32" / "@layer 3.32"
+   hold pickups on those floors.
+   Built by blender/fam_kit_townhomes.py (townhomes_*.py); layouts by tools/townhomes_zones.py. The parked cars and
+   the wheelie bins are kit-parking pieces (option `families`), repainted per car.
+
+   Symbols (1 cell = 1 m; prefab sizes are [x, z] cells; built-ins # P S a h G E)
+     Town-house lots [6, 12], front to the south / north:  H U siding   J V stucco   K X brick   Q Y garage
+       1 4 walk-in siding (+ Int_A)   2 5 walk-in stucco (+ Int_B)   3 6 walk-in brick (+ Int_C)   7 8 under construction
+     R the gated entrance [17, 6] (zone 1 landmark)   N sign wall [8, 2]   c clubhouse [14, 11] (front north)
+     O pool [12, 6] (a movement bound over the water)  l lounger [1, 2]   u patio table [2, 2]   k pool rules sign
+     M mailbox kiosk [4, 3]   p playground [8, 6]   i swings [4, 2]   e see-saw [3, 1]   r spring rider   d sandbox [3, 3]
+     Z gazebo [6, 6]   W skip [2, 4]   w lumber [2, 1]   x brick pallet   q cement mixer   % site toilet   & site sign [2, 1]
+     @ median bed [3, 6]   A cul-de-sac island [6, 6]
+     Runs (links, a post at ends and corners): F picket fence  I iron fence  L community wall  D hedge  f pool fence
+       g j pool gate in an E-W / N-S fence line   y site fence
+     s lamp  ] hydrant  m post box  v street sign  0 speed sign  9 kids-at-play sign  B bench [2, 1]  n litter bin
+     $ transformer  [ AC unit  * grill  } urn  { basketball hoop  < recycling carts  > kid's bike  ? hose reel
+     t tree  b columnar tree  z cherry in blossom  ) shrub  ( shrubs [2, 1]
+     C parked car [3, 5]  T pickup / van [3, 6]  / wheelie bins [2, 1]   (kit-parking)
+     Paint on the road (no collision): - | lane dash along X / Z   ` ! double yellow along X / Z   + ^ stop line X / Z
+       ' crosswalk bar along X   o manhole
+   "@layer 0" paving (no collision): , sidewalk   ; lawn   : driveway / lane apron   _ stepping-stone path
+     = pool deck   ~ rubber mulch   " flower bed
+   The wall ('#', the zone edge) is the community wall: coursed stone with an iron railing (2.3 m) inside, a tall
+   hedge outside the gate; the cells beside a zone gate are left to the gate's piers. */
+(function (IB) {
+  'use strict';
+  var R90 = Math.PI / 2;
+  var KP = 'KIT_PARKING_';
+  function kp(list) { return list.map(function (n) { return KP + n; }); }
+  // house paint jobs: palette cells (blender/townhomes_base.py) sid 8, stu 9, brk 10, door 11, shut 12
+  // -> [siding, stucco, brick, door, shutters]
+  var HOUSE = { from: [8, 9, 10, 11, 12], to: [
+    [8, 9, 10, 11, 12], [13, 18, 21, 23, 27], [14, 19, 22, 24, 12], [15, 20, 10, 25, 28], [16, 9, 21, 26, 27],
+    [17, 18, 22, 27, 12], [13, 20, 10, 24, 28], [14, 9, 21, 11, 27], [15, 19, 22, 23, 12], [8, 18, 10, 26, 28],
+    [16, 20, 21, 25, 12], [17, 19, 22, 11, 27]] };
+  var PAINT = 48;   // kit-parking 'paint' cell; 49 blue 50 yellow 51 green 52 white 53 black 54 silver 55 orange 56 teal 57 purple 58 mint 59 brown
+  var CAR = { from: [PAINT], to: [[48], [49], [52], [53], [54], [56], [57], [58], [59], [52], [54], [53], [49], [51]] };
+  var CARS = kp(['Sedan', 'Hatchback', 'SUV', 'Sedan', 'SUV_Boot', 'Hatchback', 'Sports', 'SUV', 'CarCovered', 'Sedan_Door']);
+  var WALK = { '1': ['Walk_Siding', 'Int_A'], '2': ['Walk_Stucco', 'Int_B'], '3': ['Walk_Brick', 'Int_C'],
+    '4': ['Walk_Siding', 'Int_A'], '5': ['Walk_Stucco', 'Int_B'], '6': ['Walk_Brick', 'Int_C'] };
+  function lot(piece, face) { return { size: [6, 12], pieces: [piece], face: face, kind: 'cover', paint: HOUSE }; }
+  function walkIn(ch) {
+    var w = WALK[ch], d = lot(w[0], '123'.indexOf(ch) >= 0 ? 0 : Math.PI), with_ = {};
+    with_[w[0]] = [w[1] + '_GF', w[1] + '_UF'];
+    d.with = with_;
+    return d;
+  }
+  function flat(pieces, rot, alt) { return { pieces: pieces, collide: false, rotate: rot || 0, alternate: !!alt }; }
+  function links(name, set, kind) { return { pieces: [name], full: name + 'Full', post: name + 'Post', links: set, kind: kind || 'cover' }; }
+
+  var SYMBOLS = {
+    // town houses
+    'H': lot('House_Siding', 0), 'J': lot('House_Stucco', 0), 'K': lot('House_Brick', 0), 'Q': lot('House_Garage', 0),
+    'U': lot('House_Siding', Math.PI), 'V': lot('House_Stucco', Math.PI), 'X': lot('House_Brick', Math.PI), 'Y': lot('House_Garage', Math.PI),
+    '7': lot('Landmark_Build', 0), '8': lot('Landmark_Build', Math.PI),
+    // landmarks and site
+    'R': { size: [17, 6], pieces: ['Landmark_Gate'], face: 0, kind: 'cover' },
+    'N': { size: [8, 2], pieces: ['EntrySign'], face: 0, kind: 'cover' },
+    'c': { size: [14, 11], pieces: ['Clubhouse'], face: Math.PI, kind: 'cover' },
+    'O': { size: [12, 6], pieces: ['Pool'], face: 0, kind: 'bound' },
+    'l': { size: [1, 2], pieces: ['Lounger'], flip: true, kind: 'cover' },
+    'u': { size: [2, 2], pieces: ['PatioTable'], flip: true, kind: 'cover' },
+    'k': { pieces: ['PoolSign'], rotate: Math.PI, kind: 'cover' },
+    'M': { size: [4, 3], pieces: ['MailKiosk'], face: Math.PI, kind: 'cover' },
+    'p': { size: [8, 6], pieces: ['Playground'], face: 0, kind: 'cover' },
+    'i': { size: [4, 2], pieces: ['Swings'], face: 0, kind: 'cover' },
+    'e': { size: [3, 1], pieces: ['SeeSaw'], face: 0, kind: 'cover' },
+    'r': { pieces: ['SpringRider'], rotate: 'random90', kind: 'cover' },
+    'd': { size: [3, 3], pieces: ['Sandbox'], face: 0, kind: 'cover' },
+    'Z': { size: [6, 6], pieces: ['Gazebo'], face: 0, kind: 'cover' },
+    'W': { size: [2, 4], pieces: ['Skip'], flip: true, kind: 'cover' },
+    'w': { size: [2, 1], pieces: ['Lumber'], flip: true, kind: 'cover' },
+    'x': { pieces: ['Bricks'], rotate: 'random90', kind: 'cover' },
+    'q': { pieces: ['Mixer'], rotate: 'random90', kind: 'cover' },
+    '%': { pieces: ['SiteToilet'], rotate: 0, kind: 'cover' },
+    '&': { size: [2, 1], pieces: ['SiteSign'], face: 0, kind: 'cover' },
+    '@': { size: [3, 6], pieces: ['Median'], face: 0, kind: 'cover' },
+    'A': { size: [6, 6], pieces: ['Island'], face: 0, kind: 'cover' },
+    // runs
+    'F': links('Picket', 'F'), 'I': links('Iron', 'I'), 'L': links('Wall', 'LR'), 'D': links('Hedge', 'D'),
+    'f': links('PoolFence', 'fgj'), 'y': links('SiteFence', 'y'),
+    'g': { pieces: ['PoolGate'], rotate: 0, kind: 'cover' }, 'j': { pieces: ['PoolGate'], rotate: R90, kind: 'cover' },
+    // street furniture, yard props, trees
+    's': { pieces: ['Lamp'], rotate: 0, kind: 'cover' },
+    ']': { pieces: ['Hydrant'], rotate: 'random90', kind: 'cover' },
+    'm': { pieces: ['PostBox'], rotate: 0, kind: 'cover' },
+    'v': { pieces: ['StreetSign'], rotate: 0, kind: 'cover' },
+    '0': { pieces: ['SpeedSign'], rotate: 0, kind: 'cover' },
+    '9': { pieces: ['KidsSign'], rotate: 0, kind: 'cover' },
+    'B': { size: [2, 1], pieces: ['Bench'], flip: true, kind: 'cover' },
+    'n': { pieces: ['TrashCan'], kind: 'cover' },
+    '$': { pieces: ['Transformer'], rotate: 'random90', kind: 'cover' },
+    '[': { pieces: ['ACUnit'], rotate: 'random90', kind: 'cover' },
+    '*': { pieces: ['Grill'], kind: 'cover' },
+    '}': { pieces: ['Urn'], kind: 'cover' },
+    '{': { pieces: ['Hoop'], rotate: 'random90', kind: 'cover' },
+    '<': { pieces: ['Carts'], rotate: 'random90', kind: 'cover' },
+    '>': { pieces: ['KidBike'], rotate: 'random90', kind: 'cover' },
+    '?': { pieces: ['HoseReel'], rotate: 'random90', kind: 'cover' },
+    't': { pieces: ['Tree'], rotate: 'random90', kind: 'cover' },
+    'b': { pieces: ['TreeB'], rotate: 'random90', kind: 'cover' },
+    'z': { pieces: ['TreeC'], rotate: 'random90', kind: 'cover' },
+    ')': { pieces: ['Shrub'], rotate: 'random90', kind: 'cover' },
+    '(': { size: [2, 1], pieces: ['Shrubs'], flip: true, kind: 'cover' },
+    // kit-parking vehicles and bins
+    'C': { size: [3, 5], pieces: CARS, flip: true, kind: 'cover', paint: CAR },
+    'T': { size: [3, 6], pieces: kp(['Pickup', 'Van', 'Pickup_B']), flip: true, kind: 'cover', paint: CAR },
+    '/': { size: [2, 1], pieces: kp(['Bins']), flip: true, kind: 'cover' },
+    // road paint
+    '-': flat(['LaneW'], 0), '|': flat(['LaneW'], R90), '`': flat(['LaneY'], 0), '!': flat(['LaneY'], R90),
+    '+': flat(['StopLine'], 0), '^': flat(['StopLine'], R90), "'": flat(['Zebra'], 0), 'o': flat(['Manhole']),
+    // paving layer
+    ',': flat(['Walk', 'WalkB'], 0, true), ';': flat(['Lawn', 'LawnB'], 0, true), ':': flat(['Drive']),
+    '_': flat(['Path'], 0), '=': flat(['Deck']), '~': flat(['Mulch']), '"': flat(['Bed'], 0)
+  };
+  Object.keys(WALK).forEach(function (ch) { SYMBOLS[ch] = walkIn(ch); });
+
+  /* the zone edge: the community wall (stone with an iron railing), a tall hedge south of the gate line on the
+     approach (zone 1), stone piers on the corners; the cells either side of a zone gate are the gate's piers */
+  function gateRow(grid) {
+    if (grid._thGate === undefined) {
+      grid._thGate = -1;
+      for (var r = 0; r < grid.h && grid._thGate < 0; r++) if (grid.rows[r].indexOf('RRRRRRRRRRRRRRRRR') >= 0) grid._thGate = r;
+    }
+    return grid._thGate;
+  }
+  // the single-cell module a '#' cell would get, or null (gate piers), with its open side (zones.js buildWalls rules)
+  var DIRS = { S: [0, 1], N: [0, -1], E: [1, 0], W: [-1, 0] };
+  function solidAt(grid, c, r) { var ch = grid.at(c, r); return ch === '#' || ch === 'G' || ch === 'E'; }
+  function faceAt(grid, c, r) {
+    var oS = !solidAt(grid, c, r + 1), oN = !solidAt(grid, c, r - 1), oE = !solidAt(grid, c + 1, r), oW = !solidAt(grid, c - 1, r);
+    var n = oS + oN + oE + oW;
+    return n === 0 ? 'none' : n === 1 ? (oS ? 'S' : oN ? 'N' : oE ? 'E' : 'W') : ((oS || oN) && (oE || oW) ? 'corner' : (oS ? 'S' : 'E'));
+  }
+  function single(c, r, grid, face) {
+    for (var k = -1; k <= 1; k++) {
+      var q1 = grid.at(c + k, r), q2 = grid.at(c, r + k);
+      if (q1 === 'G' || q1 === 'E' || q2 === 'G' || q2 === 'E') return null;
+    }
+    if (face === 'corner' || face === 'none') return 'Perim_Pier';
+    var g = gateRow(grid);
+    return g >= 0 && r > g ? 'Perim_Hedge' : 'Perim';
+  }
+  /* straight runs of the stone wall are drawn two cells per module (Perim2 reaches over its neighbour on the module's
+     local +X: east for a south-facing cell, west for north, north for east, south for west); cells pair by parity */
+  var NEXT = { S: [1, 0], N: [-1, 0], E: [0, -1], W: [0, 1] };
+  function chooseWall(c, r, horiz, corner, hash, grid, face) {
+    var me = single(c, r, grid, face);
+    if (me !== 'Perim' || !NEXT[face]) return me;
+    var n = NEXT[face], along = n[0] ? c : r, lead = (along % 2 === 0) === (n[0] + n[1] > 0);
+    var pc = lead ? c + n[0] : c - n[0], pr = lead ? r + n[1] : r - n[1];
+    var ok = grid.at(pc, pr) === '#' && faceAt(grid, pc, pr) === face && single(pc, pr, grid, face) === 'Perim';
+    if (!ok) return 'Perim';
+    return lead ? 'Perim2' : null;
+  }
+
+  IB.registerTheme({
+    id: 'townhomes', name: 'Larkspur Glen', family: 'kit-townhomes', prefix: 'KIT_TOWNHOMES_', families: ['kit-parking'],
+    palette: ['#9DB89A', '#B5523B', '#E9DCC0', '#2B3A67'],
+    // midday: a clear blue sky, light haze, the sun high in the south-west
+    env: { sky: ['#56A6EA', '#DCEFFA'], fog: { color: '#D3E5EF', near: 60, far: 170 }, sun: [-0.35, 0.86, 0.38], clouds: true, ceiling: null },
+    floor: { color: '#5E616A', trail: '#B9AE9A', outside: '#78AE58' },
+    wall: { height: 2.3, roof: '#9E8F76', facing: 'open', choose: chooseWall },
+    symbols: SYMBOLS,
+    // between the zones: a brick-walled garden path through an iron gateway
+    gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
+    trail: { wall: 'TrailWall', variants: ['TrailWall_B', 'TrailWall_C'], height: 3.2 },
+    hatch: 'Hatch', stand: 'Lumber',
+    backdrop: {
+      ring: [
+        { piece: 'Backdrop_Trees', count: 16, radius: [14, 22], scale: [0.9, 1.25], face: true, squeezeX: 0.72 },
+        { piece: 'Backdrop_Row', count: 12, radius: [28, 36], scale: [0.95, 1.1], face: true, squeezeX: 0.78 },
+        { piece: 'Backdrop_Hill', count: 3, radius: [62, 72], scale: [1.0, 1.2], face: true, squeezeX: 0.8 }
+      ]
+    },
+    budget: { prop: 3600, landmark: 6000, total: 60000 },
+    allPieces: function () {
+      var out = ['Perim', 'Perim2', 'Perim_Hedge', 'Perim_Pier', 'GateFrame', 'GateShutter', 'TrailWall', 'TrailWall_B', 'TrailWall_C', 'Hatch',
+        'Backdrop_Trees', 'Backdrop_Row', 'Backdrop_Hill'];
+      Object.keys(SYMBOLS).forEach(function (ch) {
+        var d = SYMBOLS[ch];
+        d.pieces.concat(d.full ? [d.full] : [], d.post ? [d.post] : []).forEach(function (n) { if (n.indexOf(KP) !== 0 && out.indexOf(n) < 0) out.push(n); });
+        Object.keys(d.with || {}).forEach(function (k) { d.with[k].forEach(function (n) { if (out.indexOf(n) < 0) out.push(n); }); });
+      });
+      return out;
+    },
+    // the kit-parking pieces this theme places (tests check they exist in fps-kit-parking.glb)
+    parkingPieces: function () {
+      var out = [];
+      Object.keys(SYMBOLS).forEach(function (ch) { SYMBOLS[ch].pieces.forEach(function (n) { if (n.indexOf(KP) === 0 && out.indexOf(n) < 0) out.push(n); }); });
+      return out;
+    },
+    levels: {
+      townhomes: {
+        name: 'Larkspur Glen',
+        intro: 'The robots took the gated estate overnight. Get through the gate, clear the clubhouse and the rows, then push on to Thistle Court. Use the houses: through the front, out the back, up to the balconies.',
+        zones: [
+          // the gated entrance: gunners behind the gatehouse and the cars, blade bots through the houses, drones over the pool
+          { map: 'townhomes_1', waves: [
+            [['crawler', 22], ['gunner', 8], ['drone', 4]],
+            [['crawler', 12], ['bomber', 2], ['gunner', 6], ['blader', 6]],
+            [['crawler', 10], ['drone', 6], ['gunner', 6], ['soldier', 7]],
+            [['crawler', 16], ['bomber', 2], ['gunner', 7], ['soldier', 7], ['blader', 3]],
+            [['crawler', 13], ['drone', 5], ['gunner', 8], ['soldier', 7], ['blader', 2]]] },
+          // Thistle Court: soldiers on the scaffold and the balconies, blade bots down the garage lanes, a heavy last wave
+          { map: 'townhomes_2', waves: [
+            [['crawler', 20], ['gunner', 9], ['drone', 4], ['blader', 4]],
+            [['crawler', 12], ['bomber', 2], ['gunner', 7], ['soldier', 7]],
+            [['crawler', 12], ['drone', 6], ['gunner', 6], ['blader', 4], ['soldier', 4]],
+            [['crawler', 13], ['bomber', 2], ['gunner', 8], ['soldier', 6], ['blader', 2]],
+            [['crawler', 14], ['drone', 5], ['gunner', 8], ['soldier', 4], ['blader', 2]]] }
         ]
       }
     }

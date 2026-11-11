@@ -42,6 +42,7 @@ FIT = {
     'kit-classroom': ['Backpack_A', 'Backpack_B', 'BeanBag_R', 'BeanBag_Y', 'Bin', 'Landmark_Globe'],
     'kit-bedroom': ['ClothesPile', 'CrayonPile_A', 'CrayonPile_B', 'Landmark_Bed', 'ToyCastle'],
     'kit-coalmine': ['Landmark_DrillRig', 'Landmark_Hopper'],
+    'kit-gemmine': ['Landmark_Chute', 'Landmark_GemHeart', 'Spire_*', 'Crystal_*', 'Clump_*', 'Stalagmite_*'],
     'kit-castle': ['Barrels', 'Landmark_Trebuchet', 'Landmark_Well'],
     'kit-city2': ['Landmark_Subway'],
     'kit-downtown': ['TruckOver', 'Bus', 'Landmark_Tram', 'Hedgehog'],
@@ -65,6 +66,8 @@ FIT = {
 # per family: pieces that had no _COL box (the theme fell back to a full-cell box: boxCols in zones.js); that box is
 # authored here (Blender frame: x0, x1, y0, y1, z0, z1) and then fitted like the listed ones
 ADD = {
+    'kit-gemmine': {'Drums': (-0.5, 0.5, -0.5, 0.5, 0, 1.0), 'CoalHeap_A': (-1, 1, -1, 1, 0, 1.0), 'CoalHeap_B': (-1, 1, -1, 1, 0, 1.0),
+                    'Sacks': (-0.5, 0.5, -0.5, 0.5, 0, 1.0)},
     'kit-coalmine': {'Drums_A': (-0.5, 0.5, -0.5, 0.5, 0, 1.0), 'Drums_B': (-0.5, 0.5, -0.5, 0.5, 0, 1.0),
                      'CoalHeap_A': (-1, 1, -1, 1, 0, 1.0), 'CoalHeap_B': (-1, 1, -1, 1, 0, 1.0),
                      'Sacks_A': (-0.5, 0.5, -0.5, 0.5, 0, 1.0), 'Sacks_B': (-0.5, 0.5, -0.5, 0.5, 0, 1.0)},
