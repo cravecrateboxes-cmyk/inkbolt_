@@ -122,7 +122,7 @@
     windup: 0.5, recover: 0.8, range: 24, keepDistance: [8, 16], usesCover: true, grenades: 0,
     meleeDamage: 12, meleeRange: 2.1, meleeWindup: 0.45, meleeKnock: 5,
     gems: { chip: 3, shard: 0, core: 0 }, cost: 3, color: '#A9B3BF',
-    radius: 0.42, height: 1.8, coreOffset: [0, 1.36, -0.2], coreRadius: 0.11,
+    radius: 0.36, height: 1.8, coreOffset: [0, 1.36, -0.17], coreRadius: 0.11,
     weaponDrops: { gray: 0.048, green: 0.024, blue: 0.016, purple: 0.0064, orange: 0.0016 },   // 40 % of a Soldier's
     notes: 'Robot Trooper: tougher than a Gunner, no grenades; its light armour recharges slowly'
   };

@@ -216,6 +216,7 @@ def build_mech(rig, pal, ht):
     B = lambda n: (rig.data.bones[n].head_local.copy(), rig.data.bones[n].tail_local.copy())
     R90X, RY = (90, 0, 0), lambda sx: (0, 90 * sx, 0)
     parts = []
+    SLIM = 0.8
 
     def P(name, bone, fn):
         m = Model(pal)
@@ -226,6 +227,17 @@ def build_mech(rig, pal, ht):
         m.cyl = lambda loc, r1, r2, h, c, seg=8, rot=(0, 0, 0): cyl(loc, r1, r2, h, c, seg=min(seg, 8), rot=rot, bevel=r1 >= 0.06)
         fn(m)
         obj = build_object('TROOPER_m_' + name, m, 0.014, ht)
+        # slim 20 % across the bone (height and length unchanged); feet only narrower; hands and claws keep the grip
+        if 'hand' not in bone and '_f_' not in bone and 'thumb' not in bone:
+            h, t = B(bone)
+            d = (t - h).normalized()
+            for v in obj.data.vertices:
+                if 'foot' in bone or 'toe' in bone:
+                    v.co.x = h.x + (v.co.x - h.x) * SLIM
+                else:
+                    o = v.co - h
+                    along = d * o.dot(d)
+                    v.co = h + along + (o - along) * SLIM
         vg = obj.vertex_groups.new(name=bone)
         vg.add(list(range(len(obj.data.vertices))), 1.0, 'REPLACE')
         parts.append(obj)
