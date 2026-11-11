@@ -745,6 +745,21 @@
       if (d < 12 && g.addTrauma) g.addTrauma(0.18 * (1 - d / 12));
     }
   };
+  /* something long slams down along a line (a plank thrown across a roof gap, rooftops.js): dust rolls out both sides
+     and off each end, chips jump */
+  B.dustLine = function (ax, ay, az, bx, by, bz, w) {
+    if (!B.ready) return;
+    var L = Math.hypot(bx - ax, bz - az) || 1, ux = (bx - ax) / L, uz = (bz - az) / L, n = cnt(6 + L * 1.6), c, i;
+    for (i = 0; i < n; i++) {
+      var k = Math.random(), side = Math.random() < 0.5 ? -1 : 1, x = ax + (bx - ax) * k, y = ay + (by - ay) * k, z = az + (bz - az) * k;
+      c = card(C.dust, M_BILL, x - uz * side * (w || 1) * 0.5, y, z + ux * side * (w || 1) * 0.5, rnd(0.55, 0.9), 0.22, rnd(0.55, 0.9), B.dustCol);
+      c.vx = -uz * side * rnd(1.2, 2.6); c.vz = ux * side * rnd(1.2, 2.6); c.vy = rnd(0.2, 0.8); c.drag = 3; c.a0 = 0.9; c.fd = 0.45;
+    }
+    [[bx, by, bz, 1], [ax, ay, az, -1]].forEach(function (E) {
+      for (i = 0; i < cnt(5); i++) { c = card(C.dust, M_BILL, E[0], E[1], E[2], rnd(0.6, 1), 0.3, rnd(0.8, 1.2), B.dustCol); c.vx = ux * E[3] * rnd(0.5, 2) + rnd(-1, 1); c.vz = uz * E[3] * rnd(0.5, 2) + rnd(-1, 1); c.vy = rnd(0.4, 1.2); c.drag = 3; c.a0 = 0.9; c.fd = 0.45; }
+      for (i = 0; i < cnt(4); i++) { c = card(C.chip, M_BILL, E[0], E[1], E[2], rnd(0.5, 0.8), 0.07, 0.05, 0xB98A55); c.vx = rnd(-1.5, 1.5); c.vz = rnd(-1.5, 1.5); c.vy = rnd(2, 4); c.g = 14; c.vr = rnd(-12, 12); c.ease = E_LIN; }
+    });
+  };
   /* gems spray out of a wreck */
   B.gemBurst = function (kind, x, y, z) {
     if (!B.ready) return;

@@ -80,6 +80,7 @@
   function World() { this.boxes = []; this.grid = new Map(); this.walkN = 0; this.terrains = []; }
   /* ground height: 0, or a zone's terrain heightfield (1 m vertex grid, bilinear) for themes with bumpy ground */
   World.prototype.groundAt = function (x, z) {
+    if (this.voids) { var vy = this.voidAt(x, z); if (vy !== null) return vy; }
     for (var i = 0; i < this.terrains.length; i++) {
       var T = this.terrains[i], u = x - T.ox, v = z - T.oz;
       if (u < 0 || v < 0 || u >= T.w || v >= T.h) continue;
@@ -88,6 +89,21 @@
       return (a * (1 - fu) + b * fu) * (1 - fv) + (d * (1 - fu) + e * fu) * fv;
     }
     return 0;
+  };
+  /* open air (rooftops.js): over a void mask's cells the ground is far down (the street), so whoever walks off a
+     roof falls. test(c, r) -> ground height or null (solid floor) for the mask's cells (1 m, from ox, oz). */
+  World.prototype.addVoid = function (ox, oz, w, h, test) {
+    var d = new Float32Array(w * h);
+    for (var r = 0; r < h; r++) for (var c = 0; c < w; c++) { var v = test(c, r); d[r * w + c] = v === null ? NaN : v; }
+    (this.voids || (this.voids = [])).push({ ox: ox, oz: oz, w: w, h: h, d: d });
+  };
+  World.prototype.voidAt = function (x, z) {
+    for (var i = 0; i < this.voids.length; i++) {
+      var V = this.voids[i], c = Math.floor(x - V.ox), r = Math.floor(z - V.oz);
+      if (c < 0 || r < 0 || c >= V.w || r >= V.h) continue;
+      var v = V.d[r * V.w + c]; return typeof v === 'number' && v === v ? v : null;
+    }
+    return null;
   };
   var _gn = { x: 0, y: 1, z: 0 };
   World.prototype.groundNormal = function (x, z) {
@@ -140,7 +156,11 @@
   var _hit = { t: 0, box: null, nx: 0, ny: 0, nz: 0 };
   World.prototype.ray = function (ox, oy, oz, dx, dy, dz, maxT, skipKind) {
     var best = maxT, bb = null, bnx = 0, bny = 0, bnz = 0;
-    if (dy < -1e-6) { var tg = -oy / dy; if (tg > 0 && tg < best) { best = tg; bb = null; bnx = 0; bny = 1; bnz = 0; } }
+    if (dy < -1e-6) {
+      var tg = -oy / dy;
+      if (this.voids && tg > 0) { var vg = this.voidAt(ox + dx * tg, oz + dz * tg); if (vg !== null) tg = (vg - oy) / dy; }   // open air: the street far below
+      if (tg > 0 && tg < best) { best = tg; bb = null; bnx = 0; bny = 1; bnz = 0; }
+    }
     if (this.terrains.length) {
       var tt0 = this.rayTerrain(ox, oy, oz, dx, dy, dz, best);
       if (tt0 < best) { var tn = this.groundNormal(ox + dx * tt0, oz + dz * tt0); best = tt0; bb = null; bnx = tn.x; bny = tn.y; bnz = tn.z; }
@@ -177,7 +197,7 @@
   // top of the highest walkable box (box.walk) whose footprint holds (x, z) and whose top is at or below y; 0 (the
   // ground plane) when there is none. Worlds without walkable boxes answer 0 straight away.
   World.prototype.floorAt = function (x, z, y) {
-    var g0 = this.terrains.length ? this.groundAt(x, z) : 0;
+    var g0 = this.terrains.length || this.voids ? this.groundAt(x, z) : 0;
     if (!this.walkN) return g0;
     var a = this.grid.get(Math.floor(x / CELL) * 73856 + Math.floor(z / CELL)), best = g0;
     if (!a) return g0;
@@ -1060,9 +1080,9 @@
         for (s = 0; s < surf.length; s++) if (b.y0 <= surf[s] + 0.35 && b.y1 > surf[s]) on = s;
         if (on >= 0) surf[on] = Math.max(surf[on], b.y1); else if (b.y1 > surf[surf.length - 1]) surf.push(b.y1);
       }
-      var L = 0, last = -9;
+      var L = 0, last = -9, vf = world.voids ? world.voidAt(x, z) : null;
       for (s = 0; s < surf.length && L < NL; s++) {
-        var h = surf[s], open = h - last >= 1.2;
+        var h = surf[s], open = h - last >= 1.2 && !(vf !== null && h <= vf + 0.01);   // open air: nothing to stand on
         for (k = 0; k < tmp.length && open; k++) {
           b = tmp[k];
           if (b.kind === 'gate' || b.y1 < h + 0.35 || b.y0 > h + 1.2 || (b.walk && b.y1 <= h + NAV_STEP)) continue;
@@ -1074,6 +1094,8 @@
     }
     zone.nav = { nx: nx, nz: nz, layers: NL, blocked: blocked, h: hgt, dist: new Int16Array(NC * NL), queue: new Int32Array(NC * NL), t: 0 };
   }
+  // a walkable surface appeared at run time (a plank thrown across a gap, rooftops.js): the zone's grid again
+  Z.rebuildNav = function (zone) { var t = zone.nav ? zone.nav.t : 0; buildNav(zone, zone.world); zone.nav.t = Math.min(t, 0); };
   Z.navCell = function (zone, x, z) {
     var i = Math.floor((x - zone.ox) / NAV), j = Math.floor((z - zone.oz) / NAV);
     if (i < 0 || j < 0 || i >= zone.nav.nx || j >= zone.nav.nz) return -1;
@@ -1254,10 +1276,12 @@
         world: world, spawns: [], pickups: [], elevators: [], mounts: [] };
       zone.entry = { x: ox + Pc.c + 0.5, z: oz + Pc.r + 0.5 };
       var g = new IB.Geo(), P = new Parts(theme);
+      var roofZone = IB.Rooftops && IB.Rooftops.has(grid, theme);   // open air between buildings (rooftops.js)
       if (theme.terrain) buildTerrain(g, zone, grid, theme, world);
-      else paintFloor(g, ox, oz, grid.w, grid.h, theme, false);
+      else if (!roofZone) paintFloor(g, ox, oz, grid.w, grid.h, theme, false);
       buildSymbols(P, zone, grid, theme, world, g, 0);
       grid.layers.forEach(function (lg) { buildSymbols(P, zone, lg, theme, world, g, lg.y, true); });
+      if (roofZone) IB.Rooftops.build(level, zone, grid, theme, world, g, P);
       var roofCol = col(theme.wall && theme.wall.roof, '#D9D2E6'), roofY = ((theme.wall && theme.wall.height) || 3) + 0.04;
       P.roof.forEach(function (p) {
         var x = ox + p.c, zz = oz + p.r;
@@ -1447,6 +1471,8 @@
     function hole(face, x, top) { return { face: face, x0: x - BH[0], x1: x + BH[0], y0: BH[1], y1: top === undefined ? BH[2] : top }; }
     var plugs = level.zones.map(function () { return []; });
     wings.forEach(function (w, i) {
+      var RZ = level.zones[i].roofs;   // a rooftop zone (rooftops.js): every building under its roofs, down to the street
+      if (RZ) { RZ.forEach(function (b) { tower(b[0], b[1], b[2], b[3], Y0, b[4], col(b[5]), col(b[6]), b[7], false); }); return; }
       if (!TT) { tower(w[0], w[1], w[2], w[3], Y0, -0.06, facade, glass, 4, false); return; }
       var z = level.zones[i], holes = [hole(3, z.exitGate.x)];
       if (i > 0 && z.entryGate) holes.push(hole(2, z.entryGate.x));
