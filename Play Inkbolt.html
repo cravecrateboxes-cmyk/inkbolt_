@@ -34518,7 +34518,10 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     slot.meleeSel = slot.melee.indexOf('katana') >= 0 ? 'katana' : slot.melee[0];
     slot.frag = true;                                                                     // frag cans (G)
     var pref = ['vanguard', 'scrapper', 'railspike', 'brick', 'hornet', 'needle', 'longtom', 'triplet', 'rivet', 'handcannon'];
-    slot.loadout = pref.filter(function (id) { return guns.indexOf(id) >= 0; }).slice(0, 3);
+    // a refill (force: the level picker, a tester-profile update) keeps the guns the player carried last time
+    var kept = force && Array.isArray(slot.loadout) ? slot.loadout.filter(function (id) { return guns.indexOf(id) >= 0; }).slice(0, 3) : [];
+    slot.loadout = kept.length ? kept : pref.filter(function (id) { return guns.indexOf(id) >= 0; }).slice(0, 3);
+    if (force && slot.gear && slot.gear.inv && slot.gear.inv.length) return slot;   // and the gear bag as it was left
     // gear: a fresh bag of the best items, one set per gun (the tester bag may go past the normal bag size)
     var L = IB.Loot, g = L.defaultGear();
     IB.LOOT.starters.forEach(function (s) { g[s.flag] = true; });
