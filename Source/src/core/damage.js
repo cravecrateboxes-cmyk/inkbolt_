@@ -58,9 +58,14 @@
        LV / L      1     5    10    15    20    25    30
        health    100   141   205   285   379   488   613
        pressure 1.00  1.30  1.79  2.45  3.03  3.40  3.73
+     LV 31-50 add x^2 + 0.01 x^3 (x = LV - 30): 641 on LV 31, 1017 on 40, 1741 on 50; every step bigger than the last.
      Health stays ahead of pressure and pulls further ahead late (ratio 1.0 at LV 1, ~1.15 by LV 10, ~1.25 at LV 20,
      ~1.6 at LV 30, unit tested): later levels throw more robots at once, so the margin grows with them. */
-  function playerMaxHp(lv) { var k = Math.max(1, Math.min(30, lv || 1)) - 1; return Math.round(100 + 9 * k + 0.3 * k * k); }
+  // LV 31-50: an extra cubic term on top, so every level-up's step is bigger than the last all the way to the cap
+  function playerMaxHp(lv) {
+    var k = Math.max(1, Math.min(50, lv || 1)) - 1, x = Math.max(0, k - 29);
+    return Math.round(100 + 9 * k + 0.3 * k * k + x * x + 0.01 * x * x * x);
+  }
   function enemyPressure(L) { var t = enemyTempo(L); return enemyDmgMul(L) / t.coolMul / Math.sqrt(t.aimMul); }
 
   // 4.4: at most 3 + floor(L/5) robots in Windup or Attack.

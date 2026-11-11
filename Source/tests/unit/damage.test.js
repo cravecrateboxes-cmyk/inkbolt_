@@ -181,11 +181,13 @@ test('level scaling of robot HP and damage (5.7)', () => {
   assert.equal(D.attackTokens(1), 3); assert.equal(D.attackTokens(5), 4); assert.equal(D.attackTokens(20), 7);
 });
 
-test('player health per level stays ahead of robot pressure, more so late (LV = L, to LV 30)', () => {
+test('player health per level stays ahead of robot pressure, more so late (LV = L, to LV 30; steps keep growing to LV 50)', () => {
   assert.equal(IB.Damage.playerMaxHp(1), 100);
   assert.equal(IB.Damage.playerMaxHp(20), 379);
   assert.equal(IB.Damage.playerMaxHp(30), 613);
-  assert.equal(IB.Damage.playerMaxHp(40), 613, 'capped at LV 30');
+  assert.equal(IB.Damage.playerMaxHp(60), IB.Damage.playerMaxHp(50), 'capped at LV 50');
+  const step = (L) => IB.Damage.playerMaxHp(L) - IB.Damage.playerMaxHp(L - 1);
+  for (let L = 3; L <= 50; L++) assert.ok(L <= 30 ? step(L) >= step(L - 1) : step(L) > step(L - 1), 'step grows at LV ' + L);
   let prev = 0;
   for (let L = 1; L <= 30; L++) {
     const r = IB.Damage.playerMaxHp(L) / 100 / IB.Damage.enemyPressure(L);
