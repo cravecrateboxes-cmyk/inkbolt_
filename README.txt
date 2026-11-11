@@ -76,6 +76,14 @@ CAMPAIGN (src/data/levelplans.js ORDER)
     HELIXA R&D wing (robot chassis on gantries, holo design tables, weapon prototypes in containment fields, cryo
     cylinders, an energy test chamber, the Forge). Glow companions (theme option `glow`, zones.js): LEDs, screens and
     holograms drawn unlit, blinked / turned by the theme.
+  Glimmerdeep Colliery (gemmine, 2 zones): No. 3 Seam -- a room-and-pillar coal district (haulage gallery under steel
+    arch sets, two tracks with ore carts, the ore chute fed by a raised conveyor catwalk at 3 m, the winch house, an
+    auxiliary fan with its vent duct, lamp strings, timbered drifts, gem veins glinting in the coal faces) -- then the
+    Glimmer Vault, a vast cavern of glowing faceted crystals (diamond, ruby, emerald, sapphire): the Gem Heart, mining
+    galleries at 4.8 m, platforms at 2.4 m, ledges with ramps, the sorting / cutting station, the chasm edge with its
+    hoist. Gems glow through theme.glow (faces in a _Glow companion, the ink outline in the piece). Kit:
+    blender/fam_kit_gemmine.py (gem_base / gem_seam / gem_cavern, importing the coal mine kit's helpers); zones:
+    tools/gemmine_zones.py; deck test: node tests/e2e/gemmine-decks.spec.js.
 
 BREAKABLE DOORS (src/game/doors.js, theme symbol option `breakable`; first used by Helix Vault)
   A prefab symbol with breakable: { hp, debris: 'metal' | 'glass' | 'mesh' | 'field', word, leaf, blend } places its
