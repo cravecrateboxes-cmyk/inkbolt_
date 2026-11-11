@@ -120,7 +120,7 @@
   GL.ROCKET = { cap: 16, start: 6, carriedTarget: 0.7, packTarget: 0.3, useWindow: 90, useFull: 6, maxChance: 0.5, pity: 3,
     budgetPerSoldier: 0.27, minBudget: 14, dropWeight: { soldier: 4, grenadier: 4, blader: 1 }, torpedoCapMul: 1.5 };
   /* the rocket pool's cap: the Torpedo skill adds 50% (st.cap in rocketNeed / rocketDrop overrides the base) */
-  GL.rocketCap = function (torpedo) { return Math.round(GL.ROCKET.cap * (torpedo ? GL.ROCKET.torpedoCapMul : 1)); };
+  GL.rocketCap = function (torpedo) { return Math.round(GL.ROCKET.cap * (torpedo ? GL.ROCKET.torpedoCapMul : 1) * (IB.AMMO_MUL || 1)); };   // x AMMO_MUL from player LV 20
   /* which kills can drop a rocket crate, and how often vs a soldier (melee bladers: half the chance) */
   GL.rocketDropWeight = function (type) { return GL.ROCKET.dropWeight[type] || 0; };
   /* st: {owned, carried, ammo, pending (rockets in crates on the map), used (rockets fired in the last 90 s), per

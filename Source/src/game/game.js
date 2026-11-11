@@ -518,12 +518,12 @@
     hudLevel(n);
   }
   G.addXp = addXp;
-  // player LV 20+: a third more ammo in every gun (magazines and reserves, launchers too)
+  // player LV 20+: a third more spare ammo (reserve) for every gun type, rockets too; magazines unchanged
   IB.AMMO_LEVEL = 20; IB.AMMO_BONUS = 1.33;
   function setAmmoMul() { var lv = G.slot ? IB.Skills.levelFromXp(G.slot.xp || 0) : 1, k = lv >= IB.AMMO_LEVEL ? IB.AMMO_BONUS : 1, was = IB.AMMO_MUL || 1; IB.AMMO_MUL = k; return k !== was; }
   function topUp() { if (!G.ws) return; Object.keys(G.ws.guns).forEach(function (k) { var g = G.ws.guns[k]; if (g.def.ammo) return; g.mag = Math.max(g.mag, W.magSize(G.ws, g.def)); if (g.reserve !== Infinity) g.reserve = Math.max(g.reserve, W.reserveOf(g.def)); }); }
   function hudLevel(gain) {
-    if (setAmmoMul() && IB.AMMO_MUL > 1) topUp();   // reaching LV 20 mid-level: the bigger magazines come loaded
+    if (setAmmoMul() && IB.AMMO_MUL > 1) topUp();   // reaching LV 20 mid-level: the bigger reserves come filled
  if (HUD.level) { var pr = G.progress(); HUD.level(pr.level, pr.points, IB.Skills.xpProgress(pr.xp), gain || 0); } }
   // after the Tab menu: skills may have changed (stats, effects) and so may the loadout
   G.applyProgress = function () {
