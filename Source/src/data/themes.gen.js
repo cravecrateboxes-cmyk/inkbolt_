@@ -1345,8 +1345,8 @@
     'X': { size: [6, 6], pieces: ['Landmark_Chamber'], face: 0, kind: 'cover' },
     'L': { size: [8, 4], pieces: ['Landmark_Forge'], face: 0, kind: 'cover' },
     // ---- partitions (runs) and breakable doors
-    'q': { pieces: ['GlassHalf'], full: 'GlassFull', links: 'qdl#', post: 'GlassPost', kind: 'wall' },
-    'w': { pieces: ['CageHalf'], full: 'CageFull', links: 'wc#', post: 'CagePost', kind: 'wall' },
+    'q': { pieces: ['GlassHalf'], full: 'GlassFull', links: 'qdl#', post: 'GlassPost', kind: 'wall', turn: -Math.PI / 2 },
+    'w': { pieces: ['CageHalf'], full: 'CageFull', links: 'wc#', post: 'CagePost', kind: 'wall', turn: -Math.PI / 2 },
     'D': { size: [3, 2], pieces: ['SecDoor'], orient: 'span', kind: 'wall', breakable: SEC },
     'u': { size: [3, 2], pieces: ['SecDoorUPS'], orient: 'span', kind: 'wall', breakable: SEC },
     'V': { size: [3, 2], pieces: ['VaultDoor'], orient: 'span', kind: 'wall', breakable: VAULT },

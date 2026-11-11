@@ -601,19 +601,20 @@
     var pts = find(grid, ch);
     if (d.links) {   // rails: one half-module from the cell centre toward each linked neighbour (straight, L, T, end)
       pts.forEach(function (p) {
-        var x = z.ox + p.c + 0.5, zz = z.oz + p.r + 0.5, y0 = baseY(world, yb, x, zz), n = 0, lk = d.links;
+        var x = z.ox + p.c + 0.5, zz = z.oz + p.r + 0.5, y0 = baseY(world, yb, x, zz), n = 0, lk = d.links, tn = d.turn || 0;
+        // turn (optional): a kit that models its runs along local X (Blender X) instead of Z gives -pi/2 here
         var L = function (dc, dr) { return lk.indexOf(grid.at(p.c + dc, p.r + dr)) >= 0; };
         var ns = L(0, 1) && L(0, -1) && !L(1, 0) && !L(-1, 0), ew = L(1, 0) && L(-1, 0) && !L(0, 1) && !L(0, -1);
         if (d.full && (ns || ew)) {   // straight run: one full module, no post
-          var fy = ns ? 0 : Math.PI / 2;
+          var fy = (ns ? 0 : Math.PI / 2) + tn;
           P.add(d.full, x, y0, zz, fy);
           if (d.collide !== false) addColsY(world, colsOf(IB.themePiece(theme, d.full)) || boxCols(0.2, 1, d.h || 1), x, y0, zz, fy, d.kind || 'cover', z.idx);
           return;
         }
         [[0, 1, 0], [1, 0, Math.PI / 2], [0, -1, Math.PI], [-1, 0, -Math.PI / 2]].forEach(function (k) {
           if (lk.indexOf(grid.at(p.c + k[0], p.r + k[1])) < 0) return;
-          n++; P.add(d.pieces[0], x, y0, zz, k[2]);
-          if (d.collide !== false) addColsY(world, colsOf(IB.themePiece(theme, d.pieces[0])) || boxCols(0.2, 0.5, d.h || 1), x, y0, zz, k[2], d.kind || 'cover', z.idx);
+          n++; P.add(d.pieces[0], x, y0, zz, k[2] + tn);
+          if (d.collide !== false) addColsY(world, colsOf(IB.themePiece(theme, d.pieces[0])) || boxCols(0.2, 0.5, d.h || 1), x, y0, zz, k[2] + tn, d.kind || 'cover', z.idx);
         });
         if (d.post) P.add(d.post, x, y0, zz, 0);
       });
