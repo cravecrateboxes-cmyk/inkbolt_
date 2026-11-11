@@ -987,6 +987,8 @@
   }
   function buildTrail(level, from, to, theme, world, idx) {
     var g = new IB.Geo(), P = new Parts(theme), T = theme.trail || {};
+    // trail.byTrail (optional): per trail (index = the zone it leaves) options over the theme's, e.g. its own variants
+    if (T.byTrail && T.byTrail[idx]) T = Object.assign({}, T, T.byTrail[idx]);
     var x = from.x, z0 = from.z, z1 = to.z, w = 3, len = z0 - z1, wallH = T.height || 2.6;
     paintFloor(g, x - w / 2 - 0.5, z1, w + 1, len, theme, true);
     addCeiling(g, P, x - w / 2 - 1, z1, w + 2, len, theme);
@@ -1412,8 +1414,10 @@
           return [Math.max(0, s0), Math.min(L, s1), Math.max(y0, h.y0), Math.min(y1, h.y1)];
         }).sort(function (p, q) { return p[0] - q[0]; });
         var s = 0;
-        hs.forEach(function (h) {
-          piece(s, h[0], y0, y1); piece(h[0], h[1], y0, h[2]); piece(h[0], h[1], h[3], y1); s = h[1];
+        hs.forEach(function (h, k) {   // openings in the same column (theme.below.levels: one per height) share it
+          var col0 = k === 0 || hs[k - 1][0] !== h[0] || hs[k - 1][1] !== h[1], last = k === hs.length - 1 || hs[k + 1][0] !== h[0] || hs[k + 1][1] !== h[1];
+          if (col0) { piece(s, h[0], y0, y1); var gaps = hs.filter(function (q) { return q[0] === h[0] && q[1] === h[1]; }).sort(function (p, q) { return p[2] - q[2]; }); var yy = y0; gaps.forEach(function (q) { piece(h[0], h[1], yy, q[2]); yy = Math.max(yy, q[3]); }); piece(h[0], h[1], yy, y1); }
+          if (last) s = h[1];
           if (plugs) plugs.push([P(h[0], h[2]), P(h[1], h[2]), P(h[1], h[3]), P(h[0], h[3]), base, winC, fh, LIGHT[f], u0 + h[0], u0 + h[1]]);
         });
         piece(s, L, y0, y1);
@@ -1439,29 +1443,42 @@
     var hz = level.hatch ? level.hatch.z : minZ;
     minZ = Math.min(minZ, hz - 6);
     minX -= 0.6; maxX += 0.6; minZ -= 4; maxZ += 4;
-    var Y0 = -D, facade = col(C.facade || '#7E93AA'), glass = col(C.glass || '#5F7FA2'), setback = col('#6C7F95');
+    var Y0 = -D, facade = col(C.facade || '#7E93AA'), glass = col(C.glass || '#5F7FA2'), setback = col(C.setback || '#6C7F95');
     // the tower: each zone is a wing with its own curtain wall down to the street; between wings (where the trail
     // corridors run) a lower set-back block with a roof 4 m down, so every floor plate stands on a building
     var wings = level.zones.map(function (z) { return [z.ox - 0.6, z.oz - 0.3, z.ox + z.w + 0.6, z.oz + z.h + 0.3]; });
     var TT = C.towerTop, FH = C.diagrid ? -1 : 4, BH = C.bridgeHole || [2.6, -1.2, ((theme.wall && theme.wall.height) || 4) + 0.5];
-    function hole(face, x, top) { return { face: face, x0: x - BH[0], x1: x + BH[0], y0: BH[1], y1: top === undefined ? BH[2] : top }; }
+    // levels (optional): each zone's floor height above the street; FL(i) = zone i's floor in the city mesh's own frame
+    // (the floor of a zone at the full `depth` is 0); towerTop and the openings count from each zone's own floor
+    var FL = function (i) { return C.levels ? C.levels[Math.min(i, C.levels.length - 1)] - D : 0; };
+    function hole(face, x, top, b) { b = b || 0; return { face: face, x0: x - BH[0], x1: x + BH[0], y0: b + BH[1], y1: b + (top === undefined ? BH[2] : top) }; }
     var plugs = level.zones.map(function () { return []; });
     wings.forEach(function (w, i) {
       if (!TT) { tower(w[0], w[1], w[2], w[3], Y0, -0.06, facade, glass, 4, false); return; }
-      var z = level.zones[i], holes = [hole(3, z.exitGate.x)];
-      if (i > 0 && z.entryGate) holes.push(hole(2, z.entryGate.x));
-      skin(w[0], w[1], w[2], w[3], Y0, TT[i], facade, glass, FH, holes, [z.ox + 1, z.oz + 1], plugs[i]);
+      var z = level.zones[i], holes = [hole(3, z.exitGate.x, undefined, FL(i))];
+      if (i > 0 && z.entryGate) holes.push(hole(2, z.entryGate.x, undefined, FL(i)));
+      // levels: the stair up to this zone is seen while the outside still stands at the zone below
+      if (C.levels && i > 0 && z.entryGate) holes.push(hole(2, z.entryGate.x, undefined, FL(i - 1)));
+      skin(w[0], w[1], w[2], w[3], Y0, FL(i) + TT[i], facade, glass, FH, holes, [z.ox + 1, z.oz + 1], plugs[i]);
     });
     if (C.bridges && level.hatch) {   // the exit room stands on (and in) a slender core tower
       var hx = level.hatch.x, hz0 = hz - 3.55, hz1 = hz + 3.1;
-      skin(hx - 3.65, hz0, hx + 3.65, hz1, Y0, TT ? TT[level.zones.length] || 30 : -0.8, facade, glass, FH, [hole(2, hx)], [hx, hz1]);
+      var FX = FL(level.zones.length - 1);
+      skin(hx - 3.65, hz0, hx + 3.65, hz1, Y0, FX + (TT ? TT[level.zones.length] || 30 : -0.8), facade, glass, FH, [hole(2, hx, undefined, FX)], [hx, hz1]);
     }
     for (var wi = 0; wi < wings.length && !C.bridges; wi++) {
       var lo = wings[wi], next = wings[wi + 1];
       var gz0 = next ? next[3] : minZ, gz1 = lo[1];
       if (gz1 - gz0 < 0.2) continue;
       var gx0 = Math.max(lo[0], next ? next[0] : lo[0]) + 3, gx1 = Math.min(lo[2], next ? next[2] : lo[2]) - 3;
-      tower(gx0, gz0, gx1, gz1, Y0, -4, setback, glass, 4, col('#9AA3AE'));
+      // with levels the block between two wings closes round the trail (linkTop m over the lower floor); the one over
+      // the exit trail and hatch room is crownHalf m either side of the hatch when given
+      if (C.levels && !next && C.crownHalf && level.hatch) { gx0 = level.hatch.x - C.crownHalf; gx1 = level.hatch.x + C.crownHalf; }
+      if (C.levels) {   // the trail runs through it: openings at both ends (just the south one under the crown)
+        var tx = level.zones[wi].exitGate.x, lh = [hole(2, tx, undefined, FL(wi))];
+        if (next) lh.push(hole(3, tx, undefined, FL(wi)));
+        skin(gx0, gz0, gx1, gz1, Y0, FL(wi) + (C.linkTop || 10), setback, glass, 4, lh, null, null);
+      } else tower(gx0, gz0, gx1, gz1, Y0, -4, setback, glass, 4, col(C.linkRoof || '#9AA3AE'));
     }
     var keep = [[minX - 7, minZ - 7, maxX + 7, maxZ + 7]];
     function used(x0, z0, x1, z1) { for (var i = 0; i < keep.length; i++) { var k = keep[i]; if (x0 < k[2] && x1 > k[0] && z0 < k[3] && z1 > k[1]) return true; } return false; }
@@ -1555,13 +1572,13 @@
         uOutBase: IB.Render.worldOutline.uOutBase, uOutK: IB.Render.worldOutline.uOutK, uOutPx: { value: IB.Render.worldOutline.px || 3.2 } },
       extensions: { derivatives: true },
       vertexShader: 'attribute vec3 color; attribute vec3 aWin; attribute vec3 aFac; attribute vec4 aEdge; attribute vec2 aPush; uniform float uOutBase; uniform float uOutK; uniform float uOutPx;\n' +
-        'varying vec3 vC; varying vec3 vW; varying vec3 vF; varying vec4 vE; varying float vY; varying float vDist; varying float vInk;\n' +
+        'varying vec3 vC; varying vec3 vW; varying vec3 vF; varying vec4 vE; varying float vY; varying float vDist; varying float vInk; varying float vWY;\n' +
         'void main(){ vC = color; vW = aWin; vF = aFac; vE = aEdge; vY = position.y; vec3 p = position; vInk = 1.7;\n' +
         '  vec4 mv = modelViewMatrix * vec4(p, 1.0);\n' +
         '  if (aPush.x != 0.0 || aPush.y != 0.0) { float w = max(uOutBase, uOutK * -mv.z); p.x += aPush.x * w; p.z += aPush.y * w; mv = modelViewMatrix * vec4(p, 1.0); vInk = uOutPx; }\n' +
-        '  vDist = length(mv.xyz); gl_Position = projectionMatrix * mv; }',
+        '  vWY = (modelMatrix * vec4(p, 1.0)).y; vDist = length(mv.xyz); gl_Position = projectionMatrix * mv; }',
       fragmentShader: 'uniform vec3 uHaze; uniform float uDepth; uniform float uTop; uniform float uBot; uniform vec3 uInk; uniform vec3 uHz; uniform float uMaxH; uniform vec2 uDia;\n' +
-        'varying vec3 vC; varying vec3 vW; varying vec3 vF; varying vec4 vE; varying float vY; varying float vDist; varying float vInk;\n' +
+        'varying vec3 vC; varying vec3 vW; varying vec3 vF; varying vec4 vE; varying float vY; varying float vDist; varying float vInk; varying float vWY;\n' +
         'void main(){ vec3 c = vC;\n' +
         '  if (vF.y > 0.0) { float fy = fract(vY / vF.y); float fu = fract(vF.x / 2.6);\n' +
         '    if (fy > 0.38 && fy < 0.9 && fu > 0.14) c = vW; }\n' +
@@ -1576,7 +1593,7 @@
         '  c *= vF.z;\n' +
         '  if (vE.z > 0.0) { vec2 d = min(vE.xy, vE.zw - vE.xy); vec2 px = fwidth(vE.xy) * vInk;\n' +
         '    if (d.x < px.x || d.y < px.y) c = uInk; }\n' +
-        '  float h = mix(uTop, uBot, clamp(-vY / uDepth, 0.0, 1.0)) + clamp((vDist - uHz.x) / uHz.y, 0.0, uHz.z);\n' +
+        '  float h = mix(uTop, uBot, clamp(-vWY / uDepth, 0.0, 1.0)) + clamp((vDist - uHz.x) / uHz.y, 0.0, uHz.z);\n' +
         '  gl_FragColor = vec4(mix(c, uHaze, clamp(h, 0.0, uMaxH)), 1.0); }'
     });
     var mesh = new THREE.Mesh(geo, mat);
@@ -1610,7 +1627,7 @@
     var g = new IB.Geo(), minZ = 0, maxZ = 0, F = theme.floor || {};
     level.zones.forEach(function (z) { minZ = Math.min(minZ, z.oz - 20); });
     var cz = (minZ + maxZ) / 2, rad = (maxZ - minZ) / 2 + 70;
-    var B0 = theme.backdrop;
+    var B0 = theme.backdrop, n0 = level.root.children.length;
     level.ticks = [];
     if (B0 && B0.build) {
       var P0 = new Parts(theme);
@@ -1638,7 +1655,7 @@
     });
     meshesFor(P, level.root);
     level.clouds = []; level.cloudMeshes = [];
-    if (!(theme.env && theme.env.clouds)) return;
+    if (!(theme.env && theme.env.clouds)) { if (theme.below && theme.below.levels) belowGroup(level, n0); return; }
     if (!Z.cloudMat) { Z.cloudMat = IB.Render.toonMaterial({ map: IB.Assets.palette.common, baked: 0.06 }); Z.cloudMat.emissive = new THREE.Color(0x7A7468); Z.cloudMat.fog = false; }
     /* env.clouds: true (puffs 44-66 m up drifting east) or { y: [lo, hi], count (per cloud shape), scale: [lo, hi],
        lanes: [near, far] (|x| band on both sides of the level, kept clear of the buildings), span (m along z, centred
@@ -1659,6 +1676,30 @@
       level.cloudMeshes.push(im); level.root.add(im);
     });
     Z.updateClouds(level, 0);
+    if (theme.below && theme.below.levels) belowGroup(level, n0);
+  };
+  /* theme.below.levels: [m above the street per zone] -- the zones stand at different heights of one building (a
+     lobby on the street, a floor in the middle, the top). Everything outside (the city, its haze, the backdrop and
+     the clouds) is one group, lifted so the street lies levels[i] under the floor of the zone the player is nearest
+     (Z.updateBelow, every frame; in a trail the switch happens halfway along it). Only the current and the next zone
+     are drawn then (the one behind stands at another height; its gate is shut). */
+  function belowGroup(level, n0) {
+    var grp = level.belowGroup;
+    if (!grp) { grp = level.belowGroup = new THREE.Group(); grp.name = 'Below'; }
+    level.root.children.slice(n0).forEach(function (o) { if (o !== grp) grp.add(o); });
+    if (grp.parent !== level.root) level.root.add(grp);
+    level.belowAt = -1;
+    Z.updateBelow(level, null);
+  }
+  Z.updateBelow = function (level, p) {
+    var C = level && level.belowGroup && level.theme.below;
+    if (!C) return;
+    var best = 0, bd = 1e9;
+    if (p) level.zones.forEach(function (z, i) { var d = Math.max(0, z.oz - p.z, p.z - (z.oz + z.h)); if (d < bd - 1e-6) { bd = d; best = i; } });
+    if (best === level.belowAt) return;
+    level.belowAt = best;
+    level.belowGroup.position.y = (C.depth || 170) - C.levels[Math.min(best, C.levels.length - 1)];
+    level.belowGroup.updateMatrixWorld(true);
   };
   var _cm = new THREE.Matrix4(), _cq = new THREE.Quaternion(), _cp = new THREE.Vector3(), _cs = new THREE.Vector3();
   Z.updateClouds = function (level, dt) {
@@ -1678,9 +1719,9 @@
      window or over a wall never shows a hole where the last zone stood. A theme whose walls are mostly glass
      (theme.showAllZones, the office tower) keeps every zone drawn. */
   Z.setVisible = function (level, cur) {
-    var all = !!(level.theme && level.theme.showAllZones);
-    level.zones.forEach(function (z, i) { z.group.visible = all || (i >= cur - 1 && i <= cur + 1); });
-    level.trails.forEach(function (t, i) { t.group.visible = (i === cur || i === cur - 1); });
+    var all = !!(level.theme && level.theme.showAllZones), back = level.belowGroup ? 0 : 1;   // theme.below.levels: see belowGroup
+    level.zones.forEach(function (z, i) { z.group.visible = all || (i >= cur - back && i <= cur + 1); });
+    level.trails.forEach(function (t, i) { t.group.visible = (i === cur || (back > 0 && i === cur - 1)); });
     if (level.hatch) level.hatch.group.visible = cur >= level.zones.length - 1;
     (level.plugs || []).forEach(function (p) { p.mesh.visible = !level.zones[p.zone].group.visible; });   // theme.below bridge openings
   };
