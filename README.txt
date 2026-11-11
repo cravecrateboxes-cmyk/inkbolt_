@@ -114,6 +114,21 @@ CAMPAIGN (src/data/levelplans.js ORDER)
     platforms. Kit: blender/fam_kit_resort.py (rs_*.py); zones: tools/resort_zones.py; test:
     node tests/e2e/resort-climb.spec.js.
 
+  Abyssal Station Thalassa (seabase, 2 zones): a deep research station on the seabed, cool steel and teal inside with
+    yellow / orange safety accents. Docking & Service Level (72 m): the arrival lock with a decompression chamber,
+    dive lockers, the pump room, the MOON POOL dock (the submersible DSV TRIDENT floating in its cradle under a portal
+    gantry, winches, umbilical spools, the work ROV, cargo baskets; the dock control cabin up on a gallery deck), the
+    flooded main and ballast passages (shin-deep standing water held back by the watertight doors' coamings, flood
+    barriers and sandbags, leaking pipes, flashing emergency lights), the ballast tank room, the cargo hold, the
+    battery room; portholes in the outer hull. The Research Ring (71 m): the observation hub under a glass dome
+    (survey table with a turning holographic seabed relief, a mezzanine on three sides, two stairs) in a ring
+    corridor, two half-round GLASS OBSERVATION CHAMBERS with glass domes bulging from the hull into the seabed
+    (rocks, a cable, an instrument lander, hull floodlights), glass-fronted labs, the flooded wet lab. Glass is a dark
+    teal companion piece drawn additive (theme.glow). The theme's backdrop.build lays the seabed (a trench falls away
+    east), distant station pods, pylon beacons and lights, drifting marine snow, the animated flood water and moon
+    pool (one InstancedMesh per kind and zone, shader ripples) and wading ripples round the player and robots. No
+    living creatures. Kit: blender/fam_kit_seabase.py (sb_*.py); zones: tools/seabase_zones.py.
+
 BREAKABLE DOORS (src/game/doors.js, theme symbol option `breakable`; first used by Helix Vault)
   A prefab symbol with breakable: { hp, debris: 'metal' | 'glass' | 'mesh' | 'field', word, leaf, blend } places its
   frame like any prefab and its leaf (<Piece>_Leaf, _Leaf_D1, _Leaf_D2, _Broken) as its own mesh and collision. The
