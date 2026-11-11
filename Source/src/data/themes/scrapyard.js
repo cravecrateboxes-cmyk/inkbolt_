@@ -255,7 +255,9 @@
     hatch: 'Hatch', stand: 'Stand',
     backdrop: { build: backdrop },
     budget: { prop: 3200, landmark: 6000, total: 70000 },
-    allPieces: function () { return PIECES.concat(BORROWED); },
+    allPieces: function () { return PIECES.slice(); },
+    // the kit-parking pieces this theme places (tests check they exist in fps-kit-parking.glb)
+    parkingPieces: function () { return BORROWED.slice(); },
     levels: {
       scrapyard: {
         name: 'Rustmoor Salvage',

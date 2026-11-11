@@ -189,3 +189,13 @@ test('walkable decks: the office roof at 3.15 m, the baler platform at 2.4 m, th
     assert.ok(tops[0] <= 0.35 + 1e-3, p + ' first step ' + tops[0]);
   }
 });
+
+test('kit-parking pieces the theme places (wrecks, forklift, drums) exist in fps-kit-parking.glb, and none of its own are borrowed', () => {
+  const d = fs.readFileSync(path.join(__dirname, '../../assets/fps-kit-parking.glb'));
+  const js = JSON.parse(d.toString('utf8', 20, 20 + d.readUInt32LE(12)));
+  const names = new Set(js.nodes.map((n) => n.name));
+  const list = TH.parkingPieces();
+  assert.ok(list.length >= 3, 'borrowed ' + list.length);
+  for (const n of list) assert.ok(names.has(n), 'kit-parking missing ' + n);
+  for (const n of TH.allPieces()) assert.ok(n.indexOf('KIT_PARKING_') !== 0, 'own piece list holds ' + n);
+});
