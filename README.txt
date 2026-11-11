@@ -170,9 +170,10 @@ ROBOTS OF LEVELS 20+ (rows mech / grenadier / hawk in src/data/enemies.js; src/g
   that had gunners / bombers / drones keeps at least one Robot Trooper / Hawk. Theme files keep writing gunner, drone,
   soldier (bomber 0-2 a wave); a plan with lateRobots: false keeps the old robots, and waves may name mech / hawk /
   grenadier directly (left as written).
-  Robot Trooper: built like the Soldier (same rig, animations and brain) but a robot: segmented armoured chassis with a
-    back reactor (its weak spot), servo joints, piston forearms and shins, cable runs, a sensor head with one red optic,
-    each segment skinned to one bone; four colourways (gunmetal, olive, sand, arctic). Fires 3-round carbine bursts of
+  Robot Trooper: built like the Soldier (same rig, animations and brain) but a robot: a heavy industrial walker of
+    bevelled blocks (big shoulder blocks, a small low head with one red optic, wide chest on a narrow piston waist, a
+    back reactor as its weak spot, segmented piston arms with clamp hands, tall legs on flat feet, stencils and hazard
+    marks), each block skinned to one bone; four colourways (gunmetal, olive, sand, arctic). Fires 3-round carbine bursts of
     normal rounds only, no grenades, rifle-butts up close; a light armour pool (25 vs the Soldier's 60, slower recharge).
     Guns drop at 40% of a Soldier's rates.
   Grenadier: a Soldier (same kit colours, shield, rifle butt and drops) holding a 6-shot 40 mm grenade launcher (olive,

@@ -14,9 +14,10 @@ The carbine's vertices carry colour alpha 0 (the game's aMask): the Grenadier hi
 
 Levels 20+ (same rig and animations, one pool of rigs in trooperrig.js):
   TROOPER_GL     a 6-shot 40 mm grenade launcher skinned to the right hand (the Grenadier); socket TROOPER_GL_MUZZLE
-  TROOPER_MECH   the Robot Trooper: a robot body built from rigid segments, each skinned 100 % to one bone (so the
-                 joints read as servo joints): segmented chassis with a back reactor (socket TROOPER_MECH_CORE),
-                 servo pods, piston forearms and shins, cable runs, a sensor head with one optic, its own carbine.
+  TROOPER_MECH   the Robot Trooper: a heavy industrial walker built from rigid bevelled blocks, each skinned 100 % to
+                 one bone: big shoulder blocks around a small low head with one red optic, a wide chest on a narrow
+                 piston waist (back reactor, socket TROOPER_MECH_CORE), segmented piston arms with clamp hands, tall
+                 legs on big flat feet, stencils and hazard marks, its own carbine.
                  Plate keys mplate / mplate2 / mhaz are recoloured per robot (trooperrig.js MECH_VARIANTS).
 Blender: Z up, the mannequin faces -Y (game +Z).
 """
@@ -208,79 +209,94 @@ def _rigid(pal, name, build, bone, hull_t):
 
 
 def build_mech(rig, pal, ht):
-    """the Robot Trooper body: rigid robotic segments, one bone each (rest pose = T pose, facing -Y)"""
+    """the Robot Trooper body: a heavy industrial walker (rest pose = T pose, facing -Y) built from rigid, chunky
+    bevelled blocks, one bone each: big shoulder blocks with a small boxy head set low between them, a wide chest on a
+    narrow piston waist, thick segmented piston arms ending in clamp hands, tall legs on wide flat feet. Worn plates,
+    stencil bars and hazard chevrons. The back reactor cell stays the weak spot (socket TROOPER_MECH_CORE)."""
     B = lambda n: (rig.data.bones[n].head_local.copy(), rig.data.bones[n].tail_local.copy())
     R90X, RY = (90, 0, 0), lambda sx: (0, 90 * sx, 0)
     parts = []
 
     def P(name, bone, fn):
-        parts.append(_rigid(pal, 'TROOPER_m_' + name, fn, bone, ht))
+        m = Model(pal)
+        box = m.box
+        # chunky bevels on the big blocks only; thin trim, stencils and claws stay sharp (keeps the GLB small)
+        m.box = lambda loc, size, c, rot=(0, 0, 0), bevel=True: box(loc, size, c, rot, bevel and min(size) >= 0.06)
+        cyl = m.cyl
+        m.cyl = lambda loc, r1, r2, h, c, seg=8, rot=(0, 0, 0): cyl(loc, r1, r2, h, c, seg=min(seg, 8), rot=rot, bevel=r1 >= 0.06)
+        fn(m)
+        obj = build_object('TROOPER_m_' + name, m, 0.014, ht)
+        vg = obj.vertex_groups.new(name=bone)
+        vg.add(list(range(len(obj.data.vertices))), 1.0, 'REPLACE')
+        parts.append(obj)
 
-    # ---- pelvis
+    def stencil(m, x, y, z, w, n=3, c='mframe'):
+        """stencil marks: a row of short painted bars on a front face"""
+        for k in range(n):
+            m.box((x - w / 2 + (k + 0.5) * w / n, y, z), (w / n * 0.6, 0.005, 0.018), c, bevel=False)
+
+    # ---- pelvis: a heavy block skirt
     def hips(m):
-        m.box((0, 0.02, 0.93), (0.27, 0.19, 0.13), 'mframe')
-        m.box((0, -0.093, 0.895), (0.13, 0.03, 0.13), 'mplate', rot=(8, 0, 0))
-        m.box((0, -0.1105, 0.93), (0.08, 0.006, 0.02), 'mhaz')
+        m.box((0, 0.02, 0.93), (0.34, 0.22, 0.15), 'mframe')
+        m.box((0, -0.10, 0.90), (0.18, 0.04, 0.16), 'mplate', rot=(8, 0, 0))
+        stencil(m, 0, -0.123, 0.92, 0.12, 3, 'mhaz')
         for sx in (-1, 1):
-            m.box((sx * 0.162, 0.0, 0.905), (0.035, 0.17, 0.15), 'mplate2')
-            m.cyl((sx * 0.1795, 0.0, 0.92), 0.04, 0.04, 0.012, 'servo', seg=10, rot=RY(sx))
-        m.cyl((0, 0.02, 0.99), 0.045, 0.045, 0.08, 'chrome', seg=10)
-        m.box((0, 0.125, 0.95), (0.12, 0.05, 0.08), 'mplate2')
+            m.box((sx * 0.19, 0.0, 0.91), (0.05, 0.22, 0.18), 'mplate2')
+            m.cyl((sx * 0.218, 0.0, 0.92), 0.05, 0.05, 0.014, 'servo', seg=10, rot=RY(sx))
+        m.box((0, 0.14, 0.95), (0.16, 0.06, 0.10), 'mplate2')
     P('hips', 'DEF-hips', hips)
 
-    # ---- segmented abdomen, lower chest, chest with the back reactor (weak spot)
+    # ---- narrow waist: a chrome column in a servo collar
     def ab(m):
-        m.box((0, 0.015, 1.083), (0.20, 0.15, 0.045), 'servo')
-        m.box((0, 0.015, 1.135), (0.24, 0.17, 0.05), 'mplate2')
-        m.box((0, -0.0715, 1.135), (0.16, 0.006, 0.012), 'cable')
+        m.cyl((0, 0.02, 0.99), 0.06, 0.06, 0.16, 'chrome', seg=10)
+        m.cyl((0, 0.02, 1.005), 0.085, 0.085, 0.04, 'servo', seg=10)
+        for sx in (-1, 1):
+            m.cyl((sx * 0.085, 0.03, 0.98), 0.012, 0.012, 0.18, 'chrome', seg=6)
     P('ab', 'DEF-spine.001', ab)
 
-    def chest_lo(m):
-        m.box((0, 0.01, 1.235), (0.30, 0.20, 0.11), 'mframe')
-        m.box((0, -0.098, 1.235), (0.20, 0.025, 0.09), 'mplate')
-        m.box((0, -0.1135, 1.25), (0.012, 0.006, 0.07), 'cable')
-        for sx in (-1, 1):
-            for z in (1.215, 1.245):
-                m.box((sx * 0.152, 0.01, z), (0.012, 0.13, 0.014), 'servo')
+    def chest_lo(m):   # tapering belly block
+        m.box((0, 0.02, 1.19), (0.24, 0.20, 0.10), 'mframe')
+        m.box((0, -0.085, 1.195), (0.18, 0.03, 0.07), 'mplate2')
+        m.box((0, -0.101, 1.195), (0.012, 0.005, 0.05), 'cable', bevel=False)
     P('chestlo', 'DEF-spine.002', chest_lo)
 
-    def chest(m):
-        m.box((0, 0.005, 1.385), (0.36, 0.22, 0.16), 'mframe')
+    def chest(m):      # the wide chunky torso
+        m.box((0, 0.02, 1.36), (0.54, 0.30, 0.26), 'mframe')
+        m.box((0, -0.14, 1.37), (0.46, 0.04, 0.22), 'mplate', rot=(-4, 0, 0))
+        m.box((0, -0.12, 1.25), (0.36, 0.06, 0.06), 'mplate2')                        # belly lip
         for sx in (-1, 1):
-            m.box((sx * 0.085, -0.113, 1.395), (0.15, 0.035, 0.15), 'mplate', rot=(-6, 0, -8 * sx))
-            m.box((sx * 0.12, 0.01, 1.4725), (0.14, 0.19, 0.025), 'mplate2')
-            m.box((sx * 0.12, -0.03, 1.4875), (0.10, 0.03, 0.006), 'mhaz')
-        m.cyl((0, 0.01, 1.452), 0.075, 0.065, 0.03, 'servo', seg=10)
-        # back: reactor pack, glowing cell (the weak spot), cooling fins, cables up to the neck and out to the arms
-        m.box((0, 0.145, 1.375), (0.24, 0.08, 0.20), 'mplate2')
-        m.cyl((0, 0.185, 1.39), 0.05, 0.05, 0.02, 'cell', seg=12, rot=(-90, 0, 0))
-        for z in (1.30, 1.325):
-            m.box((0, 0.19, z), (0.18, 0.012, 0.012), 'servo')
+            m.box((sx * 0.13, -0.163, 1.40), (0.15, 0.01, 0.12), 'mplate2', bevel=False)   # worn panel
+            for k in range(3):                                                         # hazard chevrons
+                m.box((sx * (0.20 - 0.025 * k), -0.165, 1.31), (0.012, 0.006, 0.05), 'mhaz', rot=(0, 30 * sx, 0), bevel=False)
+            m.box((sx * 0.13, -0.17, 1.44), (0.03, 0.01, 0.03), 'servo')               # rivets
+            m.box((sx * 0.28, 0.02, 1.36), (0.03, 0.22, 0.18), 'mplate2')              # side plates
+        stencil(m, -0.12, -0.17, 1.375, 0.12, 4)
+        stencil(m, 0.12, -0.17, 1.375, 0.08, 2, 'patch')
+        m.box((0, 0.02, 1.495), (0.30, 0.22, 0.03), 'mplate2')                         # collar shelf
+        # back: reactor pack, glowing cell (the weak spot), fins, cables
+        m.box((0, 0.17, 1.375), (0.28, 0.06, 0.22), 'mplate2')
+        m.cyl((0, 0.205, 1.39), 0.055, 0.055, 0.02, 'cell', seg=12, rot=(-90, 0, 0))
+        for z in (1.29, 1.315, 1.465):
+            m.box((0, 0.205, z), (0.22, 0.012, 0.012), 'servo')
         for sx in (-1, 1):
-            m.beam((sx * 0.05, 0.12, 1.47), (sx * 0.03, 0.05, 1.53), 0.016, 'cable')
-            m.beam((sx * 0.11, 0.16, 1.45), (sx * 0.19, 0.11, 1.47), 0.016, 'cable')
+            m.beam((sx * 0.11, 0.19, 1.44), (sx * 0.24, 0.14, 1.48), 0.018, 'cable')
     P('chest', 'DEF-spine.003', chest)
 
-    # ---- neck + sensor head (one optic, no helmet, no visor)
+    # ---- short neck + small boxy head set low, one red optic
     def neck(m):
-        m.cyl((0, 0.0, 1.47), 0.03, 0.026, 0.11, 'chrome', seg=8)
-        for sx in (-1, 1):
-            m.beam((sx * 0.042, 0.012, 1.475), (sx * 0.032, 0.004, 1.565), 0.014, 'servo')
+        m.cyl((0, 0.0, 1.47), 0.035, 0.035, 0.06, 'chrome', seg=8)
     P('neck', 'DEF-neck', neck)
 
     def head(m):
-        m.box((0, 0.0, 1.655), (0.15, 0.18, 0.13), 'mplate')
-        m.box((0, -0.02, 1.583), (0.11, 0.13, 0.05), 'mframe')
-        m.box((0, -0.075, 1.716), (0.16, 0.05, 0.025), 'mplate2')                          # brow ridge
-        m.cyl((0, -0.09, 1.66), 0.05, 0.046, 0.035, 'mframe', seg=12, rot=R90X)            # optic housing
-        m.cyl((0, -0.125, 1.66), 0.034, 0.034, 0.012, 'optic', seg=12, rot=R90X)           # the optic
-        m.box((-0.012, -0.139, 1.672), (0.012, 0.006, 0.010), 'optichi')
+        m.box((0, -0.02, 1.575), (0.15, 0.16, 0.11), 'mplate')
+        m.box((0, -0.105, 1.585), (0.12, 0.02, 0.05), 'mframe')                         # visor slot
+        m.cyl((0.03, -0.112, 1.585), 0.026, 0.026, 0.02, 'optic', seg=12, rot=R90X)      # the optic (off-centre)
+        m.box((0.022, -0.124, 1.592), (0.01, 0.005, 0.008), 'optichi', bevel=False)
+        m.box((-0.035, -0.117, 1.585), (0.03, 0.006, 0.012), 'mhaz', bevel=False)
+        m.box((0, -0.03, 1.635), (0.12, 0.12, 0.02), 'mplate2')                        # lid
+        m.box((0, -0.10, 1.53), (0.10, 0.03, 0.03), 'servo')                          # chin vent
         for sx in (-1, 1):
-            m.cyl((sx * 0.075, 0.015, 1.655), 0.032, 0.03, 0.024, 'servo', seg=10, rot=RY(sx))   # side sensors
-            m.box((sx * 0.0785, -0.05, 1.62), (0.006, 0.05, 0.012), 'mhaz')
-        m.cyl((0.045, 0.06, 1.72), 0.006, 0.006, 0.13, 'cable', seg=4)                      # antenna
-        m.box((0.045, 0.06, 1.855), (0.016, 0.016, 0.016), 'mhaz')
-        m.box((0, 0.0, 1.7225), (0.04, 0.12, 0.006), 'cable')                               # panel line
+            m.box((sx * 0.082, -0.02, 1.575), (0.016, 0.10, 0.06), 'servo')
     P('head', 'DEF-head', head)
 
     for side, sx in (('L', 1), ('R', -1)):
@@ -288,51 +304,62 @@ def build_mech(rig, pal, ht):
         fh, ft = B('DEF-forearm.' + side)
         hh, htl = B('DEF-hand.' + side)
 
-        def shoulder(m, uh=uh):
-            m.sphere((uh.x, uh.y, uh.z), 0.068, 'servo', seg=(12, 7))
+        def shoulder(m, uh=uh, sx=sx):   # the big shoulder block, raised above the head line
+            x, y, z = uh.x + sx * 0.06, uh.y + 0.01, uh.z + 0.03
+            m.box((x, y, z), (0.20, 0.26, 0.22), 'mplate')
+            m.box((x + sx * 0.02, y, z + 0.115), (0.18, 0.24, 0.02), 'mplate2')
+            m.box((x, y - 0.131, z + 0.04), (0.14, 0.006, 0.03), 'mhaz', bevel=False)
+            stencil(m, x, y - 0.132, z - 0.04, 0.12, 3)
+            m.box((x + sx * 0.101, y, z), (0.006, 0.16, 0.10), 'mplate2', bevel=False)
+            m.cyl((uh.x + sx * 0.19, uh.y, uh.z - 0.01), 0.07, 0.07, 0.04, 'servo', seg=10, rot=RY(sx))
         P('sh' + side, 'DEF-shoulder.' + side, shoulder)
 
         def upper(m, uh=uh, ut=ut, sx=sx):
-            x0, y, z = uh.x, uh.y, uh.z
-            m.box((x0 + sx * 0.05, y, z + 0.065), (0.17, 0.17, 0.06), 'mplate')                 # pauldron
-            m.box((x0 + sx * 0.08, y, z + 0.098), (0.045, 0.15, 0.006), 'mhaz')
-            m.box((x0 + sx * 0.05, y - 0.088, z + 0.035), (0.13, 0.006, 0.012), 'cable')
-            m.cyl((x0 + sx * 0.04, y, z), 0.032, 0.032, 0.22, 'mframe', seg=8, rot=RY(sx))
-            m.box(((uh.x + ut.x) / 2 + sx * 0.02, y, z), (0.15, 0.08, 0.08), 'mplate2')
-            m.cyl((x0 + sx * 0.06, y, z - 0.052), 0.012, 0.012, 0.17, 'chrome', seg=6, rot=RY(sx))   # bicep piston
-            m.cyl((ut.x, ut.y + 0.05, ut.z), 0.044, 0.044, 0.10, 'servo', seg=10, rot=R90X)       # elbow servo
-            m.cyl((ut.x, ut.y + 0.056, ut.z), 0.02, 0.02, 0.112, 'chrome', seg=8, rot=R90X)
+            mx = (uh.x + ut.x) / 2 + sx * 0.04
+            L = abs(ut.x - uh.x)
+            m.box((mx, uh.y, uh.z), (L * 0.7, 0.13, 0.13), 'mplate2')
+            m.box((mx, uh.y, uh.z + 0.07), (L * 0.5, 0.10, 0.02), 'mplate')
+            m.cyl((mx - sx * L * 0.4, uh.y - 0.08, uh.z - 0.03), 0.014, 0.014, L * 0.8, 'chrome', seg=6, rot=RY(sx))   # piston
+            m.cyl((mx - sx * L * 0.42, uh.y - 0.08, uh.z - 0.03), 0.024, 0.024, 0.08, 'mframe', seg=8, rot=RY(sx))
+            m.cyl((ut.x, ut.y + 0.075, ut.z), 0.07, 0.07, 0.15, 'servo', seg=10, rot=R90X)           # elbow servo
+            m.cyl((ut.x, ut.y + 0.095, ut.z), 0.03, 0.03, 0.19, 'chrome', seg=8, rot=R90X)
         P('ua' + side, 'DEF-upper_arm.' + side, upper)
 
-        def fore(m, fh=fh, ft=ft, sx=sx):
-            y, z = fh.y, fh.z
-            m.cyl((fh.x + sx * 0.03, y, z), 0.034, 0.034, 0.14, 'mframe', seg=10, rot=RY(sx))     # hydraulic body
-            m.cyl((fh.x + sx * 0.165, y, z), 0.018, 0.018, 0.10, 'chrome', seg=8, rot=RY(sx))     # piston rod
-            for dz in (-0.038, 0.038):
-                m.cyl((fh.x + sx * 0.03, y + 0.02, z + dz), 0.008, 0.008, 0.24, 'chrome', seg=6, rot=RY(sx))
-            m.box((fh.x + sx * 0.10, y, z + 0.044), (0.13, 0.06, 0.016), 'mplate')
-            m.box((fh.x + sx * 0.10, y - 0.0325, z + 0.044), (0.10, 0.005, 0.006), 'mhaz')
-            m.sphere((ft.x, ft.y, ft.z), 0.03, 'servo', seg=(10, 6))                            # wrist
+        def fore(m, fh=fh, ft=ft, sx=sx):    # thick, segmented forearm
+            L = abs(ft.x - fh.x)
+            for k in range(3):
+                cx = fh.x + sx * (0.06 + k * (L - 0.06) / 3 + (L - 0.06) / 6)
+                m.box((cx, fh.y, fh.z), ((L - 0.06) / 3 - 0.012, 0.16 - 0.01 * k, 0.15 - 0.01 * k), 'mplate' if k != 1 else 'mplate2')
+            m.box((fh.x + sx * L * 0.5, fh.y - 0.082, fh.z + 0.03), (L * 0.6, 0.006, 0.02), 'mhaz', bevel=False)
+            for dy in (-0.06, 0.06):     # twin pistons over the top
+                m.cyl((fh.x + sx * L * 0.05, fh.y + dy, fh.z + 0.085), 0.013, 0.013, L * 0.9, 'chrome', seg=6, rot=RY(sx))
+            m.cyl((ft.x - sx * 0.025, ft.y, ft.z), 0.05, 0.05, 0.05, 'servo', seg=10, rot=RY(sx))       # wrist collar
         P('fa' + side, 'DEF-forearm.' + side, fore)
 
-        def hand(m, hh=hh, sx=sx):
-            m.box((hh.x + sx * 0.066, 0.07, hh.z), (0.10, 0.085, 0.035), 'mframe')
-            m.box((hh.x + sx * 0.09, 0.07, hh.z + 0.0215), (0.04, 0.08, 0.008), 'mplate2')
+        def hand(m, hh=hh, sx=sx):          # clamp hand: a heavy block with an upper jaw
+            m.box((hh.x + sx * 0.06, hh.y + 0.0, hh.z), (0.12, 0.13, 0.08), 'mframe')
+            m.box((hh.x + sx * 0.07, hh.y + 0.0, hh.z + 0.05), (0.10, 0.12, 0.02), 'mplate2')
+            m.box((hh.x + sx * 0.07, hh.y - 0.066, hh.z), (0.06, 0.006, 0.012), 'mhaz', bevel=False)
         P('hand' + side, 'DEF-hand.' + side, hand)
         for f in ('index', 'middle', 'ring', 'pinky', 'thumb'):
             n1, n2, n3 = ['DEF-%s.0%d.%s' % ('thumb' if f == 'thumb' else 'f_' + f, k, side) for k in (1, 2, 3)]
             a1, b1 = B(n1)
             a2, b2 = B(n2)
             a3, b3 = B(n3)
+            if f in ('ring', 'pinky'):
+                continue       # three clamp claws: index + middle (upper jaw pair) and the thumb
+            t = 0.034 if f == 'thumb' else 0.028
 
-            def seg1(m, a=a1, b=b1):
+            def seg1(m, a=a1, b=b1, t=t):
                 m.parent = _seg_frame(a, b, Vector((0, 0, 1)))
-                m.box((0, 0, (b - a).length / 2), (0.019, 0.017, (b - a).length + 0.006), 'servo')
+                m.box((0, 0, (b - a).length / 2), (t + 0.006, t, (b - a).length + 0.01), 'mframe')
                 m.parent = Matrix.Identity(4)
 
-            def seg2(m, a=a2, b=b3):
+            def seg2(m, a=a2, b=b3, t=t):
                 m.parent = _seg_frame(a, b, Vector((0, 0, 1)))
-                m.box((0, 0, (b - a).length / 2), (0.017, 0.015, (b - a).length), 'chrome')
+                L = (b - a).length
+                m.box((0, 0, L / 2), (t, t * 0.9, L), 'chrome')
+                m.box((0, 0, L * 0.95), (t * 1.2, t * 1.15, 0.02), 'mhaz')   # claw tip
                 m.parent = Matrix.Identity(4)
             P(f + '1' + side, n1, seg1)
             P(f + '2' + side, n2, seg2)
@@ -343,38 +370,40 @@ def build_mech(rig, pal, ht):
         to, tot = B('DEF-toe.' + side)
 
         def thigh(m, th=th, tt=tt, sx=sx):
-            x = th.x
-            m.cyl((x, 0.0, tt.z + 0.03), 0.042, 0.042, th.z - tt.z - 0.07, 'mframe', seg=8)
-            m.box((x, -0.06, 0.75), (0.12, 0.04, 0.26), 'mplate')
-            m.box((x, -0.0835, 0.80), (0.03, 0.007, 0.10), 'mhaz')
-            m.cyl((x + sx * 0.06, 0.0, tt.z + 0.05), 0.011, 0.011, 0.30, 'chrome', seg=6)
-            m.cyl((x + sx * 0.06, 0.0, 0.70), 0.021, 0.021, 0.12, 'servo', seg=8)
-            m.cyl((x - sx * 0.06, tt.y, tt.z), 0.052, 0.052, 0.12, 'servo', seg=10, rot=RY(sx))   # knee servo
-            m.cyl((x - sx * 0.066, tt.y, tt.z), 0.022, 0.022, 0.132, 'chrome', seg=8, rot=RY(sx))
+            x = (th.x + tt.x) / 2
+            m.box((x, 0.0, (th.z + tt.z) / 2 + 0.01), (0.16, 0.18, th.z - tt.z - 0.10), 'mplate2')
+            m.box((x, -0.095, 0.76), (0.13, 0.02, 0.22), 'mplate')
+            stencil(m, x, -0.107, 0.80, 0.08, 2, 'mhaz')
+            m.cyl((x + sx * 0.095, 0.0, tt.z + 0.05), 0.013, 0.013, 0.30, 'chrome', seg=6)
+            m.cyl((tt.x - sx * 0.10, tt.y, tt.z), 0.075, 0.075, 0.20, 'servo', seg=10, rot=RY(sx))   # knee servo
+            m.cyl((tt.x - sx * 0.11, tt.y, tt.z), 0.03, 0.03, 0.22, 'chrome', seg=8, rot=RY(sx))
         P('th' + side, 'DEF-thigh.' + side, thigh)
 
-        def shin(m, sh_=sh_, st=st, sx=sx):
-            x = sh_.x
-            m.box((x, -0.063, 0.50), (0.112, 0.035, 0.10), 'mplate2', rot=(10, 0, 0))   # knee cap
-            m.cyl((x, 0.015, 0.30), 0.04, 0.04, 0.19, 'mframe', seg=10)                          # hydraulic body
-            m.cyl((x, 0.025, 0.12), 0.02, 0.02, 0.2, 'chrome', seg=8)                            # rod
-            m.box((x, -0.05, 0.33), (0.10, 0.03, 0.24), 'mplate')                                # shin guard
-            m.box((x, -0.0675, 0.40), (0.06, 0.005, 0.012), 'cable')
-            m.box((x, -0.0675, 0.26), (0.06, 0.005, 0.012), 'mhaz')
-            m.beam((x, 0.065, 0.46), (x, 0.055, 0.20), 0.03, 'servo')                            # calf actuator
-            m.sphere((st.x, st.y, st.z), 0.042, 'servo', seg=(10, 6))                              # ankle
+        def shin(m, sh_=sh_, st=st, sx=sx):  # tall heavy shin
+            x = (sh_.x + st.x) / 2
+            m.box((x, -0.075, 0.50), (0.15, 0.05, 0.10), 'mplate2', rot=(10, 0, 0))     # knee cap
+            m.box((x, 0.0, 0.30), (0.18, 0.20, 0.30), 'mplate')
+            m.box((x, -0.103, 0.30), (0.12, 0.008, 0.22), 'mplate2', bevel=False)
+            m.box((x, -0.108, 0.36), (0.08, 0.005, 0.016), 'mhaz', bevel=False)
+            stencil(m, x, -0.108, 0.24, 0.09, 3)
+            for dx in (-0.06, 0.06):
+                m.cyl((x + dx, 0.11, 0.13), 0.016, 0.016, 0.34, 'chrome', seg=6)        # back pistons
+            m.box((x, 0.0, 0.13), (0.14, 0.16, 0.05), 'servo')
+            m.sphere((st.x, st.y, st.z), 0.055, 'servo', seg=(10, 6))
         P('sh' + side + '2', 'DEF-shin.' + side, shin)
 
-        def foot(m, fo=fo, sx=sx):
-            x = fo.x
-            m.box((x, -0.02, 0.04), (0.12, 0.20, 0.08), 'mframe')
-            m.box((x, 0.095, 0.03), (0.08, 0.04, 0.06), 'mplate2')
+        def foot(m, fo=fo, sx=sx):          # big flat foot
+            x = fo.x + sx * 0.01
+            m.box((x, 0.0, 0.045), (0.22, 0.24, 0.09), 'mframe')
+            m.box((x, 0.13, 0.035), (0.18, 0.05, 0.07), 'mplate2')
         P('ft' + side, 'DEF-foot.' + side, foot)
 
-        def toe(m, to=to):
-            x = to.x
-            m.box((x, -0.20, 0.025), (0.12, 0.17, 0.05), 'mplate2')
-            m.box((x, -0.25, 0.053), (0.09, 0.03, 0.006), 'mhaz')
+        def toe(m, to=to, sx=sx):
+            x = to.x + sx * 0.01
+            m.box((x, -0.20, 0.035), (0.23, 0.16, 0.07), 'mplate2')
+            for k in range(3):
+                m.box((x - 0.07 + 0.07 * k, -0.28, 0.035), (0.05, 0.02, 0.06), 'mframe')
+            m.box((x, -0.20, 0.072), (0.14, 0.08, 0.006), 'mhaz', bevel=False)
         P('toe' + side, 'DEF-toe.' + side, toe)
     return parts
 

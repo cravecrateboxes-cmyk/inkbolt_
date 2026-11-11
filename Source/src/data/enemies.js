@@ -116,13 +116,13 @@
      Normal carbine rounds only, no grenades, a light armour pool (shield) that recharges slowly; a threat between a
      Gunner and a Soldier. Its guns drop at 40 % of a Soldier's rates. */
   ENEMIES.mech = {
-    id: 'mech', name: 'Robot Trooper', built: 'Gun-wielding robot trooper: servo joints, piston limbs, sensor optic', first: 20,
+    id: 'mech', name: 'Robot Trooper', built: 'Heavy industrial walker robot: big shoulder blocks, low boxy head with one red optic, piston arms with clamp hands, flat feet', first: 20,
     hp: 85, shield: 25, shieldPool: true, shieldDelay: 5, shieldRate: 12, speed: 3.0, chargeSpeed: 0,
     attack: '3-round carbine bursts (normal rounds), rifle-butt strike', damage: 6, bolts: 3, boltSpeed: 52,
     windup: 0.5, recover: 0.8, range: 24, keepDistance: [8, 16], usesCover: true, grenades: 0,
     meleeDamage: 12, meleeRange: 2.1, meleeWindup: 0.45, meleeKnock: 5,
     gems: { chip: 3, shard: 0, core: 0 }, cost: 3, color: '#A9B3BF',
-    radius: 0.36, height: 1.88, coreOffset: [0, 1.36, -0.17], coreRadius: 0.11,
+    radius: 0.42, height: 1.8, coreOffset: [0, 1.36, -0.2], coreRadius: 0.11,
     weaponDrops: { gray: 0.048, green: 0.024, blue: 0.016, purple: 0.0064, orange: 0.0016 },   // 40 % of a Soldier's
     notes: 'Robot Trooper: tougher than a Gunner, no grenades; its light armour recharges slowly'
   };
