@@ -159,7 +159,7 @@
                    once per charge (re-armed when the cell is full again) */
   var PERKS = {
     overcharge: { id: 'overcharge', name: 'Overcharge', v: { epic: [0.4, 0.6], legendary: [0.7, 1.0] }, round: 0.05, secs: 4 },
-    nova: { id: 'nova', name: 'Nova', v: { epic: [24, 34], legendary: [38, 52] }, scale: 'shield', round: 1, radius: { epic: 4.5, legendary: 6 } }
+    nova: { id: 'nova', name: 'Nova', v: { epic: [24, 34], legendary: [190, 260] }, scale: 'shield', round: 1, radius: { epic: 4.5, legendary: 18 } }   // legendary: x5 damage, x3 reach
   };
 
   IB.LOOT = {

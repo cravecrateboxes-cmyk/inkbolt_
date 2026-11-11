@@ -136,7 +136,14 @@
   }
   function summary(item) { return statLines(item).map(function (l) { return l.k + ' ' + l.v; }).join(' · '); }
   /* the shield perk as {id, name, short, text} (or null) */
+  // legendary Nova cells rolled before the buff (38-52 damage, 6 m) get it once: x5 damage, x3 reach (18 m)
+  function novaBuff(item) {
+    var p = item && item.perk; if (!p || p.id !== 'nova' || item.rarity !== 'legendary' || p.nova5) return item;
+    p.nova5 = 1; if ((p.radius || 0) < 18) { p.v = Math.round(p.v * 5 * 10) / 10; p.radius = 18; }
+    return item;
+  }
   function perkLine(item) {
+    novaBuff(item);
     var p = item && item.perk, pd = p && T().perks[p.id]; if (!pd) return null;
     if (p.id === 'overcharge') return { id: p.id, name: pd.name, short: '+' + pct(p.v) + ' recharge on kill', text: 'A kill starts the recharge at once, ' + pct(p.v) + ' faster for ' + (p.secs || pd.secs) + ' s' };
     if (p.id === 'nova') return { id: p.id, name: pd.name, short: p.v + ' shock burst, ' + p.radius + ' m', text: 'When the cell breaks: a shock burst, ' + p.v + ' damage to robots within ' + p.radius + ' m and a stagger (once per charge)' };
@@ -205,6 +212,7 @@
      boostT / boost: Overcharge seconds left / recharge bonus */
   function shieldState(item) {
     if (!item || item.type !== 'shield') return null;
+    novaBuff(item);
     return { max: item.stats.capacity, cur: item.stats.capacity, delay: item.stats.delay, rate: item.stats.rate, since: 99, charging: false,
       rarity: item.rarity, perk: item.perk || null, nova: !!(item.perk && item.perk.id === 'nova'), boostT: 0, boost: 0 };
   }
@@ -324,7 +332,7 @@
   function prune(g, owned) { Object.keys(g.attach).forEach(function (w) { if (owned.indexOf(w) < 0) delete g.attach[w]; }); }
   function rarityRank(id) { for (var i = 0; i < T().rarities.length; i++) if (T().rarities[i].id === id) return i; return 0; }
 
-  IB.Loot = {
+  IB.Loot = { novaBuff: novaBuff,
     levelMul: levelMul, allowedTypes: allowedTypes, rollType: rollType, rarityOdds: rarityOdds, rollRarity: rollRarity, rollPerk: rollPerk,
     makeItem: makeItem, rollDrop: rollDrop, dropRarity: dropRarity, bagCap: bagCap, modelOf: modelOf,
     acidStats: acidStats, statLines: statLines, summary: summary, perkLine: perkLine,

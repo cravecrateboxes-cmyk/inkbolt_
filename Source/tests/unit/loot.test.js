@@ -243,7 +243,7 @@ test('Overcharge: a kill starts the recharge at once and speeds it up', () => {
 
 test('Nova: fires once when the cell breaks, re-arms when it is full again', () => {
   const item = L.makeItem('shield', 'legendary', 6, seq([0, 0, 0, 0.9, 0.5]));
-  assert.equal(item.perk.id, 'nova'); assert.equal(item.perk.radius, 6);
+  assert.equal(item.perk.id, 'nova'); assert.equal(item.perk.radius, 18);   // legendary Nova: 3x reach
   const st = L.shieldState(item);
   let r = L.absorb(st, 10); assert.equal(r.nova, false);
   r = L.absorb(st, 999); assert.ok(r.broke && r.nova, 'breaking the cell fires the burst');
