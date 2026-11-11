@@ -194,7 +194,7 @@ def zone1():
         z.block(c0, r0, 2, 1, 'b')
     z.puts([(30, 15), (31, 15), (36, 15)], 'x')
     z.puts([(24, 33), (24, 34), (43, 30), (43, 31), (27, 36)], 'x')
-    z.puts([(33, 4), (45, 9), (22, 28), (21, 1)], 'H')
+    z.puts([(33, 4), (44, 3), (22, 28), (21, 1)], 'H')
     z.f.rect(22, 2, 1, 16, '/')
     z.put(29, 9, 'S'); z.put(39, 9, 'S'); z.put(33, 21, 'S'); z.put(25, 25, 'S'); z.put(42, 25, 'S'); z.put(33, 36, 'S')
     z.put(34, 14, 'a')
@@ -202,7 +202,7 @@ def zone1():
     for c0 in (49, 53):
         z.block(c0, 3, 3, 1, 'R')
     z.block(58, 4, 1, 3, 'R'); z.block(58, 9, 1, 3, 'R')
-    z.block(50, 7, 2, 2, 'C'); z.block(54, 7, 2, 2, 'C'); z.block(50, 12, 2, 2, 'C'); z.block(54, 12, 2, 2, 'C')
+    z.block(54, 7, 2, 2, 'C'); z.block(50, 12, 2, 2, 'C'); z.block(54, 12, 2, 2, 'C')   # (50, 7) stays clear of the vault door's swing
     z.puts([(57, 16), (58, 16), (58, 15), (49, 16)], 'x')
     z.put(53, 10, 'S')
     # ---- ready room (east wing, rows 20-38): shelves, benches, coffee point, lockers
@@ -224,7 +224,7 @@ def zone1():
     z.art([(52, 19), (58, 18)], 'k')
     z.art([(1, 26), (16, 26)], 'u')
     # ---- ceiling
-    z.beams_z([27, 33, 40], 1, 38); z.beams_x([9, 19, 29], 21, 46)
+    z.beams_z([27, 34, 40], 1, 38); z.beams_x([9, 19, 29], 21, 46)
     z.beams_x([46, 51], 1, 60)
     z.ceil(21, 4, 26, 1, '{'); z.ceil(21, 34, 26, 1, '{')
     z.ceil(49, 22, 12, 1, '~')
@@ -321,8 +321,8 @@ def zone2():
     z.put(54, 30, 'S'); z.put(58, 33, 'h')
     # ---- wall art
     z.art_run(2, 2, 18, 'v')            # the simulator's projection wall
-    z.art_run(22, 14, 6, 'v', vertical=True)
-    z.art([(43, 15), (43, 16)], 'm')
+    z.art_run(22, 21, 7, 'v', vertical=True)
+    z.art([(43, 26), (43, 27)], 'm')
     z.art([(21, 20), (21, 27)], 's')
     z.art([(44, 4), (44, 24)], 'k')
     z.art([(24, 40), (37, 40)], 'e')

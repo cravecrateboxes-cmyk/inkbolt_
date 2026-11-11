@@ -118,7 +118,7 @@ LED = {'L': 'cyan', 'B': 'blue', 'A': 'cyan', 'S': 'orange', 'O': 'cyan'}
 def wall_base(k, S, lamp=False):
     base, skirt, bands, led = STY[S]
     k.bx(-0.5, 0.5, -0.5, 0.5, 0, H, base)
-    k.bx(-0.5, 0.5, -0.515, -0.5, 0, 0.12, skirt, ink=False)
+    k.bx(-0.485, 0.485, -0.515, -0.5, 0, 0.12, skirt, ink=False)   # ends stop short: no overlap in concave corners
     for (z0, z1, c) in bands:
         k.qy(-0.47, 0.47, z0, z1, -0.503, -1, c)
     if S == 'B':      # acoustic panel joints
@@ -132,7 +132,7 @@ def wall_base(k, S, lamp=False):
     if S == 'O':
         for z in (1.4, 2.8):
             k.qy(-0.47, 0.47, z - 0.006, z + 0.006, -0.506, -1, 'cyanD')
-    k.bx(-0.5, 0.5, -0.53, -0.5, H - 0.25, H, 'graphite2' if S != 'L' else 'graphite', ink=False)   # cornice / shadow gap
+    k.qy(-0.5, 0.5, H - 0.25, H, -0.503, -1, 'graphite2' if S != 'L' else 'graphite')   # cornice band (flat: nothing proud meets in the corners)
     k.qy(-0.5, 0.5, led - 0.02, led + 0.02, -0.509, -1, LED[S])
     if lamp:          # wall washer: a slim vertical light bar
         k.bx(-0.06, 0.06, -0.58, -0.49, 1.6, 3.4, 'graphite')
@@ -387,9 +387,10 @@ def tower_pier(k):
 def bulk(k, kind):
     k.begin()
     k.bx(-0.5, 0.5, -0.5, 0.5, 0, H - 0.25, 'concrete')
-    k.bx(-0.53, 0.53, -0.53, 0.53, H - 0.25, H, 'concrete2')
-    k.qy(-0.5, 0.5, 1.5, 1.52, -0.503, -1, 'concrete2')
-    k.qy(-0.5, 0.5, 3.0, 3.02, -0.503, -1, 'concrete2')
+    k.bx(-0.5, 0.5, -0.5, 0.5, H - 0.25, H, 'concrete2')
+    if kind != 'Corner':
+        k.qy(-0.5, 0.5, 1.5, 1.52, -0.503, -1, 'concrete2')
+        k.qy(-0.5, 0.5, 3.0, 3.02, -0.503, -1, 'concrete2')
     if kind == 'Louvre':
         k.bx(-0.4, 0.4, -0.56, -0.5, 1.9, 3.2, 'galv')
         for i in range(7):
@@ -610,8 +611,8 @@ def weapon_rack(k):
     a lit header. Board face y = 0.45; guns hang with their backs at y = 0.415 (game z = -0.415)."""
     k.begin()
     for sx in (-1, 1):
-        x0, x1 = srt(sx * 1.42, sx * 1.5)
-        k.bx(x0, x1, 0.32, 0.5, 0.0, 2.2, 'graphite')
+        x0, x1 = srt(sx * 1.42, sx * 1.48)
+        k.bx(x0, x1, 0.32, 0.48, 0.0, 2.2, 'graphite')
     k.bx(-0.03, 0.03, 0.36, 0.45, 0.62, 2.2, 'graphite')
     k.bx(-1.42, 1.42, 0.45, 0.5, 0.62, 2.2, 'slate2')
     for x in SLOT_X:
@@ -622,7 +623,7 @@ def weapon_rack(k):
             k.qy(x - 0.18, x - 0.02, z - 0.28, z - 0.26, 0.438, -1, 'white')
             for px in (-0.3, 0.3):
                 k.bx(x + px - 0.012, x + px + 0.012, 0.42, 0.447, z - 0.072, z - 0.048, 'steel', ink=False)
-    k.bx(-1.5, 1.5, 0.32, 0.5, 2.2, 2.5, 'graphite2')
+    k.bx(-1.48, 1.48, 0.32, 0.48, 2.2, 2.5, 'graphite2')
     k.qy(-1.4, 1.4, 2.27, 2.43, 0.317, -1, 'black')
     text(k, 'ZENITH ARMORY', -0.55, 0.314, 2.3, 0.1, 'cyan', font='cond', maxw=1.2)
     k.qy(0.6, 1.3, 2.33, 2.36, 0.314, -1, 'cyan')
@@ -1061,7 +1062,7 @@ def vault(k):
     text(k, 'TIME LOCK', 2.15, -D - 0.006, 3.62, 0.14, 'ink', font='cond', maxw=1.0)
     # the door: a 3.2 m disc, 0.6 thick, open 95 degrees about a hinge at x = +1.9 on the hall face
     hx, hy = 1.95, -D - 0.1
-    k.push(hx, hy, 95)
+    k.push(hx, hy, -95)
     k.cyl(-1.65, 0.3, zc - 0.4, 1.6, 1.6, 0.6, 'steel', seg=20, rot=(90, 0, 0))   # axis along -Y in the door frame
     k.cyl(-1.65, -0.3, zc - 0.4, 1.25, 1.25, 0.08, 'steel2', seg=20, rot=(90, 0, 0))
     k.cyl(-1.65, 0.38, zc - 0.4, 1.3, 1.3, 0.08, 'steel2', seg=20, rot=(90, 0, 0))
@@ -1079,7 +1080,7 @@ def vault(k):
     k.col(W2, 3.0, -D, D, 0, H)
     k.col(-W2, W2, -D, D, zc + 0.6, H)
     # the open door (local frame turned -95 degrees about the hinge): an axis box along -Y from the hinge
-    k.col(hx - 0.35, hx + 0.35, hy - 3.35, hy + 0.05, 0, 4.0)
+    k.col(hx - 0.2, hx + 0.45, hy + 1.1, hy + 3.35, 0.75, 4.0)   # inside the vault (the wall block covers the rest)
     return k
 
 
@@ -1145,7 +1146,7 @@ def column(k):
 def coffee(k):
     """2 x 1 coffee point against the wall: cabinet, counter, an espresso machine, cups, a menu screen"""
     k.begin()
-    k.bx(-0.95, 0.95, -0.2, 0.5, 0, 0.88, 'graphite2')
+    k.bx(-0.95, 0.95, -0.2, 0.48, 0, 0.88, 'graphite2')
     k.bx(-0.97, 0.97, -0.25, 0.5, 0.88, 0.92, 'stone')
     for x in (-0.48, 0.48):
         k.qy(x - 0.44, x + 0.44, 0.08, 0.8, -0.203, -1, 'slate')
@@ -1167,8 +1168,8 @@ def parapet(k, cut, kerb=False):
     k.begin()
     t = 0.25 if kerb else 0.3
     h = 0.3 if kerb else 1.1
-    x0 = -0.5 + (0.3 if 'L' in cut else 0.0)
-    x1 = 0.5 - (0.3 if 'R' in cut else 0.0)
+    x0 = -0.5 + ((0.345 if not kerb else 0.25) if 'L' in cut else 0.0)
+    x1 = 0.5 - ((0.345 if not kerb else 0.25) if 'R' in cut else 0.0)
     y0, y1 = -0.5, -0.5 + t
     if kerb:
         k.bx(x0, x1, y0, y1, -0.02, h, 'steelDark')

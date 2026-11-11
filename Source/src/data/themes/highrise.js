@@ -84,6 +84,7 @@
       var g0 = gateC(grid, r), d0 = g0 === null ? 99 : Math.abs(c + 0.5 - g0);
       if (south) return d0 < 2.6 ? 'Tower_Pier' : (c % 6 === 3 ? 'Tower_Pier' : 'Tower_Glass');
       if (d0 < 2.6) return 'Bulk_Door';
+      var gr = gateC(grid, 0); if (gr !== null && r <= 3 && Math.abs(c + 0.5 - gr) < 2.6) return 'Bulk_Corner';   // the door recess: plain, clear of the gate frame
       return (c % 4 === 1) ? 'Bulk_Louvre' : 'Bulk_Plain';
     }
     if ((west || east) && (north || south)) return 'WinCorner_' + (north ? 'N' : 'S') + (west ? 'W' : 'E');
@@ -105,7 +106,7 @@
     for (i = 1; i <= 4 && !S; i++) S = FSTYLE[F.at(c + d[0] * i, r + d[1] * i)] || '';
     S = S || 'L';
     var code = F.at(c, r), piece = ART[S][code];
-    if (!piece) return 'W' + S + ((c * 3 + r * 5) % 7 === 0 ? '_Lamp' : '');
+    if (!piece) return 'W' + S + ((c * 3 + r * 5) % 7 === 0 && grid.at(c + d[0], r + d[1]) === '.' ? '_Lamp' : '');   // no lamp behind a rack or shelf
     if (RUNS[piece]) {
       var L = LEFT[face], nl = 0, nr = 0;
       while (F.at(c + L[0] * (nl + 1), r + L[1] * (nl + 1)) === code) nl++;
@@ -118,7 +119,7 @@
 
   // armory mounts in prefab-local game coordinates: [x, height, z (toward the room = +), yaw offset, kind, options]
   // (the same contract as the Strike Team HQ kit: a gun's back rests 3.5 cm in front of the rack board)
-  var GUN = { back: true, len: 1.0, h: 0.34, tag: [0, -0.26, -0.016] };
+  var GUN = { back: true, len: 1.0, h: 0.34, tag: [0, -0.26, -0.008] };   // the plate clear of the slot label
   var RACK = [[-0.72, 1.05, -0.415, 0, 'gun', GUN], [0.72, 1.05, -0.415, 0, 'gun', GUN],
     [-0.72, 1.75, -0.415, 0, 'gun', GUN], [0.72, 1.75, -0.415, 0, 'gun', GUN]];
   var CGUN = { back: true, len: 1.05, h: 0.36, tag: [0, -0.25, -0.012] };

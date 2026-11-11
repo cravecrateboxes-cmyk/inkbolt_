@@ -68,8 +68,11 @@
     // neighbouring roofs: deck cells on the layers over void cells
     var thick = {};
     grid.layers.forEach(function (lg) {
+      // a deck with `with: '*'` claims every filled cell of its layer (props, spawns and pickups stand on the roof)
+      var all = null;
+      for (r = 0; r < H && !all; r++) for (c = 0; c < W && !all; c++) { var d0 = decks[lg.rows[r][c]]; if (d0 && d0.with === '*') all = d0; }
       for (r = 0; r < H; r++) for (c = 0; c < W; c++) {
-        var d = decks[lg.rows[r][c]];
+        var ch = lg.rows[r][c], d = decks[ch] || (all && ch !== '.' && ch !== '#' ? all : null);
         if (!d || kind[r * W + c] !== 0 || grid.rows[r][c] !== V) continue;
         kind[r * W + c] = 1; hgt[r * W + c] = lg.y; thick[r * W + c] = d.thick || 0.4;
       }
