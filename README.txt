@@ -102,6 +102,18 @@ CAMPAIGN (src/data/levelplans.js ORDER)
     room under a mezzanine and the receiving office up on it (steel stair, high ground). Kit: blender/fam_kit_megastore.py
     (ms_*.py); zones: tools/megastore_zones.py.
 
+  Palmyra Cove Resort (resort, 2 zones): a luxury tropical resort on an island's west shore, open ocean all round.
+    Resort grounds (72 m): the open-air lobby pavilion under a two-tier thatched roof, the lagoon pool with a thatched
+    swim-up bar, loungers, umbrellas and cabanas on the pool deck, tiki torches, the beach with a boardwalk, kayaks and
+    the towel hut, and the first treehouse villa on a platform in two giant palms. The canopy (76 m): four long, wide
+    platforms 7.5 m up in eight enormous palms (the CANOPY SUITE on the centre one), rope bridges between them, and
+    broken limbs and fallen fronds leaning against them as ramps (52 walkable steps of 0.144 m: the player and the
+    robots climb them, the nav grid holds ground, ramps and platforms); fallen trunks, stumps, coconut piles, crates
+    and a broken-down golf cart below. A fall only drops you to the sand. Platforms are the engine's deck slab with a
+    plank / joist decal; terrain paint (flat) lays lawn, paths and wet sand and shades the ground under the
+    platforms. Kit: blender/fam_kit_resort.py (rs_*.py); zones: tools/resort_zones.py; test:
+    node tests/e2e/resort-climb.spec.js.
+
 BREAKABLE DOORS (src/game/doors.js, theme symbol option `breakable`; first used by Helix Vault)
   A prefab symbol with breakable: { hp, debris: 'metal' | 'glass' | 'mesh' | 'field', word, leaf, blend } places its
   frame like any prefab and its leaf (<Piece>_Leaf, _Leaf_D1, _Leaf_D2, _Broken) as its own mesh and collision. The
