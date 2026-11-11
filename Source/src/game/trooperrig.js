@@ -10,6 +10,12 @@
      - death: the Death animation plays out, the body lies for a moment and sinks (no ink corpse for soldiers)
      - r.muzzleW / r.handLW: world positions of the carbine muzzle and the left hand, used by troops.js for rounds and
        grenade throws
+   Levels 20+ share the rig (TR.TYPES): the Grenadier is the Soldier's mesh with its carbine hidden (the carbine's
+   vertices carry colour alpha 0 -> IB.Assets aMask; the grenadier material clips them) plus TROOPER_GL, a grenade
+   launcher skinned to the right hand (r.muzzleW = TROOPER_GL_MUZZLE); the Robot Trooper ('mech') draws TROOPER_MECH,
+   a robot body (servo joints, piston limbs, segmented chassis, sensor head, its own carbine) on the same bones, in one
+   of TR.MECH_VARIANTS (palette recolour of its plate keys). One pool of rigs serves every type: each rig carries all
+   three meshes and shows the ones its robot needs.
    IB.TrooperRig.init(scene) runs from AI.init; sync() from AI.sync; clear() from AI.clear / despawn. */
 (function (IB) {
   'use strict';
@@ -24,6 +30,15 @@
     { name: 'Woodland', c: ['#56613F', '#475133', '#8C7A55', '#77684A', '#5D6745', '#6B5E44'] },
     { name: 'Urban', c: ['#4C525B', '#3E444C', '#2E3238', '#3B4047', '#3A3F46', '#555B64'] }
   ];
+  // Robot Trooper colourways: its two plate keys and the accent (hazard) key
+  var MKEYS = ['#5E6670', '#454C55', '#E8A42A'];
+  TR.MECH_VARIANTS = [
+    { name: 'Gunmetal', c: MKEYS },
+    { name: 'Olive', c: ['#6E7552', '#555B3F', '#E8A42A'] },
+    { name: 'Sand', c: ['#A8996F', '#83775A', '#D9452F'] },
+    { name: 'Arctic', c: ['#C3C9D1', '#8F97A2', '#E0482F'] }
+  ];
+  TR.TYPES = { soldier: 1, grenadier: 1, mech: 1 };
   var UPPER = /spine00[23]|neck|head|shoulder|upper_arm|forearm|hand|f_(index|middle|pinky|ring)|thumb/;
   var LOW = { idle: 'Idle_Loop', walk: 'Walk_Loop', jog: 'Jog_Fwd_Loop', sprint: 'Sprint_Loop', cidle: 'Crouch_Idle_Loop', cwalk: 'Crouch_Fwd_Loop' };
   var UP = { ready: 'Pistol_Idle_Loop', aimN: 'Pistol_Aim_Neutral', aimU: 'Pistol_Aim_Up', aimD: 'Pistol_Aim_Down' };
@@ -48,10 +63,10 @@
 
   // palette recolour: every texel of a key colour becomes the colourway's colour
   function hexRGB(h) { var n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
-  function recolour(img, to) {
+  function recolour(img, to, keys) {
     var w = img.width, h = img.height, cv = document.createElement('canvas'); cv.width = w; cv.height = h;
     var g = cv.getContext('2d'); g.drawImage(img, 0, 0);
-    var d = g.getImageData(0, 0, w, h), px = d.data, from = BASEC.map(hexRGB), dst = to.map(hexRGB);
+    var d = g.getImageData(0, 0, w, h), px = d.data, from = (keys || BASEC).map(hexRGB), dst = to.map(hexRGB);
     for (var i = 0; i < px.length; i += 4) {
       for (var k = 0; k < from.length; k++) {
         var f = from[k];
@@ -63,13 +78,16 @@
     t.flipY = false; t.encoding = THREE.LinearEncoding; t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false;
     return t;
   }
-  // a per-soldier material: the robot toon material (skinned) + flash / rogue uniforms
-  function soldierMat(tex) {
-    var U = { value: new THREE.Vector3() };
+  /* a per-soldier material: the robot toon material (skinned) + flash / rogue uniforms. hideGun: the Grenadier's body
+     (the carbine's vertices, aMask 0, are clipped away); U: share the flash uniform with the rig's other mesh */
+  function soldierMat(tex, hideGun, U) {
+    U = U || { value: new THREE.Vector3() };
     var m = IB.Render.toonMaterial({ map: tex, skinning: true, uni: IB.Render.robotOutline, baked: IB.Assets.BAKED.troopers });
     var base = m.onBeforeCompile;
     m.onBeforeCompile = function (sh) {
       base(sh);
+      if (hideGun) sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aMask;')
+        .replace('gl_Position = projectionMatrix * mvPosition;', 'gl_Position = projectionMatrix * mvPosition;\nif ( aMask < 0.5 ) gl_Position = vec4( 0.0, 0.0, 2.0, 1.0 );');
       sh.uniforms.uTrFx = U;
       sh.fragmentShader = sh.fragmentShader
         .replace('uniform vec3 uInk;', 'uniform vec3 uInk;\nuniform vec3 uTrFx;')
@@ -79,7 +97,7 @@
           'if ( vHull > 0.5 ) gl_FragColor = vec4( uInk, 1.0 );');
     };
     var key = m.customProgramCacheKey;
-    m.customProgramCacheKey = function () { return key() + 'trp'; };
+    m.customProgramCacheKey = function () { return key() + 'trp' + (hideGun ? 'g' : ''); };
     m.userData.fx = U.value;
     return m;
   }
@@ -97,15 +115,17 @@
   }
 
   function makeRig() {
-    var root = cloneRig(src), mesh = null, bones = {};
-    root.traverse(function (o) { if (o.isSkinnedMesh) mesh = o; if (o.isBone) bones[o.name.replace(/[.:\/\[\]]/g, '')] = o; });
-    var R = { root: root, mesh: mesh, muzzle: root.getObjectByName('TROOPER_MUZZLE'), handL: bones['DEF-handL'],
+    var root = cloneRig(src), mesh = null, bones = {}, sk = {};
+    root.traverse(function (o) { if (o.isSkinnedMesh) { sk[o.name] = o; o.frustumCulled = false; } if (o.isBone) bones[o.name.replace(/[.:\/\[\]]/g, '')] = o; });
+    mesh = sk.TROOPER || Object.keys(sk).map(function (k) { return sk[k]; })[0];
+    var R = { root: root, mesh: mesh, mech: sk.TROOPER_MECH || null, gl: sk.TROOPER_GL || null, type: '',
+      muzzle: root.getObjectByName('TROOPER_MUZZLE'), glMuzzle: root.getObjectByName('TROOPER_GL_MUZZLE'), handL: bones['DEF-handL'],
       spine: [bones['DEF-spine001'], bones['DEF-spine002'], bones['DEF-spine003']], var: -1,
       neck: bones['DEF-neck'], head: bones['DEF-head'], arm: [bones['DEF-upper_armL'], bones['DEF-upper_armR']],
       fore: [bones['DEF-forearmL'], bones['DEF-forearmR']], thigh: [bones['DEF-thighL'], bones['DEF-thighR']],
       shin: [bones['DEF-shinL'], bones['DEF-shinR']], pYaw: null, mixer: new THREE.AnimationMixer(root),
       low: {}, up: {}, one: {}, death: null, os: null, osT: 0, osDur: 0, r: null, t: 0, sink: 0 };
-    mesh.frustumCulled = false; mesh.material = mats[0];
+    mesh.material = mats[0]; if (R.mech) R.mech.visible = false; if (R.gl) R.gl.visible = false;
     Object.keys(clips.low).forEach(function (k) { var a = R.mixer.clipAction(clips.low[k]); a.play(); a.setEffectiveWeight(0); R.low[k] = a; });
     Object.keys(clips.up).forEach(function (k) { var a = R.mixer.clipAction(clips.up[k]); a.play(); a.setEffectiveWeight(0); R.up[k] = a; });
     Object.keys(clips.one).forEach(function (k) { var a = R.mixer.clipAction(clips.one[k]); a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; R.one[k] = a; });
@@ -114,17 +134,32 @@
     TR.count++;
     return R;
   }
+  // the rig's look for its robot: Soldier (kit colourway), Grenadier (same kit, launcher instead of the carbine) or
+  // Robot Trooper (robot body in a colourway of its own); every mesh of one robot shares one flash uniform
+  function dress(R, r) {
+    var mech = r.type === 'mech' && R.mech, gren = r.type === 'grenadier' && R.gl, n = mech ? TR.MECH_VARIANTS.length : TR.VARIANTS.length;
+    var v = r.trVariant; if (v === undefined || v >= n) v = r.trVariant = (Math.random() * n) | 0;
+    var key = (mech ? 'm' : gren ? 'g' : 's') + v;
+    if (!R.mats) R.mats = {};
+    if (!R.mats[key]) {
+      if (mech) R.mats[key] = [soldierMat(mats.mtex[v])];
+      else if (gren) { var a = soldierMat(mats.tex[v], !!R.mesh.geometry.attributes.aMask); R.mats[key] = [a, soldierMat(mats.tex[v], false, { value: a.userData.fx })]; }
+      else R.mats[key] = [soldierMat(mats.tex[v])];
+    }
+    var M = R.mats[key];
+    R.mesh.visible = !mech; if (R.mech) R.mech.visible = !!mech; if (R.gl) R.gl.visible = !!gren;
+    if (mech) R.mech.material = M[0]; else R.mesh.material = M[0];
+    if (gren) R.gl.material = M[1];
+    R.fx = M[0].userData.fx; R.type = r.type;
+  }
   function take(r) {
     var R = TR.pool.pop() || makeRig();
     R.r = r; R.t = 0; R.sink = 0; R.os = null; R.root.visible = true; R.root.position.set(r.x, r.y, r.z);
-    var v = r.trVariant; if (v === undefined) v = r.trVariant = (Math.random() * TR.VARIANTS.length) | 0;
-    if (!R.mats) R.mats = [];
-    if (!R.mats[v]) R.mats[v] = soldierMat(mats.tex[v]);
-    R.mesh.material = R.mats[v];
+    dress(R, r);
     if (R.death) R.death.stop();
     Object.keys(R.one).forEach(function (k) { R.one[k].stop(); });
     R.w = {};
-    TR.live[r.slot] = R;
+    TR.live[r.type + r.slot] = R;
     return R;
   }
   function release(R) { R.root.visible = false; R.r = null; R.mixer.stopAllAction(); restart(R); TR.pool.push(R); }
@@ -140,15 +175,20 @@
     src = A.node.TROOPER_Rig; clips = prepClips(g.animations);
     var img = A.palette.troopers.image;
     mats = []; mats.tex = TR.VARIANTS.map(function (V, i) { return i === 0 ? A.palette.troopers : recolour(img, V.c); });
+    mats.mtex = TR.MECH_VARIANTS.map(function (V, i) { return i === 0 ? A.palette.troopers : recolour(img, V.c, MKEYS); });
     mats.push(soldierMat(mats.tex[0]));
     A.node.TROOPER.geometry.computeBoundingSphere();
-    // the Soldier is drawn by this rig: its rigid parts never draw, its ink corpse is replaced by the death animation
-    VIS.soldier.pose = function () {};
-    // core (power cell on the back) for weak-spot hits, measured on the rig
-    var core = src.getObjectByName('TROOPER_CORE');
-    if (core) { src.updateMatrixWorld(true); core.getWorldPosition(_v); src.worldToLocal(_v); VIS.soldier.coreY = _v.y; VIS.soldier.coreZ = _v.z; }
-    // head: crit spot (a sphere around the head, 2x damage, damage number says CRIT); falls back to the standing height
-    VIS.soldier.headY = Math.max(VIS.soldier.y1 || 1.88, 1.6) - 0.16; VIS.soldier.headR = 0.15; VIS.soldier.headZ = 0.02;
+    // the troopers are drawn by this rig: their rigid parts never draw, the ink corpse is replaced by the death animation
+    src.updateMatrixWorld(true);
+    Object.keys(TR.TYPES).forEach(function (t) {
+      var V = VIS[t]; if (!V) return;
+      V.pose = function () {};
+      // core (power cell on the back; the robot trooper's reactor) for weak-spot hits, measured on the rig
+      var core = src.getObjectByName(t === 'mech' && src.getObjectByName('TROOPER_MECH_CORE') ? 'TROOPER_MECH_CORE' : 'TROOPER_CORE');
+      if (core) { core.getWorldPosition(_v); src.worldToLocal(_v); V.coreY = _v.y; V.coreZ = _v.z; }
+      // head: crit spot (a sphere around the head, 2x damage, damage number says CRIT); falls back to the standing height
+      V.headY = Math.max(V.y1 || 1.88, 1.6) - 0.16; V.headR = 0.15; V.headZ = 0.02;
+    });
     TR.ready = true;
   };
 
@@ -283,21 +323,7 @@
 
   TR.sync = function (dt) {
     if (!TR.ready) return;
-    var slots = AI.types.soldier ? AI.types.soldier.slots : [];
-    for (var s = 0; s < slots.length; s++) {
-      var r = slots[s], R = TR.live[s];
-      if (R && R.r !== r) { delete TR.live[s]; R = null; }
-      if (!r.on) { if (R) { delete TR.live[s]; release(R); } continue; }
-      if (!R) R = take(r);
-      R.root.position.set(r.x, r.y, r.z);
-      animate(R, r, dt);
-      var fx = R.mesh.material.userData.fx;
-      fx.x = Math.min(1, (r.flash || 0) * 9) * 0.85;
-      fx.y = r.rogue > 0 ? (r.rogue < 3 && Math.sin(r.rogue * 16) > 0 ? 0.25 : 0.55) : r.wet > 0 ? 0 : 0;
-      R.root.updateMatrixWorld(true);
-      if (R.muzzle) { R.muzzle.getWorldPosition(_v); r.muzzleW = r.muzzleW || {}; r.muzzleW.x = _v.x; r.muzzleW.y = _v.y; r.muzzleW.z = _v.z; }
-      if (R.handL) { R.handL.getWorldPosition(_v); r.handLW = r.handLW || {}; r.handLW.x = _v.x; r.handLW.y = _v.y; r.handLW.z = _v.z; }
-    }
+    Object.keys(TR.TYPES).forEach(function (t) { syncType(t, dt); });
     // the fallen: the death animation, a moment on the ground, then it sinks away
     for (var i = TR.dying.length - 1; i >= 0; i--) {
       var D = TR.dying[i]; D.t += dt;
@@ -307,15 +333,33 @@
       if (D.t > 3.4) { TR.dying.splice(i, 1); release(D); }
     }
   };
-  // a soldier went down: its rig plays the death and stays behind as the body
+  function syncType(t, dt) {
+    var slots = AI.types[t] ? AI.types[t].slots : [];
+    for (var s = 0; s < slots.length; s++) {
+      var r = slots[s], id = t + s, R = TR.live[id];
+      if (R && R.r !== r) { delete TR.live[id]; R = null; }
+      if (!r.on) { if (R) { delete TR.live[id]; release(R); } continue; }
+      if (!R) R = take(r);
+      R.root.position.set(r.x, r.y, r.z);
+      animate(R, r, dt);
+      var fx = R.fx;
+      fx.x = Math.min(1, (r.flash || 0) * 9) * 0.85;
+      fx.y = r.rogue > 0 ? (r.rogue < 3 && Math.sin(r.rogue * 16) > 0 ? 0.25 : 0.55) : r.wet > 0 ? 0 : 0;
+      R.root.updateMatrixWorld(true);
+      var mz = t === 'grenadier' && R.glMuzzle ? R.glMuzzle : R.muzzle;
+      if (mz) { mz.getWorldPosition(_v); r.muzzleW = r.muzzleW || {}; r.muzzleW.x = _v.x; r.muzzleW.y = _v.y; r.muzzleW.z = _v.z; }
+      if (R.handL) { R.handL.getWorldPosition(_v); r.handLW = r.handLW || {}; r.handLW.x = _v.x; r.handLW.y = _v.y; r.handLW.z = _v.z; }
+    }
+  }
+  // a trooper went down: its rig plays the death and stays behind as the body
   TR.die = function (r) {
-    var R = TR.live[r.slot]; if (!R || !R.death) return false;
-    delete TR.live[r.slot];
+    var R = TR.live[r.type + r.slot]; if (!R || !R.death) return false;
+    delete TR.live[r.type + r.slot];
     Object.keys(R.low).forEach(function (k) { R.low[k].fadeOut(0.15); });
     Object.keys(R.up).forEach(function (k) { R.up[k].fadeOut(0.15); });
     if (R.os) R.os.fadeOut(0.1);
     R.death.reset(); R.death.timeScale = 1.25; R.death.setEffectiveWeight(1); R.death.fadeIn(0.1); R.death.play();
-    R.mesh.material.userData.fx.set(0, 0, 0);
+    R.fx.set(0, 0, 0);
     R.t = 0; R.sink = 0; R.y0 = r.fy || r.y || 0; R.r = null;
     TR.dying.push(R);
     return true;
@@ -334,19 +378,18 @@
     bSync.apply(AI, arguments);
     var now = performance.now(), dt = _last ? Math.min(0.1, (now - _last) / 1000) : 0.016; _last = now;
     if (IB.Game && IB.Game.paused) dt = 0;
-    var T = AI.types.soldier;
-    if (TR.ready && T) T.partList.forEach(function (P) { P.mesh.visible = false; });
+    if (TR.ready) Object.keys(TR.TYPES).forEach(function (t) { var T = AI.types[t]; if (T) T.partList.forEach(function (P) { P.mesh.visible = false; }); });
     TR.sync(dt);
   };
   AI.clear = function () { bClear.apply(AI, arguments); TR.clear(); };
   AI.despawn = function () { bDespawn.apply(AI, arguments); TR.clear(); };
   AI.kill = function (r) {
-    var soldier = r && r.on && r.type === 'soldier' && TR.ready;
+    var soldier = r && r.on && TR.TYPES[r.type] && TR.ready;
     var x = r && r.x, z = r && r.z;
     bKill.apply(AI, arguments);
     if (!soldier) return;
     if (TR.die(r)) {   // no ink corpse: the rig is the body
-      AI.types.soldier.corpses.forEach(function (c) { if (c.on && c.t === 0 && c.x === x && c.z === z) c.on = false; });
+      AI.types[r.type].corpses.forEach(function (c) { if (c.on && c.t === 0 && c.x === x && c.z === z) c.on = false; });
     }
   };
 })(window.IB = window.IB || {});

@@ -111,14 +111,14 @@
   GL.LAUNCHER_DROP = { soldier: 0.012, other: 0.0016 };   // doubled with the other guns
   GL.launcherDropChance = function (type, L) {
     if ((L || 0) < GL.LAUNCHER_LEVEL) return 0;
-    return type === 'soldier' ? GL.LAUNCHER_DROP.soldier : GL.LAUNCHER_DROP.other;
+    return type === 'soldier' || type === 'grenadier' ? GL.LAUNCHER_DROP.soldier : GL.LAUNCHER_DROP.other;
   };
   GL.LAUNCHER_TIERS = { gray: 50, green: 28, blue: 15, purple: 5.5, orange: 1.5 };
   GL.RACK_LAUNCHER = 0.03;   // share of armory rack guns that are a launcher (levels 14+)
 
   // ---------------- rocket ammo director ----------------
   GL.ROCKET = { cap: 16, start: 6, carriedTarget: 0.7, packTarget: 0.3, useWindow: 90, useFull: 6, maxChance: 0.5, pity: 3,
-    budgetPerSoldier: 0.27, minBudget: 14, dropWeight: { soldier: 4, blader: 1 }, torpedoCapMul: 1.5 };
+    budgetPerSoldier: 0.27, minBudget: 14, dropWeight: { soldier: 4, grenadier: 4, blader: 1 }, torpedoCapMul: 1.5 };
   /* the rocket pool's cap: the Torpedo skill adds 50% (st.cap in rocketNeed / rocketDrop overrides the base) */
   GL.rocketCap = function (torpedo) { return Math.round(GL.ROCKET.cap * (torpedo ? GL.ROCKET.torpedoCapMul : 1)); };
   /* which kills can drop a rocket crate, and how often vs a soldier (melee bladers: half the chance) */

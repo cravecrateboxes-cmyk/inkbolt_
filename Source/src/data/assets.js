@@ -18,7 +18,13 @@
       'BOT_SOLDIER_HIP0', 'BOT_SOLDIER_HIP1', 'BOT_SOLDIER_WAIST', 'BOT_SOLDIER_CORE', 'BOT_SOLDIER_NECK', 'BOT_SOLDIER_SHOULDER0', 'BOT_SOLDIER_SHOULDER1',
       'BOT_SOLDIER_VISOR', 'BOT_SOLDIER_MUZZLE', 'BOT_SOLDIER_HANDL',
       'BOT_BLADER_Body', 'BOT_BLADER_Hub', 'BOT_BLADER_Katana', 'BOT_BLADER_Axe', 'BOT_BLADER_Light',
-      'BOT_BLADER_CORE', 'BOT_BLADER_HUB', 'BOT_BLADER_LIGHT', 'BOT_BLADER_GRIP']
+      'BOT_BLADER_CORE', 'BOT_BLADER_HUB', 'BOT_BLADER_LIGHT', 'BOT_BLADER_GRIP',
+      // levels 20+: the Crawler's advanced skin and the Hawk
+      'BOT_CRAWLER_Body2', 'BOT_CRAWLER_Leg2', 'BOT_CRAWLER_Specks',
+      'BOT_HAWK_Body', 'BOT_HAWK_Fan', 'BOT_HAWK_Rotor', 'BOT_HAWK_Gun', 'BOT_HAWK_Light',
+      'BOT_HAWK_CORE', 'BOT_HAWK_FAN0', 'BOT_HAWK_FAN1', 'BOT_HAWK_GUNPIVOT', 'BOT_HAWK_GUN', 'BOT_HAWK_LIGHT'],
+    // the trooper rig: the Soldier, the Grenadier's launcher and the Robot Trooper on one armature
+    troopers: ['TROOPER', 'TROOPER_Rig', 'TROOPER_MUZZLE', 'TROOPER_CORE', 'TROOPER_GL', 'TROOPER_GL_MUZZLE', 'TROOPER_MECH', 'TROOPER_MECH_CORE']
   };
   // weapons that have a Blender model + arm actions: WPN_<ID> (gun), WPN_<ID>_Mag (detachable mag; revolver: the
   // cylinder) and sockets WPN_<ID>_MUZZLE / _MAG / _EJECT / _SIGHT (a point on the sight line just behind the rear
@@ -60,7 +66,10 @@
       soldierB: { parts: { BOT_SOLDIER_HelmB: 1 }, max: 950 },
       blader: { parts: { BOT_BLADER_Body: 1, BOT_BLADER_Hub: 1, BOT_BLADER_Katana: 1, BOT_BLADER_Light: 1 }, max: 1700 },
       bladerAxe: { parts: { BOT_BLADER_Body: 1, BOT_BLADER_Hub: 1, BOT_BLADER_Axe: 1, BOT_BLADER_Light: 1 }, max: 1700 },
-      nade: { parts: { BOT_SOLDIER_Nade: 1 }, max: 300 }
+      nade: { parts: { BOT_SOLDIER_Nade: 1 }, max: 300 },
+      // levels 20+
+      crawler2: { parts: { BOT_CRAWLER_Body2: 1, BOT_CRAWLER_Leg2: 4, BOT_CRAWLER_Light: 1, BOT_CRAWLER_Specks: 1 }, max: 2200 },
+      hawk: { parts: { BOT_HAWK_Body: 1, BOT_HAWK_Fan: 2, BOT_HAWK_Rotor: 2, BOT_HAWK_Gun: 1, BOT_HAWK_Light: 1 }, max: 3500 }
     },
     kitMax: 40000, kitPropMax: 1200
   };

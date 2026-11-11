@@ -461,6 +461,10 @@
     // Blade Bot: the hub flies off with its blade still turning, sparks (blue arcs for the Voltaxe)
     blader: { S: 1.2, words: [8, 0, 5], debris: 6, parts: ['BOT_BLADER_Hub'], nParts: 1, color: 0x8A6CD8, sound: 0.75 },
     bladerWpn: { S: 1, words: null, debris: 0, parts: ['BOT_BLADER_Katana', 'BOT_BLADER_Axe'], nParts: 0, color: 0xFFFFFF, sound: 0 },
+    // levels 20+: the Grenadier blows like a Soldier; the Robot Trooper sheds gunmetal plates; the Hawk drops like a Drone
+    grenadier: { S: 1.4, words: [0, 4, 10], debris: 8, parts: ['BOT_SOLDIER_ArmL', 'BOT_SOLDIER_Shin'], nParts: 2, color: 0x9EA5B0, sound: 0.8 },
+    mech: { S: 1.4, words: [1, 0, 10], debris: 9, parts: ['BOT_SOLDIER_Shin', 'BOT_CRAWLER_Leg'], nParts: 2, color: 0x5E6670, sound: 0.85 },
+    hawk: { S: 1.25, words: [0, 6, 9], debris: 6, parts: ['BOT_HAWK_Rotor', 'BOT_HAWK_Fan'], nParts: 2, color: 0x363B47, sound: 0.85 },
     blast: { S: 1.75, words: [3, 6, 7], debris: 5, parts: null, nParts: 0, color: 0x3E86D8, big: true, sound: 0 },
     canister: { S: 2.0, words: [3, 6, 7], debris: 6, parts: null, nParts: 0, color: PAL.red, big: true, sound: 0 },
     chain: { S: 0.95, words: [4, 10], debris: 2, parts: null, nParts: 0, color: 0xFFB21E, sound: 0 },
@@ -616,17 +620,17 @@
     var v = IB.AI && IB.AI.VIS[r.type], f = FLAV[r.type] || FLAV.crawler, sMul = 1;
     if (!FLAV[r.type] && v) sMul = Math.max(0.9, Math.min(2.2, v.radius * 2.3));
     var y = r.y + (v ? (v.y0 + v.y1) * 0.5 : 0.5), fl = F_WORD | F_SCORCH | F_RING | (quiet ? F_QUIET : 0);
-    if (r.type === 'drone' && r.y > 0.9) {
+    if ((r.type === 'drone' || r.type === 'hawk') && r.y > 0.9) {
       // shot out of the air: a crackle, then it drops and blows up where it lands (see fallers)
       flash(r.x, y, r.z, 1.1, 0x8ED2FF, 0.1, C.cloud);
       sparkBurst(r.x, y, r.z, cnt(10 * B.I), 6, 0, 0.2, 0, 1, undefined, 0.35);
       var pf = puff(P_SMOKE, r.x, y, r.z, 0.35, 0.8, 0); pf.vy = 0.5;
       if (!quiet && Math.random() < 0.6) B.word(2, r.x, y + 0.6, r.z, 1.4);
-      for (var i = 0; i < FALL_CAP; i++) { var fa = fallers[i]; if (fa.on) continue; fa.on = true; fa.x = r.x; fa.y = y; fa.z = r.z; fa.vy = 0; fa.t = 0; fa.smoke = 0; fa.quiet = !!quiet; fa.base = r.fy || 0; break; }
+      for (var i = 0; i < FALL_CAP; i++) { var fa = fallers[i]; if (fa.on) continue; fa.on = true; fa.x = r.x; fa.y = y; fa.z = r.z; fa.vy = 0; fa.t = 0; fa.smoke = 0; fa.quiet = !!quiet; fa.base = r.fy || 0; fa.f = f; break; }
       return;
     }
     if (r.type === 'bomber' && !quiet) { flash(r.x, y, r.z, 1.2, PAL.paper, 0.08, C.cloud); return; }   // its own blast (projectiles) does the rest
-    if (r.type === 'soldier') {
+    if (r.type === 'soldier' || r.type === 'grenadier') {
       explode(r.x, y, r.z, f, sMul, fl, r.tintHex);
       var hb = BIN['BOT_SOLDIER_Helm' + (r.helm || 'A')], he = debris(hb, r.x, r.y + 1.6, r.z, 1.5, r.tintHex, 1);
       he.vy = rnd(7, 9); he.wx = rnd(-20, 20); he.wz = rnd(-20, 20);
@@ -1180,7 +1184,7 @@
       }
       if (fa.y <= fa.base + 0.3 || fa.t > 3) {   // base: the floor it falls onto (a deck, or the ground)
         fa.on = false;
-        explode(fa.x, fa.base + 0.35, fa.z, FLAV.drone, 1, F_WORD | F_SCORCH | F_RING | (fa.quiet ? F_QUIET : 0));
+        explode(fa.x, fa.base + 0.35, fa.z, fa.f || FLAV.drone, 1, F_WORD | F_SCORCH | F_RING | (fa.quiet ? F_QUIET : 0));
       }
     }
   }

@@ -48,6 +48,9 @@ ib_lib.PALETTES['bots'] = BASE + [
     ('plate', '#F4F6F9'), ('plate2', '#B8BEC7'), ('suit', '#3A3F4B'), ('suit2', '#5A606D'),
     # Blade bot: violet saucer with hazard chevrons, bright steel blades, a glowing Voltaxe edge
     ('violet', _lighten('#6A55A8')), ('violet2', _lighten('#4E3F82', 0.06)), ('blade', '#E8EEF4'), ('lens', '#7FF4FF'),
+    # Hawk (levels 20+): graphite armoured fuselage, lighter dorsal plates, steel; its accents are drawn in the KEY
+    # colours 'plate' / 'plate2' and take the colour of its round type in the game
+    ('hawk', '#363B47'), ('hawk2', '#59606F'), ('hawk3', '#8C95A4'),
 ]
 
 
@@ -850,6 +853,148 @@ def build_blader(pal):
     p.build('BOT_BLADER_Light', bevel=False, hull=0.006)
 
 
+# ================================================================ CRAWLER, ADVANCED SKIN (levels 20+)
+# Same silhouette, pivots and hit volumes as the tin-can Crawler (same hips, core, light): a faceted armoured shell
+# with a sloped head ring and a wrap-around visor, belly and belt armour, panel lines and bolts. The armour is in the
+# two KEY colours: 'plate' (about two thirds of the shell) and 'plate2' (the other third); the game paints them black
+# and grey per crawler (ai.js keyMat2: 66 % grey / 33 % black or the other way round). Specks: white flecks and a
+# stencil chevron drawn over some of them (its own part, so most crawlers draw none).
+def build_crawler2(pal):
+    SEG = 10
+    p = Part(pal)
+    p.cyl((0, 0, 0.30), 0.32, 0.31, 0.30, 'plate', seg=SEG, bevel=True)                  # lower shell
+    p.cyl((0, 0, 0.60), 0.31, 0.25, 0.13, 'plate', seg=SEG, bevel=True)                  # sloped head ring
+    p.cyl((0, 0, 0.73), 0.255, 0.255, 0.035, 'plate2', seg=SEG, bevel=True)              # head cap rim
+    p.sphere((0, 0, 0.77), 0.14, 'core', seg=(8, 4), scale=(1, 1, 0.6))
+    p.cyl((0.12, 0.08, 0.76), 0.018, 0.018, 0.3, 'ink', seg=3)                           # whip antenna (light)
+    p.cyl((0, 0, 0.255), 0.30, 0.32, 0.05, 'plate2', seg=SEG, bevel=True)                # belly armour skirt
+    # deco: belt band (plate2), visor band + glowing strip, panel lines, side armour, bolts, core seat
+    p.cyl((0, 0, 0.405), 0.33, 0.33, 0.07, 'plate2', seg=SEG, caps=False, deco=True)
+    p.cyl((0, 0, 0.50), 0.317, 0.317, 0.012, 'ink', seg=SEG, caps=False, deco=True)         # panel line
+    p.on_slope(7, SEG, (0.31, 0.60), (0.25, 0.73), 0.45, 0.004, (0.30, 0.012, 0.075), 'ink')      # visor slot
+    for k in (6, 8):
+        p.on_slope(k, SEG, (0.31, 0.60), (0.25, 0.73), 0.45, 0.004, (0.16, 0.012, 0.05), 'ink')
+    p.on_slope(7, SEG, (0.31, 0.60), (0.25, 0.73), 0.45, 0.017, (0.22, 0.008, 0.028), 'lens')    # visor strip
+    for k in (6, 8):
+        p.on_slope(k, SEG, (0.31, 0.60), (0.25, 0.73), 0.45, 0.017, (0.10, 0.008, 0.022), 'lens')
+    for k in (2, 4, 0, 9, 5):
+        p.on_facet(k, SEG, 0.335, 0.002, 0.405, (0.12, 0.05, 0.11), 'plate2')             # side armour on the belt
+    for k in range(SEG):
+        if k % 2:
+            p.on_facet(k, SEG, 0.31, 0.003, 0.55, (0.012, 0.008, 0.08), 'ink')           # vertical panel lines
+    for k in (1, 3, 7):
+        p.on_facet(k, SEG, 0.31, 0.003, 0.335, (0.028, 0.008, 0.028), 'gunmetal')       # bolts
+    p.cyl((-0.15, 0.09, 0.755), 0.014, 0.014, 0.13, 'ink', seg=4, deco=True)            # stub antenna
+    p.box((-0.15, 0.09, 0.895), (0.04, 0.04, 0.03), 'plate2', deco=True)
+    p.cyl((0, 0, 0.765), 0.152, 0.152, 0.02, 'gunmetal', seg=10, caps=False, deco=True)
+    p.build('BOT_CRAWLER_Body2')
+    # legs: armoured thigh guard and a wide plated foot, same pivot and length
+    p = Part(pal)
+    p.box((0, 0, -0.02), (0.11, 0.08, 0.07), 'plate2', bevel=True)
+    for i in range(2):
+        p.box(((0.03 if i % 2 else -0.03), 0, -0.10 - i * 0.075), (0.11, 0.055, 0.035), 'gunmetal', deco=True)
+    p.box((0, 0, -0.17), (0.034, 0.034, 0.30), 'plate')
+    p.box((0, -0.022, -0.25), (0.044, 0.01, 0.09), 'plate2', deco=True)
+    p.cyl((0, 0, -0.355), 0.095, 0.07, 0.05, 'plate2', seg=6)
+    p.build('BOT_CRAWLER_Leg2', bevel=False, hull=0.01)
+    # specks: white flecks and a stencil chevron, 4 mm proud of the shell (drawn over Body2, no outline)
+    p = Part(pal)
+    # flecks on the shell (facet k, height z, angle off the facet centre, size); white chips on the belt armour;
+    # a stencil chevron on the head ring
+    rnd = [(0, 0.47, 0.05, 0.03), (1, 0.535, 0.1, 0.022), (2, 0.57, -0.06, 0.036), (3, 0.475, -0.1, 0.02),
+           (4, 0.555, 0.04, 0.03), (5, 0.535, -0.1, 0.026), (6, 0.565, 0.08, 0.022), (8, 0.53, -0.05, 0.034),
+           (9, 0.47, 0.1, 0.026), (0, 0.575, -0.07, 0.018), (4, 0.47, -0.08, 0.028), (2, 0.53, 0.07, 0.02),
+           (6, 0.48, -0.06, 0.028), (8, 0.575, 0.07, 0.018), (1, 0.475, -0.08, 0.024), (9, 0.56, -0.06, 0.03)]
+    for k, z, d, sz in rnd:
+        p.on_facet(k, SEG, 0.312, 0.006, z, (sz * 1.6, 0.006, sz * 1.25), 'paper', phase=d, deco=False)
+    for k, z, w in ((2, 0.39, 0.05), (4, 0.42, 0.035), (9, 0.395, 0.04), (5, 0.385, 0.03)):
+        p.on_facet(k, SEG, 0.335, 0.056, z, (w, 0.006, w * 0.7), 'paper', deco=False)    # on the belt armour
+    for k in (3, 4):
+        p.on_slope(k, SEG, (0.31, 0.60), (0.25, 0.73), 0.3, 0.004, (0.10, 0.006, 0.03), 'paper', deco=False)
+    strip_hull(p.build('BOT_CRAWLER_Specks', bevel=False, hull=0.001))
+
+
+# ================================================================ HAWK (levels 20+)
+# Advanced aerial robot: a sleek octagonal armoured fuselage (nose = -Y), a dorsal armour spine with panel lines,
+# stub pylons carrying two ducted fans (Fan: duct + stator, vectored by the game; Rotor: the blades), a vectored tail
+# thruster, a ball chin turret with twin barrels (Gun) and a sensor eye in the nose (Light). Accent strips, the duct
+# rims, the thruster ring and the turret band are in the KEY colours: the game paints them in its round type's colour
+# (normal: steel white, shock: blue, acid: green, explosive: orange). Gold core under the tail (weak point).
+H_CEN = 0.30
+H_FAN = (0.47, 0.02, 0.32)
+H_PIVOT = (0, -0.20, 0.135)
+
+
+def build_hawk(pal):
+    SEG = 8
+    ph = math.pi / SEG
+    p = Part(pal)
+    # fuselage: lathe along the length (lathe z -> -Y), flattened to 72 % of its width
+    p.parent = Matrix.Translation((0, 0, H_CEN)) @ Matrix.Rotation(math.radians(90), 4, 'X') @ Matrix.Diagonal(Vector((1, 0.72, 1, 1)))
+    prof = [(0.0, -0.46), (0.08, -0.45), (0.15, -0.36), (0.20, -0.18), (0.21, 0.02), (0.19, 0.20), (0.14, 0.36), (0.07, 0.47), (0.0, 0.52)]
+    p.lathe(prof, 'hawk', seg=SEG, phase=ph)
+    p.parent = Matrix.Identity(4)
+    top = H_CEN + 0.21 * 0.72 * math.cos(ph)                                                 # flat top face height
+    p.box((0, 0.04, top + 0.022), (0.15, 0.52, 0.045), 'hawk2', bevel=True)                    # dorsal armour spine
+    for sx in (-1, 1):                                                                         # V-tail fins
+        p.parent = Matrix.Translation((sx * 0.045, 0, top + 0.03)) @ Matrix.Rotation(math.radians(-30 * sx), 4, 'Y') @ _YZX
+        p.prism([(0.20, 0.0), (0.40, 0.0), (0.46, 0.16), (0.37, 0.16)], -0.011, 0.011, 'hawk2')
+    p.parent = Matrix.Identity(4)
+    for sx in (-1, 1):                                                                         # stub pylons to the fans
+        p.box((sx * 0.235, H_FAN[1], H_FAN[2]), (0.13, 0.15, 0.04), 'hawk2', bevel=True)
+        p.box((sx * 0.19, -0.01, H_CEN - 0.03), (0.06, 0.26, 0.11), 'hawk', bevel=True)      # intake cheeks
+        p.box((sx * 0.222, -0.13, H_CEN - 0.03), (0.012, 0.05, 0.07), 'ink')                 # intake mouth
+    p.cyl((0, 0.40, H_CEN), 0.085, 0.07, 0.14, 'gunmetal', seg=10, rot=(-90, 0, 0))         # tail thruster
+    p.cyl((0, 0.535, H_CEN), 0.06, 0.06, 0.012, 'plate', seg=10, rot=(-90, 0, 0))           # thruster glow
+    p.sphere((0, 0.17, H_CEN - 0.13), 0.075, 'core', seg=(10, 5), scale=(1, 1.2, 0.6))       # core (belly)
+    p.box((0, H_PIVOT[1] + 0.01, H_PIVOT[2] + 0.04), (0.08, 0.10, 0.05), 'gunmetal')         # turret mount
+    # deco: accent strips along the flanks, panel lines on the spine, thruster ring, vents
+    for sx in (-1, 1):
+        p.box((sx * 0.224, 0.03, H_CEN - 0.03), (0.008, 0.15, 0.02), 'plate', deco=True)       # accent strips on the cheeks
+        p.box((sx * 0.072, -0.08, top + 0.0475), (0.012, 0.30, 0.006), 'plate', deco=True)     # accent strips along the spine
+    for y in (-0.12, 0.08, 0.22):
+        p.box((0, y, top + 0.0475), (0.12, 0.008, 0.006), 'ink', deco=True)
+    p.box((0, -0.04, top + 0.0475), (0.03, 0.10, 0.006), 'hawk3', deco=True)
+    p.cyl((0, 0.47, H_CEN), 0.084, 0.084, 0.03, 'plate2', seg=10, rot=(-90, 0, 0), caps=False, deco=True)
+    body = p.build('BOT_HAWK_Body')
+    socket('BOT_HAWK_CORE', body, (0, 0.17, H_CEN - 0.15))
+    for i, sx in enumerate((-1, 1)):
+        socket('BOT_HAWK_FAN%d' % i, body, (sx * H_FAN[0], H_FAN[1], H_FAN[2]))
+    socket('BOT_HAWK_GUNPIVOT', body, H_PIVOT)
+    socket('BOT_HAWK_LIGHT', body, (0, -0.385, H_CEN + 0.07))
+
+    # ducted fan (origin = duct centre): a closed duct section turned about Z, stator cross and hub, accent rim
+    p = Part(pal)
+    duct = [(0.15, -0.045), (0.185, -0.05), (0.205, -0.01), (0.20, 0.045), (0.17, 0.062), (0.15, 0.05), (0.15, -0.045)]
+    p.lathe(duct, 'hawk2', seg=12)
+    p.beam((-0.155, 0, -0.035), (0.155, 0, -0.035), 0.02, 'gunmetal')
+    p.beam((0, -0.155, -0.03), (0, 0.155, -0.03), 0.02, 'gunmetal')
+    p.cyl((0, 0, -0.05), 0.04, 0.03, 0.05, 'hawk', seg=8)
+    p.lathe([(0.206, 0.0), (0.206, 0.024)], 'plate', seg=12, deco=True)
+    p.cyl((0, 0, -0.056), 0.03, 0.03, 0.008, 'plate2', seg=8, deco=True)
+    p.build('BOT_HAWK_Fan', bevel=False, hull=0.01)
+    # rotor: three blades
+    p = Part(pal)
+    for k in range(3):
+        a = 2 * math.pi * k / 3
+        p.box((math.cos(a) * 0.075, math.sin(a) * 0.075, 0.0), (0.12, 0.034, 0.008), 'gunmetal', rot=(18, 0, math.degrees(a)))
+    p.cyl((0, 0, -0.012), 0.026, 0.026, 0.024, 'hawk3', seg=8)
+    p.build('BOT_HAWK_Rotor', bevel=False, hull=0.006)
+    # chin turret (origin = pivot, barrels along -Y)
+    p = Part(pal)
+    p.sphere((0, 0, 0), 0.065, 'hawk', seg=(10, 6))
+    for sx in (-1, 1):
+        p.cyl((sx * 0.025, -0.03, -0.005), 0.016, 0.016, 0.16, 'gunmetal', seg=6, rot=(90, 0, 0))
+        p.cyl((sx * 0.025, -0.18, -0.005), 0.021, 0.021, 0.03, 'ink', seg=6, rot=(90, 0, 0))
+    p.cyl((0, -0.035, 0), 0.0675, 0.0675, 0.02, 'plate', seg=10, rot=(90, 0, 0), caps=False, deco=True)
+    gun = p.build('BOT_HAWK_Gun', bevel=False)
+    socket('BOT_HAWK_GUN', gun, (0, -0.21, -0.005))
+    # sensor eye (coloured by the game)
+    p = Part(pal)
+    p.box((0, 0, 0), (0.17, 0.07, 0.05), 'light', rot=(-28, 0, 0))
+    p.build('BOT_HAWK_Light', bevel=False, hull=0.006)
+
+
 # ================================================================ BOTS
 def build_bots(ao):
     pal = Palette('bots')
@@ -859,6 +1004,8 @@ def build_bots(ao):
     build_drone(pal)
     build_soldier(pal)
     build_blader(pal)
+    build_crawler2(pal)
+    build_hawk(pal)
     export('bots')
 
 
