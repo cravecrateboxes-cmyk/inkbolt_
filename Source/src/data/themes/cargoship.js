@@ -394,21 +394,21 @@
           { map: 'cargoship_1', ceiling: false, waves: [
             [['crawler', 22], ['gunner', 6], ['drone', 3]],
             [['crawler', 7], ['bomber', 2], ['gunner', 7], ['blader', 8]],
-            [['crawler', 7], ['drone', 6], ['gunner', 5], ['soldier', 9]],
+            [['crawler', 9], ['drone', 6], ['gunner', 5], ['soldier', 11]],
             [['crawler', 6], ['bomber', 2], ['gunner', 7], ['soldier', 8], ['blader', 4]]] },
           // a cargo hold: container cells, gantry walkways at 5.2 m
           { map: 'cargoship_2', floor: { color: '#8F8A7E', lines: [{ dir: 'x', every: 3, width: 0.03, color: '#7F7A6F', y: 0.006 }, { dir: 'z', every: 3, width: 0.03, color: '#7F7A6F', y: 0.008 }] },
             waves: [
             [['crawler', 22], ['gunner', 7], ['drone', 2]],
             [['crawler', 7], ['bomber', 2], ['gunner', 7], ['blader', 8]],
-            [['crawler', 7], ['drone', 5], ['gunner', 6], ['soldier', 9]],
+            [['crawler', 9], ['drone', 5], ['gunner', 6], ['soldier', 11]],
             [['crawler', 6], ['bomber', 2], ['gunner', 7], ['blader', 7], ['soldier', 5]]] },
           // the engine room: the main engine, its platforms and the upper flats, a heavy last stand
           { map: 'cargoship_3', floor: { color: '#9AA1A6', lines: [{ dir: 'x', every: 1, width: 0.025, color: '#80878C', y: 0.006 }, { dir: 'z', every: 1, width: 0.025, color: '#80878C', y: 0.008 }] },
             waves: [
             [['crawler', 22], ['gunner', 9], ['drone', 2]],
-            [['crawler', 8], ['bomber', 2], ['drone', 5], ['soldier', 10]],
-            [['crawler', 8], ['gunner', 9], ['drone', 5], ['blader', 8]],
+            [['crawler', 10], ['bomber', 2], ['drone', 5], ['soldier', 12]],
+            [['crawler', 8], ['gunner', 9], ['drone', 5], ['blader', 9]],
             [['crawler', 10], ['gunner', 10], ['bomber', 2], ['drone', 4], ['soldier', 13], ['blader', 6]]] }
         ]
       }
