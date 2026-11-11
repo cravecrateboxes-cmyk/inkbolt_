@@ -77,9 +77,11 @@ test('campaign waves: Soldiers from level 4, Blade Bots from level 7, growing wi
     if (L < 4) assert.equal(s, 0, id + ' soldiers');
     if (L === 7) assert.ok(b >= 5 && b <= 16, id + ' a first taste of Blade Bots (x2.5 elites)');
     if (L === 4) assert.ok(s >= 3 && s <= 8, id + ' a first taste of Soldiers (x2.5 elites)');
-    if (L >= 4) assert.ok(s >= lastS && b >= lastB, id + ' grows');
-    const all = p.zones.reduce((a, z) => a + z.waves.reduce((b2, w) => b2 + w.reduce((c, e) => c + e[1], 0), 0), 0);
-    assert.ok(all >= (globalThis.__lastAll || 0), id + ' has at least as many robots as the level before');
+    // measured per zone: levels 26+ have 2 zones instead of 3, so the totals per level step down there
+    const nz = p.zones.length, sz = s / nz, bz = b / nz;
+    if (L >= 4) assert.ok(sz >= lastS - 1e-9 && bz >= lastB - 1e-9, id + ' grows (per zone)');
+    const all = p.zones.reduce((a, z) => a + z.waves.reduce((b2, w) => b2 + w.reduce((c, e) => c + e[1], 0), 0), 0) / nz;
+    assert.ok(all >= (globalThis.__lastAll || 0) - 1e-9, id + ' has at least as many robots per zone as the level before');
     globalThis.__lastAll = all;
     // the first wave of the first zone stays as it was (no new robots while the player settles in)
     assert.ok(p.zones[0].waves[0].every((e) => e[0] !== 'soldier' && e[0] !== 'grenadier' && e[0] !== 'blader'), id + ' opening wave');
@@ -87,7 +89,7 @@ test('campaign waves: Soldiers from level 4, Blade Bots from level 7, growing wi
       const n = w.reduce((a, e) => a + e[1], 0), special = w.filter((e) => e[0] === 'soldier' || e[0] === 'grenadier' || e[0] === 'blader').reduce((a, e) => a + e[1], 0);
       assert.ok(special <= Math.ceil(n * 0.5), id + ' ' + z.map + ' never mostly elites');
     }
-    lastS = s; lastB = b;
+    lastS = sz; lastB = bz;
   });
   const last = IB.LEVEL_PLANS[IB.CAMPAIGN[IB.CAMPAIGN.length - 1]];
   assert.ok(count(last, 'soldier') >= 25 && count(last, 'blader') >= 15);

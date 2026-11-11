@@ -33,7 +33,7 @@
   // campaign order (user's beta plan: mountains, small city, classroom, office tower, big bedroom, ... up to 20)
   // the Toy Town district levels (tt1-tt3) are retired from the campaign (kept registered for tests / ?plan=);
   // levels whose theme is not built yet are skipped by the filter below
-  var ORDER = ['mountains', 'smallcity', 'classroom', 'office', 'bedroom', 'coalmine', 'castle', 'city2', 'factory', 'livingroom', 'garden', 'factory2', 'island', 'mall', 'police', 'grove', 'spire', 'foundry', 'parking', 'hotel', 'techhq', 'cargoship', 'datacenter', 'downtown', 'highrise'];   // 14-19: Galleria Mall, Strike Team HQ (armory racks), Redwood Hollow (climbable redwoods), The Spire (sky-bridged supertalls), Titan Foundry, Deep Park (multi-level car park)
+  var ORDER = ['mountains', 'smallcity', 'classroom', 'office', 'bedroom', 'coalmine', 'castle', 'city2', 'factory', 'livingroom', 'garden', 'factory2', 'island', 'mall', 'police', 'grove', 'spire', 'foundry', 'parking', 'hotel', 'techhq', 'cargoship', 'datacenter', 'downtown', 'highrise', 'gemmine', 'megastore', 'townhomes', 'arctic', 'resort', 'scrapyard', 'seabase', 'stronghold', 'airport', 'frontier'];   // 14-19: Galleria Mall, Strike Team HQ (armory racks), Redwood Hollow (climbable redwoods), The Spire (sky-bridged supertalls), Titan Foundry, Deep Park (multi-level car park)
   // new weapons waiting at the start of each campaign level (index = level - 1)
   // (melee weapons and the frag cans stand there too: every melee weapon and grenades are in hand by level 5)
   var WEAPONS = [];
@@ -51,16 +51,17 @@
   var ELITE_MUL = 2.5;   // Soldiers and Blade Bots: 2.5x the theme files' counts, light robots make room
   IB.WAVE_MUL = function (L) { return 1.15 + 0.45 * Math.min(1, Math.max(0, (L - 1) / 12)); };
   function total(p) { var t = 0; p.zones.forEach(function (z) { z.waves.forEach(function (w) { w.forEach(function (e) { t += e[1]; }); }); }); return t; }
-  // a steady climb: each level has at least 5% more robots than the one before (the extra are light robots)
-  var prevTotal = 0;
+  // a steady climb: each level has at least 5% more robots per zone than the one before (the extra are light robots).
+  // Measured per zone so a shorter level (levels 26+ have 2 zones) is not packed denser to match a 3-zone total.
+  var prevPerZone = 0;
   function smooth(p) {
-    var t = total(p), want = Math.round(prevTotal * 1.05);
+    var nz = Math.max(1, (p.zones || []).length), t = total(p), want = Math.round(prevPerZone * 1.05 * nz);
     for (var pass = 0; pass < 4 && t < want; pass++, t = total(p)) {
       var light = 0; p.zones.forEach(function (z) { z.waves.forEach(function (w) { w.forEach(function (e) { if (LIGHT[e[0]]) light += e[1]; }); }); });
       var k = light ? 1 + (want - t) / light : 1;
       p.zones.forEach(function (z) { z.waves.forEach(function (w) { w.forEach(function (e) { if (LIGHT[e[0]]) e[1] = Math.round(e[1] * k); }); }); });
     }
-    prevTotal = total(p);
+    prevPerZone = total(p) / nz;
   }
   function tuneWaves(p, L) {
     if (p.tuned) return; p.tuned = true;
