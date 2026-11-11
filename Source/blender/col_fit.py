@@ -52,6 +52,7 @@ FIT = {
     'kit-spire': ['Landmark_Bolt', 'Landmark_Reception', 'Tree_Cherry', 'Tree_Maple'],
     'kit-hotel': ['Landmark_SkyBar', 'Piano'],
     # not Line_* (the box over the moving line is cover for the robots riding it) nor the Bay decks' stair blocks
+    'kit-datacenter': ['Landmark_Chamber', 'Landmark_Quantum', 'TileOpen'],
     'kit-foundry': ['CentipedeRack', 'Jig_Hound', 'Jig_Hover', 'Jig_*', 'Landmark_Bay_Armour', 'Landmark_Bay_Frame', 'Landmark_Bay_Launch',
                     'Landmark_Bay_Strider', 'Landmark_LaunchDoor1', 'Landmark_LaunchDoor2', 'Landmark_Strider_Legs',
                     'Landmark_Titan_Legs', 'LimbRack', 'Pad_Hound', 'Pad_Hover', 'Pad_*', 'WeldCell_Hover', 'WeldCell_Spider', 'WeldCell_*'],

@@ -280,6 +280,7 @@
     var B = IB.Boom && IB.Boom.ready ? IB.Boom : null, c = new THREE.Color(el.color || '#FFB21E').getHex();
     if (IB.Audio) IB.Audio.play('boom', { pos: { x: x, z: z }, gain: small ? 0.55 : def.launcher === 'homing' ? 0.7 : 1, pitch: small ? 1.4 : def.launcher === 'homing' ? 1.2 : 1 });
     if (B) { B.blast(x, y, z, R, 'rocket'); B.onBlast(x, y, z, R); }
+    if (IB.Doors) IB.Doors.blast(x, y, z, R, D);   // breakable doors in reach
     if (IB.FX) IB.FX.puff(x, y + 0.2, z, small ? 3 : 6, c, 0.14, 0.45, 3);
     if (IB.AI.hear) IB.AI.hear(x, z, 18);
     if (small) return;

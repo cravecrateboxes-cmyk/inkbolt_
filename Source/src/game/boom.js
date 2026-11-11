@@ -749,6 +749,41 @@
       if (d < 12 && g.addTrauma) g.addTrauma(0.18 * (1 - d / 12));
     }
   };
+  /* a breakable door / panel bursts (game/doors.js): w x h opening centred at (x, y, z), its face along (ax, az),
+     pushed toward (nx, nz); kind 'metal' (plates, sparks), 'glass' (pale shards), 'mesh' (wire bits), 'field'
+     (cyan sparks and rings); color: the panel's colour (hex); word: a comic word (default by kind) */
+  B.shatter = function (x, y, z, w, h, ax, az, nx, nz, kind, color, word) {
+    if (!B.ready) return;
+    var i, c, e, n, col = color === undefined ? 0x3A4048 : color, glass = kind === 'glass', field = kind === 'field', mesh = kind === 'mesh';
+    flash(x, y, z, Math.max(w, h) * 0.75, field ? 0x5FF2FF : glass ? 0xE9FCFF : 0xFFF1D6, 0.12, C.burst);
+    c = card(C.ring, M_BILL, x, y, z, 0.22, 0.3, Math.max(w, h) * 1.4, field ? 0x5FF2FF : PAL.paper); c.fd = 0.35;
+    n = cnt(glass ? 26 : mesh ? 14 : 12);
+    for (i = 0; i < n; i++) {   // chips / shards from across the opening, mostly along the push
+      var u = rnd(-0.5, 0.5) * w, v = rnd(0.1, 0.95) * h, px = x + ax * u, py = y - h / 2 + v, pz = z + az * u, sp = rnd(2, 6.5);
+      c = card(glass || field ? C.shine : C.chip, M_BILL, px, py, pz, rnd(0.7, 1.2), glass ? rnd(0.08, 0.16) : rnd(0.06, 0.11), 0.05, glass ? (Math.random() < 0.5 ? 0xD2F4FF : 0x8FD8F0) : field ? 0x5FF2FF : col);
+      c.vx = nx * sp + rnd(-1.6, 1.6); c.vy = rnd(0.5, 3.5); c.vz = nz * sp + rnd(-1.6, 1.6); c.g = 14; c.vr = rnd(-14, 14); c.ease = E_LIN; c.floor = 0.03;
+    }
+    if (!glass && !field) {
+      n = cnt(mesh ? 5 : 8);
+      for (i = 0; i < n; i++) {
+        var uu = rnd(-0.45, 0.45) * w;
+        e = debris(mesh ? BIN.bolt : i % 3 ? BIN.plate : BIN.bolt, x + ax * uu, y + rnd(-0.4, 0.4) * h, z + az * uu, 3.5, i % 3 ? col : 0xC9CFD6, rnd(1.1, 2.2));
+        e.vx = e.vx * 0.4 + nx * rnd(3, 7); e.vz = e.vz * 0.4 + nz * rnd(3, 7);
+      }
+    }
+    n = cnt(6 + w * 2);
+    for (i = 0; i < n; i++) {   // dust rolling out at the foot of the opening
+      var dx = rnd(-0.5, 0.5) * w, side = Math.random() < 0.75 ? 1 : -1;
+      c = card(C.dust, M_BILL, x + ax * dx, Math.max(0.2, y - h / 2 + 0.3), z + az * dx, rnd(0.7, 1.1), 0.3, rnd(0.7, 1.15), field ? 0xBFF8FF : B.dustCol);
+      c.vx = nx * side * rnd(1.2, 3) + rnd(-0.5, 0.5); c.vz = nz * side * rnd(1.2, 3) + rnd(-0.5, 0.5); c.vy = rnd(0.2, 0.8); c.drag = 2.5; c.a0 = 0.9; c.fd = 0.45;
+    }
+    sparkBurst(x, y, z, cnt(field ? 14 : glass ? 4 : 9), 6, nx, 0.3, nz, 1, field ? 0x8EF6FF : undefined, 0.35);
+    if (field) for (i = 0; i < 3; i++) B.arc(x + ax * rnd(-0.5, 0.5) * w, y - h / 2 + rnd(0, h), z + az * rnd(-0.5, 0.5) * w, x + ax * rnd(-0.5, 0.5) * w, y - h / 2 + rnd(0, h), z + az * rnd(-0.5, 0.5) * w, 0x5FF2FF, 0.22, 0.6);
+    B.word(word || (glass ? 'KRAK!' : field ? 'ZZAP!' : mesh ? 'KA-CHUNK!' : 'KRUNCH!'), x, y + h * 0.45, z, 2.0, true);
+    sfx(glass ? 'crunch' : 'boom', x, z, glass ? 0.9 : 0.55, glass ? 1.6 : 1.5);
+    if (!glass) sfx('crunch', x, z, 0.8, 0.8);
+    feel(x, y, z, 1.1);
+  };
   /* gems spray out of a wreck */
   B.gemBurst = function (kind, x, y, z) {
     if (!B.ready) return;
