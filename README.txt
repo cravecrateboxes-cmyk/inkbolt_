@@ -114,6 +114,17 @@ CAMPAIGN (src/data/levelplans.js ORDER)
     platforms. Kit: blender/fam_kit_resort.py (rs_*.py); zones: tools/resort_zones.py; test:
     node tests/e2e/resort-climb.spec.js.
 
+  Cinder Ridge Outpost (frontier, 2 zones, the last campaign map): a remote frontier settlement in a log stockade on a
+    ridge, mountains and endless forest all round, late-morning light. The settlement (72 m): palisade, main and back
+    gates, four watchtowers (stair to a platform at 3.6 m), the main street under its arch, the general store (walk-in,
+    stair to the upstairs at 3.59 m, open windows over the street), the trading post and the bunkhouse (walk-in), cabins
+    and plank houses (repainted per copy), the smithy, the water tower and the well on the square, corral and stable,
+    wagons, the supply depot (generator, solar rows, radio mast, fuel tanks). The edge of the wild (76 m): two plateaus
+    3.2 m up (theme.terrain) split by a ravine whose floor leads to the exit, the rope bridge, the lookout platform on
+    the cliff edge over the valley, the sawmill with its turning water wheel and flume on the creek, the logging camp,
+    the old mine. Backdrop: instanced conifers chunked by sector, the cliff and valley, camera-following mountain ranges.
+    Kit: blender/fam_kit_frontier.py (fr_*.py); zones: tools/frontier_zones.py; test: node tests/e2e/frontier-walk.spec.js.
+
 BREAKABLE DOORS (src/game/doors.js, theme symbol option `breakable`; first used by Helix Vault)
   A prefab symbol with breakable: { hp, debris: 'metal' | 'glass' | 'mesh' | 'field', word, leaf, blend } places its
   frame like any prefab and its leaf (<Piece>_Leaf, _Leaf_D1, _Leaf_D2, _Broken) as its own mesh and collision. The
