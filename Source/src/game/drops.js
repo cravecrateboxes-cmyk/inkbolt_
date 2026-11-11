@@ -77,7 +77,7 @@
     var waveGeo = new THREE.RingGeometry(0.6, 0.66, 32, 1); waveGeo.rotateX(-Math.PI / 2);
     var discGeo = new THREE.PlaneGeometry(2.1, 2.1); discGeo.rotateX(-Math.PI / 2);
     var spark = WDb ? WDb.spark : disc, shaft = WDb ? WDb.shaft : null;
-    for (var i = 0; i < IB.LOOT.maxWorld; i++) {
+    D.addSlot = function (i) {
       var grp = new THREE.Group(); grp.visible = false;
       var cap = new THREE.Mesh(A.get('LOOT_Capsule'), A.mat.gear); grp.add(cap);
       var glowMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
@@ -102,7 +102,8 @@
       D.pool.push({ on: false, grp: grp, fx: fx, glow: glowMat, halo: halo, haloMat: haloMat, beam: beam, beamMat: beamMat, wtex: wtex, discMat: discMat, disc: dsc,
         ring: ring, ringMat: ringMat, wave: wave, waveMat: waveMat, motes: motes, seed: seed, spin: spin, item: item, glass: glass,
         it: null, x: 0, z: 0, t: 0, born: 0, fullT: 0, uid: 0, bright: 1, nm: MOTES });
-    }
+    };
+    for (var i0 = 0; i0 < IB.LOOT.maxWorld; i0++) D.addSlot(i0);
     D.ready = true;
   };
   D.clear = function () { D.pool.forEach(function (d) { d.on = false; d.grp.visible = false; d.it = null; }); };
@@ -133,12 +134,8 @@
     if (!D.ready || !item) return null;
     var G = IB.Game, d = null, i;
     for (i = 0; i < D.pool.length; i++) if (!D.pool[i].on) { d = D.pool[i]; break; }
-    // pool full: recycle the lowest-rarity drop (oldest of those); a rarer drop is never pushed out by a lesser one
-    if (!d) {
-      var R = IB.LOOT.rarities.map(function (r) { return r.id; }), rank = function (q) { return q.it ? R.indexOf(q.it.rarity) : -1; };
-      for (i = 0; i < D.pool.length; i++) { var q = D.pool[i]; if (!d || rank(q) < rank(d) || (rank(q) === rank(d) && q.born < d.born)) d = q; }
-      if (rank(d) > R.indexOf(item.rarity)) return null;   // every drop out there is rarer than this one: this one is skipped
-    }
+    // pool full: one more slot. Loot on the ground is never removed; it stays until the player takes it or leaves
+    if (!d) { D.addSlot(D.pool.length); d = D.pool[D.pool.length - 1]; }
     var pos = freeSpot(x, z, G);
     d.on = true; d.dropped = false; d.it = item; d.x = pos[0]; d.z = pos[1]; d.t = 0; d.born = performance.now(); d.fullT = 0; d.uid = ++D.uid;
     d.y = typeof y === 'number' && IB.Zones && IB.Zones.floorY ? Math.max(0, IB.Zones.floorY(d.x, d.z, y + 0.6)) : 0;

@@ -162,7 +162,7 @@
     var hotGeo = new THREE.PlaneGeometry(0.62, BEAM_H * 0.92); hotGeo.translate(0, BEAM_H * 0.46, 0);
     var coreGeo = new THREE.CylinderGeometry(0.16, 0.3, BEAM_H * 0.8, 16, 1, true); coreGeo.translate(0, BEAM_H * 0.4, 0);
     var ringGeo = new THREE.RingGeometry(0.62, 0.8, 40), waveGeo = new THREE.RingGeometry(0.86, 0.96, 40), discGeo = new THREE.PlaneGeometry(3, 3);
-    for (var i = 0; i < CAP; i++) {
+    WD.addSlot = function (i) {
       var grp = new THREE.Group(); grp.visible = false; scene.add(grp);
       var fx = new THREE.Group(); grp.add(fx);   // everything that glows (scaled as the drop pops in)
       var halo = new THREE.Mesh(haloGeo, glow(T.shaft, { opacity: 0.6 })); halo.renderOrder = 3; fx.add(halo);
@@ -180,7 +180,8 @@
       var spin = new THREE.Group(); spin.position.y = 0.95; grp.add(spin);
       WD.list.push({ on: false, grp: grp, fx: fx, halo: halo, hot: hot, core: core, coreTex: coreTex, disc: disc, ring: ring, wave: wave, sparks: sparks, seed: seed,
         spin: spin, mesh: null, id: null, tier: null, melee: false, x: 0, z: 0, t: 0, level: 1, roll: null });
-    }
+    };
+    for (var i0 = 0; i0 < CAP; i0++) WD.addSlot(i0);
   };
   WD.clear = function () { WD.list.forEach(function (d) { d.on = false; d.grp.visible = false; }); if (IB.HUD && IB.HUD.peek) IB.HUD.peek('drop', null); };
 
@@ -193,13 +194,9 @@
   function spawn(id, tier, x, z, melee, y, level, roll) {
     var A = IB.Assets, node = 'WPN_' + id.toUpperCase();
     if (!A.geo[node]) return null;
-    var d = null; for (var i = 0; i < CAP; i++) if (!WD.list[i].on) { d = WD.list[i]; break; }
-    // list full: recycle the lowest-tier gun (the oldest of those); a better gun is never pushed out by a lesser one
-    if (!d) {
-      var TR = ['gray', 'green', 'blue', 'purple', 'orange'], rk = function (q) { return q.melee ? 2 : TR.indexOf(q.tier); };
-      for (i = 0; i < CAP; i++) { var q = WD.list[i]; if (!d || rk(q) < rk(d) || (rk(q) === rk(d) && q.t > d.t)) d = q; }
-      if (rk(d) > (melee ? 2 : TR.indexOf(tier))) return null;
-    }
+    var d = null; for (var i = 0; i < WD.list.length; i++) if (!WD.list[i].on) { d = WD.list[i]; break; }
+    // list full: one more slot. A dropped gun is never removed; it stays until the player takes it or leaves
+    if (!d) { WD.addSlot(WD.list.length); d = WD.list[WD.list.length - 1]; }
     if (d.mesh) d.spin.remove(d.mesh);
     if (!WD.mat) WD.mat = IB.Render.toonMaterial({ map: A.palette.weapons, baked: A.BAKED ? A.BAKED.weapons : 0, outMax: OUT_MAX });
     d.mesh = new THREE.Mesh(G0() && G0().gunGeo && !melee ? G0().gunGeo(id) : A.get(node), !melee && IB.GunSkins ? IB.GunSkins.material(id, tier, null, OUT_MAX) : WD.mat);   // rarity skin, magazine in
@@ -304,7 +301,7 @@
   WD.useTarget = function (G) {
     var p = G.player, best = null, bs = -1;
     if (!p || !p.alive) return null;
-    for (var i = 0; i < CAP; i++) {
+    for (var i = 0; i < WD.list.length; i++) {
       var q = WD.list[i]; if (!q.on || q.t < 0.35) continue;
       var dx = q.x - p.x, dz = q.z - p.z, dist = Math.hypot(dx, dz); if (dist > USE_R || Math.abs(p.y - q.y) > 1.6) continue;
       var face = dist > 0.01 ? (-Math.sin(p.yaw) * dx - Math.cos(p.yaw) * dz) / dist : 1;
@@ -320,7 +317,7 @@
   WD.update = function (dt, t, G) {
     var p = G.player;
     if (IB.GunSkins) IB.GunSkins.tick(t);
-    for (var i = 0; i < CAP; i++) {
+    for (var i = 0; i < WD.list.length; i++) {
       var d = WD.list[i]; if (!d.on) continue;
       d.t += dt;
       var pop = d.t < 0.22 ? d.t / 0.22 * 1.12 : d.t < 0.36 ? 1.12 - (d.t - 0.22) / 0.14 * 0.12 : 1;   // the beam shoots up, overshoots, settles
@@ -347,7 +344,7 @@
     }
     // weapon card for the drop you walk up to and look at (HUD peek panel; rebuilt only when the target changes)
     var best = null, bs = 0;
-    if (p && p.alive) for (i = 0; i < CAP; i++) {
+    if (p && p.alive) for (i = 0; i < WD.list.length; i++) {
       var q = WD.list[i]; if (!q.on) continue;
       var dx = q.x - p.x, dz = q.z - p.z, dist = Math.hypot(dx, dz); if (dist > PEEK_R || Math.abs(p.y - q.y) > 2.5) continue;
       var face = dist > 0.01 ? (-Math.sin(p.yaw) * dx - Math.cos(p.yaw) * dz) / dist : 1; if (dist > CLOSE_R && face < 0.82) continue;

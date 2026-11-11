@@ -28913,7 +28913,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     var waveGeo = new THREE.RingGeometry(0.6, 0.66, 32, 1); waveGeo.rotateX(-Math.PI / 2);
     var discGeo = new THREE.PlaneGeometry(2.1, 2.1); discGeo.rotateX(-Math.PI / 2);
     var spark = WDb ? WDb.spark : disc, shaft = WDb ? WDb.shaft : null;
-    for (var i = 0; i < IB.LOOT.maxWorld; i++) {
+    D.addSlot = function (i) {
       var grp = new THREE.Group(); grp.visible = false;
       var cap = new THREE.Mesh(A.get('LOOT_Capsule'), A.mat.gear); grp.add(cap);
       var glowMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
@@ -28938,7 +28938,8 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       D.pool.push({ on: false, grp: grp, fx: fx, glow: glowMat, halo: halo, haloMat: haloMat, beam: beam, beamMat: beamMat, wtex: wtex, discMat: discMat, disc: dsc,
         ring: ring, ringMat: ringMat, wave: wave, waveMat: waveMat, motes: motes, seed: seed, spin: spin, item: item, glass: glass,
         it: null, x: 0, z: 0, t: 0, born: 0, fullT: 0, uid: 0, bright: 1, nm: MOTES });
-    }
+    };
+    for (var i0 = 0; i0 < IB.LOOT.maxWorld; i0++) D.addSlot(i0);
     D.ready = true;
   };
   D.clear = function () { D.pool.forEach(function (d) { d.on = false; d.grp.visible = false; d.it = null; }); };
@@ -28969,12 +28970,8 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     if (!D.ready || !item) return null;
     var G = IB.Game, d = null, i;
     for (i = 0; i < D.pool.length; i++) if (!D.pool[i].on) { d = D.pool[i]; break; }
-    // pool full: recycle the lowest-rarity drop (oldest of those); a rarer drop is never pushed out by a lesser one
-    if (!d) {
-      var R = IB.LOOT.rarities.map(function (r) { return r.id; }), rank = function (q) { return q.it ? R.indexOf(q.it.rarity) : -1; };
-      for (i = 0; i < D.pool.length; i++) { var q = D.pool[i]; if (!d || rank(q) < rank(d) || (rank(q) === rank(d) && q.born < d.born)) d = q; }
-      if (rank(d) > R.indexOf(item.rarity)) return null;   // every drop out there is rarer than this one: this one is skipped
-    }
+    // pool full: one more slot. Loot on the ground is never removed; it stays until the player takes it or leaves
+    if (!d) { D.addSlot(D.pool.length); d = D.pool[D.pool.length - 1]; }
     var pos = freeSpot(x, z, G);
     d.on = true; d.dropped = false; d.it = item; d.x = pos[0]; d.z = pos[1]; d.t = 0; d.born = performance.now(); d.fullT = 0; d.uid = ++D.uid;
     d.y = typeof y === 'number' && IB.Zones && IB.Zones.floorY ? Math.max(0, IB.Zones.floorY(d.x, d.z, y + 0.6)) : 0;
@@ -29407,7 +29404,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     var hotGeo = new THREE.PlaneGeometry(0.62, BEAM_H * 0.92); hotGeo.translate(0, BEAM_H * 0.46, 0);
     var coreGeo = new THREE.CylinderGeometry(0.16, 0.3, BEAM_H * 0.8, 16, 1, true); coreGeo.translate(0, BEAM_H * 0.4, 0);
     var ringGeo = new THREE.RingGeometry(0.62, 0.8, 40), waveGeo = new THREE.RingGeometry(0.86, 0.96, 40), discGeo = new THREE.PlaneGeometry(3, 3);
-    for (var i = 0; i < CAP; i++) {
+    WD.addSlot = function (i) {
       var grp = new THREE.Group(); grp.visible = false; scene.add(grp);
       var fx = new THREE.Group(); grp.add(fx);   // everything that glows (scaled as the drop pops in)
       var halo = new THREE.Mesh(haloGeo, glow(T.shaft, { opacity: 0.6 })); halo.renderOrder = 3; fx.add(halo);
@@ -29425,7 +29422,8 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       var spin = new THREE.Group(); spin.position.y = 0.95; grp.add(spin);
       WD.list.push({ on: false, grp: grp, fx: fx, halo: halo, hot: hot, core: core, coreTex: coreTex, disc: disc, ring: ring, wave: wave, sparks: sparks, seed: seed,
         spin: spin, mesh: null, id: null, tier: null, melee: false, x: 0, z: 0, t: 0, level: 1, roll: null });
-    }
+    };
+    for (var i0 = 0; i0 < CAP; i0++) WD.addSlot(i0);
   };
   WD.clear = function () { WD.list.forEach(function (d) { d.on = false; d.grp.visible = false; }); if (IB.HUD && IB.HUD.peek) IB.HUD.peek('drop', null); };
 
@@ -29438,13 +29436,9 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   function spawn(id, tier, x, z, melee, y, level, roll) {
     var A = IB.Assets, node = 'WPN_' + id.toUpperCase();
     if (!A.geo[node]) return null;
-    var d = null; for (var i = 0; i < CAP; i++) if (!WD.list[i].on) { d = WD.list[i]; break; }
-    // list full: recycle the lowest-tier gun (the oldest of those); a better gun is never pushed out by a lesser one
-    if (!d) {
-      var TR = ['gray', 'green', 'blue', 'purple', 'orange'], rk = function (q) { return q.melee ? 2 : TR.indexOf(q.tier); };
-      for (i = 0; i < CAP; i++) { var q = WD.list[i]; if (!d || rk(q) < rk(d) || (rk(q) === rk(d) && q.t > d.t)) d = q; }
-      if (rk(d) > (melee ? 2 : TR.indexOf(tier))) return null;
-    }
+    var d = null; for (var i = 0; i < WD.list.length; i++) if (!WD.list[i].on) { d = WD.list[i]; break; }
+    // list full: one more slot. A dropped gun is never removed; it stays until the player takes it or leaves
+    if (!d) { WD.addSlot(WD.list.length); d = WD.list[WD.list.length - 1]; }
     if (d.mesh) d.spin.remove(d.mesh);
     if (!WD.mat) WD.mat = IB.Render.toonMaterial({ map: A.palette.weapons, baked: A.BAKED ? A.BAKED.weapons : 0, outMax: OUT_MAX });
     d.mesh = new THREE.Mesh(G0() && G0().gunGeo && !melee ? G0().gunGeo(id) : A.get(node), !melee && IB.GunSkins ? IB.GunSkins.material(id, tier, null, OUT_MAX) : WD.mat);   // rarity skin, magazine in
@@ -29549,7 +29543,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   WD.useTarget = function (G) {
     var p = G.player, best = null, bs = -1;
     if (!p || !p.alive) return null;
-    for (var i = 0; i < CAP; i++) {
+    for (var i = 0; i < WD.list.length; i++) {
       var q = WD.list[i]; if (!q.on || q.t < 0.35) continue;
       var dx = q.x - p.x, dz = q.z - p.z, dist = Math.hypot(dx, dz); if (dist > USE_R || Math.abs(p.y - q.y) > 1.6) continue;
       var face = dist > 0.01 ? (-Math.sin(p.yaw) * dx - Math.cos(p.yaw) * dz) / dist : 1;
@@ -29565,7 +29559,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   WD.update = function (dt, t, G) {
     var p = G.player;
     if (IB.GunSkins) IB.GunSkins.tick(t);
-    for (var i = 0; i < CAP; i++) {
+    for (var i = 0; i < WD.list.length; i++) {
       var d = WD.list[i]; if (!d.on) continue;
       d.t += dt;
       var pop = d.t < 0.22 ? d.t / 0.22 * 1.12 : d.t < 0.36 ? 1.12 - (d.t - 0.22) / 0.14 * 0.12 : 1;   // the beam shoots up, overshoots, settles
@@ -29592,7 +29586,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     }
     // weapon card for the drop you walk up to and look at (HUD peek panel; rebuilt only when the target changes)
     var best = null, bs = 0;
-    if (p && p.alive) for (i = 0; i < CAP; i++) {
+    if (p && p.alive) for (i = 0; i < WD.list.length; i++) {
       var q = WD.list[i]; if (!q.on) continue;
       var dx = q.x - p.x, dz = q.z - p.z, dist = Math.hypot(dx, dz); if (dist > PEEK_R || Math.abs(p.y - q.y) > 2.5) continue;
       var face = dist > 0.01 ? (-Math.sin(p.yaw) * dx - Math.cos(p.yaw) * dz) / dist : 1; if (dist > CLOSE_R && face < 0.82) continue;
