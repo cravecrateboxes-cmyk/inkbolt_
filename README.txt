@@ -70,6 +70,13 @@ CAMPAIGN (src/data/levelplans.js ORDER)
     (pharmacy, diner, electronics, convenience store, books, barber, sporting goods, hardware, pawn, laundromat).
     Kit: blender/fam_kit_downtown.py (downtown_*.py); zones: tools/downtown_zones.py. The everyday vehicles are
     kit-parking pieces: theme option `families` loads more kits for a level (zones.js Z.themeFamilies).
+  Larkspur Glen (townhomes): a gated town-house community at midday, two zones -- the stone-and-iron entrance
+    (gatehouse, boom barriers, keypad post, open iron gates), the boulevard's planted median, the clubhouse and its
+    fenced pool deck, the mailbox kiosk and the first rows of houses; then Thistle Court with a cul-de-sac at each
+    end, rear garage lanes, a house under construction (scaffold perch) and the park with a playground and gazebo.
+    Rows of brick, lap-siding, stucco and modern garage houses repainted per house (symbol option `paint`); six
+    walk-in houses with furnished ground floors and stairs to an upper floor and a balcony robots follow you onto.
+    Kit: blender/fam_kit_townhomes.py (townhomes_*.py); zones: tools/townhomes_zones.py.
 
   Helix Vault (datacenter): a 74 m wide hyperscale data center (hot / cold aisles of blinking rack rows, CRAC units,
     a NOC with a video wall), the secure core (colocation cages round a quantum computer), a vault, a UPS room, and the
