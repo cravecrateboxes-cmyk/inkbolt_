@@ -30,16 +30,16 @@
       feed: $('feed'), xhair: $('xhair'), hitmark: $('hitmark'), arcs: $('arcs'), health: $('health'), hpFill: $('hpFill'), hpNum: $('hpNum'),
       slots: $('slots'), ammo: $('ammo'), ammoMag: $('ammoMag'), ammoRes: $('ammoRes'), toast: $('toast'), elim: $('elim'),
       elimName: $('elimName'), elimCount: $('elimCount'), elimRetries: $('elimRetries'),
-      objective: $('objective'), objText: $('objText'), radar: $('radar'), radarCv: $('radarCv'),
+      radar: $('radar'), radarCv: $('radarCv'),
       weapon: $('weapon'), wpnName: $('wpnName'), wpnIcon: $('wpnIcon'), wpnCls: $('wpnCls'), magStrip: $('magStrip'), magFill: $('magFill'),
       prompt: $('prompt'), promptKey: $('promptKey'), promptText: $('promptText'), promptFill: $('promptFill'),
       hpChip: $('hpChip'), stamina: $('stamina'), stFill: $('stFill'), dim: $('dim'), hurt: $('hurt'), hurtFlash: $('hurtFlash'),
       pickup: $('pickup'), pickupIcon: $('pickupIcon'), pickupName: $('pickupName'), pickupLine: $('pickupLine'),
-      confirm: $('confirm'), confirmNum: $('confirmNum'), pauseBtn: $('pauseBtn'),
+      pauseBtn: $('pauseBtn'),
       lvTag: $('lvTag'), lvNum: $('lvNum'), xpFill: $('xpFill'), xpGain: $('xpGain'), xpNum: $('xpNum'), xpPlus: $('xpPlus'), lvPts: $('lvPts'), lvPtsN: $('lvPtsN'), lvKey: $('lvKey'), menuBtn: $('menuBtn'), menuDot: $('menuDot'),
-      tplate: $('tplate'), tpLv: $('tpLv'), tpName: $('tpName'), tpDist: $('tpDist'), tpHp: $('tpHp'), tpSh: $('tpSh'),
+     
       ticker: $('ticker'), callRows: $('callRows'), notice: $('notice'), noteT: $('noteT'), noteS: $('noteS'),
-      toastT: $('toastT'), toastS: $('toastS'), missionName: $('missionName'), objSub: $('objSub'), objDist: $('objDist'), pickupHdL: $('pickupHdL')
+      toastT: $('toastT'), toastS: $('toastS'), pickupHdL: $('pickupHdL')
     };
     H.arcs = [];
     for (var i = 0; i < 6; i++) {
@@ -74,9 +74,9 @@
     H.last = {}; H.el.feed.innerHTML = ''; H.feedRows = []; H.lowHp = false; H.hpPct = null;
     for (var k in WL) WL[k] = typeof WL[k] === 'number' ? -2 : null; WL.state = '';
     H.el.hurt.classList.remove('low'); H.damageFlash(0);   // dim is left alone: game.js owns the fade across level loads
-    H.el.pickup.hidden = true; H.el.hud.classList.remove('picking'); H.el.prompt.hidden = true; H.el.confirm.hidden = true; H.el.toast.hidden = true;
-    H.el.notice.hidden = true; H.el.hud.classList.remove('noting'); H.el.tplate.hidden = true; H.el.ticker.innerHTML = ''; H.el.callRows.innerHTML = ''; rows = []; H.lastObj = null;
-    pickT = 0; confirmT = 0; toastT = 0; hitT = 0; ntT = 0; tpT = 0;
+    H.el.pickup.hidden = true; H.el.hud.classList.remove('picking'); H.el.prompt.hidden = true; H.el.toast.hidden = true;
+    H.el.notice.hidden = true; H.el.hud.classList.remove('noting'); H.el.ticker.innerHTML = ''; H.el.callRows.innerHTML = ''; rows = []; H.lastObj = null;
+    pickT = 0; toastT = 0; hitT = 0; ntT = 0;
   };
 
   /* player XP bar above the health plate: LV badge, progress to the next level (IB.Skills.xpProgress: {lv, into, span,
@@ -231,16 +231,8 @@
     });
   };
 
-  // 'Clear the block · 462 robots' -> big title + '462 robots remaining'; anything else is the title alone
-  H.objective = function (text) {
-    set('obj', text || '', function (v) {
-      var el = H.el, i = v.indexOf(' · '), t = i < 0 ? v : v.slice(0, i), sub = i < 0 ? '' : v.slice(i + 3), m = /^(\d+) robots?$/.exec(sub);
-      el.objective.hidden = !v; el.objText.textContent = t;
-      el.objSub.innerHTML = m ? '<b>' + m[1] + '</b> robots remaining' : esc(sub);
-      if (v) { el.objective.classList.remove('obj-in'); void el.objective.offsetWidth; el.objective.classList.add('obj-in'); }
-    });
-  };
-  H.mission = function (name) { set('mission', name || '', function (v) { H.el.missionName.textContent = v; }); };
+  H.objective = function () {};   // no on-screen objective
+  H.mission = function () {};
 
   /* spreadDeg, vfovDeg, hidden */
   H.crosshair = function (spreadDeg, vfov, hidden) {
@@ -266,7 +258,6 @@
 
   /* kill feed: weapon icon, weapon name, robot name, gem gain. weaponName is optional:
      it falls back to the current weapon's name when the class matches. */
-  var confirmT = 0;
   H.feed = function (cls, name, gems, weaponName) {
     if (!weaponName && H.wpn && H.wpn.cls === cls) weaponName = H.wpn.name;
     var row = document.createElement('div');
@@ -276,11 +267,6 @@
     H.el.feed.insertBefore(row, H.el.feed.firstChild);
     H.feedRows.unshift({ el: row, t: 0 });
     while (H.feedRows.length > 4) { var r = H.feedRows.pop(); r.el.remove(); }
-    if (gems) {
-      H.el.confirmNum.textContent = '+' + gems;
-      H.el.confirm.hidden = false; H.el.confirm.classList.remove('on'); void H.el.confirm.offsetWidth; H.el.confirm.classList.add('on');
-      confirmT = 0.9;
-    }
   };
   var toastT = 0;
   /* "E  Take ..." prompt for armory loot within reach (touch: the USE button shows instead of the key) */
@@ -347,7 +333,7 @@
        'tick[:tone]' pickup ticker right of the crosshair; tone hp | ammo | gear
        'note'       notice card in the top-right loot slot (needs the player to open Tab)
        'banner'     big hairline banner, upper centre (default) */
-  var rows = [], ntT = 0, tpT = 0;
+  var rows = [], ntT = 0;
   function keyify(t) { return esc(t).replace(/\((Tab|V|E|G|R|F|B)\)/g, '<span class="k">$1</span>'); }
   function splitAt(text) {   // 'Title · rest' | 'Title: rest' | 'Title. rest'
     var m = /^(.*?)(?: · |: |\. )(.*)$/.exec(text);
@@ -438,9 +424,6 @@
   var PICK = { health: '#5BCF4A', ammo: '#5B9BF5', weapon: '#FFB21E', gem: '#2EEAD8', rockets: '#FF7A2E' };
   H.radar = function (d) {
     var cv = H.el.radarCv, ctx = H.radarCtx; if (!ctx || !d) return;
-    var ob = d.obj || d.exit;
-    if (ob) { var od = Math.round(Math.sqrt((ob.x - d.px) * (ob.x - d.px) + (ob.z - d.pz) * (ob.z - d.pz))); set('od', od, function (v) { H.el.objDist.textContent = v + ' M'; }); }
-    else set('od', -1, function () { H.el.objDist.textContent = ''; });
     if (H.el.radar.hidden) H.el.radar.hidden = false;
     var css = cv.clientWidth || 160, dpr = Math.min(2, window.devicePixelRatio || 1), px = Math.round(css * dpr);
     if (cv.width !== px) { cv.width = px; cv.height = px; }
@@ -527,28 +510,16 @@
     ctx.closePath(); ctx.fill();
   }
 
-  /* ---------- target plate: the robot you just shot (name, level, shield + health, range) ---------- */
-  H.target = function (name, level, hp, maxHp, sh, maxSh, dist, killed) {
-    var el = H.el; if (!el.tplate) return;
-    set('tpn', name + '|' + level, function () { el.tpName.textContent = name; el.tpLv.textContent = level; });
-    el.tpHp.style.width = Math.max(0, Math.min(100, hp / Math.max(1, maxHp) * 100)).toFixed(1) + '%';
-    var hasSh = maxSh > 0; el.tplate.classList.toggle('nosh', !hasSh);
-    if (hasSh) el.tpSh.style.width = Math.max(0, Math.min(100, sh / maxSh * 100)).toFixed(1) + '%';
-    el.tpDist.textContent = Math.round(dist) + ' M';
-    el.tplate.hidden = false; tpT = killed ? 0.5 : 2.4;
-  };
 
   H.tick = function (dt) {
     if (hitT > 0) { hitT -= dt; if (hitT <= 0) H.el.hitmark.setAttribute('class', 'hitmark'); }
     if (toastT > 0) { toastT -= dt; if (toastT <= 0) H.el.toast.hidden = true; }
     if (ntT > 0) { ntT -= dt; if (ntT <= 0.3 && !H.el.notice.classList.contains('out')) H.el.notice.classList.add('out'); if (ntT <= 0) { H.el.notice.hidden = true; H.el.hud.classList.remove('noting'); } }
-    if (tpT > 0) { tpT -= dt; if (tpT <= 0) H.el.tplate.hidden = true; }
     for (var q = rows.length - 1; q >= 0; q--) {
       var rw = rows[q]; rw.t += dt;
       if (rw.t > rw.life - 0.25 && !rw.el.classList.contains('out')) rw.el.classList.add('out');
       if (rw.t > rw.life) { rw.el.remove(); rows.splice(q, 1); }
     }
-    if (confirmT > 0) { confirmT -= dt; if (confirmT <= 0) H.el.confirm.hidden = true; }
     if (pickT > 0) {
       pickT -= dt;
       if (pickT <= 0.3 && !H.el.pickup.classList.contains('out')) H.el.pickup.classList.add('out');

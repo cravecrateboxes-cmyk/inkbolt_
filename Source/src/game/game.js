@@ -589,7 +589,6 @@
     // a save from before the new skill tree: its points were refunded on load; say so once
     if (G.slot.skillsRefunded) { delete G.slot.skillsRefunded; HUD.toast('New skill tree: your skill points were refunded (Tab)', 4, 'note'); }
     HUD.pips(G.level.zones.length, 0, 0);
-    if (HUD.mission) HUD.mission(G.plan.name);
     if (!AUTOTEST) M.intro({ level: G.plan.level, name: G.plan.name, zones: G.level.zones.length, line: G.plan.intro }, 2.2);
     // save at level start
     ensureSlot(); G.slot.level = G.plan.level; G.slot.plan = G.plan.id; G.slot.owned = G.slot.arsenal.slice(); G.store.save(G.slot); G.saved = true;
@@ -946,7 +945,6 @@
       var dmg = res.damage *= IB.SkillFX.hitMul(zone) * (IB.WeaponDrops ? IB.WeaponDrops.dmgMul(def.id) : 1) * (G.ws && G.ws.aim > 0.5 ? IB.SkillFX.dartMul() : 1);   // Heavy Ink, the gun's tier, Dart when zoomed in
       _shot.ox = ox; _shot.oy = oy; _shot.oz = oz; _shot.dx = dx; _shot.dy = dy; _shot.dz = dz; _shot.t = rh.t; _shot.wt = wt; _shot.def = def;
       var killed = AI.damage(r, dmg, { kx: dx * 4, kz: dz * 4 }, onKill);
-      if (HUD.target) HUD.target(IB.ENEMIES[r.type] ? IB.ENEMIES[r.type].name : r.type, G.plan.level, killed ? 0 : r.hp, r.maxHp, killed ? 0 : (r.shield || 0), r.maxShield || 0, Math.sqrt((r.x - G.player.x) * (r.x - G.player.x) + (r.z - G.player.z) * (r.z - G.player.z)), killed);
       // Electrify, Stream, Ricochet, Hazard, Hydrate, Chain Reaction
       IB.SkillFX.onHit(r, dmg, zone, killed, _end, onKill, _shot);
       FX.puff(_end.x, _end.y, _end.z, (zone === 'core' || zone === 'head') ? 5 : 3, PAL.ink, 0.12, 0.38, 2.2);

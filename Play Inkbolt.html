@@ -1929,11 +1929,10 @@ body .hud .k { display: inline-grid; place-items: center; min-width: 24px; heigh
   font: 700 15px 'Barlow Condensed', sans-serif; letter-spacing: .04em; text-shadow: none; font-style: normal; }
 body .hud .cn { position: absolute; width: 16px; height: 16px; border: 2px solid var(--or); pointer-events: none; }
 body .hud .cn.a { left: -16px; top: -12px; border-right: 0; border-bottom: 0; }
-body .hud .cn.c { right: -16px; top: -12px; border-left: 0; border-bottom: 0; }
 body .hud .gem-ic { width: 20px; height: 20px; flex: none; fill: var(--cy); filter: drop-shadow(0 0 2px #05080E); }
 /* every readable string on the HUD is upper case; gear cards (peek) keep their own casing */
-body .hud .sc, body .hud .pips, body .hud .tplate, body .hud .hud-tl, body .hud .kf, body .hud .tkr, body .hud .c1, body .hud .banner,
-body .hud .nt, body .hud .elim, body .hud .vt, body .hud .abl, body .hud .wp, body .hud .confirm, body .hud .prompt, body .hud .use-prompt { text-transform: uppercase; }
+body .hud .sc, body .hud .pips, body .hud .hud-tl, body .hud .kf, body .hud .tkr, body .hud .c1, body .hud .banner,
+body .hud .nt, body .hud .elim, body .hud .vt, body .hud .abl, body .hud .wp, body .hud .prompt, body .hud .use-prompt { text-transform: uppercase; }
 
 /* ---------- top centre: zone / robots left, target plate ---------- */
 body .hud .hud-top { display: flex; flex-direction: column; align-items: center; gap: 0; width: 700px; }
@@ -1947,27 +1946,9 @@ body .hud .pips { gap: 6px; margin-top: 8px; }
 body .hud .pips i { width: 28px; height: 4px; background: rgba(244, 247, 251, .28); box-shadow: 1.5px 1.5px 0 var(--ink); transform: skewX(-30deg); }
 body .hud .pips i.done { background: var(--w); }
 body .hud .pips i.cur { background: var(--or); }
-body .hud .tplate { width: 340px; margin-top: 14px; }
-body .hud .tp-row { display: flex; align-items: center; gap: 12px; }
-body .hud .tp-lv { font-size: 28px; line-height: 1; }
-body .hud .tp-bars { flex: 1; padding: 4px 6px; border-left: 2px solid var(--w); border-right: 2px solid var(--w); }
-body .hud .tp-b1 { height: 5px; background: rgba(5, 8, 14, .7); }
-body .hud .tp-b2 { height: 11px; margin-top: 3px; background: rgba(5, 8, 14, .7); }
-body .hud .tp-b1 i, body .hud .tp-b2 i { display: block; height: 100%; width: 100%; transition: width .12s linear; }
-body .hud .tp-b1 i { background: var(--cy); }
-body .hud .tp-b2 i { background: var(--rd); }
-body .hud .tplate.nosh .tp-b1 { display: none; }
-body .hud .tp-nm { display: flex; justify-content: center; align-items: baseline; gap: 12px; margin-top: 4px; font-size: 19px; letter-spacing: .2em; }
 
 /* ---------- top left: objective + gems ---------- */
 body .hud .hud-tl { display: block; position: absolute; max-width: none; }
-body .hud .obj-tag { white-space: nowrap; }
-body .hud .ob { display: block; min-height: 0; padding: 0; background: none; font-size: 18px; max-width: none; }
-body .hud .ob::before, body .hud .ob::after { display: none; }
-body .hud .obj-t { display: block; margin-top: 6px; font-size: 38px; line-height: 1.05; letter-spacing: .06em; white-space: nowrap; overflow: visible; text-overflow: clip; }
-body .hud .obj-s { display: flex; align-items: center; gap: 12px; font-size: 21px; letter-spacing: .18em; color: var(--dim); white-space: nowrap; }
-body .hud .obj-s b { color: var(--or); font-weight: 600; }
-body .hud .ob.obj-in { animation: objIn .35s ease-out; }
 body .hud .gm { display: flex; align-items: center; gap: 8px; height: auto; margin-top: 22px; padding: 0; background: none; font-size: 26px; line-height: 1; letter-spacing: .04em; }
 body .hud .gm::before, body .hud .gm::after { display: none; }
 body .hud .gm.pulse b { animation: pop2 .2s ease-out; }
@@ -2004,14 +1985,10 @@ body .hud .arcs { filter: none; }
 body .hud .arcs path { stroke: var(--rh); stroke-width: 7; stroke-linecap: butt; }
 body .hud .arcs path.ink { stroke: var(--ink); stroke-width: 13; }
 body .hud .arcs path.tip { fill: var(--rh); stroke: var(--ink); stroke-width: 2; }
-body .hud .confirm { position: absolute; left: calc(50% + 44px); top: calc(50% + 34px); transform: none; display: flex; align-items: center; gap: 6px; padding: 0; background: none; clip-path: none; filter: none; font-size: 30px; line-height: 1; color: var(--or); }
-body .hud .confirm b { font-size: 30px; font-weight: 700; color: var(--or); text-shadow: var(--ts); }
-body .hud .confirm.on { animation: kcUp .9s ease-out forwards; }
-@keyframes kcUp { 0% { transform: translateY(8px) scale(.9); opacity: 0; } 15% { transform: translateY(0) scale(1.06); opacity: 1; } 25% { transform: none; } 75% { opacity: 1; } 100% { transform: translateY(-10px); opacity: 0; } }
 
 /* ---------- pickup ticker (right of the crosshair) ---------- */
-body .hud .ticker { position: absolute; left: calc(50% + 190px); top: calc(50% - 42px); display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }
-body .hud .tkr { display: flex; align-items: center; gap: 10px; font-size: 22px; letter-spacing: .14em; line-height: 1.1; white-space: nowrap; animation: feedIn2 .18s ease-out; }
+body .hud .ticker { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; margin-top: 12px; }
+body .hud .tkr { display: flex; align-items: center; gap: 10px; padding: 2px 10px 2px 46px; background: linear-gradient(270deg, rgba(5, 8, 14, .72), rgba(5, 8, 14, 0)); font-size: 20px; letter-spacing: .06em; line-height: 1.1; white-space: nowrap; animation: feedIn2 .18s ease-out; }
 body .hud .tkr i { display: block; width: 14px; height: 14px; flex: none; background: var(--gn); box-shadow: 2px 2px 0 var(--ink); transform: skewX(-14deg); }
 body .hud .tkr.ammo i { background: var(--cy); } body .hud .tkr.gear i { background: var(--or); }
 body .hud .tkr.out { opacity: 0; transition: opacity .25s; }
@@ -2108,7 +2085,7 @@ body .hud #kitGren .kit-ic svg { display: none; }
 body .hud .kit-chip .key, body .abl .cloakhud .ck-key { display: inline-grid; place-items: center; min-width: 24px; height: 22px; padding: 0 6px; background: var(--w); color: var(--ink); border-radius: 0; box-shadow: none; font: 700 15px 'Barlow Condensed', sans-serif; letter-spacing: .04em; text-shadow: none; }
 body .hud .kit-chip.none { opacity: .45; }
 body .abl .cloakhud .ck-ring::before { display: none; }
-body .abl .cloakhud .ck-ring svg { transform: rotate(-45deg); width: 44px; height: 44px; position: relative; }
+body .abl .cloakhud .ck-ring svg { transform: rotate(-45deg); width: 30px; height: 30px; position: relative; }
 body .abl .cloakhud .ck-txt { position: absolute; left: 0; top: 17px; width: 58px; text-align: center; font: 700 22px 'Rajdhani', sans-serif; letter-spacing: 0; color: var(--w); text-shadow: var(--ts); }
 body .abl .cloakhud .ck-key { order: 3; }
 body .abl .cloakhud.ready .ck-ring { background: var(--gl); border-color: var(--or); }
@@ -2195,13 +2172,12 @@ body:not(.touch-on) .hud .hud-tr { right: 48px; top: 40px; transform: scale(var(
 body:not(.touch-on) .hud .feed { transform: perspective(900px) rotateY(-14deg); transform-origin: right center; }
 body:not(.touch-on) .hud .hud-bl { left: 60px; bottom: 46px; transform: perspective(900px) rotateY(14deg) scale(var(--hs)); transform-origin: left bottom; }
 body:not(.touch-on) .hud .hud-br { right: 60px; bottom: 46px; transform: perspective(900px) rotateY(-14deg) scale(var(--hs)); transform-origin: right bottom; }
-body:not(.touch-on) .hud .ticker { transform: scale(var(--hs)); transform-origin: left center; }
-body:not(.touch-on) .hud .confirm { transform: scale(var(--hs)); transform-origin: left center; }
+body:not(.touch-on) .hud .ticker { transform: perspective(900px) rotateY(-14deg); transform-origin: right center; }
 body:not(.touch-on) .hud .callouts { transform: translateX(-50%) scale(var(--hs)); transform-origin: 50% 0; }
 body:not(.touch-on) .hud .elim { transform: scale(var(--hs)); transform-origin: 50% 0; }
 
 /* ---------- phones: same positions as before, F skin at phone sizes ---------- */
-body.touch-on .hud .tplate, body.touch-on .hud .lvhex, body.touch-on .hud .vh, body.touch-on .hud .abl, body.touch-on .hud .cn, body.touch-on .hud .obj-tag, body.touch-on .hud .xbr, body.touch-on .hud .brush, body.touch-on .hud .ticker { display: none; }
+body.touch-on .hud .lvhex, body.touch-on .hud .vh, body.touch-on .hud .abl, body.touch-on .hud .cn, body.touch-on .hud .xbr, body.touch-on .hud .brush { display: none; }
 body.touch-on .hud .hud-top { width: auto; }
 body.touch-on .hud .sc { width: auto; gap: 12px; margin: 0; }
 body.touch-on .hud .score-zone, body.touch-on .hud .score-left { font-size: 12px; letter-spacing: .1em; }
@@ -2209,10 +2185,6 @@ body.touch-on .hud .hud-tl { display: block; }
 body.touch-on .hud .hud-tr { align-items: flex-start; gap: 8px; }
 @media (orientation: portrait) { body.touch-on .hud .hud-tr { align-items: flex-end; } }
 body.touch-on .hud .objective { max-width: min(340px, 40vw); }
-body.touch-on .hud .obj-t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-body.touch-on .hud .obj-t { margin: 0; font-size: 17px; }
-body.touch-on .hud .obj-s { font-size: 13px; gap: 8px; }
-body.touch-on .hud #objDist { display: none; }
 body.touch-on .hud .gm { margin-top: 4px; font-size: 18px; }
 body.touch-on .hud .hud-bl { display: block; }
 body.touch-on .hud .vt { width: 100%; }
@@ -2248,6 +2220,26 @@ body.touch-on .hud .nt .b { font-size: 18px; }
 body.touch-on .hud .nt .c { font-size: 12px; }
 body.touch-on .hud .pickup, body.touch-on .hud .lootcard, body.touch-on .hud .notice { position: absolute; left: 0; right: 0; top: 19%; display: grid; justify-items: center; bottom: auto; }
 @media (prefers-reduced-motion: reduce) { body .hud #health.low .vb, body .hud #shieldBar.charging .sh-fill { animation: none; } }
+
+/* ---------- type: plain white UI text with a thin black outline (no orange micro-labels, no mono, less letter-spacing) ---------- */
+.hud { --ts: -1px -1px 0 #05080E, 1px -1px 0 #05080E, -1px 1px 0 #05080E, 1px 1px 0 #05080E, 0 1px 2px rgba(5, 8, 14, .5); }
+body .hud .mo, body .hud .mo b { font-family: 'Barlow Condensed', system-ui, sans-serif; font-weight: 600; font-size: 16px; letter-spacing: .06em; color: var(--w); }
+body .hud .score-left b, body .hud .score-left.zero b, body .hud .feed-gem, body .hud .xprow.max .xp-num, body .hud .xp-plus, body .hud .lvhex small,
+body .hud .nt .a, body .hud .nt.red .a, body .hud .pickup-card .a, body .hud .loot-card .a, body .hud .c1.warn, body .hud .prompt.low { color: var(--w); }
+body .hud .lvhex small { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 14px; letter-spacing: .08em; }
+body .hud .xp-plus { font: 600 15px 'Barlow Condensed', sans-serif; }
+body .hud .c1.warn, body .hud .prompt.low, body .hud .prompt.empty { border-bottom-color: var(--w); }
+body .hud .prompt.empty { color: var(--w); }
+body .hud .prompt.low .key, body .hud .prompt.empty .key { background: var(--w); color: var(--ink); }
+body .hud .lv-pts { background: var(--gl); color: var(--w); box-shadow: inset 0 0 0 1.5px var(--w); font: 600 14px 'Barlow Condensed', sans-serif; letter-spacing: .06em; text-shadow: var(--ts); }
+body .hud .lv-pts b, body .hud .lv-key { color: var(--w); }
+body .hud .score-zone, body .hud .score-left { letter-spacing: .1em; }
+body .hud .score-zone b, body .hud .score-left b { letter-spacing: .1em; }
+body .hud .kf, body .hud .feed-wpn, body .hud .feed-bot { letter-spacing: .06em; }
+body .hud .c1, body .hud .prompt, body .hud .use-prompt, body .hud .use-prompt .ut { letter-spacing: .1em; }
+body .hud .use-prompt .us, body .hud .c1 small, body .hud .ban-s, body .hud .nt .c, body .hud .wpn-cls, body .hud .xp-num, body .hud .loot-note, body .hud .loot-stats { letter-spacing: .06em; color: var(--w); }
+body .hud .ban-s { letter-spacing: .1em; }
+body .hud .wpn-cls b { color: var(--w); font-weight: 600; }
 
 /* INKBOLT between-levels loader (ui/loader.js): black screen, a real-3D gear on its own canvas, a quiet caption.
    #loading uses the class "ldr" (the old gears screen styled ".loading" in ui.css is no longer used). */
@@ -2299,26 +2291,18 @@ body.touch-on .hud .pickup, body.touch-on .hud .lootcard, body.touch-on .hud .no
       <span class="score-left" id="scLeft">0 LEFT</span>
     </div>
     <div class="pips" id="pips"></div>
-    <div class="tplate" id="tplate" hidden>
-      <div class="tp-row"><span class="tp-lv nu" id="tpLv">1</span><div class="tp-bars"><div class="tp-b1"><i id="tpSh"></i></div><div class="tp-b2"><i id="tpHp"></i></div></div></div>
-      <div class="tp-nm"><span id="tpName">Crawler</span><span class="mo" id="tpDist"></span></div>
-    </div>
   </div>
   <div class="hud-tl">
-    <i class="cn a"></i>
-    <div class="mo obj-tag"><b>Objective</b> // <span id="missionName">Mission</span></div>
-    <div class="ob objective" id="objective" hidden><span class="obj-t d" id="objText"></span><span class="obj-s"><span id="objSub"></span><span class="mo" id="objDist"></span></span></div>
     <div class="gm" id="gems"><svg class="ic gem-ic" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1l7 8-7 10L3 9z"/></svg><b class="nu" id="gemCount">0</b></div>
   </div>
   <div class="hud-tr">
     <div class="rdr" id="radar" hidden><canvas id="radarCv" width="200" height="200"></canvas></div>
     <div class="feed" id="feed"></div>
+    <div class="ticker" id="ticker"></div>
   </div>
   <div class="xhair" id="xhair"><svg class="xbr" viewBox="-50 -50 100 100" aria-hidden="true"><path d="M-30 -30A42 42 0 0 0 -30 30"/><path d="M30 -30A42 42 0 0 1 30 30"/></svg><i></i><i></i><i></i><i></i><b class="xdot"></b></div>
   <svg class="hitmark" id="hitmark" viewBox="-20 -20 40 40" aria-hidden="true"><path class="hm-ink" d="M-9-9l-7-7M9-9l7-7M-9 9l-7 7M9 9l7 7"/><path class="hm" d="M-9-9l-7-7M9-9l7-7M-9 9l-7 7M9 9l7 7"/></svg>
   <svg class="arcs" id="arcs" viewBox="-150 -150 300 300" aria-hidden="true"></svg>
-  <div class="confirm" id="confirm" hidden><svg class="ic gem-ic" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1l7 8-7 10L3 9z"/></svg><b class="nu" id="confirmNum">+1</b></div>
-  <div class="ticker" id="ticker"></div>
   <div class="callouts" id="callouts">
     <div class="use-prompt" id="usePrompt" hidden><span class="key">E</span><span class="ut"></span><span class="us"></span><i class="uacc" aria-hidden="true"></i></div>
     <div class="prompt" id="prompt" hidden><span class="key" id="promptKey">R</span><span id="promptText">Reload</span><i class="prompt-bar"><i id="promptFill"></i></i><i class="prompt-ring" aria-hidden="true"></i></div>
@@ -2327,7 +2311,7 @@ body.touch-on .hud .pickup, body.touch-on .hud .lootcard, body.touch-on .hud .no
   <div class="hud-bl">
     <div class="lvhex" id="lvHex"><b><span><small>LV</small><i id="lvNum">1</i></span></b></div>
     <div class="vt">
-      <div class="row vh mo"><span>Scrapper</span><span><b>Cell</b> / HP</span></div>
+      <div class="row vh mo"><span>Scrapper</span></div>
       <div class="vr hp" id="health">
         <span class="vi"><svg class="ic" viewBox="0 0 20 20" aria-hidden="true"><path d="M7 1h6v6h6v6h-6v6H7v-6H1V7h6z"/></svg></span>
         <div class="vb hp-bar"><i class="hp-chip" id="hpChip"></i><i id="hpFill"></i><i class="hp-ticks"></i><b class="nu" id="hpNum">100</b><em class="mo">HP</em></div>
@@ -2342,7 +2326,6 @@ body.touch-on .hud .pickup, body.touch-on .hud .lootcard, body.touch-on .hud .no
   <div class="hud-br">
     <div class="whl"><div class="slots" id="slots"></div></div>
     <div class="wp" id="weapon">
-      <i class="cn c"></i>
       <b class="wpn-name d" id="wpnName">P-12 WARDEN</b>
       <div class="brush"></div>
       <span class="wpn-cls mo"><span class="wpn-icon" id="wpnIcon"></span><span id="wpnCls">Pistol</span></span>
@@ -34484,16 +34467,16 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       feed: $('feed'), xhair: $('xhair'), hitmark: $('hitmark'), arcs: $('arcs'), health: $('health'), hpFill: $('hpFill'), hpNum: $('hpNum'),
       slots: $('slots'), ammo: $('ammo'), ammoMag: $('ammoMag'), ammoRes: $('ammoRes'), toast: $('toast'), elim: $('elim'),
       elimName: $('elimName'), elimCount: $('elimCount'), elimRetries: $('elimRetries'),
-      objective: $('objective'), objText: $('objText'), radar: $('radar'), radarCv: $('radarCv'),
+      radar: $('radar'), radarCv: $('radarCv'),
       weapon: $('weapon'), wpnName: $('wpnName'), wpnIcon: $('wpnIcon'), wpnCls: $('wpnCls'), magStrip: $('magStrip'), magFill: $('magFill'),
       prompt: $('prompt'), promptKey: $('promptKey'), promptText: $('promptText'), promptFill: $('promptFill'),
       hpChip: $('hpChip'), stamina: $('stamina'), stFill: $('stFill'), dim: $('dim'), hurt: $('hurt'), hurtFlash: $('hurtFlash'),
       pickup: $('pickup'), pickupIcon: $('pickupIcon'), pickupName: $('pickupName'), pickupLine: $('pickupLine'),
-      confirm: $('confirm'), confirmNum: $('confirmNum'), pauseBtn: $('pauseBtn'),
+      pauseBtn: $('pauseBtn'),
       lvTag: $('lvTag'), lvNum: $('lvNum'), xpFill: $('xpFill'), xpGain: $('xpGain'), xpNum: $('xpNum'), xpPlus: $('xpPlus'), lvPts: $('lvPts'), lvPtsN: $('lvPtsN'), lvKey: $('lvKey'), menuBtn: $('menuBtn'), menuDot: $('menuDot'),
-      tplate: $('tplate'), tpLv: $('tpLv'), tpName: $('tpName'), tpDist: $('tpDist'), tpHp: $('tpHp'), tpSh: $('tpSh'),
+     
       ticker: $('ticker'), callRows: $('callRows'), notice: $('notice'), noteT: $('noteT'), noteS: $('noteS'),
-      toastT: $('toastT'), toastS: $('toastS'), missionName: $('missionName'), objSub: $('objSub'), objDist: $('objDist'), pickupHdL: $('pickupHdL')
+      toastT: $('toastT'), toastS: $('toastS'), pickupHdL: $('pickupHdL')
     };
     H.arcs = [];
     for (var i = 0; i < 6; i++) {
@@ -34528,9 +34511,9 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     H.last = {}; H.el.feed.innerHTML = ''; H.feedRows = []; H.lowHp = false; H.hpPct = null;
     for (var k in WL) WL[k] = typeof WL[k] === 'number' ? -2 : null; WL.state = '';
     H.el.hurt.classList.remove('low'); H.damageFlash(0);   // dim is left alone: game.js owns the fade across level loads
-    H.el.pickup.hidden = true; H.el.hud.classList.remove('picking'); H.el.prompt.hidden = true; H.el.confirm.hidden = true; H.el.toast.hidden = true;
-    H.el.notice.hidden = true; H.el.hud.classList.remove('noting'); H.el.tplate.hidden = true; H.el.ticker.innerHTML = ''; H.el.callRows.innerHTML = ''; rows = []; H.lastObj = null;
-    pickT = 0; confirmT = 0; toastT = 0; hitT = 0; ntT = 0; tpT = 0;
+    H.el.pickup.hidden = true; H.el.hud.classList.remove('picking'); H.el.prompt.hidden = true; H.el.toast.hidden = true;
+    H.el.notice.hidden = true; H.el.hud.classList.remove('noting'); H.el.ticker.innerHTML = ''; H.el.callRows.innerHTML = ''; rows = []; H.lastObj = null;
+    pickT = 0; toastT = 0; hitT = 0; ntT = 0;
   };
 
   /* player XP bar above the health plate: LV badge, progress to the next level (IB.Skills.xpProgress: {lv, into, span,
@@ -34685,16 +34668,8 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     });
   };
 
-  // 'Clear the block · 462 robots' -> big title + '462 robots remaining'; anything else is the title alone
-  H.objective = function (text) {
-    set('obj', text || '', function (v) {
-      var el = H.el, i = v.indexOf(' · '), t = i < 0 ? v : v.slice(0, i), sub = i < 0 ? '' : v.slice(i + 3), m = /^(\d+) robots?$/.exec(sub);
-      el.objective.hidden = !v; el.objText.textContent = t;
-      el.objSub.innerHTML = m ? '<b>' + m[1] + '</b> robots remaining' : esc(sub);
-      if (v) { el.objective.classList.remove('obj-in'); void el.objective.offsetWidth; el.objective.classList.add('obj-in'); }
-    });
-  };
-  H.mission = function (name) { set('mission', name || '', function (v) { H.el.missionName.textContent = v; }); };
+  H.objective = function () {};   // no on-screen objective
+  H.mission = function () {};
 
   /* spreadDeg, vfovDeg, hidden */
   H.crosshair = function (spreadDeg, vfov, hidden) {
@@ -34720,7 +34695,6 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
 
   /* kill feed: weapon icon, weapon name, robot name, gem gain. weaponName is optional:
      it falls back to the current weapon's name when the class matches. */
-  var confirmT = 0;
   H.feed = function (cls, name, gems, weaponName) {
     if (!weaponName && H.wpn && H.wpn.cls === cls) weaponName = H.wpn.name;
     var row = document.createElement('div');
@@ -34730,11 +34704,6 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     H.el.feed.insertBefore(row, H.el.feed.firstChild);
     H.feedRows.unshift({ el: row, t: 0 });
     while (H.feedRows.length > 4) { var r = H.feedRows.pop(); r.el.remove(); }
-    if (gems) {
-      H.el.confirmNum.textContent = '+' + gems;
-      H.el.confirm.hidden = false; H.el.confirm.classList.remove('on'); void H.el.confirm.offsetWidth; H.el.confirm.classList.add('on');
-      confirmT = 0.9;
-    }
   };
   var toastT = 0;
   /* "E  Take ..." prompt for armory loot within reach (touch: the USE button shows instead of the key) */
@@ -34801,7 +34770,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
        'tick[:tone]' pickup ticker right of the crosshair; tone hp | ammo | gear
        'note'       notice card in the top-right loot slot (needs the player to open Tab)
        'banner'     big hairline banner, upper centre (default) */
-  var rows = [], ntT = 0, tpT = 0;
+  var rows = [], ntT = 0;
   function keyify(t) { return esc(t).replace(/\((Tab|V|E|G|R|F|B)\)/g, '<span class="k">$1</span>'); }
   function splitAt(text) {   // 'Title · rest' | 'Title: rest' | 'Title. rest'
     var m = /^(.*?)(?: · |: |\. )(.*)$/.exec(text);
@@ -34892,9 +34861,6 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
   var PICK = { health: '#5BCF4A', ammo: '#5B9BF5', weapon: '#FFB21E', gem: '#2EEAD8', rockets: '#FF7A2E' };
   H.radar = function (d) {
     var cv = H.el.radarCv, ctx = H.radarCtx; if (!ctx || !d) return;
-    var ob = d.obj || d.exit;
-    if (ob) { var od = Math.round(Math.sqrt((ob.x - d.px) * (ob.x - d.px) + (ob.z - d.pz) * (ob.z - d.pz))); set('od', od, function (v) { H.el.objDist.textContent = v + ' M'; }); }
-    else set('od', -1, function () { H.el.objDist.textContent = ''; });
     if (H.el.radar.hidden) H.el.radar.hidden = false;
     var css = cv.clientWidth || 160, dpr = Math.min(2, window.devicePixelRatio || 1), px = Math.round(css * dpr);
     if (cv.width !== px) { cv.width = px; cv.height = px; }
@@ -34981,28 +34947,16 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     ctx.closePath(); ctx.fill();
   }
 
-  /* ---------- target plate: the robot you just shot (name, level, shield + health, range) ---------- */
-  H.target = function (name, level, hp, maxHp, sh, maxSh, dist, killed) {
-    var el = H.el; if (!el.tplate) return;
-    set('tpn', name + '|' + level, function () { el.tpName.textContent = name; el.tpLv.textContent = level; });
-    el.tpHp.style.width = Math.max(0, Math.min(100, hp / Math.max(1, maxHp) * 100)).toFixed(1) + '%';
-    var hasSh = maxSh > 0; el.tplate.classList.toggle('nosh', !hasSh);
-    if (hasSh) el.tpSh.style.width = Math.max(0, Math.min(100, sh / maxSh * 100)).toFixed(1) + '%';
-    el.tpDist.textContent = Math.round(dist) + ' M';
-    el.tplate.hidden = false; tpT = killed ? 0.5 : 2.4;
-  };
 
   H.tick = function (dt) {
     if (hitT > 0) { hitT -= dt; if (hitT <= 0) H.el.hitmark.setAttribute('class', 'hitmark'); }
     if (toastT > 0) { toastT -= dt; if (toastT <= 0) H.el.toast.hidden = true; }
     if (ntT > 0) { ntT -= dt; if (ntT <= 0.3 && !H.el.notice.classList.contains('out')) H.el.notice.classList.add('out'); if (ntT <= 0) { H.el.notice.hidden = true; H.el.hud.classList.remove('noting'); } }
-    if (tpT > 0) { tpT -= dt; if (tpT <= 0) H.el.tplate.hidden = true; }
     for (var q = rows.length - 1; q >= 0; q--) {
       var rw = rows[q]; rw.t += dt;
       if (rw.t > rw.life - 0.25 && !rw.el.classList.contains('out')) rw.el.classList.add('out');
       if (rw.t > rw.life) { rw.el.remove(); rows.splice(q, 1); }
     }
-    if (confirmT > 0) { confirmT -= dt; if (confirmT <= 0) H.el.confirm.hidden = true; }
     if (pickT > 0) {
       pickT -= dt;
       if (pickT <= 0.3 && !H.el.pickup.classList.contains('out')) H.el.pickup.classList.add('out');
@@ -37869,7 +37823,6 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
     // a save from before the new skill tree: its points were refunded on load; say so once
     if (G.slot.skillsRefunded) { delete G.slot.skillsRefunded; HUD.toast('New skill tree: your skill points were refunded (Tab)', 4, 'note'); }
     HUD.pips(G.level.zones.length, 0, 0);
-    if (HUD.mission) HUD.mission(G.plan.name);
     if (!AUTOTEST) M.intro({ level: G.plan.level, name: G.plan.name, zones: G.level.zones.length, line: G.plan.intro }, 2.2);
     // save at level start
     ensureSlot(); G.slot.level = G.plan.level; G.slot.plan = G.plan.id; G.slot.owned = G.slot.arsenal.slice(); G.store.save(G.slot); G.saved = true;
@@ -38226,7 +38179,6 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
       var dmg = res.damage *= IB.SkillFX.hitMul(zone) * (IB.WeaponDrops ? IB.WeaponDrops.dmgMul(def.id) : 1) * (G.ws && G.ws.aim > 0.5 ? IB.SkillFX.dartMul() : 1);   // Heavy Ink, the gun's tier, Dart when zoomed in
       _shot.ox = ox; _shot.oy = oy; _shot.oz = oz; _shot.dx = dx; _shot.dy = dy; _shot.dz = dz; _shot.t = rh.t; _shot.wt = wt; _shot.def = def;
       var killed = AI.damage(r, dmg, { kx: dx * 4, kz: dz * 4 }, onKill);
-      if (HUD.target) HUD.target(IB.ENEMIES[r.type] ? IB.ENEMIES[r.type].name : r.type, G.plan.level, killed ? 0 : r.hp, r.maxHp, killed ? 0 : (r.shield || 0), r.maxShield || 0, Math.sqrt((r.x - G.player.x) * (r.x - G.player.x) + (r.z - G.player.z) * (r.z - G.player.z)), killed);
       // Electrify, Stream, Ricochet, Hazard, Hydrate, Chain Reaction
       IB.SkillFX.onHit(r, dmg, zone, killed, _end, onKill, _shot);
       FX.puff(_end.x, _end.y, _end.z, (zone === 'core' || zone === 'head') ? 5 : 3, PAL.ink, 0.12, 0.38, 2.2);
