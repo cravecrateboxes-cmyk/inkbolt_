@@ -1444,7 +1444,7 @@
         zone.sunk = sunk; world.sunkFloor = true;
         world.addVoid(ox, oz, grid.w, grid.h, function (c, r) { var d = sunk.d[r * grid.w + c]; return d ? -d : null; }, true);
         buildSunk(g, P, zone, grid, theme, world, sunk, zp.floor ? { floor: zp.floor } : theme);
-      } else if (theme.terrain) buildTerrain(g, zone, grid, theme, world);
+      } else if (theme.terrain && zp.terrain !== false) buildTerrain(g, zone, grid, theme, world);   // zone plan `terrain: false`: an indoor zone of a terrain theme keeps the painted floor
       else if (!roofZone) paintFloor(g, ox, oz, grid.w, grid.h, zp.floor ? { floor: zp.floor } : theme, false);   // zone plan `floor` (optional): this zone's own floor paint and lines (a ship's deck, hold and engine room)
       buildSymbols(P, zone, grid, theme, world, g, 0);
       grid.layers.forEach(function (lg) { if (!isDataLayer(theme, lg)) buildSymbols(P, zone, lg, theme, world, g, lg.y, true); });
