@@ -219,6 +219,14 @@ def build_misc(pal, ao):
         make(name, m, ao)
 
 
+def build_marks(pal, ao):
+    """the runway designation numbers (painted, 9 m tall; reading along +X, the tops toward +Y)"""
+    for word in ('09', '27'):
+        m = new(pal)
+        text(m, word, 0.0, 0.0, 0.008, 9.0, 'white2', face='up', valign='m', maxw=9.0)
+        make('Rwy' + word, m, False)
+
+
 def build_props(pal, ao):
     build_lights(pal, ao)
     build_signs(pal, ao)
@@ -227,3 +235,4 @@ def build_props(pal, ao):
     build_ground(pal, ao)
     build_workshop(pal, ao)
     build_misc(pal, ao)
+    build_marks(pal, ao)

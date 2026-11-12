@@ -204,7 +204,8 @@ def build_fighter(pal, ao):
         text(m, '07', x, 6.55, 2.75, 0.35, 'black', face='x+' if s > 0 else 'x-', font='cond')
         text(m, '714', s * 0.47, -6.0, 1.75, 0.22, 'black', face='x+' if s > 0 else 'x-', font='cond')
     m.bx(-0.05, 0.05, 7.1, 7.5, 4.95, 5.12, 'lampR', cull='')
-    make('Fighter', m, ao, cols=[cb(-0.45, -7.3, 1.4, 0.45, -4.6, 2.35), cb(-0.8, -4.6, 0.95, 0.8, 7.75, 2.6), cb(-0.08, 4.4, 2.6, 0.08, 7.3, 4.9),
+    make('Fighter', m, ao, cols=[cb(-0.45, -7.2, 1.45, 0.45, -4.6, 2.3), cb(-0.6, -4.6, 1.3, 0.6, -3.6, 2.55), cb(-0.62, -3.6, 0.95, 0.62, -2.8, 2.5),
+                                 cb(-0.78, -2.8, 0.95, 0.78, 5.5, 2.55), cb(-0.6, 5.5, 1.3, 0.6, 7.75, 2.3), cb(-0.08, 4.4, 2.6, 0.08, 7.3, 4.9),
                                  cb(1.15, 1.95, 0.0, 1.55, 2.45, 0.95), cb(-1.55, 1.95, 0.0, -1.15, 2.45, 0.95),
                                  cb(2.05, -1.4, 0.87, 2.55, 2.9, 1.4), cb(-2.55, -1.4, 0.87, -2.05, 2.9, 1.4)]
          + [c for c in _wing_cols()])
@@ -360,7 +361,8 @@ def build_transport(pal, ao):
     for x in (-0.22, 0.22):
         wheel(m, x, -10.0, 0.4, 0.4, 0.22, c='tire', hub='steel', seg=10)
     # ---- collision: the nose, the hold walls (inside face near the floor-level wall), the tail over the ramp
-    cols.append(cb(-1.9, NOSE0 + 0.6, 0.85, 1.9, HOLD0, 4.6))
+    for (ya, yb, hw, z0, z1) in ((-12.5, -11.4, 0.8, 1.85, 3.35), (-11.4, -10.0, 1.55, 1.3, 4.1), (-10.0, -8.0, 1.95, 1.0, 4.5), (-8.0, HOLD0, 2.1, 0.9, 4.65)):
+        cols.append(cb(-hw, ya, z0, hw, yb, z1))
     cols.append(cb(-0.4, -10.3, 0.0, 0.4, -9.7, 0.85))
     for s in (-1, 1):
         a, b = sorted((s * 1.56, s * 2.12))

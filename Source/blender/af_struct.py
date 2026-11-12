@@ -456,13 +456,13 @@ def build_has(pal, ao):
             xa, xb = sorted((s * (HA_AI + 0.1 * k), s * (HA_AI + 3.3 + 0.1 * k)))
             ya = -15.0 + k * 0.55
             m.bx(xa, xb, ya, ya + 0.45, 0.05, HA_DOOR + 0.2, 'steelD' if k != 1 else 'grey', cull='')
+            cols.append(cb(xa, ya, 0.0, xb, ya + 0.45, HA_DOOR + 0.2))
             hazard(m, xa, xb, ya - 0.004, 0.05, 0.55, 8)
             for z in (2.4, 4.8):
                 fq(m, xa + 0.1, xb - 0.1, ya - 0.004, z - 0.04, z + 0.04, 'dark')
         xa, xb = sorted((s * (HA_AI + 3.5), s * 14.0))
         m.bx(xa, xb, -15.0, HA_Y0, 0.0, HA_DOOR + 0.9, 'conc', cull='b')
-        a, b = sorted((s * HA_AI, s * 14.0))
-        cols.append(cb(a, -15.0, 0.0, b, HA_Y0, HA_DOOR + 0.9))
+        cols.append(cb(xa, -15.0, 0.0, xb, HA_Y0, HA_DOOR + 0.9))
     fq(m, HA_AI + 0.2, HA_AI + 3.2, -15.004, 3.0, 4.6, 'white2')
     text(m, '03', HA_AI + 1.7, -15.008, 3.15, 1.3, 'black', font='cond', maxw=2.6)
     m.bx(-14.05, 14.05, -15.05, HA_Y0, HA_DOOR + 0.9, HA_DOOR + 1.5, 'concD', cull='')
@@ -488,15 +488,18 @@ def build_has(pal, ao):
             m.cy((x, y, 5.9), 0.42, 0.18, 0.3, 'steelD', seg=8)
             m.cy((x, y, 5.894), 0.36, 0.36, 0.004, 'lamp', seg=8, hull='none')
     # ---- collision: the vault sides in two height bands, the lintel, the back wall
+    # (each band's box runs from the inner surface at the band's foot to the outer surface at its top: inside the
+    # concrete at every height of the band)
     for s in (-1, 1):
-        a, b = sorted((s * xin(1.8), s * xout(1.8)))
-        cols.append(cb(a, HA_Y0, 0.0, b, HA_Y1, 1.8))
-        a, b = sorted((s * xin(3.6), s * xout(3.6)))
-        cols.append(cb(a, HA_Y0, 1.8, b, HA_Y1, 3.6))
-        a, b = sorted((s * xin(6.0), s * xout(6.0)))
-        cols.append(cb(a, HA_Y0, 3.6, b, HA_Y1, 6.0))
-    cols.append(cb(-HA_AI, HA_Y0, HA_DOOR, HA_AI, HA_Y0 + 1.2, HA_BO))
-    cols.append(cb(-HA_AI, HA_Y1 - 1.2, 0.0, HA_AI, HA_Y1, HA_BI))
+        for (z0, z1) in ((0.0, 1.8), (1.8, 3.6), (3.6, 5.2)):
+            a, b = sorted((s * xin(z0), s * xout(z1)))
+            cols.append(cb(a, HA_Y0 + 1.2, z0, b, HA_Y1 - 1.2, z1))
+        for (z0, z1) in ((0.0, 1.8), (1.8, 3.6)):   # the headwall's jambs beside the door
+            a, b = sorted((s * HA_AI, s * xout(z1)))
+            cols.append(cb(a, HA_Y0, z0, b, HA_Y0 + 1.2, z1))
+    cols.append(cb(-xout(HA_DOOR + 1.6), HA_Y0, HA_DOOR, xout(HA_DOOR + 1.6), HA_Y0 + 1.2, HA_DOOR + 1.6))
+    for (z0, z1) in ((0.0, 3.6), (3.6, 6.0), (6.0, 8.4)):   # the back wall (its strips run a little under the curve)
+        cols.append(cb(-xout(z1 + 0.8), HA_Y1 - 1.2, z0, xout(z1 + 0.8), HA_Y1, z1))
     make('Landmark_HAS', m, ao, cols=cols)
 
 
@@ -545,8 +548,8 @@ def build_hangar(pal, ao):
                 x = xa + (xb - xa) * j / 5
                 fq(m, x - 0.03, x + 0.03, ya - 0.004, 0.45, E - 1.2, 'corrD' if k else 'corr')
             hazard(m, xa, xb, ya - 0.006, 0.0, 0.4, 6)
-        a, b = sorted((s * 9.0, s * W))
-        cols.append(cb(a, -D, 0.0, b, -D + 0.7, E - 1.2))
+            a, b = sorted((xa, xb))
+            cols.append(cb(a, ya, 0.0, b, ya + 0.25, E - 1.2))
     # the roof: two pitched plates (seen from inside and out), the ridge cap, skylight strips
     plate(m, [(-W - 0.3, -D - 0.3, E - 0.05), (-W - 0.3, D + 0.3, E - 0.05), (0.0, D + 0.3, R), (0.0, -D - 0.3, R)], (0, 0, 0.15), 'corrD')
     plate(m, [(0.0, -D - 0.3, R), (0.0, D + 0.3, R), (W + 0.3, D + 0.3, E - 0.05), (W + 0.3, -D - 0.3, E - 0.05)], (0, 0, 0.15), 'corrD')
@@ -764,7 +767,10 @@ def build_teststand(pal, ao):
     vdisc(m, ex, 3.004, ez, 0.4, 'black', seg=12, face=1)
     for y in (-1.6, -0.2, 1.0):   # dress: pipes and boxes on the case
         m.bx(ex + 0.45, ex + 0.75, y - 0.3, y + 0.3, ez - 0.2, ez + 0.2, 'od', cull='')
-    cols.append(cb(ex - 1.5, -4.0, 0.0, ex + 1.5, 3.0, ez + 1.05))
+    cols.append(cb(ex - 0.6, -3.3, ez - 0.6, ex + 0.6, 3.0, ez + 0.6))
+    cols.append(cb(ex - 0.9, -4.0, ez - 0.9, ex + 0.9, -3.3, ez + 0.9))
+    for y in (-2.4, 1.2):
+        cols.append(cb(ex - 1.3, y - 0.08, 0.0, ex + 1.3, y + 0.08, 1.6))
     # the blast deflector: an angled scoop rising toward +Y, side cheeks
     m.bx(-4.3, 1.7, 3.6, 4.0, 0.0, 0.5, 'concD', cull='b')
     plate(m, [(-3.8, 3.8, 0.4), (1.2, 3.8, 0.4), (1.2, 6.4, 4.2), (-3.8, 6.4, 4.2)], (0, 0.25, -0.18), 'steelD')
