@@ -1,5 +1,5 @@
 /* INKBOLT HUD "F · Spectre" (loaded after hud.css; replaces its look for the in-play HUD).
-   Boxless italic Barlow Condensed type, Rajdhani numerals, Share Tech Mono readouts, hairline compass, hex level badge,
+   Boxless italic Barlow Condensed type, Rajdhani numerals, Share Tech Mono readouts, hex level badge,
    slanted bars with the number inside, diamond ability + weapon keys, orange corner brackets, perspective-tilted corner
    clusters. Desktop is drawn for 1920x1080 and scaled by --hs (hud.js H.init); phones keep their own geometry below. */
 @font-face { font-family: 'Barlow Condensed'; font-style: italic; src: url('../../vendor/fonts/barlow-condensed-italic-600.woff2') format('woff2'); font-weight: 400 600; font-display: block; }
@@ -27,21 +27,17 @@ body .hud .cn.a { left: -16px; top: -12px; border-right: 0; border-bottom: 0; }
 body .hud .cn.c { right: -16px; top: -12px; border-left: 0; border-bottom: 0; }
 body .hud .gem-ic { width: 20px; height: 20px; flex: none; fill: var(--cy); filter: drop-shadow(0 0 2px #05080E); }
 /* every readable string on the HUD is upper case; gear cards (peek) keep their own casing */
-body .hud .compass, body .hud .sc, body .hud .pips, body .hud .tplate, body .hud .hud-tl, body .hud .kf, body .hud .tkr, body .hud .c1, body .hud .banner,
+body .hud .sc, body .hud .pips, body .hud .tplate, body .hud .hud-tl, body .hud .kf, body .hud .tkr, body .hud .c1, body .hud .banner,
 body .hud .nt, body .hud .elim, body .hud .vt, body .hud .abl, body .hud .wp, body .hud .confirm, body .hud .prompt, body .hud .use-prompt { text-transform: uppercase; }
 
-/* ---------- top centre: compass, zone / time / left, target plate ---------- */
+/* ---------- top centre: zone / robots left, target plate ---------- */
 body .hud .hud-top { display: flex; flex-direction: column; align-items: center; gap: 0; width: 700px; }
-body .hud .compass { position: relative; width: 700px; height: 66px; }
-body .hud .compass canvas { display: block; width: 700px; height: 66px; }
-body .hud .cmp-brg { position: absolute; left: 312px; top: 40px; width: 76px; height: 26px; display: grid; place-items: center; border-top: 0; font-size: 22px; line-height: 1; letter-spacing: .04em; }
-body .hud .sc { display: flex; justify-content: center; align-items: baseline; gap: 26px; width: 700px; margin-top: 8px; padding: 0; background: none; min-width: 0; height: auto; font-size: 19px; letter-spacing: .22em; color: var(--dim); }
+body .hud .sc { display: flex; justify-content: center; align-items: baseline; gap: 26px; width: 700px; margin-top: 0; padding: 0; background: none; min-width: 0; height: auto; font-size: 19px; letter-spacing: .22em; color: var(--dim); }
 body .hud .sc::before, body .hud .sc::after { display: none; }
 body .hud .score-zone, body .hud .score-left { font-size: 19px; font-weight: 600; letter-spacing: .22em; color: var(--dim); text-shadow: var(--ts); }
 body .hud .score-zone b, body .hud .score-left b { font-size: inherit; font-weight: 600; color: var(--w); letter-spacing: .22em; }
 body .hud .score-left b { color: var(--or); }
 body .hud .score-left.zero b { color: var(--or); text-shadow: var(--ts); }
-body .hud .score-time { font-size: 46px; line-height: 1; font-weight: 700; color: var(--w); letter-spacing: .04em; }
 body .hud .pips { gap: 6px; margin-top: 8px; }
 body .hud .pips i { width: 28px; height: 4px; background: rgba(244, 247, 251, .28); box-shadow: 1.5px 1.5px 0 var(--ink); transform: skewX(-30deg); }
 body .hud .pips i.done { background: var(--w); }
@@ -73,12 +69,9 @@ body .hud .gm.pulse b { animation: pop2 .2s ease-out; }
 
 /* ---------- top right: ticked radar, kill feed ---------- */
 body .hud .hud-tr { display: flex; flex-direction: column; align-items: flex-end; gap: 16px; }
-body .hud .rdr { position: relative; width: 228px; height: 228px; padding: 0; background: none; }
-body .hud .rdr::before { content: ''; position: absolute; inset: 0; border-radius: 50%; display: block;
-  background: repeating-conic-gradient(rgba(244, 247, 251, .75) 0 1.2deg, transparent 1.2deg 10deg);
-  -webkit-mask-image: radial-gradient(circle, transparent 0 104px, #000 105px); mask-image: radial-gradient(circle, transparent 0 104px, #000 105px); }
-body .hud .rdr::after { display: none; }
-body .hud .rdr canvas { position: absolute; left: 14px; top: 14px; width: 200px; height: 200px; box-sizing: border-box; border-radius: 50%; border: 2.5px solid var(--w); box-shadow: 0 0 0 3px var(--ink); clip-path: none; }
+body .hud .rdr { position: relative; width: 200px; height: 200px; padding: 0; background: none; }
+body .hud .rdr::before, body .hud .rdr::after { display: none; }
+body .hud .rdr canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; box-sizing: border-box; border-radius: 10px; border: 2.5px solid var(--w); box-shadow: 0 0 0 3px var(--ink); clip-path: none; }
 body .hud .feed { display: flex; flex-direction: column; align-items: flex-end; gap: 7px; }
 body .hud .kf { display: flex; align-items: center; gap: 12px; height: auto; padding: 2px 10px 2px 46px; background: linear-gradient(270deg, rgba(5, 8, 14, .76), rgba(5, 8, 14, 0)); font-size: 18px; letter-spacing: .14em; color: var(--dim); white-space: nowrap; animation: feedIn2 .18s ease-out; }
 body .hud .kf.out { opacity: 0; transition: opacity .3s; }
@@ -164,18 +157,19 @@ body .hud .vb { position: relative; flex: 1; min-width: 0; height: 24px; transfo
 body .hud .vb.hp-bar { height: 32px; }
 body .hud .vb i { position: absolute; left: 0; top: 0; bottom: 0; }
 body .hud .vb b { position: absolute; left: 12px; top: 0; z-index: 3; font-size: 22px; line-height: 21px; font-weight: 700; color: var(--w); letter-spacing: .02em; min-width: 0; }
-body .hud .vb.hp-bar b { font-size: 30px; line-height: 29px; color: #fff; mix-blend-mode: difference; text-shadow: none; }
+body .hud .vb.hp-bar b { font-size: 30px; line-height: 29px; color: #fff; text-shadow: var(--ol); }
 body .hud .vb .hp-ticks, body .hud .vb .sh-ticks { position: absolute; inset: 0; z-index: 2; background: repeating-linear-gradient(90deg, transparent 0 28px, #05080E 28px 31px); }
-body .hud .vb #hpFill { background: var(--w); box-shadow: none; transition: width .1s linear; }
-body .hud .vb .hp-chip { background: var(--rd); opacity: .95; width: 100%; transition: width .45s ease-in .4s; }
+body .hud .vb #hpFill { background: var(--rd); box-shadow: none; transition: width .1s linear; }
+body .hud .vb .hp-chip { background: #FFD3CF; opacity: .95; width: 100%; transition: width .45s ease-in .4s; }
 body .hud .vb .hp-chip.snap { transition: none; }
-body .hud #health.low .vb #hpFill { background: var(--rd); }
-body .hud #health.low .vb b { mix-blend-mode: normal; color: #fff; text-shadow: var(--ts); }
+body .hud #health.low .vb #hpFill { background: #FF3B30; }
+body .hud #health.low .vb b { color: #fff; }
 body .hud #health.low .vb .hp-chip { background: #FFD3CF; }
 body .hud #health.low .vb { animation: hxBlink .55s steps(1) infinite; }
-body .hud .vb .sh-fill { background: var(--hx-cell, #2AA9D6); box-shadow: none; }
+body .hud .vb .sh-fill { background: #2E86FF; box-shadow: none; }
+body .hud .vb.sh-bar b { text-shadow: var(--ol); }
 body .hud .vb.sh-bar { height: 24px; background: rgba(5, 8, 14, .7); }
-body .hud #shieldBar.charging .sh-fill { background: repeating-linear-gradient(-45deg, var(--hx-cell, #2AA9D6) 0 5px, var(--hx-cell-a, rgba(79, 214, 255, .45)) 5px 10px); background-size: 14.14px 14.14px; animation: shBelt2 .45s linear infinite; }
+body .hud #shieldBar.charging .sh-fill { background: repeating-linear-gradient(-45deg, #2E86FF 0 5px, rgba(46, 134, 255, .45) 5px 10px); background-size: 14.14px 14.14px; animation: shBelt2 .45s linear infinite; }
 body .hud #shieldBar.empty .vb b { color: var(--dim); }
 body .hud #shieldBar.hit .vb { border-color: #9BE0FF; }
 body .hud #shieldBar.broke .vb { border-color: var(--rd); }
@@ -209,10 +203,10 @@ body .hud #kitGren .kit-ic svg { display: none; }
 body .hud .kit-chip .key, body .abl .cloakhud .ck-key { display: inline-grid; place-items: center; min-width: 24px; height: 22px; padding: 0 6px; background: var(--w); color: var(--ink); border-radius: 0; box-shadow: none; font: 700 15px 'Barlow Condensed', sans-serif; letter-spacing: .04em; text-shadow: none; }
 body .hud .kit-chip.none { opacity: .45; }
 body .abl .cloakhud .ck-ring::before { display: none; }
-body .abl .cloakhud .ck-ring svg { transform: rotate(-45deg); width: 30px; height: 30px; position: relative; }
+body .abl .cloakhud .ck-ring svg { transform: rotate(-45deg); width: 44px; height: 44px; position: relative; }
 body .abl .cloakhud .ck-txt { position: absolute; left: 0; top: 17px; width: 58px; text-align: center; font: 700 22px 'Rajdhani', sans-serif; letter-spacing: 0; color: var(--w); text-shadow: var(--ts); }
 body .abl .cloakhud .ck-key { order: 3; }
-body .abl .cloakhud.ready .ck-ring { background: var(--or); border-color: var(--or); color: var(--ink); }
+body .abl .cloakhud.ready .ck-ring { background: var(--gl); border-color: var(--or); }
 body .abl .cloakhud.ready .ck-txt { display: none; }
 body .abl .cloakhud.cool .ck-ring { background: linear-gradient(to top left, rgba(244, 247, 251, .32) calc(var(--k, 0) * 100%), rgba(7, 11, 19, .78) calc(var(--k, 0) * 100%)); }
 body .abl .cloakhud.cool .ck-ring svg { display: none; }
@@ -252,7 +246,7 @@ body .hud .nt { display: flex; align-items: center; gap: 14px; padding: 6px 20px
 body .hud .nt .blk { display: grid; place-items: center; width: 52px; height: 52px; flex: none; background: var(--or); color: var(--ink); font-size: 30px; text-shadow: none; }
 body .hud .nt .blk svg { width: 34px; height: 17px; fill: currentColor; }
 body .hud .nt .blk.loot-icon svg { width: 30px; height: 30px; }
-body .hud .nt-tx { display: flex; flex-direction: column; min-width: 0; }
+body .hud .nt-tx { display: flex; flex-direction: column; min-width: auto; flex: none; }
 body .hud .nt .a { display: block; color: var(--or); font-size: 14px; }
 body .hud .nt .b { display: block; font-size: 25px; letter-spacing: .06em; line-height: 1.05; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 body .hud .nt .c { display: flex; flex-wrap: nowrap; white-space: nowrap; align-items: center; gap: 4px 8px; font-size: 17px; letter-spacing: .12em; color: var(--dim); }
@@ -267,7 +261,7 @@ body .hud .loot-stats i { font-style: normal; } body .hud .loot-stats i:nth-chil
 body .hud .loot-stats b { color: var(--w); font-weight: 600; }
 body .hud .loot-note { font-size: 17px; letter-spacing: .12em; color: var(--dim); text-transform: uppercase; }
 body .hud .loot-perk svg { width: 12px; height: 12px; }
-body:not(.touch-on) .hud .pickup, body:not(.touch-on) .hud .lootcard, body:not(.touch-on) .hud .notice { position: absolute; left: auto; right: 48px; top: calc(284px * var(--hs)); bottom: auto; display: block;
+body:not(.touch-on) .hud .pickup, body:not(.touch-on) .hud .lootcard, body:not(.touch-on) .hud .notice { position: absolute; left: auto; right: 48px; top: calc(256px * var(--hs)); bottom: auto; display: block;
   transform: perspective(900px) rotateY(-14deg) scale(var(--hs)); transform-origin: right top; }
 body:not(.touch-on) .hud.picking .hud-tr .feed, body:not(.touch-on) .hud.looting .hud-tr .feed, body:not(.touch-on) .hud.noting .hud-tr .feed { margin-top: 74px; }
 body .hud .pickup.on .nt, body .hud .lootcard.on .nt, body .hud .notice.on .nt { animation: pop2 .18s ease-out; }
@@ -302,11 +296,10 @@ body:not(.touch-on) .hud .callouts { transform: translateX(-50%) scale(var(--hs)
 body:not(.touch-on) .hud .elim { transform: scale(var(--hs)); transform-origin: 50% 0; }
 
 /* ---------- phones: same positions as before, F skin at phone sizes ---------- */
-body.touch-on .hud .compass, body.touch-on .hud .tplate, body.touch-on .hud .lvhex, body.touch-on .hud .vh, body.touch-on .hud .abl, body.touch-on .hud .cn, body.touch-on .hud .obj-tag, body.touch-on .hud .xbr, body.touch-on .hud .brush, body.touch-on .hud .ticker { display: none; }
+body.touch-on .hud .tplate, body.touch-on .hud .lvhex, body.touch-on .hud .vh, body.touch-on .hud .abl, body.touch-on .hud .cn, body.touch-on .hud .obj-tag, body.touch-on .hud .xbr, body.touch-on .hud .brush, body.touch-on .hud .ticker { display: none; }
 body.touch-on .hud .hud-top { width: auto; }
 body.touch-on .hud .sc { width: auto; gap: 12px; margin: 0; }
 body.touch-on .hud .score-zone, body.touch-on .hud .score-left { font-size: 12px; letter-spacing: .1em; }
-body.touch-on .hud .score-time { font-size: 28px; }
 body.touch-on .hud .hud-tl { display: block; }
 body.touch-on .hud .hud-tr { align-items: flex-start; gap: 8px; }
 @media (orientation: portrait) { body.touch-on .hud .hud-tr { align-items: flex-end; } }
@@ -324,9 +317,7 @@ body.touch-on .hud .vb b { font-size: 15px; line-height: 15px; left: 8px; }
 body.touch-on .hud .vb.hp-bar b { font-size: 21px; line-height: 21px; }
 body.touch-on .hud .vr { margin-bottom: 4px; }
 body.touch-on .hud .xprow { margin-top: 2px; }
-body.touch-on .hud .rdr { width: 120px; height: 120px; }
-body.touch-on .hud .rdr canvas { left: 7px; top: 7px; width: 106px; height: 106px; }
-body.touch-on .hud .rdr::before { -webkit-mask-image: radial-gradient(circle, transparent 0 54px, #000 55px); mask-image: radial-gradient(circle, transparent 0 54px, #000 55px); }
+body.touch-on .hud .rdr { width: 112px; height: 112px; }
 body.touch-on .hud .kf { padding: 1px 8px 1px 14px; font-size: 13px; }
 body.touch-on .hud .feed-bot, body.touch-on .hud .feed-gem { font-size: 15px; }
 body.touch-on .hud .hud-br { flex-direction: column; align-items: flex-end; gap: 6px; }

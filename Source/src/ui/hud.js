@@ -37,7 +37,7 @@
       pickup: $('pickup'), pickupIcon: $('pickupIcon'), pickupName: $('pickupName'), pickupLine: $('pickupLine'),
       confirm: $('confirm'), confirmNum: $('confirmNum'), pauseBtn: $('pauseBtn'),
       lvTag: $('lvTag'), lvNum: $('lvNum'), xpFill: $('xpFill'), xpGain: $('xpGain'), xpNum: $('xpNum'), xpPlus: $('xpPlus'), lvPts: $('lvPts'), lvPtsN: $('lvPtsN'), lvKey: $('lvKey'), menuBtn: $('menuBtn'), menuDot: $('menuDot'),
-      cmpCv: $('cmpCv'), cmpBrg: $('cmpBrg'), tplate: $('tplate'), tpLv: $('tpLv'), tpName: $('tpName'), tpDist: $('tpDist'), tpHp: $('tpHp'), tpSh: $('tpSh'),
+      tplate: $('tplate'), tpLv: $('tpLv'), tpName: $('tpName'), tpDist: $('tpDist'), tpHp: $('tpHp'), tpSh: $('tpSh'),
       ticker: $('ticker'), callRows: $('callRows'), notice: $('notice'), noteT: $('noteT'), noteS: $('noteS'),
       toastT: $('toastT'), toastS: $('toastS'), missionName: $('missionName'), objSub: $('objSub'), objDist: $('objDist'), pickupHdL: $('pickupHdL')
     };
@@ -63,7 +63,6 @@
       H.el.menuBtn.addEventListener('click', menu);
     }
     if (H.el.radarCv) H.radarCtx = H.el.radarCv.getContext('2d');
-    if (H.el.cmpCv) H.cmpCtx = H.el.cmpCv.getContext('2d');
     // the desktop layout is drawn for 1920x1080: smaller windows scale it down (phones keep their own sizes)
     var fit = function () { var sc = Math.min(window.innerWidth / 1920, window.innerHeight / 1080); H.el.hud.style.setProperty('--hs', Math.max(0.7, Math.min(1.15, Math.pow(sc, 0.8))).toFixed(3)); };
     fit(); window.addEventListener('resize', fit);
@@ -76,7 +75,7 @@
     for (var k in WL) WL[k] = typeof WL[k] === 'number' ? -2 : null; WL.state = '';
     H.el.hurt.classList.remove('low'); H.damageFlash(0);   // dim is left alone: game.js owns the fade across level loads
     H.el.pickup.hidden = true; H.el.hud.classList.remove('picking'); H.el.prompt.hidden = true; H.el.confirm.hidden = true; H.el.toast.hidden = true;
-    H.el.notice.hidden = true; H.el.hud.classList.remove('noting'); H.el.tplate.hidden = true; H.el.ticker.innerHTML = ''; H.el.callRows.innerHTML = ''; rows = []; H.cmp = null; H.lastObj = null;
+    H.el.notice.hidden = true; H.el.hud.classList.remove('noting'); H.el.tplate.hidden = true; H.el.ticker.innerHTML = ''; H.el.callRows.innerHTML = ''; rows = []; H.lastObj = null;
     pickT = 0; confirmT = 0; toastT = 0; hitT = 0; ntT = 0; tpT = 0;
   };
 
@@ -118,7 +117,7 @@
   H.mmss = mmss;
   H.score = function (zone, total, time, left) {
     set('zone', zone + '/' + total, function () { H.el.scZone.innerHTML = 'ZONE <b>' + zone + '/' + total + '</b>'; });
-    set('time', mmss(time), function (v) { H.el.scTime.textContent = v; });
+    /* no on-screen timer: the run clock is still kept for the results screen */
     set('left', left, function (v) { H.el.scLeft.innerHTML = '<b>' + v + '</b> LEFT'; H.el.scLeft.classList.toggle('zero', v === 0); });
   };
   H.pips = function (total, cur, cleared) {
@@ -163,13 +162,13 @@
     if (d.reloadFrac !== undefined) w.reloadFrac = d.reloadFrac;
     if (w.id !== L.id || w.name !== L.name || w.cls !== L.cls || w.level !== L.level) {
       L.id = w.id; L.name = w.name; L.cls = w.cls; L.level = w.level;
-      el.wpnName.textContent = String(w.name || CLS_NAME[w.cls] || '').toUpperCase();
+      el.wpnName.textContent = String(CLS_NAME[w.cls] || 'Weapon').toUpperCase();
       // the name in its tier colour from Tuned up ('Cobalt Rivet' in blue: core/gunskins.js names)
       var tc = IB.WeaponDrops && IB.WEAPONS && IB.WEAPONS[w.id] && w.cls !== 'melee' && w.cls !== 'shove' ? IB.WeaponDrops.tierOf(w.id) : null;
       el.wpnName.style.color = tc && tc.rank > 0 ? tc.color : '';
       el.wpnIcon.innerHTML = H.icon(w.cls);
       var gunLv = w.level > 0 && w.cls !== 'melee' && w.cls !== 'shove';   // gun item level (core/gunlevel.js)
-      el.wpnCls.innerHTML = esc(H.clsName(w.cls)) + (gunLv ? ' · LV ' + w.level : '') + (tc && tc.rank > 0 && tc.name ? ' · <b>' + esc(tc.name) + '</b>' : '');
+      el.wpnCls.innerHTML = (gunLv ? 'LV ' + w.level : '') + (tc && tc.rank > 0 && tc.name ? (gunLv ? ' · ' : '') + '<b>' + esc(tc.name) + '</b>' : '');
     }
     var melee = w.cls === 'melee' || w.cls === 'shove';
     if (melee !== L.melee) { L.melee = melee; el.weapon.classList.toggle('melee', melee); L.mag = -1; }
@@ -272,7 +271,7 @@
     if (!weaponName && H.wpn && H.wpn.cls === cls) weaponName = H.wpn.name;
     var row = document.createElement('div');
     row.className = 'kf';
-    row.innerHTML = '<span class="feed-wpn">' + esc(weaponName || H.clsName(cls)) + '</span>' +
+    row.innerHTML = '<span class="feed-wpn">' + esc(H.clsName(cls)) + '</span>' +
       '<b class="feed-bot d">' + esc(name) + '</b>' + (gems ? '<em class="feed-gem nu">+' + gems + '</em>' : '');
     H.el.feed.insertBefore(row, H.el.feed.firstChild);
     H.feedRows.unshift({ el: row, t: 0 });
@@ -439,7 +438,6 @@
   var PICK = { health: '#5BCF4A', ammo: '#5B9BF5', weapon: '#FFB21E', gem: '#2EEAD8', rockets: '#FF7A2E' };
   H.radar = function (d) {
     var cv = H.el.radarCv, ctx = H.radarCtx; if (!ctx || !d) return;
-    H.cmp = d;   // the compass reads the same robots / objective (H.compass runs every frame)
     var ob = d.obj || d.exit;
     if (ob) { var od = Math.round(Math.sqrt((ob.x - d.px) * (ob.x - d.px) + (ob.z - d.pz) * (ob.z - d.pz))); set('od', od, function (v) { H.el.objDist.textContent = v + ' M'; }); }
     else set('od', -1, function () { H.el.objDist.textContent = ''; });
@@ -451,7 +449,7 @@
     var fx = -sy, fz = -cy, rx = cy, rz = -sy;
     function map(x, z, clamp) {
       var dx = x - d.px, dz = z - d.pz, u = (dx * rx + dz * rz) * k, v = -(dx * fx + dz * fz) * k;
-      var m = Math.sqrt(u * u + v * v), lim = R - 8 * dpr, edge = false;
+      var m = Math.max(Math.abs(u), Math.abs(v)), lim = R - 8 * dpr, edge = false;   // square map: clamp by the larger axis
       if (m > lim) { if (!clamp) return null; u *= lim / m; v *= lim / m; edge = true; }
       PT.x = c + u; PT.y = c + v; PT.edge = edge; return PT;
     }
@@ -459,7 +457,7 @@
     ctx.clearRect(0, 0, S, S);
     // glass face clipped to a cut-corner square; the frame is drawn last
     var cut = Math.round(S * 0.09);
-    ctx.beginPath(); ctx.arc(c, c, c, 0, Math.PI * 2); ctx.save(); ctx.clip();
+    ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(0, 0, S, S, S * 0.05); else ctx.rect(0, 0, S, S); ctx.save(); ctx.clip();
     ctx.fillStyle = 'rgba(5, 8, 14, .62)'; ctx.fillRect(0, 0, S, S);
     // grid: 10 m hairlines
     ctx.strokeStyle = 'rgba(120, 220, 230, 0)'; ctx.lineWidth = dpr;
@@ -528,53 +526,6 @@
     for (var i = 0; i < 6; i++) { var a = i * Math.PI / 3; ctx[i ? 'lineTo' : 'moveTo'](x + Math.cos(a) * r, y + Math.sin(a) * r); }
     ctx.closePath(); ctx.fill();
   }
-
-  /* ---------- compass strip: bearing numbers, cardinals, robots (red), objective (hex). yaw 0 faces -Z (north). ---------- */
-  var CARD = { 0: 'N', 45: 'NE', 90: 'E', 135: 'SE', 180: 'S', 225: 'SW', 270: 'W', 315: 'NW' };
-  var cmpKey = '';
-  function wrap(a) { a = (a + 540) % 360; return a - 180; }
-  H.compass = function (px, pz, yaw) {
-    var ctx = H.cmpCtx, cv = H.el.cmpCv; if (!ctx || !cv || H.el.hud.hidden) return;
-    var head = ((-(yaw || 0) * 180 / Math.PI) % 360 + 360) % 360, d = H.cmp, n = d && d.robots ? d.robots.length : 0;
-    var key = head.toFixed(1) + '|' + (d ? d.px.toFixed(1) + d.pz.toFixed(1) : '') + '|' + n;
-    if (key === cmpKey) return; cmpKey = key;
-    var W = cv.width, Hh = cv.height, k = W / 700, ppd = 4.4 * k, c = W / 2;   // 4.4 css px per degree: about 159 degrees across
-    var hb = Math.round(head) % 360; set('brg', hb, function (v) { H.el.cmpBrg.innerHTML = ('00' + v).slice(-3) + '&deg;'; });
-    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, W, Hh);
-    ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.lineJoin = 'round';
-    var lineY = 30 * k;
-    // the line
-    ctx.fillStyle = '#05080E'; ctx.fillRect(0, lineY - 1.5 * k, W, 5 * k); ctx.fillStyle = '#F4F7FB'; ctx.fillRect(0, lineY - 0.5 * k, W, 3 * k);
-    var b0 = Math.floor((head - 80) / 5) * 5, b, off, x;
-    for (b = b0; b <= head + 80; b += 5) {
-      off = b - head; x = c + off * ppd; var bb = ((b % 360) + 360) % 360, lab = bb % 15 === 0;
-      ctx.fillStyle = 'rgba(244,247,251,.7)'; ctx.fillRect(x - k, lineY + 3 * k, 2 * k, (lab ? 9 : 5) * k);
-      if (bb % 15 === 0 && Math.abs(off) > 14) {
-        var cd = CARD[bb];
-        ctx.font = cd ? '600 ' + 19 * k + 'px "Barlow Condensed", sans-serif' : '400 ' + 14 * k + 'px "Share Tech Mono", monospace';
-        ctx.lineWidth = 3 * k; ctx.strokeStyle = 'rgba(5,8,14,.9)'; var t = cd || String(bb);
-        ctx.strokeText(t, x, (cd ? 2 : 6) * k); ctx.fillStyle = cd ? '#F4F7FB' : '#BCCADB'; ctx.fillText(t, x, (cd ? 2 : 6) * k);
-      }
-    }
-    if (d) {
-      var rb = d.robots || [], i, br;
-      for (i = 0; i < rb.length; i++) {
-        br = Math.atan2(rb[i].x - d.px, -(rb[i].z - d.pz)) * 180 / Math.PI; off = wrap(br - head);
-        if (Math.abs(off) > 78) continue;
-        x = c + off * ppd; var y = lineY - 6 * k, r = 6.5 * k;
-        ctx.fillStyle = '#05080E'; ctx.beginPath(); ctx.moveTo(x, y - r - 2 * k); ctx.lineTo(x + r + 2 * k, y); ctx.lineTo(x, y + r + 2 * k); ctx.lineTo(x - r - 2 * k, y); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = '#FF5A52'; ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath(); ctx.fill();
-      }
-      var ob = d.obj || d.exit;
-      if (ob) {
-        br = Math.atan2(ob.x - d.px, -(ob.z - d.pz)) * 180 / Math.PI; off = Math.max(-78, Math.min(78, wrap(br - head))); x = c + off * ppd; y = lineY - 2 * k;
-        hex(ctx, x, y, 15 * k, '#05080E'); hex(ctx, x, y, 12 * k, '#FF9A2E');
-      }
-    }
-    // centre caret under the line
-    ctx.fillStyle = '#05080E'; ctx.beginPath(); ctx.moveTo(c - 10 * k, lineY + 14 * k); ctx.lineTo(c + 10 * k, lineY + 14 * k); ctx.lineTo(c, lineY + 2 * k); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#F4F7FB'; ctx.beginPath(); ctx.moveTo(c - 8 * k, lineY + 12 * k); ctx.lineTo(c + 8 * k, lineY + 12 * k); ctx.lineTo(c, lineY + 4 * k); ctx.closePath(); ctx.fill();
-  };
 
   /* ---------- target plate: the robot you just shot (name, level, shield + health, range) ---------- */
   H.target = function (name, level, hp, maxHp, sh, maxSh, dist, killed) {

@@ -1312,7 +1312,6 @@
         exit: last.state === 'cleared' ? { x: G.level.hatch.x, z: G.level.hatch.z } : null,
         obj: last.state !== 'cleared' && G.level.zones[G.zone] && G.level.zones[G.zone].exitGate ? { x: G.level.zones[G.zone].exitGate.x, z: G.level.zones[G.zone].exitGate.z } : null });
     }
-    if (HUD.compass) HUD.compass(p.x, p.z, p.yaw);
     if (HUD.objective) {
       var obj = zn.state === 'active' ? 'Clear the block · ' + (AI.alive(G.zone) + zn.queue.length + remainingInWaves(zn)) + ' robots' :
         (G.level.zones[G.level.zones.length - 1].state === 'cleared' ? 'Walk the exit path' : 'Follow the arrows to the next gate');

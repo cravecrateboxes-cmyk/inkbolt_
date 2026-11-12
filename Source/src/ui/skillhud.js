@@ -39,7 +39,7 @@
     var cv = document.getElementById('c');
     if (cv && cv.parentNode) cv.parentNode.insertBefore(fx, cv.nextSibling); else document.body.appendChild(fx);
     var el = H.el = document.createElement('div'); el.className = 'cloakhud'; el.id = 'cloakHud'; el.hidden = true;
-    el.innerHTML = '<span class="ck-ring">' + EYE + '</span><span class="ck-key">F</span><span class="ck-txt">UNDERCOVER</span>';
+    el.innerHTML = '<span class="ck-ring">' + (IB.SkillIcons ? IB.SkillIcons.svg('cloak', 'ck-ic') : EYE) + '</span><span class="ck-key">F</span><span class="ck-txt">UNDERCOVER</span>';
     var abl = document.getElementById('abl');   // desktop: the F ability row at the bottom left
     if (abl) abl.insertBefore(el, abl.firstChild); else document.body.appendChild(el);
     H.txt = el.querySelector('.ck-txt');
