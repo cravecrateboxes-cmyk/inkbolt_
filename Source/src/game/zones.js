@@ -631,7 +631,9 @@
       else if (d.rotate === 'edge') yaw = edgeYaw(grid, p.c, p.r, d.edge || '.');
       else if (typeof d.rotate === 'number') yaw = d.rotate;
       var name = d.sequence ? d.pieces[i % d.pieces.length] : d.alternate ? d.pieces[(p.c + p.r) % d.pieces.length] : pick(d.pieces, hash(p.c * 3 + 1, p.r * 5 + 2));
-      var y0 = baseY(world, yb || 0, x, zz, d.sink ? 0.45 : 0, d.sink ? 0.45 : 0), py = (d.y || 0) + y0;
+      // onTerrain: false (opt-in): the piece stands at its layer's base height whatever the terrain under it (a
+      // retaining wall cell on the slope round a raised terrace models its own foot and top)
+      var y0 = d.onTerrain === false ? (yb || 0) : baseY(world, yb || 0, x, zz, d.sink ? 0.45 : 0, d.sink ? 0.45 : 0), py = (d.y || 0) + y0;
       P.add(name, x, py, zz, yaw, null, paintFor(d, z.idx, yb, hash(p.c * 11 + 3, p.r * 13 + 7)));
       if (d.collide !== false) addColsY(world, d.cols || colsOf(IB.themePiece(theme, name)) || boxCols(1, 1, d.h || 1), x, py, zz, yaw, d.kind || 'cover', z.idx);
       addWith(P, world, theme, d, name, x, py, zz, yaw, z.idx);
