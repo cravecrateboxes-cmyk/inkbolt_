@@ -438,10 +438,13 @@
         if (yaw === 0 && !solid(p.c, p.r - 1) && solid(p.c, p.r + 1)) yaw = Math.PI;
         if (yaw !== 0 && !solid(p.c - 1, p.r) && solid(p.c + 1, p.r)) yaw = -Math.PI / 2;   // +Z face toward the open (west) side
       }
+      // wall.paint (optional): fn(c, r, grid, face, name) -> [[fromCell, toCell], ...] repaints this module (one
+      // model in several house colours, see the symbol option `paint`)
+      var wp = W.paint ? W.paint(p.c, p.r, grid, face, name) : null;
       [].concat(name).forEach(function (n) {
         // an entry may be { piece, turn }: that part turned by `turn` more (one face piece drawn on any side of the cell)
         var tn = 0; if (n && typeof n === 'object') { tn = n.turn || 0; n = n.piece; }
-        P.add(n, z.ox + p.c + 0.5, 0, z.oz + p.r + 0.5, yaw + tn);
+        P.add(n, z.ox + p.c + 0.5, 0, z.oz + p.r + 0.5, yaw + tn, null, wp);
         // wall.cols (opt-in): a module's own _COL boxes collide too (a buttress standing out into the room)
         var wc = W.cols && colsOf(IB.themePiece(theme, n));
         if (wc) addCols(world, wc, z.ox + p.c + 0.5, z.oz + p.r + 0.5, yaw + tn, 'wall', z.idx);
