@@ -331,54 +331,201 @@ def build_triplet(pal):
 
 
 def build_longtom(pal):
-    """DMR-60 Longtom: semi-auto marksman rifle, 1.5x prism optic, long free-float guard, fixed precision stock."""
+    """DMR-60 Longtom: semi-auto marksman rifle. Blued receiver with a right-side bolt handle riding its track, a
+    1.5x prism optic in two clamp rings, a long walnut free-float guard (open to the right and on the upper
+    diagonals so the heavy barrel, gas block and piston show; solid where the hand holds), fluted barrel, ported
+    brake, and a fixed precision stock: cheek riser on two posts with thumb wheels, length-of-pull spacers, butt hook.
+    Rarity layers: Rare adds an aiming module with its cable, a magwell funnel, a cartridge saddle, hook armour and
+    a cant level; Epic mounts a capacitor behind the receiver feeding accelerator rails along the barrel (and lit
+    witness windows on the magazine); Legendary (Aquila gold) rings the barrel with three halos, wings the cheek
+    riser, arms the butt hook with a talon and inlays the walnut."""
     rake = 22
     k = Kit(pal)
     bz = 0.034
-    k.ext_y(rrect(0.048, 0.044, ct=0.006, cb=0.002, cy=0.034), -0.114, 0.140, 'gunmetal', ch0=0.004, ch1=0.003)   # upper
-    k.box((0.01675, 0.050, 0.042), (0.0205, 0.058, 0.016), 'ink')
-    k.box((0.0265, 0.052, 0.0255), (0.006, 0.050, 0.011), 'gun3')
-    k.ext_y(rrect(0.041, 0.034, c=0.003, cy=-0.004), -0.106, 0.140, 'gun2', ch0=0.004, ch1=0.004)                  # lower
-    k.ext_x([(0.074, 0.004), (0.138, 0.004), (0.140, -0.040), (0.134, -0.050), (0.072, -0.050), (0.070, -0.040)], -0.0235, 0.0235, 'gun2', ch=0.003)
-    k.pin(-0.0265, 0.0265, 0.134, 0.000, 0.003)
-    k.pin(-0.0235, 0.0235, -0.096, 0.000, 0.003)
-    k.xbar(-0.0240, -0.0205, [(-0.050, -0.004), (-0.030, -0.006), (-0.028, 0.002), (-0.048, 0.004)], 'gun3', ch=0, hull=False)
-    k.cbox((0, -0.120, 0.0535), (0.036, 0.012, 0.011), 'gun3', ch=0.002, axis='x')
-    rail(k, -0.110, 0.136, 0.056, w=0.022, clear=[(-0.092, 0.066)])
-    # 1.5x prism optic: trapezoid housing, recessed lenses in two bells, windage cap, fibre strip
+    HU, HL, HM, HS, HC = 0.024, 0.0205, 0.0235, 0.020, 0.024      # half widths: upper, lower, magwell, stock, cage
+    # ---- upper receiver
+    k.ext_y(rrect(0.048, 0.044, ct=0.006, cb=0.002, cy=0.034), -0.114, 0.140, 'gunmetal', ch0=0.004, ch1=0.003)
+    # right: ejection port with the bolt, the handle's track and the reciprocating handle, port lip, name plate
+    k.box((HU + PR / 2 - 0.0005, 0.050, 0.042), (PR + 0.001, 0.058, 0.016), 'ink', skip=sk(1))
+    k.box((HU + PR, 0.042, 0.0425), (0.0036, 0.036, 0.010), 'steel', skip=sk(1))
+    k.box((HU + PR / 2 - 0.0005, -0.006, 0.042), (PR + 0.001, 0.050, 0.005), 'ink', skip=sk(1))
+    k.lathe([(HU, 0.0034), (HU + 0.012, 0.0034), (HU + 0.012, 0.0060), (HU + 0.021, 0.0060), (HU + 0.023, 0.0040), (HU + 0.023, 0)], 'steel', 'x',
+            (0, 0.060, 0.0425), 8, caps=(False, True))
+    k.box((HU + 0.0022, 0.050, 0.0305), (0.0044, 0.060, 0.003), 'body2')
+    plate(k, [(-0.106, 0.017), (-0.046, 0.017), (-0.038, 0.025), (-0.038, 0.034), (-0.106, 0.034)], HU, 'body2', sides=(1,))
+    stencil(k, 'LONGTOM', HU + PR, -0.074, 0.0215, cap=0.0075, sides=(1,))
+    slots(k, HU, -0.102, -0.048, 0.043, 3, h=0.008, fill=0.4, sides=(1,), slant=28)
+    plate(k, rect(0.092, 0.132, 0.018, 0.029, c=0.002), HU, 'steel2', sides=(1,))
+    bolts(k, HU + PR, [(0.097, 0.0235), (0.127, 0.0235)], r=0.0022, sides=(1,))
+    # left: data panel, barrel-trunnion block with cooling cuts
+    plate(k, [(-0.106, 0.017), (-0.004, 0.017), (0.006, 0.027), (0.006, 0.050), (-0.106, 0.050)], HU, 'body2', sides=(-1,))
+    stencil(k, 'DMR-60', HU + PR, -0.052, 0.0300, cap=0.011, sides=(-1,))
+    stencil(k, 'IB ARMS  7.62  SEMI', HU + PR, -0.052, 0.0215, cap=0.0045, sides=(-1,), font='cond')
+    plate(k, [(0.016, 0.015), (0.134, 0.015), (0.134, 0.051), (0.030, 0.051), (0.016, 0.037)], HU, 'gunmetal', t=0.003, sides=(-1,), hull=True)
+    bolts(k, HU + 0.003, [(0.024, 0.021), (0.126, 0.021), (0.126, 0.045)], sides=(-1,))
+    slots(k, HU + 0.003, 0.040, 0.114, 0.035, 5, h=0.016, fill=0.3, sides=(-1,))
+    # ---- lower receiver, magwell
+    k.ext_y(rrect(0.041, 0.034, c=0.003, cy=-0.004), -0.106, 0.140, 'gun2', ch0=0.004, ch1=0.004)
+    k.ext_x([(0.074, 0.004), (0.138, 0.004), (0.140, -0.040), (0.134, -0.050), (0.072, -0.050), (0.070, -0.040)], -HM, HM, 'gun2', ch=0.003)
+    k.ext_x([(0.066, -0.042), (0.142, -0.042), (0.146, -0.054), (0.062, -0.054)], -0.0265, 0.0265, 'frame2', ch=0.002)
+    plate(k, rect(0.080, 0.132, -0.036, -0.009, c=0.004), HM, 'frame2')
+    stencil(k, '7.62', HM + PR, 0.106, -0.0265, cap=0.008)
+    cross_pin(k, HM, 0.130, -0.001)
+    cross_pin(k, HL, -0.094, 0.002)
+    plate(k, [(-0.086, -0.017), (-0.014, -0.017), (-0.006, -0.009), (-0.006, 0.008), (-0.086, 0.008)], HL, 'frame2')
+    # controls: selector with its marks (left), bolt catch (left), mag release with fence (right)
+    k.lathe([(HL - 0.003, 0.0052), (HL + 0.0045, 0.0052), (HL + 0.0045, 0)], 'steel2', (V((-1, 0, 0)), V((0, 1, 0)), V((0, 0, -1))), (0, -0.040, -0.001), 8, hull=False, caps=(False, True))
+    k.xbar(-HL - 0.0075, -HL - 0.0040, [(-0.058, -0.004), (-0.038, -0.0055), (-0.036, 0.0025), (-0.056, 0.004)], 'steel', ch=0, hull=False)
+    k.box((-HL - PR * 1.5, -0.068, 0.002), (PR + 0.001, 0.004, 0.004), 'mark', skip=sk(-1))
+    k.box((-HL - PR * 1.5, -0.040, -0.0125), (PR + 0.001, 0.004, 0.004), 'red', skip=sk(-1))
+    k.xbar(-HM - 0.0050, -HM + 0.0030, [(0.078, 0.006), (0.100, 0.006), (0.100, 0.022), (0.090, 0.026), (0.078, 0.016)], 'ink', ch=0, hull=False)
+    k.box((-HM - 0.0052, 0.089, 0.016), (0.0022, 0.012, 0.010), 'steel2')
+    k.lathe([(HL - 0.003, 0.0050), (HL + 0.0040, 0.0050), (HL + 0.0040, 0)], 'steel2', 'x', (0, 0.058, -0.004), 8, hull=False, caps=(False, True))
+    k.ext_x([(0.046, -0.012), (0.070, -0.012), (0.070, -0.009), (0.046, -0.009)], HL - 0.001, HL + 0.0045, 'gun2', ch=0, hull=False)
+    # receiver end cap, top rail
+    k.cbox((0, -0.113, 0.016), (0.045, 0.008, 0.070), 'steel2', ch=0.002, axis='y')
+    rail(k, -0.108, 0.136, 0.056, w=0.022, pitch=0.010, clear=[(-0.092, 0.066)])
+    # ---- 1.5x prism optic: trapezoid housing in two clamps with thumb nuts, recessed lenses in two bells, lens rings,
+    #      windage and illumination caps, fibre strip
     oz = 0.059
     k.ext_y([(-0.018, oz), (0.018, oz), (0.018, oz + 0.022), (0.012, oz + 0.036), (-0.012, oz + 0.036), (-0.018, oz + 0.022)], -0.060, 0.032, 'gunmetal', ch0=0.003, ch1=0.003)
     lz = oz + 0.020
     k.lathe([(0.052, 0), (0.052, 0.013), (0.060, 0.013), (0.060, 0.017), (0.032, 0.017), (0.032, 0)], 'gunmetal', 'y', (0, 0, lz), 10, bands=['lens', 'ink', None, None, None])
     k.lathe([(-0.078, 0), (-0.078, 0.010), (-0.086, 0.010), (-0.086, 0.014), (-0.060, 0.014), (-0.060, 0)], 'gunmetal', 'y', (0, 0, lz), 10, bands=['lens', 'ink', None, None, None])
-    turret(k, (0.018, -0.014, oz + 0.016), 'x', r=0.008, h=0.006)
-    k.cbox((0, -0.020, oz + 0.040), (0.010, 0.040, 0.008), 'gun3', ch=0.002, axis='y', hull=False)
-    # long octagonal guard with slots, fluted barrel, compensator
-    k.ext_y(rrect(0.048, 0.048, c=0.014, cy=bz), 0.138, 0.420, 'gun3', ch0=0.003, ch1=0.006)
+    k.ring('y', (0, 0, lz), 0.043, 0.050, 0.0150, 0.0192, 'steel2', seg=10, hull=False)
+    k.ring('y', (0, 0, lz), -0.077, -0.071, 0.0120, 0.0162, 'steel2', seg=10, hull=False)
+    for y in (-0.046, 0.018):
+        k.cbox((0, y, 0.0585), (0.042, 0.014, 0.011), 'steel2', ch=0.002, axis='y')
+        turret(k, (-0.021, y, 0.0585), '-x', r=0.0055, h=0.005, color='steel', cap='ink')
+        bolt(k, (0.021, y, 0.0585), (1, 0, 0), 0.0028)
+    turret(k, (0.018, -0.014, oz + 0.013), 'x', r=0.0080, h=0.006, color='steel2')
+    turret(k, (-0.018, -0.014, oz + 0.013), '-x', r=0.0065, h=0.004, color='steel2', cap='red')
+    k.cbox((0, -0.014, oz + 0.0375), (0.006, 0.050, 0.004), 'red', ch=0.001, axis='y', hull=False)
+    stencil(k, '1.5X', 0.018, -0.040, oz + 0.0045, cap=0.0065, sides=(-1,))
+    stencil(k, 'PRISM', 0.018, -0.040, oz + 0.0045, cap=0.0055, sides=(1,))
+    bolts(k, 0.018, [(0.020, oz + 0.005), (0.020, oz + 0.016)], r=0.0024)
+    # ---- barrel group in the walnut guard: heavy barrel, gas block and piston, cage open right and on the upper diagonals
+    k.lathe([(0.134, 0), (0.134, 0.0170), (0.150, 0.0170), (0.150, 0.0110), (0.336, 0.0110), (0.336, 0.0095), (0.538, 0.0095), (0.538, 0)],
+            'steel', 'y', (0, 0, bz), 10, bands=['steel2', 'steel2', 'steel2', None, None, None, None])
+    gas_block(k, 0.386, bz, r=0.0115, L=0.024, tube_to=0.146, tz=bz + 0.0160)
+    ys = cage(k, 0.138, 0.424, bz, 0.048, 0.048, 0.014, n=7, rib=0.009, open=('R', 'UR', 'UL'), color='gun3')
+    for (a, b) in zip(ys[:-1], ys[1:]):
+        y0, y1 = a[1] + 0.003, b[0] - 0.003
+        ym = (y0 + y1) / 2
+        k.box((0, ym, bz - 0.0125), (0.049, y1 - y0, 0.003), 'trim')
+        if 0.262 < ym < 0.378:                     # the hand's bays: chequered grip panels
+            plate(k, rect(y0, y1, bz - 0.0075, bz + 0.0075, c=0.002), HC, 'acc2', sides=(-1,))
+            slots(k, HC + PR, y0 + 0.002, y1 - 0.002, bz, 5, h=0.010, fill=0.22, sides=(-1,), slant=32)
+        else:
+            slots(k, HC, y0 + 0.001, y1 - 0.001, bz, 2, h=0.010, fill=0.42, sides=(-1,), slant=-28)
+        if ym > 0.256:
+            top_slots(k, bz + 0.024, y0 + 0.002, y1 - 0.002, 2, w=0.010, fill=0.5)
     for s in (-1, 1):
-        for i in range(6):
-            k.box((s * 0.0240, 0.165 + i * 0.040, bz), (0.006, 0.024, 0.008), 'ink', skip=('-x' if s > 0 else '+x',))
-    k.box((0, 0.290, bz - 0.0145), (0.0540, 0.220, 0.006), 'trim')
-    rail(k, 0.141, 0.250, 0.058, w=0.020, pitch=0.018)
-    barrel(k, 0.410, 0.536, 0.0100, bz)
-    for s in (-1, 1):
-        k.box((s * 0.0105, 0.475, bz), (0.006, 0.100, 0.004), 'ink', skip=('-x' if s > 0 else '+x',))
-    k.box((0, 0.475, bz + 0.0105), (0.004, 0.100, 0.006), 'ink', skip=('-z',))
-    muzzle(k, 0.536, 0.600, 0.0130, bz, ports=3, top_ports=2, rb=0.0060, seg=8)
+        bolt(k, (s * (HC + PR), 0.146, bz + 0.006), (s, 0, 0))
+        bolt(k, (s * (HC + PR), 0.146, bz - 0.006), (s, 0, 0))
+        sling_loop(k, 0.416, bz, s, hw=HC + PR, r=0.006)
+    rail(k, 0.142, 0.252, bz + 0.024 + PR, w=0.020, pitch=0.010)
+    slots(k, 0.0090, 0.432, 0.522, bz, 1, h=0.004, fill=1.0)                                             # barrel flutes
+    top_slots(k, bz + 0.0090, 0.432, 0.522, 1, w=0.004, fill=1.0)
+    k.ring('y', (0, 0, bz), 0.5255, 0.5350, 0.0095, 0.0152, 'steel2', seg=8, hull=False)
+    muzzle(k, 0.536, 0.600, 0.0130, bz, ports=3, top_ports=3, rb=0.0060, seg=8)
     trigger_guard(k, rake, front=0.068, depth=-0.052, w=0.012, top=-0.012, hook=False)
     trigger(k, rake)
     grip(k, rake, 'ar', w=0.033, top=-0.008, ptop=-0.038, grooves=2)
-    # fixed precision stock: cheek riser, butt pad, sling stud
-    k.ext_x([(-0.110, 0.050), (-0.180, 0.050), (-0.330, 0.054), (-0.334, -0.060), (-0.300, -0.064), (-0.200, -0.016), (-0.110, -0.016)], -0.020, 0.020, 'furn', ch=0.005)
-    k.ext_x([(-0.190, 0.049), (-0.300, 0.053), (-0.300, 0.064), (-0.196, 0.062)], -0.0155, 0.0155, 'gun3', ch=0.003)
-    k.ext_x([(-0.330, 0.058), (-0.346, 0.058), (-0.348, -0.064), (-0.332, -0.066)], -0.0235, 0.0235, 'ink', ch=0.003)
+    # ---- fixed precision stock: walnut body with a butt hook, bedding block, riser on posts with thumb wheels,
+    #      length-of-pull spacers, ribbed recoil pad
+    k.ext_x([(-0.1045, 0.046), (-0.312, 0.046), (-0.312, -0.064), (-0.246, -0.068), (-0.232, -0.058), (-0.236, -0.022), (-0.216, -0.004),
+             (-0.160, -0.004), (-0.142, -0.016), (-0.1045, -0.016)], -HS, HS, 'furn', ch=0.004)
+    plate(k, [(-0.120, -0.010), (-0.140, -0.010), (-0.152, 0.002), (-0.152, 0.040), (-0.120, 0.040)], HS, 'frame2')
+    bolts(k, HS + PR, [(-0.128, -0.002), (-0.128, 0.032)])
+    plate(k, rect(-0.288, -0.194, 0.024, 0.040, c=0.003), HS, 'steel2')
+    for y in (-0.214, -0.268):
+        k.lathe([(0.040, 0), (0.040, 0.0042), (0.058, 0.0042), (0.058, 0)], 'steel', 'z', (0, y, 0), 6, hull=False)
+        turret(k, (HS + PR, y, 0.032), 'x', r=0.0070, h=0.005, color='steel', cap='ink')
+        turret(k, (-HS - PR, y, 0.032), '-x', r=0.0070, h=0.005, color='steel', cap='ink')
+    plate(k, rect(-0.306, -0.158, 0.0165, 0.0190), HS, 'trim', ch=0)
+    plate(k, rect(-0.304, -0.250, -0.056, -0.010, c=0.004), HS, 'acc2')
+    slots(k, HS + PR, -0.300, -0.254, -0.022, 3, h=0.010, fill=0.34, slant=-26)
     for s in (-1, 1):
-        k.box((s * 0.0215, -0.260, -0.004), (0.006, 0.070, 0.004), 'ink', skip=('-x' if s > 0 else '+x',))
-    k.ring('x', (0, -0.250, -0.046), -0.023, 0.023, 0.004, 0.0075, 'steel2', seg=8, hull=False)
+        sling_loop(k, -0.182, 0.0075, s, hw=HS, r=0.0058)
+    k.ext_x([(-0.190, 0.054), (-0.296, 0.054), (-0.296, 0.066), (-0.200, 0.066)], -0.0155, 0.0155, 'gun3', ch=0.003)
+    k.cbox((0, -0.248, 0.0665), (0.022, 0.084, 0.004), 'rubber', ch=0.0015, axis='y')
+    top_slots(k, 0.0685, -0.286, -0.210, 8, w=0.014, fill=0.32)
+    k.ext_x(rect(-0.318, -0.309, -0.067, 0.048), -0.0215, 0.0215, 'frame2', ch=0.0015)
+    k.ext_x(rect(-0.326, -0.316, -0.0645, 0.0455), -0.0190, 0.0190, 'ink', hull=False)
+    k.ext_x(rect(-0.333, -0.324, -0.067, 0.048), -0.0215, 0.0215, 'frame2', ch=0.0015)
+    k.ext_x([(-0.330, 0.056), (-0.346, 0.056), (-0.348, -0.066), (-0.332, -0.070)], -0.0235, 0.0235, 'rubber', ch=0.003)
+    for i in range(5):
+        z = 0.040 - i * 0.022
+        for s in (-1, 1):
+            k.box((s * (0.0235 + PR / 2 - 0.0005), -0.340, z), (PR + 0.001, 0.008, 0.006), 'ink', skip=sk(s))
+        k.box((0, -0.3475 - PR / 2, z), (0.032, PR + 0.002, 0.005), 'ink', skip=('+y',))
+    # ---- magazine: straight 20-round box with witness holes
     mk = Kit(pal)
     mag_box(mk, 4, 0.040, -0.084, 0.056, 0.028, plate='gun3')
+    my, mz = g2w(4, -0.001, 0.040 - 0.124 * 0.87)
+    stencil(mk, '20', 0.014, my, mz - 0.003, cap=0.006)
+
+    # ---- Rare (and up): aiming module with its cable (left), magwell funnel, cartridge saddle, hook armour, cant level
+    r3 = Kit(pal)
+    laser_box(r3, 0.196, bz, s=-1, hw=HC + PR, L=0.050, w=0.017, h=0.020, color='gun2')
+    cable(r3, [(-0.0330, 0.172, bz + 0.004), (-0.0300, 0.158, bz + 0.012), (-0.0285, 0.142, bz + 0.016), (-0.0270, 0.128, bz + 0.0185), (-0.0220, 0.120, bz + 0.016)], clamps=(2,))
+    r3.ext_x([(0.060, -0.046), (0.148, -0.046), (0.154, -0.063), (0.054, -0.063)], -0.0300, 0.0300, 'gun2', ch=0.003)
+    bolts(r3, 0.0300, [(0.066, -0.054), (0.142, -0.054)])
+    r3.cbox((-HS - 0.0040, -0.276, 0.004), (0.009, 0.056, 0.013), 'rubber', ch=0.002)
+    for i in range(4):
+        r3.lathe([(-0.016, 0), (-0.016, 0.0046), (0.008, 0.0046), (0.012, 0.0032), (0.019, 0.0032), (0.024, 0.0012), (0.024, 0)], 'brass', 'z',
+                 (-HS - 0.0062, -0.2955 + i * 0.013, 0.0), 6, hull=False, bands=[None, None, None, None, 'steel', 'steel'])
+    plate(r3, [(-0.306, -0.061), (-0.250, -0.064), (-0.240, -0.056), (-0.243, -0.036), (-0.306, -0.036)], HS + PR, 'gun2', t=0.003, hull=True)
+    bolts(r3, HS + PR + 0.003, [(-0.298, -0.054), (-0.298, -0.042), (-0.250, -0.050)])
+    r3.cbox((-0.0275, -0.070, 0.0625), (0.015, 0.014, 0.011), 'gun2', ch=0.002)
+    r3.box((-0.0275, -0.077 - PR / 2 + 0.0005, 0.0625), (0.010, PR + 0.001, 0.0045), 'emis', skip=('+y',))
+    r3.box((-0.0275, -0.070, 0.068 + PR / 2 - 0.0005), (0.010, 0.008, PR + 0.001), 'emis', skip=('-z',))
+
+    # ---- Epic (and up): capacitor behind the receiver, conduit along the right, accelerator rails round the barrel
+    r4 = Kit(pal)
+    r4.cbox((0, -0.150, 0.0485), (0.030, 0.052, 0.007), 'gun2', ch=0.002, axis='y')
+    energy_cell(r4, (0, -0.150, 0.0590), L=0.056, r=0.0068, cage_bars=3)
+    conduit(r4, [(0.010, -0.124, 0.058), (0.0200, -0.112, 0.0560), (0.0245, -0.098, 0.0535), (0.0245, 0.132, 0.0535), (0.0281, 0.146, 0.0457), (0.0281, 0.418, 0.0457),
+                 (0.0200, 0.432, 0.0420), (0.0130, 0.440, 0.0400)], r=0.0026, every=1)
+    for y in (0.443, 0.478, 0.513):
+        r4.cbox((0, y, bz), (0.036, 0.009, 0.032), 'gun2', ch=0.004, axis='y')
+    for s in (-1, 1):
+        r4.lathe([(0.436, 0), (0.436, 0.0030), (0.520, 0.0030), (0.520, 0)], 'emis', 'y', (s * 0.0135, 0, bz + 0.0065), 6, hull=False)
+        r4.lathe([(0.436, 0), (0.436, 0.0030), (0.520, 0.0030), (0.520, 0)], 'emis', 'y', (s * 0.0135, 0, bz - 0.0065), 6, hull=False)
+    m4 = Kit(pal)
+    for j in range(3):
+        t = 0.45 + 0.13 * j
+        y, z = g2w(4, -0.056 * 0.02, 0.040 - 0.124 * t)
+        for s in (-1, 1):
+            m4.box((s * (0.014 + PR + PR / 2 - 0.0005), y, z), (PR + 0.001, 0.0030, 0.0030), 'emis', skip=sk(s))
+
+    # ---- Legendary: three halos round the barrel, winged cheek riser, talon on the butt hook, gold inlays
+    r5 = Kit(pal)
+    for i, y in enumerate((0.4605, 0.4955, 0.530)):
+        r5.ring('y', (0, 0, bz), y - 0.003, y + 0.003, 0.0235, 0.0275, 'gun3', seg=12)
+        r5.ring('y', (0, 0, bz), y - 0.0012, y + 0.0012, 0.0260, 0.0295, 'trim', seg=12, hull=False)
+    for s in (-1, 1):
+        for j in range(3):                                                    # feathers sweeping back off the riser
+            with r5.at((s * 0.0150, -0.204 - j * 0.026, 0.060), (0, s * (34 - j * 6), 0)):
+                r5.ext_x([(0.004, -0.002), (-0.010, 0.014 + j * 0.002), (-0.058, 0.022 + j * 0.003), (-0.030, 0.008), (-0.014, -0.002)], -0.0014, 0.0014, 'gun3', ch=0.0008)
+                r5.ext_x([(-0.008, 0.006), (-0.012, 0.0125 + j * 0.002), (-0.050, 0.0195 + j * 0.003), (-0.030, 0.0115)], -0.0026, 0.0026, 'trim', ch=0, hull=False)
+    r5.ext_x([(-0.226, -0.050), (-0.238, -0.066), (-0.206, -0.092), (-0.222, -0.070), (-0.214, -0.058)], -0.0030, 0.0030, 'steel', ch=0.0015)
+    r5.ext_x([(-0.250, -0.071), (-0.226, -0.062), (-0.224, -0.044), (-0.240, -0.050), (-0.256, -0.060)], -HS - 0.0032, HS + 0.0032, 'gun3', ch=0.002)
+    plate(r5, [(-0.156, 0.0105), (-0.306, 0.0080), (-0.306, 0.0105), (-0.220, 0.0125), (-0.156, 0.0140)], HS, 'trim', ch=0)
+    for s in (-1, 1):
+        n = (V((s, 0, 0)), V((0, 1, 0)), V((0, 0, s)))
+        r5.lathe([(-0.001, 0.0090), (0.0030, 0.0090), (0.0030, 0.0062), (0.0015, 0.0062), (0.0015, 0.0034), (0.0042, 0.0034), (0.0052, 0)], 'gun3', n,
+                 (s * (HS + PR), -0.168, 0.030), 6, hull=False, bands=[None, None, 'ink', 'ink', 'emis', 'emis'], caps=(False, True), a0=0)
+    plate(r5, [(0.084, -0.012), (0.128, -0.012), (0.128, -0.0145), (0.084, -0.0145)], HM + PR, 'trim', ch=0)
+    plate(r5, [(0.084, -0.0305), (0.128, -0.0305), (0.128, -0.033), (0.084, -0.033)], HM + PR, 'trim', ch=0)
+    m5 = Kit(pal)
+    for t in (0.36, 0.93):
+        y, z = g2w(4, 0.0, 0.040 - 0.124 * t)
+        m5.cbox((0, y, z), (0.038, 0.064, 0.005), 'trim', ch=0, rot=(-4, 0, 0))
     return k, mk, {'rake': rake, 'mrake': 4, 'mag': (0, 0.105, -0.050), 'muzzle': (0, 0.602, bz), 'eject': (0.03, 0.050, 0.042),
-                   'sight': (0, -0.100, lz), 'scope': (0, -0.086, lz), 'cls': 'rifle', 'guard': (0, 0.320, 0.034)}
+                   'sight': (0, -0.100, lz), 'scope': (0, -0.086, lz), 'cls': 'rifle', 'guard': (0, 0.320, 0.034),
+                   'layers': {'345': r3, '45': r4, '5': r5}, 'mag_layers': {'45': m4, '5': m5}}
 
 
 def build_vanguard(pal):
