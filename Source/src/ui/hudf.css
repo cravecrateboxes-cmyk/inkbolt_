@@ -100,11 +100,10 @@ body .hud .prompt.empty { color: var(--rd); border-bottom-color: var(--rd); anim
 body .hud .prompt.empty .key { background: var(--rd); color: var(--ink); box-shadow: none; }
 body .hud .prompt.low { color: var(--or); border-bottom-color: var(--or); }
 body .hud .prompt.low .key { background: var(--or); color: var(--ink); box-shadow: none; }
-body .hud .prompt.reload { display: grid; justify-items: center; gap: 7px; padding: 0; border: 0; width: 240px; font-size: 20px; letter-spacing: .34em; color: var(--w); }
+body .hud .prompt.reload { display: grid; justify-items: center; gap: 8px; padding: 0; border: 0; width: 220px; font: italic 700 24px 'Barlow Condensed', sans-serif; letter-spacing: .06em; line-height: 1; color: #fff; }
 body .hud .prompt.reload .key, body .hud .prompt.reload .prompt-ring { display: none; }
-body .hud .prompt.reload .prompt-bar { display: block; order: -1; width: 100%; height: 9px; background: repeating-linear-gradient(90deg, rgba(244, 247, 251, .3) 0 10px, transparent 10px 13px); transform: skewX(-30deg); }
-body .hud .prompt-bar i { height: 100%; background: repeating-linear-gradient(90deg, var(--or) 0 10px, transparent 10px 13px); box-shadow: none; }
-body .hud .prompt.reload > span:last-of-type { padding-left: .34em; }
+body .hud .prompt.reload .prompt-bar { display: block; order: -1; position: relative; width: 100%; height: 12px; overflow: hidden; transform: skewX(-20deg); background: rgba(5, 8, 14, .7); border: 1.5px solid var(--ln); box-shadow: 0 0 0 2px var(--ink); }
+body .hud .prompt-bar i { height: 100%; background: #fff; box-shadow: none; }
 body .hud .use-prompt { border-bottom-color: var(--rar, var(--or)); color: var(--rar, var(--or)); gap: 4px 12px; }
 body .hud .use-prompt .uacc { display: none; }
 body .hud .use-prompt .ut { font-size: 24px; font-weight: 600; letter-spacing: .24em; text-transform: uppercase; }
@@ -199,7 +198,7 @@ body .hud .slots { display: block; position: absolute; inset: 0; gap: 0; }
 body .hud .wd { position: absolute; width: 66px; height: 66px; display: grid; place-items: center; transform: rotate(45deg); background: var(--gl); border: 1.5px solid var(--ln); box-shadow: 0 0 0 3px var(--ink); color: var(--dim); }
 body .hud .wd.s1 { left: 55px; top: 0; } body .hud .wd.s2 { left: 0; top: 55px; } body .hud .wd.s3 { left: 110px; top: 55px; } body .hud .wd.s4 { left: 55px; top: 110px; }
 body .hud .wd span { display: grid; place-items: center; transform: rotate(-45deg); }
-body .hud .wd svg { width: 42px; height: 21px; fill: currentColor; }
+body .hud .wd svg { width: 52px; height: 26px; fill: currentColor; }
 body .hud .wd em { position: absolute; left: 2px; top: 0; font-style: normal; font-size: 15px; transform: rotate(-45deg); color: var(--w); }
 body .hud .wd.on { border-color: var(--or); background: rgba(255, 154, 46, .32); color: var(--w); transform: rotate(45deg); }
 body .hud .wp { position: relative; display: flex; flex-direction: column; align-items: flex-end; width: auto; padding: 0; background: none; gap: 0; }
