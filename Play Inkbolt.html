@@ -2109,11 +2109,6 @@ body .hud .wd em { position: absolute; left: 2px; top: 0; font-style: normal; fo
 body .hud .wd.on { border-color: var(--or); background: rgba(255, 154, 46, .32); color: var(--w); transform: rotate(45deg); }
 body .hud .wp { position: relative; display: flex; flex-direction: column; align-items: flex-end; width: auto; padding: 0; background: none; gap: 0; }
 body .hud .wp::before, body .hud .wp::after { display: none; }
-body .hud .wpn-name { display: block; justify-self: auto; padding: 0; background: none; font-size: 32px; letter-spacing: .08em; line-height: 1; color: var(--w); }
-body .hud .brush { width: 250px; height: 8px; margin-top: 5px; background: var(--or); border-radius: 2px 6px 2px 8px; transform: skewX(-34deg); box-shadow: 2px 2px 0 var(--ink); }
-body .hud .wp.low .brush { background: var(--or); } body .hud .wp.empty .brush { background: var(--rd); }
-body .hud .wpn-cls { display: flex; margin-top: 9px; gap: 0; font-size: 14px; letter-spacing: .14em; color: var(--dim); }
-body .hud .wpn-icon { display: none; }
 body .hud .amb { display: flex; align-items: baseline; gap: 10px; margin-top: 2px; width: auto; min-width: 0; padding: 0; background: none; color: var(--w); }
 body .hud .amb b { font-size: 136px; line-height: .84; font-weight: 700; letter-spacing: .01em; color: inherit; text-shadow: var(--ol); }
 body .hud .amb .r { display: inline-flex; align-items: baseline; gap: 10px; font-size: 44px; line-height: 1; font-weight: 700; color: var(--rd); text-shadow: var(--ol); }
@@ -2177,7 +2172,7 @@ body:not(.touch-on) .hud .callouts { transform: translateX(-50%) scale(var(--hs)
 body:not(.touch-on) .hud .elim { transform: scale(var(--hs)); transform-origin: 50% 0; }
 
 /* ---------- phones: same positions as before, F skin at phone sizes ---------- */
-body.touch-on .hud .lvhex, body.touch-on .hud .vh, body.touch-on .hud .abl, body.touch-on .hud .cn, body.touch-on .hud .xbr, body.touch-on .hud .brush { display: none; }
+body.touch-on .hud .lvhex, body.touch-on .hud .vh, body.touch-on .hud .abl, body.touch-on .hud .cn, body.touch-on .hud .xbr,  { display: none; }
 body.touch-on .hud .hud-top { width: auto; }
 body.touch-on .hud .sc { width: auto; gap: 12px; margin: 0; }
 body.touch-on .hud .score-zone, body.touch-on .hud .score-left { font-size: 12px; letter-spacing: .1em; }
@@ -2204,11 +2199,9 @@ body.touch-on .hud .wd, body.touch-on .hud .wd.on { position: relative; left: au
 body.touch-on .hud .wd span, body.touch-on .hud .wd em { transform: none; }
 body.touch-on .hud .wd em { left: 4px; font-size: 12px; }
 body.touch-on .hud .wd svg { width: 26px; height: 13px; }
-body.touch-on .hud .wpn-name { font-size: 18px; }
 body.touch-on .hud .amb b { font-size: 46px; }
 body.touch-on .hud .amb .r { font-size: 18px; }
 body.touch-on .hud .mag-strip { width: 150px; height: 6px; margin-top: 4px; }
-body.touch-on .hud .wpn-cls { margin-top: 3px; font-size: 11px; }
 body.touch-on .hud .banner { top: 24%; }
 body.touch-on .hud .ban-t { font-size: 24px; padding: 3px 22px 4px; }
 body.touch-on .hud .ban-s { font-size: 13px; }
@@ -2237,9 +2230,11 @@ body .hud .score-zone, body .hud .score-left { letter-spacing: .1em; }
 body .hud .score-zone b, body .hud .score-left b { letter-spacing: .1em; }
 body .hud .kf, body .hud .feed-wpn, body .hud .feed-bot { letter-spacing: .06em; }
 body .hud .c1, body .hud .prompt, body .hud .use-prompt, body .hud .use-prompt .ut { letter-spacing: .1em; }
-body .hud .use-prompt .us, body .hud .c1 small, body .hud .ban-s, body .hud .nt .c, body .hud .wpn-cls, body .hud .xp-num, body .hud .loot-note, body .hud .loot-stats { letter-spacing: .06em; color: var(--w); }
+body .hud .use-prompt .us, body .hud .c1 small, body .hud .ban-s, body .hud .nt .c, body .hud .xp-num, body .hud .loot-note, body .hud .loot-stats { letter-spacing: .06em; color: var(--w); }
 body .hud .ban-s { letter-spacing: .1em; }
-body .hud .wpn-cls b { color: var(--w); font-weight: 600; }
+
+/* the weapon plate is just the ammo: no gun class, level, rarity or brush line */
+body .hud .wpn-name, body .hud .wpn-cls { display: none; }
 
 /* INKBOLT between-levels loader (ui/loader.js): black screen, a real-3D gear on its own canvas, a quiet caption.
    #loading uses the class "ldr" (the old gears screen styled ".loading" in ui.css is no longer used). */
@@ -2327,7 +2322,6 @@ body .hud .wpn-cls b { color: var(--w); font-weight: 600; }
     <div class="whl"><div class="slots" id="slots"></div></div>
     <div class="wp" id="weapon">
       <b class="wpn-name d" id="wpnName">P-12 WARDEN</b>
-      <div class="brush"></div>
       <span class="wpn-cls mo"><span class="wpn-icon" id="wpnIcon"></span><span id="wpnCls">Pistol</span></span>
       <div class="amb" id="ammo"><b class="d" id="ammoMag">12</b><span class="r d" id="ammoRes">/ &infin;</span></div>
       <div class="mag-strip" id="magStrip"><i id="magFill"></i></div>
