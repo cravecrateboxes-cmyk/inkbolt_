@@ -878,6 +878,7 @@
       for (var tries = 0; tries < 500 && got.length < per; tries++) {
         var i = 4 + Math.floor(rng() * (N.nx - 8)), j = 4 + Math.floor(rng() * (N.nz - 8));
         if (!B.clearPatch(open, i, j, 3)) continue;
+        if (world.sunkFloor && N.h && Math.abs(N.h[j * N.nx + i]) > 0.05) continue;   // sunk floors (zones.js theme.sunk): cans stand on the zone floor
         var x = zn.ox + (i + 0.5) * 0.5, z = zn.oz + (j + 0.5) * 0.5, ok = true, k;
         if (Math.hypot(x - zn.entry.x, z - zn.entry.z) < CN.fromEntry) continue;
         for (k = 0; k < zn.spawns.length && ok; k++) if (Math.hypot(x - zn.spawns[k].x, z - zn.spawns[k].z) < CN.fromSpawn) ok = false;
