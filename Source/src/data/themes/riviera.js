@@ -45,9 +45,9 @@
        the infinity edge (west).
      n doorway (wall.passage: open below the 2.7 m lintel)
      Zone 1: X the Imperial Staircase [13,10] (landmark)   I column (under the gallery's edge)   R reception [6,4] KH
-             Q concierge / cloakroom [3,2] KH   F flower table [3,3] KH   L lounge [4,3] KH (repainted)   K piano [3,3] KH
-             B the bar [8,4] KH   b bar stool KH   O ottoman [2,1] KH   k console [2,1] KH   w writing desk [2,1] KH
-             p palm KH   t topiary KH   c luggage cart KH   j bell captain KH   e easel KH   T the chef's table [3,3] KH
+             Q concierge / cloakroom [3,2] KH   F flower table [3,3] KH   L lounge (sofa, armchairs) [4,3]   K piano [3,3] KH
+             B the bar Le Phare [8,4] (The Aurelian's bar, relettered)   b bar stool KH   O ottoman [2,1] KH   k console [2,1] KH   w writing desk [2,1] KH
+             p palm in an urn   t topiary KH   c luggage cart KH   j bell captain KH   e easel KH   T the chef's table [3,3] KH
              D the stage [9,4] KH (with the projection screen)   y housekeeping cart [2,1] KH   v trolley [2,1] KH
              M / N / W the King / Twin / Salon suite [6,6] KH (front to the doorway)
              d four-top [2,2]   u two-top [2,1]   q banquette [4,2]   V wine wall [3,1]   Z the kitchen pass [4,1]
@@ -62,8 +62,8 @@
              5 lemon tree KV   6 cypress KV   7 urn KV   s tea table [2,2]   f fountain [4,4]
    Layer symbols: zone 1 "@layer 0": x medallion [7,7] KH   _ runner [3,1] KH   ! carpet [4,4] KH   + corridor carpet
      [4,4] KH   , cement tiles [2,2]; "@layer 4.5" the gallery: m deck (every symbol on that layer stands on it), r
-     balustrade (links) KH, i column KH, L p k (furniture), S a; "@layer 9" the ceiling: H the great chandelier [5,5]
-     KH, ^ chandelier [3,3] KH, ~ coffer [4,4] KH, : downlight KH.
+     balustrade (links), i column, L p t O (furniture), S a; "@layer 9" the ceiling: H the great chandelier [5,5]
+     KH, ^ chandelier [3,3], ~ coffer [4,4] KH, : downlight KH.
      Zone 2 "@layer 0": 9 lawn [2,2]; "@layer 4.5": = the roof garden's deck; "@layer 4.5": the roof garden's
      furniture (1 / 2 3 4 5 6 } {), 9 lawn, S h.
    Backdrop (backdrop.build, level-wide, so nothing switches between the zones): the sea far below the cliff to the
@@ -217,8 +217,8 @@
     'F': pf([3, 3], [KH + 'Landmark_Flowers']),
     'L': pf([4, 3], ['LoungeSet'], { flip: true }),
     'K': pf([3, 3], [KH + 'Piano'], { flip: true }),
-    'B': pf([8, 4], [KH + 'Landmark_Bar'], { orient: 'wall', paint: NAVY }),
-    'b': one([KH + 'Stool']),
+    'B': pf([8, 4], ['Bar'], { orient: 'wall' }),
+    'b': one([KH + 'Stool'], undefined, { paint: NAVY }),
     'O': pf([2, 1], [KH + 'Ottoman'], { paint: BLUE }),
     'k': pf([2, 1], [KH + 'Console'], { orient: 'wall' }),
     'w': pf([2, 1], [KH + 'WritingDesk'], { orient: 'wall' }),
@@ -401,8 +401,8 @@
   IB.registerTheme({
     id: 'riviera', name: 'Grand Hotel Riviera', family: 'kit-riviera', prefix: 'KIT_RIVIERA_', families: ['kit-hotel', 'kit-venetian'],
     palette: ['#F5F0E6', '#2D6EAE', '#C8653D', '#2E9FD0'],
-    // late afternoon on the Riviera: a clear sky going gold toward the sea horizon, a warm low sun from the west
-    env: { sky: ['#5F9FDF', '#F5DDB9'], fog: { color: '#EFDCC2', near: 150, far: 1300, tierScale: true }, sun: [-0.66, 0.55, 0.12],
+    // late afternoon on the Riviera: a clear sky going pale toward the sea's hazy horizon, a warm low sun from the west
+    env: { sky: ['#5F9FDF', '#DCE8EE'], fog: { color: '#D8E5EC', near: 150, far: 1300, tierScale: true }, sun: [-0.66, 0.55, 0.12],
       sunColor: '#FFE8C6', far: 1600, clouds: true, ceiling: { height: 9.0, color: '#F7F0E2' } },
     // zone 1: honed white marble with 1 m joints (carpets, the medallion and the restaurant's tiles from "@layer 0");
     // zone 2: travertine (its zone plan floor)

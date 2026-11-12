@@ -15,6 +15,7 @@ import rv_base as B
 import rv_walls as W
 import rv_inside as I
 import rv_pool as P
+import hotel_props as HP
 
 
 def build_kit_riviera(ao):
@@ -78,6 +79,11 @@ def build_kit_riviera(ao):
     I.lustre(k).finish('Lustre')
     I.palm_pot(k).finish('PalmPot', ao=ao)
     I.g_columns(k)
+    # the bar Le Phare: The Aurelian's bar counter and back bar, its sign lettered for this hotel
+    t0 = HP.txt
+    HP.txt = lambda k_, s_, *a, **kw: t0(k_, 'BAR LE PHARE' if s_ == 'THE GILT BAR' else s_, *a, **kw)
+    HP.bar(k).finish('Bar', ao=ao)
+    HP.txt = t0
     I.dine_table(k).finish('DineTable', ao=ao)
     I.dine_two(k).finish('DineTwo', ao=ao)
     I.banquette(k).finish('Banquette', ao=ao)
