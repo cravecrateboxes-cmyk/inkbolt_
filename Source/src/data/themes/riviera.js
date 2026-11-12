@@ -135,7 +135,7 @@
     var F = INWARD[face], inward = g.at(c + F[0], r + F[1]);
     // suites: party walls draw nothing (the suites draw their sides), the outer wall behind a suite is its window
     if (SUITES.indexOf(inward) >= 0) {
-      if (north) return KH + 'SuiteWin';
+      if (north) return 'SuiteWin';
       if (west || east || south) return null;   // the suite's own side wall stands 2 cm inside this cell
       var acrossS = g.at(c - F[0], r - F[1]);
       if (SUITES.indexOf(acrossS) >= 0 || face === 'E' || face === 'W') return null;
@@ -148,7 +148,7 @@
       // arched French windows: the sea side of the restaurant and the guest wing, the front of the lobby; panelled
       // one-sided walls elsewhere (the bar's back wall, the hall, the palm court, the foyer)
       if ((west && r >= 8) || (south && c > 21 && c < 51)) return seaBay(g, c, r, face);
-      return (((west || east) ? r : c) % 4 === 0) ? 'SF_Sconce' : 'SF_Plain';
+      return (((west || east) ? r : c) % 6 === 0) ? 'SF_Sconce' : 'SF_Plain';
     }
     // the suites' corridor: the fronts of the walk-in suites (sconces by the doorways), the closed doors opposite
     var nearDoor = g.at(c - 1, r) === 'n' || g.at(c + 1, r) === 'n';
@@ -161,7 +161,6 @@
     if (r === 22 && (c === 32 || c === 33 || c === 39 || c === 40)) return KH + (c % 2 === (c < 36 ? 0 : 1) ? 'Lift_A' : 'Lift_B');   // pairs (32, 33), (39, 40): both faces
     var vert = wallish(g.at(c, r - 1)) || wallish(g.at(c, r + 1));
     if (corner || !(horiz || vert)) return 'Core';
-    if (nearDoor || g.at(c, r - 1) === 'n' || g.at(c, r + 1) === 'n') return 'IW_Sconce' + (horiz ? '' : '_V');
     return panel(horiz ? c : r, c, r, horiz ? '' : '_V');
   }
   // ---- zone 2
@@ -169,7 +168,7 @@
   function facade(g, c, r, face) {
     var R = runOf(g, c, r, face, function (x, y) { return gateDist(g, x, y) >= 2.6 && !((x === 0 || x === g.w - 1) && (y === 0 || y === g.h - 1)); });
     var lead = Math.max(1, Math.floor((R.n % 3) / 2) + 1), i = R.i - lead, n3 = Math.floor((R.n - lead - 1) / 3);
-    if (i < 0 || i >= n3 * 3) return hh(c * 3 + 1, r * 5) < 0.3 ? 'F_Bloom' : 'F_Plain';
+    if (i < 0 || i >= n3 * 3) return hh(c * 3 + 1, r * 5) < 0.15 ? 'F_Bloom' : 'F_Plain';
     var bay = Math.floor(i / 3), k = i % 3, closed = hh(bay * 7 + c * 0 + (face === 'N' || face === 'S' ? r : c), bay + 3) < 0.4 ? '2' : '';
     if (k === 1) return (bay % 4 === 1 && !closed) ? 'F_Door' : 'F_Win' + closed;
     return (k === 0 ? 'F_ShA' : 'F_ShB') + closed;
@@ -185,7 +184,7 @@
     if (face === 'W' && r === 9) return 'PW_Door';
     if (face === 'S' && c === 57) return 'PW_DoorB';
     if (face === 'S' && (c === 63 || c === 68)) return 'PW_Bloom';
-    return (pos % 10 === 2) ? 'PW_Bloom' : k === 4 || k === 2 ? 'PW_Plain' : 'PW_Win';
+    return (pos % 15 === 2) ? 'PW_Bloom' : k === 4 || k === 2 ? 'PW_Plain' : 'PW_Win';
   }
   function poolWall(c, r, horiz, corner, g, face) {
     var W = g.w - 1, H = g.h - 1;
@@ -306,7 +305,7 @@
       G.flat([[gx - 0.25, gz - L], [gx + 0.25, gz - L], [gx + 0.25, gz + L], [gx - 0.25, gz + L]], SEA + 0.03, hash(i, 9) < 0.5 ? '#FBE7B6' : '#9ED3E6');
     }
     // the cliff face: jagged rock bands from the plateau down to the sea, rocks and surf at the foot
-    var STEP = 6, rock = ['#B7A58C', '#A08F78', '#C7B79E', '#8F7F6B'];
+    var STEP = 9, rock = ['#B7A58C', '#A08F78', '#C7B79E', '#8F7F6B'];
     for (var zz = zN; zz < zS; zz += STEP) {
       var j0 = hash(Math.round(zz), 11) * 3, j1 = hash(Math.round(zz + STEP), 11) * 3, k0 = hash(Math.round(zz), 13) * 5, k1 = hash(Math.round(zz + STEP), 13) * 5;
       // upper face (vertical-ish, facing west) and the lower slope out to the water line
@@ -330,10 +329,10 @@
     }
     function hill(cx, cz, rx, rz, h, c) { var r = (rx + rz) / 2; G.sphere(cx, SEA - 2, cz, r, c, { ws: 12, hs: 6, sy: h / r, hull: false }); }
     var tx = XC - 520, tz = Z2.oz - 380;                    // the town across the bay (north-west)
-    hill(tx - 120, tz - 60, 340, 260, 140, '#7E9A5E');
-    hill(tx + 60, tz - 220, 300, 240, 190, '#6F8C55');
-    hill(tx - 300, tz + 120, 260, 220, 90, '#86A266');
-    for (var hI = 0; hI < 110; hI++) {
+    hill(tx - 120, tz - 60, 260, 200, 95, '#6E9150');
+    hill(tx + 60, tz - 230, 240, 200, 120, '#62844A');
+    hill(tx - 300, tz + 120, 200, 180, 70, '#78995A');
+    for (var hI = 0; hI < 50; hI++) {
       var ang = hash(hI, 41) * Math.PI * 0.9 - 0.2, rad = 30 + hash(hI, 43) * 180, hx = tx + Math.cos(ang) * rad * 0.9, hz = tz - Math.sin(ang) * rad * 0.7;
       var lift = SEA + 2 + Math.max(0, (rad - 30)) * 0.42 + hash(hI, 45) * 6;
       house(hx, hz, 7 + hash(hI, 47) * 9, 7 + hash(hI, 49) * 7, 6 + hash(hI, 51) * 7, hI, lift);
@@ -347,8 +346,8 @@
     G.cyl(tx + 128, SEA + 16.8, tz + 70, 2.4, 2.4, 2, 8, '#C8473A', { hull: false });
     for (var bI = 0; bI < 10; bI++) api.add('Backdrop_Sail', tx + 20 + bI * 9, SEA, tz + 50 - hash(bI, 61) * 20, R90 + (hash(bI, 63) - 0.5) * 0.3, 0.7);
     var hx2 = XC - 430, hz2 = Z1.oz + Z1.h + 330;           // the headland to the south-west
-    hill(hx2, hz2 + 80, 300, 220, 110, '#7E9A5E');
-    hill(hx2 + 160, hz2 + 260, 360, 260, 160, '#6F8C55');
+    hill(hx2, hz2 + 80, 220, 180, 75, '#6E9150');
+    hill(hx2 + 160, hz2 + 260, 260, 220, 100, '#62844A');
     for (var vI = 0; vI < 26; vI++) {
       var vx = hx2 + (hash(vI, 71) - 0.5) * 220, vz = hz2 + 20 + hash(vI, 73) * 140;
       house(vx, vz, 9 + hash(vI, 75) * 6, 9 + hash(vI, 77) * 6, 6 + hash(vI, 79) * 4, vI + 300, SEA + 20 + (vz - hz2) * 0.45);
@@ -356,7 +355,7 @@
     G.cyl(hx2 - 150, SEA, hz2 - 40, 3, 2.4, 26, 8, '#F4EFE6', { hull: false });
     G.cyl(hx2 - 150, SEA + 26, hz2 - 40, 3.2, 3.2, 3, 8, '#2D6EAE', { hull: false });
     // far hills along the coast round the bay, hazed by the fog
-    for (var fI = 0; fI < 9; fI++) hill(XC - 900 + fI * 40, zN - 600 + fI * 520, 420, 300, 120 + hash(fI, 81) * 120, fI % 2 ? '#869C6E' : '#7B9466');
+    for (var fI = 0; fI < 9; fI++) hill(XC - 1100 + fI * 40, zN - 600 + fI * 520, 380, 300, 70 + hash(fI, 81) * 60, fI % 2 ? '#7F9A66' : '#73905C');
     // ---- boats on the sea
     [[-160, -60, 0.2], [-320, 90, -0.4], [-480, -200, 1.2], [-650, 260, 0.6]].forEach(function (b) {
       api.add('Backdrop_Yacht', XC + b[0], SEA, (Z1.oz + Z2.oz) / 2 + b[1], b[2], 1);
@@ -374,12 +373,12 @@
       G.cyl(x, 0, z, 0.35, 0.28, h, 6, '#9B7650', { hull: true });
       for (var q = 0; q < 7; q++) { var a2 = q / 7 * Math.PI * 2; G.box(x + Math.cos(a2) * 1.6, h + 0.2, z + Math.sin(a2) * 1.6, 3.4, 0.25, 0.9, '#4E8F45', { hull: false }); }
     }
-    for (var pI = 0; pI < 8; pI++) { palmT(Z1.ox + 6 + pI * 9, fz + 6, 9 + hash(pI, 91) * 2); palmT(Z1.ox + 6 + pI * 9, fz + 22, 8 + hash(pI, 93) * 2); }
+    for (var pI = 0; pI < 8; pI++) palmT(Z1.ox + 6 + pI * 9, fz + 6, 9 + hash(pI, 91) * 2);
     G.box(fx, 1.0, fz + 27, Z1.w + 30, 2, 0.6, '#EDE5D5', { hull: true });
-    for (var sI = 0; sI < 20; sI++) house(Z1.ox - 10 + sI * 6.5, fz + 50 + hash(sI, 95) * 20, 6, 8, 7 + hash(sI, 97) * 5, sI + 500, 0);
+    for (var sI = 0; sI < 12; sI++) house(Z1.ox - 10 + sI * 9, fz + 50 + hash(sI, 95) * 20, 6, 8, 7 + hash(sI, 97) * 5, sI + 500, 0);
     var ex = Z1.ox + Z1.w;
     for (var cI = 0; cI < 18; cI++) G.cyl(ex + 5 + hash(cI, 101) * 10, 0, Z1.oz + 3 + cI * 3.6, 0.9, 0.0, 9 + hash(cI, 103) * 3, 6, '#2F5E3C', { hull: true });
-    for (var uI = 0; uI < 24; uI++) house(ex + 30 + hash(uI, 105) * 60, Z1.oz + hash(uI, 107) * Z1.h, 8, 8, 7 + hash(uI, 109) * 6, uI + 700, uI * 0.6);
+    for (var uI = 0; uI < 14; uI++) house(ex + 30 + hash(uI, 105) * 60, Z1.oz + hash(uI, 107) * Z1.h, 8, 8, 7 + hash(uI, 109) * 6, uI + 700, uI * 0.6);
     // ---- the facades over zone 2's gates (the gates are placed by the engine with their portal frames)
     if (Z[1]) {
       if (Z2.entryGate) api.add('F_GateTop', Z2.entryGate.x, 0, Z2.entryGate.z, Math.PI, 1);
@@ -391,7 +390,7 @@
     'Core', 'SF_Plain', 'SF_Sconce', 'SuiteDoor_A', 'SuiteDoor_B', 'SuiteDoor_C', 'KitDoor', 'Door_L', 'Door_M', 'Door_R',
     'SW_A', 'SW_B', 'SW_P', 'F_Win', 'F_Win2', 'F_ShA', 'F_ShB', 'F_ShA2', 'F_ShB2', 'F_Door', 'F_Plain', 'F_Bloom',
     'F_Corner', 'F_End', 'F_GateTop', 'PW_Win', 'PW_Door', 'PW_DoorB', 'PW_Plain', 'PW_Bloom', 'PW_Gap', 'PW_Side', 'PW_Corner', 'TrailWall_End', 'SeaBal',
-    'SeaBal_L', 'InfEdge', 'StageScreen', 'Backdrop_Yacht', 'Backdrop_Sail', KH + 'SuiteWin', KH + 'Lift_A', KH + 'Lift_B', KH + 'Stand'];
+    'SeaBal_L', 'InfEdge', 'StageScreen', 'Backdrop_Yacht', 'Backdrop_Sail', 'SuiteWin', KH + 'Lift_A', KH + 'Lift_B', KH + 'Stand'];
   ['Plain', 'Sconce', 'Art', 'Mirror'].forEach(function (k) { PIECES.push('IW_' + k, 'IW_' + k + '_V'); });
   Object.keys(SYMBOLS).forEach(function (ch) {
     var d = SYMBOLS[ch];
@@ -403,7 +402,7 @@
     id: 'riviera', name: 'Grand Hotel Riviera', family: 'kit-riviera', prefix: 'KIT_RIVIERA_', families: ['kit-hotel', 'kit-venetian'],
     palette: ['#F5F0E6', '#2D6EAE', '#C8653D', '#2E9FD0'],
     // late afternoon on the Riviera: a clear sky going gold toward the sea horizon, a warm low sun from the west
-    env: { sky: ['#5F9FDF', '#F5DDB9'], fog: { color: '#EFDCC2', near: 120, far: 950, tierScale: true }, sun: [-0.66, 0.55, 0.12],
+    env: { sky: ['#5F9FDF', '#F5DDB9'], fog: { color: '#EFDCC2', near: 150, far: 1300, tierScale: true }, sun: [-0.66, 0.55, 0.12],
       sunColor: '#FFE8C6', far: 1600, clouds: true, ceiling: { height: 9.0, color: '#F7F0E2' } },
     // zone 1: honed white marble with 1 m joints (carpets, the medallion and the restaurant's tiles from "@layer 0");
     // zone 2: travertine (its zone plan floor)
@@ -417,7 +416,10 @@
     hatch: 'Hatch', stand: KH + 'Stand',
     backdrop: { build: buildCoast },
     budget: { prop: 4400, landmark: 6000, total: 60000 },
-    allPieces: function () { return PIECES.slice(); },
+    // the kit's own pieces (the unit tests check them on fps-kit-riviera.glb); the borrowed ones (KIT_HOTEL_ /
+    // KIT_VENETIAN_) are listed apart and checked on their kits' GLBs
+    allPieces: function () { return PIECES.filter(function (n) { return !/^KIT_/.test(n); }); },
+    borrowed: function () { return PIECES.filter(function (n) { return /^KIT_/.test(n); }); },
     levels: {
       riviera: {
         name: 'Grand Hotel Riviera',

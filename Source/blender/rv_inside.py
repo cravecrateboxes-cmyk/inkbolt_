@@ -505,7 +505,7 @@ def court_fountain(k):
 def g_rail(k, y0, y1):
     """a white balustrade on the gallery's edge (a run along Y): a marble plinth, flat iron bars, a gilt rail"""
     k.bx(-0.08, 0.08, y0, y1, 0, 0.14, 'marble2')
-    n = max(1, int(round((y1 - y0) / 0.14)))
+    n = max(1, int(round((y1 - y0) / 0.2)))
     for i in range(n):
         y = y0 + (i + 0.5) * (y1 - y0) / n
         for s in (-1, 1):

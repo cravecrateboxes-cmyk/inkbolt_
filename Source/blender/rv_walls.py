@@ -207,6 +207,23 @@ def sea_pier(k):
     return k
 
 
+def suite_win(k):
+    """the outer wall behind a walk-in suite (room toward -Y): a sash window with sheers and a blue drape, the suite's
+    ceiling at 3.3 m (stucco above it)"""
+    k.begin()
+    RH = 3.3
+    k.bx(-0.5, 0.5, -0.5, 0.5, 0, 0.6, 'stucco')
+    k.bx(-0.5, 0.5, -0.5, 0.5, RH - 0.25, H, 'stucco', ink=False)
+    k.bx(-0.497, 0.497, -0.58, -0.494, 0.58, 0.64, 'marble', ink=False)
+    k.bx(-0.5, 0.5, -0.04, 0.04, 0.6, 0.68, 'ivory', ink=False)
+    k.bx(-0.5, 0.5, -0.04, 0.04, RH - 0.33, RH - 0.25, 'ivory', ink=False)
+    k.poly([(-0.3, -0.006, 1.2), (-0.24, -0.006, 1.2), (-0.02, -0.006, 2.4), (-0.08, -0.006, 2.4)], 'glint', (0, -1, 0))
+    k.bx(0.3, 0.48, -0.36, -0.3, 0.66, RH - 0.32, 'ivory', ink=False)
+    k.bx(-0.497, -0.32, -0.46, -0.37, 0.64, RH - 0.32, 'wine')
+    k.bx(-0.5, 0.5, -0.48, -0.296, RH - 0.45, RH - 0.25, 'cream', ink=False)
+    return k
+
+
 def gate_frame(k):
     """Portal of the 3 m doors between the zones (both faces alike): a white architrave and pediment with the hotel's
     crest, white plaster to the 9 m ceiling. Closes the trail end (|x| <= 2.5)."""

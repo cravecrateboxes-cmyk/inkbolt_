@@ -35,6 +35,7 @@ def build_kit_riviera(ao):
     W.sea_win(k, 1).finish('SW_A', ao=ao)
     W.sea_win(k, -1).finish('SW_B', ao=ao)
     W.sea_pier(k).finish('SW_P', ao=ao)
+    W.suite_win(k).finish('SuiteWin', ao=ao)
     # ---- gate, trail, hatch, stand
     W.gate_frame(k).finish('GateFrame', ao=ao)
     shutter = W.gate_shutter(k).finish('GateShutter')
