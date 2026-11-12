@@ -168,7 +168,7 @@
     'r': { pieces: ['RailHalf'], full: 'RailFull', links: "r'", post: 'RailPost', kind: 'wall' },
     "'": { pieces: ['RailHalf'], full: 'RailFull', links: "r'", post: 'RailPost', kind: 'wall' },
     'd': { deck: { thick: 1.5, color: '#CDC9C2', edge: '#9C988F', under: '#8E8A85', with: 'r' } },
-    'U': { deck: { thick: 3.0, color: '#D2CEC7', edge: '#A39F97', under: '#8E8A85', with: 'r' } },
+    'U': { deck: { thick: 3.0, color: '#D2CEC7', edge: '#A39F97', under: '#8E8A85', with: 'rO!A%aLc=' } },   // the deck runs on under the terrace props (the old dome stood over a hole)
     'm': { deck: { thick: 0.3, color: '#6B7480', edge: '#3A3D46', under: '#4A5059', with: "'" } },
     // ---- zone 1: the antenna field, the masts, the buildings
     'B': pf([10, 10], ['Dish_A'], { face: 0 }),
