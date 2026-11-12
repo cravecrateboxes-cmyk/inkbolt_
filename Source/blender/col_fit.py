@@ -63,6 +63,7 @@ FIT = {
     'kit-foundry': ['CentipedeRack', 'Jig_Hound', 'Jig_Hover', 'Jig_*', 'Landmark_Bay_Armour', 'Landmark_Bay_Frame', 'Landmark_Bay_Launch',
                     'Landmark_Bay_Strider', 'Landmark_LaunchDoor1', 'Landmark_LaunchDoor2', 'Landmark_Strider_Legs',
                     'Landmark_Titan_Legs', 'LimbRack', 'Pad_Hound', 'Pad_Hover', 'Pad_*', 'WeldCell_Hover', 'WeldCell_Spider', 'WeldCell_*'],
+    'kit-mossgarden': ['Landmark_Glasshouse', 'Landmark_Oak_A', 'Landmark_Oak_B', 'Landmark_Cedar', 'WallFountain', 'Gazebo'],
 }
 
 
