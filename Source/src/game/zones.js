@@ -439,10 +439,12 @@
         if (yaw !== 0 && !solid(p.c - 1, p.r) && solid(p.c + 1, p.r)) yaw = -Math.PI / 2;   // +Z face toward the open (west) side
       }
       [].concat(name).forEach(function (n) {
-        P.add(n, z.ox + p.c + 0.5, 0, z.oz + p.r + 0.5, yaw);
+        // an entry may be { piece, turn }: that part turned by `turn` more (one face piece drawn on any side of the cell)
+        var tn = 0; if (n && typeof n === 'object') { tn = n.turn || 0; n = n.piece; }
+        P.add(n, z.ox + p.c + 0.5, 0, z.oz + p.r + 0.5, yaw + tn);
         // wall.cols (opt-in): a module's own _COL boxes collide too (a buttress standing out into the room)
         var wc = W.cols && colsOf(IB.themePiece(theme, n));
-        if (wc) addCols(world, wc, z.ox + p.c + 0.5, z.oz + p.r + 0.5, yaw, 'wall', z.idx);
+        if (wc) addCols(world, wc, z.ox + p.c + 0.5, z.oz + p.r + 0.5, yaw + tn, 'wall', z.idx);
       });
     });
   }
@@ -1339,6 +1341,11 @@
     }
   }
 
+  /* theme.dataLayers (optional): [y, ...] -- "@layer <y>" grids that only hold codes the theme reads (its wall chooser:
+     art per wall face, outdoor cells); they are never built as symbols, so their codes may use any character */
+  function isDataLayer(theme, lg) { return !!(theme.dataLayers && theme.dataLayers.indexOf(lg.y) >= 0); }
+  Z.isDataLayer = isDataLayer;
+
   // ---------------- level assembly ----------------
   /* plan: {themeId, zones:[{map:'name', waves:[[['crawler',4]], ...]}]} */
   Z.ZCHECK = /[?&]zcheck=1/.test(typeof location !== 'undefined' ? location.search : '');
@@ -1364,7 +1371,7 @@
       if (theme.terrain) buildTerrain(g, zone, grid, theme, world);
       else if (!roofZone) paintFloor(g, ox, oz, grid.w, grid.h, zp.floor ? { floor: zp.floor } : theme, false);   // zone plan `floor` (optional): this zone's own floor paint and lines (a ship's deck, hold and engine room)
       buildSymbols(P, zone, grid, theme, world, g, 0);
-      grid.layers.forEach(function (lg) { buildSymbols(P, zone, lg, theme, world, g, lg.y, true); });
+      grid.layers.forEach(function (lg) { if (!isDataLayer(theme, lg)) buildSymbols(P, zone, lg, theme, world, g, lg.y, true); });
       if (roofZone) IB.Rooftops.build(level, zone, grid, theme, world, g, P);
       var roofCol = col(theme.wall && theme.wall.roof, '#D9D2E6'), roofY = ((theme.wall && theme.wall.height) || 3) + 0.04;
       P.roof.forEach(function (p) {
