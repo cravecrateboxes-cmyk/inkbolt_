@@ -6,7 +6,7 @@ See rv_base.py for the conventions.
 """
 import math
 
-from rv_base import H, DECK, RISE, TREAD, RKit, srt, txt, disc, vdisc, frame_y, potted
+from rv_base import H, DECK, RISE, TREAD, RKit, srt, txt, disc, vdisc, frame_y, potted, ring
 from hotel_base import dining_chair, gold_chair, armchair, flowers, table_lamp, legs4, palm
 
 
@@ -142,6 +142,12 @@ def imperial_stair(k):
 
 
 # ================================================================ the restaurant Le Grand Bleu
+def posy(k, x, y, z, s=1.0):
+    """a small glass vase of roses on a table"""
+    k.cyl(x, y, z, 0.04 * s, 0.05 * s, 0.14 * s, 'crystal2', seg=5, ink=False)
+    k.sph(x, y, z + 0.2 * s, 0.09 * s, 'rose', seg=(5, 3))
+
+
 def place_setting(k, x, y, deg):
     k.push(x, y, deg)
     disc(k, 0, -0.18, 0.795, 0.12, 'ivory', n=10)
@@ -164,11 +170,11 @@ def dine_table(k):
     k.begin()
     cloth_table(k, 0, 0, 0.92, 0.92)
     for (x, y, d) in ((0, -0.68, 180), (0, 0.68, 0), (-0.68, 0, 270), (0.68, 0, 90)):
-        dining_chair(k, x, y, d, 'wine', 'walnut')
+        light_chair(k, x, y, d, 'wine', 'walnut')
     for d in (0, 90, 180, 270):
         place_setting(k, 0, 0, d)
     k.cyl(0, 0, 0.78, 0.04, 0.03, 0.14, 'crystal2', seg=6, ink=False)
-    flowers(k, 0, 0, 0.92, 0.45, 'rose')
+    posy(k, 0, 0, 0.92, 0.45 * 2)
     k.col(-0.47, 0.47, -0.47, 0.47, 0, 0.8)
     for (x, y) in ((0, -0.7), (0, 0.7), (-0.7, 0), (0.7, 0)):
         k.col(x - 0.24, x + 0.24, y - 0.24, y + 0.24, 0, 1.0)
@@ -179,12 +185,12 @@ def dine_two(k):
     """[2, 1] a round two-top by the windows, its chairs east and west"""
     k.begin()
     cloth_table(k, 0, 0, 0.74, 0.74, round_=True)
-    dining_chair(k, -0.62, 0, 270, 'wine', 'walnut')
-    dining_chair(k, 0.62, 0, 90, 'wine', 'walnut')
+    light_chair(k, -0.62, 0, 270, 'wine', 'walnut')
+    light_chair(k, 0.62, 0, 90, 'wine', 'walnut')
     place_setting(k, 0, 0, 90)
     place_setting(k, 0, 0, 270)
     k.cyl(0, 0.12, 0.78, 0.035, 0.03, 0.12, 'crystal2', seg=6, ink=False)
-    flowers(k, 0, 0.12, 0.9, 0.35, 'rose')
+    posy(k, 0, 0.12, 0.9, 0.35 * 2)
     k.col(-0.38, 0.38, -0.38, 0.38, 0, 0.8)
     for x in (-0.64, 0.64):
         k.col(x - 0.24, x + 0.24, -0.24, 0.24, 0, 1.0)
@@ -204,10 +210,10 @@ def banquette(k):
     k.bx(-1.98, 1.98, 0.78, 0.98, 1.25, 1.32, 'walnut', ink=False)
     for tx in (-1.0, 1.0):
         cloth_table(k, tx, 0.0, 0.8, 0.7)
-        dining_chair(k, tx, -0.68, 180, 'wine', 'walnut')
+        light_chair(k, tx, -0.68, 180, 'wine', 'walnut')
         place_setting(k, tx, 0, 0)
         place_setting(k, tx, 0, 180)
-        flowers(k, tx + 0.25, 0.15, 0.78, 0.35, 'rose')
+        posy(k, tx + 0.25, 0.15, 0.78, 0.35 * 2)
         k.col(tx - 0.4, tx + 0.4, -0.35, 0.35, 0, 0.8)
         k.col(tx - 0.24, tx + 0.24, -0.92, -0.44, 0, 1.0)
     k.col(-1.98, 1.98, 0.45, 0.98, 0, 1.32)
@@ -270,26 +276,34 @@ def wine_trolley(k):
 
 
 def cement_tiles(k):
-    """[2, 2] Provencal cement tiles (floor layer): terracotta and cream with a blue four-point star on each tile"""
+    """[2, 2] Provencal cement tiles (floor layer): four 1 m tiles in cream and stone, a blue star on the pale ones"""
     k.begin()
-    for i in range(4):
-        for j in range(4):
-            x0, y0 = -1.0 + i * 0.5, -1.0 + j * 0.5
-            k.qz(x0 + 0.008, x0 + 0.492, y0 + 0.008, y0 + 0.492, 0.009, 1, 'cream' if (i + j) % 2 else 'stone')
-            cx, cy = x0 + 0.25, y0 + 0.25
-            r, q = 0.19, 0.05
-            k.poly([(cx, cy - r, 0.012), (cx + q, cy - q, 0.012), (cx + r, cy, 0.012), (cx + q, cy + q, 0.012), (cx, cy + r, 0.012), (cx - q, cy + q, 0.012), (cx - r, cy, 0.012), (cx - q, cy - q, 0.012)], 'wine' if (i + j) % 2 else 'terra', (0, 0, 1))
+    for i in range(2):
+        for j in range(2):
+            x0, y0 = -1.0 + i, -1.0 + j
+            k.qz(x0 + 0.01, x0 + 0.99, y0 + 0.01, y0 + 0.99, 0.009, 1, 'cream' if (i + j) % 2 else 'stone')
+            if (i + j) % 2:
+                cx, cy, r, q = x0 + 0.5, y0 + 0.5, 0.32, 0.08
+                k.poly([(cx, cy - r, 0.012), (cx + q, cy - q, 0.012), (cx + r, cy, 0.012), (cx + q, cy + q, 0.012), (cx, cy + r, 0.012), (cx - q, cy + q, 0.012), (cx - r, cy, 0.012), (cx - q, cy - q, 0.012)], 'wine', (0, 0, 1))
     return k
 
 
-# ================================================================ the conference hall Salon Mediterranee
+def banquet_chair(k, x, y):
+    """a light gilt banquet chair with a blue seat (the sitter faces local -Y)"""
+    k.bx(x - 0.2, x + 0.2, y - 0.2, y + 0.2, 0.0, 0.42, 'gold', ink=False)
+    k.bx(x - 0.21, x + 0.21, y - 0.21, y + 0.2, 0.42, 0.5, 'wine')
+    k.bx(x - 0.19, x + 0.19, y + 0.15, y + 0.2, 0.5, 0.98, 'gold')
+    k.qy(x - 0.13, x + 0.13, 0.62, 0.9, y + 0.147, -1, 'wine')
+
+
 def chair_row(k):
-    """[6, 1] a row of six gilt banquet chairs with blue seats (the sitters face local -Y), a programme on each seat"""
+    """[6, 1] a row of six gilt banquet chairs with blue seats (the sitters face local -Y), a programme on some seats"""
     k.begin()
     for i in range(6):
         x = -2.5 + i
-        gold_chair(k, x, 0, 0, 'wine')
-        k.qz(x - 0.1, x + 0.06, -0.12, 0.08, 0.503, 1, 'paper')
+        banquet_chair(k, x, 0)
+        if i % 2 == 0:
+            k.qz(x - 0.1, x + 0.06, -0.12, 0.08, 0.503, 1, 'paper')
         k.col(x - 0.21, x + 0.21, -0.22, 0.21, 0, 0.98)
     return k
 
@@ -375,7 +389,7 @@ def coffee_station(k):
     for i in range(7):
         a = i * 0.9
         k.sph(0.7 + math.cos(a) * 0.15, math.sin(a) * 0.15, 0.84, 0.06, 'oak', seg=(5, 3), scale=(1.3, 1, 0.6), ink=False)
-    flowers(k, 1.5, 0.15, 0.78, 0.6, 'rose')
+    posy(k, 1.5, 0.15, 0.78, 0.6 * 2)
     k.col(-1.95, 1.95, -0.32, 0.4, 0, 0.85)
     return k
 
@@ -383,12 +397,11 @@ def coffee_station(k):
 def high_table(k):
     """a cocktail table in a white stretch cover with a blue sash and a small vase"""
     k.begin()
-    k.cyl(0, 0, 0, 0.3, 0.12, 0.55, 'ivory', seg=10)
-    k.cyl(0, 0, 0.55, 0.12, 0.33, 0.55, 'ivory', seg=10)
-    k.cyl(0, 0, 0.88, 0.235, 0.27, 0.08, 'wine', seg=10, ink=False)
-    k.cyl(0, 0, 1.1, 0.34, 0.34, 0.02, 'ivory', seg=10, ink=False)
+    k.cyl(0, 0, 0, 0.3, 0.12, 0.55, 'ivory', seg=8)
+    k.cyl(0, 0, 0.55, 0.12, 0.33, 0.55, 'ivory', seg=8)
+    k.cyl(0, 0, 0.88, 0.235, 0.27, 0.08, 'wine', seg=8, ink=False)
     k.cyl(0.1, 0.05, 1.12, 0.03, 0.025, 0.12, 'crystal2', seg=5, ink=False)
-    flowers(k, -0.08, -0.06, 1.12, 0.3, 'rose')
+    posy(k, -0.08, -0.06, 1.12, 0.3 * 2)
     k.col(-0.3, 0.3, -0.3, 0.3, 0, 1.12)
     return k
 
@@ -415,7 +428,7 @@ def reg_desk(k):
     txt(k, 'RF', 1.3, 0.544, 1.45, 0.3, 'gold', font='serif', valign='m', maxw=0.6)
     k.bx(0.88, 1.72, 0.5, 0.68, 0.0, 0.08, 'steel2', ink=False)
     for x in (-1.3, 0.0):
-        dining_chair(k, x, 0.5, 0, 'navy', 'walnut2')
+        light_chair(k, x, 0.5, 0, 'navy', 'walnut2')
     k.col(-1.9, 1.9, -0.6, 0.1, 0, 0.8)
     k.col(0.88, 1.72, 0.5, 0.68, 0, 2.1)
     for x in (-1.3, 0.0):
@@ -425,39 +438,28 @@ def reg_desk(k):
 
 # ================================================================ the palm court
 def rattan_chair(k, x, y, deg, fab='wine'):
-    """a round-backed rattan tub chair with a cushion (the sitter faces local -Y)"""
+    """a round rattan tub chair with a cushion (the sitter faces local -Y)"""
     k.push(x, y, deg)
-    k.cyl(0, 0, 0.0, 0.3, 0.33, 0.42, 'oak', seg=10)
-    k.cyl(0, 0, 0.42, 0.29, 0.29, 0.08, fab, seg=10, ink=False)
-    pts = [(math.cos(a) * 0.33, math.sin(a) * 0.33) for a in [math.radians(t) for t in range(-20, 201, 20)]]
-    for i in range(len(pts) - 1):
-        (x0, y0), (x1, y1) = pts[i], pts[i + 1]
-        hz = 0.48 if i % 2 == 0 else 0.44
-        k.m.box(((x0 + x1) / 2, (y0 + y1) / 2, 0.42 + hz / 2 + (0 if i % 2 == 0 else 0.015)), (math.hypot(x1 - x0, y1 - y0) + 0.01, 0.06 if i % 2 == 0 else 0.052, hz), 'oak',
-                rot=(0, 0, math.degrees(math.atan2(y1 - y0, x1 - x0))), bevel=False)
-        k._mark(i % 2 == 0)
+    k.cyl(0, 0, 0.0, 0.3, 0.33, 0.42, 'oak', seg=8)
+    k.cyl(0, 0, 0.42, 0.29, 0.29, 0.07, fab, seg=8, ink=False)
+    k.bx(-0.3, 0.3, 0.14, 0.3, 0.44, 0.88, 'oak')
     k.pop()
 
 
 def tea_set(k):
-    """[2, 2] afternoon tea: a round marble table on a rattan base, two rattan tub chairs, a three-tier cake stand, a
-    silver teapot, cups"""
+    """[2, 2] afternoon tea: a round marble table on a rattan base, two rattan tub chairs, a cake stand, a silver
+    teapot, cups"""
     k.begin()
-    k.cyl(0, 0, 0, 0.22, 0.12, 0.66, 'oak', seg=8)
-    k.cyl(0, 0, 0.66, 0.42, 0.42, 0.05, 'marble', seg=12)
+    k.cyl(0, 0, 0, 0.22, 0.12, 0.66, 'oak', seg=6)
+    k.cyl(0, 0, 0.66, 0.42, 0.42, 0.05, 'marble', seg=10)
     rattan_chair(k, -0.55, 0.42, 225)
     rattan_chair(k, 0.55, -0.42, 45)
-    k.cyl(0.12, 0.1, 0.71, 0.012, 0.012, 0.42, 'chrome', seg=4, ink=False)
-    for (z, r) in ((0.78, 0.15), (0.92, 0.12), (1.05, 0.09)):
-        k.cyl(0.12, 0.1, z, r, r, 0.012, 'ivory', seg=10, ink=False)
-        for i in range(4):
-            a = i * 1.57 + z
-            k.sph(0.12 + math.cos(a) * r * 0.6, 0.1 + math.sin(a) * r * 0.6, z + 0.025, 0.025, 'blush' if i % 2 else 'oak', seg=(4, 3), ink=False)
-    k.sph(-0.14, -0.06, 0.78, 0.08, 'chrome', seg=(8, 5), scale=(1, 1, 0.8))
-    k.beam((-0.07, -0.06, 0.8), (0.0, -0.08, 0.86), 0.02, 'chrome', ink=False)
+    k.cyl(0.12, 0.1, 0.71, 0.012, 0.012, 0.42, 'chrome', seg=3, ink=False)
+    for (z, r, c) in ((0.78, 0.15, 'blush'), (0.92, 0.12, 'oak'), (1.05, 0.09, 'blush')):
+        k.cyl(0.12, 0.1, z, r, r, 0.03, c, seg=8, ink=False)
+    k.sph(-0.14, -0.06, 0.78, 0.08, 'chrome', seg=(6, 4), scale=(1, 1, 0.8))
     for (x, y) in ((-0.2, 0.2), (0.2, -0.22)):
-        disc(k, x, y, 0.713, 0.06, 'ivory', n=8)
-        k.cyl(x, y, 0.716, 0.03, 0.035, 0.05, 'ivory', seg=6, ink=False)
+        disc(k, x, y, 0.713, 0.06, 'ivory', n=6)
     k.col(-0.42, 0.42, -0.42, 0.42, 0, 0.72)
     for (x, y) in ((-0.55, 0.42), (0.55, -0.42)):
         k.col(x - 0.33, x + 0.33, y - 0.33, y + 0.33, 0, 0.9)
@@ -496,4 +498,138 @@ def court_fountain(k):
     k.col(-0.72, 0.72, -1.75, -0.72, 0, Hb)
     k.col(-0.72, 0.72, 0.72, 1.75, 0, Hb)
     k.col(-0.25, 0.25, -0.25, 0.25, 0, Hb + 1.1)
+    return k
+
+
+# ================================================================ the gallery's balustrade and columns (light)
+def g_rail(k, y0, y1):
+    """a white balustrade on the gallery's edge (a run along Y): a marble plinth, flat iron bars, a gilt rail"""
+    k.bx(-0.08, 0.08, y0, y1, 0, 0.14, 'marble2')
+    n = max(1, int(round((y1 - y0) / 0.14)))
+    for i in range(n):
+        y = y0 + (i + 0.5) * (y1 - y0) / n
+        for s in (-1, 1):
+            k.qx(y - 0.012, y + 0.012, 0.14, 0.94, s * 0.012, s, 'black')
+    k.bx(-0.06, 0.06, y0, y1, 0.94, 1.03, 'gold')
+
+
+def g_rails(k):
+    k.begin()
+    g_rail(k, -0.5, -0.11)
+    k.col(-0.1, 0.1, -0.5, 0.0, 0, 1.1)
+    k.finish('GRail')
+    k.begin()
+    g_rail(k, -0.5, 0.5)
+    k.col(-0.1, 0.1, -0.5, 0.5, 0, 1.1)
+    k.finish('GRailFull')
+    k.begin()
+    k.bx(-0.1, 0.1, -0.1, 0.1, 0.004, 1.0, 'marble')
+    k.bx(-0.12, 0.12, -0.12, 0.12, 1.0, 1.08, 'gold', ink=False)
+    k.finish('GRailPost')
+
+
+def g_columns(k):
+    """white marble columns with gilt capitals under the gallery's edge (0 - 4.2) and over it (4.5 - 9)"""
+    for name, h in (('GCol_Lo', DECK - 0.3), ('GCol_Hi', H - DECK)):
+        k.begin()
+        k.bx(-0.4, 0.4, -0.4, 0.4, 0, 0.3, 'marble2')
+        k.cyl(0, 0, 0.3, 0.28, 0.25, h - 0.3 - 0.5, 'marble', seg=8)
+        k.cyl(0, 0, h - 0.5, 0.25, 0.38, 0.35, 'gold', seg=8, ink=False)
+        k.bx(-0.42, 0.42, -0.42, 0.42, h - 0.15, h - 0.004, 'stone2')
+        k.col(-0.4, 0.4, -0.4, 0.4, 0, h)
+        k.finish(name)
+
+
+# ================================================================ light furniture (the zone triangle budget)
+def light_chair(k, x, y, deg, fab='wine', frame='walnut'):
+    """a dining chair: upholstered seat and back on a wooden frame (the sitter faces local -Y)"""
+    k.push(x, y, deg)
+    k.bx(-0.2, 0.2, -0.2, 0.2, 0.0, 0.42, frame, ink=False)
+    k.bx(-0.22, 0.22, -0.22, 0.21, 0.42, 0.5, fab)
+    k.bx(-0.21, 0.21, 0.16, 0.21, 0.5, 0.98, frame)
+    k.qy(-0.15, 0.15, 0.58, 0.9, 0.157, -1, fab)
+    k.pop()
+
+
+def light_sofa(k, x, y, deg, w=2.0, fab='wine', leg='walnut2'):
+    """a sofa (the sitters face local -Y): base, back, arms, a seam line on the seat"""
+    k.push(x, y, deg)
+    k.bx(-w / 2, w / 2, -0.42, 0.42, 0.08, 0.44, fab)
+    k.bx(-w / 2, w / 2, 0.18, 0.42, 0.44, 0.86, fab)
+    for s in (-1, 1):
+        a, b = srt(s * w / 2, s * (w / 2 - 0.16))
+        k.bx(a, b, -0.42, 0.18, 0.44, 0.64, fab)
+    k.bx(-w / 2 + 0.05, w / 2 - 0.05, -0.37, 0.37, 0.0, 0.08, leg, ink=False)
+    k.qz(-0.012, 0.012, -0.4, 0.17, 0.443, 1, 'cream')
+    k.pop()
+
+
+def light_armchair(k, x, y, deg, fab='wine', leg='walnut2'):
+    k.push(x, y, deg)
+    k.bx(-0.4, 0.4, -0.38, 0.38, 0.08, 0.44, fab)
+    k.bx(-0.4, 0.4, 0.16, 0.38, 0.44, 0.84, fab)
+    for s in (-1, 1):
+        a, b = srt(s * 0.4, s * 0.27)
+        k.bx(a, b, -0.38, 0.16, 0.44, 0.62, fab)
+    k.bx(-0.35, 0.35, -0.33, 0.33, 0.0, 0.08, leg, ink=False)
+    k.pop()
+
+
+def lounge_set(k):
+    """[4, 3] a seating group on a rug: a blue velvet sofa, two armchairs turned in, a marble coffee table with
+    flowers, a side table with a lamp"""
+    k.begin()
+    k.qz(-1.8, 1.8, -1.3, 1.3, 0.012, 1, 'wine3')
+    k.qz(-1.62, 1.62, -1.12, 1.12, 0.015, 1, 'silk')
+    light_sofa(k, 0, 0.9, 0, 2.2)
+    light_armchair(k, -1.4, -0.5, 115)
+    light_armchair(k, 1.4, -0.5, -115)
+    k.bx(-0.65, 0.65, -0.5, 0.15, 0.0, 0.36, 'brass', ink=False)
+    k.bx(-0.68, 0.68, -0.53, 0.18, 0.36, 0.42, 'marble')
+    posy(k, 0.25, -0.15, 0.42, 0.55 * 2)
+    k.cyl(1.5, 1.0, 0, 0.24, 0.24, 0.55, 'marble', seg=8)
+    k.cyl(1.5, 1.0, 0.55, 0.05, 0.08, 0.3, 'brass', seg=5, ink=False)
+    k.cyl(1.5, 1.0, 0.85, 0.2, 0.13, 0.22, 'shade', seg=6)
+    k.col(-1.1, 1.1, 0.48, 1.32, 0, 0.86)
+    for s in (-1, 1):
+        x0, x1 = srt(s * 1.0, s * 1.85)
+        k.col(x0, x1, -0.95, -0.05, 0, 0.84)
+    k.col(-0.68, 0.68, -0.53, 0.18, 0, 0.42)
+    k.col(1.26, 1.74, 0.76, 1.24, 0, 0.6)
+    return k
+
+
+def lustre(k):
+    """a crystal chandelier hung from the ceiling plane (3 x 3): a gilt ring of candle arms, a crystal bowl, drops"""
+    k.begin()
+    k.beam((0, 0, -0.01), (0, 0, -0.9), 0.04, 'gold', ink=False)
+    k.cyl(0, 0, -0.12, 0.2, 0.2, 0.1, 'gold', seg=6, ink=False)
+    z = -1.6
+    ring(k, 0.9, z, 8, 0.06, 'gold')
+    for i in range(8):
+        a = i / 8 * math.pi * 2
+        x, y = math.cos(a) * 0.9, math.sin(a) * 0.9
+        k.cyl(x, y, z + 0.04, 0.045, 0.025, 0.22, 'glow', seg=4, ink=False)
+        if i % 2 == 0:
+            k.beam((x, y, z), (x * 0.2, y * 0.2, z + 0.4), 0.03, 'gold', ink=False)
+    k.cyl(0, 0, z - 0.35, 0.06, 0.4, 0.35, 'crystal2', seg=8)
+    k.cyl(0, 0, z, 0.1, 0.1, 0.7, 'gold', seg=6, ink=False)
+    k.sph(0, 0, z - 0.5, 0.1, 'crystal', seg=(5, 3), scale=(1, 1, 1.5), ink=False)
+    return k
+
+
+def palm_pot(k):
+    """a kentia palm in a white urn"""
+    k.begin()
+    k.cyl(0, 0, 0, 0.2, 0.17, 0.12, 'marble', seg=6)
+    k.cyl(0, 0, 0.12, 0.17, 0.3, 0.5, 'marble', seg=8)
+    k.cyl(0, 0, 0.62, 0.31, 0.31, 0.05, 'gold', seg=8, ink=False)
+    disc(k, 0, 0, 0.666, 0.27, 'soil', n=6)
+    for i in range(6):
+        a = i / 6 * math.pi * 2 + 0.3
+        ca, sa = math.cos(a), math.sin(a)
+        mid = (ca * 0.25, sa * 0.25, 1.55 + 0.18 * (i % 3))
+        k.beam((ca * 0.04, sa * 0.04, 0.66), mid, 0.03, 'oak', ink=False)
+        k.beam(mid, (ca * 0.85, sa * 0.85, 1.2 + 0.15 * (i % 2)), 0.13, 'leaf' if i % 2 else 'leaf2')
+    k.col(-0.3, 0.3, -0.3, 0.3, 0, 1.4)
     return k

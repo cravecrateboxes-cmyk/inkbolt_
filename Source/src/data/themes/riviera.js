@@ -16,7 +16,7 @@
      tables, lounges). The guest wing in the north-west: a corridor with three walk-in suites (the Salon, King and
      Twin suites of The Aurelian, repainted) on its north side and the closed doors of the others on its south side.
      The palm court in the north: tea tables of rattan round the court fountain, palms in urns, writing desks, a
-     piano, the lifts, and the doors out to the pool terrace.
+     piano, the lifts (between the palm court and the lobby), and the doors out to the pool terrace.
    2 The pool terrace (75 x 68, open sky): the infinity pool (landmark: 45 m along the cliff edge, its water running
      out to the vanishing edge over the sea, a bronze wave sculpture at its north end), the spa pool with its
      whirlpool, Le Bar de la Plage under a striped pergola with cafe tables round it, pairs of sun loungers under
@@ -109,9 +109,9 @@
   }
   // a panelled interior wall in a rhythm along the run: sconces every 4 m, a painting or a mirror between them
   function panel(a, c, r, V) {
-    var k = ((a % 4) + 4) % 4;
+    var k = ((a % 6) + 6) % 6;
     if (k === 0) return 'IW_Sconce' + V;
-    if (k === 2) return (hh(c * 5 + 1, r * 11 + 7) < 0.55 ? 'IW_Art' : 'IW_Mirror') + V;
+    if (k === 3) return (hh(c * 5 + 1, r * 11 + 7) < 0.55 ? 'IW_Art' : 'IW_Mirror') + V;
     return 'IW_Plain' + V;
   }
   var SUITES = 'MNW';
@@ -135,7 +135,8 @@
     var F = INWARD[face], inward = g.at(c + F[0], r + F[1]);
     // suites: party walls draw nothing (the suites draw their sides), the outer wall behind a suite is its window
     if (SUITES.indexOf(inward) >= 0) {
-      if (west || east || north || south) return KH + 'SuiteWin';
+      if (north) return KH + 'SuiteWin';
+      if (west || east || south) return null;   // the suite's own side wall stands 2 cm inside this cell
       var acrossS = g.at(c - F[0], r - F[1]);
       if (SUITES.indexOf(acrossS) >= 0 || face === 'E' || face === 'W') return null;
     }
@@ -144,8 +145,10 @@
       var lat = LDIR[face];
       if (wallish(g.at(c + lat[0], r + lat[1])) && wallish(g.at(c + lat[0] + F[0], r + lat[1] + F[1]))) return 'Core';
       if (wallish(g.at(c - lat[0], r - lat[1])) && wallish(g.at(c - lat[0] + F[0], r - lat[1] + F[1]))) return 'Core';
-      if (north) return c > 51 ? 'IW_Plain' : panel(c, c, r, '');   // the palm court and the hall: no windows north
-      return seaBay(g, c, r, face);
+      // arched French windows: the sea side of the restaurant and the guest wing, the front of the lobby; panelled
+      // one-sided walls elsewhere (the bar's back wall, the hall, the palm court, the foyer)
+      if ((west && r >= 8) || (south && c > 21 && c < 51)) return seaBay(g, c, r, face);
+      return (((west || east) ? r : c) % 4 === 0) ? 'SF_Sconce' : 'SF_Plain';
     }
     // the suites' corridor: the fronts of the walk-in suites (sconces by the doorways), the closed doors opposite
     var nearDoor = g.at(c - 1, r) === 'n' || g.at(c + 1, r) === 'n';
@@ -155,7 +158,7 @@
     }
     // the restaurant's kitchen doors, the palm court's lifts
     if (r === 20 && c < 21 && face === 'S' && (c === 9 || c === 10)) return 'KitDoor';
-    if (c === 21 && r >= 2 && r <= 5 && face === 'E') return KH + (r % 2 ? 'Lift_A' : 'Lift_B');   // pairs (2, 3), (4, 5)
+    if (r === 22 && (c === 32 || c === 33 || c === 39 || c === 40)) return KH + (c % 2 === (c < 36 ? 0 : 1) ? 'Lift_A' : 'Lift_B');   // pairs (32, 33), (39, 40): both faces
     var vert = wallish(g.at(c, r - 1)) || wallish(g.at(c, r + 1));
     if (corner || !(horiz || vert)) return 'Core';
     if (nearDoor || g.at(c, r - 1) === 'n' || g.at(c, r + 1) === 'n') return 'IW_Sconce' + (horiz ? '' : '_V');
@@ -166,7 +169,7 @@
   function facade(g, c, r, face) {
     var R = runOf(g, c, r, face, function (x, y) { return gateDist(g, x, y) >= 2.6 && !((x === 0 || x === g.w - 1) && (y === 0 || y === g.h - 1)); });
     var lead = Math.max(1, Math.floor((R.n % 3) / 2) + 1), i = R.i - lead, n3 = Math.floor((R.n - lead - 1) / 3);
-    if (i < 0 || i >= n3 * 3) return hh(c * 3 + 1, r * 5) < 0.45 ? 'F_Bloom' : 'F_Plain';
+    if (i < 0 || i >= n3 * 3) return hh(c * 3 + 1, r * 5) < 0.3 ? 'F_Bloom' : 'F_Plain';
     var bay = Math.floor(i / 3), k = i % 3, closed = hh(bay * 7 + c * 0 + (face === 'N' || face === 'S' ? r : c), bay + 3) < 0.4 ? '2' : '';
     if (k === 1) return (bay % 4 === 1 && !closed) ? 'F_Door' : 'F_Win' + closed;
     return (k === 0 ? 'F_ShA' : 'F_ShB') + closed;
@@ -176,13 +179,13 @@
     if (head || face === 'none') return 'PW_Gap';
     if (face === 'corner') return 'PW_Corner';
     var F = INWARD[face];
-    if (g.at(c + F[0], r + F[1]) === '?') return 'PW_Plain';   // the walls either side of a stair
+    if (g.at(c + F[0], r + F[1]) === '?') return 'PW_Side';   // the walls either side of a stair
     var pos = face === 'W' ? r : c, k = pos % 5;
     if (face === 'W' && (r === 16 || r === 23)) return 'PW_Bloom';
     if (face === 'W' && r === 9) return 'PW_Door';
     if (face === 'S' && c === 57) return 'PW_DoorB';
     if (face === 'S' && (c === 63 || c === 68)) return 'PW_Bloom';
-    return k === 2 ? 'PW_Bloom' : k === 4 ? 'PW_Plain' : 'PW_Win';
+    return (pos % 10 === 2) ? 'PW_Bloom' : k === 4 || k === 2 ? 'PW_Plain' : 'PW_Win';
   }
   function poolWall(c, r, horiz, corner, g, face) {
     var W = g.w - 1, H = g.h - 1;
@@ -191,6 +194,7 @@
     if (c === 0) return g.at(1, r) === '%' ? 'InfEdge' : (r % 6 === 0 ? 'SeaBal_L' : 'SeaBal');
     if (gateDist(g, c, r) < 2.6) return null;   // the gate portal (its facade over it: backdrop.build)
     if (face === 'corner' || face === 'none') return 'F_Corner';
+    if ((c === W) && (r === 1 || r === H - 1 || r === PY1 + 1)) return 'F_End';   // its bands cross the N / S fronts' (or the podium's) in the corner
     return facade(g, c, r, face);
   }
   function chooseWall(c, r, horiz, corner, hash, g, face) {
@@ -208,18 +212,18 @@
   var SYMBOLS = {
     // ---- zone 1 (the hotel's pieces: KH)
     'X': pf([13, 10], ['Landmark_Stair'], { face: 0, kind: 'step' }),
-    'I': { pieces: [KH + 'Column_Lo'], kind: 'cover' },
+    'I': { pieces: ['GCol_Lo'], kind: 'cover' },
     'R': pf([6, 4], [KH + 'Landmark_Reception'], { orient: 'wall' }),
     'Q': pf([3, 2], [KH + 'Concierge'], { orient: 'wall' }),
     'F': pf([3, 3], [KH + 'Landmark_Flowers']),
-    'L': pf([4, 3], [KH + 'Lounge_A'], { flip: true, paint: BLUE }),
+    'L': pf([4, 3], ['LoungeSet'], { flip: true }),
     'K': pf([3, 3], [KH + 'Piano'], { flip: true }),
     'B': pf([8, 4], [KH + 'Landmark_Bar'], { orient: 'wall', paint: NAVY }),
     'b': one([KH + 'Stool']),
     'O': pf([2, 1], [KH + 'Ottoman'], { paint: BLUE }),
     'k': pf([2, 1], [KH + 'Console'], { orient: 'wall' }),
     'w': pf([2, 1], [KH + 'WritingDesk'], { orient: 'wall' }),
-    'p': one([KH + 'Palm']),
+    'p': one(['PalmPot']),
     't': one([KH + 'Topiary']),
     'c': one([KH + 'LuggageCart']),
     'j': one([KH + 'BellStand'], 0),
@@ -275,10 +279,10 @@
     '9': flat([2, 2], ['Lawn']),
     'm': { deck: { thick: 0.3, color: '#EDE6DA', edge: '#D9CEBC', under: '#F2EBDD', with: '*' } },
     '=': { deck: { thick: 0.3, color: '#B35A36', edge: '#D9CEBC', under: '#F2EBDD' } },
-    'r': { pieces: [KH + 'Rail'], full: KH + 'RailFull', links: 'ri', post: KH + 'RailPost', kind: 'wall' },
-    'i': { pieces: [KH + 'Column_Hi'], kind: 'cover' },
+    'r': { pieces: ['GRail'], full: 'GRailFull', links: 'ri', post: 'GRailPost', kind: 'wall' },
+    'i': { pieces: ['GCol_Hi'], kind: 'cover' },
     'H': flat([5, 5], [KH + 'Landmark_Chandelier']),
-    '^': flat([3, 3], [KH + 'Chandelier']),
+    '^': flat([3, 3], ['Lustre']),
     '~': flat([4, 4], [KH + 'Coffer']),
     ':': { pieces: [KH + 'Downlight'], collide: false }
   };
@@ -386,7 +390,7 @@
   var PIECES = ['GateFrame', 'GateShutter', 'TrailWall', 'TrailWall_Win', 'TrailWall_Lamp', 'TrailWall_Art', 'Hatch',
     'Core', 'SF_Plain', 'SF_Sconce', 'SuiteDoor_A', 'SuiteDoor_B', 'SuiteDoor_C', 'KitDoor', 'Door_L', 'Door_M', 'Door_R',
     'SW_A', 'SW_B', 'SW_P', 'F_Win', 'F_Win2', 'F_ShA', 'F_ShB', 'F_ShA2', 'F_ShB2', 'F_Door', 'F_Plain', 'F_Bloom',
-    'F_Corner', 'F_GateTop', 'PW_Win', 'PW_Door', 'PW_DoorB', 'PW_Plain', 'PW_Bloom', 'PW_Gap', 'PW_Corner', 'SeaBal',
+    'F_Corner', 'F_End', 'F_GateTop', 'PW_Win', 'PW_Door', 'PW_DoorB', 'PW_Plain', 'PW_Bloom', 'PW_Gap', 'PW_Side', 'PW_Corner', 'TrailWall_End', 'SeaBal',
     'SeaBal_L', 'InfEdge', 'StageScreen', 'Backdrop_Yacht', 'Backdrop_Sail', KH + 'SuiteWin', KH + 'Lift_A', KH + 'Lift_B', KH + 'Stand'];
   ['Plain', 'Sconce', 'Art', 'Mirror'].forEach(function (k) { PIECES.push('IW_' + k, 'IW_' + k + '_V'); });
   Object.keys(SYMBOLS).forEach(function (ch) {
@@ -409,7 +413,7 @@
     symbols: SYMBOLS,
     gate: { frame: 'GateFrame', shutter: 'GateShutter', height: 3.2, shutterHeight: 3.05 },
     // the orangery passages between the zones and out to the beach lift (their own ceiling at 4.2 m)
-    trail: { wall: 'TrailWall', variants: ['TrailWall_Win', 'TrailWall', 'TrailWall_Lamp', 'TrailWall_Win', 'TrailWall_Art'], height: 4.2 },
+    trail: { wall: 'TrailWall', variants: ['TrailWall_Win', 'TrailWall', 'TrailWall_Lamp', 'TrailWall_Win', 'TrailWall_Art'], height: 4.2, end: 'TrailWall_End' },
     hatch: 'Hatch', stand: KH + 'Stand',
     backdrop: { build: buildCoast },
     budget: { prop: 4400, landmark: 6000, total: 60000 },

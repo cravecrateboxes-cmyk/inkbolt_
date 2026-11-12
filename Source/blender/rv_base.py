@@ -127,31 +127,29 @@ def arch_pts(cx, cz, r, a0, a1, n=8):
 
 
 def shutter(k, x0, x1, z0, z1, y, s=-1, c='wine', slat='wine2', n=None):
-    """A louvred shutter leaf drawn flat on the plane y facing s * Y: the leaf, its stiles and slat lines."""
+    """A louvred shutter leaf drawn flat on the plane y facing s * Y: the leaf, its louvre panel and slat lines."""
     k.qy(x0, x1, z0, z1, y, s, c)
     d = 0.003 * s
     w = x1 - x0
     st = min(0.04, w * 0.12)
     k.qy(x0 + st, x1 - st, z0 + 0.05, z1 - 0.05, y + d, s, slat)
-    n = n or max(4, int((z1 - z0) / 0.09))
+    n = max(3, int((z1 - z0) / 0.3))
     for i in range(1, n):
         z = z0 + 0.05 + (z1 - z0 - 0.1) * i / n
-        k.qy(x0 + st, x1 - st, z - 0.012, z + 0.012, y + 2 * d, s, c)
+        k.qy(x0 + st, x1 - st, z - 0.015, z + 0.015, y + 2 * d, s, c)
 
 
 def balconette(k, x0, x1, z, y, depth=0.32, c='black'):
-    """A wrought-iron French balcony rail in front of a window (the face at y, facing -Y): top rail, bottom rail,
-    stiles, bars and a scroll band, drawn as thin unoutlined bars, on a stone slab."""
+    """A wrought-iron French balcony rail in front of a window (the face at y, facing -Y): top and bottom rails,
+    flat bars and a scroll band, on a stone slab."""
     yf = y - depth
     k.bx(x0 - 0.004, x1 + 0.004, yf - 0.025, yf + 0.025, z + 0.95, z + 1.0, c, ink=False)
-    k.bx(x0 - 0.004, x1 + 0.004, yf - 0.02, yf + 0.02, z + 0.06, z + 0.11, c, ink=False)
-    for s in (x0, x1 - 0.025):
-        k.bx(s, s + 0.025, yf - 0.015, y - 0.004, z + 0.065, z + 0.97, c, ink=False)
+    k.qy(x0, x1, z + 0.06, z + 0.11, yf, -1, c)
     n = max(3, int((x1 - x0) / 0.12))
-    for i in range(1, n):
-        x = x0 + (x1 - x0) * i / n
-        k.bx(x - 0.008, x + 0.008, yf - 0.012, yf + 0.012, z + 0.11, z + 0.95, c, ink=False)
-    k.qy(x0 + 0.03, x1 - 0.03, z + 0.62, z + 0.66, yf - 0.029, -1, c)
+    for i in range(0, n + 1):
+        x = x0 + 0.01 + (x1 - x0 - 0.02) * i / n
+        k.qy(x - 0.01, x + 0.01, z + 0.11, z + 0.95, yf + 0.003, -1, c)
+    k.qy(x0 + 0.03, x1 - 0.03, z + 0.62, z + 0.66, yf - 0.003, -1, c)
     k.bx(x0 - 0.04, x1 + 0.04, yf - 0.06, y, z, z + 0.06, 'stone2')
     k.col(x0 - 0.04, x1 + 0.04, yf - 0.06, y, z, z + 1.0)
 
@@ -159,13 +157,13 @@ def balconette(k, x0, x1, z, y, depth=0.32, c='black'):
 def bougainvillea(k, x, y, z, w, h, s=-1, seed=0):
     """A cascade of bougainvillea on a wall face (plane y, facing s * Y): leafy clumps in two rows with magenta
     bracts, the lower row hanging lower toward the ends."""
-    for i in range(6):
+    for i in (0, 1, 2, 4):
         j = (math.sin(seed * 12.9898 + i * 78.233) * 43758.5453) % 1
         cx = x + ((i % 3) / 2.0 - 0.5) * w * 0.8 + (j - 0.5) * 0.08
         cz = z - (i // 3) * h * 0.45 - (0.25 * h if (i // 3 and i % 3 != 1) else 0.0) + j * 0.06
         r = 0.17 + j * 0.1
-        k.sph(cx, y + s * (r * 0.55), cz, r, 'leaf2' if i % 3 == 0 else 'leaf', seg=(6, 4), scale=(1.2, 0.55, 0.9))
-        k.sph(cx + 0.05, y + s * (r * 0.95), cz + 0.04, r * 0.55, 'bougain', seg=(5, 3), scale=(1.2, 0.5, 0.9), ink=False)
+        k.sph(cx, y + s * (r * 0.55), cz, r, 'leaf2' if i % 3 == 0 else 'leaf', seg=(5, 3), scale=(1.2, 0.55, 0.9))
+        k.sph(cx + 0.05, y + s * (r * 0.95), cz + 0.04, r * 0.55, 'bougain', seg=(4, 3), scale=(1.2, 0.5, 0.9), ink=False)
 
 
 def potted(k, x, y, r, h, kind='geranium', pot='terra'):
@@ -174,10 +172,10 @@ def potted(k, x, y, r, h, kind='geranium', pot='terra'):
     k.cyl(x, y, h - 0.04, r + 0.03, r + 0.03, 0.06, 'emerald2', seg=10, ink=False)
     disc(k, x, y, h - 0.03, r * 0.95, 'soil', n=10)
     if kind == 'geranium':
-        k.sph(x, y, h + 0.12, r * 1.05, 'leaf', seg=(7, 4), scale=(1, 1, 0.65))
-        for i in range(5):
-            a = i * 1.3
-            k.sph(x + math.cos(a) * r * 0.6, y + math.sin(a) * r * 0.6, h + 0.2, r * 0.3, 'rose' if i % 2 else 'red', seg=(5, 3), ink=False)
+        k.sph(x, y, h + 0.12, r * 1.05, 'leaf', seg=(6, 3), scale=(1, 1, 0.65))
+        for i in range(3):
+            a = i * 2.1
+            k.sph(x + math.cos(a) * r * 0.55, y + math.sin(a) * r * 0.55, h + 0.2, r * 0.32, 'rose' if i % 2 else 'red', seg=(4, 2), ink=False)
     elif kind == 'lavender':
         for i in range(7):
             a = i * 0.9

@@ -263,25 +263,25 @@ def shower(k):
 def canary_palm(k):
     """a tall Canary Island date palm in a big terracotta pot: a scaled trunk, a crown of arching fronds, dates"""
     k.begin()
-    k.cyl(0, 0, 0, 0.42, 0.5, 0.75, 'terra', seg=10)
-    k.cyl(0, 0, 0.7, 0.53, 0.53, 0.08, 'emerald2', seg=10, ink=False)
-    disc(k, 0, 0, 0.74, 0.46, 'soil', n=10)
-    for i in range(6):
-        z = 0.74 + i * 0.75
-        k.cyl(0.02 * i, 0, z, 0.24 - i * 0.012, 0.22 - i * 0.012, 0.75, 'oak' if i % 2 else 'teak2', seg=8)
-    top = 0.74 + 6 * 0.75
-    k.sph(0.12, 0, top + 0.1, 0.32, 'leaf2', seg=(6, 4))
-    for i in range(10):
-        a = i / 10 * math.pi * 2
+    k.cyl(0, 0, 0, 0.42, 0.5, 0.75, 'terra', seg=8)
+    k.cyl(0, 0, 0.7, 0.53, 0.53, 0.08, 'emerald2', seg=8, ink=False)
+    disc(k, 0, 0, 0.74, 0.46, 'soil', n=8)
+    for i in range(3):
+        z = 0.74 + i * 1.5
+        k.cyl(0.04 * i, 0, z, 0.24 - i * 0.02, 0.21 - i * 0.02, 1.5, 'oak' if i % 2 else 'teak2', seg=6)
+    top = 0.74 + 3 * 1.5
+    k.sph(0.12, 0, top + 0.1, 0.32, 'leaf2', seg=(5, 3))
+    for i in range(8):
+        a = i / 8 * math.pi * 2
         ca, sa = math.cos(a), math.sin(a)
         p0 = (0.12 + ca * 0.2, sa * 0.2, top + 0.15)
         p1 = (0.12 + ca * 1.3, sa * 1.3, top + 0.75 - (i % 2) * 0.2)
         p2 = (0.12 + ca * 2.4, sa * 2.4, top - 0.2 - (i % 3) * 0.15)
         k.beam(p0, p1, 0.18, 'leaf' if i % 2 else 'leaf2')
         k.beam(p1, p2, 0.14, 'leaf' if i % 2 else 'leaf2', ink=False)
-    for i in range(4):
-        a = i * 1.6
-        k.sph(0.12 + math.cos(a) * 0.3, math.sin(a) * 0.3, top - 0.2, 0.12, 'fire', seg=(5, 3), ink=False)
+    for i in range(2):
+        a = i * 2.6
+        k.sph(0.12 + math.cos(a) * 0.3, math.sin(a) * 0.3, top - 0.2, 0.12, 'fire', seg=(4, 3), ink=False)
     k.col(-0.5, 0.5, -0.5, 0.5, 0, 0.82)
     k.col(-0.25, 0.3, -0.24, 0.24, 0.82, top)
     return k
@@ -297,13 +297,13 @@ def planter(k):
             x = -1.35 + i * 0.5
             k.qy(x + 0.03, x + 0.44, 0.2, 0.42, s * 0.403, s, 'wine' if i % 2 else 'tile')
     k.qz(-1.42, 1.42, -0.37, 0.37, 0.66, 1, 'soil')
-    for i in range(7):
-        x = -1.2 + i * 0.4
-        k.sph(x, 0, 0.8, 0.26, 'leaf2' if i % 2 else 'leaf', seg=(6, 4), scale=(1, 1.2, 0.7))
+    for i in range(5):
+        x = -1.1 + i * 0.55
+        k.sph(x, 0, 0.8, 0.3, 'leaf2' if i % 2 else 'leaf', seg=(5, 3), scale=(1, 1.1, 0.7))
         if i % 2 == 0:
-            for j in range(4):
-                a = j * 1.57
-                k.cyl(x + math.cos(a) * 0.12, math.sin(a) * 0.14, 0.88, 0.035, 0.02, 0.22, 'blush', seg=4, ink=False)
+            for j in range(3):
+                a = j * 2.1
+                k.cyl(x + math.cos(a) * 0.12, math.sin(a) * 0.14, 0.88, 0.035, 0.02, 0.22, 'blush', seg=3, ink=False)
     k.col(-1.5, 1.5, -0.45, 0.45, 0, 0.75)
     return k
 
@@ -317,9 +317,9 @@ def olive_tree(k, s=1.0):
     for (a, b, t) in (((0, 0, 0.6), (0.25, 0.1, 1.6), 0.22), ((0.25, 0.1, 1.6), (0.55, 0.3, 2.4), 0.16),
                       ((0.2, 0.05, 1.4), (-0.4, -0.2, 2.3), 0.15), ((0.1, 0, 1.0), (0.1, -0.5, 2.1), 0.12)):
         k.beam(a, b, t * s, 'walnut')
-    for (x, y, z, r) in ((0.6, 0.35, 2.6, 0.7), (-0.45, -0.25, 2.55, 0.65), (0.1, -0.6, 2.35, 0.55), (0.0, 0.2, 2.95, 0.7), (0.65, -0.35, 2.3, 0.45)):
-        k.sph(x, y, z, r * s, 'leaf2', seg=(7, 5), scale=(1.15, 1.15, 0.75))
-        k.sph(x + 0.15, y - 0.1, z + 0.2, r * 0.55 * s, 'leaf', seg=(6, 4), scale=(1.1, 1.1, 0.7), ink=False)
+    for (x, y, z, r) in ((0.6, 0.35, 2.6, 0.75), (-0.45, -0.25, 2.55, 0.7), (0.1, -0.6, 2.35, 0.6), (0.0, 0.2, 2.95, 0.7)):
+        k.sph(x, y, z, r * s, 'leaf2', seg=(6, 4), scale=(1.15, 1.15, 0.75))
+        k.sph(x + 0.15, y - 0.1, z + 0.2, r * 0.55 * s, 'leaf', seg=(5, 3), scale=(1.1, 1.1, 0.7), ink=False)
     k.col(-0.9, 0.9, -0.9, 0.9, 0, 0.62)
     k.col(-0.2, 0.35, -0.2, 0.25, 0.62, 2.0)
     return k
@@ -334,22 +334,23 @@ def pergola(k):
     k.qz(-1.5, 1.5, -2.2, 2.2, 0.012, 1, 'wine2')
     k.qz(-1.35, 1.35, -2.05, 2.05, 0.015, 1, 'canvas')
     for (x, y) in ((-1.75, -2.75), (1.75, -2.75), (-1.75, 2.75), (1.75, 2.75)):
-        k.cyl(x, y, 0, 0.17, 0.17, 0.2, 'stone2', seg=8)
-        k.cyl(x, y, 0.2, 0.13, 0.11, 2.6, 'ivory', seg=8)
+        k.cyl(x, y, 0, 0.17, 0.17, 0.2, 'stone2', seg=6, ink=False)
+        k.cyl(x, y, 0.2, 0.13, 0.11, 2.6, 'ivory', seg=6)
         k.bx(x - 0.17, x + 0.17, y - 0.17, y + 0.17, 2.8, 2.92, 'stone2')
         k.col(x - 0.15, x + 0.15, y - 0.15, y + 0.15, 0, 2.92)
     for x in (-1.75, 1.75):
         k.bx(x - 0.08, x + 0.08, -3.0, 3.0, 2.92, 3.14, 'teak')
-    for i in range(9):
-        y = -2.8 + i * 0.7
+    for i in range(6):
+        y = -2.6 + i * 1.04
         k.bx(-2.0, 2.0, y - 0.04, y + 0.04, 3.14, 3.24, 'teak2', ink=False)
-    for (x, y, z) in ((-1.75, -2.4, 2.4), (1.75, 2.4, 2.6), (-0.9, 0.6, 3.25), (0.8, -1.3, 3.25), (1.75, -1.0, 3.0), (-1.75, 1.5, 3.0)):
-        k.sph(x, y, z, 0.45, 'leaf2', seg=(6, 4), scale=(1.4, 1.0, 0.5))
-        k.sph(x + 0.2, y + 0.1, z + 0.12, 0.28, 'bougain', seg=(5, 3), scale=(1.4, 1.0, 0.5), ink=False)
-    sofa(k, 0, 1.5, 0, 2.2, 'ivory', 'teak2', tufts=False)
-    armchair(k, -1.1, -0.9, 135, 'ivory', 'teak2')
-    armchair(k, 1.1, -0.9, 225, 'ivory', 'teak2')
-    coffee_table(k, 0, 0.1, 1.2, 0.7, 0.4, 'teak', 'teak2')
+    for (x, y, z) in ((-1.75, -2.4, 2.4), (1.75, 2.4, 2.6), (-0.9, 0.6, 3.25), (0.8, -1.3, 3.25)):
+        k.sph(x, y, z, 0.5, 'leaf2', seg=(5, 3), scale=(1.4, 1.0, 0.5))
+        k.sph(x + 0.2, y + 0.1, z + 0.12, 0.3, 'bougain', seg=(4, 3), scale=(1.4, 1.0, 0.5), ink=False)
+    from rv_inside import light_sofa, light_armchair
+    light_sofa(k, 0, 1.5, 0, 2.2, 'ivory', 'teak2')
+    light_armchair(k, -1.1, -0.9, 135, 'ivory', 'teak2')
+    light_armchair(k, 1.1, -0.9, 225, 'ivory', 'teak2')
+    k.bx(-0.6, 0.6, -0.25, 0.45, 0.0, 0.4, 'teak')
     flowers(k, 0.3, 0.1, 0.4, 0.5, 'rose')
     for (x, y) in ((-0.6, 1.62), (0.6, 1.62)):
         k.bx(x - 0.22, x + 0.22, y - 0.05, y + 0.12, 0.5, 0.85, 'wine')

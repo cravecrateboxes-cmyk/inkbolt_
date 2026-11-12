@@ -108,10 +108,12 @@ def zone1():
     FL.block(1, 8, 20, 4, '+')
     # ---- the palm court: tea tables round the fountain, palms in urns, a writing desk, the lifts (in the chooser)
     z.pf('f', 34, 9)
-    for (c, r) in ((25, 4), (29, 3), (41, 3), (45, 4), (25, 14), (29, 16), (41, 16), (45, 14), (25, 9), (46, 9)):
+    for (c, r) in ((25, 4), (29, 3), (41, 3), (45, 4), (29, 16), (41, 16)):
         z.pf('s', c, r)
-    for (c, r) in ((22, 1), (50, 1), (22, 21), (50, 21), (33, 7), (39, 7), (33, 14), (39, 14)):
+    for (c, r) in ((22, 1), (50, 1)):
         z.put(c, r, 'p')
+    z.puts([(22, 21), (50, 21)], 't')
+    z.puts([(33, 7), (39, 7)], 't')
     z.pf('w', 31, 1)
     z.pf('w', 40, 1)
     z.pf('K', 47, 17)
@@ -132,10 +134,9 @@ def zone1():
     for (c, r) in ((31, 48), (40, 48), (31, 54), (40, 54)):
         z.pf('O', c, r)
     z.put(33, 60, 'j')
-    z.puts([(23, 60), (49, 60), (23, 33), (49, 33), (27, 38), (45, 38)], 'p')
+    z.puts([(23, 60), (49, 60), (27, 38), (45, 38)], 'p')
     z.puts([(24, 58), (48, 57)], 'c')
     z.pf('k', 22, 48, rot=True)
-    z.pf('k', 50, 34, rot=True)
     # ---- the restaurant Le Grand Bleu: two-tops by the windows, four-tops, the chef's table, banquettes, the wine
     # wall, the pass in front of the kitchen doors, the sommelier's trolleys
     z.pf('Z', 8, 21)
@@ -150,28 +151,27 @@ def zone1():
     z.puts([(15, 25), (5, 37), (15, 37)], 'z')
     z.pf('v', 15, 43)
     for c in (2, 6, 10, 14, 18):
-        z.put(c, 50, 'p')
+        z.put(c, 50, 'p' if c in (2, 10, 18) else 't')
     # the bar Le Phare: the bar against the south wall, stools, the piano, lounges
     z.pf('B', 3, 58)
     for c in (3, 5, 7, 9):
         z.put(c, 57, 'b')
     z.pf('K', 15, 57)
-    z.pf('L', 2, 52)
     z.pf('L', 9, 52)
     z.pf('O', 16, 53)
     FL.block(1, 22, 20, 28, ',')
     # ---- the conference hall Salon Mediterranee: the stage, the lectern, chair rows, the AV desk, the coffee station
     z.pf('D', 57, 1)
     z.put(67, 5, 'l')
-    for r in (9, 11, 13, 15, 17, 19, 21, 23):
+    for r in (9, 11, 13, 15, 17, 19, 21):
         z.pf('Y', 54, r)
-        if r != 23:
+        if r != 21:
             z.pf('Y', 64, r)
     z.pf('A', 60, 28)
     z.pf('C', 71, 9, rot=True)
     z.pf('C', 71, 17, rot=True)
-    z.puts([(55, 31), (58, 33), (65, 31), (68, 33)], 'o')
-    z.puts([(52, 1), (71, 1), (52, 36), (71, 36)], 'p')
+    z.puts([(58, 33), (65, 31)], 'o')
+    z.puts([(52, 1), (71, 1)], 'p')
     z.put(53, 13, 'e')
     FL.block(52, 6, 20, 24, '!')
     # ---- the foyer: registration desk, coffee station, cocktail tables, lounges, the cloakroom (concierge desk)
@@ -179,11 +179,11 @@ def zone1():
     z.pf('C', 56, 61)
     z.pf('C', 63, 61)
     z.pf('Q', 68, 48)
-    z.puts([(56, 45), (66, 45), (58, 53), (64, 53), (61, 49)], 'o')
+    z.puts([(56, 45), (66, 45), (61, 50)], 'o')
     z.pf('L', 53, 56)
-    z.puts([(52, 38), (71, 38), (71, 59), (52, 61)], 'p')
+    z.put(52, 61, 'p')
+    z.puts([(52, 38), (71, 38)], 't')
     z.put(70, 43, 'e')
-    z.put(53, 44, 'e')
     # ---- floors: the medallion, the runner from the front doors, lobby carpets under the lounges
     FL.block(33, 39, 7, 7, 'x')
     FL.block(35, 46, 3, 16, '_')
@@ -217,24 +217,24 @@ def zone1():
     for (c, r) in [(25, rr) for rr in (27, 32, 38, 43, 48, 53, 58)] + [(47, rr) for rr in (27, 32, 38, 48, 53, 58)] + [(cc, 26) for cc in (29, 36, 43)]:
         GA.g[r][c] = 'i'
     # the stair's own balustrades close its edges; the bridges meet its top landings at cols 30 / 42 (open)
-    for (c, r) in ((22, 29), (22, 50), (48, 45)):
-        GA.block(c, r, 3, 4, 'L', over='m')
-    for (c, r) in ((22, 40), (48, 28), (48, 54), (30, 23), (42, 23)):
-        GA.put(c, r, 'p', over='m')
+    GA.block(48, 45, 3, 4, 'L', over='m')
+    GA.block(22, 29, 2, 1, 'O', over='m')
+    GA.block(22, 51, 2, 1, 'O', over='m')
+    for (c, r) in ((22, 40), (48, 28), (48, 54)):
+        GA.put(c, r, 't', over='m')
     GA.block(22, 56, 1, 2, 'k', over='m')
-    GA.block(50, 37, 1, 2, 'k', over='m')
     GA.puts([(23, 24), (49, 24), (36, 24)], 'S', over='m')
     GA.put(24, 45, 'a', over='m')
     # ---- the ceiling (@layer 9): the great chandelier over the medallion, chandeliers over the palm court, the
     # restaurant, the bar and the conference hall, coffers in the lobby, downlights in the corridors
     CE.block(34, 40, 5, 5, 'H')
-    for (c, r) in ((34, 9), (26, 9), (42, 9), (6, 28), (6, 38), (13, 33), (13, 44), (6, 55), (60, 13), (60, 22), (60, 46), (60, 55)):
+    for (c, r) in ((34, 9), (6, 30), (12, 42), (6, 55), (60, 15), (60, 50)):
         CE.block(c, r, 3, 3, '^')
-    for (c, r) in ((27, 39), (41, 39), (27, 46), (41, 46), (27, 53), (41, 53), (32, 53), (37, 53), (32, 46), (37, 46)):
+    for (c, r) in ((27, 39), (41, 39), (27, 46), (41, 46), (27, 53), (41, 53)):
         CE.block(c, r, 4, 4, '~', over='.')
     for c in range(3, 20, 4):
         CE.put(c, 9, ':')
-    for r in range(28, 61, 4):
+    for r in range(30, 61, 8):
         CE.put(23, r, ':')
         CE.put(49, r, ':')
     # ---- spawn cans and pickups
@@ -271,7 +271,8 @@ def zone2():
                 continue
             inner = all(z.at(c + dc, r + dr) == '#' for dc in (-1, 0, 1) for dr in (-1, 0, 1))
             head = (c == 60 and 18 <= r <= 21) or (r == 36 and 64 <= c <= 67)
-            if inner or head:
+            nook = all(z.at(c + dc, r + dr) == '#' for dc, dr in ((1, 0), (-1, 0), (0, 1), (0, -1)))   # open at a corner only
+            if inner or head or nook:
                 DK.put(c, r, '=')
     # ---- the infinity pool along the cliff, the spa pool, the pool bar
     z.block(1, 9, 12, 45, '%')        # 12 x 45: five 9 m segments, south end, middles, north end
@@ -280,7 +281,7 @@ def zone2():
     # ---- sun loungers in pairs under parasols on the pool deck, facing the sea
     for r in (10, 15, 20, 25, 31, 36, 41, 46):
         z.pf('<', 14, r)
-        if r not in (25, 31):
+        if r in (15, 20, 36, 41):
             z.pf('<', 18, r)
     for (c, r) in ((23, 17), (26, 17), (29, 17), (32, 17)):
         z.pf('>', c, r)
@@ -290,17 +291,16 @@ def zone2():
     for c in (14, 19, 24, 36, 41, 46):
         z.pf('(', c, 1)
     z.pf(')', 41, 60)
-    for (c, r) in ((34, 25), (47, 25), (34, 32), (47, 32), (26, 40), (26, 47), (44, 40), (44, 47), (31, 58), (41, 56),
-                   (50, 12), (50, 50), (13, 58), (13, 4)):
+    for (c, r) in ((34, 25), (47, 25), (34, 32), (47, 32), (26, 40), (44, 47), (31, 58), (50, 12), (13, 58), (13, 4)):
         z.put(c, r, ']')
     # ---- planters as low walls, olives, lemon trees, urns, cypresses, the terrace fountain, cafe tables by the bar
     for (c, r) in ((28, 22), (28, 36), (36, 52), (44, 36), (16, 62), (24, 62), (46, 62)):
         z.pf('{', c, r)
-    for (c, r) in ((31, 40), (20, 59), (48, 55), (31, 5), (49, 5), (24, 54)):
+    for (c, r) in ((31, 40), (20, 59), (48, 55), (31, 5), (24, 54)):
         z.pf('}', c, r)
     z.pf('f', 35, 45)
-    z.puts([(23, 9), (33, 9), (23, 16), (33, 16), (37, 22), (46, 22), (51, 24), (51, 15), (34, 44), (39, 44), (34, 49), (39, 49)], '5')
-    z.puts([(51, 46), (51, 66), (1, 66), (1, 56), (1, 3), (12, 66), (73, 66), (73, 46)], '6')
+    z.puts([(23, 9), (33, 9), (23, 16), (33, 16), (37, 22), (46, 22), (51, 24), (51, 15), (34, 44), (39, 49)], '5')
+    z.puts([(51, 46), (1, 66), (1, 3), (12, 66), (73, 66)], '6')
     z.puts([(28, 64), (44, 64), (13, 8), (13, 55)], '7')
     for (c, r) in ((36, 33), (43, 33), (49, 29), (49, 34)):
         z.pf('s', c, r)
@@ -310,8 +310,7 @@ def zone2():
     z.pf('/', 67, 50)
     for (c, r) in ((62, 47), (62, 57), (55, 60), (69, 60)):
         z.pf('2', c, r)
-    for (c, r) in ((59, 62), (65, 62), (71, 47)):
-        z.pf('}', c, r)
+    z.pf('}', 71, 47)
     z.pf('3', 62, 52)
     for c in range(54, 72):
         if c not in (62, 63, 64):
@@ -330,7 +329,6 @@ def zone2():
         RG.block(c, r, w, d, ch)
     rg('1', 54, 3)
     rg('/', 61, 3)
-    rg('/', 66, 3)
     rg('/', 61, 26)
     rg('2', 54, 10)
     rg('2', 54, 13)
@@ -350,7 +348,7 @@ def zone2():
     for r in range(10, 15):
         RG.put(67, r, '4')
     RG.puts([(53, 2), (53, 8), (53, 16), (53, 31), (53, 37), (53, 43), (60, 43), (72, 43), (72, 2)], '6')
-    RG.puts([(59, 8), (59, 13), (63, 9), (69, 9), (63, 21), (69, 21), (59, 30), (66, 30), (60, 39), (70, 26)], '5')
+    RG.puts([(59, 8), (63, 9), (69, 9), (63, 21), (69, 21), (59, 30), (60, 39)], '5')
     for (c, r) in ((61, 10), (61, 12), (57, 17), (57, 19), (66, 33), (63, 33), (57, 27), (61, 39)):
         rg('9', c, r)
     RG.puts([(64, 12), (58, 24), (70, 34)], 'S')

@@ -43,7 +43,7 @@ def build_kit_riviera(ao):
     tmp = ib_lib.build_object('tmp_shutter_hull', m, 0, 0.02)
     ib_lib.hull_only(tmp)
     ib_lib.join_into(shutter, tmp)
-    for kind in ('', 'Win', 'Lamp', 'Art'):
+    for kind in ('', 'Win', 'Lamp', 'Art', 'End'):
         W.trail_wall(k, kind).finish('TrailWall' + ('_' + kind if kind else ''), ao=ao)
     W.hatch(k).finish('Hatch', ao=ao)
     # ---- zone 2 facades, the podium, the cliff edge
@@ -56,6 +56,7 @@ def build_kit_riviera(ao):
     W.f_door(k).finish('F_Door', ao=ao)
     W.f_plain(k).finish('F_Plain', ao=ao)
     W.f_plain(k, True, 3).finish('F_Bloom', ao=ao)
+    W.f_plain(k, dz=0.012).finish('F_End', ao=ao)
     W.f_corner(k).finish('F_Corner', ao=ao)
     W.f_gate_top(k).finish('F_GateTop', ao=ao)
     W.p_win(k).finish('PW_Win', ao=ao)
@@ -63,13 +64,19 @@ def build_kit_riviera(ao):
     W.p_door(k, 'SPA AZUR').finish('PW_DoorB', ao=ao)
     W.p_plain(k).finish('PW_Plain', ao=ao)
     W.p_plain(k, True, 5).finish('PW_Bloom', ao=ao)
-    W.p_plain(k, gap=True).finish('PW_Gap', ao=ao)
+    W.p_gap(k).finish('PW_Gap', ao=ao)
+    W.p_side(k).finish('PW_Side', ao=ao)
     W.p_corner(k).finish('PW_Corner', ao=ao)
     W.sea_bal(k).finish('SeaBal', ao=ao)
     W.sea_bal(k, True).finish('SeaBal_L', ao=ao)
     W.inf_edge(k).finish('InfEdge', ao=ao)
     # ---- zone 1: the imperial staircase
     I.imperial_stair(k).finish('Landmark_Stair', ao=ao)
+    I.g_rails(k)
+    I.lounge_set(k).finish('LoungeSet', ao=ao)
+    I.lustre(k).finish('Lustre')
+    I.palm_pot(k).finish('PalmPot', ao=ao)
+    I.g_columns(k)
     I.dine_table(k).finish('DineTable', ao=ao)
     I.dine_two(k).finish('DineTwo', ao=ao)
     I.banquette(k).finish('Banquette', ao=ao)
