@@ -92,10 +92,18 @@
   };
   /* open air (rooftops.js): over a void mask's cells the ground is far down (the street), so whoever walks off a
      roof falls. test(c, r) -> ground height or null (solid floor) for the mask's cells (1 m, from ox, oz). */
-  World.prototype.addVoid = function (ox, oz, w, h, test) {
+  World.prototype.addVoid = function (ox, oz, w, h, test, floor) {
     var d = new Float32Array(w * h);
     for (var r = 0; r < h; r++) for (var c = 0; c < w; c++) { var v = test(c, r); d[r * w + c] = v === null ? NaN : v; }
-    (this.voids || (this.voids = [])).push({ ox: ox, oz: oz, w: w, h: h, d: d });
+    (this.voids || (this.voids = [])).push({ ox: ox, oz: oz, w: w, h: h, d: d, floor: !!floor });
+  };
+  // a void mask added with `floor` (theme.sunk: a trackbed, a stair well) is ground people walk on, not open air
+  World.prototype.voidFloor = function (x, z) {
+    for (var i = 0; i < this.voids.length; i++) {
+      var V = this.voids[i], c = Math.floor(x - V.ox), r = Math.floor(z - V.oz);
+      if (c >= 0 && r >= 0 && c < V.w && r < V.h) return V.floor;
+    }
+    return false;
   };
   World.prototype.voidAt = function (x, z) {
     for (var i = 0; i < this.voids.length; i++) {
@@ -454,7 +462,7 @@
   // height a piece stands at: the layer height, or (floor plan) the terrain under it; prefabs sink to their lowest corner
   function baseY(world, yb, x, z, hw, hd) {
     if (yb) return yb;
-    if (!world.terrains.length) return 0;
+    if (!world.terrains.length && !world.sunkFloor) return 0;   // sunkFloor: floor-plan symbols stand in a sunk trackbed / well
     var y = world.groundAt(x, z);
     if (hw) [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (k) { y = Math.min(y, world.groundAt(x + k[0] * hw, z + k[1] * hd)); });
     return y;
@@ -944,11 +952,12 @@
 
   // floor: flat colour plus optional painted lines (lot lines, planks, carpet tiles, lane marks);
   // floor.trailLines (optional) replaces floor.lines on the trails and the exit waypath (e.g. boardwalk planks)
-  function paintFloor(g, x0, z0, w, h, theme, isTrail) {
+  function paintFloor(g, x0, z0, w, h, theme, isTrail, dy) {
     var F = theme.floor || {};
-    g.flat([[x0, z0], [x0 + w, z0], [x0 + w, z0 + h], [x0, z0 + h]], 0.004, col(isTrail && F.trail ? F.trail : F.color, '#E6DCC6'));
+    dy = dy || 0;   // a floor below the zone's (theme.sunk)
+    g.flat([[x0, z0], [x0 + w, z0], [x0 + w, z0 + h], [x0, z0 + h]], 0.004 + dy, col(isTrail && F.trail ? F.trail : F.color, '#E6DCC6'));
     ((isTrail && F.trailLines) || F.lines || []).forEach(function (L) {
-      var y = L.y || 0.008, c = col(L.color), half = (L.width || 0.04) / 2, every = L.every || 1;
+      var y = (L.y || 0.008) + dy, c = col(L.color), half = (L.width || 0.04) / 2, every = L.every || 1;
       if (L.dir === 'x') for (var zz = z0 + every; zz < z0 + h - 0.01; zz += every) g.flat([[x0, zz - half], [x0 + w, zz - half], [x0 + w, zz + half], [x0, zz + half]], y, c);
       else for (var xx = x0 + every; xx < x0 + w - 0.01; xx += every) g.flat([[xx - half, z0], [xx + half, z0], [xx + half, z0 + h], [xx - half, z0 + h]], y, c);
     });
@@ -1122,7 +1131,7 @@
   // ---------------- nav grid / flow field ----------------
   function buildNav(zone, world) {
     var nx = Math.ceil(zone.w / NAV), nz = Math.ceil(zone.h / NAV);
-    if (zone.terrain) return buildNavLayered(zone, world, nx, nz);   // bumpy ground: every cell has its own height
+    if (zone.terrain || zone.sunk) return buildNavLayered(zone, world, nx, nz);   // bumpy ground / sunk floors: every cell has its own height
     for (var w = 0; w < world.boxes.length; w++) if (world.boxes[w].walk && world.boxes[w].zone === zone.idx) return buildNavLayered(zone, world, nx, nz);
     var blocked = new Uint8Array(nx * nz), tmp = [];
     for (var j = 0; j < nz; j++) for (var i = 0; i < nx; i++) {
@@ -1160,6 +1169,7 @@
         if (on >= 0) surf[on] = Math.max(surf[on], b.y1); else if (b.y1 > surf[surf.length - 1]) surf.push(b.y1);
       }
       var L = 0, last = -9, vf = world.voids ? world.voidAt(x, z) : null;
+      if (vf !== null && world.voidFloor(x, z)) vf = null;   // a sunk floor (theme.sunk) is walkable ground
       for (s = 0; s < surf.length && L < NL; s++) {
         var h = surf[s], open = h - last >= 1.2 && !(vf !== null && h <= vf + 0.01);   // open air: nothing to stand on
         for (k = 0; k < tmp.length && open; k++) {
@@ -1346,6 +1356,62 @@
     }
   }
 
+  // ---------------- sunk floors (a trackbed, a stair well) ----------------
+  /* theme.sunk = { layer: y, depth: { code: m }, floor: { code: '#hex' | {color, lines} }, side: fn(c, r, dc, dr, code, grid, hash) }
+     (optional; first used by Metro Central). "@layer <y>" is one of theme.dataLayers; each cell holding a `depth` code
+     is sunk that far below the zone floor. The world's ground there is -depth (a void mask with a floor: floorAt, rays
+     and the layered nav grid follow it, people walk on it), floor-plan symbols over it stand on it, and the zone floor
+     is painted round it (each sunk floor at its depth in its colour, with its lines). Every edge of a sunk cell toward a
+     cell that is not sunk gets a solid strip under the higher cell (0.3 m into it, down to the sunk floor: nobody walks
+     in under a platform) and side(c, r, dc, dr, code, grid, hash) -- (c, r) the higher cell, (dc, dr) the step from it
+     into the sunk cell -- a piece placed at the higher cell's centre at y 0, its front (+Z) turned to the sunk cell
+     (null: none). Returns the sunk map or null. */
+  function sunkMap(grid, theme) {
+    var S = theme.sunk, L = null;
+    grid.layers.forEach(function (lg) { if (Math.abs(lg.y - S.layer) < 1e-4) L = lg; });
+    if (!L) return null;
+    var d = new Float32Array(grid.w * grid.h), code = [], n = 0;
+    for (var r = 0; r < grid.h; r++) for (var c = 0; c < grid.w; c++) {
+      var ch = L.at(c, r), m = S.depth[ch];
+      if (m) { d[r * grid.w + c] = m; code[r * grid.w + c] = ch; n++; }
+    }
+    return n ? { d: d, code: code, w: grid.w, h: grid.h } : null;
+  }
+  function buildSunk(g, P, z, grid, theme, world, sk, floorTheme) {
+    var S = theme.sunk, W = sk.w, H = sk.h;
+    function key(c, r) { return sk.d[r * W + c] ? sk.code[r * W + c] : '.'; }
+    // floors: the zone floor round the sunk cells, each sunk floor at its depth
+    var used = new Uint8Array(W * H);
+    for (var r = 0; r < H; r++) for (var c = 0; c < W; c++) {
+      if (used[r * W + c]) continue;
+      var k = key(c, r), w = 1; while (c + w < W && !used[r * W + c + w] && key(c + w, r) === k) w++;
+      var h = 1, ok = true;
+      while (ok && r + h < H) { for (var q = 0; q < w; q++) if (used[(r + h) * W + c + q] || key(c + q, r + h) !== k) { ok = false; break; } if (ok) h++; }
+      for (var y = 0; y < h; y++) for (var x = 0; x < w; x++) used[(r + y) * W + c + x] = 1;
+      var x0 = z.ox + c, z0 = z.oz + r;
+      if (k === '.') paintFloor(g, x0, z0, w, h, floorTheme, false);
+      else {   // floor: { code: '#hex' | { color, lines } } (lines as theme.floor's)
+        var sf = S.floor && S.floor[k];
+        paintFloor(g, x0, z0, w, h, { floor: typeof sf === 'object' ? sf : { color: sf || '#6E6A66' } }, false, -S.depth[k]);
+      }
+    }
+    // side pieces and solid strips on every edge from a higher cell down into a sunk cell
+    var D = [[0, 1, 0], [0, -1, Math.PI], [1, 0, Math.PI / 2], [-1, 0, -Math.PI / 2]];
+    for (r = 0; r < H; r++) for (c = 0; c < W; c++) {
+      if (sk.d[r * W + c]) continue;
+      D.forEach(function (s) {
+        var nc = c + s[0], nr = r + s[1];
+        if (nc < 0 || nr < 0 || nc >= W || nr >= H || !sk.d[nr * W + nc]) return;
+        var name = S.side && S.side(c, r, s[0], s[1], sk.code[nr * W + nc], grid, hash);
+        if (name) P.add(name, z.ox + c + 0.5, 0, z.oz + r + 0.5, s[2]);
+        // the solid edge under the higher cell (a strip 0.3 m into it, down to the sunk floor): nobody walks in under it
+        var bx0 = z.ox + c, bz0 = z.oz + r, bx1 = bx0 + 1, bz1 = bz0 + 1, d = sk.d[nr * W + nc];
+        if (s[0] > 0) bx0 = bx1 - 0.3; else if (s[0] < 0) bx1 = bx0 + 0.3; else if (s[1] > 0) bz0 = bz1 - 0.3; else bz1 = bz0 + 0.3;
+        world.add(bx0, -d, bz0, bx1, -0.02, bz1, 'wall', z.idx);
+      });
+    }
+  }
+
   /* theme.dataLayers (optional): [y, ...] -- "@layer <y>" grids that only hold codes the theme reads (its wall chooser:
      art per wall face, outdoor cells); they are never built as symbols, so their codes may use any character */
   function isDataLayer(theme, lg) { return !!(theme.dataLayers && theme.dataLayers.indexOf(lg.y) >= 0); }
@@ -1373,7 +1439,12 @@
       zone.entry = { x: ox + Pc.c + 0.5, z: oz + Pc.r + 0.5 };
       var g = new IB.Geo(), P = new Parts(theme);
       var roofZone = IB.Rooftops && IB.Rooftops.has(grid, theme);   // open air between buildings (rooftops.js)
-      if (theme.terrain) buildTerrain(g, zone, grid, theme, world);
+      var sunk = theme.sunk && sunkMap(grid, theme);   // sunk floors (theme.sunk): the ground there before any symbol stands on it
+      if (sunk) {
+        zone.sunk = sunk; world.sunkFloor = true;
+        world.addVoid(ox, oz, grid.w, grid.h, function (c, r) { var d = sunk.d[r * grid.w + c]; return d ? -d : null; }, true);
+        buildSunk(g, P, zone, grid, theme, world, sunk, zp.floor ? { floor: zp.floor } : theme);
+      } else if (theme.terrain) buildTerrain(g, zone, grid, theme, world);
       else if (!roofZone) paintFloor(g, ox, oz, grid.w, grid.h, zp.floor ? { floor: zp.floor } : theme, false);   // zone plan `floor` (optional): this zone's own floor paint and lines (a ship's deck, hold and engine room)
       buildSymbols(P, zone, grid, theme, world, g, 0);
       grid.layers.forEach(function (lg) { if (!isDataLayer(theme, lg)) buildSymbols(P, zone, lg, theme, world, g, lg.y, true); });
