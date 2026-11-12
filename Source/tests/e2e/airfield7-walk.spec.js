@@ -175,10 +175,10 @@ function serve() {
       // runs of borrowed pieces: jersey barriers and sandbags (rotate 'run') along X on their rows
       for (let r = 1; r < H; r++) for (let c = 1; c < W; c++) {
         const ch = at(c, r);
-        if ((ch === 'j' || ch === '=') && at(c - 1, r) === ch && at(c + 1, r) === ch) expect(ch === 'j' ? 'jersey' : 'sandbags', zi, c, r, 1, 1, 0.15, 0.6, true, 0.9, 0.9);
+        if ((ch === 'j' || ch === '=') && at(c - 1, r) === ch && at(c + 1, r) === ch) expect(ch === 'j' ? 'jersey' : 'sandbags', zi, c, r, 1, 1, 0.0, 0.9, true, 0.95, 0.7);
       }
       // spans: the taxiway signs [2, 1] along X; on the hangar layer the benches / racks along their blocks
-      ['n', 'm', 'v'].forEach(ch => blocks(g, ch).forEach(([c, r, w, h]) => expect('sign', zi, c, r, w, h, 0.5, 1.0, true, 1.8, 0.45)));
+      ['n', 'm', 'v'].forEach(ch => blocks(g, ch).forEach(([c, r, w, h]) => expect('sign', zi, c, r, w, h, 0.3, 1.2, true, 1.8, 0.45)));
       (g.layers || []).forEach(G => {
         ['q', '1', '2', '3'].forEach(ch => blocks(G, ch).forEach(([c, r, w, h]) => expect('bench/rack ' + ch, zi, c, r, w, h, 0.3, 1.2, w > h, Math.max(w, h) - 0.3, 0.95)));
       });

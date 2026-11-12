@@ -693,7 +693,8 @@ def build_igloo(pal, ao):
             fq(m, xa + 0.08, xb - 0.08, HW0 - 0.203, z - 0.03, z + 0.03, 'odD')
         cols.append(cb(xa, HW0 - 0.2, 0.0, xb, HW0, 2.75))
     # inside: the floor's door threshold, lamps, bomb racks along both walls, a crate stack at the back
-    uq(m, -1.6, 1.6, HW0, HW1, 0.008, 'concD')
+    uq(m, -1.6, 1.6, HW0, HW1, 0.02, 'concD')
+    uq(m, -3.3, 3.3, HW1, IG_Y1, 0.02, 'concD')   # the store's concrete floor (over the yard's sand paint)
     for y in (-3.0, 2.5):
         m.cy((0.0, y, 2.8), 0.3, 0.12, 0.25, 'steelD', seg=8)
         m.cy((0.0, y, 2.794), 0.25, 0.25, 0.004, 'lamp', seg=8, hull='none')

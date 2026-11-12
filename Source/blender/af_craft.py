@@ -267,7 +267,7 @@ def build_transport(pal, ao):
     # ---- the nose and the forward fuselage (closed rings), the bulkhead face at the hold's front
     def nose_col(k, i, p):
         x, y, z = p
-        if k in (1, 2) and z > TZ + 0.55 and abs(x) < 1.6:
+        if k in (1, 2) and z > TZ + 0.15 and abs(x) < 1.45:
             return 'glassD'
         if z < 1.5:
             return 'odD'
