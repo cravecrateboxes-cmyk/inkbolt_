@@ -27,8 +27,19 @@
   // the 8 x 8 cell grid with these
   S.CELLS = ['HULL', 'ink', 'paper', 'white', 'teal', 'amber', 'gunmetal', 'red', 'gun2', 'gun3', 'steel', 'steel2', 'brass',
     'lens', 'glove', 'glove2', 'glove3', 'sleeve', 'sleeve2', 'sleeve3', 'chip', 'chip2', 'ammo', 'ammo2', 'ammo3', 'health',
-    'health2', 'health3', 'glove4', 'olive', 'olive2', 'olive3', 'furn', 'trim'];
-  var ROLE = { body: 'gunmetal', frame: 'gun2', acc: 'gun3', furn: 'furn', trim: 'trim', steel: 'steel', steel2: 'steel2', red: 'red', lens: 'lens' };
+    'health2', 'health3', 'glove4', 'olive', 'olive2', 'olive3', 'furn', 'trim', 'body2', 'frame2', 'acc2', 'mark', 'emis', 'rubber'];
+  /* tactical pass: body2 / frame2 / acc2 are the second tones of the three main materials (layered plates, recessed
+     panels; derived from them per tier, they carry the same pattern), mark the stencil paint, emis the energy cells
+     (dormant on Standard, lit from Tuned up), rubber the pads and boots. */
+  var ROLE = { body: 'gunmetal', frame: 'gun2', acc: 'gun3', furn: 'furn', trim: 'trim', steel: 'steel', steel2: 'steel2', red: 'red', lens: 'lens',
+    body2: 'body2', frame2: 'frame2', acc2: 'acc2', mark: 'mark', emis: 'emis', rubber: 'rubber' };
+  /* surface per palette cell for the gun shader: [gloss 0..1, metal 0..1] (src/game/gunskins.js: highlight size and
+     strength, how much the highlight takes the surface colour, grain type) */
+  S.SURF = { gunmetal: [0.52, 0.85], gun2: [0.20, 0], gun3: [0.40, 0.5], furn: [0.24, 0], trim: [0.6, 0.6], steel: [0.80, 1], steel2: [0.62, 1],
+    red: [0.4, 0.2], lens: [0.95, 0.3], body2: [0.44, 0.8], frame2: [0.18, 0], acc2: [0.34, 0.5], mark: [0.12, 0], emis: [0.9, 0.2], rubber: [0.10, 0],
+    brass: [0.85, 1], ink: [0.08, 0], HULL: [0, 0] };
+  S.SURF_DEF = [0.22, 0.1];
+  var GLOSS_UP = [0, 0.02, 0.12, 0.10, 0.20];   // per tier: anodising, lacquer and polish read glossier
   S.ROLE = ROLE;
   S.PATTERNS = { none: 0, camo: 1, hex: 2, carbon: 3, wood: 4, filigree: 5, sheen: 6, veins: 7, oil: 8, aurora: 9, damascus: 10, pearl: 11 };
 
@@ -91,7 +102,8 @@
   function rgb(h) { h = h.replace('#', ''); return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]; }
   function hex(c) { return '#' + c.map(function (v) { var s = Math.max(0, Math.min(255, Math.round(v))).toString(16); return s.length < 2 ? '0' + s : s; }).join('').toUpperCase(); }
   function mix(a, b, t) { var x = rgb(a), y = rgb(b); return hex([0, 1, 2].map(function (i) { return x[i] + (y[i] - x[i]) * t; })); }
-  S.mix = mix; S.rgb = rgb;
+  function lum(h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; }
+  S.mix = mix; S.rgb = rgb; S.lum = lum;
 
   S.TIER_IDS = ['gray', 'green', 'blue', 'purple', 'orange'];
   function rankOf(t) { var i = S.TIER_IDS.indexOf(t); return i < 0 ? 0 : i; }
@@ -128,9 +140,20 @@
       glow = L.glow; shimmer = 1; if (L.grad && L.c.furn) grad = { from: L.c.body, y0: L.grad[0], y1: L.grad[1] };
       legend = { id: S.LEGEND[g.leg] ? g.leg : 'gold', shimCol: L.shim, patGlow: L.patGlow || 0 };
     }
-    var cells = {};
+    // second tones follow their material (and its pattern); stencil paint contrasts with the body; energy cells
+    c.body2 = mix(c.body, '#000000', 0.30); c.frame2 = mix(c.frame, lum(c.frame) > 0.5 ? '#000000' : '#FFFFFF', 0.16); c.acc2 = mix(c.acc, '#000000', 0.28);
+    ['body', 'frame', 'acc'].forEach(function (m) { if (flag[m]) flag[m + '2'] = flag[m] === 'patshimgrad' ? 'patshim' : flag[m]; });
+    c.mark = mix(lum(c.body) > 0.55 ? '#1E1E26' : '#E6E1D3', c.trim, r === 0 ? 0 : 0.22);
+    c.rubber = r === 4 ? mix(c.frame, '#000000', 0.45) : '#2B2A33';
+    c.emis = r === 0 ? '#3B4452' : r === 1 ? '#7DF06A' : r === 2 ? '#7FD0FF' : glow;
+    if (r === 1 || r === 2) glow = c.emis;
+    if (r > 0) flag.emis = 'glow';
+    var cells = {}, surf = {}, gu = GLOSS_UP[r];
     for (k in ROLE) if (c[k]) cells[ROLE[k]] = { hex: c[k], flag: flag[k] || null };
-    return { gun: gunId, tier: S.TIER_IDS[r], cells: cells, pat: pat, glow: glow, shimmer: shimmer,
+    for (k in S.SURF) surf[k] = S.SURF[k];
+    ['gunmetal', 'gun3', 'body2', 'acc2', 'steel', 'steel2', 'trim'].forEach(function (n) { surf[n] = [Math.min(1, surf[n][0] + gu), surf[n][1]]; });
+    if (g.pat && g.pat.type === 'wood' && r < 4) g.pat.on.forEach(function (role) { surf[ROLE[role]] = [0.34, 0]; });
+    return { gun: gunId, tier: S.TIER_IDS[r], cells: cells, surf: surf, pat: pat, glow: glow, shimmer: shimmer,
       shimCol: legend ? legend.shimCol : '#FFEBB3', patGlow: legend ? legend.patGlow : 0, legend: legend ? legend.id : null, grad: grad };
   };
 

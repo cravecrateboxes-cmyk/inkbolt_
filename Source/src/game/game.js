@@ -153,14 +153,23 @@
     G.lootMeshes = []; G.loot = [];
   }
   // world display copy of a gun: the gun mesh plus its detachable mag (revolver: cylinder) at the MAG socket
-  G.gunGeo = function (id) {
+  // tier (optional): the rarity whose extra parts (IB.GunSkins.layerNames) are merged in too
+  G.gunGeo = function (id, tier) {
     G._gunGeo = G._gunGeo || {};
-    if (G._gunGeo[id]) return G._gunGeo[id];
-    var A = IB.Assets, K = 'WPN_' + id.toUpperCase(), geo = A.get(K), sock = A.node[K + '_MAG'];
+    var L = IB.GunSkins && IB.GunSkins.layerNames ? IB.GunSkins.layerNames(id, tier || 'gray') : { gun: [], mag: [] };
+    var ck = L.gun.length || L.mag.length ? id + '|' + (tier || 'gray') : id;
+    if (G._gunGeo[ck]) return G._gunGeo[ck];
+    var A = IB.Assets, K = 'WPN_' + id.toUpperCase(), geo = A.get(K), sock = A.node[K + '_MAG'], parts = [];
+    L.gun.forEach(function (n) { parts.push(A.geo[n].clone()); });
     if (A.geo[K + '_Mag'] && sock) {
-      try { geo = THREE.BufferGeometryUtils.mergeBufferGeometries([geo.clone(), A.placed(K + '_Mag', new THREE.Matrix4().makeTranslation(sock.position.x, sock.position.y, sock.position.z))], false) || geo; } catch (e) { geo = A.get(K); }
+      var M = new THREE.Matrix4().makeTranslation(sock.position.x, sock.position.y, sock.position.z);
+      parts.push(A.placed(K + '_Mag', M));
+      L.mag.forEach(function (n) { parts.push(A.placed(n, M)); });
     }
-    G._gunGeo[id] = geo;
+    if (parts.length) {
+      try { geo = THREE.BufferGeometryUtils.mergeBufferGeometries([geo.clone()].concat(parts), false) || geo; } catch (e) { /* keep the bare gun */ }
+    }
+    G._gunGeo[ck] = geo;
     return geo;
   };
   /* a gun's transform on its mount: barrel along the rack, right side toward the room, centred along the rack and in
@@ -227,7 +236,7 @@
       });
       Object.keys(groups).forEach(function (key) {
         var list = groups[key], isGun = key.indexOf('WPN:') === 0;
-        var geo = isGun ? G.gunGeo(list[0].id) : A.get(key), mat = isGun ? (IB.GunSkins ? IB.GunSkins.material(list[0].id, list[0].tier, null, 0.02) : G.worldWpnMat) : A.material(key);
+        var geo = isGun ? G.gunGeo(list[0].id, list[0].tier) : A.get(key), mat = isGun ? (IB.GunSkins ? IB.GunSkins.material(list[0].id, list[0].tier, null, 0.02) : G.worldWpnMat) : A.material(key);
         var im = new THREE.InstancedMesh(geo, mat, list.length);
         im.frustumCulled = false;
         var local = isGun ? null : itemLocal(geo, new THREE.Matrix4());

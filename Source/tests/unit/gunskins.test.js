@@ -9,9 +9,9 @@ const IB = globalThis.IB;
 const S = IB.GunSkinData;
 const GUNS = IB.MODELLED_WEAPONS.filter((id) => IB.WEAPONS[id] && IB.WEAPONS[id].cls !== 'melee');
 
-test('palette cells mirror blender/ib_lib BASE + fam_weapons palette order', () => {
+test('palette cells mirror blender/ib_lib BASE + wpn_core palette order', () => {
   const lib = fs.readFileSync(path.join(__dirname, '../../blender/ib_lib.py'), 'utf8');
-  const fam = fs.readFileSync(path.join(__dirname, '../../blender/fam_weapons.py'), 'utf8');
+  const fam = fs.readFileSync(path.join(__dirname, '../../blender/wpn_core.py'), 'utf8');
   const base = lib.slice(lib.indexOf('BASE = ['), lib.indexOf(']\n', lib.indexOf('BASE = [')));
   const list = fam.slice(fam.indexOf("ib_lib.PALETTES['weapons']"), fam.indexOf(']\n', fam.indexOf("('gun2'")));
   const names = (s) => [...s.matchAll(/\('(\w+)', '#[0-9A-Fa-f]{6}'\)/g)].map((m) => m[1]);

@@ -127,7 +127,7 @@
     var m = W.models[id]; if (!m || !IB.GunSkins || IB.WEAPONS[id].cls === 'melee') return;
     var tier = IB.GunSkins.tierOf(id); if (m.tier === tier) return;
     var mat = IB.GunSkins.material(id, tier, IB.Render.vmOutline);
-    m.tier = tier; m.mesh.material = mat; if (m.mag) m.mag.material = mat;
+    m.tier = tier; IB.GunSkins.dress(m.mesh, mat, tier); IB.GunSkins.dress(m.mag, mat, tier);   // + its rarity layers
     setFlash(tier);
   }
   function showModel(id, on) {

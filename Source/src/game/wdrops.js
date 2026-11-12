@@ -199,7 +199,7 @@
     if (!d) { WD.addSlot(WD.list.length); d = WD.list[WD.list.length - 1]; }
     if (d.mesh) d.spin.remove(d.mesh);
     if (!WD.mat) WD.mat = IB.Render.toonMaterial({ map: A.palette.weapons, baked: A.BAKED ? A.BAKED.weapons : 0, outMax: OUT_MAX });
-    d.mesh = new THREE.Mesh(G0() && G0().gunGeo && !melee ? G0().gunGeo(id) : A.get(node), !melee && IB.GunSkins ? IB.GunSkins.material(id, tier, null, OUT_MAX) : WD.mat);   // rarity skin, magazine in
+    d.mesh = new THREE.Mesh(G0() && G0().gunGeo && !melee ? G0().gunGeo(id, tier) : A.get(node), !melee && IB.GunSkins ? IB.GunSkins.material(id, tier, null, OUT_MAX) : WD.mat);   // rarity skin, magazine in
     d.mesh.scale.setScalar(melee ? 1.5 : 1.7);
     if (melee) d.mesh.rotation.set(0, 0, 0.5); else d.mesh.rotation.set(0, 0, 0);
     d.spin.add(d.mesh);

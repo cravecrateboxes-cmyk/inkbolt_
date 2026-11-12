@@ -1,6 +1,7 @@
 // INKBOLT viewmodel screenshots (arms + guns in the real game). Not a test: a review tool.
 //   node tests/e2e/viewmodel-shots.js [outdir] [W,H]        (serves the repo, opens Source/dev.html)
-//   WEAPONS=pip,rivet picks the guns (idle, sprint, slide, reload, ADS each); GEAR=1 fits every attachment each gun takes
+//   WEAPONS=pip,rivet picks the guns (idle, sprint, slide, reload, ADS each); GEAR=1 fits every attachment each gun takes;
+//   TIER=gray|green|blue|purple|orange shows every gun at that rarity (skin + rarity parts)
 //   SHOTS=pip:Slide:0.3:slide,katana:Strike:0.42,rivet:Idle:0:ads   explicit list (weapon:action:time[:sprint|slide|ads])
 //   (melee weapons play their swing clips frozen at the time given; CROP=x,y,w,h crops every shot)
 // Every shot freezes one frame of one arm action (<WEAPON>_<Action> at a fraction of its length) with the
@@ -42,11 +43,13 @@ function serve() {
   await pg.goto('http://localhost:' + server.address().port + '/Source/dev.html?autotest=1');
   await pg.waitForFunction(() => window.__TEST__ && IB.Game.mode === 'play', null, { timeout: 60000 });
   if (process.env.GEAR) await pg.evaluate(() => { window.__GEAR = true; });
+  if (process.env.TIER) await pg.evaluate((t) => { window.__TIER = t; }, process.env.TIER);   // TIER=orange: every gun at that rarity
   await pg.evaluate((yaw) => {
     const G = IB.Game, W = IB.Weapons;
     G.player.protect = 1e9; G.guard.on = false; __TEST__.setTier('high'); G.player.yaw = yaw; G.player.pitch = 0.05;
     G.run.started = false; G.run.introT = 1e9;   // hold the intro: no waves, no robots wandering into the shot
     IB.MODELLED_WEAPONS.forEach(id => W.give(G.ws, id));
+    if (window.__TIER) { G.slot.gunTier = G.slot.gunTier || {}; IB.MODELLED_WEAPONS.forEach(id => { G.slot.gunTier[id] = window.__TIER; }); }
     ['hud', 'touch'].forEach(id => { const el = document.getElementById(id); if (el) el.style.visibility = 'hidden'; });
     const orig = W.pose;
     W.pose = function (s, dt, player) {

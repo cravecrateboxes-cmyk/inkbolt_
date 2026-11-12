@@ -134,6 +134,9 @@
       if (!A.geo[key]) return null;
       var list = [{ geo: A.geo[key] }], sock = A.node[key + '_MAG'];
       if (A.geo[key + '_Mag'] && sock) list.push({ geo: A.geo[key + '_Mag'], pos: sock.position });
+      var lay = IB.GunSkins && IB.GunSkins.layerNames ? IB.GunSkins.layerNames(gid, tier) : { gun: [], mag: [] };   // that tier's extra parts
+      lay.gun.forEach(function (n) { list.push({ geo: A.geo[n] }); });
+      if (sock) lay.mag.forEach(function (n) { list.push({ geo: A.geo[n], pos: sock.position }); });
       var skin = IB.GunSkins && setup() && IB.WEAPONS[gid] && IB.WEAPONS[gid].cls !== 'melee' ? IB.GunSkins.material(gid, tier, uni) : null;
       return { fam: 'weapons', skin: skin, list: list, view: { yaw: -0.22, pitch: 0.1, pad: 1.06, outline: 0.012, ink: 3 } };
     }
