@@ -275,7 +275,7 @@
       var dx = p.x - x, dz = p.z - z, dl = Math.hypot(dx, dz) || 1, k = Math.min(0.9, dl * 0.5);
       IB.WeaponDrops.layDown(r.old, x + dx / dl * k, z + dz / dl * k, p.y);
     }
-    HUD.toast(r.line, 2.4);
+    HUD.toast(r.line, 2.4, 'tick:gear');
     A.play('pickup');
     if (G.store) G.store.save(s);
     return true;
@@ -403,7 +403,7 @@
       else { G.slot.frag = true; G.grenades = fragCarry(); }
       w.taken = true; w.group.remove(w.gun); w.ring.visible = false;
       G.store.save(G.slot);
-      if (HUD.pickup) HUD.pickup(def.name, def.cls, def.cls === 'melee' ? 'V' : 'G'); else HUD.toast('New: ' + def.name, 2.2);
+      if (HUD.pickup) HUD.pickup(def.name, def.cls, def.cls === 'melee' ? 'V' : 'G'); else HUD.toast('New: ' + def.name, 2.2, 'tick:gear');
       A.play('pickup');
       return;
     }
@@ -417,7 +417,7 @@
     if (IB.Gear) IB.Gear.refresh(G);   // the replaced gun's attachments go back to the bag
     w.taken = true; w.group.remove(w.gun); w.ring.visible = false;
     G.store.save(G.slot);
-    if (HUD.pickup) HUD.pickup(def.name, def.cls, r.slot + 1); else HUD.toast('New weapon: ' + def.name, 2.2);
+    if (HUD.pickup) HUD.pickup(def.name, def.cls, r.slot + 1); else HUD.toast('New weapon: ' + def.name, 2.2, 'tick:gear');
     A.play('pickup'); A.play('draw');
   }
 
@@ -587,8 +587,9 @@
     HUD.reset(); HUD.show(true); document.getElementById('touch').hidden = !Inp.touch;
     if (G.starterNotes && IB.LootHUD) { G.starterNotes.forEach(function (n) { IB.LootHUD.loot(n.item, n.note); }); G.starterNotes = null; }   // queued one after another
     // a save from before the new skill tree: its points were refunded on load; say so once
-    if (G.slot.skillsRefunded) { delete G.slot.skillsRefunded; HUD.toast('New skill tree: your skill points were refunded (Tab)', 4); }
+    if (G.slot.skillsRefunded) { delete G.slot.skillsRefunded; HUD.toast('New skill tree: your skill points were refunded (Tab)', 4, 'note'); }
     HUD.pips(G.level.zones.length, 0, 0);
+    if (HUD.mission) HUD.mission(G.plan.name);
     if (!AUTOTEST) M.intro({ level: G.plan.level, name: G.plan.name, zones: G.level.zones.length, line: G.plan.intro }, 2.2);
     // save at level start
     ensureSlot(); G.slot.level = G.plan.level; G.slot.plan = G.plan.id; G.slot.owned = G.slot.arsenal.slice(); G.store.save(G.slot); G.saved = true;
@@ -894,14 +895,14 @@
       pk.mesh.position.y = (pk.y || 0) + 0.27 + Math.sin(t * 3 + i) * 0.03;
       FX.blob(pk.x, pk.y || 0, pk.z, 0.35);
       if (Math.hypot(p.x - pk.x, p.z - pk.z) < 0.9 && p.y < (pk.y || 0) + 1 && p.y > (pk.y || 0) - 0.8) {
-        if (pk.kind === 'health') { if (p.health >= p.maxHp) return; var heal = healAmount(); p.health = Math.min(p.maxHp, p.health + heal); HUD.toast('+' + heal + ' health', 1.2); }
+        if (pk.kind === 'health') { if (p.health >= p.maxHp) return; var heal = healAmount(); p.health = Math.min(p.maxHp, p.health + heal); HUD.toast('+' + heal + ' health', 1.2, 'tick:hp'); }
         else {
           // full on every gun (and no frag can to gain): leave the box where it is
           var gotCan = G.slot && G.slot.frag && G.grenades < fragCarry();
-          if (!gotCan && W.ammoFull(G.ws)) { if (!(pk.fullT > 0) && HUD.toast) HUD.toast('Ammo full', 1.0); pk.fullT = 3; return; }
+          if (!gotCan && W.ammoFull(G.ws)) { if (!(pk.fullT > 0) && HUD.toast) HUD.toast('Ammo full', 1.0, 'call'); pk.fullT = 3; return; }
           W.addAmmo(G.ws, 0.5);
           if (gotCan) G.grenades++;
-          HUD.toast(gotCan ? 'Ammo + frag can' : 'Ammo', 1.0);
+          HUD.toast(gotCan ? 'Ammo + frag can' : 'Ammo', 1.0, 'tick:ammo');
         }
         pk.on = false; pk.mesh.visible = false; A.play('pickup');
       }
@@ -945,6 +946,7 @@
       var dmg = res.damage *= IB.SkillFX.hitMul(zone) * (IB.WeaponDrops ? IB.WeaponDrops.dmgMul(def.id) : 1) * (G.ws && G.ws.aim > 0.5 ? IB.SkillFX.dartMul() : 1);   // Heavy Ink, the gun's tier, Dart when zoomed in
       _shot.ox = ox; _shot.oy = oy; _shot.oz = oz; _shot.dx = dx; _shot.dy = dy; _shot.dz = dz; _shot.t = rh.t; _shot.wt = wt; _shot.def = def;
       var killed = AI.damage(r, dmg, { kx: dx * 4, kz: dz * 4 }, onKill);
+      if (HUD.target) HUD.target(IB.ENEMIES[r.type] ? IB.ENEMIES[r.type].name : r.type, G.plan.level, killed ? 0 : r.hp, r.maxHp, killed ? 0 : (r.shield || 0), r.maxShield || 0, Math.sqrt((r.x - G.player.x) * (r.x - G.player.x) + (r.z - G.player.z) * (r.z - G.player.z)), killed);
       // Electrify, Stream, Ricochet, Hazard, Hydrate, Chain Reaction
       IB.SkillFX.onHit(r, dmg, zone, killed, _end, onKill, _shot);
       FX.puff(_end.x, _end.y, _end.z, (zone === 'core' || zone === 'head') ? 5 : 3, PAL.ink, 0.12, 0.38, 2.2);
@@ -1207,7 +1209,7 @@
       // V: strike with the melee weapon (a shove until one is picked up); B: next melee weapon; G: throw a frag can
       if (Inp.meleePressed && G.run.started) { var mid = G.meleeId(); if (mid) meleeSwing(mid); else if (W.shove(G.ws)) doShove(); }
       if (Inp.meleeCyclePressed) cycleMelee();
-      if (Inp.grenadePressed && G.run.started) { if (G.grenades > 0) W.throwStart(G.ws); else if (G.slot && G.slot.frag) HUD.toast('No frag cans · ammo boxes give one back', 1.4); }
+      if (Inp.grenadePressed && G.run.started) { if (G.grenades > 0) W.throwStart(G.ws); else if (G.slot && G.slot.frag) HUD.toast('No frag cans · ammo boxes give one back', 1.4, 'call'); }
       if (Inp.cloakPressed) IB.SkillFX.tryCloak(p);       // F: Undercover
     }
     // fixed-step simulation
@@ -1307,8 +1309,10 @@
         pickups: (G.weaponStands || []).filter(function (w2) { return !w2.taken; }).map(function (w2) { return { x: w2.x, z: w2.z, kind: 'weapon' }; })
           .concat(G.pickups.filter(function (pk) { return pk.on; }).map(function (pk) { return { x: pk.x, z: pk.z, kind: pk.kind }; }))
           .concat(IB.Drops ? IB.Drops.radar() : []).concat(IB.WeaponDrops ? IB.WeaponDrops.radar() : []).concat(IB.Launchers ? IB.Launchers.radar() : []),
-        exit: last.state === 'cleared' ? { x: G.level.hatch.x, z: G.level.hatch.z } : null });
+        exit: last.state === 'cleared' ? { x: G.level.hatch.x, z: G.level.hatch.z } : null,
+        obj: last.state !== 'cleared' && G.level.zones[G.zone] && G.level.zones[G.zone].exitGate ? { x: G.level.zones[G.zone].exitGate.x, z: G.level.zones[G.zone].exitGate.z } : null });
     }
+    if (HUD.compass) HUD.compass(p.x, p.z, p.yaw);
     if (HUD.objective) {
       var obj = zn.state === 'active' ? 'Clear the block · ' + (AI.alive(G.zone) + zn.queue.length + remainingInWaves(zn)) + ' robots' :
         (G.level.zones[G.level.zones.length - 1].state === 'cleared' ? 'Walk the exit path' : 'Follow the arrows to the next gate');
@@ -1424,7 +1428,7 @@
     G.ws.fx.meleeRate = G.meleeWinded ? MELEE_WINDED.rate : 1;
     if (W.meleeStart(G.ws, id)) {
       p.stamina = Math.max(0, p.stamina - cost); p.staminaRest = 0; p.sprinting = false;
-      if (G.meleeWinded && HUD.toast) HUD.toast('Winded · slower swings', 0.9);
+      if (G.meleeWinded && HUD.toast) HUD.toast('Winded · slower swings', 0.9, 'call');
     }
   }
   G.meleeSwing = meleeSwing;
@@ -1432,7 +1436,7 @@
     var list = G.slot && G.slot.melee; if (!list || list.length < 2) return;
     var i = list.indexOf(G.meleeId());
     G.slot.meleeSel = list[(i + 1) % list.length];
-    HUD.toast('Melee: ' + IB.WEAPONS[G.slot.meleeSel].name + ' (V)', 1.4); A.play('draw');
+    HUD.toast('Melee: ' + IB.WEAPONS[G.slot.meleeSel].name + ' (V)', 1.4, 'call'); A.play('draw');
   }
   // the frag can leaves the support hand (weapons.js throw clip, release frame): from by the left shoulder, along the view
   function throwFrag() {

@@ -1,0 +1,8 @@
+Fonts added for the in-play HUD (src/ui/hudf.css). Each is licensed under the SIL Open Font License, Version 1.1;
+the licence text is in OFL.txt in this folder.
+
+  rajdhani-600.woff2, rajdhani-700.woff2         Rajdhani, Copyright The Rajdhani Project Authors (Indian Type Foundry)
+  sharetechmono.woff2                            Share Tech Mono, Copyright The Share Tech Mono Project Authors (Carrois Apostrophe)
+  barlow-condensed-italic-600/700.woff2          Barlow Condensed Italic, Copyright The Barlow Project Authors (see OFL-BarlowCondensed.txt)
+
+The files are Google Fonts builds converted from TTF to WOFF2 without changes to the glyphs.

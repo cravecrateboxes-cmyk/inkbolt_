@@ -32,14 +32,14 @@
     var hud = document.getElementById('hud'); if (!hud) return null;
     var bl = hud.querySelector('.hud-bl'), health = document.getElementById('health');
     var bar = document.createElement('div');
-    bar.className = 'plate ink shieldbar'; bar.id = 'shieldBar'; bar.hidden = true;
-    bar.innerHTML = '<svg class="sh-glyph" viewBox="-12 -12 24 24" aria-hidden="true"><polygon points="0,-10.5 9.1,-5.25 9.1,5.25 0,10.5 -9.1,5.25 -9.1,-5.25"/><path d="M1.4-6.6-3.6 1.2h3.1l-1.2 5.4 5.4-7.8H.6z"/></svg>' +
-      '<div class="sh-bar"><i class="sh-fill" id="shFill"></i><i class="sh-ticks"></i></div><b id="shNum">0</b><i class="sh-perk" id="shPerk" hidden></i>';
-    if (bl && health) bl.insertBefore(bar, health); else hud.appendChild(bar);
+    bar.className = 'vr sh shieldbar'; bar.id = 'shieldBar'; bar.hidden = true;
+    bar.innerHTML = '<span class="vi"><svg class="sh-glyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V4z"/></svg></span>' +
+      '<div class="vb sh-bar"><i class="sh-fill" id="shFill"></i><i class="sh-ticks"></i><b class="nu" id="shNum">0</b><em class="mo">Cell</em></div><i class="sh-perk" id="shPerk" hidden></i>';
+    if (health && health.parentNode) health.parentNode.insertBefore(bar, health); else hud.appendChild(bar);
     var card = document.createElement('div');
     card.className = 'lootcard'; card.id = 'lootCard'; card.hidden = true;
-    card.innerHTML = '<div class="plate ink loot-card" id="lootCardIn"><span class="loot-icon" id="lootIcon"></span><span class="loot-txt">' +
-      '<span class="loot-rar" id="lootRar"></span><b class="loot-name" id="lootName"></b><span class="loot-stats" id="lootStats"></span><span class="loot-note" id="lootNote"></span></span></div>';
+    card.innerHTML = '<div class="g nt loot-card" id="lootCardIn"><span class="blk loot-icon" id="lootIcon"></span><span class="nt-tx">' +
+      '<span class="a mo" id="lootRar"></span><b class="b d loot-name" id="lootName"></b><span class="c"><span class="loot-note" id="lootNote"></span><span class="loot-stats" id="lootStats"></span></span></span></div>';
     hud.appendChild(card);
     var sv = document.createElement('div');
     sv.className = 'scopeview'; sv.id = 'scopeView'; sv.style.opacity = '0'; sv.style.visibility = 'hidden';
@@ -140,7 +140,7 @@
     el.cardIn.style.setProperty('--rar', rc.color);
     el.card.className = 'lootcard ' + item.rarity;
     el.icon.innerHTML = ICON[item.type] || '';
-    el.rar.textContent = rc.name + ' · Lv ' + item.level + ' · ' + LH.typeName(item.type);
+    el.rar.textContent = rc.name + ' ' + LH.typeName(item.type) + ' · LV ' + item.level;
     el.name.textContent = String(item.name).toUpperCase();
     var pl = IB.Loot.perkLine && IB.Loot.perkLine(item);
     el.stats.innerHTML = IB.Loot.statLines(item).map(function (l) { return '<i>' + esc(l.k) + ' <b>' + esc(l.v) + '</b></i>'; }).join('') +

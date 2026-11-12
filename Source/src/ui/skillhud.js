@@ -40,7 +40,8 @@
     if (cv && cv.parentNode) cv.parentNode.insertBefore(fx, cv.nextSibling); else document.body.appendChild(fx);
     var el = H.el = document.createElement('div'); el.className = 'cloakhud'; el.id = 'cloakHud'; el.hidden = true;
     el.innerHTML = '<span class="ck-ring">' + EYE + '</span><span class="ck-key">F</span><span class="ck-txt">UNDERCOVER</span>';
-    document.body.appendChild(el);
+    var abl = document.getElementById('abl');   // desktop: the F ability row at the bottom left
+    if (abl) abl.insertBefore(el, abl.firstChild); else document.body.appendChild(el);
     H.txt = el.querySelector('.ck-txt');
   }
 
@@ -64,7 +65,7 @@
     document.body.classList.toggle('cloak-flick', on && flick);
     var k = !s ? 1 : s.active ? s.t / s.time : s.cd > 0 ? 1 - s.cd / s.cooldown : 1;
     var state = !s ? '' : s.active ? 'on' : s.cd > 0 ? 'cool' : 'ready';
-    var label = state === 'on' ? 'HIDDEN ' + Math.ceil(s.t) + 's' : state === 'cool' ? Math.ceil(s.cd) + 's' : 'UNDERCOVER';
+    var label = state === 'on' ? Math.ceil(s.t) + 's' : state === 'cool' ? String(Math.ceil(s.cd)) : 'UNDERCOVER';
     if (H.el.hidden === show) H.el.hidden = !show;
     if (show) {
       H.el.style.setProperty('--k', k.toFixed(3));

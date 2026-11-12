@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#15121C">
 <link rel="icon" href="data:,">
 <title>INKBOLT</title>
-<!--BUILD:CSS--><link rel="stylesheet" href="src/ui/ui.css"><link rel="stylesheet" href="src/ui/fieldkit.css"><link rel="stylesheet" href="src/ui/hud.css"><link rel="stylesheet" href="src/ui/loader.css"><!--/BUILD:CSS-->
+<!--BUILD:CSS--><link rel="stylesheet" href="src/ui/ui.css"><link rel="stylesheet" href="src/ui/fieldkit.css"><link rel="stylesheet" href="src/ui/hud.css"><link rel="stylesheet" href="src/ui/hudf.css"><link rel="stylesheet" href="src/ui/loader.css"><!--/BUILD:CSS-->
 </head>
 <body>
 <div id="boot" class="boot"><div class="boot-plate"><span class="boot-word">INKBOLT</span><div class="boot-bar"><i id="bootBar"></i></div></div></div>
@@ -16,56 +16,77 @@
 <div id="dim" class="waydim" aria-hidden="true"><i class="dim-tone"></i><i class="dim-vig"></i><i class="dim-dots"></i></div>
 <div id="hurt" class="hurt" aria-hidden="true"><i class="hurt-low"></i><i class="hurt-flash" id="hurtFlash"></i></div>
 <div id="hud" class="hud" hidden>
-  <div class="hud-tl">
-    <div class="plate ink objective" id="objective" hidden><i class="obj-mark" aria-hidden="true"></i><span id="objText"></span></div>
-    <div class="plate ink gems" id="gems"><span class="gem-glyph" aria-hidden="true"></span><b id="gemCount">0</b></div>
-  </div>
   <div class="hud-top">
-    <div class="plate ink score" id="score">
+    <div class="compass" id="compass"><canvas id="cmpCv" width="1400" height="132"></canvas><span class="g cmp-brg nu" id="cmpBrg">000&deg;</span></div>
+    <div class="sc" id="score">
       <span class="score-zone" id="scZone">ZONE 1/2</span>
-      <b class="score-time" id="scTime">00:00</b>
+      <b class="score-time d" id="scTime">00:00</b>
       <span class="score-left" id="scLeft">0 LEFT</span>
     </div>
     <div class="pips" id="pips"></div>
+    <div class="tplate" id="tplate" hidden>
+      <div class="tp-row"><span class="tp-lv nu" id="tpLv">1</span><div class="tp-bars"><div class="tp-b1"><i id="tpSh"></i></div><div class="tp-b2"><i id="tpHp"></i></div></div></div>
+      <div class="tp-nm"><span id="tpName">Crawler</span><span class="mo" id="tpDist"></span></div>
+    </div>
+  </div>
+  <div class="hud-tl">
+    <i class="cn a"></i>
+    <div class="mo obj-tag"><b>Objective</b> // <span id="missionName">Mission</span></div>
+    <div class="ob objective" id="objective" hidden><span class="obj-t d" id="objText"></span><span class="obj-s"><span id="objSub"></span><span class="mo" id="objDist"></span></span></div>
+    <div class="gm" id="gems"><svg class="ic gem-ic" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1l7 8-7 10L3 9z"/></svg><b class="nu" id="gemCount">0</b></div>
   </div>
   <div class="hud-tr">
-    <div class="plate ink radar" id="radar" hidden><canvas id="radarCv" width="180" height="180"></canvas></div>
+    <div class="rdr" id="radar" hidden><canvas id="radarCv" width="200" height="200"></canvas></div>
     <div class="feed" id="feed"></div>
   </div>
-  <div class="xhair" id="xhair"><i></i><i></i><i></i><i></i><b class="xdot"></b></div>
+  <div class="xhair" id="xhair"><svg class="xbr" viewBox="-50 -50 100 100" aria-hidden="true"><path d="M-30 -30A42 42 0 0 0 -30 30"/><path d="M30 -30A42 42 0 0 1 30 30"/></svg><i></i><i></i><i></i><i></i><b class="xdot"></b></div>
   <svg class="hitmark" id="hitmark" viewBox="-20 -20 40 40" aria-hidden="true"><path class="hm-ink" d="M-9-9l-7-7M9-9l7-7M-9 9l-7 7M9 9l7 7"/><path class="hm" d="M-9-9l-7-7M9-9l7-7M-9 9l-7 7M9 9l7 7"/></svg>
   <svg class="arcs" id="arcs" viewBox="-150 -150 300 300" aria-hidden="true"></svg>
-  <div class="confirm" id="confirm" hidden><span class="gem-glyph sm" aria-hidden="true"></span><b id="confirmNum">+1</b></div>
-  <div class="use-prompt" id="usePrompt" hidden><span class="key">E</span><span class="ut"></span><span class="us"></span><i class="uacc" aria-hidden="true"></i></div>
-  <div class="prompt" id="prompt" hidden><span class="key" id="promptKey">R</span><span id="promptText">Reload</span><i class="prompt-bar"><i id="promptFill"></i></i><i class="prompt-ring" aria-hidden="true"></i></div>
+  <div class="confirm" id="confirm" hidden><svg class="ic gem-ic" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1l7 8-7 10L3 9z"/></svg><b class="nu" id="confirmNum">+1</b></div>
+  <div class="ticker" id="ticker"></div>
+  <div class="callouts" id="callouts">
+    <div class="use-prompt" id="usePrompt" hidden><span class="key">E</span><span class="ut"></span><span class="us"></span><i class="uacc" aria-hidden="true"></i></div>
+    <div class="prompt" id="prompt" hidden><span class="key" id="promptKey">R</span><span id="promptText">Reload</span><i class="prompt-bar"><i id="promptFill"></i></i><i class="prompt-ring" aria-hidden="true"></i></div>
+    <div class="call-rows" id="callRows"></div>
+  </div>
   <div class="hud-bl">
-    <div class="plate ink xpbar" id="lvTag"><b class="lv-badge"><small>LV</small><span id="lvNum">1</span></b><div class="xp-bar"><i class="xp-gain" id="xpGain"></i><i id="xpFill"></i><i class="hp-ticks"></i></div><b class="xp-num" id="xpNum">0%</b><span class="lv-pts" id="lvPts" hidden><b id="lvPtsN">+1</b><span class="lv-key" id="lvKey">Tab</span></span><span class="xp-plus" id="xpPlus" aria-hidden="true"></span></div>
-    <div class="plate ink health" id="health">
-      <svg class="hp-glyph" viewBox="-12 -12 24 24" aria-hidden="true"><polygon points="11,0 5.5,9.5 -5.5,9.5 -11,0 -5.5,-9.5 5.5,-9.5"/><circle r="3.6"/></svg>
-      <div class="hp-bar"><i class="hp-chip" id="hpChip"></i><i id="hpFill"></i><i class="hp-ticks"></i></div><b id="hpNum">100</b>
+    <div class="lvhex" id="lvHex"><b><span><small>LV</small><i id="lvNum">1</i></span></b></div>
+    <div class="vt">
+      <i class="cn a"></i>
+      <div class="row vh mo"><span>Scrapper</span><span><b>Cell</b> / HP</span></div>
+      <div class="vr hp" id="health">
+        <span class="vi"><svg class="ic" viewBox="0 0 20 20" aria-hidden="true"><path d="M7 1h6v6h6v6h-6v6H7v-6H1V7h6z"/></svg></span>
+        <div class="vb hp-bar"><i class="hp-chip" id="hpChip"></i><i id="hpFill"></i><i class="hp-ticks"></i><b class="nu" id="hpNum">100</b><em class="mo">HP</em></div>
+      </div>
+      <div class="xprow" id="lvTag"><span class="mo">XP</span><div class="xp-bar"><i class="xp-gain" id="xpGain"></i><i id="xpFill"></i></div><b class="xp-num mo" id="xpNum">0%</b><span class="lv-pts" id="lvPts" hidden><b id="lvPtsN">+1</b><span class="lv-key" id="lvKey">Tab</span></span><span class="xp-plus" id="xpPlus" aria-hidden="true"></span></div>
+      <div class="stamina" id="stamina"><i id="stFill"></i></div>
     </div>
-    <div class="stamina" id="stamina"><i id="stFill"></i></div>
+    <div class="abl" id="abl">
+      <div class="kit" id="kit" hidden><span class="kit-chip" id="kitMelee" hidden><span class="kit-ic" id="kitMeleeIc"></span><span class="kit-nm" id="kitMeleeName"></span><b class="key">V</b></span><span class="kit-chip" id="kitGren" hidden><span class="kit-ic" id="kitGrenIc"></span><span class="kit-n nu" id="kitGrenN">3</span><b class="key">G</b></span></div>
+    </div>
   </div>
   <div class="hud-br">
-    <div class="kit" id="kit" hidden><span class="kit-chip" id="kitMelee" hidden><b class="key">V</b><span class="kit-ic" id="kitMeleeIc"></span><span id="kitMeleeName"></span></span><span class="kit-chip" id="kitGren" hidden><b class="key">G</b><span class="kit-ic" id="kitGrenIc"></span><span id="kitGrenN">3</span></span></div>
-    <div class="slots" id="slots"></div>
-    <div class="plate ink weapon" id="weapon">
-      <div class="wpn-info">
-        <b class="wpn-name" id="wpnName">P-12 WARDEN</b>
-        <span class="wpn-cls"><span class="wpn-icon" id="wpnIcon"></span><span id="wpnCls">Pistol</span></span>
-        <div class="mag-strip" id="magStrip"><i id="magFill"></i></div>
-      </div>
-      <div class="plate ammo" id="ammo"><b id="ammoMag">12</b><span id="ammoRes">/ ∞</span></div>
+    <div class="whl"><div class="slots" id="slots"></div></div>
+    <div class="wp" id="weapon">
+      <i class="cn c"></i>
+      <b class="wpn-name d" id="wpnName">P-12 WARDEN</b>
+      <div class="brush"></div>
+      <span class="wpn-cls mo"><span class="wpn-icon" id="wpnIcon"></span><span id="wpnCls">Pistol</span></span>
+      <div class="amb" id="ammo"><b class="d" id="ammoMag">12</b><span class="r d" id="ammoRes">/ &infin;</span></div>
+      <div class="mag-strip" id="magStrip"><i id="magFill"></i></div>
     </div>
   </div>
   <div class="pickup" id="pickup" hidden>
-    <div class="plate ink pickup-card"><span class="pickup-icon" id="pickupIcon"></span><span class="pickup-txt"><b id="pickupName">AR-22 RIVET</b><span id="pickupLine">New weapon · press 3</span></span></div>
+    <div class="g nt pickup-card"><span class="blk pickup-icon" id="pickupIcon"></span><span class="nt-tx"><span class="a mo" id="pickupHdL">New weapon</span><b class="b d" id="pickupName">AR-22 RIVET</b><span class="c" id="pickupLine">Press 3 to equip</span></span></div>
   </div>
-  <div class="toast plate ink" id="toast" hidden></div>
+  <div class="notice" id="notice" hidden>
+    <div class="g nt red"><span class="blk nu">!</span><span class="nt-tx"><span class="a mo">Notice</span><b class="b d" id="noteT"></b><span class="c" id="noteS"></span></span></div>
+  </div>
+  <div class="banner" id="toast" hidden><span class="ban-t d" id="toastT"></span><span class="ban-s" id="toastS"></span></div>
   <div class="elim" id="elim" hidden>
-    <div class="plate red elim-card">
-      <span class="elim-by">Eliminated by</span>
-      <b class="elim-name" id="elimName">CRAWLER</b>
+    <div class="elim-card">
+      <span class="elim-by d">Eliminated by</span>
+      <b class="elim-name d" id="elimName">CRAWLER</b>
       <span class="elim-row"><span id="elimCount">Back in 3</span><span id="elimRetries">Retries left 2</span></span>
     </div>
   </div>

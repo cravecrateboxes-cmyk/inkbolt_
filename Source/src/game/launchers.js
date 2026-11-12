@@ -455,10 +455,10 @@
       if (IB.FX && IB.FX.blob) IB.FX.blob(c.x, c.y, c.z, 0.38);
       if (!p.alive || Math.hypot(p.x - c.x, p.z - c.z) > 0.95 || p.y > c.y + 1 || p.y < c.y - 0.8) return;
       var room = cap - L.total();
-      if (room <= 0) { if (c.fullT <= 0 && IB.HUD.toast) IB.HUD.toast('Rockets full (' + cap + ')', 1.2); c.fullT = 3; c.fullT -= dt; return; }
+      if (room <= 0) { if (c.fullT <= 0 && IB.HUD.toast) IB.HUD.toast('Rockets full (' + cap + ')', 1.2, 'call'); c.fullT = 3; c.fullT -= dt; return; }
       var take = Math.min(room, c.n);
       pool().rocket += take; c.n -= take;
-      if (IB.HUD.toast) IB.HUD.toast('+' + take + ' rocket' + (take > 1 ? 's' : ''), 1.2);
+      if (IB.HUD.toast) IB.HUD.toast('+' + take + ' rocket' + (take > 1 ? 's' : ''), 1.2, 'tick:ammo');
       if (IB.Audio) IB.Audio.play('pickup', { pitch: 0.8 });
       if (c.n <= 0) { c.on = false; c.mesh.visible = false; }
     });

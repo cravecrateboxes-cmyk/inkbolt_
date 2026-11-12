@@ -186,7 +186,7 @@
     var g = IB.Gear.gear(G), item = d.it;
     if (!g) return false;
     if (!IB.Loot.addItem(g, item, IB.Gear.bagCap(G))) {
-      if (d.fullT <= 0) { d.fullT = 3; IB.HUD.toast('Bag full (' + g.inv.length + '/' + IB.Gear.bagCap(G) + ') · drop or scrap gear in the Inventory (Tab)', 2.4); }
+      if (d.fullT <= 0) { d.fullT = 3; IB.HUD.toast('Bag full (' + g.inv.length + '/' + IB.Gear.bagCap(G) + ') · drop or scrap gear in the Inventory (Tab)', 2.4, 'note'); }
       return false;
     }
     // fill an empty slot right away: shield, or a compatible attachment slot on the gun in hand
@@ -199,7 +199,7 @@
     }
     IB.Gear.refresh(G, item.type === 'shield' && g.shield === item.id);
     IB.Gear.save(G);
-    if (IB.LootHUD) IB.LootHUD.loot(item, note); else IB.HUD.toast(item.name, 2);
+    if (IB.LootHUD) IB.LootHUD.loot(item, note); else IB.HUD.toast(item.name, 2, 'tick:gear');
     IB.Gear.play('loot');
     var col = parseInt(IB.LOOT.rarityById[item.rarity].color.slice(1), 16);
     IB.FX.puff(d.x, (d.y || 0) + 0.7, d.z, 10, col, 0.12, 0.4, 3.5);

@@ -36,7 +36,10 @@
       hpChip: $('hpChip'), stamina: $('stamina'), stFill: $('stFill'), dim: $('dim'), hurt: $('hurt'), hurtFlash: $('hurtFlash'),
       pickup: $('pickup'), pickupIcon: $('pickupIcon'), pickupName: $('pickupName'), pickupLine: $('pickupLine'),
       confirm: $('confirm'), confirmNum: $('confirmNum'), pauseBtn: $('pauseBtn'),
-      lvTag: $('lvTag'), lvNum: $('lvNum'), xpFill: $('xpFill'), xpGain: $('xpGain'), xpNum: $('xpNum'), xpPlus: $('xpPlus'), lvPts: $('lvPts'), lvPtsN: $('lvPtsN'), lvKey: $('lvKey'), menuBtn: $('menuBtn'), menuDot: $('menuDot')
+      lvTag: $('lvTag'), lvNum: $('lvNum'), xpFill: $('xpFill'), xpGain: $('xpGain'), xpNum: $('xpNum'), xpPlus: $('xpPlus'), lvPts: $('lvPts'), lvPtsN: $('lvPtsN'), lvKey: $('lvKey'), menuBtn: $('menuBtn'), menuDot: $('menuDot'),
+      cmpCv: $('cmpCv'), cmpBrg: $('cmpBrg'), tplate: $('tplate'), tpLv: $('tpLv'), tpName: $('tpName'), tpDist: $('tpDist'), tpHp: $('tpHp'), tpSh: $('tpSh'),
+      ticker: $('ticker'), callRows: $('callRows'), notice: $('notice'), noteT: $('noteT'), noteS: $('noteS'),
+      toastT: $('toastT'), toastS: $('toastS'), missionName: $('missionName'), objSub: $('objSub'), objDist: $('objDist'), pickupHdL: $('pickupHdL')
     };
     H.arcs = [];
     for (var i = 0; i < 6; i++) {
@@ -60,6 +63,10 @@
       H.el.menuBtn.addEventListener('click', menu);
     }
     if (H.el.radarCv) H.radarCtx = H.el.radarCv.getContext('2d');
+    if (H.el.cmpCv) H.cmpCtx = H.el.cmpCv.getContext('2d');
+    // the desktop layout is drawn for 1920x1080: smaller windows scale it down (phones keep their own sizes)
+    var fit = function () { var sc = Math.min(window.innerWidth / 1920, window.innerHeight / 1080); H.el.hud.style.setProperty('--hs', Math.max(0.7, Math.min(1.15, Math.pow(sc, 0.8))).toFixed(3)); };
+    fit(); window.addEventListener('resize', fit);
   };
   H.show = function (on) { H.el.hud.hidden = !on; if (!on) { H.el.hurt.classList.remove('low'); H.damageFlash(0); } else if (H.lowHp) H.el.hurt.classList.add('low'); };
 
@@ -69,7 +76,8 @@
     for (var k in WL) WL[k] = typeof WL[k] === 'number' ? -2 : null; WL.state = '';
     H.el.hurt.classList.remove('low'); H.damageFlash(0);   // dim is left alone: game.js owns the fade across level loads
     H.el.pickup.hidden = true; H.el.hud.classList.remove('picking'); H.el.prompt.hidden = true; H.el.confirm.hidden = true; H.el.toast.hidden = true;
-    pickT = 0; confirmT = 0; toastT = 0; hitT = 0;
+    H.el.notice.hidden = true; H.el.hud.classList.remove('noting'); H.el.tplate.hidden = true; H.el.ticker.innerHTML = ''; H.el.callRows.innerHTML = ''; rows = []; H.cmp = null; H.lastObj = null;
+    pickT = 0; confirmT = 0; toastT = 0; hitT = 0; ntT = 0; tpT = 0;
   };
 
   /* player XP bar above the health plate: LV badge, progress to the next level (IB.Skills.xpProgress: {lv, into, span,
@@ -103,7 +111,7 @@
     }
   };
   H.gems = function (n, pulse) {
-    set('gems', n, function (v) { H.el.gemCount.textContent = v; });
+    set('gems', n, function (v) { H.el.gemCount.textContent = Number(v).toLocaleString('en-US'); });
     if (pulse) { H.el.gems.classList.remove('pulse'); void H.el.gems.offsetWidth; H.el.gems.classList.add('pulse'); }
   };
   function mmss(t) { t = Math.max(0, Math.floor(t)); var m = Math.floor(t / 60), s = t % 60; return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s; }
@@ -160,7 +168,8 @@
       var tc = IB.WeaponDrops && IB.WEAPONS && IB.WEAPONS[w.id] && w.cls !== 'melee' && w.cls !== 'shove' ? IB.WeaponDrops.tierOf(w.id) : null;
       el.wpnName.style.color = tc && tc.rank > 0 ? tc.color : '';
       el.wpnIcon.innerHTML = H.icon(w.cls);
-      el.wpnCls.textContent = H.clsName(w.cls) + (w.level > 0 && w.cls !== 'melee' && w.cls !== 'shove' ? ' · Lv ' + w.level : '');   // gun item level (core/gunlevel.js)
+      var gunLv = w.level > 0 && w.cls !== 'melee' && w.cls !== 'shove';   // gun item level (core/gunlevel.js)
+      el.wpnCls.innerHTML = esc(H.clsName(w.cls)) + (gunLv ? ' · LV ' + w.level : '') + (tc && tc.rank > 0 && tc.name ? ' · <b>' + esc(tc.name) + '</b>' : '');
     }
     var melee = w.cls === 'melee' || w.cls === 'shove';
     if (melee !== L.melee) { L.melee = melee; el.weapon.classList.toggle('melee', melee); L.mag = -1; }
@@ -170,7 +179,7 @@
     if (w.mag !== L.mag || res !== L.res) {
       L.mag = w.mag; L.res = res;
       el.ammoMag.textContent = melee ? '–' : w.mag;
-      el.ammoRes.textContent = melee ? '' : '/ ' + (res === Infinity ? '∞' : res);
+      el.ammoRes.innerHTML = melee ? '' : '<i>/</i>' + (res === Infinity ? '∞' : res);
     }
     var frac = Math.max(0, Math.min(1, w.mag / size));
     var state = melee ? 'ok' : w.reloading ? 'reload' : w.mag === 0 ? 'empty' : frac <= 0.25 ? 'low' : 'ok';
@@ -185,7 +194,7 @@
       el.weapon.classList.toggle('reloading', state === 'reload');
       el.prompt.hidden = !(state === 'empty' || state === 'reload' || (state === 'low' && res !== 0));
       el.prompt.className = 'prompt ' + state;
-      if (state === 'reload') { el.promptKey.hidden = true; el.promptText.textContent = 'Reload'; }
+      if (state === 'reload') { el.promptKey.hidden = true; el.promptText.textContent = 'Reloading'; }
       else if (outOfAll) { el.promptKey.hidden = true; el.promptText.textContent = 'No ammo · swap weapon'; }
       else { el.promptKey.hidden = false; el.promptKey.textContent = 'R'; el.promptText.textContent = state === 'low' ? 'Low ammo' : 'Reload'; }
     }
@@ -218,14 +227,21 @@
     var key = list.map(function (s) { return s.slot + s.cls + (s.on ? '*' : ''); }).join(',');
     set('slots', key, function () {
       H.el.slots.innerHTML = list.map(function (s) {
-        return '<div class="plate ink slot' + (s.on ? ' on' : '') + '"' + (s.name ? ' title="' + esc(s.name) + '"' : '') + '><span class="key">' + s.slot + '</span>' + H.icon(s.cls) + '</div>';
+        return '<div class="wd s' + s.slot + (s.on ? ' on' : '') + '"' + (s.name ? ' title="' + esc(s.name) + '"' : '') + '><em class="nu">' + s.slot + '</em><span>' + H.icon(s.cls) + '</span></div>';
       }).join('');
     });
   };
 
+  // 'Clear the block · 462 robots' -> big title + '462 robots remaining'; anything else is the title alone
   H.objective = function (text) {
-    set('obj', text || '', function (v) { H.el.objective.hidden = !v; H.el.objText.textContent = v; if (v) { H.el.objective.classList.remove('obj-in'); void H.el.objective.offsetWidth; H.el.objective.classList.add('obj-in'); } });
+    set('obj', text || '', function (v) {
+      var el = H.el, i = v.indexOf(' · '), t = i < 0 ? v : v.slice(0, i), sub = i < 0 ? '' : v.slice(i + 3), m = /^(\d+) robots?$/.exec(sub);
+      el.objective.hidden = !v; el.objText.textContent = t;
+      el.objSub.innerHTML = m ? '<b>' + m[1] + '</b> robots remaining' : esc(sub);
+      if (v) { el.objective.classList.remove('obj-in'); void el.objective.offsetWidth; el.objective.classList.add('obj-in'); }
+    });
   };
+  H.mission = function (name) { set('mission', name || '', function (v) { H.el.missionName.textContent = v; }); };
 
   /* spreadDeg, vfovDeg, hidden */
   H.crosshair = function (spreadDeg, vfov, hidden) {
@@ -255,9 +271,9 @@
   H.feed = function (cls, name, gems, weaponName) {
     if (!weaponName && H.wpn && H.wpn.cls === cls) weaponName = H.wpn.name;
     var row = document.createElement('div');
-    row.className = 'plate ink feed-row';
-    row.innerHTML = '<span class="feed-wpn">' + H.icon(cls) + (weaponName ? '<span>' + esc(weaponName) + '</span>' : '') + '</span>' +
-      '<b class="feed-bot">' + esc(name) + '</b>' + (gems ? '<span class="feed-gem">+' + gems + '</span>' : '');
+    row.className = 'kf';
+    row.innerHTML = '<span class="feed-wpn">' + esc(weaponName || H.clsName(cls)) + '</span>' +
+      '<b class="feed-bot d">' + esc(name) + '</b>' + (gems ? '<em class="feed-gem nu">+' + gems + '</em>' : '');
     H.el.feed.insertBefore(row, H.el.feed.firstChild);
     H.feedRows.unshift({ el: row, t: 0 });
     while (H.feedRows.length > 4) { var r = H.feedRows.pop(); r.el.remove(); }
@@ -327,7 +343,38 @@
     }
   };
   H.peekKey = function () { return PEEK.key; };
-  H.toast = function (text, secs) { H.el.toast.textContent = text; H.el.toast.hidden = false; toastT = secs || 2.5; H.el.toast.style.animation = 'none'; void H.el.toast.offsetWidth; H.el.toast.style.animation = ''; };
+  /* Messages go to one of four lanes so a 1 s status never fights a level-up:
+       'call'       small hairline callout under the crosshair (weapon / body status)
+       'tick[:tone]' pickup ticker right of the crosshair; tone hp | ammo | gear
+       'note'       notice card in the top-right loot slot (needs the player to open Tab)
+       'banner'     big hairline banner, upper centre (default) */
+  var rows = [], ntT = 0, tpT = 0;
+  function keyify(t) { return esc(t).replace(/\((Tab|V|E|G|R|F|B)\)/g, '<span class="k">$1</span>'); }
+  function splitAt(text) {   // 'Title · rest' | 'Title: rest' | 'Title. rest'
+    var m = /^(.*?)(?: · |: |\. )(.*)$/.exec(text);
+    return m ? [m[1], m[2].replace(/\.$/, '')] : [text.replace(/\.$/, ''), ''];
+  }
+  function addRow(box, cls, html, life, max, key) {
+    for (var i = rows.length - 1; i >= 0; i--) if (rows[i].key === key && rows[i].box === box) { rows[i].t = 0; rows[i].life = life; rows[i].el.classList.remove('out'); return; }
+    var el = document.createElement('div'); el.className = cls; el.innerHTML = html;
+    box.insertBefore(el, box.firstChild);
+    rows.unshift({ el: el, box: box, t: 0, life: life, key: key });
+    var n = 0; for (i = 0; i < rows.length; i++) if (rows[i].box === box && ++n > max) { rows[i].el.remove(); rows.splice(i, 1); i--; }
+  }
+  H.toast = function (text, secs, lane) {
+    var ln = String(lane || 'banner').split(':'), kind = ln[0], life = secs || 2.5, P;
+    if (kind === 'tick') { addRow(H.el.ticker, 'tkr ' + (ln[1] || ''), '<i></i>' + keyify(text), life, 4, 't' + text); return; }
+    if (kind === 'call') { P = splitAt(text); addRow(H.el.callRows, 'c1' + (/^(Winded|No )/.test(text) ? ' warn' : ''), keyify(P[0]) + (P[1] ? '<small>' + keyify(P[1]) + '</small>' : ''), life, 3, 'c' + text); return; }
+    if (kind === 'note') {
+      P = splitAt(text); var el = H.el;
+      el.noteT.textContent = P[0]; el.noteS.innerHTML = keyify(P[1]); el.hud.classList.add('noting');
+      el.notice.hidden = false; el.notice.classList.remove('out', 'on'); void el.notice.offsetWidth; el.notice.classList.add('on'); ntT = life; return;
+    }
+    var lv = /^LEVEL UP/i.test(text); P = lv ? (function () { var a = text.split(' · '); return [a.slice(0, 2).join(' · '), a.slice(2).join(' · ')]; })() : splitAt(text);
+    var b = H.el.toast; H.el.toastT.textContent = lv ? 'Level up · ' + P[0].split(' · ')[1] : P[0]; H.el.toastS.innerHTML = keyify(P[1]);
+    b.className = 'banner' + (lv || /clear/i.test(P[0]) ? ' yl' : '');
+    b.hidden = false; toastT = life; b.style.animation = 'none'; void b.offsetWidth; b.style.animation = '';
+  };
   H.elim = function (show, name, count, retries) {
     H.el.elim.hidden = !show;
     if (show) {
@@ -346,7 +393,8 @@
     var how = cls === 'melee' ? (touch() ? 'tap the blade button' : 'press V to strike · B: next melee') :
       cls === 'grenade' ? (touch() ? 'tap the can button to throw' : 'press G to throw') :
       touch() ? 'tap swap to equip' : (slot ? 'press ' + slot + ' to equip' : 'equipped');
-    H.el.pickupLine.textContent = 'New ' + H.clsName(cls).toLowerCase().replace('smg', 'SMG') + ' · ' + how;
+    H.el.pickupHdL.textContent = 'New ' + H.clsName(cls).toLowerCase().replace('smg', 'SMG');
+    H.el.pickupLine.innerHTML = esc(how.charAt(0).toUpperCase() + how.slice(1)).replace(/^Press (\w) /, 'Press <span class="k">$1</span> ');
     H.el.toast.hidden = true; toastT = 0;
     H.el.hud.classList.add('picking');
     H.el.pickup.hidden = false; H.el.pickup.classList.remove('out', 'on'); void H.el.pickup.offsetWidth; H.el.pickup.classList.add('on');
@@ -391,6 +439,10 @@
   var PICK = { health: '#5BCF4A', ammo: '#5B9BF5', weapon: '#FFB21E', gem: '#2EEAD8', rockets: '#FF7A2E' };
   H.radar = function (d) {
     var cv = H.el.radarCv, ctx = H.radarCtx; if (!ctx || !d) return;
+    H.cmp = d;   // the compass reads the same robots / objective (H.compass runs every frame)
+    var ob = d.obj || d.exit;
+    if (ob) { var od = Math.round(Math.sqrt((ob.x - d.px) * (ob.x - d.px) + (ob.z - d.pz) * (ob.z - d.pz))); set('od', od, function (v) { H.el.objDist.textContent = v + ' M'; }); }
+    else set('od', -1, function () { H.el.objDist.textContent = ''; });
     if (H.el.radar.hidden) H.el.radar.hidden = false;
     var css = cv.clientWidth || 160, dpr = Math.min(2, window.devicePixelRatio || 1), px = Math.round(css * dpr);
     if (cv.width !== px) { cv.width = px; cv.height = px; }
@@ -407,21 +459,21 @@
     ctx.clearRect(0, 0, S, S);
     // glass face clipped to a cut-corner square; the frame is drawn last
     var cut = Math.round(S * 0.09);
-    octo(ctx, S, cut, 0); ctx.save(); ctx.clip();
-    ctx.fillStyle = 'rgba(8, 12, 22, .72)'; ctx.fillRect(0, 0, S, S);
+    ctx.beginPath(); ctx.arc(c, c, c, 0, Math.PI * 2); ctx.save(); ctx.clip();
+    ctx.fillStyle = 'rgba(5, 8, 14, .62)'; ctx.fillRect(0, 0, S, S);
     // grid: 10 m hairlines
-    ctx.strokeStyle = 'rgba(120, 220, 230, .09)'; ctx.lineWidth = dpr;
+    ctx.strokeStyle = 'rgba(120, 220, 230, 0)'; ctx.lineWidth = dpr;
     var step = 10 * k;
     ctx.beginPath();
     for (var g = c % step; g < S; g += step) { ctx.moveTo(g, 0); ctx.lineTo(g, S); ctx.moveTo(0, g); ctx.lineTo(S, g); }
     ctx.stroke();
     // view cone: teal, fading out with range
     var cg = ctx.createRadialGradient(c, c, 0, c, c, R * 1.1);
-    cg.addColorStop(0, 'rgba(46, 234, 216, .32)'); cg.addColorStop(1, 'rgba(46, 234, 216, 0)');
+    cg.addColorStop(0, 'rgba(244, 247, 251, .24)'); cg.addColorStop(1, 'rgba(244, 247, 251, .06)');
     ctx.fillStyle = cg;
     ctx.beginPath(); ctx.moveTo(c, c); ctx.arc(c, c, R * 1.5, -Math.PI / 2 - 0.62, -Math.PI / 2 + 0.62); ctx.closePath(); ctx.fill();
     // range rings
-    ctx.strokeStyle = 'rgba(214, 238, 255, .16)'; ctx.lineWidth = dpr; ctx.setLineDash([3 * dpr, 4 * dpr]);
+    ctx.strokeStyle = 'rgba(244, 247, 251, .4)'; ctx.lineWidth = 1.5 * dpr; ctx.setLineDash([4 * dpr, 4 * dpr]);
     ctx.beginPath(); ctx.arc(c, c, R / 2, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
     var i, p;
     // gates: teal bars (closed = dark-cored)
@@ -455,7 +507,7 @@
       var rad = (r.alert ? 4.4 : 3.6) * dpr * (S > 140 * dpr ? 1 : 0.85);
       ctx.fillStyle = r.alert ? 'rgba(255, 75, 62, .28)' : 'rgba(255, 255, 255, .14)'; ctx.beginPath(); ctx.arc(p.x, p.y, rad * 2.1, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = 'rgba(8, 12, 22, .9)'; ctx.beginPath(); ctx.arc(p.x, p.y, rad + 1.2 * dpr, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = r.alert ? '#FF4B3E' : '#F1F8FF'; ctx.beginPath(); ctx.arc(p.x, p.y, rad, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = r.alert ? '#FF5A52' : '#D9605A'; ctx.beginPath(); ctx.arc(p.x, p.y, rad, 0, Math.PI * 2); ctx.fill();
     }
     // player arrow
     ctx.save(); ctx.translate(c, c);
@@ -464,15 +516,6 @@
     ctx.fillStyle = '#FFFFFF'; ctx.fill();
     ctx.restore();
     ctx.restore();
-    // frame: hairline round the cut square, brighter teal brackets on the corners, a north-up tick at the top
-    ctx.lineWidth = 1.5 * dpr; ctx.strokeStyle = 'rgba(214, 238, 255, .3)';
-    octo(ctx, S, cut, 0.75 * dpr); ctx.stroke();
-    ctx.strokeStyle = '#2EEAD8'; ctx.lineWidth = 2 * dpr; ctx.beginPath();
-    var e = dpr, L = S * 0.16;
-    ctx.moveTo(e, cut + L); ctx.lineTo(e, cut); ctx.lineTo(cut, e); ctx.lineTo(cut + L, e);
-    ctx.moveTo(S - e, S - cut - L); ctx.lineTo(S - e, S - cut); ctx.lineTo(S - cut, S - e); ctx.lineTo(S - cut - L, S - e);
-    ctx.stroke();
-    ctx.fillStyle = '#2EEAD8'; ctx.beginPath(); ctx.moveTo(c - 4 * dpr, 0); ctx.lineTo(c + 4 * dpr, 0); ctx.lineTo(c, 5 * dpr); ctx.closePath(); ctx.fill();
   };
   function octo(ctx, S, cut, inset) {
     var a = inset, b = S - inset;
@@ -486,9 +529,74 @@
     ctx.closePath(); ctx.fill();
   }
 
+  /* ---------- compass strip: bearing numbers, cardinals, robots (red), objective (hex). yaw 0 faces -Z (north). ---------- */
+  var CARD = { 0: 'N', 45: 'NE', 90: 'E', 135: 'SE', 180: 'S', 225: 'SW', 270: 'W', 315: 'NW' };
+  var cmpKey = '';
+  function wrap(a) { a = (a + 540) % 360; return a - 180; }
+  H.compass = function (px, pz, yaw) {
+    var ctx = H.cmpCtx, cv = H.el.cmpCv; if (!ctx || !cv || H.el.hud.hidden) return;
+    var head = ((-(yaw || 0) * 180 / Math.PI) % 360 + 360) % 360, d = H.cmp, n = d && d.robots ? d.robots.length : 0;
+    var key = head.toFixed(1) + '|' + (d ? d.px.toFixed(1) + d.pz.toFixed(1) : '') + '|' + n;
+    if (key === cmpKey) return; cmpKey = key;
+    var W = cv.width, Hh = cv.height, k = W / 700, ppd = 4.4 * k, c = W / 2;   // 4.4 css px per degree: about 159 degrees across
+    var hb = Math.round(head) % 360; set('brg', hb, function (v) { H.el.cmpBrg.innerHTML = ('00' + v).slice(-3) + '&deg;'; });
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, W, Hh);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.lineJoin = 'round';
+    var lineY = 30 * k;
+    // the line
+    ctx.fillStyle = '#05080E'; ctx.fillRect(0, lineY - 1.5 * k, W, 5 * k); ctx.fillStyle = '#F4F7FB'; ctx.fillRect(0, lineY - 0.5 * k, W, 3 * k);
+    var b0 = Math.floor((head - 80) / 5) * 5, b, off, x;
+    for (b = b0; b <= head + 80; b += 5) {
+      off = b - head; x = c + off * ppd; var bb = ((b % 360) + 360) % 360, lab = bb % 15 === 0;
+      ctx.fillStyle = 'rgba(244,247,251,.7)'; ctx.fillRect(x - k, lineY + 3 * k, 2 * k, (lab ? 9 : 5) * k);
+      if (bb % 15 === 0 && Math.abs(off) > 14) {
+        var cd = CARD[bb];
+        ctx.font = cd ? '600 ' + 19 * k + 'px "Barlow Condensed", sans-serif' : '400 ' + 14 * k + 'px "Share Tech Mono", monospace';
+        ctx.lineWidth = 3 * k; ctx.strokeStyle = 'rgba(5,8,14,.9)'; var t = cd || String(bb);
+        ctx.strokeText(t, x, (cd ? 2 : 6) * k); ctx.fillStyle = cd ? '#F4F7FB' : '#BCCADB'; ctx.fillText(t, x, (cd ? 2 : 6) * k);
+      }
+    }
+    if (d) {
+      var rb = d.robots || [], i, br;
+      for (i = 0; i < rb.length; i++) {
+        br = Math.atan2(rb[i].x - d.px, -(rb[i].z - d.pz)) * 180 / Math.PI; off = wrap(br - head);
+        if (Math.abs(off) > 78) continue;
+        x = c + off * ppd; var y = lineY - 6 * k, r = 6.5 * k;
+        ctx.fillStyle = '#05080E'; ctx.beginPath(); ctx.moveTo(x, y - r - 2 * k); ctx.lineTo(x + r + 2 * k, y); ctx.lineTo(x, y + r + 2 * k); ctx.lineTo(x - r - 2 * k, y); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#FF5A52'; ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath(); ctx.fill();
+      }
+      var ob = d.obj || d.exit;
+      if (ob) {
+        br = Math.atan2(ob.x - d.px, -(ob.z - d.pz)) * 180 / Math.PI; off = Math.max(-78, Math.min(78, wrap(br - head))); x = c + off * ppd; y = lineY - 2 * k;
+        hex(ctx, x, y, 15 * k, '#05080E'); hex(ctx, x, y, 12 * k, '#FF9A2E');
+      }
+    }
+    // centre caret under the line
+    ctx.fillStyle = '#05080E'; ctx.beginPath(); ctx.moveTo(c - 10 * k, lineY + 14 * k); ctx.lineTo(c + 10 * k, lineY + 14 * k); ctx.lineTo(c, lineY + 2 * k); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#F4F7FB'; ctx.beginPath(); ctx.moveTo(c - 8 * k, lineY + 12 * k); ctx.lineTo(c + 8 * k, lineY + 12 * k); ctx.lineTo(c, lineY + 4 * k); ctx.closePath(); ctx.fill();
+  };
+
+  /* ---------- target plate: the robot you just shot (name, level, shield + health, range) ---------- */
+  H.target = function (name, level, hp, maxHp, sh, maxSh, dist, killed) {
+    var el = H.el; if (!el.tplate) return;
+    set('tpn', name + '|' + level, function () { el.tpName.textContent = name; el.tpLv.textContent = level; });
+    el.tpHp.style.width = Math.max(0, Math.min(100, hp / Math.max(1, maxHp) * 100)).toFixed(1) + '%';
+    var hasSh = maxSh > 0; el.tplate.classList.toggle('nosh', !hasSh);
+    if (hasSh) el.tpSh.style.width = Math.max(0, Math.min(100, sh / maxSh * 100)).toFixed(1) + '%';
+    el.tpDist.textContent = Math.round(dist) + ' M';
+    el.tplate.hidden = false; tpT = killed ? 0.5 : 2.4;
+  };
+
   H.tick = function (dt) {
     if (hitT > 0) { hitT -= dt; if (hitT <= 0) H.el.hitmark.setAttribute('class', 'hitmark'); }
     if (toastT > 0) { toastT -= dt; if (toastT <= 0) H.el.toast.hidden = true; }
+    if (ntT > 0) { ntT -= dt; if (ntT <= 0.3 && !H.el.notice.classList.contains('out')) H.el.notice.classList.add('out'); if (ntT <= 0) { H.el.notice.hidden = true; H.el.hud.classList.remove('noting'); } }
+    if (tpT > 0) { tpT -= dt; if (tpT <= 0) H.el.tplate.hidden = true; }
+    for (var q = rows.length - 1; q >= 0; q--) {
+      var rw = rows[q]; rw.t += dt;
+      if (rw.t > rw.life - 0.25 && !rw.el.classList.contains('out')) rw.el.classList.add('out');
+      if (rw.t > rw.life) { rw.el.remove(); rows.splice(q, 1); }
+    }
     if (confirmT > 0) { confirmT -= dt; if (confirmT <= 0) H.el.confirm.hidden = true; }
     if (pickT > 0) {
       pickT -= dt;

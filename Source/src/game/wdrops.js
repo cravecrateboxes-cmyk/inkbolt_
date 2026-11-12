@@ -275,11 +275,11 @@
       if (s.melee.indexOf(d.id) < 0) s.melee.push(d.id);
       s.meleeSel = d.id;
       if (HUD.pickup) HUD.pickup(def.name, 'melee', 'V');
-      if (HUD.toast) HUD.toast(def.name + ' · on V', 1.8);
+      if (HUD.toast) HUD.toast(def.name + ' · on V', 1.8, 'tick:gear');
     } else {
       var r = WD.acquire(d.id, d.tier, d.level, d.roll);
       if (r.old) spawn(r.old.id, r.old.tier, x, z, false, y, r.old.level, r.old.roll);
-      if (HUD.toast) HUD.toast(r.line, 2.4);   // the gun in hand stays in hand: the new one waits on its key
+      if (HUD.toast) HUD.toast(r.line, 2.4, 'tick:gear');   // the gun in hand stays in hand: the new one waits on its key
     }
     if (IB.Audio) IB.Audio.play('pickup');
     if (IB.FX) IB.FX.puff(x, (y || 0) + 0.9, z, 10, parseInt((d.melee ? '#FFC23A' : WD.tier(d.tier).color).slice(1), 16), 0.14, 0.45, 3.5);
