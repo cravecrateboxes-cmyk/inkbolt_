@@ -61,6 +61,7 @@
     var A = IB.Assets, R = IB.Render;
     if (!A.palette.gear) return;
     Gear.vmMat = R.toonMaterial({ uni: R.vmOutline, map: A.palette.gear, baked: A.BAKED.gear });
+    if (IB.GunSkins && IB.GunSkins.tactical) IB.GunSkins.tactical(Gear.vmMat);   // attachments shade like the guns they sit on
     Gear.glowMat = new THREE.MeshBasicMaterial({ color: 0x7BE34A });
     Gear.glowMats = { acid: Gear.glowMat };
     Gear.ready = true;

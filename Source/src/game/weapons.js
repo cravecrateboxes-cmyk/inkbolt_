@@ -18,6 +18,8 @@
     vmScene.add(W.vmRoot);
     W.vmMat = IB.Render.toonMaterial({ uni: IB.Render.vmOutline, map: A.palette.weapons, baked: A.BAKED.weapons });
     W.vmSkinMat = IB.Render.toonMaterial({ uni: IB.Render.vmOutline, map: A.palette.weapons, baked: A.BAKED.weapons, skinning: true });
+    // the arms, melee weapons and held items take the guns' tactical shading (src/game/gunskins.js)
+    if (IB.GunSkins && IB.GunSkins.tactical) { IB.GunSkins.tactical(W.vmMat, IB.GunSkins.ARM_SURF); IB.GunSkins.tactical(W.vmSkinMat, IB.GunSkins.ARM_SURF); }
     var rig = W.rig = A.node.ARMS_Rig;
     rig.parent && rig.parent.remove(rig);
     rig.position.set(0, 0, 0); rig.updateMatrixWorld(true);

@@ -186,6 +186,36 @@
   ].join('\n');
 
   function C(h) { return new THREE.Color(h); }
+
+  /* The same tactical shading on any toon material that uses a palette map (the arms, melee weapons, held items,
+     attachments): GS.tactical(mat, surf) patches the material in place and returns it. surf: { cellName: [gloss,
+     metal] } over IB.GunSkinData.SURF for a weapons-palette material; omit it for one even surface (other palettes). */
+  var TAC_PARS = [
+    'uniform sampler2D uSurf; varying vec3 vIbP;',
+    'float ibH( vec3 p ) { return fract( sin( dot( p, vec3( 127.1, 311.7, 74.7 ) ) ) * 43758.5453 ); }',
+    'float ibN( vec3 p ) { vec3 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f );',
+    '  return mix( mix( mix( ibH( i ), ibH( i + vec3( 1, 0, 0 ) ), f.x ), mix( ibH( i + vec3( 0, 1, 0 ) ), ibH( i + vec3( 1, 1, 0 ) ), f.x ), f.y ),',
+    '    mix( mix( ibH( i + vec3( 0, 0, 1 ) ), ibH( i + vec3( 1, 0, 1 ) ), f.x ), mix( ibH( i + vec3( 0, 1, 1 ) ), ibH( i + vec3( 1, 1, 1 ) ), f.x ), f.y ), f.z ); }'
+  ].join('\n');
+  GS.ARM_SURF = { glove: [0.16, 0], glove2: [0.20, 0], glove3: [0.40, 0.2], glove4: [0.50, 0.3], sleeve: [0.10, 0], sleeve2: [0.12, 0], sleeve3: [0.10, 0],
+    amber: [0.55, 0.3], teal: [0.5, 0.3], paper: [0.2, 0], white: [0.3, 0] };
+  GS.tactical = function (mat, surf) {
+    if (!D() || mat.userData.tactical) return mat;
+    var all = {}, k; for (k in D().SURF) all[k] = D().SURF[k];
+    if (surf) for (k in surf) all[k] = surf[k];
+    var tex = surf ? surfTexture({ surf: all }) : surfTexture({ surf: {} });
+    var inner = mat.onBeforeCompile, key0 = mat.customProgramCacheKey;
+    mat.onBeforeCompile = function (sh) {
+      inner(sh);
+      sh.uniforms.uSurf = { value: tex };
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vIbP;').replace('vHull = 0.0;', 'vHull = 0.0; vIbP = position;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + TAC_PARS)
+        .replace('vec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance;', FRAG_LIGHT);
+    };
+    mat.customProgramCacheKey = function () { return key0() + 'tac'; };
+    mat.userData.tactical = true;
+    return mat;
+  };
   /* outMax (optional): outline width cap for a gun shown enlarged in the world (IB.Render.toonMaterial) */
   GS.material = function (gunId, tier, uni, outMax) {
     var R = IB.Render, A = IB.Assets;
