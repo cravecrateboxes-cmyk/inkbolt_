@@ -28,6 +28,14 @@ def cabinet(m, cx, kind, rnd, led, blink):
     m.bx(b - 0.06, b - 0.035, -RD - 0.04, -RD, 1.0, 1.35, 'chrome', hull='none')   # handle
     fq(m, a + 0.035, b - 0.035, yf, RH - 0.09, RH - 0.05, 'graphL')            # top label strip
     fq(m, a + 0.1, a + 0.22, yf - 0.003, RH - 0.085, RH - 0.055, 'paper')
+    # door frame stiles with three hinge knuckles, plinth kick plate and top cap on the front; kick plate on the back
+    dbx(m, a + 0.006, a + 0.033, -RD, 0.01, 0.1, RH - 0.1, 'graphL')
+    dbx(m, b - 0.033, b - 0.006, -RD, 0.01, 0.1, RH - 0.1, 'graphL')
+    for zh in (0.35, 1.1, 1.85):
+        dbx(m, a + 0.012, a + 0.027, -RD, 0.016, zh - 0.04, zh + 0.04, 'steel')
+    dbx(m, a + 0.004, b - 0.004, -RD, 0.014, 0.004, 0.09, 'graphD')
+    dbx(m, a + 0.004, b - 0.004, -RD, 0.012, RH - 0.045, RH - 0.004, 'graphD')
+    dbx(m, a + 0.004, b - 0.004, RD, 0.012, 0.004, 0.09, 'graphD', s=1)
     x0, x1 = a + 0.06, b - 0.08
     if kind == 'A':      # 2U compute servers
         z = 0.18
@@ -93,6 +101,14 @@ def end_panel(m, x, sx):
     m.bx(a - 0.003, b + 0.003, -RD - 0.023, RD + 0.023, 0.0, 0.12, 'graph', hull='none', cull='b')
     text_side(m, 'ROW', 0.13, xs + sx * 0.002, 0.0, 1.55, 'graph', face, maxw=0.8)
     text_side(m, 'HX', 0.08, xs + sx * 0.002, 0.0, 1.36, 'tealD', face, maxw=0.8)
+    # end face: cap trim and two cover battens (frame turned so the end face looks toward local -Y)
+    m.push(0, 0, 90 * sx)
+    yf = -(b if sx > 0 else -a)
+    w = RD + 0.02
+    dbx(m, -w + 0.005, w - 0.005, yf, 0.008, RH - 0.02, RH + 0.046, 'graphL')
+    for xb in (-0.44, 0.44):
+        dbx(m, xb - 0.009, xb + 0.009, yf, 0.006, 0.14, RH - 0.04, 'wallL')
+    m.pop()
 
 
 def build_racks(pal, ao):
@@ -247,6 +263,10 @@ def build_rooms(pal, ao):
             m.bx(-0.7, 0.7, -0.42, 0.45, 0.72 - dz, 0.77 + dz, 'wallW')
             fq(m, -0.68, 0.68, -0.403 - dz, 0.64, 0.68, 'cyan')
             m.bx(-0.25, 0.25, 0.1, 0.3, 0.77 + dz, 0.79 + dz, 'black', hull='none')
+            dbx(m, -0.66, 0.66, -0.4, 0.014, 0.004, 0.1, 'graphD')            # plinth kick plate
+            for xs in (-0.34, 0.34):                                           # modesty panel joints
+                dbx(m, xs - 0.008, xs + 0.008, -0.4, 0.008, 0.12, 0.62, 'graphL')
+            dbx(m, -0.695, 0.695, -0.42, 0.006, 0.735, 0.765, 'steelL')         # edge band round the worktop
             m.pop()
         for k, (cx, cy, deg) in enumerate(((-1.55, -0.08, -18), (-0.95, -0.2, -18), (-0.3, -0.22, 0), (0.3, -0.22, 0), (0.95, -0.2, 18), (1.55, -0.08, 18))):
             monitor(m, g, cx, cy, 0.95, deg, rnd=rnd)
@@ -331,6 +351,11 @@ def build_props(pal, ao):
     m.bx(-0.38, 0.38, -0.38, 0.38, 0.0, 0.2, 'graph', hull='none', cull='b')
     m.bx(-0.363, 0.363, -0.363, 0.363, 1.0, 1.08, 'teal', hull='none', cull='tb')
     m.bx(-0.37, 0.37, -0.37, 0.37, 5.3, H, 'graph', hull='none', cull='t')
+    for deg in (0, 90, 180, 270):     # base plate bolts and a guard angle up each corner
+        m.push(0, 0, deg)
+        dbolts(m, (-0.3, -0.1, 0.1, 0.3), 0.1, -0.38, 'steelL', d=0.012, sz=0.03)
+        m.bx(0.3, 0.366, -0.366, -0.3, 0.2, 1.2, 'steelD', hull='none', cull='b')
+        m.pop()
     for s in (-1, 1):
         side_q(m, s, -0.2, 0.2, s * 0.363, 2.0, 2.3, 'graph')
         (text_front if s < 0 else text_back)(m, 'C-12', 0.12, s * 0.366, 0.0, 2.07, 'paper')

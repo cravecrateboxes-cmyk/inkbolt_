@@ -41,7 +41,14 @@ def face_q(m, side, x0, x1, y, z0, z1, c):
 
 
 # ================================================================ walls
-def wall_hall(m):
+def wall_batten(m, c, bolt_c, z0, z1, bolts, yf=-0.5):
+    """a cover batten down the middle of a wall module (a panel joint) with its fixings"""
+    dbx(m, -0.009, 0.009, yf, 0.012, z0, z1, c)
+    for z in bolts:
+        dbx(m, -0.015, 0.015, yf, 0.017, z - 0.015, z + 0.015, bolt_c)
+
+
+def wall_hall(m, svc=False, bat=True):
     fq(m, -0.5, 0.5, -0.5, 0.0, H, 'wallW')
     bq(m, -0.5, 0.5, 0.5, 0.0, H, 'wallL')
     fq(m, -0.5, 0.5, -0.509, 0.0, 0.16, 'graph')
@@ -51,6 +58,11 @@ def wall_hall(m):
     for z in (2.6, 4.1):
         fq(m, -0.5, 0.5, -0.506, z, z + 0.014, 'joint')
     fq(m, -0.5, 0.5, -0.509, 5.3, H, 'graph')
+    drails(m, 0.16, 5.3, 'graphL')
+    if bat:
+        wall_batten(m, 'wallG', 'steelD', 0.2, 5.26, (0.6, 1.5, 3.3, 4.7))
+    if svc:      # a conduit under the picture rail
+        dconduit(m, -0.495, 0.495, 5.12, -0.5, 'steelL', 'steelD', clips=(-0.3, 0.3))
 
 
 def wall_noc(m):
@@ -61,9 +73,11 @@ def wall_noc(m):
         fq(m, -0.46, 0.46, -0.503, z0, z1, 'graphL')
     fq(m, -0.5, 0.5, -0.503, 2.2, 2.26, 'cyan')
     fq(m, -0.5, 0.5, -0.509, 5.3, H, 'graphD')
+    drails(m, 0.16, 5.3, 'graphL')
+    wall_batten(m, 'graphD', 'steel', 0.2, 5.26, (0.6, 5.0))
 
 
-def wall_lab(m):
+def wall_lab(m, bat=True):
     fq(m, -0.5, 0.5, -0.5, 0.0, H, 'wallW')
     bq(m, -0.5, 0.5, 0.5, 0.0, H, 'wallL')
     fq(m, -0.5, 0.5, -0.509, 0.0, 0.12, 'graph')
@@ -72,9 +86,12 @@ def wall_lab(m):
     fq(m, -0.5, 0.5, -0.503, 4.3, H, 'wallL')
     fq(m, -0.5, 0.5, -0.506, 4.3, 4.34, 'cyan')
     fq(m, -0.5, 0.5, -0.509, 5.6, H, 'graph')
+    drails(m, 0.12, 5.6, 'graphL')
+    if bat:
+        wall_batten(m, 'wallG', 'steelD', 0.16, 5.56, (0.5, 1.4, 3.0, 4.4))
 
 
-def wall_room(m):
+def wall_room(m, svc=False):
     fq(m, -0.5, 0.5, -0.5, 0.0, H, 'wallG')
     bq(m, -0.5, 0.5, 0.5, 0.0, H, 'wallG')
     for k in range(1, 9):
@@ -83,6 +100,12 @@ def wall_room(m):
     chevrons(m, -0.5, 0.5, -0.503, 0.0, 0.3, 4)
     fq(m, -0.5, 0.5, -0.503, 3.6, 3.7, 'graph')
     fq(m, -0.5, 0.5, -0.509, 5.4, H, 'graph')
+    dbx(m, -0.495, 0.495, -0.5, 0.02, 5.36, 5.4, 'graphL')
+    if svc:      # a conduit drop from the top rail to a junction box
+        m.cy((0.355, -0.526, 1.4), 0.02, 0.02, 3.96, 'steelL', seg=6, hull='none', caps=False)
+        for z in (2.2, 3.1, 4.0, 4.9):
+            dbx(m, 0.328, 0.382, -0.5, 0.054, z - 0.02, z + 0.02, 'steelD')
+        djbox(m, 0.355, 1.2, -0.5, 'steelD', 'graph', w=0.2, h=0.26)
 
 
 STYLES = {'H': wall_hall, 'N': wall_noc, 'L': wall_lab, 'R': wall_room}
@@ -130,7 +153,7 @@ def video_content(m, seed, x0, x1, rows):
 def build_walls(pal, ao):
     for S, fn in STYLES.items():
         m = new(pal)
-        fn(m)
+        fn(m, svc=True) if S in 'HR' else fn(m)
         make('W' + S, m, ao)
         # corner post: the style's finish on all four sides
         m = new(pal)
@@ -145,6 +168,12 @@ def build_walls(pal, ao):
             bq(m, -0.5, 0.5, 0.503, z0, z1, c)
             lq(m, -0.503, -0.5, 0.5, z0, z1, c)
             rq(m, 0.503, -0.5, 0.5, z0, z1, c)
+        for deg in (0, 90, 180, 270):    # kick plate and top rail on every face of the post
+            m.push(0, 0, deg)
+            zt = 5.3 if S != 'L' else 5.6
+            dbx(m, -0.495, 0.495, -0.5, 0.02, zt - 0.04, zt, 'graphL')
+            dbx(m, -0.495, 0.495, -0.5, 0.02, 0.004, 0.2, trim)
+            m.pop()
         make('Corner' + S, m, ao)
     # ---- data hall art
     m = new(pal); wall_hall(m); grille(m, -0.42, 0.42, 3.3, 4.2); make('WH_Grille', m, ao)
@@ -236,9 +265,10 @@ def build_walls(pal, ao):
     text_front(m, 'HELIXA', 0.14, -0.543, 0.12, 2.68, 'paper', maxw=0.48)
     text_front(m, 'ADVANCED SYSTEMS', 0.035, -0.543, 0.12, 2.55, 'cyanL', maxw=0.48)
     make('WL_Logo', m, ao)
-    m = new(pal); wall_lab(m)                                                 # observation window (comic glass)
+    m = new(pal); wall_lab(m, bat=False)                                          # observation window (comic glass)
     m.bx(-0.5, 0.5, -0.56, -0.5, 1.0, 1.08, 'graph', hull='noside', cull='k')
     m.bx(-0.5, 0.5, -0.56, -0.5, 2.5, 2.58, 'graph', hull='noside', cull='k')
+    dbx(m, -0.495, 0.495, -0.5, 0.075, 0.955, 0.995, 'graphL')                # drip sill under the frame
     fq(m, -0.5, 0.5, -0.506, 1.08, 2.5, 'glassD')
     fq(m, -0.5, 0.5, -0.509, 1.12, 2.46, 'glass')
     poly(m, [(-0.3, -0.512, 1.2), (-0.18, -0.512, 1.2), (0.1, -0.512, 2.38), (-0.02, -0.512, 2.38)], 'glassL', (0, -1, 0))
@@ -302,6 +332,15 @@ def door_frame_2(m, body, trim, sign, sign_c, jamb='graph'):
         c0, c1 = sorted((y, y + sy * 0.05))
         m.bx(1.25, 1.42, c0, c1, 1.2, 1.48, 'graphD')
         face_q(m, sy, 1.29, 1.38, y + sy * 0.053, 1.38, 1.44, 'ledG')
+        # kick plates on the casings with their fixings, and a conduit riser to a junction box over the opening
+        for sx in (-1, 1):
+            xa, xb = sorted((sx * 1.205, sx * 1.495))
+            dbx(m, xa, xb, y, 0.012, 0.004, 0.3, 'steel', s=sy)
+            dbolts(m, (xa + 0.04, (xa + xb) / 2, xb - 0.04), 0.26, y + sy * 0.012, 'steelL', d=0.01, sz=0.02, s=sy)
+        m.cy((1.38, sy * 1.03, DH + 0.16), 0.02, 0.02, 2.4, 'steelL', seg=6, hull='none', caps=False)
+        for z in (3.9, 4.6):
+            dbx(m, 1.352, 1.408, sy * 1.0, 0.058, z - 0.02, z + 0.02, 'steelD', s=sy)
+        djbox(m, 1.38, 3.3, sy * 1.0, 'steelD', 'graph', s=sy)
 
 
 def sec_leaf(m, dmg, rnd, x0=-1.2, x1=1.2, t=0.07):
@@ -333,6 +372,9 @@ def sec_leaf(m, dmg, rnd, x0=-1.2, x1=1.2, t=0.07):
                 face_q(m, s, -0.13, 0.13, yo + s * 0.003, 1.65, 2.15, 'glass')
             c0, c1 = sorted((s * t, s * (t + 0.06)))
             m.bx(-hw + 0.12, hw - 0.12, c0, c1, 1.0, 1.06, 'chrome', hull='none')
+            xa, xb = (-hw + 0.005, -hw + 0.09) if i == 0 else (hw - 0.09, hw - 0.005)
+            for zh in (0.45, 1.35, 2.25):    # hinge leaves on the outer edge
+                dbx(m, xa, xb, s * t, 0.033, zh - 0.07, zh + 0.07, 'steelD', s=s)
             if i == 0:
                 (text_front if s < 0 else text_back)(m, 'AUTHORIZED', 0.08, yo, 0.0, 0.7, 'hazY', font='cond', maxw=hw * 1.5)
             chevrons(m, -hw + 0.04, hw - 0.04, yo, 0.08, 0.28, 6, back=s > 0)
@@ -450,6 +492,8 @@ def build_doors(pal, ao):
             for sx in (-1, 1):
                 c1, c2 = sorted((s * t, s * (t + 0.06)))
                 m.bx(sx * 0.95 - 0.08, sx * 0.95 + 0.08, c1, c2, 0.6, 2.1, 'steelD')
+            for zz in (0.18, DH - 0.18):     # bolt heads along the rivet bands
+                dbolts(m, [-0.9 + 0.3 * k for k in range(7)], zz, s * t, 'steelL', d=0.01, sz=0.03, s=s)
             (text_front if s < 0 else text_back)(m, 'HELIXA', 0.12, y + s * 0.003, 0.0, 2.15, 'graphD')
             if dmg:
                 damage_marks(m, rnd, -1.05, 1.05, 0.3, 2.45, y + s * 0.006, s, dmg)
@@ -724,6 +768,10 @@ def build_ceiling(pal, ao):
         m.bx(-0.5, 0.5, c0, c1, z0, z0 + 0.12, 'cabY', hull='noside', cull='lr')
     m.bx(-0.012, 0.012, 0.188, 0.212, z0 - 0.03, 0.0, 'steelD', hull='none', cull='tb')
     m.bx(-0.02, 0.02, -0.2, 0.188, z0 - 0.03, z0, 'steelD', hull='none', cull='l')
+    for x in (-0.25, 0.25):          # cross stays and two fibre bundles run in the tray
+        m.bx(x - 0.01, x + 0.01, -0.16, 0.16, z0 + 0.09, z0 + 0.105, 'steelD', hull='none')
+    m.bx(-0.495, 0.495, -0.1, -0.04, z0 + 0.027, z0 + 0.06, 'cabB', hull='none', cull='lr')
+    m.bx(-0.495, 0.495, 0.0, 0.07, z0 + 0.027, z0 + 0.055, 'cabG', hull='none', cull='lr')
     make('Tray', m, ao)
     # steel ladder tray at 3.7 m with bundled black / blue cables
     m = new(pal)
@@ -735,6 +783,10 @@ def build_ceiling(pal, ao):
     m.bx(-0.5, 0.5, -0.24, 0.02, z0 + 0.025, z0 + 0.11, 'cabK', hull='noside', cull='lrb')
     m.bx(-0.5, 0.5, 0.04, 0.2, z0 + 0.025, z0 + 0.09, 'cabB', hull='noside', cull='lrb')
     m.bx(-0.012, 0.012, 0.302, 0.326, z0, 0.0, 'steelD', hull='none', cull='tb')
+    for x in (-0.375, -0.25, 0.25, 0.375):   # rungs; cable ties round the bundles
+        m.bx(x - 0.012, x + 0.012, -0.27, 0.27, z0, z0 + 0.02, 'steel', hull='none', cull='b')
+    for x in (-0.13, 0.13):
+        m.bx(x - 0.01, x + 0.01, -0.246, 0.206, z0 + 0.022, z0 + 0.115, 'cabY', hull='none', cull='b')
     make('Ladder', m, ao)
     # linear LED light on the ceiling (glow companion: its lens)
     m = new(pal)
@@ -775,6 +827,13 @@ def build_ceiling(pal, ao):
 
 
 # ================================================================ floor finishes (flat, no collision)
+def floor_lip(m):
+    """raised-floor tile: a steel stringer frame round the edge (5 mm inset, so neighbouring tiles leave a joint)"""
+    for a, b in ((-0.495, -0.485), (0.485, 0.495)):
+        m.bx(a, b, -0.495, 0.495, 0.004, 0.016, 'steelD', hull='none', cull='b')
+        m.bx(-0.485, 0.485, a, b, 0.004, 0.016, 'steelD', hull='none', cull='b')
+
+
 def build_floors(pal, ao):
     # cold aisle: perforated raised-floor tile
     m = new(pal)
@@ -783,10 +842,12 @@ def build_floors(pal, ao):
         for k in range(3):
             x, y = -0.3 + i * 0.3, -0.3 + k * 0.3
             uq(m, x - 0.1, x + 0.1, y - 0.1, y + 0.1, 0.011, 'perf')
+    floor_lip(m)
     make('Floor_Perf', m, ao)
     # hot aisle: darker tiles with a seam
     m = new(pal)
     uq(m, -0.5, 0.5, -0.5, 0.5, 0.008, 'tileD')
+    floor_lip(m)
     make('Floor_Hot', m, ao)
     # lab: white epoxy with a cyan inlay line (along X)
     m = new(pal)
