@@ -268,7 +268,7 @@
       ],
       build: buildOverlays
     },
-    budget: { prop: 2600, landmark: 3000, total: 45000 },
+    budget: { prop: 2600, landmark: 3000, total: 50000 },
     allPieces: function () {
       var out = wallPieces().concat(['GateFrame', 'GateShutter', 'TrailWall', 'TrailWall_B', 'TrailWall_C', 'Hatch', 'Backdrop_Block',
         'Backdrop_Tower', 'Backdrop_Spire', 'TaxiTop', 'PoliceKit']);

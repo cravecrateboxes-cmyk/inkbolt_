@@ -13,6 +13,7 @@ from mathutils import Matrix
 
 from downtown_base import *  # noqa: F401,F403
 import parking_cars as PC
+import downtown_detail as DD
 
 S = PC.SEDAN
 SEDAN_T = (3.0, 0.08, 0.1)   # the parking Sedan's skew and offset (parking_cars.build_cars specs)
@@ -188,6 +189,7 @@ def build_street(pal, ao):
     m.bm_((0, 0.25, 6.7), (0, -1.6, 7.0), 0.07, 'steel')
     m.bx(-0.16, 0.16, -2.05, -1.45, 6.86, 7.06, 'steel')
     dq(m, -0.12, 0.12, -1.98, -1.52, 6.855, 'light')
+    DD.lamp_detail(m)
     make('Lamp', m, ao, cols=[box(-0.12, 0.13, 0, 0.12, 0.37, 2.0)])
     # traffic signal: pole, a mast arm out over the lanes (-Y) with two signal heads, a ped signal, a push button
     m = new(pal)
@@ -222,6 +224,7 @@ def build_street(pal, ao):
     m.cy((0.0, 0.1, 0.38), 0.06, 0.06, 0.1, 'chrome', seg=6, rot=(-90, 0, 0))
     for sx in (-1, 1):
         m.cy((sx * 0.1, 0, 0.42), 0.045, 0.045, 0.08, 'chrome', seg=6, rot=(0, sx * 90, 0))
+    DD.hydrant_detail(m)
     make('Hydrant', m, ao, cols=[box(-0.16, -0.16, 0, 0.16, 0.16, 0.72)])
     # mailbox
     m = new(pal)
@@ -262,6 +265,7 @@ def build_street(pal, ao):
         m.bx(-0.95, 0.95, -0.24 + k * 0.15, -0.12 + k * 0.15, 0.42, 0.47, 'wood', hull='none')
     for k in range(2):
         m.bx(-0.95, 0.95, 0.22, 0.27, 0.56 + k * 0.17, 0.68 + k * 0.17, 'wood', hull='none')
+    DD.bench_detail(m)
     make('Bench', m, ao, cols=[box(-0.95, -0.25, 0, 0.95, 0.27, 0.9)])
     # bus shelter (4 x 2): posts, roof, glass back panel, bench, an ad panel at one end; front = -Y (toward the road)
     m = new(pal)
@@ -282,6 +286,7 @@ def build_street(pal, ao):
         m.bx(x - 0.03, x + 0.03, 0.3, 0.45, 0.0, 0.45, 'mull', hull='none', cull='b')
     m.bx(-2.0, -1.7, -0.85, -0.75, 2.6, 2.95, 'navy')
     txt(m, 'BUS', -1.85, -0.854, 2.77, 0.13, 'pWhite', font='display', maxw=0.26)
+    DD.busstop_detail(m)
     make('BusStop', m, ao, cols=[box(-1.8, 0.58, 0, 1.8, 0.7, 2.3), box(1.81, -0.5, 0, 1.89, 0.6, 2.3), box(-1.5, 0.2, 0, 1.2, 0.55, 0.5)])
     # newsstand (2 x 3): green kiosk, awning, magazine racks on the front
     m = new(pal)
@@ -298,6 +303,7 @@ def build_street(pal, ao):
     for k in range(3):
         m.bx(-0.8 + k * 0.55, -0.4 + k * 0.55, -1.42, -1.22, 0.9, 0.94, 'paper', hull='none', cull='b')
     txt(m, 'NEWS', 0.0, -1.604, 2.47, 0.11, 'lineY', font='display', maxw=0.8)
+    DD.newsstand_detail(m)
     make('Newsstand', m, ao, cols=[box(-0.95, -1.45, 0, 0.95, 1.45, 2.4)])
 
 
