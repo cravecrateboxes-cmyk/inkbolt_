@@ -94,8 +94,9 @@ test('GLBs are quantized (KHR_mesh_quantization) and carry the outline attribute
 test('triangle budgets hold (including the outline hull)', () => {
   const all = Object.assign({}, ...Object.values(G).map(g => Object.fromEntries(g.nodes.filter(n => n.mesh !== undefined).map(n => [n.name, g]))));
   for (const [n, max] of Object.entries(IB.TRI_BUDGET.meshes)) {
-    // a weapon's budget covers the gun and its detachable mag together
-    const t = tris(all[n], n) + (all[n + '_Mag'] ? tris(all[n + '_Mag'], n + '_Mag') : 0);
+    // a weapon's budget covers the gun, its detachable mag and all of its rarity layers together
+    const layers = Object.keys(all).filter(k => k.startsWith(n + '_') && /^(_Mag)?_L\d+$/.test(k.slice(n.length)));
+    const t = tris(all[n], n) + (all[n + '_Mag'] ? tris(all[n + '_Mag'], n + '_Mag') : 0) + layers.reduce((s, k) => s + tris(all[k], k), 0);
     assert.ok(t <= max, n + ' ' + t + ' > ' + max);
   }
   for (const [id, r] of Object.entries(IB.TRI_BUDGET.robots)) {

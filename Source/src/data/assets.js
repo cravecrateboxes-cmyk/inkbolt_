@@ -46,11 +46,12 @@
   });
   IB.ARM_ACTIONS = ['Idle', 'Draw', 'Holster', 'Fire', 'Reload', 'Sprint', 'Slide', 'Throw'];
   // triangle budgets incl. outline hull (brief 3.2); robots count body + legs + light. A weapon's budget covers
-  // the gun and its WPN_<ID>_Mag together.
+  // the gun, its WPN_<ID>_Mag and every rarity layer (WPN_<ID>_L<tiers>, WPN_<ID>_Mag_L<tiers>): more than any one
+  // tier ever shows. Guns were rebuilt in the tactical pass (blender/wpn_*.py) at about four times the old detail.
   IB.TRI_BUDGET = {
-    meshes: { WPN_PIP: 1500, WPN_HANDCANNON: 1500, WPN_TWINTAP: 1500, WPN_BUZZ: 2000, WPN_WHISK: 2000, WPN_HORNET: 2000,
-      WPN_RIVET: 2500, WPN_TRIPLET: 2500, WPN_LONGTOM: 2500, WPN_BRICK: 2500, WPN_NEEDLE: 3000,
-      WPN_SCRAPPER: 2500, WPN_THUNDER: 2500, WPN_VANGUARD: 2600, WPN_RAILSPIKE: 3800, WPN_HOTHEAD: 3300, WPN_MURMUR: 3100,
+    meshes: { WPN_PIP: 8000, WPN_HANDCANNON: 9500, WPN_TWINTAP: 8000, WPN_BUZZ: 11000, WPN_WHISK: 9500, WPN_HORNET: 10000,
+      WPN_RIVET: 12000, WPN_TRIPLET: 11500, WPN_LONGTOM: 13000, WPN_BRICK: 12500, WPN_NEEDLE: 11500,
+      WPN_SCRAPPER: 11000, WPN_THUNDER: 12500, WPN_VANGUARD: 11500, WPN_RAILSPIKE: 11500, WPN_HOTHEAD: 10500, WPN_MURMUR: 10500,
       WPN_DAGGER: 1000, WPN_NUNCHUCKS: 1400, WPN_KATANA: 1200, WPN_EAXE: 2000, HELD_Frag: 700, HELD_Shell: 300,
       ARMS: 8000, PICKUP_Gem: 60, PICKUP_Ammo: 300, PICKUP_Health: 300, PICKUP_Rockets: 600, PROJ_Rocket: 400,
       Cloud_A: 300, Cloud_B: 300, Cloud_C: 300, Hill: 300, Tree: 300, SpawnCan: 300, TrailArrow: 300,
