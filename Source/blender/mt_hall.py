@@ -8,6 +8,7 @@ import random
 
 from mt_base import *  # noqa: F401,F403
 import mt_base as B
+import mt_detail as DET
 
 
 def tvm(k, x, face=-1, body='blueD'):
@@ -39,6 +40,7 @@ def build_machines(k, ao):
     k.bx(-1.42, 1.42, -0.0, 0.45, 1.85, 2.2, 'graph')
     k.fq(-1.3, 1.3, -0.003, 1.9, 2.15, 'blueD')
     k.text('TICKETS  TOP UP', 0.0, -0.006, 1.98, 0.13, 'paper', font='display', maxw=2.4)
+    DET.tvm_wall_bank(k)
     k.col(-1.42, 1.42, 0.0, 0.5, 0.0, 2.2)
     k.finish('TVM3', ao=ao)
     k.begin()
@@ -61,6 +63,7 @@ def build_machines(k, ao):
     k.bx(-1.4, 1.4, -0.48, 0.48, 1.85, 2.15, 'graph', cull='b')
     for s in (-1, 1):
         k.qy(-1.3, 1.3, 1.9, 2.1, s * 0.483, s, 'blueD')
+    DET.tvm_island(k)
     k.col(-1.9, 1.9, -0.5, 0.5, 0.0, 2.2)
     k.finish('TVMIsland', ao=ao)
     k.begin()
@@ -87,6 +90,7 @@ def build_machines(k, ao):
             k.bx(-0.06, 0.06, -0.06, 0.06, 1.12, 1.9, 'steelD', ink=False)
             k.bx(-0.3, 0.3, -0.03, 0.03, 1.9, 2.2, 'blue')
             k.text('WIDE GATE', 0.0, -0.033, 1.98, 0.09, 'paper', font='display', maxw=0.55)
+        DET.fare_gate(k, L)
         k.col(-0.17, 0.17, -L - 0.01, L + 0.01, 0.0, 1.08)
         k.finish(name, ao=ao)
     k.begin()
@@ -108,6 +112,7 @@ def build_hall_props(k, ao):
         k.bx(x - 0.03, x + 0.03, -0.18, 0.18, 0.47, 0.62, 'graph', ink=False)
     for x in (-1.0, -0.2, 0.6):
         k.uq(x, x + 0.4, -0.18, 0.14, 0.473, 'steelD')
+    DET.bench(k)
     k.col(-1.45, 1.45, -0.24, 0.24, 0.0, 0.47)
     k.col(-1.45, 1.45, 0.18, 0.24, 0.47, 0.85)
     k.finish('Bench', ao=ao)
@@ -124,6 +129,7 @@ def build_hall_props(k, ao):
     k.bx(-0.22, 0.22, -0.14, 0.14, 1.9, 2.25, 'blue')
     k.fq(-0.1, 0.1, -0.123, 1.2, 1.45, 'graph')
     k.fq(-0.06, 0.06, -0.126, 1.0, 1.1, 'crim')
+    DET.help_point(k)
     k.col(-0.22, 0.22, -0.14, 0.14, 0.0, 2.25)
     k.finish('HelpPt', ao=ao)
     k.begin()
@@ -143,6 +149,7 @@ def build_hall_props(k, ao):
     k.bx(-0.04, 0.04, -0.04, 0.04, 2.1, 2.3, 'steelD', cull='b', ink=False)
     k.cyl(0, -0.04, 2.55, 0.25, 0.25, 0.08, 'crim', seg=14, rot=(90, 0, 0))
     k.bx(-0.33, 0.33, -0.05, 0.05, 2.48, 2.62, 'blue')
+    DET.map_totem(k)
     k.col(-0.42, 0.42, -0.12, 0.12, 0.0, 2.1)
     k.finish('MapTotem', ao=ao)
     # queue barrier [3, 1]: four chrome posts and their blue belts
@@ -172,6 +179,7 @@ def build_hall_props(k, ao):
     k.fq(0.18, 0.38, -0.383, 1.2, 1.5, 'black')
     k.fq(-0.38, 0.38, -0.383, 0.15, 0.5, 'black')
     k.text('FIZZBOLT', 0.0, -0.383, 0.58, 0.1, 'paper', font='display')
+    DET.vend(k)
     k.col(-0.45, 0.45, -0.38, 0.4, 0.0, 1.9)
     k.finish('Vend', ao=ao)
     k.begin()
@@ -294,6 +302,7 @@ def build_shop(k, ao):
     k.bx(0.6, 1.0, -0.15, 0.2, 1.0, 1.15, 'graph')
     k.bx(0.65, 0.95, 0.05, 0.12, 1.15, 1.45, 'black')
     goods(k, rnd, -1.3, 0.3, -0.3, 0.1, 1.0, 0.22, SNACK)
+    DET.counter(k)
     k.col(-1.5, 1.5, -0.4, 0.32, 0.0, 1.0)
     k.finish('Counter', ao=ao)
     # cafe bar [4, 2] (back to the wall at +Y): the back bar with shelves and grinders, the counter with the espresso
@@ -310,6 +319,7 @@ def build_shop(k, ao):
     k.bx(-1.6, -0.6, -0.3, 0.0, 1.05, 1.5, 'chrome')
     k.bx(-1.5, -0.7, -0.33, -0.3, 1.15, 1.25, 'graph', ink=False)
     k.bx(0.2, 1.8, -0.55, 0.0, 1.05, 1.4, 'woodL')
+    DET.cafe_bar(k)
     k.col(-2.05, 2.05, -0.65, 1.0, 0.0, 1.05)
     k.finish('CafeBar', ao=ao)
     k.begin()
@@ -429,6 +439,7 @@ def build_shop(k, ao):
         a, b = -0.93 + i * 0.465, -0.93 + (i + 1) * 0.465 - 0.02
         k.fq(a, b, -0.203, 0.08, 1.9, 'paintG')
         k.fq(a + 0.1, b - 0.1, -0.206, 1.6, 1.75, 'steelD')
+    DET.lockers(k)
     k.col(-0.95, 0.95, -0.2, 0.45, 0.0, 1.95)
     k.finish('Lockers', ao=ao)
     # staff table [2, 2]: a table, four chairs, mugs
