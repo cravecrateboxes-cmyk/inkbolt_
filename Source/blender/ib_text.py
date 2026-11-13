@@ -31,6 +31,11 @@ STATS = {'tris': 0}
 
 
 def _font(key):
+    if key in _FONT_DB:   # a scene reset between families (fresh_scene) frees the datablock: load it again
+        try:
+            _FONT_DB[key].name
+        except ReferenceError:
+            del _FONT_DB[key]
     if key not in _FONT_DB:
         _FONT_DB[key] = bpy.data.fonts.load(os.path.join(DIR, FONTS[key]), check_existing=True)
     return _FONT_DB[key]

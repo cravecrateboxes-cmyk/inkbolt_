@@ -263,10 +263,84 @@ def bake_ao(obj):
         _ao_ready['ok'] = False
         return
     attr = obj.data.color_attributes['Col']
+    r_vals = []
     for c in attr.data:
         v = sum(c.color[:3]) / 3.0
         s = 1.0 if v > 0.72 else 0.87   # softer baked shadow (lighter tones)
         c.color = (s, s, s, 1.0)
+        r_vals.append(s)
+    fam = CURRENT_FAMILY[0] or ''
+    if (fam.startswith('kit-') or fam == 'common') and not os.environ.get('IB_NO_LOOK_BAKE'):
+        bake_look_channels(obj, r_vals)
+
+
+def bake_look_channels(obj, r_vals):
+    """Tactical look (plan Stage 5D), map kits and `common` only. R keeps the classic two-step AO above, unchanged.
+    G = smooth AO baked a second time with a temporary 20 m ground plane at z = 0 (things darken toward the floor
+    they stand on), 48 samples, AO distance 1.5 m, not posterised. B = edge wear from the mesh: 0.5 + 0.5 x the mean
+    signed dihedral angle of the sharp edges at the vertex / 90 degrees (above 0.5 on convex corners, below on
+    concave). Alpha 1. Weapons, gear, bots and troopers keep R = G = B (they use the colour for other things)."""
+    import math
+    sc = bpy.context.scene
+    attr = obj.data.color_attributes['Col']
+    g_vals = None
+    world0 = sc.world
+    try:
+        w = bpy.data.worlds.new('IB_AO_World')
+        w.light_settings.distance = 1.5
+        sc.world = w
+        sc.cycles.samples = 48
+        bpy.ops.mesh.primitive_plane_add(size=20.0, location=(0.0, 0.0, 0.0))
+        ground = bpy.context.active_object
+        hidden = []
+        for o in sc.objects:
+            o.select_set(False)
+            if o is not obj and o is not ground and not o.hide_render:
+                o.hide_render = True
+                hidden.append(o)
+        obj.select_set(True)
+        bpy.context.view_layer.objects.active = obj
+        obj.data.color_attributes.active_color = attr
+        bpy.ops.object.bake(type='AO', target='VERTEX_COLORS')
+        g_vals = [sum(c.color[:3]) / 3.0 for c in attr.data]
+        for o in hidden:
+            o.hide_render = False
+        bpy.data.objects.remove(ground, do_unlink=True)
+    except Exception as e:  # keep the classic channel if the second bake fails
+        print('look AO bake unavailable:', e)
+    finally:
+        sc.world = world0
+        sc.cycles.samples = 24
+        for wd in [x for x in bpy.data.worlds if x.name.startswith('IB_AO_World')]:
+            bpy.data.worlds.remove(wd)
+    # edge wear per vertex
+    me = obj.data
+    bm = bmesh.new(); bm.from_mesh(me)
+    wear = [0.5] * len(bm.verts)
+    for v in bm.verts:
+        angs = []
+        for e in v.link_edges:
+            if len(e.link_faces) != 2:
+                continue
+            a = e.calc_face_angle_signed(0.0)
+            if abs(a) > math.radians(40):
+                angs.append(a)
+        if angs:
+            wear[v.index] = max(0.0, min(1.0, 0.5 + 0.5 * (sum(angs) / len(angs)) / (math.pi / 2)))
+    bm.free()
+    # G is averaged per vertex: a per-corner value would stop the exporter welding corners (the vertex count and
+    # every other accessor must stay exactly as before; R decides the split as it always did)
+    gv = None
+    if g_vals is not None:
+        acc = [[0.0, 0] for _ in range(len(me.vertices))]
+        for i in range(len(attr.data)):
+            k = me.loops[i].vertex_index; acc[k][0] += g_vals[i]; acc[k][1] += 1
+        gv = [a0 / n if n else 1.0 for a0, n in acc]
+    for i, c in enumerate(attr.data):
+        r = r_vals[i]
+        g = gv[me.loops[i].vertex_index] if gv is not None else r
+        b = wear[me.loops[i].vertex_index] if attr.domain == 'CORNER' else wear[i]
+        c.color = (r, g, b, 1.0)
 
 
 def socket(name, parent, loc):
