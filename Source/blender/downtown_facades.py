@@ -18,6 +18,7 @@ import random
 from mathutils import Matrix
 
 from downtown_base import *  # noqa: F401,F403
+import downtown_detail as DD
 from fam_kit_city2 import GW  # noqa: F401  (gate opening half width, shared with the other street kits)
 
 PAR = 0.9
@@ -261,6 +262,8 @@ def build_facades(pal, ao):
             m = new(pal)
             body(m, mat, n, z0=DOOR_H if kind == 'ShopOpen' else 0.0, bottom=kind == 'ShopOpen')
             ground(m, mat, kind, si * 7 + ki)
+            if kind in DD.FACADE_DETAIL:
+                DD.FACADE_DETAIL[kind](m, mat, si * 7 + ki)
             if mat == 'L' and kind in ('Win', 'Board', 'Nest'):
                 rustic(m, mat, 4.25, G_H - 0.05)
             floors(m, mat, n, si * 31 + ki * 7, kind)
