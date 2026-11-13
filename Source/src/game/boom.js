@@ -667,8 +667,42 @@
     }
   };
   /* bullet hits the world: sparks + chips + dust by surface (floor, metal gate, wall / prop) */
+  /* tactical look (plan Stage 12): the hit's surface class picks the effect. Classes: 0 paint, 1 concrete, 2 metal,
+     3 painted metal, 4 wood, 5 fabric, 6 soil, 7 vegetation, 8 rock, 9 brick, 10 tile, 11 glass, 12 rubber, 13 snow,
+     14 water, 15 emissive. Classic keeps the comic impact below unchanged. */
+  var CLS_COL = { 0: 0xCFC8BC, 1: 0xB9B3A8, 4: 0x9A6E44, 5: 0x8C8478, 6: 0x8A6E4E, 7: 0x6E8A44, 8: 0xA39D92, 9: 0xA45A42, 10: 0xD8D4CC, 12: 0x3A383C, 13: 0xF2F4F8 };
+  function impactLook(x, y, z, nx, ny, nz, cls) {
+    var px = x + nx * 0.04, py = y + ny * 0.04, pz = z + nz * 0.04, c, i, n;
+    if (cls === 2 || cls === 3 || cls === 15) {   // metal: a spark spray and a hot glint, no dust
+      sparkBurst(px, py, pz, cnt(7), 7.5, nx, ny, nz, 0.6, undefined, 0.2);
+      flash(px, py, pz, 0.26, 0xFFE15A, 0.04, C.cloud);
+      c = card(C.shine, M_BILL, px, py, pz, 0.07, 0.08, 0.32, 0xFFF3B0); c.ease = E_POP;
+      return;
+    }
+    if (cls === 11) {   // glass: a sharp tick and a few bright shards
+      flash(px, py, pz, 0.18, 0xE8F6FF, 0.04, C.cloud);
+      n = cnt(3); for (i = 0; i < n; i++) { c = card(C.chip, M_BILL, px, py, pz, rnd(0.3, 0.5), rnd(0.03, 0.05), 0.04, 0xDDF2FF); c.vx = nx * 2.5 + rnd(-1.5, 1.5); c.vy = ny * 2 + rnd(0.5, 2.5); c.vz = nz * 2.5 + rnd(-1.5, 1.5); c.g = 14; c.vr = rnd(-20, 20); c.ease = E_LIN; c.floor = 0.03; }
+      return;
+    }
+    if (cls === 14) {   // water: a small splash
+      n = cnt(5); for (i = 0; i < n; i++) { c = card(C.drip, M_BILL, px, py, pz, rnd(0.35, 0.55), 0.06, 0.09, 0xE6F4FF); c.vx = rnd(-1, 1); c.vy = rnd(2.5, 4); c.vz = rnd(-1, 1); c.g = 12; c.ease = E_LIN; c.floor = 0.02; }
+      return;
+    }
+    var col = CLS_COL[cls] !== undefined ? CLS_COL[cls] : B.wallCol, wood = cls === 4, soft = cls === 5 || cls === 12, dirt = cls === 6 || cls === 7 || cls === 13;
+    if (!soft && !dirt && !wood) sparkBurst(px, py, pz, cnt(2), 4, nx, ny, nz, 0.75, undefined, 0.16);   // stone: a couple of sparks
+    // chips: splinters on wood (long, thin), grit on stone, clods on soil
+    n = cnt(wood ? 3 : dirt ? 3 : soft ? 1 : 2);
+    for (i = 0; i < n; i++) {
+      c = card(C.chip, M_BILL, px, py, pz, rnd(0.4, 0.65), wood ? rnd(0.08, 0.12) : rnd(0.04, 0.07), wood ? 0.025 : 0.05, col);
+      c.vx = nx * 2.2 + rnd(-1.6, 1.6); c.vy = ny * 2.2 + rnd(1, 3); c.vz = nz * 2.2 + rnd(-1.6, 1.6); c.g = 14; c.vr = rnd(-16, 16); c.ease = E_LIN; c.floor = 0.03;
+    }
+    // dust: a soft puff (more for soil and snow, little for wood and fabric)
+    var big = dirt ? 1.4 : wood || soft ? 0.6 : 1;
+    c = card(C.dust, M_BILL, x + nx * 0.08, y + ny * 0.08, z + nz * 0.08, rnd(0.5, 0.75), 0.1 * big, rnd(0.38, 0.55) * big, col); c.vx = nx * 0.6; c.vy = 0.35 + ny * 0.4; c.vz = nz * 0.6; c.drag = 2; c.a0 = 0.8; c.fd = 0.35;
+  }
   B.impact = function (x, y, z, nx, ny, nz, box) {
     if (!B.ready) return;
+    if (IB.Look && IB.Look.on && IB.Surface && IB.Surface.hitClass) { impactLook(x, y, z, nx, ny, nz, IB.Surface.hitClass(box, ny)); return; }
     var metal = box && box.kind === 'gate', floor = !box && ny > 0.5, col = floor ? B.dustCol : B.wallCol, c, i;
     sparkBurst(x + nx * 0.03, y + ny * 0.03, z + nz * 0.03, cnt(metal ? 6 : 3), metal ? 6 : 4, nx, ny, nz, 0.75, undefined, 0.24);
     flash(x + nx * 0.04, y + ny * 0.04, z + nz * 0.04, metal ? 0.34 : 0.22, metal ? 0xFFE15A : 0xFFF1D6, 0.05, C.cloud);
@@ -686,6 +720,7 @@
     if (def && IB.GunSkins) { var tr = IB.GunSkins.tierOf(def.id); if (tr !== 'gray') tint = parseInt(IB.GunSkins.feel(tr).tracer.slice(1), 16); }   // rarity tracer tint
     var c = card(C.streak, M_TRACER, ax, ay, az, 1, 1, 1, tint);
     c.ex = bx; c.ey = by; c.ez = bz; c.sp = heavy ? 320 : 230; c.seg = Math.min(L * 0.6, heavy ? 6 : 3.4); c.life = (L + c.seg) / c.sp; c.w = heavy ? 0.1 : 0.06; c.a0 = 0.95;
+    if (IB.Look && IB.Look.on) { c.sp *= 1.35; c.w *= 0.6; c.life = (L + c.seg) / c.sp; }   // tactical look: thinner, faster tracers (Stage 12)
   };
   /* electric arc between two points (Lightning Rod, Electrify, shock DoT) */
   B.arc = function (ax, ay, az, bx, by, bz, color, life, width) {

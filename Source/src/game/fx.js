@@ -201,6 +201,7 @@
   };
 
   // ---------- decals ----------
+  var _lt = [1, 1, 1], _ltc = new THREE.Color();
   FX.decal = function (x, y, z, nx, ny, nz, kind, size) {
     var cap = FX.decalLimit || FX.decalCap;
     var i = FX.decalNext; FX.decalNext = (FX.decalNext + 1) % cap;
@@ -214,6 +215,9 @@
     FX.decals.setMatrixAt(i, _m);
     var cell = kind === 'hole' ? CELL.hole[(Math.random() * 2) | 0] : kind === 'scorch' ? CELL.scorch[(Math.random() * 2) | 0] : CELL.splat[(Math.random() * 4) | 0];
     setUv(FX.decals, i, cell);
+    // tactical look: the mark takes the light where it lands (an unlit splat would glow in a dark room)
+    var lt = IB.Look && IB.Look.on && IB.Look.lightAt ? IB.Look.lightAt(x + nx * 0.3, y + ny * 0.3, z + nz * 0.3, _lt) : null;
+    if (lt) { FX.decals.setColorAt(i, _ltc.setRGB(lt[0], lt[1], lt[2])); FX.decals.instanceColor.needsUpdate = true; }
     FX.decals.instanceMatrix.needsUpdate = true;
     FX.decalCount = Math.min(cap, FX.decalCount + 1);
   };

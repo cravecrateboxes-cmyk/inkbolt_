@@ -261,3 +261,116 @@ def shutter_hull(pal, piece, h=3.05, w=3.0, d=0.14):
     tmp = build_object('tmp_shutter_hull', m, 0, 0.02)
     hull_only(tmp)
     join_into(piece, tmp)
+
+
+# ------------------------------------------------------------------------------------------------ detail helpers
+# Tactical look plan Stage 11.2: the kit equivalent of wpn_core.py's detail kit. Every helper draws on a face of a
+# piece that faces Blender -Y (the game's +Z, a wall module's open side) at the plane y = yf, in the current push()
+# frame. All parts are ink=False (no outline shell: small detail must not thicken the comic line) and stand at
+# least 3 mm proud of the face (or of each other), so ib_lib.check_zfight and the game's ?zcheck=1 stay clean.
+# Colours are palette names of the calling kit; pass ones the kit has.
+PROUD = 0.004
+
+
+def panel_seams(k, x0, x1, z0, z1, yf, every, c, t=0.014, horizontal=None):
+    """Raised seam strips every `every` m across a face (vertical seams; `horizontal` = list of z for cross seams)."""
+    n = max(1, int(round((x1 - x0) / every)))
+    for i in range(1, n):
+        x = x0 + (x1 - x0) * i / n
+        k.bx(x - t / 2, x + t / 2, yf - PROUD, yf, z0, z1, c, ink=False)
+    for z in (horizontal or []):
+        k.bx(x0, x1, yf - PROUD * 2, yf - PROUD, z - t / 2, z + t / 2, c, ink=False)
+
+
+def bolt_row(k, x0, x1, z, yf, n, c, s=0.026):
+    """n bolt heads (small boxes) in a row along x at height z."""
+    for i in range(n):
+        x = x0 + (x1 - x0) * (i + 0.5) / n
+        k.bx(x - s / 2, x + s / 2, yf - PROUD - 0.006, yf, z - s / 2, z + s / 2, c, ink=False)
+
+
+def rivet_strip(k, x0, x1, z, yf, c, every=0.12, s=0.016):
+    bolt_row(k, x0, x1, z, yf, max(2, int((x1 - x0) / every)), c, s=s)
+
+
+def kick_plate(k, x0, x1, yf, c, h=0.24, z0=0.0, bolts=None):
+    """A plate along the foot of a face, 8 mm proud, with an optional bolt colour along its top."""
+    k.bx(x0, x1, yf - 0.008, yf, z0 + 0.004, z0 + h, c, ink=False)
+    if bolts:
+        bolt_row(k, x0 + 0.05, x1 - 0.05, z0 + h - 0.04, yf - 0.008, max(2, int((x1 - x0) / 0.35)), bolts, s=0.02)
+
+
+def base_trim(k, x0, x1, yf, c, h=0.09, d=0.018, z0=0.0):
+    k.bx(x0, x1, yf - d, yf, z0 + 0.004, z0 + h, c, ink=False)
+
+
+def cap_trim(k, x0, x1, yf, ztop, c, h=0.07, d=0.03):
+    k.bx(x0, x1, yf - d, yf, ztop - h, ztop - 0.004, c, ink=False)
+
+
+def drip_edge(k, x0, x1, z, yf, c, d=0.05, t=0.025):
+    """A projecting sill / drip ledge at height z."""
+    k.bx(x0, x1, yf - d, yf, z - t / 2, z + t / 2, c, ink=False)
+
+
+def corner_guard(k, x, yf, z0, z1, c, w=0.06, t=0.008, side=1):
+    """L-angle on a vertical corner at x (side +1: the corner's +x side faces out, -1: the -x side)."""
+    k.bx(x - w if side > 0 else x, x if side > 0 else x + w, yf - t, yf, z0, z1, c, ink=False)
+
+
+def conduit_run(k, x0, x1, z, yf, c, clip_c, r=0.022, every=0.9):
+    """Horizontal conduit along x with clips."""
+    k.cyl(x0, yf - r - 0.006, z, r, r, x1 - x0, c, seg=6, ink=False, rot=(0, 90, 0))
+    n = max(1, int((x1 - x0) / every))
+    for i in range(n):
+        x = x0 + (x1 - x0) * (i + 0.5) / n
+        k.bx(x - 0.015, x + 0.015, yf - 2 * r - 0.012, yf, z - r - 0.008, z + r + 0.008, clip_c, ink=False)
+
+
+def pipe_run(k, x0, x1, z, yf, r, c, bracket_c, every=1.2):
+    """A thicker pipe on stand-off brackets."""
+    k.cyl(x0, yf - r - 0.05, z, r, r, x1 - x0, c, seg=8, ink=False, rot=(0, 90, 0))
+    n = max(1, int((x1 - x0) / every))
+    for i in range(n + 1):
+        x = x0 + (x1 - x0) * i / n
+        x = min(max(x, x0 + 0.04), x1 - 0.04)
+        k.bx(x - 0.02, x + 0.02, yf - 0.05, yf, z - r - 0.03, z - r + 0.004, bracket_c, ink=False)
+
+
+def junction_box(k, x, z, yf, c, lid_c, w=0.22, h=0.28, d=0.09):
+    k.bx(x - w / 2, x + w / 2, yf - d, yf, z - h / 2, z + h / 2, c, ink=False)
+    k.bx(x - w / 2 + 0.02, x + w / 2 - 0.02, yf - d - PROUD, yf - d + 0.001, z - h / 2 + 0.02, z + h / 2 - 0.02, lid_c, ink=False)
+
+
+def vent(k, x, z, yf, w, h, frame_c, slat_c, n=None):
+    """A louvred vent: frame 1 cm proud, slats inside."""
+    n = n or max(3, int(h / 0.06))
+    k.bx(x - w / 2, x + w / 2, yf - 0.012, yf, z - h / 2, z - h / 2 + 0.03, frame_c, ink=False)
+    k.bx(x - w / 2, x + w / 2, yf - 0.012, yf, z + h / 2 - 0.03, z + h / 2, frame_c, ink=False)
+    k.bx(x - w / 2, x - w / 2 + 0.03, yf - 0.012, yf, z - h / 2 + 0.034, z + h / 2 - 0.034, frame_c, ink=False)
+    k.bx(x + w / 2 - 0.03, x + w / 2, yf - 0.012, yf, z - h / 2 + 0.034, z + h / 2 - 0.034, frame_c, ink=False)
+    for i in range(n):
+        zz = z - h / 2 + 0.04 + (h - 0.08) * (i + 0.5) / n
+        k.bx(x - w / 2 + 0.034, x + w / 2 - 0.034, yf - 0.009, yf - PROUD, zz - 0.008, zz + 0.008, slat_c, ink=False)
+
+
+def cable_tray(k, x0, x1, z, yf, c, cable_c, d=0.12):
+    """An open tray on the wall with two cables in it."""
+    k.bx(x0, x1, yf - d, yf - d + 0.008, z, z + 0.06, c, ink=False)
+    k.bx(x0, x1, yf - d, yf - 0.004, z, z + 0.008, c, ink=False)
+    for i, off in enumerate((0.035, 0.075)):
+        k.bx(x0 + 0.01, x1 - 0.01, yf - off - 0.012, yf - off + 0.012, z + 0.012 + i * 0.004, z + 0.036 + i * 0.004, cable_c, ink=False)
+
+
+def sign_plate(k, x, z, yf, w, h, c, mark_c=None, bar=0.3):
+    k.bx(x - w / 2, x + w / 2, yf - 0.008, yf, z - h / 2, z + h / 2, c, ink=False)
+    if mark_c:
+        k.bx(x - w * bar, x + w * bar, yf - 0.012, yf - 0.008 + 0.0005, z - h * 0.12, z + h * 0.12, mark_c, ink=False)
+
+
+def window_frame_depth(k, x0, x1, z0, z1, yf, c, depth=0.06, t=0.05):
+    """A frame standing out round an opening, so windows read with depth."""
+    k.bx(x0 - t, x1 + t, yf - depth, yf, z1, z1 + t, c, ink=False)
+    k.bx(x0 - t, x1 + t, yf - depth, yf, z0 - t, z0, c, ink=False)
+    k.bx(x0 - t, x0, yf - depth, yf, z0 + 0.004, z1 - 0.004, c, ink=False)
+    k.bx(x1, x1 + t, yf - depth, yf, z0 + 0.004, z1 - 0.004, c, ink=False)

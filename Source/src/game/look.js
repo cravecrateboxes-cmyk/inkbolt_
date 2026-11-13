@@ -108,6 +108,24 @@
     }
   }
 
+  /* Light level at a world point for unlit things placed in the world (bullet holes, splats, scorch: fx.js), from
+     the light volume and one sight line toward the sun: returns [r, g, b] multipliers 0..1, or null (no volume). */
+  Look.lightAt = function (x, y, z, out) {
+    var LG = IB.LightGrid, L = Look.cur, G = IB.Game;
+    if (!Look.on || !L || !LG || !LG.ready) return null;
+    var s = LG.sampleAt(x, y, z); if (!s) return null;
+    var sunVis = s.sky * 0.3;
+    if (s.sky > 0.5 && G.level && G.level.world) { var d = Look.sunDir; sunVis = G.level.world.los(x + d.x * 0.3, y + d.y * 0.3, z + d.z * 0.3, x + d.x * 60, y + d.y * 60, z + d.z * 60) ? s.sky : s.sky * 0.3; }
+    var loc = s.local, gi = L.grid.intensity, lum = (0.2126 * loc[0] + 0.7152 * loc[1] + 0.0722 * loc[2]) * gi;
+    var amb = L.ambI * (s.sky + (1 - s.sky) * L.indoorAmb);
+    var k = Math.min(1, 0.12 + amb * 0.8 + lum * 0.6 + sunVis * 0.5);
+    out = out || [1, 1, 1];
+    var tr = 1, tg = 1, tb = 1;
+    if (lum > 0.02) { var m = Math.max(loc[0], loc[1], loc[2]) || 1, w = Math.min(0.5, lum); tr = 1 - w + w * loc[0] / m; tg = 1 - w + w * loc[1] / m; tb = 1 - w + w * loc[2] / m; }
+    out[0] = k * tr; out[1] = k * tg; out[2] = k * tb;
+    return out;
+  };
+
   /* Viewmodel light link (Stage 4.6): sample the light volume where the player stands (plus one sight line toward
      the sun) and tint the gun's light: dark in a dark room, lit under a lamp, full sun outdoors. Smoothed over 0.15 s. */
   var vm = { k: 1, r: 1, g: 1, b: 1, sun: 1 }, _sunTo = null;

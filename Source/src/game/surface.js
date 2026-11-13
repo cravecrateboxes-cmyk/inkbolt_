@@ -254,6 +254,43 @@
     return S._detailP;
   };
 
+  /* Stage 12: the surface class a bullet hit (impacts by material). A kit piece's class is the one covering most of
+     its area (palette cell of each triangle, outline shell skipped), cached per piece; code-built floors use the
+     look's floor class; wall boxes the class of the level's wall modules; gates are metal. */
+  var pieceCls = {};
+  S.pieceClass = function (name) {
+    if (name in pieceCls) return pieceCls[name];
+    var A = IB.Assets, g = A && A.geo[name], T = g && IB.SURFACES && IB.SURFACES[A.family[name]];
+    if (!g || !T || !g.attributes.uv) return (pieceCls[name] = 1);
+    var P = g.attributes.position.array, U = g.attributes.uv.array, Hh = g.attributes.aHull ? g.attributes.aHull.array : null;
+    var I = g.index ? g.index.array : null, n = I ? I.length : P.length / 3, area = {};
+    for (var t = 0; t < n; t += 3) {
+      var a = I ? I[t] : t, b = I ? I[t + 1] : t + 1, c = I ? I[t + 2] : t + 2;
+      if (Hh && (Hh[a * 3] || Hh[a * 3 + 1] || Hh[a * 3 + 2])) continue;
+      var ux = P[b * 3] - P[a * 3], uy = P[b * 3 + 1] - P[a * 3 + 1], uz = P[b * 3 + 2] - P[a * 3 + 2];
+      var vx = P[c * 3] - P[a * 3], vy = P[c * 3 + 1] - P[a * 3 + 1], vz = P[c * 3 + 2] - P[a * 3 + 2];
+      var cx = uy * vz - uz * vy, cy = uz * vx - ux * vz, cz = ux * vy - uy * vx, ar = Math.sqrt(cx * cx + cy * cy + cz * cz);
+      var cell = Math.min(7, Math.floor(U[a * 2] * 8)) + Math.min(7, Math.floor((1 - U[a * 2 + 1]) * 8)) * 8, k = T.cls[cell] || 0;
+      area[k] = (area[k] || 0) + ar;
+    }
+    var best = 1, bv = -1; for (var key in area) if (area[key] > bv) { bv = area[key]; best = +key; }
+    return (pieceCls[name] = best);
+  };
+  var wallCls = { level: null, cls: 1 };
+  S.hitClass = function (box, ny) {
+    var L = IB.Look && IB.Look.cur;
+    if (!box) return L && L.floor ? L.floor.cls : 1;
+    if (box.piece) return S.pieceClass(box.piece);
+    if (box.kind === 'gate') return 2;
+    var lv = IB.Game && IB.Game.level;
+    if (wallCls.level !== lv) {
+      wallCls.level = lv; wallCls.cls = 1;
+      var z0 = lv && lv.zones[0], W = z0 && z0.wallMods;
+      if (W && W.length) { var cnt = {}; W.slice(0, 40).forEach(function (m) { var k = S.pieceClass(m.name); cnt[k] = (cnt[k] || 0) + 1; }); var bv = -1; for (var k in cnt) if (cnt[k] > bv) { bv = cnt[k]; wallCls.cls = +k; } }
+    }
+    return box.kind === 'wall' ? wallCls.cls : 1;
+  };
+
   // sh: the shader being compiled; kind: 'world' | 'actor' | 'decal' (dress.js: tinted, alpha-blended, no detail); surf: { tex } (palette materials) or { flat: Vector4 uniform }
   S.patch = function (sh, kind, surf) {
     var U = IB.Look.U;
