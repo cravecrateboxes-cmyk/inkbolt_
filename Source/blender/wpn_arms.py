@@ -25,8 +25,8 @@ from wpn_core import *  # noqa: F401,F403
 #  * digits: lofted tubes skinned to three bones each (digit_rings): a ball at the knuckle turning inside the palm,
 #    one ring in the bisector plane of each joint (half on each bone), a raised padded back on the first phalanx,
 #    a reinforced tip, grip leather inside. Each has its own ink shell, which draws the gaps between fingers.
-#  * armour (rigid on HAND, own shells): one moulded knuckle guard across the four knuckles, three ribs fanned over
-#    the back of the hand.
+#  * armour (own shells): one moulded knuckle guard across the four knuckles and a ribbed shield over the back of
+#    the hand (rigid on HAND), a pad over the thumb knuckle (rigid on the thumb's first phalanx).
 #  * cuff: an elastic wrist band skinned from HAND to FOREARM across the wrist joint (the wrist bends without a
 #    gap or a socket), a strap with a buckle across it.
 # Forearm (rigid on FOREARM, see forearm): fitted sleeve bunching into folds at the elbow, an armoured bracer
@@ -470,7 +470,7 @@ def glove(A, side, X):
             if kinds[i] not in ('root', 'seam') and DIGIT_SIDES // 2 <= j < DIGIT_SIDES - 1:
                 return COL['grip']
         A.loft([[Xs @ p for p in rr] for rr in rings], cols, wts, 'digits', soft=True, fcol=fcol)
-    # armour: the knuckle guard, ribs fanned over the back of the hand from the knuckles toward the wrist
+    # armour: the knuckle guard, the ribbed shield over the back of the hand from the knuckles toward the wrist
     rings = knuckle_guard(knuckles)
     A.loft([[Xs @ p for p in rr] for rr in rings], [COL['hard']] * len(rings), hb, 'armour')
     rings = []
