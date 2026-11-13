@@ -206,3 +206,41 @@ def slats(m, x0, x1, y, z0, z1, n, c, face=-1, gap=0.4):
     for i in range(n):
         a = z0 + i * h
         (fq if face < 0 else bq)(m, x0, x1, y, a, a + h * (1 - gap), c)
+
+
+# ---------------------------------------------------------------- modelled detail (tactical look, Stage 11)
+# Local equivalents of kit_base's detail helpers for this kit's DM / PM model. Same rules: parts are hull='none'
+# (no outline shell), stand >= 3 mm proud of the face they sit on and start 3 mm inside it, horizontal runs stop 5 mm
+# short of a piece's sides. `yf` is the face plane, `s` its facing (-1: toward -Y, +1: toward +Y).
+EMB = 0.003
+
+
+def dbx(m, x0, x1, yf, d, z0, z1, c, s=-1):
+    """a detail box d proud of the plane y = yf (embedded EMB inside it); back face and unseen floor / ceiling faces dropped"""
+    cull = ('k' if s < 0 else 'f') + ('b' if z0 < 0.3 else '') + ('t' if z1 > 5.0 else '')
+    y0, y1 = (yf - d, yf + EMB) if s < 0 else (yf - EMB, yf + d)
+    return m.bx(x0, x1, y0, y1, z0, z1, c, hull='none', cull=cull)
+
+
+def dbolts(m, xs, z, yf, c, d=0.016, sz=0.022, s=-1):
+    for x in xs:
+        dbx(m, x - sz / 2, x + sz / 2, yf, d, z - sz / 2, z + sz / 2, c, s)
+
+
+def drails(m, zlow, zhigh, c, x=0.495, yf=-0.5, d=0.02, h=0.04):
+    """skirting cap and picture rail across a wall module (zlow: top of the skirt; zhigh: underside of the top band)"""
+    dbx(m, -x, x, yf, d, zlow, zlow + h, c)
+    dbx(m, -x, x, yf, d, zhigh - h, zhigh, c)
+
+
+def dconduit(m, x0, x1, z, yf, c, clip_c, r=0.02, clips=(), s=-1):
+    """a horizontal conduit on stand-off clips"""
+    y = yf - s * (r + 0.006)
+    m.cy((x0, y, z), r, r, x1 - x0, c, seg=6, rot=(0, 90, 0), hull='none', caps=False)
+    for x in clips:
+        dbx(m, x - 0.015, x + 0.015, yf, 2 * r + 0.012, z - r - 0.008, z + r + 0.008, clip_c, s)
+
+
+def djbox(m, x, z, yf, c, lid_c, s=-1, w=0.2, h=0.26, d=0.08):
+    dbx(m, x - w / 2, x + w / 2, yf, d, z - h / 2, z + h / 2, c, s)
+    dbx(m, x - w / 2 + 0.02, x + w / 2 - 0.02, yf, d + 0.005, z - h / 2 + 0.02, z + h / 2 - 0.02, lid_c, s)
