@@ -77,7 +77,7 @@
       crawler2: { parts: { BOT_CRAWLER_Body2: 1, BOT_CRAWLER_Leg2: 4, BOT_CRAWLER_Light: 1, BOT_CRAWLER_Specks: 1 }, max: 2200 },
       hawk: { parts: { BOT_HAWK_Body: 1, BOT_HAWK_Fan: 2, BOT_HAWK_Rotor: 2, BOT_HAWK_Gun: 1, BOT_HAWK_Light: 1 }, max: 3500 }
     },
-    kitMax: 40000, kitPropMax: 1200
+    kitMax: 90000, kitPropMax: 2500   // raised for the tactical look kit detail pass (plan Stage 11.3)
   };
   IB.DRESS_PIECES.forEach(function (n) { IB.TRI_BUDGET.meshes['KIT_DRESS_' + n] = 300; });
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));

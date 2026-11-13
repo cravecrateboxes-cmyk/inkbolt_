@@ -4,6 +4,7 @@ terrace face (rock on the terrace side up to 14.2 m) and its doorway lintels, th
 (ammo racks, shell pallets, gun racks, the armory cage), the barracks (bunks, footlockers, lockers, mess tables), the
 command centre (the tactical table, consoles, the video wall, radio racks), mezzanine decks (posts, steel stairs) and
 the observation terrace (spotting scopes, the twin AA gun, the flagpole). See sh_base.py for the conventions."""
+import kit_base as KB
 import math
 import random
 
@@ -171,6 +172,11 @@ def build_hangar(k, ao):
             k.bx(x - 1.6, x + 1.6, 0.06, 0.1, z, z + 0.12, 'steelD', ink=False)
     k.bx(-0.04, 0.04, 0.05, 0.1, 0.0, 6.0, 'ink', ink=False)
     k.text('HANGAR 2', 0.0, -0.205, 6.15, 0.45, 'paint', maxw=4.0, font='display')
+    # Stage 11 detail: rivet lines between the bands, a scuffed kick plate on each leaf
+    for x in (-1.7, 1.7):
+        for z in (1.78, 3.28, 4.7):
+            KB.rivet_strip(k, x - 1.5, x + 1.5, z, 0.1, 'steel', every=0.22)
+        KB.kick_plate(k, x - 1.6, x + 1.6, 0.1, 'steelD', h=0.55, z0=0.0, bolts='steel')
     k.col(-4.0, -3.4, -0.2, 0.5, 0.0, 6.0)
     k.col(3.4, 4.0, -0.2, 0.5, 0.0, 6.0)
     k.col(-3.4, 3.4, 0.08, 0.5, 0.0, 6.0)

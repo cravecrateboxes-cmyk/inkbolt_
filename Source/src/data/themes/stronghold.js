@@ -535,7 +535,7 @@
     trail: { wall: 'TrailWall', variants: ['TrailWall_Lamp', 'TrailWall', 'TrailWall_Pipe', 'TrailWall', 'TrailWall_Sign'], height: 5.0 },
     hatch: 'Hatch', stand: 'Crate_A',
     backdrop: { build: buildVista },
-    budget: { prop: 1600, landmark: 4000, total: 60000 },
+    budget: { prop: 2500, landmark: 8000, total: 90000 },   // raised for the look kit detail pass (plan 11.3)
     allPieces: function () { return PIECES.slice(); },
     levels: {
       stronghold: {

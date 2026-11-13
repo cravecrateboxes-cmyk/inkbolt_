@@ -109,8 +109,8 @@ test('triangle budgets hold (including the outline hull)', () => {
     for (const n of new Set(th.allPieces().map(x => IB.themePiece(th, x)))) {
       if (!g.nodes.some(nd => nd.name === n && nd.mesh !== undefined)) continue;   // fps-common pieces are budgeted there
       const t = tris(g, n); kit += t;
-      assert.ok(t <= (/Landmark|Backdrop/.test(n) ? (B.landmark || 4000) : (B.prop || 1200)), th.id + ' ' + n + ' ' + t);
+      assert.ok(t <= (/Landmark|Backdrop/.test(n) ? (B.landmark || 8000) : (B.prop || 2500)), th.id + ' ' + n + ' ' + t);
     }
-    assert.ok(kit <= (B.total || 40000), th.id + ' kit total ' + kit);
+    assert.ok(kit <= (B.total || 90000), th.id + ' kit total ' + kit);
   }
 });
