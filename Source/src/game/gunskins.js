@@ -14,6 +14,12 @@
   var GS = IB.GunSkins = { cache: {} };
   var D = function () { return IB.GunSkinData; };
   var time = { value: 0 };
+  /* Tactical look light link (Stage 4.6): the viewmodel's ambient tint and flash term are uniforms, fed every frame by
+     IB.Look from the light volume where the player stands, so the gun is dark in a dark room and lit under a lamp.
+     Guns shown in the world keep the fixed values. Defaults are the former constants: the classic look is unchanged. */
+  function v3(x, y, z) { return new THREE.Vector3(x, y, z); }
+  var VM_LIGHT = GS.vmLight = { uVmAmbLo: { value: v3(0.90, 0.82, 0.80) }, uVmAmbHi: { value: v3(0.95, 1.0, 1.07) }, uVmFlash: { value: v3(0, 0, 0) } };
+  var WORLD_LIGHT = { uVmAmbLo: { value: v3(0.90, 0.82, 0.80) }, uVmAmbHi: { value: v3(0.95, 1.0, 1.07) }, uVmFlash: { value: v3(0, 0, 0) } };
   GS.time = time;
   GS.tick = function (t) { time.value = t; };
   GS.tierOf = function (id) { var s = IB.Game && IB.Game.slot; return (s && s.gunTier && s.gunTier[id]) || 'gray'; };
@@ -112,12 +118,12 @@
     'float ibRamp = 0.46 + 0.24 * smoothstep( 0.16, 0.40, ibW ) + 0.30 * smoothstep( 0.52, 0.82, ibW );',
     'vec3 ibUp = normalize( ( viewMatrix * vec4( 0.0, 1.0, 0.0, 0.0 ) ).xyz );',
     'float ibSky = dot( ibNn, ibUp ) * 0.5 + 0.5;',
-    'vec3 ibAmb = mix( vec3( 0.90, 0.82, 0.80 ), vec3( 0.95, 1.0, 1.07 ), ibSky );',
+    'vec3 ibAmb = mix( uVmAmbLo, uVmAmbHi, ibSky );',
     'float ibNear = 1.0 - smoothstep( 0.9, 2.6, vViewPosition.z );',
     'float ibGr = mix( ibH( floor( vIbP * 620.0 ) ), ibN( vec3( vIbP.x * 800.0, vIbP.y * 800.0, vIbP.z * 34.0 ) ), step( 0.4, ibS.g ) );',
     'float ibGrime = ibN( vIbP * 24.0 ) * 0.6 + ibN( vIbP * 61.0 ) * 0.4;',
     'vec3 ibBase = diffuseColor.rgb * ( 1.0 + ( ibGr - 0.5 ) * 0.085 * ibNear ) * ( 1.0 - ibGrime * ( 0.05 + 0.5 * ( 1.0 - ibAO ) ) * ibNear );',
-    'vec3 ibCol = ibBase * ibRamp * ibAmb * ibLC;',
+    'vec3 ibCol = ibBase * ibRamp * ibAmb * ibLC + ibBase * uVmFlash;',
     'float ibNH = max( dot( ibNn, normalize( ibL + ibV ) ), 0.0 );',
     'float ibSp = pow( ibNH, mix( 5.0, 110.0, ibS.r ) ) * ( 0.06 + 0.94 * ibS.r ) * smoothstep( -0.05, 0.2, ibNL );',
     'ibCol += mix( vec3( 1.0 ), ibBase * 1.5 + 0.22, ibS.g ) * ibSp * 0.62 * ibAO * ibLC;',
@@ -127,6 +133,7 @@
   ].join('\n');
 
   var FRAG_PARS = [
+    'uniform vec3 uVmAmbLo, uVmAmbHi, uVmFlash;',
     'uniform float uPat, uPatS, uShim, uTime, uPatGlow; uniform vec3 uPatC, uGlowC, uShimC, uGradC; uniform vec2 uGradY; uniform sampler2D uSurf;',
     'varying vec3 vIbP; varying vec3 vIbN;',
     'float ibH( vec3 p ) { return fract( sin( dot( p, vec3( 127.1, 311.7, 74.7 ) ) ) * 43758.5453 ); }',
@@ -191,7 +198,7 @@
      attachments): GS.tactical(mat, surf) patches the material in place and returns it. surf: { cellName: [gloss,
      metal] } over IB.GunSkinData.SURF for a weapons-palette material; omit it for one even surface (other palettes). */
   var TAC_PARS = [
-    'uniform sampler2D uSurf; varying vec3 vIbP;',
+    'uniform sampler2D uSurf; varying vec3 vIbP; uniform vec3 uVmAmbLo, uVmAmbHi, uVmFlash;',
     'float ibH( vec3 p ) { return fract( sin( dot( p, vec3( 127.1, 311.7, 74.7 ) ) ) * 43758.5453 ); }',
     'float ibN( vec3 p ) { vec3 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f );',
     '  return mix( mix( mix( ibH( i ), ibH( i + vec3( 1, 0, 0 ) ), f.x ), mix( ibH( i + vec3( 0, 1, 0 ) ), ibH( i + vec3( 1, 1, 0 ) ), f.x ), f.y ),',
@@ -208,6 +215,7 @@
     mat.onBeforeCompile = function (sh) {
       inner(sh);
       sh.uniforms.uSurf = { value: tex };
+      for (var k2 in VM_LIGHT) sh.uniforms[k2] = VM_LIGHT[k2];   // arms and attachments live in the viewmodel
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vIbP;').replace('vHull = 0.0;', 'vHull = 0.0; vIbP = position;');
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + TAC_PARS)
         .replace('vec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance;', FRAG_LIGHT);
@@ -235,6 +243,8 @@
     mat.onBeforeCompile = function (sh) {
       inner(sh);
       for (var k in U) sh.uniforms[k] = U[k];
+      var LK = uni === R.vmOutline ? VM_LIGHT : WORLD_LIGHT;
+      for (k in LK) sh.uniforms[k] = LK[k];
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vIbP; varying vec3 vIbN;')
         .replace('vHull = 0.0;', 'vHull = 0.0; vIbP = position; vIbN = normal;');
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + FRAG_PARS)

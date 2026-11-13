@@ -89,7 +89,10 @@
       pal.encoding = THREE.LinearEncoding; pal.magFilter = pal.minFilter = THREE.NearestFilter; pal.generateMipmaps = false; pal.needsUpdate = true;
       A.palette[fam] = pal;
       // every kit bakes a 2 cm shell unless listed otherwise (blender CFG)
-      A.mat[fam] = IB.Render.toonMaterial({ map: pal, baked: A.BAKED[fam] !== undefined ? A.BAKED[fam] : 0.02 });
+      // map kits and the shared world props take the tactical look's surface model (plan 2.4); actors decide their own
+      var world = fam === 'common' || fam.indexOf('kit-') === 0;
+      A.mat[fam] = IB.Render.toonMaterial({ map: pal, baked: A.BAKED[fam] !== undefined ? A.BAKED[fam] : 0.02,
+        look: world ? 'world' : 'none', surf: world && IB.Surface ? { tex: IB.Surface.texFor(fam) } : null });
       gltf.scene.traverse(function (o) { if (o.isMesh) o.material = A.mat[fam]; });
       return gltf;
     });

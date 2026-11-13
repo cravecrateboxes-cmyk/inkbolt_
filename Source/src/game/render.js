@@ -83,8 +83,12 @@
        distance to stay about 3 px on screen; on a small object drawn enlarged (loot, pickups, a gun turning in its
        beam) that swallows the whole thing in black and makes it look several times its size from afar, so those
        materials cap it and the object keeps its real silhouette at any distance. } */
+  /* Tactical look (look.js, surface.js): opts.look 'world' | 'actor' | 'none' (default) opts a material into the
+     surface light model, with opts.surf = { tex: IB.Surface.texFor(family) } for palette materials or { flat:
+     uniform(Vector4) } for code-built geometry. Ignored on ?look=classic. */
   function toonMaterial(opts) {
     opts = opts || {};
+    var look = IB.Look && IB.Look.on && IB.Surface && opts.look && opts.look !== 'none' ? opts.look : null;
     var mat = new THREE.MeshToonMaterial({
       color: opts.color !== undefined ? opts.color : 0xffffff,
       vertexColors: opts.vertexColors !== false,
@@ -101,13 +105,18 @@
         .replace('#include <common>', '#include <common>\n' + VERT_PARS + (fx ? 'attribute vec2 aFx;\nvarying vec2 vFx;\n' : ''))
         .replace('#include <project_vertex>', VERT_PROJECT + (fx ? '\nvFx = aFx;' : ''));
       sh.uniforms.uCloak = IB.Render.cloak; sh.uniforms.uHullK = robot ? IB.Render.robotHull : ONE;
+      // kit vertex colour: R = the classic AO, G and B carry tactical-look data (Stage 5D), so mapped materials
+      // multiply by R only (weapons, gear, robots and troopers have R = G = B: unchanged); trap T5
+      if (opts.map) sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', '#if defined( USE_COLOR_ALPHA )\n\tdiffuseColor *= vec4( vColor.rrr, vColor.a );\n#elif defined( USE_COLOR )\n\tdiffuseColor.rgb *= vColor.rrr;\n#endif');
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', '#include <common>\nuniform vec3 uInk;\nuniform float uCloak;\nvarying float vHull;\n' + (fx ? 'varying vec2 vFx;\n' : ''))
         .replace('#include <fog_fragment>',
           (fx ? 'gl_FragColor.rgb = mix( gl_FragColor.rgb, vec3( 1.0 ), vFx.x );\ngl_FragColor.rgb = mix( gl_FragColor.rgb, uInk, vFx.y );\n' : '') +
           'if ( vHull > 0.5 ) gl_FragColor = vec4( uInk, 1.0 );\n#include <fog_fragment>\n' + (robot ? CLOAK_ROBOT : CLOAK_WORLD));
+      if (look) IB.Surface.patch(sh, look, opts.surf || {});   // after the ink patch, before any caller's chained patch
     };
-    mat.customProgramCacheKey = function () { return 'ibtoon' + (fx ? 'fx' : '') + (robot ? 'r' : uni === IB.Render.worldOutline ? 'w' : 'v') + (opts.skinning ? 's' : ''); };
+    mat.customProgramCacheKey = function () { return 'ibtoon' + (fx ? 'fx' : '') + (robot ? 'r' : uni === IB.Render.worldOutline ? 'w' : 'v') + (opts.skinning ? 's' : '') + (look ? IB.Look.key(look) : ''); };
+    if (look) { mat.userData.look = look; IB.Look.register(mat); }
     mat.userData.outMax = outMax;   // the cap can be set later: mat.userData.outMax.value = 0.02
     return mat;
   }
@@ -267,6 +276,7 @@
   };
 
   R.init = function (canvas) {
+    if (IB.Atmo) IB.Atmo.install();   // tactical look: the shared fog chunks, before any program compiles (trap T28)
     var r = R.renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, powerPreference: 'high-performance' });
     r.autoClear = false;
     r.setClearColor(PAL.ink, 1);
@@ -283,13 +293,17 @@
     var sun = R.sun = new THREE.DirectionalLight(0xffffff, 1); sun.position.set(0.42, 0.82, 0.38); R.scene.add(sun);
     R.vmScene = new THREE.Scene();
     R.vmCam = new THREE.PerspectiveCamera(58, 1, 0.01, 10);
-    var vsun = new THREE.DirectionalLight(0xffffff, 1); vsun.position.set(0.3, 0.9, 0.5); R.vmScene.add(vsun);
+    var vsun = R.vmSun = new THREE.DirectionalLight(0xffffff, 1); vsun.position.set(0.3, 0.9, 0.5); R.vmScene.add(vsun);   // tinted by IB.Look (viewmodel light link)
     R.vmScene.add(R.vmCam);
     R.makeSky();
     R.setFog(PAL.cream, 45, 120);
+    if (IB.Post) IB.Post.init(r);
+    if (IB.Surface && IB.Look && IB.Look.on) IB.Surface.loadDetail(r);   // tactical look detail textures (async)   // tactical look: offscreen pipeline (post.js); off on ?look=classic / ?post=0 / low tiers
     R.resize();
   };
 
+  // fog: classic near / far. With the tactical look on, near carries the haze length (look.fog.length, see atmo.js)
+  // and far stays the fog wall that hides zone loading.
   R.setFog = function (color, near, far) {
     R.scene.fog = new THREE.Fog(color, near, far);
     R.fogFar = far;
@@ -331,6 +345,7 @@
     // a low tier's short fog end must not land on or before the theme's fog start (the whole view would turn fog
     // colour): keep the start at most 55% of the end. High / medium never hit this (end 120+, starts are 45-62).
     if (R.envFogNear !== undefined) R.scene.fog.near = Math.min(R.envFogNear, R.scene.fog.far * 0.55);
+    if (IB.Look && IB.Look.on && R.lookFogLen) R.scene.fog.near = R.lookFogLen;   // the haze length (atmo.js)
   };
   R.setSky = function (top, horizon) { R.sky.material.uniforms.top.value.set(top); R.sky.material.uniforms.horizon.value.set(horizon); };
 
@@ -367,9 +382,11 @@
     R.renderer.setPixelRatio(pr);
     R.renderer.setSize(R.width, R.height, false);
     R.applyFov();
+    if (IB.Post) IB.Post.resize();
   };
 
   R.render = function (showViewmodel) {
+    if (IB.Post && IB.Post.on) return IB.Post.render(showViewmodel);
     var r = R.renderer;
     r.clear(true, true, true);
     R.sky.position.copy(R.camera.position);

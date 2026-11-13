@@ -561,7 +561,7 @@
     }
     if (f.sound) sfx('boom', x, z, f.sound * 0.55, 1.25 - 0.15 * S);
   }
-  B.explode = function (x, y, z, kind, sMul, quiet) { explode(x, y, z, FLAV[kind] || FLAV.crawler, sMul, F_WORD | F_SCORCH | F_RING | (quiet ? F_QUIET : 0)); };
+  B.explode = function (x, y, z, kind, sMul, quiet) { if (IB.Look) IB.Look.flash(x, y + 0.6, z, 0xFF9A3C, 9 * (sMul || 1), 0.25, 1.6); explode(x, y, z, FLAV[kind] || FLAV.crawler, sMul, F_WORD | F_SCORCH | F_RING | (quiet ? F_QUIET : 0)); };
 
   // camera feel: trauma by distance, a short hit-stop on big close blasts, screen ink / flash
   function feel(x, y, z, S) {
@@ -649,6 +649,7 @@
   /* a blast from IB.Projectiles (Bomber, canister, any splash weapon) */
   B.blast = function (x, y, z, R, srcType) {
     var f = srcType === 'canister' ? FLAV.canister : FLAV.blast;
+    if (IB.Look) IB.Look.flash(x, y + 0.6, z, 0xFF9A3C, Math.max(6, R * 2.2), 0.25, 1.8);   // tactical look: the blast lights the room
     explode(x, y, z, f, R / 3.2, F_WORD | F_SCORCH | F_RING);
   };
   /* bullet hits a robot */
@@ -729,7 +730,7 @@
     }
   };
   /* a robot's muzzle flash (ai.js fireBolt) */
-  B.muzzle = function (x, y, z, size) { if (!B.ready) return; var c = flash(x, y, z, size || 0.4, PAL.amber, 0.06, C.burst); c.a0 = Math.min(c.a0, 0.95); };
+  B.muzzle = function (x, y, z, size) { if (!B.ready) return; if (IB.Look) IB.Look.flash(x, y, z, 0xFFB45A, 3, 0.06, 0.8); var c = flash(x, y, z, size || 0.4, PAL.amber, 0.06, C.burst); c.a0 = Math.min(c.a0, 0.95); };
   /* enemy bolt lands */
   B.boltHit = function (x, y, z, nx, ny, nz) { if (!B.ready) return; sparkBurst(x, y, z, cnt(4), 4.5, nx, ny, nz, 0.9, Math.random() < 0.5 ? PAL.red : PAL.amber, 0.24); flash(x, y, z, 0.32, PAL.red, 0.06, C.cloud); };
   /* gate shutter slams down */
@@ -836,6 +837,10 @@
   var CASE_SKIP = { handcannon: true };
   B.onFire = function (ws, def) {
     if (!B.ready || !ws || !def) return;
+    if (IB.Look && IB.Look.on && IB.Render.camera) {   // tactical look: the muzzle flash lights the world around the player
+      var cam = IB.Render.camera; cam.getWorldDirection(_v);
+      IB.Look.flash(cam.position.x + _v.x * 0.6, cam.position.y + _v.y * 0.6 - 0.1, cam.position.z + _v.z * 0.6, 0xFFB45A, 6, 0.05, def.cls === 'shotgun' ? 1.3 : 1);
+    }
     var Wp = IB.Weapons, m = ws.cur && Wp.models && Wp.models[ws.cur];
     if (m && !CASE_SKIP[def.id] && def.action !== 'revolver' && def.cls !== 'rocket') {
       if (m.eject === undefined) m.eject = m.mesh.getObjectByName('WPN_' + m.key + '_EJECT') || null;
@@ -1162,6 +1167,7 @@
     var wg = new THREE.PlaneGeometry(1, 1);
     B.wordRect = instAttr(wg, 'aRect', WORD_CAP, 4); B.wordA = instAttr(wg, 'aA', WORD_CAP, 1);
     B.wordMesh = instanced(wg, cardMaterial(wordTex, true), WORD_CAP, scene); B.wordMesh.renderOrder = 20;
+    if (IB.Post) IB.Post.overlay(B.wordMesh);   // tactical look: comic words skip bloom and grade (UI overlay pass)
     for (i = 0; i < WORD_CAP; i++) words.push({ on: false, t: 0, x: 0, y: 0, z: 0, size: 2, id: 0, tilt: 0, idx: i });
     // toon puffs
     var pg = puffGeometry();

@@ -100,6 +100,7 @@
     R.tierFogFar = T.fog;
     R.applyFogFar();
     R.resize();
+    if (IB.Look) IB.Look.setTier(t);
   };
   G.applySettings = function () {
     var s = G.settings;
@@ -118,6 +119,7 @@
         if (o.material && (o.material.isMeshBasicMaterial || o.material.isShaderMaterial)) o.material.dispose();
       }
     });
+    if (IB.Look) IB.Look.end();
     R.scene.remove(G.level.root);
     (G.weaponStands || []).forEach(function (w) { R.scene.remove(w.group); });
     G.weaponStands = [];
@@ -128,6 +130,7 @@
     G.level = Z.buildLevel(G.plan, R.scene);
     if (AI.setupCans) AI.setupCans(G.level);   // hinged spawn-can lids (ai.js)
     R.applyEnv(G.level.theme.env || {});
+    if (IB.Look) IB.Look.begin(G.level);   // tactical look: resolve and apply this theme's look
     AI.setLevel(G.plan.level);
   };
   // a level's theme kit is loaded on demand (embedded in the single-file build, assets/*.glb otherwise)
@@ -800,7 +803,7 @@
     var HOLD = AUTOTEST ? 300 : 3500, OUT = AUTOTEST ? 60 : 320;
     setTimeout(function () {
       G.switchPlan(next).then(function () { prog(0.7); setTimeout(function () {
-        try { R.renderer.compile(R.scene, R.camera); } catch (e) { /* first frame compiles anyway */ }
+        try { R.renderer.compile(R.scene, R.camera); if (IB.Post) IB.Post.warm(); } catch (e) { /* first frame compiles anyway */ }
         prog(1);
         setTimeout(function () {
           if (M.loadingHide) M.loadingHide(null, OUT);
@@ -1154,6 +1157,7 @@
     if (Z.updateBelow && G.player) Z.updateBelow(G.level, G.player);   // theme.below.levels: the street under this zone
     Z.updateLines(G.level, G.mode === 'paused' || G.mode === 'menu' ? 0 : dtRaw, G.mode === 'play' ? G.player : null);   // moving assembly lines
     if (IB.SkillHUD) IB.SkillHUD.update(G, dtRaw);   // Undercover badge + cloak look
+    if (IB.Look) IB.Look.update(dtRaw);   // tactical look: per-frame state (shadow refit, flashes, haze fits)
     R.render(G.mode === 'play' ? !G.dead && !G.ws.hidden : G.mode === 'title');
     Inp.endFrame();
   }

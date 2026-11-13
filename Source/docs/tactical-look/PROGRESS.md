@@ -32,3 +32,39 @@ Branch `claude/charming-heisenberg-f3j35w`. One line per finished step, the meas
   look family, page errors; `EVAL=` evaluates an expression in the page.
 - 0.6 Classic baseline: the untouched build is kept as `Source/dist/look/base.html` (ignored) so baselines can be
   re-shot at any time. Shots in `Source/dist/look/s0-base/`.
+- 0.7 Unit tests: 478 pass at the base; 484 with the new look and surface tests. Smoke run: see the Stage 6 entry.
+
+## Stages 1 to 6: implementation notes and decisions
+
+Built together, then checked stage by stage with switches: `?look=classic` (everything off), `?look=classic&post=1`
+(classic picture through the offscreen target: the Stage 1 passthrough gate), `?shadows=0` (Stage 2 without
+Stage 3), `?post=0` (the look without the post pass: the low-tier path).
+
+- Stage 1 `post.js`: fallback chain a/b/c/d with `checkFramebufferStatus` on both framebuffers of a multisampled
+  target; megapixel caps; logged once per size/tier as `[look] post ...`.
+- Stage 2 `looks.js` (families, all 46 themes, tier matrix, `guess()` for maps with no entry), `surface.js`
+  (light model), `atmo.js` (fog chunks, sky). The fog's world height in the vertex chunk is
+  `dot(viewMatrix[1].xyz, mvPosition.xyz) + cameraPosition.y`: the plan's `vec3(viewMatrix[0][1], ...)` is the
+  transpose (row 1 instead of column 1 of the view rotation) and would give a wrong height on any tilted view.
+- 2.6 custom haze shaders: stronghold waterfalls and the mossgarden stream (uniforms uFog/uNear/uFar) are fitted
+  every frame to the shared fog curve at 100/300/1000 m at their own height (`Atmo.adoptHaze`, option a). The
+  city below (`zones.js`) keeps its own depth haze (option b): it is a vista hundreds of metres down, tuned per
+  theme to the fog colour, and never meets world geometry at the same depth.
+- Stage 3 `shadows.js`: as planned. Floors (`zone.ground`) never cast.
+- Stage 4 `lightgrid.js`: the volume is a 2D atlas of the Y slices for every device (the plan's WebGL1 fallback
+  used everywhere: one code path, no `sampler3D`). Glow companions named `*Glass` are reflections, not lights,
+  and glass/water faces of companions never emit (metro had its glass companions counted as lamps).
+  Sky visibility renders only the baked zone's own group (rendering the whole level stalled 20 s on the CPU
+  renderer). `LG.cellStats` lists light per palette cell for tuning.
+- Stage 5A: `surface_classes.py` rules + overrides; all 51 families reviewed (27 families got overrides; red
+  fire-safety cells are painted metal, `scrub` is vegetation, `ledge` concrete, `far*` backdrop cells class 0).
+- Stage 5B: `tools/gen_detail.py` (14 layers, 1.73 MB). Grid lines sit half a cell off the tile edge so
+  grooves never fall on the seam. Medium tier samples the same 512 px array (one projection) instead of a
+  downsampled copy: no second texture, 19.5 MB of GPU memory with mips.
+- Stage 5D: `ib_lib.bake_look_channels`: G is averaged per vertex so the exporter welds corners exactly as
+  before (a per-corner G changed the vertex count). `IB_NO_LOOK_BAKE=1` builds without it.
+  `tools/glb_compare.py` falls back to a corner-by-corner triangle comparison when welding differs. Two pieces
+  (`KIT_STRONGHOLD_Flagpole`, `Landmark_Radar`) differ between any two rebuilds even without this change:
+  existing non-determinism, not caused by the look.
+- Stage 6: bars and comic words are drawn after the grade on layer 1. The bars test a packed copy of the world
+  depth (taken before the viewmodel pass clears depth) and hide behind the gun via the viewmodel depth.

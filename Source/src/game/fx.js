@@ -164,6 +164,7 @@
       var mat = new THREE.SpriteMaterial({ map: tex.clone(), transparent: true, depthTest: false, fog: false });
       mat.map.needsUpdate = true; mat.map.repeat.set(1 / 3, 1 / 2);
       var sp = new THREE.Sprite(mat); sp.visible = false; sp.renderOrder = 20; scene.add(sp);
+      if (IB.Post) IB.Post.overlay(sp);   // tactical look: comic words skip bloom and grade (UI overlay pass)
       FX.words.push({ sprite: sp, t: 0, on: false });
     }
   };

@@ -1421,7 +1421,11 @@
   /* plan: {themeId, zones:[{map:'name', waves:[[['crawler',4]], ...]}]} */
   Z.ZCHECK = /[?&]zcheck=1/.test(typeof location !== 'undefined' ? location.search : '');
   Z.buildLevel = function (plan, scene) {
-    if (!Z.mat) Z.mat = IB.Render.toonMaterial({});
+    if (!Z.mat) {   // code-built floors, walls and roofs; the look's floor class is written per level (IB.Look.begin)
+      var surfFlat = { value: IB.Surface ? IB.Surface.flat(1, 0.14) : null };
+      Z.mat = IB.Render.toonMaterial({ look: 'world', surf: { flat: surfFlat } });
+      Z.mat.userData.surfFlat = surfFlat;
+    }
     var world = new World(), theme = themeOf(plan);
     Z.world = world;   // floor queries for effects (Z.floorY)
     var level = { world: world, zones: [], trails: [], plan: plan, root: new THREE.Group(), theme: theme, tris: 0, elevators: [], glows: [] };
