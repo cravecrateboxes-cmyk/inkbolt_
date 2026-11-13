@@ -3,45 +3,173 @@ from wpn_core import *  # noqa: F401,F403
 
 
 def build_buzz(pal):
-    """KV-9 Buzzsaw: boxy all-round SMG, reflex sight, vertical foregrip, skeleton stock, straight mag."""
+    """KV-9 Buzzsaw: boxy all-round SMG. Polymer upper in three sections (the ejection port is a real cut with the bolt
+    in it) with cladding plates and assembly bolts, a charging-handle channel with its folded handle on the left, a
+    lower with selector, bolt release and paddle mag catch, a short cage handguard (the barrel shows through), front
+    sight, birdcage flash hider, vertical foregrip on a lug and a folding skeleton stock on a two-knuckle hinge.
+    Rarity layers: Rare bolts on a strike plate, an aiming module with its cable, a magwell funnel, a round counter and
+    stock saddles; Epic slings an energy cell in the stock, runs a conduit to coils on the barrel and adds a radiator;
+    Legendary (gold) is the saw: a toothed blade round the barrel, a saw-back on the stock, saw emblems on the magwell."""
     rake = 14
     k = Kit(pal)
     bz = 0.040
-    k.ext_y(rrect(0.048, 0.060, ct=0.009, cb=0.004, cy=0.038), -0.096, 0.140, 'gunmetal', ch0=0.005, ch1=0.004)   # receiver
+    HU, HL, HM, HG = 0.024, 0.020, 0.0225, 0.022                 # half widths: upper, lower, magwell, handguard
+    # ---- upper receiver
+    full = rrect(0.048, 0.060, ct=0.009, cb=0.004, cy=0.038)
+    cut = [(0.020, 0.008), (HU, 0.012), (HU, 0.041), (0.010, 0.041), (0.010, 0.057), (HU, 0.057), (HU, 0.059), (0.015, 0.068), (-0.015, 0.068),
+           (-HU, 0.059), (-HU, 0.012), (-0.020, 0.008)]
+    k.ext_y(full, -0.096, 0.016, 'gunmetal', ch0=0.005)
+    k.ext_y(cut, 0.016, 0.066, 'gunmetal')
+    k.ext_y(full, 0.066, 0.140, 'gunmetal', ch1=0.004)
+    k.box((0.01625, 0.041, 0.049), (0.0095, 0.047, 0.013), 'ink')                                                    # port, bolt
+    k.box((0.01775, 0.037, 0.049), (0.0095, 0.030, 0.010), 'steel2')
+    k.box((0.0225 + PR / 2 - 0.0005, 0.047, 0.049), (PR + 0.001, 0.0035, 0.0045), 'steel', skip=sk(1))
+    k.ext_y([(HU - 0.001, 0.043), (HU + 0.004, 0.046), (HU + 0.004, 0.054), (HU - 0.001, 0.057)], 0.003, 0.0135, 'gunmetal', ch0=0.003)   # brass deflector
     rail(k, -0.090, 0.132, 0.068, w=0.022, clear=[(-0.078, -0.036)])
     hz = hood_sight(k, -0.076, -0.038, 0.071)
-    k.box((0.0155, 0.040, 0.050), (0.023, 0.050, 0.016), 'ink')                     # port
-    k.box((0.0285, 0.036, 0.050), (0.005, 0.030, 0.010), 'steel')                   # bolt face in the port
-    k.ext_y(rrect(0.040, 0.026, c=0.003, cy=0.005), -0.070, 0.124, 'gun2', ch0=0.004, ch1=0.004)                 # trigger housing
-    stripe(k, -0.070, 0.110, 0.022, 0.028, 0.0270)
-    # charging tube (left, HK style) with knob
-    k.lathe([(0.020, 0), (0.020, 0.0065), (0.170, 0.0065), (0.170, 0)], 'gun3', 'y', (-0.025, 0, 0.060), 8, hull=False)
-    k.cbox((-0.036, 0.150, 0.060), (0.016, 0.010, 0.010), 'ink', ch=0.002, hull=False)
-    # shroud with vents, barrel, birdcage
-    k.ext_y(rrect(0.044, 0.044, ct=0.006, cb=0.010, cy=0.030), 0.136, 0.214, 'gun2', ch1=0.006)
+    bolt(k, (0.015, -0.057, 0.075), (1, 0, 0), 0.0030)
+    turret(k, (-0.017, -0.057, 0.091), '-x', r=0.0050, h=0.005)
+    # charging-handle channel (left) with the folded handle
+    k.cbox((-HU - 0.0015, 0.078, 0.056), (0.007, 0.116, 0.012), 'body2', ch=0.002, axis='y')
+    k.box((-HU - 0.005 - PR / 2 + 0.0005, 0.072, 0.056), (PR + 0.001, 0.088, 0.0036), 'ink', skip=sk(-1))
+    k.cbox((-HU - 0.011, 0.122, 0.056), (0.014, 0.009, 0.008), 'gun3', ch=0.002)
+    k.box((-HU - 0.018 - PR / 2 + 0.0005, 0.122, 0.056), (PR + 0.001, 0.0045, 0.004), 'ink', skip=sk(-1))
+    # cladding, markings, assembly bolts
     for s in (-1, 1):
-        for i in range(3):
-            k.box((s * 0.0225, 0.152 + i * 0.020, 0.030), (0.006, 0.010, 0.018), 'ink', skip=('-x' if s > 0 else '+x',))
-    barrel(k, 0.205, 0.246, 0.0090, bz)
-    muzzle(k, 0.246, 0.280, 0.0115, bz, ports=2, rb=0.0055, seg=8)
-    k.box((0, 0.200, 0.064), (0.006, 0.008, 0.016), 'ink', hull=True)               # front post
-    # magwell, vertical foregrip, trigger group, grip
-    k.ext_x([(0.066, 0.010), (0.118, 0.010), (0.120, -0.030), (0.114, -0.038), (0.066, -0.038), (0.062, -0.026)], -0.0225, 0.0225, 'gun2', ch=0.003)
+        plate(k, [(-0.082, 0.028), (-0.030, 0.028), (-0.026, 0.032), (-0.026, 0.052), (-0.082, 0.052)], HU, 'body2', sides=(s,))
+    stencil(k, 'KV-9', HU + PR, -0.054, 0.0355, cap=0.012, sides=(-1,))
+    stencil(k, 'BUZZSAW  9MM', HU + PR, -0.054, 0.0300, cap=0.004, sides=(-1,), font='cond')
+    stencil(k, 'BUZZSAW', HU + PR, -0.054, 0.0375, cap=0.009, sides=(1,))
+    stencil(k, 'IB ARMS', HU + PR, -0.054, 0.0310, cap=0.004, sides=(1,), font='cond')
+    slots(k, HU, -0.020, 0.012, 0.040, 4, h=0.016, fill=0.45, sides=(-1,), slant=-25)
+    slots(k, HU, -0.022, 0.002, 0.036, 3, h=0.014, fill=0.45, sides=(1,), slant=-25)
+    plate(k, [(0.024, 0.028), (0.134, 0.028), (0.134, 0.046), (0.030, 0.046), (0.024, 0.040)], HU, 'gunmetal', t=0.003, sides=(-1,), hull=True)
+    bolts(k, HU + 0.003, [(0.030, 0.032), (0.128, 0.032), (0.128, 0.042)], sides=(-1,))
+    stencil(k, 'CAL 9X19', HU + 0.003, 0.080, 0.034, cap=0.006, sides=(-1,))
+    plate(k, rect(0.072, 0.134, 0.028, 0.055, c=0.003), HU, 'body2', sides=(1,))
+    hazard(k, HU + PR, 0.084, 0.126, 0.043, 0.051, n=4, sides=(1,))
+    stencil(k, 'KV-9', HU + PR, 0.104, 0.031, cap=0.008, sides=(1,))
+    plate(k, rect(-0.090, 0.134, 0.0215, 0.0245), HU, 'trim', ch=0)
+    bolts(k, HU, [(-0.086, 0.0555), (-0.050, 0.0555), (-0.0245, 0.0555)], r=0.0026)
+    # ---- lower: trigger housing, controls, magwell
+    k.ext_y(rrect(0.040, 0.026, c=0.003, cy=0.005), -0.070, 0.124, 'gun2', ch0=0.004, ch1=0.004)
+    k.lathe([(HL - 0.003, 0.0050), (HL + 0.004, 0.0050), (HL + 0.004, 0)], 'steel2', (V((-1, 0, 0)), V((0, 1, 0)), V((0, 0, -1))), (0, -0.040, 0.002), 8, hull=False, caps=(False, True))
+    k.xbar(-HL - 0.0070, -HL - 0.0035, [(-0.058, -0.001), (-0.038, -0.002), (-0.036, 0.005), (-0.056, 0.007)], 'gun3', ch=0, hull=False)     # selector
+    k.box((-HL - PR / 2 + 0.0005, -0.065, 0.004), (PR + 0.001, 0.004, 0.004), 'mark', skip=sk(-1))
+    k.box((-HL - PR / 2 + 0.0005, -0.063, -0.003), (PR + 0.001, 0.004, 0.004), 'red', skip=sk(-1))
+    bolt(k, (HL, -0.040, 0.002), (1, 0, 0), 0.0034)
+    k.xbar(-HL - 0.004, -HL + 0.001, [(0.014, -0.002), (0.030, -0.002), (0.032, 0.007), (0.024, 0.009), (0.014, 0.004)], 'gun3', ch=0, hull=False)   # bolt release
+    cross_pin(k, HL, -0.014, 0.004, r=0.0030)
+    cross_pin(k, HL, 0.050, 0.004, r=0.0030)
+    k.ext_x([(0.066, 0.010), (0.118, 0.010), (0.120, -0.030), (0.114, -0.038), (0.066, -0.038), (0.062, -0.026)], -HM, HM, 'gun2', ch=0.003)
+    plate(k, [(0.072, 0.004), (0.114, 0.004), (0.115, -0.026), (0.111, -0.031), (0.072, -0.031)], HM, 'frame2')
+    slots(k, HM + PR, 0.078, 0.108, -0.014, 3, h=0.022, fill=0.4)
+    k.ext_x([(0.064, -0.0335), (0.117, -0.0335), (0.120, -0.0415), (0.062, -0.0415)], -0.0245, 0.0245, 'frame2', ch=0.0015)                 # well lip
+    for s in (-1, 1):                                                                                                                       # paddle mag catch
+        x0, x1 = sorted((s * (HM - 0.001), s * (HM + 0.003)))
+        k.ext_x([(0.064, -0.012), (0.076, -0.012), (0.076, -0.018), (0.064, -0.026), (0.060, -0.022)], x0, x1, 'gun3', ch=0, hull=False)
+    # ---- cage handguard, barrel, flash hider, front sight
+    k.lathe([(0.136, 0.0090), (0.246, 0.0090)], 'steel', 'y', (0, 0, bz), 10, caps=(False, False))
+    k.ring('y', (0, 0, bz), 0.139, 0.148, 0.0090, 0.0135, 'steel2', seg=10, hull=False)
+    ys = cage(k, 0.138, 0.214, 0.030, 0.044, 0.044, 0.009, n=3, rib=0.008, open=('R', 'UR', 'UL', 'L'), color='gun2', end=0.012)
+    for (a, b) in list(zip(ys[:-1], ys[1:]))[:2]:
+        top_slots(k, 0.052, a[1] + 0.002, b[0] - 0.002, 1, w=0.012, fill=0.5)
+    for s in (-1, 1):
+        bolt(k, (s * (HG + PR), 0.144, 0.036), (s, 0, 0))
+        bolt(k, (s * (HG + PR), 0.144, 0.024), (s, 0, 0))
+        sling_loop(k, 0.208, 0.030, s, hw=HG + PR, r=0.0055)
+    iron_front(k, 0.195, 0.052, w=0.026, h=0.012, post=0.010)
+    muzzle(k, 0.246, 0.280, 0.0115, bz, ports=3, top_ports=3, rb=0.0055, seg=8)
+    k.ring('y', (0, 0, bz), 0.238, 0.247, 0.0090, 0.0128, 'steel2', seg=10, hull=False)
+    k.cbox((0, 0.180, 0.0055), (0.036, 0.047, 0.007), 'gun2', ch=0.002, axis='y')                                                           # foregrip lug
     vgrip(k, 0.180, 0.010, seg=8)
     trigger_guard(k, rake, front=0.062, depth=-0.046, hook=False, top=0.004)
     trigger(k, rake)
     grip(k, rake, 'smg', w=0.034, top=0.010, ptop=-0.028, grooves=2)
-    k.xbar(-0.0275, -0.0240, [(-0.052, 0.010), (-0.032, 0.008), (-0.030, 0.016), (-0.050, 0.018)], 'gun3', ch=0, hull=False)   # selector
-    k.pin(-0.0270, 0.0270, -0.080, 0.012, 0.003)
-    # skeleton stock (extended): top bar, sloped lower strut, butt plate
-    k.box((0, -0.170, 0.050), (0.016, 0.160, 0.014), 'furn', hull=True)
+    # ---- folding skeleton stock: two hinge knuckles on one pin, latch, top bar, strut, butt with a ribbed pad
+    k.cbox((0, -0.104, 0.044), (0.034, 0.018, 0.034), 'steel2', ch=0.003)
+    k.cbox((0, -0.099, 0.008), (0.026, 0.016, 0.016), 'steel2', ch=0.002)
+    k.lathe([(-0.002, 0), (-0.002, 0.0042), (0.064, 0.0042), (0.064, 0)], 'steel', 'z', (0.014, -0.107, 0), 8, hull=False)
+    k.lathe([(-0.001, 0.0055), (0.003, 0.0055), (0.003, 0.0040), (0.0045, 0.0040), (0.0045, 0)], 'gun3', (V((-1, 0, 0)), V((0, 1, 0)), V((0, 0, -1))),
+            (-0.017, -0.104, 0.044), 8, hull=False, bands=[None, 'ink', None, None], caps=(False, True))
+    k.cbox((0, -0.180, 0.050), (0.016, 0.140, 0.014), 'furn', ch=0.003, axis='y')
+    slots(k, 0.008, -0.232, -0.130, 0.050, 6, h=0.006, fill=0.55)
+    top_slots(k, 0.057, -0.236, -0.130, 12, w=0.010, fill=0.35)
     k.bar((0, -0.100, 0.004), (0, -0.240, -0.030), 0.014, 0.012, 'furn', hull=True)
-    k.ext_x([(-0.236, 0.062), (-0.256, 0.062), (-0.258, -0.044), (-0.238, -0.044)], -0.019, 0.019, 'ink', ch=0.003)
-    k.box((0, -0.244, 0.010), (0.044, 0.008, 0.050), 'gun3')
+    k.ext_x([(-0.232, 0.060), (-0.246, 0.060), (-0.247, -0.040), (-0.234, -0.036)], -0.017, 0.017, 'furn', ch=0.003)
+    k.ext_x([(-0.246, 0.062), (-0.257, 0.060), (-0.259, -0.042), (-0.247, -0.044)], -0.019, 0.019, 'rubber', ch=0.003)
+    for s in (-1, 1):
+        for i in range(6):
+            k.box((s * (0.019 + PR / 2 - 0.0005), -0.2525, 0.050 - i * 0.017), (PR + 0.001, 0.007, 0.005), 'ink', skip=sk(s))
+        bolt(k, (s * 0.017, -0.240, 0.046), (s, 0, 0))
+        bolt(k, (s * 0.017, -0.240, -0.026), (s, 0, 0))
+        sling_loop(k, -0.240, 0.010, s, hw=0.017, r=0.006)
     mk = Kit(pal)
     mag_box(mk, 2, 0.034, -0.150, 0.040, 0.026, plate='gun3')
+
+    # ---- Rare (and up): strike plate, aiming module with its cable, magwell funnel, round counter, stock saddles
+    r3 = Kit(pal)
+    plate(r3, [(-0.078, 0.031), (-0.034, 0.031), (-0.030, 0.035), (-0.030, 0.049), (-0.078, 0.049)], HU + PR, 'gun3', t=0.0035, sides=(1,), hull=True)
+    bolts(r3, HU + PR + 0.0035, [(-0.073, 0.035), (-0.073, 0.045), (-0.036, 0.045)], sides=(1,))
+    slots(r3, HU + PR + 0.0035, -0.064, -0.042, 0.040, 3, h=0.009, fill=0.4, sides=(1,), slant=25)
+    laser_box(r3, 0.176, 0.030, s=1, hw=HG + PR, L=0.046, w=0.016, h=0.020, color='gun2')
+    cable(r3, [(0.0320, 0.153, 0.030), (0.0285, 0.142, 0.022), (0.0268, 0.128, 0.0165), (0.0268, 0.102, 0.0165), (0.0268, 0.088, 0.0165)], clamps=(3,))
+    r3.ext_x([(0.058, -0.030), (0.124, -0.030), (0.128, -0.048), (0.056, -0.048)], -0.0285, 0.0285, 'gun3', ch=0.003)
+    bolts(r3, 0.0285, [(0.066, -0.039), (0.118, -0.039)])
+    r3.cbox((-HU - 0.002, -0.004, 0.0545), (0.006, 0.030, 0.008), 'gun2', ch=0.001, hull=False)
+    for i in range(4):
+        r3.box((-HU - 0.005 - PR / 2 + 0.0005, -0.013 + i * 0.006, 0.0545), (PR + 0.001, 0.0036, 0.005), 'emis', skip=sk(-1))
+    for s in (-1, 1):
+        r3.cbox((s * 0.0105, -0.180, 0.050), (0.007, 0.060, 0.018), 'gun3', ch=0.002)
+        bolt(r3, (s * 0.014, -0.204, 0.050), (s, 0, 0))
+        bolt(r3, (s * 0.014, -0.156, 0.050), (s, 0, 0))
+
+    # ---- Epic (and up): energy cell slung in the stock, conduit along the receiver to coils on the barrel, radiator
+    r4 = Kit(pal)
+    r4.cbox((0, -0.176, 0.0405), (0.020, 0.044, 0.007), 'gun2', ch=0.002, axis='y')
+    energy_cell(r4, (0, -0.176, 0.027), L=0.056, r=0.0095, cage_bars=4)
+    conduit(r4, [(0, -0.146, 0.027), (-0.012, -0.128, 0.024), (-0.0215, -0.114, 0.019), (-0.0268, -0.094, 0.0165), (-0.0268, 0.020, 0.0165),
+                 (-0.0268, 0.128, 0.0165), (-0.0215, 0.146, 0.026), (-0.012, 0.155, 0.034)], r=0.0028, every=2)
+    for yc in (0.1547, 0.1720, 0.1933):
+        r4.lathe([(yc - 0.004, 0.0090), (yc - 0.004, 0.0105), (yc + 0.004, 0.0105), (yc + 0.004, 0.0090)], 'emis', 'y', (0, 0, bz), 8, hull=False, closed=True, a0=0)
+    fins(r4, (0, 0.2265, bz), (0.030, 0.0195, 0.030), 3, axis='y', color='gun3', hull=True)
+    for y0 in (0.2225, 0.2290):
+        r4.ring('y', (0, 0, bz), y0, y0 + 0.0015, 0.0090, 0.0125, 'emis', seg=8, hull=False)
+    for s in (-1, 1):
+        r4.box((s * (0.014 + PR / 2 - 0.0005), -0.180, 0.050), (PR + 0.001, 0.038, 0.003), 'emis', skip=sk(s))
+
+    # ---- Legendary: the saw. Toothed blade round the barrel, saw-back on the stock, saw emblems on the magwell
+    r5 = Kit(pal)
+
+    def saw(n, ro, ri, cx, cz, a0=0.0, lead=8.0):
+        pts = []
+        for i in range(n):
+            a = D(a0 + 360.0 * i / n)
+            b = D(a0 + 360.0 * i / n + lead)
+            pts += [(cx + ro * math.cos(a), cz + ro * math.sin(a)), (cx + ri * math.cos(b), cz + ri * math.sin(b))]
+        return pts
+    r5.ext_y(saw(10, 0.0245, 0.0180, 0.0, bz, a0=18), 0.2372, 0.2408, 'gun3', ch0=0.0008, ch1=0.0008)
+    r5.ring('y', (0, 0, bz), 0.2355, 0.2425, 0.0100, 0.0140, 'trim', seg=10, hull=False)
+    for s in (-1, 1):
+        x0, x1 = sorted((s * (HM + PR - 0.0005), s * (HM + PR + 0.0035)))
+        r5.ext_x(saw(8, 0.0150, 0.0105, 0.093, -0.013, a0=22.5 if s > 0 else 0, lead=10 * s), x0, x1, 'gun3', ch=0.0006)
+        n = (V((s, 0, 0)), V((0, 1, 0)), V((0, 0, s)))
+        r5.lathe([(0.0035, 0.0055), (0.0050, 0.0055), (0.0050, 0.0036), (0.0062, 0.0024), (0.0068, 0)], 'trim', n, (s * (HM + PR), 0.093, -0.013), 8, hull=False,
+                 bands=[None, None, 'emis', 'emis'], caps=(False, True))
+    back = [(-0.118, 0.0555), (-0.240, 0.0555)]
+    for j in range(10):
+        y0 = -0.240 + j * 0.012
+        back += [(y0 + 0.001, 0.0660), (y0 + 0.012, 0.0595)]
+    r5.ext_x(back, -0.0025, 0.0025, 'gun3', ch=0.0006)
+    r5.lathe([(-0.001, 0.0048), (0.004, 0.0048), (0.008, 0)], 'gun3', (V((-1, 0, 0)), V((0, 1, 0)), V((0, 0, -1))), (-HU - 0.018, 0.122, 0.056), 6, hull=False, caps=(False, True))
+    r5.lathe([(0.0045, 0.0030), (0.0060, 0.0030), (0.0075, 0)], 'emis', (V((-1, 0, 0)), V((0, 1, 0)), V((0, 0, -1))), (-0.017, -0.104, 0.044), 6, hull=False, caps=(False, True))
+    m5 = Kit(pal)
+    for t in (0.35, 0.65):
+        y, z = g2w(2, 0.0, 0.034 + (-0.150 - 0.034) * t)
+        m5.cbox((0, y, z), (0.036, 0.050, 0.006), 'trim', ch=0, rot=(-2, 0, 0))
     return k, mk, {'rake': rake, 'mrake': 2, 'mag': (0, 0.092, -0.038), 'muzzle': (0, 0.282, bz), 'eject': (0.03, 0.040, 0.050),
-                   'sight': (0, -0.100, hz), 'cls': 'smg', 'fore': (0.180, 0.010)}
+                   'sight': (0, -0.100, hz), 'cls': 'smg', 'fore': (0.180, 0.010),
+                   'layers': {'345': r3, '45': r4, '5': r5}, 'mag_layers': {'5': m5}}
 
 
 def build_whisk(pal):
