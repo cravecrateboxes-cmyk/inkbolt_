@@ -143,7 +143,7 @@
   }
   LG.begin = function (level, look) {
     LG.end();
-    var t0 = performance.now(); LG.maxSliceMs = 0; LG.maxFrameMs = 0; LG.unitMax = {};
+    var t0 = performance.now(); LG.maxSliceMs = 0; LG.maxFrameMs = 0; LG.unitMax = {}; LG.unitHist = null;
     var em = LG.collect(level, look);
     // bounds: zones + trails + hatch
     var x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9, ymax = 0;
@@ -201,7 +201,10 @@
     return { zi: zi, Zn: Zn, world: world, i0: i0, i1: i1, j0: j0, j1: j1, s: 0, j: j0, ms: 0, phase: 'light' };
   }
   var cur = null;
-  function unit(ph, t0) { var d = performance.now() - t0, U = LG.unitMax || (LG.unitMax = {}); if (!(U[ph] >= d)) U[ph] = +d.toFixed(1); }
+  function unit(ph, t0) {
+    var d = performance.now() - t0, U = LG.unitMax || (LG.unitMax = {}); if (!(U[ph] >= d)) U[ph] = +d.toFixed(1);
+    var Hh = LG.unitHist || (LG.unitHist = { n: 0, over2: 0, over6: 0 }); Hh.n++; if (d > 2) Hh.over2++; if (d > 6) Hh.over6++;
+  }
   function cellLight(x, y, z, world, out) {
     var r = 0, g = 0, b = 0, bx = Math.floor(x / RAD), bz = Math.floor(z / RAD);
     for (var dx = -1; dx <= 1; dx++) for (var dz = -1; dz <= 1; dz++) {
@@ -220,12 +223,12 @@
     out[0] = r; out[1] = g; out[2] = b;
   }
   var _o = [0, 0, 0];
-  // every phase checks the deadline between small units (2 cells, one slice), so a frame never runs far over budget
+  // every phase checks the deadline between small units (one cell, one band of rows), so a frame never runs far over budget
   function step(J, deadline) {
     var Zn = J.Zn;
     while (J.phase === 'light') {
       if (performance.now() > deadline) return false;
-      var tl = performance.now(), y = V.y0 + J.s * SLICE_DY, base = J.s * V.W * V.H, iEnd = Math.min(J.i1, (J.i === undefined ? J.i0 : J.i) + 2);
+      var tl = performance.now(), y = V.y0 + J.s * SLICE_DY, base = J.s * V.W * V.H, iEnd = Math.min(J.i1, (J.i === undefined ? J.i0 : J.i) + 1);
       for (var i = J.i === undefined ? J.i0 : J.i; i < iEnd; i++) {
         var x = V.ox + i + 0.5, z = V.oz + J.j + 0.5, c = (base + J.j * V.W + i) * 4;
         var zi = zoneOf(V.level, x, z);
@@ -414,5 +417,5 @@
     if (IB.Look && IB.Look.U) { IB.Look.U.uGridOn.value = 0; IB.Look.U.uGrid.value = null; }
   };
   LG.lights = function () { return V ? V.lights : []; };
-  LG.info = function () { return V ? { W: V.W, H: V.H, n: V.n, lights: V.lights.length, zones: LG.stats, collectMs: Math.round(LG.collectMs), maxSliceMs: +(LG.maxSliceMs || 0).toFixed(1), maxFrameMs: +(LG.maxFrameMs || 0).toFixed(1), unitMax: LG.unitMax || {}, skyMs: LG.skyMs } : null; };
+  LG.info = function () { return V ? { W: V.W, H: V.H, n: V.n, lights: V.lights.length, zones: LG.stats, collectMs: Math.round(LG.collectMs), maxSliceMs: +(LG.maxSliceMs || 0).toFixed(1), maxFrameMs: +(LG.maxFrameMs || 0).toFixed(1), unitMax: LG.unitMax || {}, unitHist: LG.unitHist || null, skyMs: LG.skyMs } : null; };
 })(window.IB = window.IB || {});

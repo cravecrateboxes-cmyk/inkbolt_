@@ -204,6 +204,7 @@
     return T.cls[i] || 0;
   }
 
+  function why(stat, k) { var w = stat.why || (stat.why = {}); w[k] = (w[k] || 0) + 1; }
   function wallDecals(level, zone, grid, theme, rules, density, E, B, rand, stat) {
     if (!rules.wall || !zone.wallMods) return;
     var rate = 0.30 * density * (rules.density === undefined ? 1 : rules.density) * (rules.wallRate === undefined ? 1 : rules.wallRate);
@@ -213,18 +214,18 @@
       var dir = DIR[W.face]; if (!dir) return;
       var h0 = hash(zone.idx * 4111 + W.c * 37, W.r * 53 + 11);
       if (h0 > rate) return;
-      if (PLAIN_WALL_BAD.test(W.name)) { stat.skipW++; return; }
+      if (PLAIN_WALL_BAD.test(W.name)) { stat.skipW++; why(stat, 'name'); return; }
       var rr = rnd(Math.floor(h0 * 4294967296) ^ (zone.idx * 1231 + 7));
       var name = pickW(rules.wall, rr()), T = TYPES[name], cell = IB.DECALS.cell[name];
       if (!T || cell === undefined) return;
       var w = T.s[0] + (T.s[1] - T.s[0]) * rr(), h = w * (T.a || 1);
       var x = zone.ox + W.c + 0.5, z = zone.oz + W.r + 0.5;
       var ex = x + dir[0] * 1.0, ez = z + dir[1] * 1.0;   // the open cell in front
-      if (excluded(E, ex, ez)) { stat.skipW++; return; }
-      if (grid.at(W.c + dir[0], W.r + dir[1]) !== '.') { stat.skipW++; return; }
+      if (excluded(E, ex, ez)) { stat.skipW++; why(stat, 'excl'); return; }
+      if (grid.at(W.c + dir[0], W.r + dir[1]) !== '.') { stat.skipW++; why(stat, 'front'); return; }
       // height of the decal centre: base grime at the floor, streaks hang from near the top, the rest at eye level
       var cy = name === 'grimeBase' ? h / 2 + 0.01 : /rust|leak|sootStreak/.test(name) ? Math.min(H - 0.15, 2.6) - h / 2 : 1.2 + rr() * 0.9;
-      if (cy + h / 2 > H - 0.05 || cy - h / 2 < -0.01) { stat.skipW++; return; }
+      if (cy + h / 2 > H - 0.05 || cy - h / 2 < -0.01) { stat.skipW++; why(stat, 'height'); return; }
       var along = (rr() - 0.5) * Math.max(0, 1 - w) ;   // stay on this module
       var tx = -dir[1], tz = dir[0];                     // along the wall
       var px = ex + tx * along, pz = ez + tz * along;
@@ -234,12 +235,12 @@
       for (var i = 0; i < probes.length && okHits; i++) {
         var a = probes[i][0] * w, b = probes[i][1] * h;
         var hit = wallHit(W.name, x, z, W.yaw, px + tx * a, cy + b, pz + tz * a, -dir[0], -dir[1]);
-        if (!hit || !hit.face) { okHits = false; break; }
+        if (!hit || !hit.face) { okHits = false; why(stat, 'miss'); break; }
         var n = hit.face.normal.clone().transformDirection(_mesh.matrixWorld);
-        if (n.x * dir[0] + n.z * dir[1] < 0.95) { okHits = false; break; }
+        if (n.x * dir[0] + n.z * dir[1] < 0.95) { okHits = false; why(stat, 'normal'); break; }
         var cls = cellClass(fam, hit.uv);
-        if (cls === 11 || cls === 14 || cls === 15) { okHits = false; break; }
-        if (!hit0) hit0 = hit; else if (Math.abs(hit.distance - hit0.distance) > 0.012) { okHits = false; break; }
+        if (cls === 11 || cls === 14 || cls === 15) { okHits = false; why(stat, 'glass'); break; }
+        if (!hit0) hit0 = hit; else if (Math.abs(hit.distance - hit0.distance) > 0.012) { okHits = false; why(stat, 'flat'); break; }
       }
       if (!okHits) { stat.skipW++; return; }
       var d = hit0.distance - 0.006;
