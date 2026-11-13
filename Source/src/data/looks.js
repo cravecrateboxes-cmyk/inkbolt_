@@ -94,8 +94,8 @@
     factory: { family: 'ind-int', type: 'int-ind' },
     livingroom: { family: 'giant-room', type: 'int-lit' },
     garden: { family: 'wild-ext', type: 'ext-day', floor: { cls: 7, gloss: 0.06 }, sunI: 1.25 },
-    factory2: { family: 'ind-int', type: 'int-ind' },
-    island: { family: 'wild-ext', type: 'ext-day', floor: { cls: 6, gloss: 0.04 } },
+    factory2: { family: 'ind-int', type: 'int-ind', indoorAmb: 0.42, grid: { intensity: 1.25 } },   // heavy plant at dusk: was murky (mean 0.21)
+    island: { family: 'wild-ext', type: 'ext-day', floor: { cls: 6, gloss: 0.04 }, sunI: 1.15, albCeil: 0.70 },   // white sand: keep the beach off white
     mall: { family: 'civic-int', type: 'int-lit', floor: { cls: 10, gloss: 0.40 }, ambI: 0.42, indoorAmb: 0.45, grid: { intensity: 0.72 }, grade: { sat: 1.0, contrast: 0.22 } },
     police: { family: 'ind-int', type: 'int-ind' },
     grove: { family: 'wild-ext', type: 'ext-day', floor: { cls: 6, gloss: 0.04 } },
@@ -119,7 +119,7 @@
     airport: { family: 'civic-int', type: 'int-lit' },
     frontier: { family: 'wild-ext', type: 'ext-day' },
     academy: { family: 'civic-int', type: 'int-lit' },
-    mossgarden: { family: 'wild-ext', type: 'ext-day' },
+    mossgarden: { family: 'wild-ext', type: 'ext-day', sunI: 1.2, exposure: 0.92, albCeil: 0.74 },   // pale glasshouse and stream: keep under white
     pelagic: { family: 'mil-ext', type: 'ext-day', floor: { cls: 3, gloss: 0.3 } },
     icecream: { family: 'civic-int', type: 'int-lit', ambI: 0.70, indoorAmb: 0.70 },
     venetian: { family: 'urban-ext', type: 'ext-day', sunI: 1.3, sunColor: '#FFE2BE', albCeil: 0.76 },   // late afternoon on pale paving
