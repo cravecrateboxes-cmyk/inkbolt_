@@ -88,7 +88,7 @@
     classroom: { family: 'giant-room', type: 'int-lit' },
     office: { family: 'civic-int', type: 'int-lit' },
     bedroom: { family: 'giant-room', type: 'int-lit', floor: { cls: 4, gloss: 0.24 }, ambI: 0.66, indoorAmb: 0.72, albSat: 1.0, grade: { sat: 1.06, contrast: 0.14 } },
-    coalmine: { family: 'dark-int', type: 'int-dark' },
+    coalmine: { family: 'dark-int', type: 'int-dark', indoorAmb: 0.55, ambI: 0.42, ambFloor: 0.05, grid: { intensity: 2.2 }, exposure: 1.15 },   // was 36-79% near black: lamps on rock need help to read
     castle: { family: 'urban-ext', type: 'ext-day', floor: { cls: 8, gloss: 0.08 }, sunI: 1.3, albCeil: 0.74 },   // pale sandstone: keep it off white
     city2: { family: 'urban-ext', type: 'ext-dusk', exposure: 0.9, bloom: { amount: 0.38 } },   // lit windows everywhere: keep them off white
     factory: { family: 'ind-int', type: 'int-ind' },
@@ -97,10 +97,10 @@
     factory2: { family: 'ind-int', type: 'int-ind', indoorAmb: 0.42, grid: { intensity: 1.25 } },   // heavy plant at dusk: was murky (mean 0.21)
     island: { family: 'wild-ext', type: 'ext-day', floor: { cls: 6, gloss: 0.04 }, sunI: 1.15, albCeil: 0.70 },   // white sand: keep the beach off white
     mall: { family: 'civic-int', type: 'int-lit', floor: { cls: 10, gloss: 0.40 }, ambI: 0.42, indoorAmb: 0.45, grid: { intensity: 0.72 }, grade: { sat: 1.0, contrast: 0.22 } },
-    police: { family: 'ind-int', type: 'int-ind' },
+    police: { family: 'ind-int', type: 'int-ind', exposure: 0.86, albCeil: 0.72, indoorAmb: 0.24 },   // white tiled floor clipped
     grove: { family: 'wild-ext', type: 'ext-day', floor: { cls: 6, gloss: 0.04 } },
     spire: { family: 'civic-int', type: 'int-lit' },
-    foundry: { family: 'ind-int', type: 'int-ind' },
+    foundry: { family: 'ind-int', type: 'int-ind', indoorAmb: 0.48, grid: { intensity: 1.4 } },   // 30 m halls: lamps far from the floor
     parking: { family: 'ind-int', type: 'int-ind', wet: 0.5 },
     hotel: { family: 'civic-int', type: 'int-lit' },
     techhq: { family: 'civic-int', type: 'int-lit' },
@@ -108,8 +108,8 @@
     datacenter: { family: 'ind-int', type: 'int-ind', floor: { cls: 10, gloss: 0.4 }, grid: { emit: {} } },
     downtown: { family: 'urban-ext', type: 'ext-day', floor: { cls: 12, gloss: 0.12 }, sunI: 1.35, ambI: 0.38 },
     highrise: { family: 'civic-int', type: 'int-lit' },
-    gemmine: { family: 'dark-int', type: 'int-dark' },
-    megastore: { family: 'ind-int', type: 'int-lit' },
+    gemmine: { family: 'dark-int', type: 'int-dark', indoorAmb: 0.42, ambI: 0.40, ambFloor: 0.04, grid: { intensity: 1.5 }, exposure: 1.08 },
+    megastore: { family: 'ind-int', type: 'int-lit', ambI: 0.50, indoorAmb: 0.60, grid: { intensity: 1.2 } },
     townhomes: { family: 'urban-ext', type: 'ext-day' },
     arctic: { family: 'dark-int', type: 'int-dark', floor: { cls: 13, gloss: 0.3 } },
     resort: { family: 'wild-ext', type: 'ext-day' },
