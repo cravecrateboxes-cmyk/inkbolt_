@@ -185,7 +185,9 @@
   function collect(d, G) {
     var g = IB.Gear.gear(G), item = d.it;
     if (!g) return false;
-    if (!IB.Loot.addItem(g, item, IB.Gear.bagCap(G))) {
+    // a full bag still takes a shield or vest when that slot is empty: nothing worn of that kind yet
+    var ws = IB.Loot.isWorn(item) ? IB.Loot.slotOf(item) : null, cap = ws && !g[ws] ? Infinity : IB.Gear.bagCap(G);
+    if (!IB.Loot.addItem(g, item, cap)) {
       if (d.fullT <= 0) { d.fullT = 3; IB.HUD.toast('Bag full (' + g.inv.length + '/' + IB.Gear.bagCap(G) + ') · drop or scrap gear in the Inventory (Tab)', 2.4, 'note'); }
       return false;
     }
