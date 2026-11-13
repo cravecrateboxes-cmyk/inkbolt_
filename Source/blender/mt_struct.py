@@ -11,6 +11,7 @@ import random
 
 from mt_base import *  # noqa: F401,F403
 import mt_base as B
+import mt_detail as DET
 
 
 def faces(k, ao, name, fn, glow=None):
@@ -29,7 +30,7 @@ YA = Y0 - 0.006    # art overlay plane (6 mm proud of the wall face)
 # ================================================================ wall faces
 def build_faces(k, ao):
     for sch in B.SCHEMES:
-        faces(k, ao, 'I' + sch, lambda k, s=sch: paint(k, s))
+        faces(k, ao, 'I' + sch, lambda k, s=sch: (paint(k, s), DET.wall_face(k, s)))
 
 
 # ================================================================ art overlays (no wall paint: stacked on a face)
@@ -203,6 +204,7 @@ def door_leaf(word, c, sign_c='paper'):
         k.bx(0.28, 0.36, Y0 - 0.09, Y0 - 0.034, 1.0, 1.05, 'chrome')
         k.fq(-0.25, 0.25, Y0 - 0.038, 1.55, 1.8, sign_c)
         k.text(word, 0.0, Y0 - 0.041, 1.63, 0.1, 'black' if sign_c == 'paper' else 'paper', font='display', maxw=0.46)
+        DET.door_leaf_detail(k, Y0 - 0.034)
     return fn
 
 
@@ -236,6 +238,7 @@ def lift(part):
             k.fq(0.27, 0.33, y - 0.008, 1.18, 1.24, 'amberL')
             k.bx(-0.3, 0.3, Y0 - 0.03, Y0, 2.38, 2.58, 'black', cull='k')
             k.text('LIFT', 0.0, Y0 - 0.034, 2.42, 0.12, 'amberL', font='display')
+        DET.lift_detail(k, part)
     return fn
 
 
@@ -340,6 +343,7 @@ def shop_window(part):
         xb = 0.42 if part == 'R' else 0.5
         paint(k, 'H', 2.75, WALL_H, joints=False)
         k.fq(-0.5, 0.5, Y0, 0.0, 0.45, 'granite')
+        DET.shop_plinth(k, -0.5, 0.5)
         if part == 'L':
             k.fq(-0.5, -0.42, Y0, 0.45, 2.75, 'graph')
         if part == 'R':
@@ -439,6 +443,7 @@ def edge(trim):
         k.uq(a, b, Y0 + 0.26, Y0 + 0.36, 0.012, 'hazard')
         for x in (-0.25, 0.25):
             k.fq(x - 0.06, x + 0.06, Y0 - 0.004, -D + 0.14, -D + 0.22, 'steelD')   # cable brackets
+        DET.edge_detail(k, b)
     return fn
 
 
@@ -526,6 +531,7 @@ def build_doors(k, ao):
         k.bx(a, b, -0.03, 0.03, 0.02, H - 0.05, 'steelD')
         k.bx(a, b, -0.12, -0.06, 0.02, H - 0.05, 'chrome', ink=False)
     k.bx(-1.0, 1.0, -0.1, 0.1, H - 0.12, H, 'graph', cull='t')
+    DET.doorway(k, H)
     k.finish('Door2', ao=ao)
     k.begin()
     for s in (-1, 1):
@@ -540,6 +546,7 @@ def build_doors(k, ao):
     k.bx(-1.5, 1.5, -0.35, 0.05, H, H + 0.25, 'steelD', cull='t')
     for j in range(3):
         k.fq(-1.48, 1.48, -0.353, H + 0.04 + j * 0.07, H + 0.07 + j * 0.07, 'steel')
+    DET.kiosk_front(k, H)
     k.finish('Front3', ao=ao)
     # archway header (1 cell): stone from ARCH_H, a tiled archivolt band at the soffit
     k.begin()
@@ -997,6 +1004,7 @@ def build_hanging(k, ao):
                                     ('SignN', 'PAPERCLIP NEWS', 'blueD', 'paper', 'crim'), ('SignM', 'NIGHTJAR MART', 'mart', 'paper', 'foodY')):
         k.begin()
         k.bx(-3.45, 3.45, -0.68, -0.5, 0.0, 0.55, bg, cull='k')
+        DET.sign_fascia(k)
         k.fq(-3.45, 3.45, -0.683, 0.0, 0.06, acc)
         k.text(word, 0.0, -0.686, 0.29, 0.34, fg, font='display', maxw=6.4, valign='m')
         k.finish(name, ao=ao)

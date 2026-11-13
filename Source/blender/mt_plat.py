@@ -8,6 +8,7 @@ import random
 
 from mt_base import *  # noqa: F401,F403
 import mt_base as B
+import mt_detail as DET
 
 TF = TRACK_D + 0.02   # the car floor over the trackbed (2 cm over the platform)
 CW = 1.4              # half the car body width (the trackbed is 3 m: 10 cm to each platform edge)
@@ -186,6 +187,7 @@ def build_platform(k, ao):
     for j, (c, z) in enumerate((('crim', 1.9), ('blue', 1.5), ('green', 1.1))):
         k.bq(-0.32, 0.32, 0.186, z - 0.02, z + 0.02, c)
     k.text('CENTRAL', 0.0, 0.186, 2.15, 0.1, 'blueD', face='y+', font='display')
+    DET.column(k)
     k.col(-0.5, 0.5, -0.24, 0.24, 0.0, 2.75)
     k.finish('Column', ao=ao)
 
@@ -300,6 +302,8 @@ def build_gear(k, ao):
         k.fq(x0 + 0.3, x0 + 0.62, -0.306, 1.5, 1.75, 'hazard')
         k.poly([(x0 + 0.38, -0.309, 1.55), (x0 + 0.54, -0.309, 1.55), (x0 + 0.46, -0.309, 1.7)], 'black', (0, -1, 0))
         k.bx(x0 + 0.8, x0 + 0.84, -0.33, -0.3, 0.9, 1.1, 'graph', ink=False)
+    for x0 in (-0.95, 0.02):
+        DET.elec_cab(k, x0)
     k.col(-0.95, 0.95, -0.3, 0.45, 0.0, 2.0)
     k.finish('ElecCab', ao=ao)
     k.begin()
