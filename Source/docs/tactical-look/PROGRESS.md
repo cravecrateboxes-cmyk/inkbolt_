@@ -116,3 +116,86 @@ Stage 3), `?post=0` (the look without the post pass: the low-tier path).
 - `gear-shots.js`: the committed `review/gear-*.png` were stale (another save state and the old gun designs), so
   the inventory pictures are compared base build vs look build instead. Its last shot (a pickup card in play)
   times out on the CPU renderer with the look on (it waits on game time at 1920x1080), as trap T25 warns.
+
+## Checkpoint 1 package (`dist/look/cp1`, 56 shots, second tuning pass)
+
+Sheets (left classic, right look): `tests/e2e/review/look/cp1-<map>.jpg` for mountains, stronghold, downtown,
+metro, datacenter, bedroom, mall. Overall mean luminance 0.408 (classic 0.565); 48 of 56 shots sit outside at
+least one section 4.2 bound, mostly by small margins on mean/median; the sheets are the judge.
+
+Notes from the sheet review:
+- Stronghold apron and sky read warm; sun shadows ground the props. Zone 2 halls are now readable (mean 0.12 to
+  0.20) but still the darkest scene in the set: owner question (1).
+- Bedroom keeps its colours but white furniture reads beige/grey under the detail texture and indoor fill:
+  owner question (3).
+- Mall zone 2 long view is bright (mean 0.67); metro platform zone mean 0.29 to 0.37 (above int-dark). Both
+  read correctly on the sheet.
+- Mountains above the snow range by decision (see first tuning pass).
+
+Owner questions: frame rate and tier on a real device (`?lookstats=1`); yes/change on (1) interior darkness,
+(2) ink thickness, (3) colour, (4) bloom and grain; soldier armour darkness; the snow range decision.
+
+Still open before Stage 9 (not blocking the checkpoint): Stage 4 enemy readability gate (metro/coalmine),
+bake timing gate, Stage 6 vfx-shots and perf budgets on real hardware, TIER=low sheet.
+
+### Metrics (cp1)
+
+| shot | type | mean | median | p5 | >0.92 | <0.06 | sat | out of range |
+|---|---|---|---|---|---|---|---|---|
+| bedroom-z0-aim | int-lit | 0.602 | 0.637 | 0.493 | 0.0% | 1.7% | 0.14 | mean, median, p5 |
+| bedroom-z0-floor | int-lit | 0.461 | 0.508 | 0.137 | 0.0% | 1.5% | 0.31 | mean, median, p5 |
+| bedroom-z0-long | int-lit | 0.435 | 0.454 | 0.110 | 0.0% | 1.6% | 0.34 | mean, median |
+| bedroom-z0-up | int-lit | 0.489 | 0.526 | 0.148 | 0.0% | 1.3% | 0.22 | mean, median, p5 |
+| bedroom-z0-wall | int-lit | 0.371 | 0.385 | 0.078 | 0.1% | 3.8% | 0.34 | median |
+| bedroom-z1-back | int-lit | 0.379 | 0.410 | 0.066 | 0.0% | 3.7% | 0.33 | median |
+| bedroom-z1-long | int-lit | 0.433 | 0.439 | 0.111 | 0.3% | 1.3% | 0.33 | mean, median |
+| bedroom-z1-wall | int-lit | 0.399 | 0.439 | 0.129 | 0.1% | 1.3% | 0.35 | median, p5 |
+| datacenter-z0-aim | int-ind | 0.191 | 0.162 | 0.124 | 0.0% | 1.7% | 0.29 | mean, p5 |
+| datacenter-z0-floor | int-ind | 0.497 | 0.566 | 0.099 | 0.0% | 2.3% | 0.12 | mean, median |
+| datacenter-z0-long | int-ind | 0.340 | 0.303 | 0.088 | 0.0% | 2.5% | 0.18 | mean, median |
+| datacenter-z0-up | int-ind | 0.253 | 0.166 | 0.112 | 0.0% | 2.7% | 0.23 | p5 |
+| datacenter-z0-wall | int-ind | 0.345 | 0.345 | 0.074 | 0.1% | 3.4% | 0.19 | mean, median |
+| datacenter-z1-back | int-ind | 0.291 | 0.227 | 0.080 | 0.0% | 3.4% | 0.22 |  |
+| datacenter-z1-long | int-ind | 0.321 | 0.244 | 0.075 | 0.3% | 2.9% | 0.20 | mean |
+| datacenter-z1-wall | int-ind | 0.286 | 0.227 | 0.058 | 0.1% | 5.2% | 0.25 |  |
+| downtown-z0-aim | ext-day | 0.522 | 0.617 | 0.113 | 5.2% | 1.3% | 0.33 | mean, median, >0.92 |
+| downtown-z0-floor | ext-day | 0.393 | 0.305 | 0.112 | 0.0% | 3.3% | 0.21 |  |
+| downtown-z0-long | ext-day | 0.431 | 0.414 | 0.095 | 0.1% | 1.0% | 0.25 |  |
+| downtown-z0-up | ext-day | 0.439 | 0.421 | 0.109 | 0.0% | 0.8% | 0.32 | median |
+| downtown-z0-wall | ext-day | 0.389 | 0.366 | 0.064 | 0.1% | 3.8% | 0.33 |  |
+| downtown-z1-back | ext-day | 0.463 | 0.359 | 0.124 | 2.2% | 0.6% | 0.26 | mean |
+| downtown-z1-long | ext-day | 0.490 | 0.472 | 0.106 | 3.0% | 1.4% | 0.23 | mean, median |
+| downtown-z1-wall | ext-day | 0.492 | 0.444 | 0.123 | 0.3% | 0.7% | 0.26 | mean, median |
+| mall-z0-aim | int-lit | 0.469 | 0.449 | 0.069 | 0.9% | 3.7% | 0.13 | mean, median |
+| mall-z0-floor | int-lit | 0.475 | 0.510 | 0.133 | 0.4% | 1.4% | 0.21 | mean, median, p5 |
+| mall-z0-long | int-lit | 0.435 | 0.455 | 0.085 | 0.4% | 1.4% | 0.20 | mean, median |
+| mall-z0-up | int-lit | 0.475 | 0.461 | 0.076 | 0.6% | 2.7% | 0.18 | mean, median |
+| mall-z0-wall | int-lit | 0.437 | 0.453 | 0.076 | 1.1% | 2.6% | 0.24 | mean, median |
+| mall-z1-back | int-lit | 0.403 | 0.369 | 0.073 | 0.4% | 2.8% | 0.26 | mean |
+| mall-z1-long | int-lit | 0.666 | 0.690 | 0.371 | 1.1% | 0.8% | 0.13 | mean, median, p5 |
+| mall-z1-wall | int-lit | 0.466 | 0.455 | 0.094 | 0.5% | 1.8% | 0.23 | mean, median |
+| metro-z0-aim | int-dark | 0.273 | 0.273 | 0.126 | 0.0% | 3.6% | 0.12 | mean, median, p5 |
+| metro-z0-floor | int-dark | 0.185 | 0.178 | 0.046 | 0.0% | 10.0% | 0.21 |  |
+| metro-z0-long | int-dark | 0.202 | 0.189 | 0.084 | 0.0% | 2.6% | 0.16 | p5 |
+| metro-z0-up | int-dark | 0.245 | 0.236 | 0.079 | 0.0% | 2.6% | 0.15 | p5 |
+| metro-z0-wall | int-dark | 0.205 | 0.191 | 0.070 | 0.1% | 3.8% | 0.17 | p5 |
+| metro-z1-back | int-dark | 0.286 | 0.289 | 0.086 | 0.0% | 2.2% | 0.19 | mean, median, p5 |
+| metro-z1-long | int-dark | 0.371 | 0.358 | 0.132 | 0.4% | 1.4% | 0.14 | mean, median, p5 |
+| metro-z1-wall | int-dark | 0.288 | 0.272 | 0.078 | 0.1% | 2.8% | 0.25 | mean, median, p5 |
+| mountains-z0-aim | ext-snow | 0.625 | 0.635 | 0.589 | 0.0% | 0.3% | 0.41 | mean, median, p5 |
+| mountains-z0-floor | ext-snow | 0.617 | 0.819 | 0.163 | 0.2% | 0.5% | 0.11 | mean, median |
+| mountains-z0-long | ext-snow | 0.619 | 0.742 | 0.157 | 0.7% | 0.5% | 0.15 | mean, median |
+| mountains-z0-up | ext-snow | 0.628 | 0.787 | 0.183 | 0.1% | 0.4% | 0.17 | mean, median, p5 |
+| mountains-z0-wall | ext-snow | 0.401 | 0.263 | 0.129 | 0.1% | 0.8% | 0.23 | median |
+| mountains-z1-back | ext-snow | 0.557 | 0.625 | 0.186 | 0.3% | 0.4% | 0.16 | mean, median, p5 |
+| mountains-z1-long | ext-snow | 0.620 | 0.728 | 0.166 | 0.9% | 0.3% | 0.15 | mean, median |
+| mountains-z1-wall | ext-snow | 0.511 | 0.352 | 0.170 | 0.0% | 0.4% | 0.17 | median |
+| stronghold-z0-aim | ext-dusk | 0.470 | 0.462 | 0.268 | 0.0% | 0.7% | 0.41 | mean, median, p5 |
+| stronghold-z0-floor | ext-dusk | 0.492 | 0.587 | 0.133 | 0.0% | 1.6% | 0.26 | mean, median, p5 |
+| stronghold-z0-long | ext-dusk | 0.368 | 0.367 | 0.117 | 0.0% | 1.6% | 0.23 | mean, median, p5 |
+| stronghold-z0-up | ext-dusk | 0.340 | 0.273 | 0.181 | 0.1% | 0.6% | 0.28 | mean, p5 |
+| stronghold-z0-wall | ext-dusk | 0.501 | 0.589 | 0.136 | 0.2% | 1.7% | 0.26 | mean, median, p5 |
+| stronghold-z1-back | int-dark | 0.185 | 0.151 | 0.063 | 0.1% | 4.0% | 0.16 |  |
+| stronghold-z1-long | int-dark | 0.195 | 0.166 | 0.069 | 0.4% | 3.0% | 0.20 |  |
+| stronghold-z1-wall | int-dark | 0.117 | 0.101 | 0.066 | 0.0% | 3.9% | 0.16 | mean, median |
+| all | | 0.408 | 0.409 | 0.130 | | | | 48 of 56 |
