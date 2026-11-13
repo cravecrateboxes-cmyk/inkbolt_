@@ -86,7 +86,8 @@ def wrist_bend(side, MH, e, wr):
 
 
 def solve(rig, P):
-    """P: W (weapon delta), FR / FL (hand frames, rig space), curl {bone: deg}, mag (Mag bone delta).
+    """P: W (weapon delta), FR / FL (hand frames, rig space), mag (Mag bone delta), dig {side: {digit: (knuckle,
+    joint 2, joint 3[, spread]) deg from the rest pose, positive = closing; spread positive = toward the thumb}}.
     Returns {bone: pose basis}: each bone gets the rigid motion that takes its rest place to the target."""
     M = {'Root': Matrix.Identity(4), 'Camera': Matrix.Identity(4), 'Weapon': P['W'], 'Mag': P['mag']}
     for side in ('R', 'L'):
@@ -99,15 +100,16 @@ def solve(rig, P):
         M['FOREARM_' + side] = forearm_delta(side, MH, e, wr)
         if REPORT is not None:
             REPORT.setdefault(side, []).append(wrist_bend(side, MH, e, wr))
-        ax = (F0.to_3x3() @ V((0, 0, 1))).normalized()
-        lx = (F0.to_3x3() @ V((1, 0, 0))).normalized()     # hand's lateral axis: lifts a finger along the frame
-        sg = 1 if side == 'R' else -1
-        lift = P.get('lift', {})
-        for fn in FINGERS + ('THUMB1', 'THUMB2'):
-            bn = fn + '_' + side
-            h = rig.data.bones[bn].head_local
-            C = T(h) @ Matrix.Rotation(D(sg * P['curl'].get(bn, 0.0)), 4, ax) @ Matrix.Rotation(D(lift.get(bn, 0.0)), 4, lx) @ T(-h)
-            M[bn] = M['THUMB1_' + side if fn == 'THUMB2' else 'HAND_' + side] @ C
+        dig = P.get('dig', {}).get(side, {})
+        for dn in DIGITS:                  # each joint is a hinge about the digit's flexion axis; the knuckle also spreads
+            J, (ax, sp) = RIG['J'][side][dn], RIG['AX'][side][dn]
+            a = dig.get(dn, (0.0, 0.0, 0.0, 0.0))
+            Mp = MH
+            for i in range(3):
+                C = Matrix.Rotation(D(a[i]), 4, ax)
+                if i == 0 and len(a) > 3 and a[3]:
+                    C = C @ Matrix.Rotation(D(a[3]), 4, sp)
+                Mp = M['%s%d_%s' % (dn, i + 1, side)] = Mp @ T(J[i]) @ C @ T(-J[i])
     out = {}
     for b in rig.data.bones:
         Rc = b.matrix_local
@@ -147,12 +149,13 @@ class Poser:
         if self.offk and FR is None:          # trigger finger straight along the frame (sprint, slide, reload, draw)
             idx += self.offk * self.H['sprint']['idx']
             lift += self.offk * self.H['sprint']['lift']
-        curl = {'INDEX_R': 14 * trig + idx, 'INDEX_L': curlL, 'THUMB1_L': thumbL, 'THUMB1_R': thumbR}
+        dig = {'R': {'INDEX': (14 * trig + idx, 0.0, 0.0, lift), 'THUMB': (thumbR, 0.0, 0.0, 0.0)},
+               'L': {'INDEX': (curlL, 0.0, 0.0, 0.0), 'THUMB': (thumbL, 0.0, 0.0, 0.0)}}
         for fn in ('MIDDLE', 'RING', 'PINKY'):
-            curl[fn + '_R'] = curlR
-            curl[fn + '_L'] = curlL
+            dig['R'][fn] = (curlR, 0.0, 0.0, 0.0)
+            dig['L'][fn] = (curlL, 0.0, 0.0, 0.0)
         return {'W': W, 'FR': FR if FR is not None else W @ self.GR, 'FL': FL if FL is not None else W @ self.GL,
-                'mag': mag if mag is not None else W @ T(self.magT), 'curl': curl, 'lift': {'INDEX_R': lift},
+                'mag': mag if mag is not None else W @ T(self.magT), 'dig': dig,
                 'hint': {'L': V(hintL)} if hintL is not None else {}}
 
     offk = 0.0

@@ -37,6 +37,7 @@ from wpn_core import *  # noqa: F401,F403
 from mathutils.bvhtree import BVHTree
 
 FINGERS = ('INDEX', 'MIDDLE', 'RING', 'PINKY')
+DIGITS = FINGERS + ('THUMB',)     # three bones each: <DIGIT>1_<side> (knuckle), 2, 3
 MIRROR = Matrix.Diagonal((-1, 1, 1, 1))
 SH = {'R': V((0.20, -0.58, -0.30)), 'L': V((-0.42, -0.50, -0.28))}     # shoulders (off screen): support arm comes in from lower left
 UPPER_LEN, FORE_LEN = 0.30, 0.29
@@ -75,7 +76,7 @@ ANAT = {
 GLOVE_VOXEL = 0.0008
 GLOVE_TRIS = 320         # palm / back / thenar union per glove before its ink shell (x2 with it)
 GLOVE_SMOOTH = 7
-DIGIT_SIDES = 7
+DIGIT_SIDES = 8
 # finger rings: (joint, offset, radius factor, colour of the band that starts there): padded first segment,
 # dark stretch crease over the middle knuckle, plain middle segment, crease + reinforced tip from the last joint
 DIGIT_BANDS = [(0, -0.0030, 0.93, 'glove2'), (1, -0.0042, 0.97, 'glove3'), (1, 0.0040, 0.96, 'glove'),
@@ -155,6 +156,79 @@ def thumb_joints(side, X):
     return [M @ V(p) for p in an['thumb_strong']]
 
 
+def flex_axis(J, toward=None):
+    """Flexion axis of a digit with joints J: turning a phalanx about it by a positive angle bends the digit more.
+    From the bends the digit already has; a straight digit bends toward the point `toward`. Works in any space."""
+    J = [V(p) for p in J]
+    d = [(J[i + 1] - J[i]).normalized() for i in range(len(J) - 1)]
+    c = V((0, 0, 0))
+    for a, b in zip(d, d[1:]):
+        c += a.cross(b)
+    if c.length < 0.30 and toward is not None:
+        mid = (J[0] + J[-1]) / 2
+        c = (J[-1] - J[0]).cross(V(toward) - mid)
+    return c.normalized()
+
+
+def digit_joints(side, dn, X):
+    """Knuckle, two joints and the tip centre of a digit in the glove's model space."""
+    return thumb_joints(side, X) if dn == 'THUMB' else finger_joints(side, dn)
+
+
+def digit_axis(side, J, X=None):
+    """Flexion axis of a digit in the space its joints J are given in (model space, or rig space with the glove's
+    rest frame X); a straight digit (the support thumb) closes toward the glove's grip axis."""
+    G = ANAT[side]['grip']
+    X = X if X is not None else Matrix.Identity(4)
+    o, z = X @ V((0, G['cy'], 0)), (X.to_3x3() @ V((0, 0, 1))).normalized()
+    mid = (V(J[0]) + V(J[-1])) / 2
+    return flex_axis(J, o + z * (mid - o).dot(z))
+
+
+def digit_rings(J, r, bones, ax, sides=DIGIT_SIDES, flat=FLAT):
+    """Rings of a skinned digit (see Body.digit): (rings, weights per ring, index of the first tip ring)."""
+    J = [V(p) for p in J]
+    n = len(J) - 1
+    d = [(J[i + 1] - J[i]).normalized() for i in range(n)]
+    dors = [q.cross(ax).normalized() for q in d]
+
+    def ring(c, b, rad, kd=1.0, kp=1.0):
+        b = b.normalized()
+        s = (ax - b * ax.dot(b)).normalized()
+        out = []
+        for k in range(sides):
+            a = 2 * math.pi * (k + 0.5) / sides
+            out.append(c + s * (rad * flat * math.cos(a)) + b * (rad * (kd if math.sin(a) > 0 else kp) * math.sin(a)))
+        return out
+    rings, wts = [], []
+
+    def add(pts, w):
+        rings.append(pts)
+        wts.append(w)
+    b0 = bones[0]
+    add([J[0] - d[0] * (r[0] * 0.95)], b0)
+    add(ring(J[0] - d[0] * (r[0] * 0.55), dors[0], r[0] * 0.80), b0)
+    add(ring(J[0], dors[0], r[0]), b0)
+    tip0 = None
+    for i in range(n):
+        L = (J[i + 1] - J[i]).length
+        ra, rb = r[i], r[i + 1]
+        e = min(max(0.34 * L, 0.0080), 0.45 * L)
+        if i == n - 1:
+            tip0 = len(rings)
+            add(ring(J[i] + d[i] * e, dors[i], (ra + (rb - ra) * e / L) * 0.98), bones[i])
+            add(ring(J[i + 1], dors[i], rb * 0.97, kd=0.92), bones[i])
+            add(ring(J[i + 1] + d[i] * (rb * 0.52), dors[i], rb * 0.74, kd=0.88), bones[i])
+            add([J[i + 1] + d[i] * (rb * 0.92)], bones[i])
+        else:
+            add(ring(J[i] + d[i] * e, dors[i], (ra + (rb - ra) * e / L) * 0.97), bones[i])
+            add(ring(J[i + 1] - d[i] * e, dors[i], (rb + (ra - rb) * e / L) * 0.97), bones[i])
+            phi = d[i].angle(d[i + 1])
+            kd = min(1.0 / max(math.cos(phi / 2), 0.5), 1.18) * 1.03
+            add(ring(J[i + 1], dors[i] + dors[i + 1], rb, kd=kd, kp=0.82), {bones[i]: 0.5, bones[i + 1]: 0.5})
+    return rings, wts, tip0
+
+
 # ---------------------------------------------------------------- closed primitives
 class Body:
     """Overlapping closed primitives of one glove; each carries its bone and palette colour."""
@@ -173,7 +247,7 @@ class Body:
         ring = lambda dz, ins: [V(c) + n * dz + side * q[0] + along * q[1] for q in (inset2d(rect, ins) if ins > 0 else rect)]
         rings = [ring(-sink, 0.0), ring(h - ch, 0.0), ring(h, ch)]
         Xm = self.X
-        self.hard.append(([[Xm @ p for p in r] for r in rings], [color, color, color], bone, False, (False, True)))   # base hidden
+        self.hard.append(([[Xm @ p for p in r] for r in rings], [color, color, color], bone, False, (False, True), None))   # base hidden
 
     def knuckle_guard(self, K, bone, h=0.0066, sink=0.0042, color='glove4'):
         """One moulded knuckle guard across the four knuckles (K: (centre, outward normal, finger direction, radius)
@@ -194,45 +268,19 @@ class Body:
             d = (V(d) - n * V(d).dot(n)).normalized()
             q = [(-sink, 0.5), (hh * 0.62, 0.5), (hh, 0.22), (hh, -0.22), (hh * 0.62, -0.5), (-sink, -0.5)]
             rings.append([self.X @ (V(c) + n * a + d * (b * w)) for a, b in q])
-        self.hard.append((rings, [color] * len(rings), bone, False, (True, True)))
+        self.hard.append((rings, [color] * len(rings), bone, False, (True, True), None))
 
-    def digit(self, J, r, bone, bands, sides=DIGIT_SIDES, flat=FLAT, up=(0, 0, 1)):
-        """A finger (or the thumb's phalanges) as one clean lofted tube through its joints J, radii r at the
-        joints, rings from bands [(joint, offset m, radius factor, colour of the band that starts here)]:
-        a negative offset sits back along the segment that ends at that joint. Rings near a joint lie in the
-        joint's bisector plane so bends never fold; root and tip close with apexes (the tip rounded)."""
-        J = [V(p) for p in J]
-        dirs = [(J[i + 1] - J[i]).normalized() for i in range(len(J) - 1)]
-        Z = V(up)
-
-        def ring(c, n, rad):
-            u = Z - n * Z.dot(n)
-            u = u.normalized() if u.length > 1e-6 else n.orthogonal().normalized()
-            s = n.cross(u)
-            return [c + s * (rad * math.cos(2 * math.pi * (k + 0.5) / sides)) + u * (rad * flat * math.sin(2 * math.pi * (k + 0.5) / sides))
-                    for k in range(sides)]
-        rings, cols = [], []
-        d0 = dirs[0]
-        rings.append([J[0] - d0 * (r[0] * 0.80)])
-        cols.append(bands[0][3])
-        for i, off, rk, col in bands:
-            if off < 0:
-                d = dirs[max(0, i - 1)] if i > 0 else dirs[0]
-            else:
-                d = dirs[min(i, len(dirs) - 1)]
-            c = J[i] + d * off
-            n = d
-            if 0 < i < len(J) - 1 and abs(off) < 0.0075:
-                n = (dirs[i - 1] + dirs[i]).normalized()          # joint ring: bisector plane
-            rings.append(ring(c, n, r[i] * rk))
-            cols.append(col)
-        dl = dirs[-1]
-        rt = r[-1]
-        rings.append(ring(J[-1] + dl * (rt * 0.42), dl, rt * 0.74))
-        cols.append(cols[-1])
-        rings.append([J[-1] + dl * (rt * 0.86)])
+    def digit(self, J, r, bones, ax, cols=('glove', 'glove4', 'glove3'), sides=DIGIT_SIDES, flat=FLAT):
+        """A finger (or the thumb's two phalanges) as one lofted tube through its joints J (radii r at the joints),
+        skinned to one bone per phalanx: a ball at the root joint (it turns inside the palm), two rings on each
+        phalanx, ONE ring in the bisector plane of each joint between them (half on each bone, bulged over the
+        knuckle, tucked in at the crease) and a rounded tip. ax: the flexion axis (dorsal side = d x ax).
+        cols: fabric, reinforced tip, palm side."""
+        rings, wts, tip0 = digit_rings(J, r, bones, ax, sides, flat)
+        bands = [cols[1] if i >= tip0 else cols[0] for i in range(len(rings) - 1)]
         Xm = self.X
-        self.hard.append(([[Xm @ p for p in rr] for rr in rings], cols, bone, True, (True, True)))
+        self.hard.append(([[Xm @ p for p in rr] for rr in rings], bands, wts, True, (True, True),
+                          lambda i, j: cols[2] if 1 <= i < tip0 and sides // 2 <= j < sides - 1 else None))
 
     def _part(self, bone, color, prio):
         bm = bmesh.new()
@@ -372,10 +420,9 @@ def glove_body(side, X):
     for fn in FINGERS:
         z, r, L = FING[fn]
         J = finger_joints(side, fn)
-        fb = fn + '_' + side
         d0 = (J[1] - J[0]).normalized()
-        b.capsule(J[0] - d0 * 0.004, J[0] + d0 * (L[0] * 0.40), r[0] * 0.92, r[0] * 0.86, fb, 'glove', up=(0, 0, 1), flat=FLAT, seg=12, cap=3)
-        b.digit(J, r, fb, DIGIT_BANDS)
+        b.capsule(J[0] - d0 * 0.004, J[0] + d0 * (L[0] * 0.30), r[0] * 0.95, r[0] * 0.88, hb, 'glove', up=(0, 0, 1), flat=FLAT, seg=12, cap=3)
+        b.digit(J, r, ['%s%d_%s' % (fn, i, side) for i in (1, 2, 3)], digit_axis(side, J))
         n0 = (d0.cross(Z)).normalized()                         # back of the finger: outward, away from the grip
         if fn == 'INDEX' and an['trigger']:
             n0 = (n0 + Z * 0.35).normalized()
@@ -387,7 +434,7 @@ def glove_body(side, X):
     th, z, g, rad = an['thenar']
     n = nrm(th)
     b.ellipsoid(gpt(G, th, z, 0.0) + n * g, rad, (n, Z.cross(n), Z), 'THUMB1_' + side, 'glove')
-    b.digit(T[1:], THUMB_R[1:], 'THUMB2_' + side, THUMB_BANDS, flat=0.94)
+    b.digit(T[1:], THUMB_R[1:], ['THUMB2_' + side, 'THUMB3_' + side], digit_axis(side, T), flat=0.94)
     ta = (T[2] - T[1]).normalized()
     tn = T[1] - PALM_C
     tn = (tn - ta * tn.dot(ta)).normalized()
@@ -546,7 +593,8 @@ def lathe_shell(bm, prof, o, d, up, seg, pal, dl, gi, sl, sid):
 
 
 def rigid_loft(bm, rings, colors, pal, dl, gi, sl, sid, caps=(True, True), fcol=None):
-    """Closed loft of rings (rig-space points; a one-point ring is an apex) rigid on bone index gi.
+    """Closed loft of rings (rig-space points; a one-point ring is an apex) rigid on bone index gi, or skinned:
+    gi a list with, per ring, a bone index or {bone index: weight}.
     colors: one per band (ring i -> i+1); fcol(i, j) may override a face's colour (band i, column j)."""
     vr = [[bm.verts.new(V(p)) for p in r] for r in rings]
     faces = []
@@ -571,9 +619,11 @@ def rigid_loft(bm, rings, colors, pal, dl, gi, sl, sid, caps=(True, True), fcol=
     bmesh.ops.recalc_face_normals(bm, faces=faces)
     for f in faces:
         f[sl] = sid
-    for r in vr:
+    for k, r in enumerate(vr):
+        w = gi[k] if isinstance(gi, list) else gi
         for v in r:
-            v[dl][gi] = 1.0
+            for b, x in (w.items() if isinstance(w, dict) else ((w, 1.0),)):
+                v[dl][b] = x
     return faces
 
 
@@ -833,17 +883,22 @@ def build_arms(pal):
         bone('UPPERARM_' + side, s, e, 'Weapon')
         bone('FOREARM_' + side, e, wr, 'Weapon')
         bone('HAND_' + side, wr, Xs @ PALM_C, 'Weapon')
-        T = thumb_joints(side, X)
-        bone('THUMB1_' + side, Xs @ T[0], Xs @ T[1], 'HAND_' + side)
-        bone('THUMB2_' + side, Xs @ T[1], Xs @ T[3], 'THUMB1_' + side)
         parents['THUMB1_' + side] = 'HAND_' + side
-        parents['THUMB2_' + side] = 'THUMB1_' + side
-        for fn in FINGERS:
-            J = finger_joints(side, fn)
-            bone(fn + '_' + side, Xs @ J[0], Xs @ J[-1], 'HAND_' + side)
-            parents[fn + '_' + side] = 'HAND_' + side
+        zr = (Xs.to_3x3() @ V((0, 0, 1))).normalized()          # toward the index / thumb side of the hand
+        for dn in DIGITS:
+            J = [Xs @ p for p in digit_joints(side, dn, X)]
+            par = 'HAND_' + side
+            for i in (1, 2, 3):
+                par = bone('%s%d_%s' % (dn, i, side), J[i - 1], J[i], par).name
+            ax = digit_axis(side, J, Xs)
+            d0 = (J[1] - J[0]).normalized()
+            sp = d0.cross(ax).normalized()                      # back of the digit: spreading turns about it
+            if sp.cross(d0).dot(zr) < 0:
+                sp = -sp
+            RIG.setdefault('J', {}).setdefault(side, {})[dn] = J
+            RIG.setdefault('AX', {}).setdefault(side, {})[dn] = (ax, sp)
     bpy.ops.object.mode_set(mode='OBJECT')
-    assert len(arm.bones) == 22, len(arm.bones)
+    assert len(arm.bones) == 40, len(arm.bones)
     names = [b.name for b in arm.bones]
     gi = {n: i for i, n in enumerate(names)}
 
@@ -876,12 +931,13 @@ def build_arms(pal):
         g.free()
         for p in body.parts:
             p['bm'].free()
-        for rings, cols, bn, smooth, caps in body.hard:     # digits and pads: own shells, rigid on their bone
+        for rings, cols, bn, smooth, caps, fcol in body.hard:     # digits (skinned) and pads (rigid): own shells
             sid += 1
             group[sid] = 'digits' if smooth else 'pads'
             if smooth:
                 soft.add(sid)
-            rigid_loft(bm, rings, cols, pal, dl, gi[bn], sl, sid, caps=caps)
+            w = [{gi[k]: x for k, x in q.items()} if isinstance(q, dict) else gi[q] for q in bn] if isinstance(bn, list) else gi[bn]
+            rigid_loft(bm, rings, cols, pal, dl, w, sl, sid, caps=caps, fcol=fcol)
         s, e, wr = RIG['S0'][side], RIG['E0'][side], RIG['W0'][side]
         fd = (e - wr).normalized()
         up = V((0, 0, 1))
