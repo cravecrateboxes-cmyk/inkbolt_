@@ -1260,6 +1260,8 @@ def fit_support():
             info['dig_R'] = fit_digits('R', sd, grip_frame(wid) @ RIG['F0']['R'].inverted())
         elif cls != 'pistol':            # no support hand under the strong thumb: it closes on the grip
             info['dig_R'] = fit_digits('R', sd, grip_frame(wid) @ RIG['F0']['R'].inverted(), ('THUMB',))
+        if cls != 'melee':               # the three grip fingers fan down a little, clear of the trigger guard's root
+            info.setdefault('dig_R', {}).update({'MIDDLE': (0.0, 0.0, 0.0, -8.0), 'RING': (0.0, 0.0, 0.0, -5.0), 'PINKY': (0.0, 0.0, 0.0, -3.0)})
         FL = left_hold(wid)
         if FL is not None and cls != 'pistol':      # pistols: the support hand's rest pose IS the two-hand hold
             # on a handguard the thumb turns to point forward along the near side before it closes
