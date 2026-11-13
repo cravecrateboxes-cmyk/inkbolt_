@@ -1042,23 +1042,27 @@ FPS = 30
 # style: reload choreography. charge: (point, pull) the support hand works after a reload (slide, handle, bolt).
 # carry: where the whole viewmodel sits (rig space) so long guns tuck their stocks off-screen.
 ANIM = {
-    'PIP': {'fire': 60 / 450, 'reload': 1.1, 'style': 'pistol', 'charge': ((0, -0.068, 0.044), (0, -0.030, 0))},
+    'PIP': {'fire': 60 / 450, 'reload': 1.1, 'style': 'pistol'},
     # Wyrmforged: very fast. Fire clip = one shot (trigger, small muzzle kick, cylinder indexes 60 deg), 2 frames < 0.08 s
     'HANDCANNON': {'fire': 60 / 750, 'reload': 2.2, 'style': 'revolver', 'heavy': 1.6,
                    'handling': {'kick': {'loc': (0.0, -0.005, 0.0015), 'rot': (1.0, 0.0, 0.0)}}},
-    'TWINTAP': {'fire': 60 / 300, 'reload': 1.3, 'burst': 2, 'gap': 0.06, 'style': 'pistol', 'charge': ((0, -0.066, 0.050), (0, -0.030, 0))},
-    'BUZZ': {'fire': 60 / 900, 'reload': 1.6, 'style': 'smg', 'charge': ((-0.036, 0.150, 0.060), (0, -0.060, 0))},
-    'WHISK': {'fire': 60 / 1100, 'reload': 1.4, 'style': 'smg', 'charge': ((0, -0.086, 0.050), (0, -0.035, 0))},
-    'HORNET': {'fire': 60 / 750, 'reload': 1.8, 'style': 'smg', 'charge': ((-0.034, 0.206, 0.072), (0, -0.070, 0))},
-    'RIVET': {'fire': 60 / 600, 'reload': 2.0, 'style': 'rifle', 'charge': ((0, -0.118, 0.054), (0, -0.045, 0))},
+    'TWINTAP': {'fire': 60 / 300, 'reload': 1.3, 'burst': 2, 'gap': 0.06, 'style': 'pistol'},
+    # reloads (wpn_anim.mag_reload): out = how the magazine leaves ('pull' straight, 'rock' on its front lip; pistols
+    # drop theirs), chg = what makes the gun ready ('handle': the support hand pulls the charging handle at charge[0]
+    # along charge[1] and lets it fly; 'release': palm slap on the bolt release at charge[0]; 'slap': it chops the
+    # forward cocking handle home; 'rhandle': the strong hand racks a right-side handle; 'lmg': feed cover and belt)
+    'BUZZ': {'fire': 60 / 900, 'reload': 1.6, 'style': 'smg', 'charge': ((-0.030, 0.118, 0.056), (0, -0.065, 0))},
+    'WHISK': {'fire': 60 / 1100, 'reload': 1.4, 'style': 'smg', 'charge': ((0, -0.087, 0.050), (0, -0.035, 0))},
+    'HORNET': {'fire': 60 / 750, 'reload': 1.8, 'style': 'smg', 'chg': 'slap', 'charge': ((-0.026, 0.200, 0.068), (0, -0.070, 0))},
+    'RIVET': {'fire': 60 / 600, 'reload': 2.0, 'style': 'rifle', 'chg': 'release', 'charge': ((-0.028, -0.047, 0.000), (0, 0, 0))},
     'TRIPLET': {'fire': 0.32, 'reload': 2.2, 'burst': 3, 'gap': 0.06, 'style': 'rifle', 'charge': ((-0.034, -0.004, 0.050), (0, -0.060, 0))},
-    'LONGTOM': {'fire': 60 / 240, 'reload': 2.4, 'style': 'rifle', 'heavy': 0.6, 'charge': ((0, -0.120, 0.054), (0, -0.045, 0))},
-    'BRICK': {'fire': 60 / 500, 'reload': 3.4, 'style': 'rifle', 'heavy': 0.5, 'charge': ((0.036, -0.010, 0.030), (0, -0.060, 0))},
+    'LONGTOM': {'fire': 60 / 240, 'reload': 2.4, 'style': 'rifle', 'heavy': 0.6, 'chg': 'rhandle', 'charge': ((0.046, 0.060, 0.0425), (0, -0.075, 0))},
+    'BRICK': {'fire': 60 / 500, 'reload': 3.4, 'style': 'rifle', 'heavy': 0.5, 'chg': 'lmg', 'charge': ((0.036, -0.010, 0.030), (0, -0.060, 0))},
     'NEEDLE': {'fire': 60 / 45, 'reload': 3.0, 'style': 'bolt', 'heavy': 1.4},
     # round 3: Reload of a 'shell' gun is ONE shell (the game loops it per shell); 'pump' fire works the forend
     'SCRAPPER': {'fire': 60 / 70, 'reload': 0.5, 'style': 'shell', 'heavy': 1.2},
-    'THUNDER': {'fire': 60 / 240, 'reload': 2.6, 'style': 'rifle', 'heavy': 0.9, 'charge': ((-0.030, -0.010, 0.050), (0, -0.060, 0))},
-    'VANGUARD': {'fire': 60 / 480, 'reload': 2.3, 'style': 'rifle', 'heavy': 0.5, 'charge': ((-0.036, 0.090, 0.046), (0, -0.050, 0))},
+    'THUNDER': {'fire': 60 / 240, 'reload': 2.6, 'style': 'rifle', 'heavy': 0.9, 'out': 'rock', 'charge': ((0.0, 0.066, 0.0765), (0, -0.080, 0))},
+    'VANGUARD': {'fire': 60 / 480, 'reload': 2.3, 'style': 'rifle', 'heavy': 0.5, 'out': 'rock', 'charge': ((-0.031, 0.236, 0.051), (0, -0.100, 0))},
     'RAILSPIKE': {'fire': 60 / 70, 'reload': 2.6, 'style': 'rifle', 'heavy': 1.0, 'charge': ((0, -0.120, 0.050), (0, -0.040, 0))},
     # round 5 launchers: the support hand swaps the cassette under the frame, then works the arming lever / housing latch
     'HOTHEAD': {'fire': 60 / 120, 'reload': 3.2, 'style': 'rifle', 'heavy': 1.3, 'charge': ((-0.034, -0.110, 0.034), (0, -0.040, 0))},
@@ -1095,7 +1099,7 @@ HANDLING_BASE = {
              'settle': ((0.0, -0.001, -0.002), (-1.2, -0.5, 0.4))},
     'holster': {'dip': ((0.004, -0.010, -0.012), (-6, -4, 3)), 'to': ((0.07, -0.08, -0.21), (-50, -28, 28))},
     'kick': {'loc': (0.0, -0.016, 0.003), 'rot': (3.5, 0.6, 0.0), 'recover': ((0.0, 0.0025, -0.0008), (-0.8, 0.0, 0.0))},
-    'reload': {'tilt': ((-0.010, -0.020, 0.030), (10, 26, -16)), 'seat': ((-0.010, -0.017, 0.037), (14, 26, -18)),
+    'reload': {'tilt': ((-0.030, -0.035, 0.085), (22, 30, -20)), 'seat': ((-0.030, -0.032, 0.094), (26, 30, -22)),
                'low': (-0.14, -0.08, -0.46)},
     'sprint': {'style': 'low', 'a': ((-0.030, 0.000, 0.035), (-24, -34, 50)), 'b': ((-0.024, 0.002, 0.022), (-27, -31, 53)),
                'idx': -6, 'lift': 13},
@@ -1113,7 +1117,7 @@ HANDLING = {
                  'settle': ((0.0, -0.001, -0.002), (-1.6, -0.4, 0.5))},
         'holster': {'dip': ((0.004, -0.008, -0.010), (-8, -3, 4)), 'to': ((0.06, -0.10, -0.22), (-62, -18, 34))},
         'kick': {'loc': (0.0, -0.013, 0.004), 'rot': (6.5, 0.0, 0.0), 'recover': ((0.0, 0.002, -0.001), (-1.2, 0.0, 0.0))},
-        'reload': {'tilt': ((0.0, -0.030, 0.030), (14, 28, -18)), 'seat': ((0.0, -0.027, 0.036), (18, 28, -20)),
+        'reload': {'tilt': ((-0.010, -0.035, 0.050), (20, 30, -20)), 'seat': ((-0.010, -0.032, 0.057), (24, 30, -22)),
                    'low': (-0.12, -0.10, -0.42)},
         # high ready: pistol raised beside the face, muzzle straight up (12 o'clock: pitch 90, no roll; the yaw turns
         # it about the barrel to show its left side); the free fist pumps at the lower left ((NDC x, y, depth), palm, bend)
@@ -1131,7 +1135,9 @@ HANDLING = {
     'rifle': {},
     'shotgun': {'kick': {'loc': (0.0, -0.024, 0.006), 'rot': (7.0, 1.0, 0.0), 'recover': ((0.0, 0.003, -0.001), (-1.4, 0.0, 0.0))}},
     'melee': {'carry': (0.0, -0.02, 0.0)},
-    'rocket': {'carry': (0.0, -0.08, -0.010), 'kick': {'loc': (0.0, -0.030, 0.008), 'rot': (8.0, 1.2, 0.0), 'recover': ((0.0, 0.004, -0.001), (-1.6, 0.0, 0.0))}},
+    'rocket': {'carry': (0.0, -0.08, -0.010),
+               'reload': {'tilt': ((-0.030, -0.020, 0.060), (10, 52, -12)), 'seat': ((-0.030, -0.018, 0.068), (13, 52, -14))},
+               'kick': {'loc': (0.0, -0.030, 0.008), 'rot': (8.0, 1.2, 0.0), 'recover': ((0.0, 0.004, -0.001), (-1.6, 0.0, 0.0))}},
     'sniper': {'carry': (0.0, -0.17, -0.010), 'kick': {'loc': (0.0, -0.022, 0.004), 'rot': (5.0, 0.8, 0.0), 'recover': ((0.0, 0.003, -0.001), (-1.0, 0.0, 0.0))}},
 }
 HANDLING_FALLBACK = 'rifle'
@@ -1254,6 +1260,8 @@ def fit_support():
             info['dig_R'] = fit_digits('R', sd, grip_frame(wid) @ RIG['F0']['R'].inverted())
         elif cls != 'pistol':            # no support hand under the strong thumb: it closes on the grip
             info['dig_R'] = fit_digits('R', sd, grip_frame(wid) @ RIG['F0']['R'].inverted(), ('THUMB',))
+        if cls != 'melee':               # the three grip fingers fan down a little, clear of the trigger guard's root
+            info.setdefault('dig_R', {}).update({'MIDDLE': (0.0, 0.0, 0.0, -8.0), 'RING': (0.0, 0.0, 0.0, -5.0), 'PINKY': (0.0, 0.0, 0.0, -3.0)})
         FL = left_hold(wid)
         if FL is not None and cls != 'pistol':      # pistols: the support hand's rest pose IS the two-hand hold
             # on a handguard the thumb turns to point forward along the near side before it closes

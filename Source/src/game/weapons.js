@@ -26,7 +26,7 @@
     // crossfades (s) between arm clips. 'Far' variants are used when the arms come from an unrelated pose (a sprint,
     // a half-done reload); sprint-in takes the class fade (VM_CLASS.fade), sprint-out that times sprintOut
     fade: { loop: 0.14, slideIn: 0.14, slideOut: 0.18, sprintOut: 0.9, fire: 0.03, fireFar: 0.08, reload: 0.1, reloadFar: 0.16,
-      shell: 0.04, holster: 0.07, holsterFar: 0.11, draw: 0 /* a cut: out of frame */, melee: 0.07, throwNear: 0.06, throwFar: 0.11 },
+      shell: 0.04, shellIn: 0.2 /* into the first shell: the gun rolls right over */, holster: 0.07, holsterFar: 0.11, draw: 0 /* a cut: out of frame */, melee: 0 /* a cut: every swing clip starts out of frame */, throwNear: 0.06, throwFar: 0.11 },
     // look sway: the gun lags a turn, overshoots a little when the turn stops, and rolls into it
     sway: [13, 0.5], swayGain: 0.000011 /* m per px/s of look */, swayMaxX: 0.05, swayMaxY: 0.04, swayYaw: 1.6, swayPitch: 1.4, swayRoll: 1.1,
     // strafe lean and start / stop inertia (targets follow the local velocity / 6 m/s)
@@ -404,7 +404,7 @@
     if (g.mag >= W.magSize(s, g.def) || g.reserve < (g.def.ammoPer || 1)) return;
     s.state = 'reload'; s.t = 0; s.reloadT = g.def.reload * (s.fx.reloadMul || 1); s.burst = 0; s._magIn = false;
     var rc = W.clips[W.models[s.cur].key + '_Reload'];
-    W.anim(s, 'Reload', { once: true, fade: fadeNear(VM_TUNE.fade.reload, VM_TUNE.fade.reloadFar), timeScale: rc ? rc.duration / s.reloadT : 1 });   // Fast Fingers rescales the clip
+    W.anim(s, 'Reload', { once: true, fade: g.def.reloadPerShell ? VM_TUNE.fade.shellIn : fadeNear(VM_TUNE.fade.reload, VM_TUNE.fade.reloadFar), timeScale: rc ? rc.duration / s.reloadT : 1 });   // Fast Fingers rescales the clip
     bump(s, VM_TUNE.dip.reload, vmOf(g.def).weight);
     IB.Audio && IB.Audio.play(g.def.reloadPerShell ? 'magIn' : 'magOut', g.def.reloadPerShell ? { pitch: 1.3, gain: 0.7 } : undefined);
   };
