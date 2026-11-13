@@ -18,6 +18,8 @@ from mathutils import Matrix, Vector
 
 from ib_lib import *  # noqa: F401,F403
 import ib_lib
+from kit_base import join_into
+import mtn_pieces as MP
 
 FAM = 'kit-mountains'
 PFX = 'KIT_MOUNTAINS_'
@@ -244,7 +246,24 @@ def new(pal):
 
 def finish(name, m, ao, bevel=0.0, hull_t=0.02, cols=None):
     full = PFX + name
-    obj = build_object(full, m, bevel, hull_t, ao=ao)
+    flat = getattr(m, 'flat', None)
+    if flat:
+        # detail shapes (ink=False) go into a second, hull-less mesh joined in after the z-fight check on the whole
+        check_zfight(full, m.bm, m.shape)
+        fb = m.bm.copy()
+        bmesh.ops.delete(m.bm, geom=[f for f in m.bm.faces if f[m.shape] in flat], context='FACES')
+        fm = Model(m.pal)
+        fm.bm.free()
+        fm.bm = fb
+        fm.bw = fb.edges.layers.float['bevel_weight_edge']
+        fm.shape = fb.faces.layers.int['shape_id']
+        bmesh.ops.delete(fb, geom=[f for f in fb.faces if f[fm.shape] not in flat], context='FACES')
+        obj = build_object(full, m, bevel, hull_t, ao=ao)
+        o2 = build_object(full + '_flat', fm, 0, 0.0)
+        strip_hull(o2)
+        join_into(obj, o2)
+    else:
+        obj = build_object(full, m, bevel, hull_t, ao=ao)
     TRIS[full] = sum(len(p.vertices) - 2 for p in obj.data.polygons)
     for i, (c, hlf) in enumerate(cols or []):
         e = bpy.data.objects.new('%s_COL%d' % (full, i), None)
@@ -406,6 +425,7 @@ def build_cover(pal, ao):
     for z, d in ((0.45, 0.05), (0.88, -0.05)):
         m.box((0, d, z), (1.0, 0.08, 0.13), 'log', bevel=False)
     m.box((0, -0.05, 0.96), (1.0, 0.1, 0.03), 'snow', bevel=False)   # sits exactly on the top rail (0.945)
+    MP.fence(m)
     finish('Fence', m, ao, cols=[((0, 0, 0.55), (0.5, 0.14, 0.55))])
     # log pile: three long logs (continuous along the run), stakes, snow on the top log
     m = new(pal)
@@ -428,6 +448,7 @@ def build_cover(pal, ao):
     m.box((0, 0, 0.935), (0.8, 0.8, 0.05), 'snow', bevel=False)
     m.box((0.28, -0.505, 0.6), (0.18, 0.02, 0.14), 'teal', bevel=False)
     m.box((0, 0, 0.47), (0.12, 0.975, 0.95), 'rope', bevel=False)
+    MP.crate(m)
     finish('Crate', m, ao, bevel=0.015, cols=[((0, 0, 0.5), (0.48, 0.48, 0.5))])
     m = new(pal)
     m.box((0, 0, 0.3), (0.78, 0.66, 0.58), 'canvas')
@@ -599,6 +620,7 @@ def build_decor(pal, ao):
         prism(m, board, L, L + 0.16, col, axis='x', prof1=[(-0.025, -0.004), (0.025, -0.004), (0.025, 0.004), (-0.025, 0.004)])
         m.parent = Matrix.Identity(4)
     hull(m, [(math.cos(a) * 0.35, math.sin(a) * 0.3, 0) for a in [i * 1.05 for i in range(6)]] + [(0.05, 0.02, 0.12), (-0.1, 0.05, 0.1)], 'snow')
+    MP.signpost(m)
     finish('Signpost', m, ao, cols=[((0, 0, 1.1), (0.12, 0.12, 1.1))])
     m = new(pal)
     m.box((0, 0, 1.2), (0.14, 0.14, 2.4), 'log2', bevel=False)
@@ -610,6 +632,7 @@ def build_decor(pal, ao):
     m.cyl((0.55, 0, 1.93), 0.17, 0.02, 0.14, 'gunmetal', seg=4, rot=(0, 0, 45), bevel=False)
     m.box((0, 0, 2.435), (0.18, 0.18, 0.07), 'snow', bevel=False)
     m.box((0.32, 0, 2.367), (0.62, 0.12, 0.035), 'snow', bevel=False)
+    MP.lanternpost(m)
     finish('LanternPost', m, ao, cols=[((0, 0, 1.2), (0.12, 0.12, 1.2))])
     m = new(pal)
     rnd = random.Random(81)
@@ -740,6 +763,7 @@ def build_cabin(pal, ao):
     m.box((X + 0.42, -0.2, 1.04), (0.44, 1.64, 0.08), 'snow', bevel=False)
     # snow drift against the back-west corner
     hull(m, clamp_pts(rock_pts(rnd, (-2.2, 2.0), 0.8, 0.45, 0.5, n=6, top=2), 2.95), lambda f: 'snow' if f.normal.z > 0.35 else 'snow2')
+    MP.cabin(m)
     finish('Landmark_Cabin', m, ao, cols=[((0, 0.3, 1.5), (2.55, 1.85, 1.5)), ((cx, 0.9, 1.5), (0.3, 0.45, 1.5)),
                                           ((0, Yf - 0.62, 0.07), (X + 0.05, 0.42, 0.07)), ((X + 0.42, -0.2, 0.5), (0.22, 0.8, 0.5)),
                                           ((-(X - 0.05), py, 1.1), (0.1, 0.1, 1.1)), ((X - 0.05, py, 1.1), (0.1, 0.1, 1.1))])
@@ -795,6 +819,7 @@ def build_chalet(pal, ao):
         m.box((sx * 0.62, fy - 0.12, 2.0), (0.12, 0.18, 0.16), 'glow', bevel=False)
     for k, col in enumerate(('tangerine', 'teal')):
         m.box((1.65 + k * 0.14, y0 - 0.0, 0.85), (0.09, 0.03, 1.7), col, rot=(-8, 4 - k * 6, 0), bevel=False)
+    MP.chalet(m)
     finish('Landmark_Chalet', m, ao, cols=[((0, 0.1, 1.5), (2.3, 2.6, 1.5)), ((0, y0 - 0.12, 0.1), (0.65, 0.25, 0.1))])
 
 
@@ -868,6 +893,7 @@ def build_lookout(pal, ao):
     prism(m, [(0.0, 0.0), (0.0, 0.3), (0.5, 0.15)], -0.012, 0.012, 'tangerine', axis='y')
     m.parent = Matrix.Identity(4)
     cols = [((sx * b, sy * b, 1.0), (0.32, 0.32, 1.0)) for sx, sy in legs] + [((-0.45, -0.62, 0.6), (0.55, 0.36, 0.6))]
+    MP.lookout(m)
     finish('Landmark_Lookout', m, ao, cols=cols)
 
 
@@ -939,6 +965,7 @@ def build_ropebridge(pal, ao):
     # frozen creek through the pass (lines up with the 2x2 Creek pieces north and south)
     creek(m, -2.0, 2.0)
     cols = [((sx * 5.0, 0, 4.5), (2.0, 2.0, 4.5)) for sx in (-1, 1)]
+    MP.ropebridge(m, catenary, half, zend, sag)
     finish('Landmark_RopeBridge', m, ao, cols=cols)
 
 
@@ -978,6 +1005,7 @@ def build_lift(pal, ao):
         m.beam((sx * CABLE_X, -6.0, CABLE_Z), (sx * CABLE_X, 6.0, CABLE_Z), 0.05, 'gunmetal')
     for (x, y) in ((-CABLE_X, -3.6), (-CABLE_X, 2.6), (CABLE_X, -1.9), (CABLE_X, 4.3)):
         chair(m, x, y)
+    MP.liftline(m, CABLE_X)
     finish('Landmark_LiftLine', m, ao, cols=[((0, 0, 1.5), (0.45, 0.45, 1.5))])
     # station: stone platform, A-frame legs, bullwheel under a snowy canopy, operator hut, parked chair
     m = new(pal)
@@ -1016,6 +1044,7 @@ def build_lift(pal, ao):
     chair(m, CABLE_X, -1.55)
     # loading ramp board and a stack of skis
     m.box((1.2, -1.0, 0.13), (1.6, 1.2, 0.02), 'plank', bevel=False)
+    MP.liftstation(m)
     finish('Landmark_LiftStation', m, ao, cols=[((hx, hy, 1.3), (0.72, 0.68, 1.3)), ((-1.85, 1.5, 0.8), (0.2, 0.2, 0.8)),
                                                 ((1.85, 1.5, 0.8), (0.2, 0.2, 0.8)), ((-1.85, -1.38, 0.8), (0.18, 0.18, 0.8)),
                                                 ((1.85, -1.38, 0.8), (0.18, 0.18, 0.8))])
@@ -1044,6 +1073,7 @@ def build_gate(pal, ao, bw, ht):
         for fy in (-1, 1):
             m.box((sx * 1.2, fy * 0.42, 3.775), (0.03, 0.03, 0.55), 'gunmetal', bevel=False)
             m.box((sx * 1.2, fy * 0.42, 3.38), (0.18, 0.18, 0.24), 'glow', bevel=False)
+    MP.gateframe(m)
     finish('GateFrame', m, ao, bevel=bw)
     # roll-up shutter: log courses with iron straps, hazard band at the foot (one box outline overall)
     m = new(pal)
@@ -1055,6 +1085,7 @@ def build_gate(pal, ao, bw, ht):
         m.box((x, 0, (H + 0.55) / 2), (0.1, 0.19, H - 0.6), 'gunmetal', bevel=False)
     for k in range(8):
         m.box((-1.5 + (k + 0.5) * 3 / 8, 0, 0.27), (3 / 8, 0.16, 0.5), 'ink' if k % 2 else 'amber', bevel=False)
+    MP.gateshutter(m)
     build_object(PFX + 'GateShutter', m, 0, 0.0)
     shutter = bpy.data.objects[PFX + 'GateShutter']
     strip_hull(shutter)
@@ -1067,7 +1098,7 @@ def build_gate(pal, ao, bw, ht):
     # trail walls: log palisade on a stone footing; 1 m run along Blender Y, 0.5 thick, inner face +X. Variants
     # (mixed in per module through theme.trail.variants): firewood stacked against it, a lantern on a bracket,
     # a snow drift with a pair of skis leaning on the logs.
-    def palisade(m, heights=(2.28, 2.42, 2.34)):
+    def palisade(m, heights=(2.28, 2.42, 2.34), blocks=True):
         m.box((0, 0, 0.2), (0.5, 1.0, 0.4), 'stone2', bevel=False)
         m.box((0, 0, 0.42), (0.54, 1.0, 0.04), 'snow', bevel=False)
         for k, (y, H, col) in enumerate(zip((-0.333, 0.0, 0.333), heights, ('log', 'log2', 'log'))):
@@ -1075,6 +1106,7 @@ def build_gate(pal, ao, bw, ht):
             m.cyl((0, y, H), 0.163, 0.02, 0.26, 'log2', seg=7, bevel=False)
         m.box((0.19, 0, 1.25), (0.08, 1.0, 0.12), 'log2', bevel=False)
         m.box((-0.19, 0, 1.95), (0.08, 1.0, 0.12), 'log2', bevel=False)
+        MP.palisade(m, blocks=blocks)
     m = new(pal)
     palisade(m)
     finish('TrailWall', m, ao)
@@ -1096,7 +1128,7 @@ def build_gate(pal, ao, bw, ht):
     m.box((0.38, 0.0, 1.405), (0.24, 0.24, 0.03), 'gunmetal', bevel=False)
     finish('TrailWall_Lantern', m, ao)
     m = new(pal)                                   # a drift banked against the logs, skis leaning on them
-    palisade(m, (2.32, 2.38, 2.28))
+    palisade(m, (2.32, 2.38, 2.28), blocks=False)
     m.sphere((0.3, 0.05, 0.38), 0.5, 'snow', seg=(8, 5), scale=(0.7, 1.05, 0.42))
     for k, (y, c) in enumerate(((-0.12, 'red'), (0.06, 'amber'))):
         m.box((0.38, y, 1.05), (0.05, 0.09, 1.9), c, rot=(0, -12 - 3 * k, 0), bevel=False)
