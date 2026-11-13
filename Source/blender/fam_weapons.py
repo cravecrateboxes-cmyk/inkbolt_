@@ -273,8 +273,8 @@ def build_scene():
     hold_socket(rig)
     fit_support()
     for wid, info in WEAPONS.items():
-        if 'curl_L' in info:
-            print('support hold %-10s offset %s curl %+.0f' % (wid, tuple(round(c, 3) for c in info['hold_L'].translation), info['curl_L']))
+        if 'hold_L' in info:
+            print('support hold %-10s offset %s' % (wid, tuple(round(c, 3) for c in info['hold_L'].translation)))
     build_actions(rig)
     return pal, rig, arms
 

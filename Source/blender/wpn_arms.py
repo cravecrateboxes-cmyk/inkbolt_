@@ -1,6 +1,7 @@
 """INKBOLT weapons: the first-person arms (tactical gloves, bracers, sleeves) and their rig.
 Built by fam_weapons.py; shape kit and gun parts in wpn_core.py."""
 import math
+import os
 
 import bpy  # must load before bmesh/mathutils
 import bmesh
@@ -938,6 +939,12 @@ def build_arms(pal):
                 sp = -sp
             RIG.setdefault('J', {}).setdefault(side, {})[dn] = J
             RIG.setdefault('AX', {}).setdefault(side, {})[dn] = (ax, sp)
+            # how far each joint is bent at rest (deg; the knuckle against the palm's own curve round the grip)
+            G, (th, g) = ANAT[side]['grip'], ANAT[side]['mcp']
+            m = (Xs.to_3x3() @ V((-(G['hx'] + g) * math.sin(D(th)), (G['hy'] + g) * math.cos(D(th)), 0))).normalized()
+            dd = [m] + [(J[i + 1] - J[i]).normalized() for i in range(3)]
+            RIG.setdefault('REST', {}).setdefault(side, {})[dn] = tuple(
+                math.degrees(math.atan2(a.cross(b).dot(ax), a.dot(b))) for a, b in zip(dd, dd[1:]))
     bpy.ops.object.mode_set(mode='OBJECT')
     assert len(arm.bones) == 40, len(arm.bones)
     names = [b.name for b in arm.bones]
@@ -1143,7 +1150,7 @@ CARRY = {c: HANDLING[c].get('carry', HANDLING_BASE['carry']) for c in HANDLING}
 # the gun's visible surface), and the fingers / thumb close until they meet it (curl from the gap left).
 # two-hand pistol hold: support glove offset (m) and rotation (deg) from the grip frame, thumb swing, finger curl
 PISTOL_LEFT = (-0.018, 0.018, -0.016, 8, 0, 14, 0, -8)
-GUARD_PALM = V((0.70, 0.0, -0.71))      # handguards: palm under, fingers over the far side, forearm from below
+GUARD_PALM = V((0.17, 0.0, -0.98))      # handguards: palm under, knuckles at the lower far corner, fingers up the far side, thumb up the near side
 
 
 def hold_frame(o, axis, palm):
@@ -1190,25 +1197,63 @@ def left_hold(wid):
     return hold_frame(info['guard'], (0, 1, 0), GUARD_PALM)
 
 
+def palm_points(side):
+    """Rest-space points that seat a hand on a part: the inside of the palm (radius 0) and the knuckle balls."""
+    G, X = ANAT[side]['grip'], RIG['X'][side]
+    lo = ANAT[side]['palm'][-1][0]
+    pts = [(X @ gpt(G, th, z, G0), 0.0) for th in (max(lo, -60), -40, -20, 0, 18, 34) for z in (-0.012, -0.032, -0.052, -0.072)]
+    return pts + [(RIG['J'][side][fn][0], FING[fn][1][0]) for fn in FINGERS]
+
+
+def seat(side, sd, F, far=0.030, deep=0.012):
+    """Slide a hand frame F (object space) along its palm direction, from clear of the object in until the palm
+    or a knuckle presses on it; returns the seated frame."""
+    pts, Hi = palm_points(side), RIG['F0'][side].inverted()
+    palm = -F.col[0].xyz if side == 'L' else F.col[0].xyz
+    best, d = None, far
+    while d >= -deep:
+        Fd = F.copy()
+        Fd.translation = F.translation + palm * d
+        H = Fd @ Hi
+        if max(r - sd(H @ q) for q, r in pts) > FIT_SINK:
+            break
+        best = d
+        d -= 0.001
+    Fd = F.copy()
+    Fd.translation = F.translation + palm * (best if best is not None else 0.0)
+    return Fd
+
+
 def fit_support():
-    """Slide each long gun's support frame onto its foregrip / handguard; curl fingers and thumb to the gap."""
-    G = ANAT['L']['grip']
+    """Seat each long gun's support frame on its foregrip / handguard (centred across the part, the palm pressed
+    on it), then close every hand on its weapon: info['dig_R'] / info['dig_L'] are the digit angles of the hold
+    (fit_digits). The strong hand's fingers keep their modelled place on a gun's grip and trigger."""
     for wid, info in WEAPONS.items():
         if info['cls'] in ('pistol', 'melee'):
             continue
         F = left_hold(wid)
         o, x, y, z = F.translation.copy(), F.col[0].xyz, F.col[1].xyz, F.col[2].xyz
-        palm = -x                                   # palm side (the glove is mirrored)
         hs = [o + z * FING[fn][0] for fn in FINGERS]     # sample the part across the hand, index to pinky
-        rp = max(reach(wid, h, palm) for h in hs)
         rf = sum(reach(wid, h, y) for h in hs) / 4
         rb = sum(reach(wid, h, -y) for h in hs) / 4
         F = F.copy()
-        clamp = lambda v, m: max(-m, min(m, v))
-        F.translation = o + palm * clamp(rp - G['hx'], 0.010) + y * clamp((rf - rb) / 2, 0.008)
-        info['hold_L'] = F
-        info['curl_L'] = max(-25.0, min(25.0, math.degrees((G['hy'] - (rf + rb) / 2) / 0.045)))
+        F.translation = o + y * max(-0.008, min(0.008, (rf - rb) / 2))
+        info['hold_L'] = seat('L', bvh_sd(hold_bvh(wid)), F)
         info.pop('bvh', None)
+    for wid, info in WEAPONS.items():
+        sd = bvh_sd(hold_bvh(wid))
+        cls = info['cls']
+        if cls == 'melee':               # both hands wrap the handle
+            info['dig_R'] = fit_digits('R', sd, grip_frame(wid) @ RIG['F0']['R'].inverted())
+        elif cls != 'pistol':            # no support hand under the strong thumb: it closes on the grip
+            info['dig_R'] = fit_digits('R', sd, grip_frame(wid) @ RIG['F0']['R'].inverted(), ('THUMB',))
+        FL = left_hold(wid)
+        if FL is not None and cls != 'pistol':      # pistols: the support hand's rest pose IS the two-hand hold
+            info['dig_L'] = fit_digits('L', sd, FL @ RIG['F0']['L'].inverted())
+        if os.environ.get('IB_POSE_REPORT'):
+            for sd_ in 'RL':
+                if 'dig_' + sd_ in info:
+                    print('FIT %-10s %s %s' % (wid, sd_, '  '.join('%s %s' % (k[:2], ','.join('%+.0f' % x for x in v[:3])) for k, v in info['dig_' + sd_].items())))
 
 
 def T(v):
@@ -1235,3 +1280,146 @@ def hand_axes(side):
     RIG.setdefault('axes', {})[side] = out
     RIG['axes']['X' + side] = RIG['X'][side]
     return out
+
+
+# ================================================================ finger poses: shapes of a free hand, contact fits on things
+# A digit pose is (knuckle, joint 2, joint 3[, spread]) in degrees FROM THE REST POSE (the modelled hold), positive
+# = closing; a hand pose is {digit: pose} (missing digits stay at rest). Three ways to get one:
+#   hand_shape(side, name)      a named shape of a free hand (SHAPES: absolute flexion, so both hands match)
+#   fit_digits(side, sd, H)     close the digits on an object until each phalanx touches it
+#   literal dicts               for one-off tweaks
+# Flexion limits (deg): fingers absolute (0 = in line with the palm), thumb from its rest pose.
+FLEX_LIM = {'F': ((-10, 86), (2, 106), (2, 70)), 'T': ((-26, 24), (-28, 46), (-36, 58))}
+# shapes: 'f' = finger flexion (knuckle, joint 2, joint 3), 'add' = extra flexion per finger index -> pinky,
+# 'spread' = per finger (toward the thumb +), 'thumb' = from rest
+SHAPES = {
+    'open': {'f': (6, 12, 8), 'add': (0, 2, 6, 12), 'spread': (7, 2, -3, -9), 'thumb': (-20, -8, -6)},
+    'relaxed': {'f': (20, 34, 20), 'add': (-4, 0, 5, 10), 'spread': (4, 1, -2, -6), 'thumb': (-10, 0, 4)},
+    'fist': {'f': (80, 98, 60), 'add': (0, 0, 0, 0), 'spread': (0, 0, 0, 0), 'thumb': (6, 16, 30)},
+    'point': {'f': (0, 10, 6), 'add': (0, 0, 0, 0), 'spread': (0, 0, 0, 0), 'thumb': (0, 0, 0)},
+}
+
+
+def hand_shape(side, name, k=1.0):
+    """Digit angles (from rest) of a named free-hand shape; k < 1 stops short of it (blend from the rest pose)."""
+    sh = SHAPES[name]
+    out = {}
+    for i, fn in enumerate(FINGERS):
+        rest = RIG['REST'][side][fn]
+        out[fn] = tuple((sh['f'][j] + sh['add'][i] * (0.6 if j == 0 else 1.0) - rest[j]) * k for j in range(3)) + (sh['spread'][i] * k,)
+    out['THUMB'] = tuple(c * k for c in sh['thumb']) + (0.0,)
+    return out
+
+
+def digit_fk(side, dn, a):
+    """Rest-space motion of the three phalanges of a digit for joint angles a (deg from rest[, spread])."""
+    J, (ax, sp) = RIG['J'][side][dn], RIG['AX'][side][dn]
+    M, out = Matrix.Identity(4), []
+    for i in range(3):
+        C = Matrix.Rotation(D(a[i]), 4, ax)
+        if i == 0 and len(a) > 3 and a[3]:
+            C = C @ Matrix.Rotation(D(a[3]), 4, sp)
+        M = M @ T(J[i]) @ C @ T(-J[i])
+        out.append(M)
+    return out
+
+
+def digit_limits(side, dn):
+    """Joint limits of a digit as angles from rest."""
+    if dn == 'THUMB':
+        return FLEX_LIM['T']
+    rest = RIG['REST'][side][dn]
+    return tuple((lo - rest[i], hi - rest[i]) for i, (lo, hi) in enumerate(FLEX_LIM['F']))
+
+
+FIT_STEP, FIT_SINK = 2.0, 0.0012        # sweep step (deg); how far a phalanx may sink into what it holds (m)
+
+
+def fit_digits(side, sd, H, digits=DIGITS, spread=None):
+    """Close the digits of a hand on an object: sd(p) is the signed distance (m) to the object in its own space,
+    H takes the rig's rest space to that space with the hand placed (frame @ rest frame inverse). Each digit
+    opens, then knuckle, joint 2 and joint 3 close in turn until a phalanx beyond the joint presses into the
+    object (nothing there up to the joint's limit: it keeps its rest angle). Returns {digit: angles from rest}."""
+    out = {}
+    for dn in digits:
+        J = RIG['J'][side][dn]
+        rad = THUMB_R if dn == 'THUMB' else FING[dn][1]
+        lim = digit_limits(side, dn)
+        sp = (spread or {}).get(dn, 0.0)
+        pts = []                         # per phalanx: (rest point, radius)
+        for i in range(3):
+            fr = (0.3, 0.65, 1.0) if i == 2 else (0.3, 0.55, 0.8, 1.0)
+            pts.append([(J[i] + (J[i + 1] - J[i]) * f, (rad[i] + (rad[i + 1] - rad[i]) * f) * 0.93) for f in fr])
+        a = [lim[0][0] * 0.75 if dn == 'THUMB' else max(lim[0][0], -RIG['REST'][side][dn][0]),
+             max(lim[1][0], -22.0) if dn == 'THUMB' else lim[1][0], lim[2][0] if dn != 'THUMB' else max(lim[2][0], -20.0)]
+
+        def pen(j):                      # deepest any phalanx beyond joint j sinks in
+            Ms = digit_fk(side, dn, a + [sp])
+            links = range(max(j, 1 if dn == 'THUMB' else 0), 3)
+            return max(r - sd(H @ Ms[i] @ p) for i in links for p, r in pts[i])
+        for j in range(3):
+            lo, hi = lim[j]
+            p0 = pen(j)
+            if j == 0:                   # start clear of the object: open the knuckle further if it is not
+                while p0 > FIT_SINK and a[0] - FIT_STEP >= lo:
+                    a[0] -= FIT_STEP
+                    p0 = pen(0)
+            best, ang, hit = a[j], a[j], False
+            while ang + FIT_STEP <= hi:
+                ang += FIT_STEP
+                a[j] = ang
+                if pen(j) > max(p0 + 0.0006, FIT_SINK):
+                    hit = True
+                    break
+                best = ang
+            a[j] = best if hit else min(max(0.0, lo), hi)        # nothing to close on: the joint's rest angle
+        out[dn] = (a[0], a[1], a[2], sp)
+    return out
+
+
+def bvh_sd(bvh):
+    """Signed distance function (outside +) of a mesh BVH."""
+    def sd(p):
+        loc, nor, idx, d = bvh.find_nearest(p, 0.06)
+        if loc is None:
+            return 0.06
+        return d if (p - loc).dot(nor) >= 0 else -d
+    return sd
+
+
+def can_sd(radius, half, frame):
+    """Signed distance to an upright can (cylinder along z) placed by frame."""
+    Fi = frame.inverted()
+
+    def sd(p):
+        q = Fi @ p
+        return max(math.hypot(q.x, q.y) - radius, abs(q.z) - half)
+    return sd
+
+
+def hold_bvh(wid, gun=True, mag=True):
+    """BVH of a weapon's visible surface in weapon space: the gun and / or its magazine at its socket (the
+    magazine alone: in its own space)."""
+    info = WEAPONS[wid]
+    key = 'bvh%d%d' % (gun, mag)
+    if key not in HOLD_BVH.setdefault(wid, {}):
+        bm = bmesh.new()
+        for name, off, on in (('WPN_' + wid, V((0, 0, 0)), gun), ('WPN_%s_Mag' % wid, V(info['mag']) if gun else V((0, 0, 0)), mag)):
+            ob = bpy.data.objects.get(name)
+            if not on or ob is None:
+                continue
+            n0 = len(bm.verts)
+            bm.from_mesh(ob.data)
+            bm.verts.ensure_lookup_table()
+            for v in bm.verts[n0:]:
+                v.co += off
+        hl = bm.verts.layers.float_vector.get('_HULL')
+        if hl is not None:
+            bmesh.ops.delete(bm, geom=[v for v in bm.verts if v[hl].length > 0], context='VERTS')
+        bm.normal_update()
+        HOLD_BVH[wid][key] = BVHTree.FromBMesh(bm)
+        bm.free()
+    return HOLD_BVH[wid][key]
+
+
+HOLD_BVH = {}
