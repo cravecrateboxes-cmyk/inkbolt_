@@ -27,7 +27,7 @@ import math
 
 import bpy  # noqa: F401
 import bmesh
-from mathutils import Vector
+from mathutils import Vector, Matrix
 
 from ib_lib import *  # noqa: F401,F403
 import ib_lib
@@ -169,6 +169,76 @@ def annulus(m, z, r0, r1, c, seg=16):
 # merchandise helpers for the window displays
 
 
+# ---- detail helpers (tactical look Stage 11): finish and fittings, never grime. Same rules as kit_base's helpers: every part is
+# hull='none' (no outline shell), stands at least 3 mm proud of its face and starts 3 mm inside it, horizontal runs stop 5 mm
+# short of the piece's sides. `s` is the face direction: -1 looks toward Blender -Y (the module front), +1 toward +Y.
+PROUD, EMBED = 0.004, 0.003
+
+
+def _yr(yf, d, s):
+    return (yf - d, yf + EMBED) if s < 0 else (yf - EMBED, yf + d)
+
+
+def dbx(m, x0, x1, yf, d, z0, z1, c, s=-1, cull=''):
+    y0, y1 = _yr(yf, d, s)
+    return m.bx(x0, x1, y0, y1, z0, z1, c, hull='none', cull=cull)
+
+
+def d_base(m, x0, x1, yf, c, h=0.09, d=0.018, z0=0.0, s=-1):
+    dbx(m, x0 + 0.005, x1 - 0.005, yf, d, z0 + 0.004, z0 + h, c, s)
+
+
+def d_cap(m, x0, x1, yf, ztop, c, h=0.07, d=0.03, s=-1):
+    dbx(m, x0 + 0.005, x1 - 0.005, yf, d, ztop - h, ztop - 0.004, c, s)
+
+
+def d_kick(m, x0, x1, yf, c, h=0.24, z0=0.0, d=0.008, s=-1):
+    dbx(m, x0 + 0.005, x1 - 0.005, yf, d, z0 + 0.004, z0 + h, c, s)
+
+
+def d_guard(m, x, yf, z0, z1, c, w=0.05, t=0.008, side=1, s=-1):
+    """L-angle strip on a vertical corner at x (side +1: runs inward from x toward -x, -1: toward +x)."""
+    a, b = (x - w, x - 0.004) if side > 0 else (x + 0.004, x + w)
+    dbx(m, a, b, yf, t, z0, z1, c, s)
+
+
+def d_seams(m, x0, x1, yf, z0, z1, every, c, t=0.014, s=-1):
+    n = max(1, int(round((x1 - x0) / every)))
+    for i in range(1, n):
+        x = x0 + (x1 - x0) * i / n
+        dbx(m, x - t / 2, x + t / 2, yf, PROUD, z0, z1, c, s)
+
+
+def d_vent(m, x, z, yf, w, h, frame_c, slat_c, s=-1):
+    n = max(3, int(h / 0.06))
+    for zz0, zz1 in ((z - h / 2, z - h / 2 + 0.03), (z + h / 2 - 0.03, z + h / 2)):
+        dbx(m, x - w / 2, x + w / 2, yf, 0.012, zz0, zz1, frame_c, s)
+    for xx0, xx1 in ((x - w / 2, x - w / 2 + 0.03), (x + w / 2 - 0.03, x + w / 2)):
+        dbx(m, xx0, xx1, yf, 0.012, z - h / 2 + 0.034, z + h / 2 - 0.034, frame_c, s)
+    for i in range(n):
+        zz = z - h / 2 + 0.04 + (h - 0.08) * (i + 0.5) / n
+        y0, y1 = (yf - 0.009, yf - PROUD) if s < 0 else (yf + PROUD, yf + 0.009)
+        m.bx(x - w / 2 + 0.034, x + w / 2 - 0.034, y0, y1, zz - 0.008, zz + 0.008, slat_c, hull='none')
+
+
+def d_frame(m, x0, x1, z0, z1, yf, c, depth=0.06, t=0.03, top=True, s=-1):
+    """A frame standing out round a board / opening, so it reads with depth."""
+    if top:
+        dbx(m, x0 - t, x1 + t, yf, depth, z1 - 0.003, z1 + t, c, s)
+    dbx(m, x0 - t, x1 + t, yf, depth, z0 - t, z0 + 0.003, c, s)
+    dbx(m, x0 - t, x0 + 0.003, yf, depth, z0 + 0.004, z1 - 0.004, c, s)
+    dbx(m, x1 - 0.003, x1 + t, yf, depth, z0 + 0.004, z1 - 0.004, c, s)
+
+
+def front_trims(m, S, sill):
+    """shopfront finish: brass drip under and a cap over the sign band, a chrome sill + skirting on the glazing"""
+    d_cap(m, -0.5, 0.5, -0.6, S['s0'] + 0.02, 'brass', h=0.04, d=0.025)
+    d_cap(m, -0.5, 0.5, -0.6, S['s1'] + 0.02, 'brass', h=0.04, d=0.025)
+    if sill:
+        dbx(m, -0.495, 0.495, -0.56, 0.02, S['kick'] - 0.003, S['kick'] + 0.02, 'chrome')
+        d_base(m, -0.5, 0.5, -0.56, 'chrome', h=0.06, d=0.012, z0=S['z0'])
+
+
 def shoe(m, x, y, z, c, heel=False):
     """one shoe, toe toward -X: sole, vamp, collar (or a stiletto heel)"""
     m.bx(x - 0.12, x + 0.12, y - 0.04, y + 0.04, z, z + 0.022, 'paper' if c != 'paper' else 'dark', hull='none')
@@ -256,6 +326,9 @@ def shop_front(m, brand, pos, S):
         # window vinyl: a short line of script on the glass
     # sign band and the shop name (spans SignL / Door / SignR: bay x -1.5 .. 1.5, clipped per module)
     m.bx(-0.5, 0.5, -0.6, -0.37, s0, s1, band, hull='noside', cull='klrt')
+    front_trims(m, S, not door and not closed)
+    if S is LO and pos == 'WinB':   # a louvred vent grille in the bulkhead stone
+        d_vent(m, 0.0, (s1 + top) / 2, -0.5, 0.36, 0.2, 'stone2', 'steel')
     zm = (s0 + s1) / 2
     if pos in ('SignL', 'Door', 'SignR'):
         off = {'SignL': -1.0, 'Door': 0.0, 'SignR': 1.0}[pos]
@@ -412,6 +485,7 @@ def shop_front_walk(m, brand, pos, S):
             m.bx(sx * 0.5 - (0.04 if sx > 0 else 0), sx * 0.5 + (0.04 if sx < 0 else 0), -0.54, -0.37, z0, wtop, frame, hull='none', cull='ktb' + ('r' if sx > 0 else 'l'))
     m.bx(-0.5, 0.5, -0.545, -0.37, wtop, s0, frame, hull='none', cull='klrt' + ('' if win else 'b'))
     m.bx(-0.5, 0.5, -0.6, -0.37, s0, s1, band, hull='noside', cull='klrt')
+    front_trims(m, S, win)
     zm = (s0 + s1) / 2
     if pos in ('OpenL', 'OpenC', 'OpenR'):
         off = {'OpenL': -1.0, 'OpenC': 0.0, 'OpenR': 1.0}[pos]
@@ -478,6 +552,9 @@ def door_leaves(m, S, frame):
         m.bx(a + 0.045, b - 0.045, -0.465, -0.435, z0, z0 + 0.14, 'chrome', hull='none', cull='kb')
         m.bx(a + 0.08, b - 0.08, -0.52, -0.49, z0 + 0.98, z0 + 1.04, 'brass', hull='none', cull='k')
         glint(m, a + 0.05, b - 0.05, -0.452, z0 + 0.2, d - 0.1)
+        dbx(m, a + 0.06, b - 0.06, -0.465, 0.012, z0 + 0.02, z0 + 0.13, 'brass')                # kick plate on the foot rail
+    dbx(m, 0.16, 0.34, -0.465, 0.02, d - 0.075, d - 0.02, 'dark')                              # door closer on the head rail
+    dbx(m, -0.455, 0.455, -0.5, 0.02, d - 0.02, d + 0.003, 'brass')                            # head casing
     m.bx(-0.5, 0.5, -0.5, -0.37, d, S['wtop'], 'sign', hull='noside', cull='klr')
     txt(m, 'OPEN', 0.0, -0.504, (d + S['wtop']) / 2, 0.1, 'lightW', font='display', valign='m', maxw=0.5, spacing=1.3)
     uq(m, -0.4, 0.4, -0.5, -0.37, S['z0'] + 0.008, 'chrome')
@@ -741,6 +818,8 @@ def build_walls(pal, ao):
             m.bx(-0.04, 0.04, -0.95, -0.62, zs - 0.04, zs + 0.03, 'brass', hull='none')
             m.cy((0, -0.95, zs - 0.12), 0.05, 0.07, 0.1, 'brass', seg=6, hull='none', caps=False)
             m.sp((0, -0.95, zs + 0.08), 0.13, 'light', seg=(6, 4), hull='none')
+        for sx in (-1, 1):   # brass corner guards at knocking height
+            d_guard(m, sx * w, -0.62, 0.5, 1.5, 'brass', side=sx)
         back_sides(m)
         make(name, m, ao)
     # zone corners: a block that fills the corner cell and closes the shop interiors on both walls
@@ -749,6 +828,14 @@ def build_walls(pal, ao):
         m = new(pal)
         cull = ''.join(ch for ch in 'tbfklr' if ch not in keep)
         m.bx(x0, x1, y0, y1, 0.0, H, 'cream', hull='none', cull=cull)
+        faces = {'f': (0, y0, x0, x1), 'k': (180, -y1, -x1, -x0), 'r': (90, -x1, y0, y1), 'l': (-90, x0, -y1, -y0)}
+        for ch in keep:   # each visible face: skirting, cap and a few seams, in the face's own frame
+            deg, yf, a, b = faces[ch]
+            m.parent = Matrix.Rotation(math.radians(deg), 4, 'Z')
+            d_base(m, a, b, yf, 'stone2', h=0.12, d=0.02)
+            d_cap(m, a, b, yf, H, 'stone2', h=0.1, d=0.025)
+            d_seams(m, a, b, yf, 0.13, H - 0.11, 0.95, 'stone2')
+            m.parent = Matrix.Identity(4)
         make('Corner_' + name, m, ao)
     # blank modules (bay ends, beside the gates): directory board / lit poster below, poster / clock above
     for name in ('Blank_Map', 'Blank_Ad'):
@@ -758,6 +845,8 @@ def build_walls(pal, ao):
         m.bx(-0.5, 0.5, -0.56, -0.5, 4.5, 4.75, 'stone2', hull='noside', cull='k')
         m.bx(-0.5, 0.5, -0.62, -0.5, 8.9, 9.12, 'stone2', hull='noside', cull='k')
         m.bx(-0.42, 0.42, -0.6, -0.5, 0.75, 2.75, 'dark', hull='full', cull='k')
+        dbx(m, -0.495, 0.495, -0.56, 0.012, 0.29, 0.31, 'brass')      # skirting cap
+        d_frame(m, -0.42, 0.42, 0.75, 2.75, -0.5, 'brass', depth=0.115, top=(name != 'Blank_Map'))
         if name == 'Blank_Map':
             fq(m, -0.37, 0.37, -0.603, 0.82, 2.68, 'cream')
             for (a, b, c0, c1, c) in ((-0.33, -0.05, 2.2, 2.62, 'rose'), (-0.01, 0.33, 2.2, 2.62, 'sky'), (-0.33, 0.33, 1.95, 2.13, 'stone2'),
@@ -783,6 +872,7 @@ def build_walls(pal, ao):
             txt(m, 'SALE', 0.0, -0.61, 1.1, 0.22, 'paper', font='display', maxw=0.6)
             # upper: tall fashion poster: silhouette, "New Season"
             m.bx(-0.4, 0.4, -0.6, -0.5, 5.2, 8.4, 'dark', hull='full', cull='k')
+            d_frame(m, -0.4, 0.4, 5.2, 8.4, -0.5, 'brass', depth=0.115)
             fq(m, -0.34, 0.34, -0.603, 5.27, 8.33, 'rose')
             fq(m, -0.34, 0.34, -0.606, 5.27, 6.2, 'violetD')
             vdisc(m, (0.0, -0.607, 7.95), 0.08, 'sign', 'y-', seg=10)
@@ -808,6 +898,9 @@ def build_walls(pal, ao):
     for i in range(7):
         fq(m, -0.16, 0.16, -0.666, 4.95 + i * 0.55, 5.3 + i * 0.55, 'gold' if i % 2 else 'lightW')
     m.bx(-0.5, 0.5, -0.6, -0.5, 9.1, H, 'stone2', hull='noside', cull='kt')
+    d_kick(m, -0.5, 0.5, -0.5, 'chrome', h=0.24)
+    d_guard(m, 0.5, -0.5, 0.3, 1.4, 'chrome', side=1)
+    d_guard(m, -0.5, -0.5, 0.3, 1.4, 'chrome', side=-1)
     make('GateSide', m, ao)
 
 
@@ -821,6 +914,7 @@ def build_rail(pal, ao):
         for i in range(n):
             y = y0 + (i + 0.5) * (y1 - y0) / n
             m.bx(-0.012, 0.012, y - 0.012, y + 0.012, 0.13, 0.98, 'chrome', hull='none', cull='tb')
+            m.bx(-0.024, 0.024, y - 0.024, y + 0.024, 0.9, 0.95, 'brass', hull='none')      # handrail bracket collar
     m = new(pal)
     rail(m, -0.5, -0.04)
     make('Rail', m, ao, cols=[col_box(-0.09, -0.5, 0, 0.09, 0, 1.1)])
@@ -830,6 +924,7 @@ def build_rail(pal, ao):
     m = new(pal)
     m.bx(-0.045, 0.045, -0.045, 0.045, 0.0, 1.08, 'cream', cull='b')
     m.bx(-0.06, 0.06, -0.06, 0.06, 1.08, 1.13, 'brass', cull='b')
+    m.bx(-0.058, 0.058, -0.058, 0.058, 0.0, 0.09, 'brass', hull='none', cull='b')            # floor collar
     make('RailPost', m, ao)
 
 
@@ -844,9 +939,15 @@ def build_columns(pal, ao):
             m.cy((0, 0, z), 0.315, 0.315, 0.06, 'gold', seg=10, hull='none', caps=False)
         m.cy((0, 0, h - 0.5), 0.3, 0.4, 0.3, 'cream', seg=10, caps=False)
         m.bx(-0.44, 0.44, -0.44, 0.44, h - 0.2, h - 0.004, 'stone2', cull='t')
+        m.cy((0, 0, 0.5), 0.315, 0.315, 0.12, 'chrome', seg=10, hull='none', caps=False)     # protective kick band
         for fy in (-1, 1):   # wayfinding plaque on two faces
             y0, y1 = sorted((fy * 0.27, fy * 0.325))
             m.bx(-0.28, 0.28, y0, y1, 2.25, 2.6, 'tealD', hull='full')
+            yb = sorted((fy * 0.265, fy * 0.332))
+            for xa, xb in ((-0.296, -0.277), (0.277, 0.296)):
+                m.bx(xa, xb, yb[0], yb[1], 2.253, 2.597, "brass", hull="none")
+            for za, zb in ((2.23, 2.253), (2.597, 2.62)):
+                m.bx(-0.296, 0.296, yb[0], yb[1], za, zb, 'brass', hull='none')
             f = 'y-' if fy < 0 else 'y+'
             txt(m, 'LEVEL 0' if name == 'Column_Lo' else 'LEVEL 1', 0.0, fy * 0.329, 2.425, 0.16, 'paper', face=f, font='display', valign='m', maxw=0.48)
         if name == 'Column_Hi':   # a bracket lamp facing the atrium on each side
@@ -961,6 +1062,7 @@ def build_elevator(pal, ao):
             x0, x1 = (0.76, 1.34) if sx > 0 else (-1.34, -0.76)
             m.bx(x0, x1, -1.49, -1.45, zs + (0.14 if zs == 0 else 0.0), zs + 2.4, 'steel', hull='none')
             glint(m, x0 + 0.04, x1 - 0.04, -1.495, zs + 0.3, zs + 2.2)
+            d_kick(m, x0 + 0.04, x1 - 0.04, -1.49, 'chrome', h=0.28, z0=zs + (0.14 if zs == 0 else 0.0), d=0.01)
         m.bx(-0.65, 0.65, -1.5, -1.36, zs - (0.3 if zs else 0.0), zs + 0.025, 'chrome', cull='' if zs else 'b')   # sill
         m.bx(-1.34, 1.34, -1.5, -1.36, zs + 2.45, zs + 2.75, 'tealD')
         fq(m, -0.3, 0.3, -1.503, zs + 2.5, zs + 2.7, 'sign')
@@ -1024,6 +1126,7 @@ def build_elevator(pal, ao):
             pts = [(-0.18, 0.5), (-0.06, 0.5), (0.18, 1.5), (0.06, 1.5)]
             poly(m, [(p[0], y, p[1]) for p in pts], 'glassL', (0, nrm, 0))
         m.bx(-0.3, 0.3, -0.024, 0.024, 1.0, 1.05, 'tealM', hull='none')
+        m.bx(-0.27, 0.27, -0.026, 0.026, 0.087, 0.28, 'brass', hull='none')                 # kick plate, both faces
         make(name, m, ao)
 
 
@@ -1036,6 +1139,7 @@ def build_props(pal, ao):
         m.cy((0, 0, 0.1), 0.3, 0.42, 0.52, 'terra', seg=10)
         m.cy((0, 0, 0.62), 0.43, 0.43, 0.06, 'cream', seg=10, caps=False)
         annulus(m, 0.68, 0.36, 0.43, 'cream', seg=10)
+        m.cy((0, 0, 0.33), 0.37, 0.37, 0.04, 'gold', seg=10, hull='none', caps=False)       # brass band round the bowl
         disc(m, 0, 0, 0.66, 0.38, 'soil', seg=10)
         m.sp((0, 0, 0.95), 0.36, 'leaf', seg=(6, 4), scale=(1, 1, 0.8))
         m.sp((0.12, -0.1, 1.15), 0.2, 'leafL', seg=(6, 3))
@@ -1050,6 +1154,7 @@ def build_props(pal, ao):
     m.cy((0, 0, 0.62), 0.96, 0.96, 0.08, 'cream', seg=8, caps=False)
     annulus(m, 0.7, 0.82, 0.96, 'cream', seg=8)
     m.cy((0, 0, 0.1), 0.925, 0.925, 0.16, 'tealM', seg=8, hull='none', caps=False)
+    m.cy((0, 0, 0.0), 0.95, 0.95, 0.08, 'stone', seg=8, hull='none')                       # skirting ring
     disc(m, 0, 0, 0.69, 0.86, 'soil', seg=8)
     for k, (x, y) in enumerate(((0.45, 0.3), (-0.45, 0.25), (0.05, -0.5))):
         m.sp((x, y, 0.78), 0.3, 'leaf2' if k % 2 else 'leafL', seg=(6, 3), scale=(1, 1, 0.6))
@@ -1083,6 +1188,10 @@ def build_props(pal, ao):
         m.bx(-0.95, 0.95, -0.24 + i * 0.15, -0.12 + i * 0.15, 0.42, 0.47, 'wood', cull='')
     for i in range(2):
         m.bx(-0.95, 0.95, 0.17, 0.22, 0.55 + i * 0.17, 0.68 + i * 0.17, 'wood')
+    dbx(m, -0.11, 0.11, 0.17, 0.008, 0.585, 0.645, 'brass', s=1)                            # donor plaque on the backrest
+    for sx in (-0.82, 0.82):   # rubber foot pads
+        for y0, y1 in ((-0.255, -0.17), (0.12, 0.205)):
+            m.bx(sx - 0.05, sx + 0.05, y0, y1, 0.0, 0.025, 'rubber', hull='none', cull='b')
     make('Bench', m, ao, cols=[col_box(-0.95, -0.27, 0, 0.95, 0.27, 0.47)])
     # bin: two-tone recycling bin
     m = new(pal)
@@ -1091,6 +1200,8 @@ def build_props(pal, ao):
     m.bx(0.0, 0.28, -0.22, 0.22, 0.85, 0.97, 'orange')
     fq(m, -0.2, -0.04, -0.203, 0.4, 0.62, 'tealM')
     fq(m, 0.04, 0.2, -0.203, 0.4, 0.62, 'orange')
+    for sg in (-1, 1):
+        d_base(m, -0.26, 0.26, sg * 0.2, 'rubber', h=0.08, d=0.012, s=sg)
     make('Bin', m, ao, cols=[col_box(-0.28, -0.22, 0, 0.28, 0.22, 0.97)])
     # directory totem (ad pillar slot): lit map on both faces, "i" disc on top
     m = new(pal)
@@ -1104,6 +1215,10 @@ def build_props(pal, ao):
         fq(m, a, b, -0.146, c0, c1, c)
         bq(m, -b, -a, 0.146, c0, c1, c)
     m.cy((0, 0, 2.55), 0.16, 0.16, 0.2, 'tealM', seg=10)
+    for sg in (-1, 1):
+        d_kick(m, -0.32, 0.32, sg * 0.14, 'brass', h=0.5, z0=0.2, s=sg)
+        d_guard(m, 0.32, sg * 0.14, 0.7, 1.9, 'brass', s=sg, side=1)
+        d_guard(m, -0.32, sg * 0.14, 0.7, 1.9, 'brass', s=sg, side=-1)
     make('AdPillar', m, ao, cols=[col_box(-0.36, -0.36, 0, 0.36, 0.36, 2.6)])
     # kiosks 3 x 2 (solid as a whole): coffee cart (canopy), sweets (striped parasol, jars), gadgets (light-box header)
     for name, c, c2 in (('Kiosk_A', 'orange', 'cream'), ('Kiosk_B', 'rose', 'paper'), ('Kiosk_C', 'sky', 'skyL')):
@@ -1113,6 +1228,10 @@ def build_props(pal, ao):
         for sy in (-1, 1):
             fq(m, -1.1, 1.1, -0.653, 0.25, 0.85, c) if sy < 0 else bq(m, -1.1, 1.1, 0.653, 0.25, 0.85, c)
         m.bx(-1.35, 1.35, -0.75, 0.75, 1.0, 1.06, 'wood')
+        for sg in (-1, 1):   # kick plates and corner guards on the long faces
+            d_kick(m, -1.25, 1.25, sg * 0.65, 'chrome', h=0.12, z0=0.12, s=sg)
+            d_guard(m, 1.25, sg * 0.65, 0.26, 0.95, 'chrome', s=sg, side=1)
+            d_guard(m, -1.25, sg * 0.65, 0.26, 0.95, 'chrome', s=sg, side=-1)
         if name == 'Kiosk_A':
             m.bx(-0.9, -0.3, -0.2, 0.3, 1.06, 1.55, 'chrome')
             fq(m, -0.85, -0.35, -0.203, 1.2, 1.45, 'redT')
@@ -1181,6 +1300,9 @@ def build_props(pal, ao):
         m.bx(1.9, 2.0, -1.0, 0.5, 0.0, 3.4, c, cull='b')
         m.bx(-1.9, 1.9, -0.95, -0.35, 0.0, 1.05, c2 if c2 != 'sign' else 'wood2', cull='b')   # counter
         fq(m, -1.7, 1.7, -0.953, 0.15, 0.9, c)
+        d_kick(m, -1.9, 1.9, -0.95, 'chrome', h=0.15, d=0.01)
+        d_guard(m, 1.9, -0.95, 0.15, 1.0, 'chrome', side=1)
+        d_guard(m, -1.9, -0.95, 0.15, 1.0, 'chrome', side=-1)
         m.bx(-1.9, 1.9, -1.0, -0.3, 1.05, 1.1, 'chrome')
         m.bx(-1.6, 1.6, -0.8, -0.45, 1.1, 1.35, 'glassL', hull='full', cull='kb')
         for i in range(4):
