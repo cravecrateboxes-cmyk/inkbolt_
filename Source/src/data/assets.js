@@ -44,6 +44,11 @@
     ['', '_Mag', '_MUZZLE', '_MAG', '_EJECT', '_SIGHT'].concat(IB.SCOPED_WEAPONS.indexOf(id) >= 0 ? ['_SCOPE'] : [])
       .forEach(function (s) { IB.ASSET_NAMES.weapons.push(k + s); });
   });
+  // tactical look clutter (blender/fam_dress.py, placed by src/game/dress.js; no collision): 300 triangles each with the shell
+  IB.DRESS_PIECES = ['RubbleA', 'RubbleB', 'Brick', 'BrickPile', 'Can', 'CanLying', 'Bottle', 'Carton', 'CartonFlat', 'PaperStack',
+    'CableCoil', 'PipeOffcut', 'PalletBroken', 'LeafPile', 'StonesA', 'StonesB', 'GrassTuft', 'GrassTuft2', 'Litter', 'CableRun',
+    'Conduit', 'JunctionBox', 'Vent', 'Extinguisher', 'SignWarn', 'SignExit', 'SignPlate', 'Bucket', 'TyreOld', 'Sandbags'];
+  IB.ASSET_NAMES.dress = IB.DRESS_PIECES.map(function (n) { return 'KIT_DRESS_' + n; });
   IB.ARM_ACTIONS = ['Idle', 'Draw', 'Holster', 'Fire', 'Reload', 'Sprint', 'Slide', 'Throw'];
   // triangle budgets incl. outline hull (brief 3.2); robots count body + legs + light. A weapon's budget covers
   // the gun, its WPN_<ID>_Mag and every rarity layer (WPN_<ID>_L<tiers>, WPN_<ID>_Mag_L<tiers>): more than any one
@@ -74,4 +79,5 @@
     },
     kitMax: 40000, kitPropMax: 1200
   };
+  IB.DRESS_PIECES.forEach(function (n) { IB.TRI_BUDGET.meshes['KIT_DRESS_' + n] = 300; });
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));

@@ -42,9 +42,48 @@
       grade: { sat: 1.0, contrast: 0.16, lo: [0.99, 1.0, 1.02], hi: [1.04, 1.0, 0.95] }, vignette: 0.28 }
   };
 
+  /* Stage 9 dressing (dress.js): decal names from data/decals.gen.js with weights. floor: open floor; base: floor cells
+     hemmed in by walls or props (bases, corners); wall: plain wall faces. density scales the rates (the tier's
+     density multiplies at level build); wallRate scales the wall rate only; off: true builds nothing. clutter /
+     wallClutter: pieces of fps-dress.glb (KIT_DRESS_<name>, blender/fam_dress.py) on floor cells by walls and props /
+     on plain wall faces; clutterRate scales both. A theme entry
+     may replace any list (Stage 10). */
+  LOOKS.dress = {
+    'mil-ext': { density: 1.0, clutter: [['RubbleA', 2], ['RubbleB', 2], ['BrickPile', 1], ['Carton', 1], ['Sandbags', 1], ['TyreOld', 0.6], ['PipeOffcut', 1], ['CanLying', 1], ['StonesA', 1]], wallClutter: [['JunctionBox', 2], ['SignWarn', 1], ['Conduit', 2], ['Extinguisher', 1]],
+      floor: [['oil', 3], ['tyre', 2], ['grime', 3], ['crack', 2], ['crack2', 1], ['patch', 1], ['scuff', 1], ['chevrons', 0.4], ['paper', 0.5]],
+      base: [['grime2', 3], ['oil2', 2], ['crack3', 1], ['leaves', 0.5]],
+      wall: [['grimeBase', 4], ['rust', 2], ['sootStreak', 1], ['scars', 1], ['scars2', 0.6], ['stencilDanger', 0.6], ['stencilZone', 0.6], ['crack3', 0.6]] },
+    'urban-ext': { density: 1.0, clutter: [['Litter', 3], ['Can', 1], ['CanLying', 1], ['Bottle', 1], ['Carton', 1], ['CartonFlat', 1], ['LeafPile', 1], ['RubbleB', 1], ['Brick', 1]], wallClutter: [['Conduit', 2], ['JunctionBox', 2], ['Vent', 1], ['SignPlate', 1]],
+      floor: [['oil', 2], ['water', 2], ['crack', 2], ['crack2', 1], ['manhole', 0.5], ['drain', 0.6], ['paper', 1], ['leaves', 1], ['grime', 3], ['patch', 1], ['tyre', 0.6]],
+      base: [['grime2', 3], ['paper', 1], ['leaves', 1], ['water2', 1]],
+      wall: [['grimeBase', 4], ['leak', 2], ['water2', 1], ['poster', 1], ['poster2', 1], ['poster3', 1], ['stencilNo', 0.5], ['crack3', 0.6]] },
+    'wild-ext': { density: 0.7, clutter: [['StonesA', 2], ['StonesB', 2], ['GrassTuft', 3], ['GrassTuft2', 3], ['LeafPile', 1]],
+      floor: [['leaves', 3], ['moss', 2], ['grime', 2], ['prints', 0.5]],
+      base: [['moss', 2], ['leaves', 2], ['grime2', 1]],
+      wall: [['grimeBase', 3], ['moss', 2], ['water2', 1], ['crack3', 0.5]] },
+    'ind-int': { density: 1.0, clutter: [['CableCoil', 2], ['PipeOffcut', 2], ['PalletBroken', 1], ['Bucket', 1], ['CableRun', 2], ['Carton', 1], ['Can', 1]], wallClutter: [['Conduit', 3], ['JunctionBox', 2], ['Vent', 2], ['Extinguisher', 1], ['SignWarn', 1]],
+      floor: [['oil', 3], ['oil2', 2], ['grime', 3], ['crack', 1], ['scuff', 2], ['grate', 0.6], ['drain', 0.6], ['chevrons', 0.6], ['puddle', 0.6], ['patch', 1]],
+      base: [['oil2', 2], ['grime2', 3], ['water', 1]],
+      wall: [['grimeBase', 4], ['rust', 2], ['leak', 2], ['stencilZone', 0.6], ['stencilDanger', 0.6], ['digit1', 0.2], ['digit2', 0.2], ['digit3', 0.2], ['digit4', 0.2], ['scars', 0.5]] },
+    'dark-int': { density: 1.0, clutter: [['Litter', 2], ['RubbleA', 1], ['Bottle', 1], ['CanLying', 1], ['CartonFlat', 1], ['Bucket', 0.6]], wallClutter: [['Conduit', 3], ['JunctionBox', 2], ['SignExit', 1], ['Vent', 1]],
+      floor: [['water', 3], ['puddle', 2], ['grime', 3], ['crack', 2], ['crack2', 1], ['oil', 1], ['paper', 1], ['drain', 0.5]],
+      base: [['grime2', 3], ['water2', 2], ['paper', 1]],
+      wall: [['grimeBase', 4], ['leak', 3], ['rust', 1], ['poster', 0.6], ['poster3', 0.6], ['sootStreak', 1], ['crack3', 1]] },
+    'civic-int': { density: 0.55, wallRate: 0.6, clutterRate: 0.4, clutter: [['Litter', 1], ['CartonFlat', 0.5], ['Bucket', 0.5]], wallClutter: [['Extinguisher', 2], ['SignExit', 1], ['Vent', 1]],
+      floor: [['scuff', 3], ['water', 1], ['grime', 2], ['paper', 0.6]],
+      base: [['grime2', 2], ['scuff', 1]],
+      wall: [['grimeBase', 3], ['scars', 0.4], ['water2', 0.5]] },
+    'giant-room': { density: 0.5, wallRate: 0.5, clutter: [], wallClutter: [],   // adult-scale clutter reads as crumbs in a giant room
+      floor: [['scuff', 3], ['water', 1], ['grime', 1], ['paper', 0.8]],
+      base: [['grime2', 1], ['scuff', 1]],
+      wall: [['grimeBase', 3], ['scars', 0.3]] }
+  };
+  Object.keys(LOOKS.dress).forEach(function (f) { if (LOOKS.families[f]) LOOKS.families[f].dress = LOOKS.dress[f]; });
+
   // section 8: family and scene type of every theme; pilots carry rough tuning (final tuning is Stage 10)
   LOOKS.themes = {
-    mountains: { family: 'wild-ext', type: 'ext-snow', albCeil: 0.80, sunI: 0.85, ambI: 0.38, fog: { length: 170 }, floor: { cls: 13, gloss: 0.25 } },
+    mountains: { family: 'wild-ext', type: 'ext-snow', albCeil: 0.80, sunI: 0.85, ambI: 0.38, fog: { length: 170 }, floor: { cls: 13, gloss: 0.25 },
+      dress: { density: 0.35, floor: [['prints', 2], ['grime', 1]], base: [['grime2', 1]], wall: [['grimeBase', 2], ['crack3', 1]], clutter: [['StonesA', 1], ['StonesB', 1]] } },
     smallcity: { family: 'urban-ext', type: 'ext-day' },
     classroom: { family: 'giant-room', type: 'int-lit' },
     office: { family: 'civic-int', type: 'int-lit' },

@@ -80,13 +80,14 @@
     if (IB.Atmo) IB.Atmo.adoptHaze(level);
     if (IB.Post) IB.Post.applyLook(L);
     U.uGExpo.value = L.exposure; U.uGSat.value = L.grade.sat; U.uGCon.value = L.grade.contrast; U.uGLo.value.fromArray(L.grade.lo); U.uGHi.value.fromArray(L.grade.hi);
+    if (IB.Dress) IB.Dress.build(level, L);   // decals (Stage 9), before shadows and the light volume
     if (IB.Shadows) IB.Shadows.begin(level);
     // the light volume: lamps modelled in the map are its lights; the start zone bakes now (the loader covers it)
     if (IB.LightGrid) { IB.LightGrid.begin(level, L); IB.LightGrid.bakeZoneNow(0); }
     if (IB.Atmo) IB.Atmo.beginExtras(level, L);   // dust, lamp cones (Stage 7)
     U.uWet.value = L.wet || 0; U.uCaustic.value = level.theme && level.theme.id === 'seabase' ? 1 : 0;
   };
-  Look.end = function () { Look.cur = null; if (IB.Atmo) IB.Atmo.endExtras(); if (IB.Shadows) IB.Shadows.end(); if (IB.LightGrid) IB.LightGrid.end(); };
+  Look.end = function () { Look.cur = null; if (IB.Dress) IB.Dress.end(); if (IB.Atmo) IB.Atmo.endExtras(); if (IB.Shadows) IB.Shadows.end(); if (IB.LightGrid) IB.LightGrid.end(); };
   /* Flash lights (Stage 4.5): muzzle flashes and blasts light the world for a moment. 4 slots (fewer on low tiers),
      linear decay, inverse-square falloff with a radius cutoff, no shadows. Halved with Settings > reduce flashes. */
   var flashes = [0, 1, 2, 3].map(function () { return { t: 0, life: 0, i: 0 }; });

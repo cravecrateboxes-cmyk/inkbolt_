@@ -64,3 +64,30 @@ test('every tier names the same keys', () => {
   const keys = Object.keys(L.tiers.high).sort().join();
   for (const t of ['medium', 'low', 'potato']) assert.equal(Object.keys(L.tiers[t]).sort().join(), keys, t);
 });
+
+// Stage 9: every decal a dressing rule names exists in the generated atlas table, every weight is positive, and
+// every campaign theme resolves to dressing rules (future maps get them from their family)
+test('dressing rules name real decal cells', () => {
+  globalThis.window = globalThis.window || globalThis;
+  require('../../src/data/decals.gen.js');
+  const cells = IB.DECALS.cell;
+  assert.ok(IB.DECALS.names.length <= IB.DECALS.grid * IB.DECALS.grid);
+  const check = (where, d) => ['floor', 'base', 'wall'].forEach(k => (d[k] || []).forEach(([n, w]) => {
+    assert.ok(n in cells, where + '.' + k + ': unknown decal ' + n);
+    assert.ok(w > 0, where + '.' + k + ': weight ' + w);
+  }));
+  const famSrc = fs.readFileSync(path.join(__dirname, '../../blender/fam_dress.py'), 'utf8');
+  const pieces = new Set([...famSrc.matchAll(/piece\('(\w+)'/g), ...famSrc.matchAll(/\(\('(\w+)', \d/g), ...famSrc.matchAll(/\('(Sign\w+)', '/g)].map(m => m[1]));
+  for (const k of ['RubbleA', 'RubbleB', 'StonesA', 'StonesB', 'GrassTuft', 'GrassTuft2']) pieces.add(k);
+  const checkC = (where, d) => ['clutter', 'wallClutter'].forEach(k => (d[k] || []).forEach(([n, w]) => {
+    assert.ok(pieces.has(n), where + '.' + k + ': unknown piece ' + n);
+    assert.ok(w > 0, where + '.' + k + ': weight ' + w);
+  }));
+  Object.keys(L.dress).forEach(f => { assert.ok(L.families[f], 'dress family ' + f); check(f, L.dress[f]); checkC(f, L.dress[f]); });
+  Object.keys(L.themes).forEach(t => { const r = L.resolve(t, {}); assert.ok(r.dress && r.dress.floor && r.dress.floor.length, t + ' has dressing'); check(t, r.dress); });
+});
+test('decal atlas file matches the table', () => {
+  const p = path.join(__dirname, '../../assets/tex/decals.webp');
+  assert.ok(fs.existsSync(p), 'decals.webp generated');
+  assert.ok(fs.statSync(p).size < 400000, 'atlas under 400 kB');
+});

@@ -85,7 +85,7 @@
     '  vec4 ibS = uSurfFlat;',
     '#endif',
     // vertex colour on kit meshes: R classic two-step AO, G smooth ground-contact AO, B edge wear (Stage 5D); trap T5
-    '#if defined( USE_MAP ) && defined( USE_COLOR )',
+    '#if defined( USE_MAP ) && defined( USE_COLOR ) && !defined( IB_DECAL )',
     '  vec3 ibAlb = diffuseColor.rgb / max( vColor.rrr, vec3( 0.001 ) ); float ibAO = vColor.r, ibAOs = vColor.g, ibWear = vColor.b;',
     '#else',
     '  vec3 ibAlb = diffuseColor.rgb; float ibAO = 1.0, ibAOs = 1.0, ibWear = 0.5;',
@@ -254,7 +254,7 @@
     return S._detailP;
   };
 
-  // sh: the shader being compiled; kind: 'world' | 'actor'; surf: { tex } (palette materials) or { flat: Vector4 uniform }
+  // sh: the shader being compiled; kind: 'world' | 'actor' | 'decal' (dress.js: tinted, alpha-blended, no detail); surf: { tex } (palette materials) or { flat: Vector4 uniform }
   S.patch = function (sh, kind, surf) {
     var U = IB.Look.U;
     for (var k in U) sh.uniforms[k] = U[k];
@@ -272,7 +272,7 @@
     var det = kind === 'world' ? S.detailLevel() : 0;   // actors: the light model without the tiling detail
     sh.uniforms.uDetail = U.uDetail; sh.uniforms.uDetailOn = U.uDetailOn;
     var gradeIn = !(IB.Post && IB.Post.on);
-    sh.fragmentShader = (kind === 'actor' ? '#define IB_ACTOR\n' : '') + (det > 0 ? '#define IB_DETAIL ' + det + '\n' : '') + (gradeIn ? '#define IB_GRADE_IN_MATERIAL\n' : '') + sh.fragmentShader
+    sh.fragmentShader = (kind === 'actor' ? '#define IB_ACTOR\n' : kind === 'decal' ? '#define IB_DECAL\n' : '') + (det > 0 ? '#define IB_DETAIL ' + det + '\n' : '') + (gradeIn ? '#define IB_GRADE_IN_MATERIAL\n' : '') + sh.fragmentShader
       .replace('#include <shadowmap_pars_fragment>', '#include <shadowmap_pars_fragment>\n' + PARS + '\n' + DETAIL_PARS)
       .replace(OUTLINE_LINE, LIGHT)
       .replace('#include <fog_fragment>', FOG);

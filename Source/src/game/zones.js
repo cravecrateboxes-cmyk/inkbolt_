@@ -453,6 +453,8 @@
         // an entry may be { piece, turn }: that part turned by `turn` more (one face piece drawn on any side of the cell)
         var tn = 0; if (n && typeof n === 'object') { tn = n.turn || 0; n = n.piece; }
         P.add(n, z.ox + p.c + 0.5, 0, z.oz + p.r + 0.5, yaw + tn, null, wp);
+        if (!tn && !(z.wallMods && z.wallMods.length && z.wallMods[z.wallMods.length - 1].c === p.c && z.wallMods[z.wallMods.length - 1].r === p.r))   // the look's wall decals (dress.js)
+          (z.wallMods || (z.wallMods = [])).push({ name: IB.themePiece(theme, n), c: p.c, r: p.r, yaw: yaw, face: face });
         // wall.cols (opt-in): a module's own _COL boxes collide too (a buttress standing out into the room)
         var wc = W.cols && colsOf(IB.themePiece(theme, n));
         if (wc) addCols(world, wc, z.ox + p.c + 0.5, z.oz + p.r + 0.5, yaw + tn, 'wall', z.idx);

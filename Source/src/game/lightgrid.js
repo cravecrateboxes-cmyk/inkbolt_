@@ -143,7 +143,7 @@
   }
   LG.begin = function (level, look) {
     LG.end();
-    var t0 = performance.now();
+    var t0 = performance.now(); LG.maxSliceMs = 0; LG.maxFrameMs = 0; LG.unitMax = {};
     var em = LG.collect(level, look);
     // bounds: zones + trails + hatch
     var x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9, ymax = 0;
@@ -181,6 +181,10 @@
     LG.collectMs = performance.now() - t0;
     // queue every zone (the start zone first, baked now: the loading screen covers it)
     queue = level.zones.map(function (_, i) { return i; });
+    // sky visibility needs a GPU render and a read-back per zone (a pipeline stall): all zones now, under the loader,
+    // so the time-sliced bake during play is CPU work only
+    var ts = performance.now(); V.tops = level.zones.map(function (Zn) { return skyTopOf(level, Zn); });
+    LG.skyMs = Math.round(performance.now() - ts);
     LG.ready = true;
     return V;
   };
@@ -197,6 +201,7 @@
     return { zi: zi, Zn: Zn, world: world, i0: i0, i1: i1, j0: j0, j1: j1, s: 0, j: j0, ms: 0, phase: 'light' };
   }
   var cur = null;
+  function unit(ph, t0) { var d = performance.now() - t0, U = LG.unitMax || (LG.unitMax = {}); if (!(U[ph] >= d)) U[ph] = +d.toFixed(1); }
   function cellLight(x, y, z, world, out) {
     var r = 0, g = 0, b = 0, bx = Math.floor(x / RAD), bz = Math.floor(z / RAD);
     for (var dx = -1; dx <= 1; dx++) for (var dz = -1; dz <= 1; dz++) {
@@ -215,40 +220,68 @@
     out[0] = r; out[1] = g; out[2] = b;
   }
   var _o = [0, 0, 0];
+  // every phase checks the deadline between small units (2 cells, one slice), so a frame never runs far over budget
   function step(J, deadline) {
     var Zn = J.Zn;
     while (J.phase === 'light') {
       if (performance.now() > deadline) return false;
-      var y = V.y0 + J.s * SLICE_DY, base = J.s * V.W * V.H;
-      for (var i = J.i0; i < J.i1; i++) {
+      var tl = performance.now(), y = V.y0 + J.s * SLICE_DY, base = J.s * V.W * V.H, iEnd = Math.min(J.i1, (J.i === undefined ? J.i0 : J.i) + 2);
+      for (var i = J.i === undefined ? J.i0 : J.i; i < iEnd; i++) {
         var x = V.ox + i + 0.5, z = V.oz + J.j + 0.5, c = (base + J.j * V.W + i) * 4;
         var zi = zoneOf(V.level, x, z);
         if (zi >= 0 && zi !== J.zi) continue;   // another zone's cell: its own job bakes it
         cellLight(x, y, z, J.world, _o);
         V.data[c] = _o[0]; V.data[c + 1] = _o[1]; V.data[c + 2] = _o[2];
       }
-      if (++J.j >= J.j1) { J.j = J.j0; if (++J.s >= V.n) J.phase = 'sky'; }
+      J.i = iEnd; unit('light', tl);
+      if (J.i >= J.i1) { J.i = J.i0; if (++J.j >= J.j1) { J.j = J.j0; if (++J.s >= V.n) { J.phase = 'skyTop'; J.s = 0; } } }
     }
-    if (J.phase === 'sky') {
+    if (J.phase === 'skyTop') {
       if (performance.now() > deadline) return false;
-      skyPass(J); J.phase = 'post';
+      var t0 = performance.now(); skyTop(J); J.skyMs = performance.now() - t0; J.phase = 'sky';
     }
-    if (J.phase === 'post') {
+    while (J.phase === 'sky') {
       if (performance.now() > deadline) return false;
-      postPass(J); return true;
+      var tq = performance.now(), dq = skySlice(J, J.s); unit('sky', tq);
+      if (dq && ++J.s >= V.n) { J.s = 0; J.phase = 'post'; }
+    }
+    while (J.phase === 'post') {
+      if (performance.now() > deadline) return false;
+      var tp = performance.now(), dp = postSlice(J, J.s); unit('post', tp);
+      if (dp && ++J.s >= V.n) J.phase = 'upload';
+    }
+    if (J.phase === 'upload') {
+      if (performance.now() > deadline) return false;
+      V.tex.needsUpdate = true;
+      V.done[J.zi] = true;
+      return true;
     }
     return true;
   }
-  function skyPass(J) {
-    var level = V.level, Zn = J.Zn, theme = level.theme || {}, env = theme.env || {};
-    var engineCeil = !!(env.ceiling && (!Zn.plan || Zn.plan.ceiling !== false));   // zones.js addCeiling
-    var top = null;
-    if (!env.sky) top = null;
-    else if (!engineCeil) { try { top = topHeights(level, Zn, IB.Render); } catch (e) { top = null; } }
-    var W = V.W, H = V.H, open = 0, total = 0;
-    for (var s = 0; s < V.n; s++) {
-      var y = V.y0 + s * SLICE_DY, base = s * W * H, tmp = new Float32Array((J.i1 - J.i0) * (J.j1 - J.j0));
-      for (var j = J.j0; j < J.j1; j++) for (var i = J.i0; i < J.i1; i++) {
+  function engineCeilOf(level, Zn) { var env = (level.theme || {}).env || {}; return !!(env.ceiling && (!Zn.plan || Zn.plan.ceiling !== false)); }   // zones.js addCeiling
+  function skyTopOf(level, Zn) {
+    var env = (level.theme || {}).env || {};
+    if (!env.sky || engineCeilOf(level, Zn)) return null;
+    try { return topHeights(level, Zn, IB.Render); } catch (e) { return null; }
+  }
+  function skyTop(J) {
+    J.engineCeil = engineCeilOf(V.level, J.Zn); J.open = 0; J.total = 0;
+    J.top = V.tops ? V.tops[J.zi] : skyTopOf(V.level, J.Zn);
+  }
+  /* Sky and post passes run in bands of BAND rows (each call does one band and returns true when the slice is done),
+     so no single unit of work takes more than a couple of milliseconds. */
+  var BAND = 10;
+  function band(J, sub) {   // rows [r0, r1) of the current band of sub-pass `sub`; advances; null when the sub-pass is done
+    if (J.sub !== sub) { J.sub = sub; J.row = J.j0; }
+    if (J.row >= J.j1) return null;
+    var r0 = J.row; J.row = Math.min(J.j1, J.row + BAND); return [r0, J.row];
+  }
+  function skySlice(J, s) {
+    var level = V.level, Zn = J.Zn, env = (level.theme || {}).env || {}, engineCeil = J.engineCeil, top = J.top;
+    var W = V.W, y = V.y0 + s * SLICE_DY, base = s * W * V.H, w2 = J.i1 - J.i0, h2 = J.j1 - J.j0, i, j, R;
+    if (J.sub === undefined || J.sub < 0) { J.tmp = new Float32Array(w2 * h2); J.sub = -1; }
+    if (J.sub <= 0 && (R = band(J, 0))) {
+      for (j = R[0]; j < R[1]; j++) for (i = J.i0; i < J.i1; i++) {
         var x = V.ox + i + 0.5, z = V.oz + j + 0.5, v = 0;
         if (env.sky && !engineCeil) {
           if (top) {
@@ -257,67 +290,84 @@
             else { var hmax = Math.max(top.h[tj * top.W + ti], ti + 1 < top.W ? top.h[tj * top.W + ti + 1] : -1e9, tj + 1 < top.H ? top.h[(tj + 1) * top.W + ti] : -1e9); v = hmax <= y + 0.5 ? 1 : 0; }
           } else v = 1;
         }
-        tmp[(j - J.j0) * (J.i1 - J.i0) + (i - J.i0)] = v;
-        if (s === 0) { total++; open += v; }
+        J.tmp[(j - J.j0) * w2 + (i - J.i0)] = v;
+        if (s === 0) { J.total++; J.open += v; }
       }
-      // 5x5 blur; a mostly open zone never drops below 0.25 (colonnades, awnings keep partial sky light)
-      var floorV = total && open / total > 0.4 ? 0.25 : 0, w2 = J.i1 - J.i0;
-      for (j = J.j0; j < J.j1; j++) for (i = J.i0; i < J.i1; i++) {
+      return false;
+    }
+    // 5x5 blur; a mostly open zone never drops below 0.25 (colonnades, awnings keep partial sky light)
+    if ((R = band(J, 1))) {
+      var floorV = J.total && J.open / J.total > 0.4 ? 0.25 : 0, tmp = J.tmp;
+      for (j = R[0]; j < R[1]; j++) for (i = J.i0; i < J.i1; i++) {
         var zi = zoneOf(V.level, V.ox + i + 0.5, V.oz + j + 0.5);
         if (zi >= 0 && zi !== J.zi) continue;
         var sum = 0, cnt = 0;
         for (var dj = -2; dj <= 2; dj++) for (var di = -2; di <= 2; di++) {
           var ii = i + di - J.i0, jj = j + dj - J.j0;
-          if (ii < 0 || jj < 0 || ii >= w2 || jj >= J.j1 - J.j0) continue;
+          if (ii < 0 || jj < 0 || ii >= w2 || jj >= h2) continue;
           sum += tmp[jj * w2 + ii]; cnt++;
         }
         V.data[(base + j * W + i) * 4 + 3] = Math.max(floorV * (env.sky && !engineCeil ? 1 : 0), cnt ? sum / cnt : 0);
       }
+      return false;
     }
+    J.sub = -1; J.tmp = null;
+    return true;
   }
-  function postPass(J) {
-    var W = V.W, H = V.H, Zn = J.Zn, Z = IB.Zones;
-    for (var s = 0; s < V.n; s++) {
-      var base = s * W * H, i, j, c, ch;
-      // solid cells take the mean of their open neighbours (bilinear filtering must not pull darkness out of walls)
-      var solid = [];
-      for (j = J.j0; j < J.j1; j++) for (i = J.i0; i < J.i1; i++) {
+  function postSlice(J, s) {
+    var W = V.W, H = V.H, Zn = J.Zn, Z = IB.Zones, base = s * W * H, w2 = J.i1 - J.i0, h2 = J.j1 - J.j0, i, j, ch, R;
+    if (J.sub === undefined || J.sub < 0) { J.mask = new Uint8Array(w2 * h2); J.ptmp = new Float32Array(w2 * h2 * 3); J.sub = -1; }
+    var mask = J.mask;
+    // 0: which cells are solid
+    if (J.sub <= 0 && (R = band(J, 0))) {
+      for (j = R[0]; j < R[1]; j++) for (i = J.i0; i < J.i1; i++) {
         var x = V.ox + i + 0.5, z = V.oz + j + 0.5;
-        if (x >= Zn.ox && x < Zn.ox + Zn.w && z >= Zn.oz && z < Zn.oz + Zn.h && !Z.isOpen(Zn, x, z)) solid.push(j * W + i);
+        if (x >= Zn.ox && x < Zn.ox + Zn.w && z >= Zn.oz && z < Zn.oz + Zn.h && !Z.isOpen(Zn, x, z)) mask[(j - J.j0) * w2 + (i - J.i0)] = 1;
       }
-      var isSolid = new Set(solid);
-      solid.forEach(function (k) {
-        var ci = k % W, cj = (k - ci) / W, r = 0, g = 0, b = 0, n = 0;
+      return false;
+    }
+    // 1: solid cells take the mean of their open neighbours (bilinear filtering must not pull darkness out of walls)
+    if (J.sub <= 1 && (R = band(J, 1))) {
+      for (j = R[0]; j < R[1]; j++) for (i = J.i0; i < J.i1; i++) {
+        if (!mask[(j - J.j0) * w2 + (i - J.i0)]) continue;
+        var r = 0, g = 0, b = 0, n = 0;
         for (var dj = -1; dj <= 1; dj++) for (var di = -1; di <= 1; di++) {
-          var ii = ci + di, jj = cj + dj; if (ii < 0 || jj < 0 || ii >= W || jj >= H) continue;
-          var kk = jj * W + ii; if (isSolid.has(kk)) continue;
-          var o = (base + kk) * 4; r += V.data[o]; g += V.data[o + 1]; b += V.data[o + 2]; n++;
+          var ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= W || jj >= H) continue;
+          if (ii >= J.i0 && ii < J.i1 && jj >= J.j0 && jj < J.j1 && mask[(jj - J.j0) * w2 + (ii - J.i0)]) continue;
+          var o = (base + jj * W + ii) * 4; r += V.data[o]; g += V.data[o + 1]; b += V.data[o + 2]; n++;
         }
-        if (n) { var o2 = (base + k) * 4; V.data[o2] = r / n; V.data[o2 + 1] = g / n; V.data[o2 + 2] = b / n; }
-      });
-      // 3x3 blur of the light (centre weight 2), then encode
-      var w2 = J.i1 - J.i0, h2 = J.j1 - J.j0, tmp = new Float32Array(w2 * h2 * 3);
-      for (j = J.j0; j < J.j1; j++) for (i = J.i0; i < J.i1; i++) for (ch = 0; ch < 3; ch++) {
+        if (n) { var o2 = (base + j * W + i) * 4; V.data[o2] = r / n; V.data[o2 + 1] = g / n; V.data[o2 + 2] = b / n; }
+      }
+      return false;
+    }
+    // 2: 3x3 blur of the light (centre weight 2)
+    if (J.sub <= 2 && (R = band(J, 2))) {
+      for (j = R[0]; j < R[1]; j++) for (i = J.i0; i < J.i1; i++) for (ch = 0; ch < 3; ch++) {
         var sum = 0, cnt = 0;
-        for (var dj = -1; dj <= 1; dj++) for (var di = -1; di <= 1; di++) {
-          var ii = i + di, jj = j + dj; if (ii < J.i0 || jj < J.j0 || ii >= J.i1 || jj >= J.j1) continue;
+        for (dj = -1; dj <= 1; dj++) for (di = -1; di <= 1; di++) {
+          ii = i + di; jj = j + dj; if (ii < J.i0 || jj < J.j0 || ii >= J.i1 || jj >= J.j1) continue;
           var wgt = (di === 0 && dj === 0) ? 2 : 1; sum += V.data[(base + jj * W + ii) * 4 + ch] * wgt; cnt += wgt;
         }
-        tmp[((j - J.j0) * w2 + (i - J.i0)) * 3 + ch] = sum / cnt;
+        J.ptmp[((j - J.j0) * w2 + (i - J.i0)) * 3 + ch] = sum / cnt;
       }
-      for (j = J.j0; j < J.j1; j++) for (i = J.i0; i < J.i1; i++) {
+      return false;
+    }
+    // 3: encode
+    if ((R = band(J, 3))) {
+      for (j = R[0]; j < R[1]; j++) for (i = J.i0; i < J.i1; i++) {
         var zi = zoneOf(V.level, V.ox + i + 0.5, V.oz + j + 0.5);
         if (zi >= 0 && zi !== J.zi) continue;
-        c = (base + j * W + i) * 4;
+        var c = (base + j * W + i) * 4;
         for (ch = 0; ch < 3; ch++) {
-          var v = tmp[((j - J.j0) * w2 + (i - J.i0)) * 3 + ch];
+          var v = J.ptmp[((j - J.j0) * w2 + (i - J.i0)) * 3 + ch];
           V.data[c + ch] = v; V.bytes[c + ch] = Math.round(Math.sqrt(Math.min(1, v / 4)) * 255);
         }
         V.bytes[c + 3] = Math.round(Math.max(0, Math.min(1, V.data[c + 3])) * 255);
       }
+      return false;
     }
-    V.tex.needsUpdate = true;
-    V.done[J.zi] = true;
+    J.sub = -1; J.mask = null; J.ptmp = null;
+    return true;
   }
 
   // per frame: bake for at most BUDGET_MS (or everything for `all`)
@@ -328,9 +378,11 @@
       if (!cur) { if (!queue.length) return true; cur = job(queue.shift()); }
       var a = performance.now(), fin = step(cur, deadline);
       cur.ms += performance.now() - a;
-      if (fin) { LG.stats[cur.zi].ms = Math.round(cur.ms); cur = null; }
+      if (fin) { LG.stats[cur.zi].ms = Math.round(cur.ms); LG.stats[cur.zi].skyMs = Math.round(cur.skyMs || 0); cur = null; }
     }
-    LG.maxSliceMs = Math.max(LG.maxSliceMs || 0, performance.now() - t0);
+    var dt = performance.now() - t0;
+    LG.maxSliceMs = Math.max(LG.maxSliceMs || 0, dt);
+    if (budgetMs === undefined) LG.maxFrameMs = Math.max(LG.maxFrameMs || 0, dt); // per-frame slices only (gate: 6 ms)
     return !cur && !queue.length;
   };
   LG.idle = function () { return !V || (!cur && !queue.length); };
@@ -362,5 +414,5 @@
     if (IB.Look && IB.Look.U) { IB.Look.U.uGridOn.value = 0; IB.Look.U.uGrid.value = null; }
   };
   LG.lights = function () { return V ? V.lights : []; };
-  LG.info = function () { return V ? { W: V.W, H: V.H, n: V.n, lights: V.lights.length, zones: LG.stats, collectMs: Math.round(LG.collectMs), maxSliceMs: +(LG.maxSliceMs || 0).toFixed(1) } : null; };
+  LG.info = function () { return V ? { W: V.W, H: V.H, n: V.n, lights: V.lights.length, zones: LG.stats, collectMs: Math.round(LG.collectMs), maxSliceMs: +(LG.maxSliceMs || 0).toFixed(1), maxFrameMs: +(LG.maxFrameMs || 0).toFixed(1), unitMax: LG.unitMax || {}, skyMs: LG.skyMs } : null; };
 })(window.IB = window.IB || {});

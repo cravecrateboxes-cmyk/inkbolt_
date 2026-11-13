@@ -83,7 +83,7 @@
        distance to stay about 3 px on screen; on a small object drawn enlarged (loot, pickups, a gun turning in its
        beam) that swallows the whole thing in black and makes it look several times its size from afar, so those
        materials cap it and the object keeps its real silhouette at any distance. } */
-  /* Tactical look (look.js, surface.js): opts.look 'world' | 'actor' | 'none' (default) opts a material into the
+  /* Tactical look (look.js, surface.js): opts.look 'world' | 'actor' | 'decal' (dress.js: tint in the vertex colour) | 'none' (default) opts a material into the
      surface light model, with opts.surf = { tex: IB.Surface.texFor(family) } for palette materials or { flat:
      uniform(Vector4) } for code-built geometry. Ignored on ?look=classic. */
   function toonMaterial(opts) {
@@ -107,7 +107,7 @@
       sh.uniforms.uCloak = IB.Render.cloak; sh.uniforms.uHullK = robot ? IB.Render.robotHull : ONE;
       // kit vertex colour: R = the classic AO, G and B carry tactical-look data (Stage 5D), so mapped materials
       // multiply by R only (weapons, gear, robots and troopers have R = G = B: unchanged); trap T5
-      if (opts.map) sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', '#if defined( USE_COLOR_ALPHA )\n\tdiffuseColor *= vec4( vColor.rrr, vColor.a );\n#elif defined( USE_COLOR )\n\tdiffuseColor.rgb *= vColor.rrr;\n#endif');
+      if (opts.map && look !== 'decal') sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', '#if defined( USE_COLOR_ALPHA )\n\tdiffuseColor *= vec4( vColor.rrr, vColor.a );\n#elif defined( USE_COLOR )\n\tdiffuseColor.rgb *= vColor.rrr;\n#endif');
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', '#include <common>\nuniform vec3 uInk;\nuniform float uCloak;\nvarying float vHull;\n' + (fx ? 'varying vec2 vFx;\n' : ''))
         .replace('#include <fog_fragment>',

@@ -1,6 +1,7 @@
 // Tactical look diagnostics: node Source/tests/e2e/look-diag.js <plan> [plan ...]
 // Prints per plan: post mode, shadow state, light volume (size, lights per zone, bake ms), look family, page errors.
-// Env: EXTRA=<query string>, EVAL=<js expression evaluated in the page, printed as JSON>.
+// Env: EXTRA=<query string>, EVAL=<js expression evaluated in the page, printed as JSON>, TIER (default high), WAIT ms.
+// Bake gate: EVAL='(()=>{var n=0;while(!IB.LightGrid.idle()&&n<1e6){IB.LightGrid.work();n++}return [n,IB.LightGrid.info()]})()'
 const { chromium } = require('playwright');
 const path = require('path'), http = require('http'), fs = require('fs');
 const ROOT = path.resolve(__dirname, '../../..');
@@ -18,7 +19,8 @@ const plans = process.argv.slice(2);
     try {
       await pg.goto(base + '&plan=' + plan);
       await pg.waitForFunction(() => window.__TEST__ && __TEST__.state().mode === 'play', null, { timeout: 150000 });
-      await pg.waitForTimeout(1500);
+      await pg.evaluate((t) => { if (IB.Game.guard) IB.Game.guard.on = false; if (t) __TEST__.setTier(t); }, process.env.TIER || 'high');   // the CPU renderer would trip the auto tier guard
+      await pg.waitForTimeout(+(process.env.WAIT || 1500));
       const info = await pg.evaluate((ev) => {
         const L = IB.Look, out = { look: L.on, family: L.cur && L.cur.family, type: L.cur && L.cur.type, guessed: L.cur && L.cur.guessed,
           post: IB.Post && { on: IB.Post.on, mode: IB.Post.mode, w: IB.Post.w, h: IB.Post.h },
