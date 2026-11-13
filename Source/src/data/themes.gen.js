@@ -1609,7 +1609,7 @@
     trail: { wall: 'TrailWall', height: 18.3, variants: ['TrailWall_B', 'TrailWall_C', 'TrailWall_D', 'TrailWall_E'] },
     hatch: 'Hatch', stand: 'Block_C',
     backdrop: null,
-    budget: { prop: 2000, landmark: 4000, total: 70000 },
+    budget: { prop: 2000, landmark: 8000, total: 70000 },
     allPieces: function () {
       var out = ['Wall_Corner'];
       ['1', '2', '3'].forEach(function (s) {
