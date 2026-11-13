@@ -117,9 +117,9 @@ def solve(rig, P):
         a = (MH.to_3x3() @ hand_axes(side)[0]).normalized()
         s, e = two_bone(SH[side], wr, P.get('hint', {}).get(side, HINT[side]), pref=a)
         f = (wr - e).normalized()
-        bend = f.angle(a)
-        if bend > D(WRIST_MAX):          # no wrist bends this far: swing the forearm toward the hand
-            q = Quaternion().slerp(f.rotation_difference(a), 1.0 - D(WRIST_MAX) / bend)
+        bend, lim = f.angle(a), D(P.get('wrist', WRIST_MAX))
+        if bend > lim:                   # no wrist bends this far: swing the forearm toward the hand
+            q = Quaternion().slerp(f.rotation_difference(a), 1.0 - lim / bend)
             e = wr - (q @ f) * FORE_LEN
             s = e + (s - e).normalized() * UPPER_LEN
         M['UPPERARM_' + side] = seg_delta(RIG['S0'][side], RIG['E0'][side], s, e)
@@ -390,7 +390,7 @@ class Clip:
         self.M = lambda t: self.W(t) @ T(p.magT)
         self.off = self.trig = lambda t: 0.0
         self.dR = FPath(lambda t: p.hand_r(self.off(t), self.trig(t)))
-        self.hint = None
+        self.hint = self.wrist = None
 
     def f(self, x):
         return x * self.dur
@@ -417,6 +417,8 @@ class Clip:
 
     def pose(self, t):
         P = {'W': self.W(t), 'FR': self.R(t), 'FL': self.L(t), 'mag': self.M(t), 'dig': {'R': self.dR(t), 'L': self.dL(t)}, 'hint': {}}
+        if self.wrist is not None:
+            P['wrist'] = self.wrist
         if self.hint is not None:
             P['hint'] = {'L': V(self.hint)}
         return P
@@ -437,10 +439,13 @@ def scalar(keys, period=None):
     return lambda t: tr(t)[0]
 
 
-def life(base, t, period, amp=(1.0, 1.6, 1.2), phase=0.0, thumb=1.2):
-    """A hold with small finger life: each finger breathes on its own phase (deg), looping over `period`."""
-    out = {}
+def life(base, t, period, amp=(1.0, 1.6, 1.2), phase=0.0, thumb=1.2, digits=ORDER):
+    """A hold with small finger life: each of `digits` breathes on its own phase (deg), looping over `period`.
+    Every joint that moves costs an animation channel in the clip, so life goes where it shows."""
+    out = dict(base)
     for i, dn in enumerate(ORDER):
+        if dn not in digits:
+            continue
         b = dget(base, dn)
         a = 2 * math.pi * (t / period + phase + 0.19 * i)
         s1, s2 = math.sin(a), math.sin(2 * a + 1.3)
@@ -896,10 +901,10 @@ def idle_clip(p):
     c.w(0.0).w(0.5, *ia).w(1.0, vmul(ia[0], -0.25), vmul(ib[1], 0.3)).w(1.5, *ib)
     seat = scalar([(0.0, 0.0), (1.15, 0.0, 'h'), (1.32, 1.0), (1.58, 0.0, 'h')], period=2.0)
     baseR = c.dR.home
-    c.dR = FPath(lambda t: life(baseR(t), t, 2.0, amp=(0.5, 0.9, 0.7), phase=0.3, thumb=2.0))
+    c.dR = FPath(lambda t: life(baseR(t), t, 2.0, amp=(1.0, 1.8, 0.0), phase=0.3, digits=('THUMB',)))
     if p.GL is not None:
-        lift = {dn: (-3.0, -4.5, -2.0, 0.0) for dn in FINGERS}
-        c.dL = FPath(lambda t: dadd(life(p.digL, t, 2.0, amp=(0.8, 1.4, 1.0)), {dn: vmul(lift[dn], seat(t - 0.05 * i)) for i, dn in enumerate(FINGERS)}))
+        lift = {dn: (-3.0, -4.5, 0.0, 0.0) for dn in FINGERS}
+        c.dL = FPath(lambda t: dadd(life(p.digL, t, 2.0, amp=(0.8, 1.4, 0.0)), {dn: vmul(lift[dn], seat(t - 0.05 * i)) for i, dn in enumerate(FINGERS)}))
     c.trig = scalar([(0.0, 0.0), (0.7, 0.12), (1.4, 0.0)], period=2.0)
     return c
 
@@ -926,16 +931,14 @@ def sprint_clip(p):
     up = (0.0, 0.0, 0.006)
     c.w(0.0, *a).w(0.15, vadd(mid(0)[0], up), vadd(mid(0)[1], (1.2, 1.5, -1))).w(0.30, *b).w(0.45, vadd(mid(0)[0], vmul(up, 0.7)), vadd(mid(0)[1], (-1.0, -1.5, 1)))
     c.off = lambda t: 1.0
-    baseR = c.dR.home
-    c.dR = FPath(lambda t: life(baseR(t), t, 0.6, amp=(0.6, 1.0, 0.6)))
     if S['style'] == 'high':
         (pa, na, ba), (pb, nb, bb) = S['pump']
         pm = tuple((x + y) / 2 for x, y in zip(pa, pb))
         q = [(0.0, pa, na, ba), (0.15, (pm[0] + 0.05, pm[1], pm[2] - 0.02), na, (ba[0] + 6, ba[1])), (0.30, pb, nb, bb), (0.45, (pm[0] - 0.05, pm[1], pm[2] + 0.02), nb, (bb[0] - 4, bb[1]))]
         c.L = Path(free_path(q, 0.6))
-        c.dL = FPath(lambda t: life(shape('L', 'fist'), t, 0.6, amp=(1.0, 1.5, 1.0)))
+        c.dL = FPath(shape('L', 'fist'))
     elif p.GL is not None:
-        c.dL = FPath(lambda t: life(dadd(p.digL, {dn: (2, 3, 2, 0) for dn in FINGERS}), t, 0.6, amp=(0.8, 1.2, 0.8)))
+        c.dL = FPath(dadd(p.digL, {dn: (2, 3, 2, 0) for dn in FINGERS}))
     return c
 
 
@@ -950,7 +953,7 @@ def slide_clip(p):
     pm = tuple((x + y) / 2 for x, y in zip(pa, pb))
     q = [(0.0, pa, na, ba), (0.125, (pm[0] - 0.02, pm[1] + 0.03, pm[2]), na, (ba[0] - 4, ba[1])), (0.25, pb, nb, bb), (0.375, (pm[0] + 0.02, pm[1] - 0.02, pm[2]), nb, (bb[0] + 3, bb[1]))]
     c.L = Path(free_path(q, 0.5, Sl['hint']))
-    c.dL = FPath(lambda t: life(shape('L', 'open'), t, 0.5, amp=(2.0, 3.0, 2.0)))
+    c.dL = FPath(lambda t: life(shape('L', 'open'), t, 0.5, amp=(2.5, 3.5, 0.0), digits=FINGERS))
     c.hint = Sl['hint']
     c.off = lambda t: 1.0
     return c
@@ -1106,6 +1109,7 @@ class MeleeClip(Clip):
         self.ks = Track([(k[0] * dur, k[3]) for k in keys], per) if len(keys[0]) > 3 else None
         if self.ks is not None:
             self.M = lambda t: p.mag_at(self.W(t), mat_trs((0, 0, 0), self.ks(t)))
+        self.wrist = 84.0                # a cut carries the blade across the forearm: the wrist gives more than on a gun
 
     def W(self, t):
         q = Quaternion(self.kq(t))
@@ -1134,10 +1138,7 @@ def melee_actions(p, action):
         keys = [k + ((8 * math.sin(2 * math.pi * k[0]), 0, 6 * math.cos(2 * math.pi * k[0])),) for k in keys]
     c = MeleeClip(p, 2.0, keys, loop=True)
     baseR = p.digR
-    c.dR = FPath(lambda t: life(baseR, t, 2.0, amp=(0.8, 1.2, 0.8)))
-    if p.GL is not None:
-        baseL = p.digL
-        c.dL = FPath(lambda t: life(baseL, t, 2.0, amp=(0.8, 1.2, 0.8), phase=0.4))
+    c.dR = FPath(lambda t: life(baseR, t, 2.0, amp=(0.8, 1.4, 0.0), digits=FINGERS))
     action(wid + '_Idle', c.frames(60))
 
 
