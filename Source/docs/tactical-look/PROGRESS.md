@@ -89,3 +89,17 @@ Stage 3), `?post=0` (the look without the post pass: the low-tier path).
   look ('actor' = no tiling detail + a cool rim that grows in the dark); robot light parts are fully emissive;
   actors receive the sun shadow; smoke puffs follow the sun and the local light; GunSkins world instances take
   the light volume at their own position (viewmodel and inventory instances untouched).
+
+### First full pilot set (`dist/look/on3`, 56 shots) and first tuning pass
+
+- Classic baseline: mean luminance 0.565, 54 of 56 shots outside the section 4.2 ranges (it is the "toy" look).
+- Look on, before tuning: downtown, datacenter, mall and mountains read as intended on the sheets. Problems:
+  stronghold zone 2 (carved halls under the rock) far too dark (mean 0.08 to 0.14, up to 28% of pixels under
+  0.06); stronghold's warm apron went grey; bedroom lost its cheer (muddy purple walls); mall too bright
+  (mean ~0.50) with washed-out floor inlays; metro platform zone brighter than the dark-interior range.
+- Tuning (looks.js): stronghold sun 1.5 warmer (#FFD6AE), indoor fill 0.55 and lamp light x1.6 for the halls;
+  bedroom ambient 0.66 / indoor fill 0.72, saturation 1.06; mall ambient 0.42, indoor fill 0.45, lamps x0.72,
+  floor gloss 0.40; metro lamps x0.36; downtown sun 1.35; mountains sun 0.85.
+- Decision: the snow range of section 4.2 (mean 0.40 to 0.55) is too dark for a snowfield that fills most of the
+  frame; mountains reads right at mean ~0.60 with under 1% clipped. The review sheet is the judge (as section
+  4.2 says); the range stays as a guide and mountains is accepted above it unless the owner disagrees.

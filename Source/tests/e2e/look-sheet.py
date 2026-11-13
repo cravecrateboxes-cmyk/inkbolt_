@@ -9,7 +9,7 @@ Pairs files with the same name in both folders (optionally only <plan>-*.png), t
 import os, sys
 from PIL import Image, ImageDraw
 
-CELL_W = 960
+CELL_W = int(os.environ.get('CELL_W', '640'))   # 960 for close review
 
 
 def main():
@@ -36,7 +36,7 @@ def main():
                 im = Image.new('RGB', (CELL_W, cell_h), (90, 90, 90))
             sheet.paste(im, (j * CELL_W, y + lab))
     os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
-    sheet.save(out, quality=88)
+    sheet.save(out, quality=84)
     print('sheet', out, len(names), 'rows')
 
 
