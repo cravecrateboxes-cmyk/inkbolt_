@@ -41,7 +41,7 @@ MIRROR = Matrix.Diagonal((-1, 1, 1, 1))
 SH = {'R': V((0.20, -0.58, -0.30)), 'L': V((-0.42, -0.50, -0.28))}     # shoulders (off screen): support arm comes in from lower left
 UPPER_LEN, FORE_LEN = 0.30, 0.29
 # palette cells of every part (change a look here)
-COL = {'fabric': 'glove4', 'pad': 'glove3', 'grip': 'rubber', 'tip': 'rubber', 'hard': 'glove2', 'groove': 'glove4', 'cuff': 'rubber', 'hem': 'glove3',
+COL = {'fabric': 'glove4', 'pad': 'glove3', 'grip': 'rubber', 'tip': 'rubber', 'hard': 'glove2', 'groove': 'glove4', 'seam': 'glove3', 'cuff': 'rubber', 'hem': 'glove3',
        'strap': 'rubber', 'buckle': 'steel2', 'sleeve': 'sleeve3', 'crease': 'glove4', 'plate': 'gun2', 'plate2': 'gun3',
        'bolt': 'steel2', 'accent': 'amber', 'screen': 'emis', 'device': 'rubber', 'upper': 'sleeve3'}
 # fingers: knuckle height on the grip, radius at MCP / PIP / DIP / tip, phalanx lengths (joint to joint)
@@ -209,7 +209,8 @@ def digit_rings(J, r, bones, ax, sides=DIGIT_SIDES, flat=FLAT, pad=True):
     skinned to one bone per phalanx: a ball at the root joint (it turns inside the palm), ONE ring in the bisector
     plane of each joint (half on each bone, bulged over the knuckle, tucked in at the crease), a raised padded
     back on each phalanx long enough for one and a rounded tip. ax: the flexion axis (back of the digit = d x ax).
-    Returns (rings, weight per ring, kind per band: 'root' | 'fabric' | 'pad' (back faces padded) | 'tip')."""
+    Returns (rings, weight per ring, kind per band: 'root' | 'fabric' | 'pad' (back faces padded) | 'seam' (the
+    stitched band where the reinforced tip starts) | 'tip')."""
     J = [V(p) for p in J]
     n = len(J) - 1
     d = [(J[i + 1] - J[i]).normalized() for i in range(n)]
@@ -241,6 +242,7 @@ def digit_rings(J, r, bones, ax, sides=DIGIT_SIDES, flat=FLAT, pad=True):
         e = min(max(0.26 * L, 0.0085), 0.45 * L)
         if i == n - 1:
             add(ring(J[i] + d[i] * e, dors[i], rad(e) * 0.98), bones[i], 'fabric')
+            add(ring(J[i] + d[i] * (e + 0.0020), dors[i], rad(e + 0.0020) * 1.0), bones[i], 'seam')
             add(ring(J[i + 1], dors[i], rb * 0.97, kd=0.92), bones[i], 'tip')
             add(ring(J[i + 1] + d[i] * (rb * 0.52), dors[i], rb * 0.74, kd=0.88), bones[i], 'tip')
             add([J[i + 1] + d[i] * (rb * 0.92)], bones[i], 'tip')
@@ -460,12 +462,12 @@ def glove(A, side, X):
         p['bm'].free()
     for J, r, bones, ax, flat in digits:
         rings, wts, kinds = digit_rings(J, r, bones, ax, flat=flat)
-        cols = [COL['tip'] if k == 'tip' else COL['fabric'] for k in kinds]
+        cols = [COL['tip'] if k == 'tip' else COL['seam'] if k == 'seam' else COL['fabric'] for k in kinds]
 
         def fcol(i, j, kinds=kinds):
             if kinds[i] == 'pad' and j < DIGIT_SIDES // 2 - 1:
                 return COL['pad']
-            if kinds[i] != 'root' and DIGIT_SIDES // 2 <= j < DIGIT_SIDES - 1:
+            if kinds[i] not in ('root', 'seam') and DIGIT_SIDES // 2 <= j < DIGIT_SIDES - 1:
                 return COL['grip']
         A.loft([[Xs @ p for p in rr] for rr in rings], cols, wts, 'digits', soft=True, fcol=fcol)
     # armour: the knuckle guard, ribs fanned over the back of the hand from the knuckles toward the wrist
@@ -684,9 +686,12 @@ SLEEVE_T = (0.036, 0.066, 0.100, 0.150, 0.198, 0.208, 0.217, 0.226, 0.235, 0.244
 SLEEVE_EX = 0.0030
 FOLDS = ((0.224, 0.0046, 200, 0.55), (0.247, 0.0052, 150, 0.45), (0.270, 0.0046, 230, 0.60), (0.290, 0.0034, 120, 0.50))
 FOLD_W, FOLD_SLANT = 0.0100, 0.009       # fold half width along the arm, diagonal (t shift across the arm)
-# bracer plates: stations (t, half arc deg, extra radius of the outer face); in: extra radius of the inner face
-BRACER = {'in': 0.0040, 'st': [(0.062, 62, 0.0062), (0.070, 96, 0.0086), (0.150, 104, 0.0090), (0.188, 100, 0.0090), (0.200, 70, 0.0064)], 'n': 9}
-PLATE = {'in': 0.0070, 'st': [(0.078, 30, 0.0104), (0.085, 44, 0.0128), (0.172, 48, 0.0132), (0.184, 34, 0.0106)], 'n': 7}
+# bracer plates: stations (t, half arc deg, extra radius of the outer face); in: extra radius of the inner face;
+# arc: where the section's points sit across the plate (-1..1); accent: the column that takes the accent line
+BRACER = {'in': 0.0040, 'st': [(0.062, 62, 0.0062), (0.070, 96, 0.0086), (0.150, 104, 0.0090), (0.188, 100, 0.0090), (0.200, 70, 0.0064)],
+          'arc': tuple(-1.0 + 0.25 * i for i in range(9))}
+PLATE = {'in': 0.0070, 'st': [(0.078, 30, 0.0104), (0.085, 44, 0.0128), (0.172, 48, 0.0132), (0.184, 34, 0.0106)],
+         'arc': (-1.0, -0.6, -0.2, 0.2, 0.54, 0.72, 1.0), 'accent': 4}
 BSTRAPS = ((0.086, 0.099), (0.166, 0.179))        # bracer straps (t from, to)
 DEVICE = {'t': 0.118, 'w': 0.030, 'l': 0.042, 'h': 0.0070}
 CAM_RIG = V((-0.224, -0.588, 0.153))                    # game viewmodel camera in rig space (weapons.js vmRoot)
@@ -765,15 +770,13 @@ def forearm(A, side, wr, fd, rad, dor, views=(CAM_RIG,)):
 
     # bracer: plates are open arcs with thickness, tapered at both ends
     def arc_plate(P, colour, fcol=None):
-        n = P['n']
         rings = []
         for t, half, ex in P['st']:
-            arc = [pc - half + 2 * half * i / (n - 1) for i in range(n)]
+            arc = [pc + half * k for k in P['arc']]
             rings.append([at(t, a, ex) for a in arc] + [at(t, a, P['in']) for a in reversed(arc)])
         A.loft(rings, [colour] * len(rings), fb, 'bracers', fcol=fcol)
     arc_plate(BRACER, COL['plate'])
-    np_ = PLATE['n']
-    arc_plate(PLATE, COL['plate2'], fcol=lambda i, j: COL['accent'] if i == 1 and j == np_ - 2 else None)
+    arc_plate(PLATE, COL['plate2'], fcol=lambda i, j: COL['accent'] if i == 1 and j == PLATE['accent'] else None)
     for t0, t1 in BSTRAPS:
         ex = SLEEVE_EX + 0.0022
         prof = [(t0, ex - 0.0030), (t0 + 0.0012, ex), (t1 - 0.0012, ex), (t1, ex - 0.0030)]
@@ -1150,6 +1153,7 @@ CARRY = {c: HANDLING[c].get('carry', HANDLING_BASE['carry']) for c in HANDLING}
 # the gun's visible surface), and the fingers / thumb close until they meet it (curl from the gap left).
 # two-hand pistol hold: support glove offset (m) and rotation (deg) from the grip frame, thumb swing, finger curl
 PISTOL_LEFT = (-0.018, 0.018, -0.016, 8, 0, 14, 0, -8)
+GUARD_THUMB = (42.0, 52.0)              # handguards: the support thumb swings toward the muzzle and reaches round the near side (deg)
 GUARD_PALM = V((0.17, 0.0, -0.98))      # handguards: palm under, knuckles at the lower far corner, fingers up the far side, thumb up the near side
 
 
@@ -1249,7 +1253,10 @@ def fit_support():
             info['dig_R'] = fit_digits('R', sd, grip_frame(wid) @ RIG['F0']['R'].inverted(), ('THUMB',))
         FL = left_hold(wid)
         if FL is not None and cls != 'pistol':      # pistols: the support hand's rest pose IS the two-hand hold
-            info['dig_L'] = fit_digits('L', sd, FL @ RIG['F0']['L'].inverted())
+            # on a handguard the thumb turns to point forward along the near side before it closes
+            guard = 'guard' in info and 'fore' not in info and cls != 'melee'
+            info['dig_L'] = fit_digits('L', sd, FL @ RIG['F0']['L'].inverted(), spread={'THUMB': GUARD_THUMB[0]} if guard else None,
+                                       wrap={'THUMB': GUARD_THUMB[1]} if guard else None)
         if os.environ.get('IB_POSE_REPORT'):
             for sd_ in 'RL':
                 if 'dig_' + sd_ in info:
@@ -1335,11 +1342,13 @@ def digit_limits(side, dn):
 FIT_STEP, FIT_SINK = 2.0, 0.0012        # sweep step (deg); how far a phalanx may sink into what it holds (m)
 
 
-def fit_digits(side, sd, H, digits=DIGITS, spread=None):
+def fit_digits(side, sd, H, digits=DIGITS, spread=None, wrap=None):
     """Close the digits of a hand on an object: sd(p) is the signed distance (m) to the object in its own space,
     H takes the rig's rest space to that space with the hand placed (frame @ rest frame inverse). Each digit
     opens, then knuckle, joint 2 and joint 3 close in turn until a phalanx beyond the joint presses into the
-    object (nothing there up to the joint's limit: it keeps its rest angle). Returns {digit: angles from rest}."""
+    object (nothing there up to the joint's limit: it keeps its rest angle). spread: {digit: deg} set first.
+    wrap: {digit: deg}: that digit's knuckle starts that far PAST the rest pose, on the far side of the object, and
+    comes back until it touches (a thumb reaching round a handguard). Returns {digit: angles from rest}."""
     out = {}
     for dn in digits:
         J = RIG['J'][side][dn]
@@ -1359,6 +1368,17 @@ def fit_digits(side, sd, H, digits=DIGITS, spread=None):
             return max(r - sd(H @ Ms[i] @ p) for i in links for p, r in pts[i])
         for j in range(3):
             lo, hi = lim[j]
+            if j == 0 and dn in (wrap or {}):
+                a[0] = wrap[dn]
+                while pen(0) > FIT_SINK and a[0] < wrap[dn] + 24:       # clear on the far side first
+                    a[0] += FIT_STEP
+                while a[0] - FIT_STEP >= 0.0:
+                    a[0] -= FIT_STEP
+                    if pen(0) > FIT_SINK:
+                        a[0] += FIT_STEP
+                        break
+                a[1], a[2] = 0.0, 8.0            # the rest of the digit lies along the part, a little bent
+                break
             p0 = pen(j)
             if j == 0:                   # start clear of the object: open the knuckle further if it is not
                 while p0 > FIT_SINK and a[0] - FIT_STEP >= lo:

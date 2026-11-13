@@ -279,9 +279,120 @@ def build_scene():
     return pal, rig, arms
 
 
+def strip_rest_channels(path, keep='Weapon'):
+    """Drop every animation channel that only holds a bone at its rest value for the whole clip (the game leaves
+    a bone a clip does not move at rest, so nothing changes on screen), with the samplers and accessors only
+    those channels used. The 40-bone rig bakes three channels per bone per clip and most of them never move.
+    The rotation of the `keep` bone always stays, so every clip keeps its length."""
+    import json
+    import struct
+    import numpy as np
+    raw = open(path, 'rb').read()
+    jl = struct.unpack('<I', raw[12:16])[0]
+    g = json.loads(raw[20:20 + jl])
+    bl = struct.unpack('<I', raw[20 + jl:24 + jl])[0]
+    bin_ = raw[28 + jl:28 + jl + bl]
+    acc, bvs, nodes = g['accessors'], g['bufferViews'], g['nodes']
+    NC = {'SCALAR': 1, 'VEC2': 2, 'VEC3': 3, 'VEC4': 4, 'MAT4': 16}
+    DT = {5120: 'i1', 5121: 'u1', 5122: '<i2', 5123: '<u2', 5125: '<u4', 5126: '<f4'}
+    REST = {'translation': [0, 0, 0], 'rotation': [0, 0, 0, 1], 'scale': [1, 1, 1]}
+
+    def values(i):
+        a = acc[i]
+        bv = bvs[a['bufferView']]
+        n = NC[a['type']]
+        dt = np.dtype(DT[a['componentType']])
+        st = bv.get('byteStride', dt.itemsize * n)
+        o = bv.get('byteOffset', 0) + a.get('byteOffset', 0)
+        out = np.empty((a['count'], n))
+        for k in range(a['count']):
+            out[k] = np.frombuffer(bin_, dt, n, o + k * st)
+        if a.get('normalized'):
+            out /= np.iinfo(dt).max
+        return out
+    dropped = total = 0
+    for an in g['animations']:
+        chans = []
+        for ch in an['channels']:
+            total += 1
+            node, path_ = nodes[ch['target']['node']], ch['target']['path']
+            if path_ in REST and not (node.get('name') == keep and path_ == 'rotation'):
+                v = values(an['samplers'][ch['sampler']]['output'])
+                rest = np.array(node.get(path_, REST[path_]), dtype=float)
+                d = np.abs(v - rest).max(axis=1)
+                if path_ == 'rotation':
+                    d = np.minimum(d, np.abs(v + rest).max(axis=1))
+                if d.max() < 2e-5:
+                    dropped += 1
+                    continue
+            chans.append(ch)
+        used = sorted({ch['sampler'] for ch in chans})
+        remap = {s: i for i, s in enumerate(used)}
+        an['samplers'] = [an['samplers'][s] for s in used]
+        for ch in chans:
+            ch['sampler'] = remap[ch['sampler']]
+        an['channels'] = chans
+    # accessors and buffer views still in use, the binary chunk packed again
+    ua = set()
+    for m in g.get('meshes', []):
+        for p in m['primitives']:
+            ua.update(p['attributes'].values())
+            if 'indices' in p:
+                ua.add(p['indices'])
+            for t in p.get('targets', []):
+                ua.update(t.values())
+    for sk in g.get('skins', []):
+        if 'inverseBindMatrices' in sk:
+            ua.add(sk['inverseBindMatrices'])
+    for an in g['animations']:
+        for s in an['samplers']:
+            ua.update((s['input'], s['output']))
+    amap = {a: i for i, a in enumerate(sorted(ua))}
+    ub = {acc[a]['bufferView'] for a in ua if 'bufferView' in acc[a]} | {im['bufferView'] for im in g.get('images', []) if 'bufferView' in im}
+    bmap = {b: i for i, b in enumerate(sorted(ub))}
+    out = bytearray()
+    nbv = []
+    for b in sorted(ub):
+        bv = dict(bvs[b])
+        o = bv.get('byteOffset', 0)
+        while len(out) % 4:
+            out.append(0)
+        bv['byteOffset'] = len(out)
+        out += bin_[o:o + bv['byteLength']]
+        nbv.append(bv)
+    while len(out) % 4:
+        out.append(0)
+    g['accessors'] = [dict(acc[a], bufferView=bmap[acc[a]['bufferView']]) if 'bufferView' in acc[a] else acc[a] for a in sorted(ua)]
+    g['bufferViews'] = nbv
+    g['buffers'] = [{'byteLength': len(out)}]
+    for m in g.get('meshes', []):
+        for p in m['primitives']:
+            p['attributes'] = {k: amap[v] for k, v in p['attributes'].items()}
+            if 'indices' in p:
+                p['indices'] = amap[p['indices']]
+            if 'targets' in p:
+                p['targets'] = [{k: amap[v] for k, v in t.items()} for t in p['targets']]
+    for sk in g.get('skins', []):
+        if 'inverseBindMatrices' in sk:
+            sk['inverseBindMatrices'] = amap[sk['inverseBindMatrices']]
+    for an in g['animations']:
+        for s in an['samplers']:
+            s['input'], s['output'] = amap[s['input']], amap[s['output']]
+    for im in g.get('images', []):
+        if 'bufferView' in im:
+            im['bufferView'] = bmap[im['bufferView']]
+    js = json.dumps(g, separators=(',', ':')).encode()
+    js += b' ' * (-len(js) % 4)
+    with open(path, 'wb') as f:
+        f.write(struct.pack('<III', 0x46546C67, 2, 28 + len(js) + len(out)))
+        f.write(struct.pack('<II', len(js), 0x4E4F534A) + js)
+        f.write(struct.pack('<II', len(out), 0x004E4942) + bytes(out))
+    print('animation channels: %d of %d dropped (bones held at rest), %d -> %d bytes' % (dropped, total, len(raw), 28 + len(js) + len(out)))
+
+
 def build_weapons(ao):
     build_scene()
-    export('weapons')
+    strip_rest_channels(export('weapons'))
 
 
 FAMILY = 'weapons'
