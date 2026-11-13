@@ -1082,10 +1082,12 @@ ANIM = {
 #             support hand fetches a fresh mag (rig space)
 #   sprint    style 'high' (pistols: muzzle up near the face, support arm pumping) or 'low' (long guns: canted
 #             across the chest, both hands on); a / b: the two poses of the 0.6 s loop (footfalls);
-#             idx / lift: trigger finger off the trigger (curl about the grip axis / lift along the frame);
+#             idx / lift: trigger finger off the trigger, straight along the frame (knuckle curl / spread up the frame);
 #             pump: the free support fist for the 'high' style ((NDC x, y, depth m), palm direction, wrist bend)
-#   slide     a / b: the tucked, canted gun; hand: the free support hand out for balance (as pump); curl / thumb
-#             open its fingers; hint: where its elbow points
+#   slide     a / b: the tucked, canted gun; hand: the free support hand out for balance (as pump), fingers open;
+#             hint: where its elbow points
+# Finger poses are not in these tables: holds are fitted on the weapon (fit_support, fit_digits), free hands take
+# a SHAPES name (see the end of this file).
 HANDLING_BASE = {
     'carry': (0.0, -0.17, -0.010),
     'idle': (((0.0005, 0.0015, 0.0035), (1.0, 0.4, -0.5)), ((-0.0005, 0.0010, 0.0020), (0.6, -0.4, 0.3))),
@@ -1098,10 +1100,10 @@ HANDLING_BASE = {
     'sprint': {'style': 'low', 'a': ((-0.030, 0.000, 0.035), (-24, -34, 50)), 'b': ((-0.024, 0.002, 0.022), (-27, -31, 53)),
                'idx': -6, 'lift': 13},
     # slide: gun poses a / b; hand: the free support hand at both ends of the loop ((NDC x, y, depth m), palm
-    # direction (rig space), (wrist flex, deviation) deg); curl / thumb open the fingers
+    # direction (rig space), (wrist flex, deviation) deg)
     'slide': {'a': ((-0.030, -0.010, 0.000), (8, -28, 6)), 'b': ((-0.028, -0.014, -0.006), (7, -30, 7)),
               'hand': (((-0.56, -0.62, 0.52), (-0.25, 0.30, -1.0), (-10, 6)), ((-0.54, -0.58, 0.52), (-0.25, 0.35, -1.0), (-12, 6))),
-              'curl': -72, 'thumb': -40, 'hint': (-1.0, 0.0, -0.5)},
+              'hint': (-1.0, 0.0, -0.5)},
 }
 HANDLING = {
     'pistol': {
@@ -1117,7 +1119,7 @@ HANDLING = {
         # it about the barrel to show its left side); the free fist pumps at the lower left ((NDC x, y, depth), palm, bend)
         'sprint': {'style': 'high', 'a': ((0.030, -0.080, 0.020), (90, 0, 18)), 'b': ((0.032, -0.076, 0.010), (88, 0, 20)),
                    'idx': -6, 'lift': 14,
-                   'pump': (((-0.62, -0.78, 0.46), (0.6, 0.2, -0.4), (10, 0)), ((-0.72, -1.25, 0.44), (0.6, -0.2, -0.4), (10, 0))), 'fist': 26},
+                   'pump': (((-0.62, -0.78, 0.46), (0.6, 0.2, -0.4), (10, 0)), ((-0.72, -1.25, 0.44), (0.6, -0.2, -0.4), (10, 0)))},
         'slide': {'a': ((0.000, -0.060, -0.045), (4, -30, 8)), 'b': ((0.002, -0.064, -0.051), (3, -32, 9))},
     },
     'smg': {
@@ -1150,9 +1152,10 @@ CARRY = {c: HANDLING[c].get('carry', HANDLING_BASE['carry']) for c in HANDLING}
 
 # Support-hand holds. A hold is the support glove's grip axis (index end) and palm direction in weapon space
 # (hold_frame); the frame is then slid so the palm touches the part and centred on it (fit by ray casts on
-# the gun's visible surface), and the fingers / thumb close until they meet it (curl from the gap left).
-# two-hand pistol hold: support glove offset (m) and rotation (deg) from the grip frame, thumb swing, finger curl
-PISTOL_LEFT = (-0.018, 0.018, -0.016, 8, 0, 14, 0, -8)
+# the gun's visible surface, then seated: slid in until the palm or a knuckle presses on it), and every digit
+# closes joint by joint until it meets the part (fit_digits).
+# two-hand pistol hold: support glove offset (m) and rotation (deg) from the grip frame (its rest pose: no fit)
+PISTOL_LEFT = (-0.018, 0.018, -0.016, 8, 0, 14)
 GUARD_THUMB = (42.0, 52.0)              # handguards: the support thumb swings toward the muzzle and reaches round the near side (deg)
 GUARD_PALM = V((0.17, 0.0, -0.98))      # handguards: palm under, knuckles at the lower far corner, fingers up the far side, thumb up the near side
 
