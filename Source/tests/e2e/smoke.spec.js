@@ -1087,7 +1087,7 @@ async function launcherRun(browser, base) {
   });
   check('rocket ammo director: a starving launcher gets a rocket crate from soldiers', dir.s.crates.length === 1 && dir.kills <= IB_pity() && dir.s.crates[0].n >= 2, JSON.stringify({ kills: dir.kills, crates: dir.s.crates, need: dir.s.need }));
   await pg.evaluate(() => { const c = __TEST__.launcherState().crates[0], p = IB.Game.player; p.x = c.x; p.z = c.z; });
-  await wait(1200);
+  await until(pg, () => __TEST__.launcherState().crates.length === 0, null, 15000);   // game time, not wall time: software rendering is slow
   const pick = await pg.evaluate(() => __TEST__.launcherState());
   check('walking over a rocket crate adds its rockets', pick.pool >= 2 && pick.crates.length === 0, JSON.stringify({ pool: pick.pool, crates: pick.crates }));
   // rockets full: a crate walked over stays on the floor
@@ -1127,7 +1127,7 @@ async function launcherRun(browser, base) {
   // switching still works, the HUD shows the level, the save keeps rockets and levels
   await pg.evaluate(async () => { const ws = IB.Game.ws; IB.Weapons.slot(ws, 2); await __poll(() => ws.cur !== 'hothead' && ws.state === 'idle', 15000); IB.Weapons.slot(ws, 1); await __poll(() => ws.cur === 'hothead' && ws.state === 'idle', 15000); });
   const sv = await pg.evaluate(() => { const G = IB.Game; G.store.save(G.slot); const s = G.store.load(G.slot.id); return { cur: G.ws.cur, hud: document.getElementById('wpnCls').textContent, rockets: s.rockets, total: __TEST__.launcherState().total, lv: s.gunLevel.hothead, roll: s.gunRoll.hothead }; });
-  check('weapon switching with a launcher; HUD shows "Lv"; the save keeps rockets, levels and rolls', sv.cur === 'hothead' && /Lv 14/.test(sv.hud) && sv.rockets === sv.total && sv.lv === 14 && sv.roll.mag === 5, JSON.stringify(sv));
+  check('weapon switching with a launcher; HUD shows "Lv"; the save keeps rockets, levels and rolls', sv.cur === 'hothead' && /Lv 14/i.test(sv.hud) && sv.rockets === sv.total && sv.lv === 14 && sv.roll.mag === 5, JSON.stringify(sv));
   check('no console errors or warnings', pg.logs.length === 0, pg.logs.join(' | '));
   await pg.context().close();
 }

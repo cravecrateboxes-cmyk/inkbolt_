@@ -37771,8 +37771,9 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
      height, scaled to at most 1.2 and to fit the slot (mount option len x h, default 0.86 m long). With option `back`
      the gun's bounding box rests its back on the mount plane (the theme puts that plane in front of the rack board and
      its pegs), otherwise the box is centred on the mount. Every gun model has its own size and origin. */
-  function gunLocal(id, out, fit) {
-    var geo = G.gunGeo(id); if (!geo.boundingBox) geo.computeBoundingBox();
+  function gunLocal(id, out, fit, tier) {
+    // the geometry with that rarity's extra parts: they widen the gun's box
+    var geo = G.gunGeo(id, tier); if (!geo.boundingBox) geo.computeBoundingBox();
     fit = fit || {};
     var bb = geo.boundingBox, len = Math.max(0.2, bb.max.z - bb.min.z), ht = Math.max(0.05, bb.max.y - bb.min.y);
     var sc = Math.min(1.2, (fit.len || 0.86) / len, fit.h ? fit.h / ht : 1.2);
@@ -37836,7 +37837,7 @@ window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = {"bots": "H4sIAAAAA
         im.frustumCulled = false;
         var local = isGun ? null : itemLocal(geo, new THREE.Matrix4());
         list.forEach(function (L, i) {
-          if (isGun) local = gunLocal(L.id, _lt, L.opt);   // per mount: slots may differ in size
+          if (isGun) local = gunLocal(L.id, _lt, L.opt, L.tier);   // per mount: slots may differ in size
           _lq.setFromAxisAngle(_ly, L.yaw);
           _lm.compose(_lp.set(L.x, L.y, L.z), _lq, _ls.set(1, 1, 1)).multiply(local);
           im.setMatrixAt(i, _lm); L.im = im; L.idx = i;
