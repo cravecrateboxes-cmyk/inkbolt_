@@ -727,7 +727,7 @@ def lmg_reload(p, r):
     f = c.f
     tl, tr = R['tilt']
     G = grab_frame(p)
-    cover = V((-0.012, -0.090, 0.090))            # the feed cover's latch end (it hinges at the front)
+    cover = V((-0.012, 0.015, 0.090))             # where the hand takes the feed cover (it hinges at the front), clear of the eye
     Fc = charge_frame(cover)
     gcv = p.fit('cover', 'L', Fc)
     lift = scalar([(f(0.10), 0.0, 'h'), (f(0.15), 1.0, 'h')])
