@@ -29,6 +29,7 @@ from mathutils import Matrix, Vector
 
 from ib_lib import *  # noqa: F401,F403
 import ib_lib
+import bd_detail as BD
 
 FAM = 'kit-bedroom'
 PFX = 'KIT_BEDROOM_'
@@ -87,7 +88,19 @@ class Kit:
 
     def __init__(self, pal):
         self.m = Model(pal)
+        self.fm = Model(pal)      # detail shapes: no bevel, no outline shell (finish and fittings, bd_detail.py)
+        self.name = ''
         self.cols = []
+
+    def dbx(self, x0, x1, y0, y1, z0, z1, color):
+        """Detail box from extents (flat model, drawn in the current frame)."""
+        assert x1 > x0 and y1 > y0 and z1 > z0, (self.name, x0, x1, y0, y1, z0, z1)
+        self.fm.parent = self.m.parent
+        return self.fm.box(((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2), (x1 - x0, y1 - y0, z1 - z0), color, bevel=False)
+
+    def dcyl(self, loc, r, h, color, seg=8, rot=(0, 0, 0)):
+        self.fm.parent = self.m.parent
+        return self.fm.cyl(loc, r, r, h, color, seg=seg, rot=rot, bevel=False)
 
     # ---- passthroughs (Model works in its own parent space)
     def box(self, loc, size, color, rot=(0, 0, 0), bevel=True):
@@ -247,6 +260,12 @@ class Kit:
         obj = build_object(PFX + name, self.m, dbw if bw is None else bw, dht if ht is None else ht, ao=ao)
         if not hull:
             strip_hull(obj)
+        if len(self.fm.bm.faces):
+            o2 = build_object(PFX + name + '_detail', self.fm, 0.0, 0.0)
+            strip_hull(o2)
+            join_into(obj, o2)
+        else:
+            self.fm.bm.free()
         for i, (x, y, z, hx, hy, hz) in enumerate(self.cols):
             e = socket('%s%s_COL%d' % (PFX, name, i), obj, (x, y, z))
             e.scale = (hx, hy, hz)
@@ -320,6 +339,7 @@ def build_walls(pal, ao):
                             dd = 0.04 + ri * 0.006
                             k.strip(list(reversed(arc_pts(r1, 0, 0, 0, 180, 6))), list(reversed(arc_pts(r0, 0, 0, 0, 180, 6))),
                                     0.0, dd, c, mat=wall_mat(0.0, zc - 0.38, yb - dd, dd))
+                BD.wall_detail(k, motif, dz, S, y, y - SKIRT_D)
                 k.build('Wall%s_%s_%s' % (s, motif, d), bw=0.0)
     k = Kit(pal)
     k.obox(-0.5, 0.5, -0.5, 0.5, 0.0, WALL_H, 'trim2', faces=('-y', '+y', '-x', '+x'))
@@ -608,6 +628,7 @@ def build_bed(pal, ao):
         dd = 0.05 + ri * 0.006
         k.strip(arc_pts(r1, 0, 0, 0, 180, 8), arc_pts(r0, 0, 0, 0, 180, 8), 0.0, dd, c, mat=wall_mat(0.0, LEG + 0.35, -7.35 - dd, dd))
     k.col(-4.32, 4.32, -7.35, -6.95, LEG, 4.3)
+    BD.bed_detail(k, posts, LEG)
     # body collision: rails + duvet sides, slat level inside, centre beam
     for sx in (-1, 1):
         k.col(sx * 4.3, sx * 5.25, -7.0, 6.82, LEG, 4.45)
@@ -644,6 +665,7 @@ def build_toychest(pal, ao):
         k.obox(-0.45, 0.45, -0.45, 0.45, 0.0, 0.9, 'red', faces=('+z', '-y', '+y', '-x', '+x'))
         k.prism(star_pts(0.3), 0.0, 0.03, 'white', mat=wall_mat(0.0, 0.45, -0.48, 0.035), fan=True, bottom=False)
         k.m.parent = Matrix.Identity(4)
+        BD.chest_detail(k)
         k.col(-2.47, 2.47, -1.47, 1.47, 0.0, 3.36)
         k.col(0.6, 1.8, -0.35, 0.85, 3.36, 4.26)
         k.build(name, bw=0.05, ao=ao)
@@ -751,9 +773,9 @@ def build_desk(pal, ao):
     k.beam((-2.7, 0.9, TOP + 0.1), (-2.25, 0.9, TOP + 2.0), 0.14, 'tpink')
     k.sphere((-2.25, 0.9, TOP + 2.0), 0.13, 'ink', seg=(6, 4))
     k.beam((-2.25, 0.9, TOP + 2.0), (-1.25, 0.9, TOP + 2.55), 0.115, 'tpink')
-    k.cyl((-1.25, 0.9, TOP + 2.55), 0.18, 0.7, 0.85, 'tpink', seg=12, rot=(0, 145, 0))
+    k.cyl((-1.25, 0.9, TOP + 2.55), 0.18, 0.7, 0.85, 'tpink', seg=10, rot=(0, 145, 0))
     # pencil cup with pencils
-    k.cyl((2.5, 1.0, TOP), 0.42, 0.45, 1.0, 'tblue', seg=12, caps=True)
+    k.cyl((2.5, 1.0, TOP), 0.42, 0.45, 1.0, 'tblue', seg=10, caps=True)
     for (dx, dy, tilt, c) in ((-0.1, 0.05, (8, -6, 0), 'tyellow'), (0.12, -0.08, (-10, 4, 0), 'red'), (0.02, 0.15, (4, 12, 0), 'tgreen')):
         k.cyl((2.5 + dx, 1.0 + dy, TOP + 0.3), 0.075, 0.075, 1.6, c, seg=6, rot=tilt, bevel=False)
     # two books, a drawing on a sheet of paper, a globe
@@ -765,8 +787,9 @@ def build_desk(pal, ao):
     k.prism([(1.65, -0.65), (2.45, -0.65), (2.05, -0.3)], TOP + 0.02, TOP + 0.04, 'tblue', bottom=False)
     k.disc(-0.9, 1.0, TOP, TOP + 0.1, 0.4, 'tyellow', seg=10)
     k.cyl((-0.9, 1.0, TOP + 0.1), 0.06, 0.06, 0.5, 'tyellow', seg=6, bevel=False)
-    g = k.sphere((-0.9, 1.0, TOP + 1.3), 0.75, 'tsky', seg=(12, 7))
+    g = k.sphere((-0.9, 1.0, TOP + 1.3), 0.75, 'tsky', seg=(10, 6))
     k.recolor(g, lambda f: 'tgreen' if (math.sin(f.calc_center_median().x * 6.1) + math.cos(f.calc_center_median().y * 5.3 + f.calc_center_median().z * 4.0)) > 0.9 else 'tsky')
+    BD.desk_detail(k, TOP)
     k.col(-3.75, -1.55, -1.75, 1.75, 0.0, TOP - 0.3)
     for sy in (-1, 1):
         k.col(3.2, 3.7, sy * 1.2, sy * 1.7, 0.0, TOP - 0.3)
@@ -790,6 +813,7 @@ def build_chair(pal, ao):
     k.obox(-1.25, 1.25, -1.14, -0.96, 4.7, 5.35, 'pink', faces=('+z', '-z', '-y', '+y', '-x', '+x'))
     for x in (-0.55, 0.0, 0.55):
         k.obox(x - 0.09, x + 0.09, -1.1, -1.0, SEAT, 4.7, 'pink', faces=('-y', '+y', '-x', '+x'))
+    BD.chair_detail(k, SEAT)
     k.col(-1.32, 1.32, -1.32, 1.32, SEAT - 0.3, SEAT)
     k.col(-1.25, 1.25, -1.2, -0.9, SEAT, 5.5)
     k.build('Chair', bw=0.04, ao=ao)
@@ -811,6 +835,7 @@ def build_bookcase(pal, ao):
             k.obox(-2.28, 2.28, -0.95, 0.88, zs - 0.16, zs, 'trim', faces=('-y', '+z', '-z'))
         for ri, (z0, mh) in enumerate(((0.55, 2.3), (3.1, 2.4), (5.75, 2.3))):
             books_row(k, -2.2, 2.2, z0, -0.82, 0.75, 301 + ri * 13 + rot, mh)
+        BD.bookcase_detail(k, H)
         # top shelf: a ball, a block and a lying book
         k.sphere((-1.3, -0.1, 8.35 + 0.8), 0.8, 'red', seg=(10, 6))
         k.m.parent = R @ T(0.4, -0.15, 8.35) @ rz(18)
@@ -838,6 +863,7 @@ def build_storage(pal, ao):
         k.obox(cx - 0.8, cx + 0.8, -0.82, 0.82, z0, z0 + 1.62, c, faces=('-y', '+y', '-x', '+x', '+z'))
         for sy in (-1, 1):
             k.obox(cx - 0.32, cx + 0.32, sy * 0.82, sy * 0.825, z0 + 1.15, z0 + 1.38, 'ink', faces=('-y' if sy < 0 else '+y',))
+    BD.cubeshelf_detail(k, H, bins)
     k.m.parent = Matrix.Identity(4)
     books_row(k, -0.86, 0.86, 0.25, -0.86, 1.7, 501, 1.75)
     k.sphere((2.0, 0.0, 2.24 + 0.78), 0.78, 'red', seg=(10, 6))
@@ -861,6 +887,7 @@ def build_storage(pal, ao):
     book(k, 0.55, -0.35, 3.0, 0.9, 1.2, 0.18, -12, 'tpink')
     k.m.parent = Matrix.Identity(4)
     k.cyl((0.85, 0.5, 3.0), 0.22, 0.25, 0.55, 'glass', seg=8, bevel=False)
+    BD.nightstand_detail(k)
     k.col(-1.3, 1.3, -1.25, 1.2, 0.0, 3.0)
     k.build('Nightstand', bw=0.03, ao=ao)
 
@@ -1102,6 +1129,7 @@ def build_overlays(pal, ao):
                (hi, 0.27, 13.4) if sx < 0 else (lo, 0.27, 13.4), (lo, 0.27, 13.4) if sx < 0 else (hi, 0.27, 13.4), 'butter')
         k.obox(lo - 0.03, hi + 0.03, -0.22, 0.33, 4.6, 5.0, 'tpink', faces=('-y', '+z', '-z', '-x', '+x'))
         k.col(lo, hi, -0.2, 0.34, 0.0, 13.4)
+    BD.window_detail(k, WF)
     k.build('Window', bw=0.02, ao=ao)
 
     # Posters (no faces: rocket, rainbow, shapes chart, planets); _R variants for the south and east walls
@@ -1177,6 +1205,7 @@ def build_overlays(pal, ao):
         k.cyl((1.0, 0.0, 11.14), 0.03, 0.03, 1.1, 'wood3', seg=4, bevel=False)
         k.prism([(0.0, 0.0), (0.0, 0.95), (0.5, 0.0)], -0.015, 0.015, 'white', mat=T(1.05, 0.0, 11.2) @ Matrix(((1, 0, 0, 0), (0, 0, -1, 0), (0, 1, 0, 0), (0, 0, 0, 1))))
         k.sphere((1.85, 0.05, 11.24), 0.4, 'tyellow', seg=(10, 6))
+        BD.wallshelf_detail(k, WF)
         k.m.parent = Matrix.Identity(4)
         k.build(name, bw=0.02, ao=False)
 
@@ -1194,6 +1223,7 @@ def build_overlays(pal, ao):
     for i, (px, pz, r) in enumerate([(-0.38, -0.05, 0.36), (0.36, -0.08, 0.32), (0.0, 0.12, 0.44)]):
         dd = 0.04 + 0.008 * i
         k.prism(circle_pts(r, seg=10), 0.0, dd, 'tsky', mat=wall_mat(1.85 + px, 6.75 + pz, WF - 0.48 - dd + 0.005 * i, dd), bottom=True)
+    BD.door_detail(k, WF)
     k.col(-2.95, 2.95, WF - 0.26, WF, 0.0, 12.9)
     k.build('Door', bw=0.02, ao=ao)
 
