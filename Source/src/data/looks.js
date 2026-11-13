@@ -84,16 +84,16 @@
   LOOKS.themes = {
     mountains: { family: 'wild-ext', type: 'ext-snow', albCeil: 0.80, sunI: 0.85, ambI: 0.38, fog: { length: 170 }, floor: { cls: 13, gloss: 0.25 },
       dress: { density: 0.35, floor: [['prints', 2], ['grime', 1]], base: [['grime2', 1]], wall: [['grimeBase', 2], ['crack3', 1]], clutter: [['StonesA', 1], ['StonesB', 1]] } },
-    smallcity: { family: 'urban-ext', type: 'ext-day' },
+    smallcity: { family: 'urban-ext', type: 'ext-day', sunI: 1.35, sunColor: '#FFDDB4', ambI: 0.38 },   // late afternoon: a warmer, lower-key sun
     classroom: { family: 'giant-room', type: 'int-lit' },
     office: { family: 'civic-int', type: 'int-lit' },
     bedroom: { family: 'giant-room', type: 'int-lit', floor: { cls: 4, gloss: 0.24 }, ambI: 0.66, indoorAmb: 0.72, albSat: 1.0, grade: { sat: 1.06, contrast: 0.14 } },
     coalmine: { family: 'dark-int', type: 'int-dark' },
-    castle: { family: 'urban-ext', type: 'ext-day', floor: { cls: 8, gloss: 0.08 } },
-    city2: { family: 'urban-ext', type: 'ext-dusk' },
+    castle: { family: 'urban-ext', type: 'ext-day', floor: { cls: 8, gloss: 0.08 }, sunI: 1.3, albCeil: 0.74 },   // pale sandstone: keep it off white
+    city2: { family: 'urban-ext', type: 'ext-dusk', exposure: 0.9, bloom: { amount: 0.38 } },   // lit windows everywhere: keep them off white
     factory: { family: 'ind-int', type: 'int-ind' },
     livingroom: { family: 'giant-room', type: 'int-lit' },
-    garden: { family: 'wild-ext', type: 'ext-day', floor: { cls: 7, gloss: 0.06 } },
+    garden: { family: 'wild-ext', type: 'ext-day', floor: { cls: 7, gloss: 0.06 }, sunI: 1.25 },
     factory2: { family: 'ind-int', type: 'int-ind' },
     island: { family: 'wild-ext', type: 'ext-day', floor: { cls: 6, gloss: 0.04 } },
     mall: { family: 'civic-int', type: 'int-lit', floor: { cls: 10, gloss: 0.40 }, ambI: 0.42, indoorAmb: 0.45, grid: { intensity: 0.72 }, grade: { sat: 1.0, contrast: 0.22 } },
@@ -104,7 +104,7 @@
     parking: { family: 'ind-int', type: 'int-ind', wet: 0.5 },
     hotel: { family: 'civic-int', type: 'int-lit' },
     techhq: { family: 'civic-int', type: 'int-lit' },
-    cargoship: { family: 'mil-ext', type: 'ext-day', floor: { cls: 3, gloss: 0.3 }, wet: 0.3 },
+    cargoship: { family: 'mil-ext', type: 'ext-day', floor: { cls: 3, gloss: 0.3 }, wet: 0.3, ambI: 0.50, indoorAmb: 0.35 },   // open sea: lots of sky fill between the containers
     datacenter: { family: 'ind-int', type: 'int-ind', floor: { cls: 10, gloss: 0.4 }, grid: { emit: {} } },
     downtown: { family: 'urban-ext', type: 'ext-day', floor: { cls: 12, gloss: 0.12 }, sunI: 1.35, ambI: 0.38 },
     highrise: { family: 'civic-int', type: 'int-lit' },
@@ -122,10 +122,10 @@
     mossgarden: { family: 'wild-ext', type: 'ext-day' },
     pelagic: { family: 'mil-ext', type: 'ext-day', floor: { cls: 3, gloss: 0.3 } },
     icecream: { family: 'civic-int', type: 'int-lit', ambI: 0.70, indoorAmb: 0.70 },
-    venetian: { family: 'urban-ext', type: 'ext-day' },
+    venetian: { family: 'urban-ext', type: 'ext-day', sunI: 1.3, sunColor: '#FFE2BE', albCeil: 0.76 },   // late afternoon on pale paving
     metro: { family: 'dark-int', type: 'int-dark', wet: 0.2, ambI: 0.24, indoorAmb: 0.16, grid: { intensity: 0.36 }, floor: { cls: 10, gloss: 0.35 } },
     toyfactory: { family: 'ind-int', type: 'int-lit', ambI: 0.55, indoorAmb: 0.55 },
-    airfield7: { family: 'mil-ext', type: 'ext-day', floor: { cls: 12, gloss: 0.12 } },
+    airfield7: { family: 'mil-ext', type: 'ext-day', floor: { cls: 12, gloss: 0.12 }, sunI: 1.4, exposure: 0.95 },   // hazy steppe: pale apron, keep it under white
     riviera: { family: 'civic-int', type: 'int-lit' },
     observatory: { family: 'mil-ext', type: 'ext-dusk', sky: { sunDisc: false } },
     toytown: { family: 'urban-ext', type: 'ext-day' }

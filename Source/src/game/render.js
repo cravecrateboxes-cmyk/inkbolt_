@@ -277,7 +277,9 @@
 
   R.init = function (canvas) {
     if (IB.Atmo) IB.Atmo.install();   // tactical look: the shared fog chunks, before any program compiles (trap T28)
-    var r = R.renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, powerPreference: 'high-performance' });
+    // ?webgl1=1 (look plan 13.4): a WebGL1 context, to check the look's WebGL1 path on a WebGL2 machine
+    var GLR = /[?&]webgl1=1/.test(location.search) && THREE.WebGL1Renderer ? THREE.WebGL1Renderer : THREE.WebGLRenderer;
+    var r = R.renderer = new GLR({ canvas: canvas, antialias: true, powerPreference: 'high-performance' });
     r.autoClear = false;
     r.setClearColor(PAL.ink, 1);
     R.gradient = makeGradient();

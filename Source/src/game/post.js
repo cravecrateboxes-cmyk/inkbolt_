@@ -153,12 +153,15 @@
     disposeAll();
     var R = IB.Render, tier = R.tier;
     P.on = false; P.mode = 'none';
-    if (!IB.Look || !IB.Look.post || !MP_CAP[tier] || !r.capabilities.isWebGL2) { setOverlayLayers(); log(); return; }
+    // ?posttest=b|c|d (plan 13.4): start the fallback chain at that step (d = no post pass: the grade in the materials)
+    var force = typeof location !== 'undefined' ? (/[?&]posttest=([bcd])/.exec(location.search) || [])[1] : null;
+    if (!IB.Look || !IB.Look.post || !MP_CAP[tier] || !r.capabilities.isWebGL2 || force === 'd') { setOverlayLayers(); log(); return; }
     var sz = new THREE.Vector2(); r.getDrawingBufferSize(sz);
     var w = sz.x, h = sz.y, k = Math.min(1, Math.sqrt(MP_CAP[tier] / (w * h)));
     w = Math.max(1, Math.floor(w * k)); h = Math.max(1, Math.floor(h * k));
     var tries = [['a', 'half', SAMPLES[tier]], ['b', 'half', 0], ['c', 'byte', 0]];
     if (!THREE.WebGLMultisampleRenderTarget) tries.shift();
+    if (force) tries = tries.filter(function (t) { return t[0] >= force; });
     for (var i = 0; i < tries.length; i++) {
       var t = make(tries[i][1], w, h, tries[i][2]);
       if (complete(t)) { main = t; P.mode = tries[i][0]; P.samples = tries[i][2]; break; }
