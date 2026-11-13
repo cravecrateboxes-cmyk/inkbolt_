@@ -199,3 +199,48 @@ bake timing gate, Stage 6 vfx-shots and perf budgets on real hardware, TIER=low 
 | stronghold-z1-long | int-dark | 0.195 | 0.166 | 0.069 | 0.4% | 3.0% | 0.20 |  |
 | stronghold-z1-wall | int-dark | 0.117 | 0.101 | 0.066 | 0.0% | 3.9% | 0.16 | mean, median |
 | all | | 0.408 | 0.409 | 0.130 | | | | 48 of 56 |
+
+## After Checkpoint 1
+
+The owner said "do the remaining things" without answering the Checkpoint 1 questions. Decision: the current
+tuning stands as the answer (interiors, ink, colour, bloom and grain unchanged, soldier armour and the bright snow
+kept); any of it can change later from the owner's play test. Work goes on with Stage 9 onward.
+
+### Open gates from stages 1 to 6
+
+- **Light volume bake timing (Stage 4).** Measured with `look-diag.js` (EVAL loop over `LightGrid.work()`).
+  First run: per-zone bake 20 to 370 ms (gate 1.5 s: pass), but single frames 25 to 30 ms and the sky-visibility
+  render up to 23 s on later zones under the CPU renderer. Fixes: the sky render runs for every zone at level
+  start, under the loader (83 to 115 ms in total per level); light work in one-cell units; sky and post passes in
+  10-row bands; budget 3 ms a frame. Result (metro, downtown, stronghold): 0 of 123,616 work units over 6 ms,
+  7 to 14 over 2 ms (thread noise from the CPU renderer sharing the cores); worst frame 5.0 to 7.2 ms at the
+  old 4 ms budget, so the budget is now 3 ms.
+- Emitters per zone: metro 256 / 217, datacenter 256 x 3 (capped), mall 256 x 3, stronghold 53 / 113, downtown
+  141 to 165, coalmine 37 to 46, mountains 14 to 22, bedroom 0 (the giant room is lit by its window and the
+  indoor fill; it has no modelled lamps: no fake lights added, as section 4 says).
+- Enemy readability: `tests/e2e/look-readability.js` (+ `.py`): darkest open cell of zone 0, Crawler and Soldier
+  posed at 12 m and 30 m, shots with and without, robot pixels vs a 16 px ring. Results below when run.
+- `perf.spec.js` budgets raised to the section 6 numbers (desktop 230, phone 140).
+
+### Stage 9. World dressing
+
+- 9.1 `tools/gen_decals.py` -> `assets/tex/decals.webp` (1024 x 1024, 46 cells, 154 KB) and
+  `src/data/decals.gen.js` (cell table). A separate tool rather than a second output of `gen_detail.py` (no
+  shared code; the detail generator stays as it was).
+- 9.2 `src/game/dress.js`: floor decals on open `.` cells (weighted toward walls and props), wall decals on the
+  open face of wall modules found by rays against the placed module's own mesh (all five probes on one flat,
+  non-glass, non-glowing face). Exclusions 1.5 m round gates, pickups, spawn cans, weapon stands, doors,
+  elevators, walkable boxes and water symbols; the floor under every decal must agree (2 cm flat, 25 cm terrain).
+  Look kind `decal` (IB_DECAL: tint from the vertex colour, alpha from the atlas times the strength, light
+  volume + sun + shadow, no detail). One decal mesh and one clutter mesh per zone, in the zone's group.
+- 9.3 `blender/fam_dress.py` -> `assets/fps-dress.glb` (177 KB, gate 600 KB): 30 pieces, 14 to 288 triangles
+  with an 8 mm shell, no collision; loaded only with the look on (classic loads exactly what it did).
+  `IB.DRESS_PIECES` in `assets.js` gives the names and a 300-triangle budget each (`assets.test.js` covers them).
+- 9.4 rules per family in `looks.js` (`LOOKS.dress`), mountains overridden (prints and stones only). Giant rooms
+  get no clutter (adult-scale props read as crumbs there).
+- 9.5 density from the tier table at level build.
+- Counts (floor / wall decals / clutter per zone): metro 151/28/49 and 108/29/45; downtown 113/3/40, 97/1/21,
+  100/1/35; stronghold 154/1/25 and 167/0/48. Build time 28 to 40 ms per level. Wall decals were rejected
+  mostly because the corner probes missed narrow modules: wall decals are now one module wide at most.
+- Gates: nothing is solid (no world boxes are added, so collision, bounds and nav cannot change); unit tests
+  486 pass; the sheets (`dist/look/s9a`) show lit stains and cracks sitting on the floors, none floating.

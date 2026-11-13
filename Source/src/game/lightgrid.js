@@ -15,7 +15,7 @@
 (function (IB) {
   'use strict';
   var LG = IB.LightGrid = { ready: false, stats: [] };
-  var CELL = 1.6, RAD = 13, SLICE0 = 0.9, SLICE_DY = 2.6, MAX_SLICES = 6, CAP = 256, BUDGET_MS = 4;
+  var CELL = 1.6, RAD = 13, SLICE0 = 0.9, SLICE_DY = 2.6, MAX_SLICES = 6, CAP = 256, BUDGET_MS = 3;   // 3 ms of work plus at most one unit (< 2 ms measured) stays under the 6 ms gate
   var V = null;   // { ox, oz, W, H, n, y0, data (Float32 rgb+a per cell), tex, bytes, zones: [...] }
   var queue = [], famOf = null;
 

@@ -5,7 +5,7 @@
 // EXTRA=<query string appended to the URL>, ONLY=<spot names, comma separated>.
 // Spots come from look-spots.json (x/z in zone cells, like map-shots.js), else four automatic spots per zone.
 // Robots off, waves cleared, player protected, no shake. One browser, one page per plan. Writes
-// <outDir>/<plan>-<spot>.png at 1280 x 720 and prints one line per plan.
+// <outDir>/<plan>-<spot>.png at 1280 x 720 (env W, H to change) and prints one line per plan.
 const { chromium } = require('playwright');
 const path = require('path'), http = require('http'), fs = require('fs');
 const ROOT = path.resolve(__dirname, '../../..');
@@ -94,7 +94,7 @@ async function autoSpots(pg, recipe) {
   let fails = 0;
   for (const plan of plans) {
     const t0 = Date.now();
-    const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
+    const ctx = await browser.newContext({ viewport: { width: +(process.env.W || 1280), height: +(process.env.H || 720) }, deviceScaleFactor: 1 });
     const pg = await ctx.newPage();
     const logs = [];
     pg.on('pageerror', e => logs.push('pageerror: ' + e.message));
@@ -149,7 +149,10 @@ async function autoSpots(pg, recipe) {
         if (s.aim) await pg.mouse.up({ button: 'right' });
         n++;
       }
-      console.log(plan, 'ok', n, 'shots', Math.round((Date.now() - t0) / 1000) + 's', logs.slice(0, 3).join(' | '));
+      const info = await pg.evaluate(() => { const st = __TEST__.state(), L = IB.Look && IB.Look.cur, D = IB.Dress;
+        return { calls: st.calls, tris: st.triangles, family: L && L.family, guessed: L && L.guessed, gameErrors: IB.Game.errors.length,
+          dress: D && D.stats ? D.stats.map(z => z.floor + '/' + z.wall + '/' + z.clutter).join(' ') : '' }; }).catch(() => ({}));
+      console.log(plan, 'ok', n, 'shots', Math.round((Date.now() - t0) / 1000) + 's', JSON.stringify(info), logs.slice(0, 3).join(' | '));
       if (logs.length) fails++;
     } catch (e) {
       fails++;

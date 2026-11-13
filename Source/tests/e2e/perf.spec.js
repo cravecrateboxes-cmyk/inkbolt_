@@ -2,13 +2,14 @@
 // Records draw calls, triangles and frame times (p50/p95) with scripted combat, plus a 40-robot stress case and a
 // VFX stress case (mass robot wrecks, Bomber blasts and fireworks at once at full escalation).
 // Note: headless Chromium renders with SwiftShader (CPU), so frame times here are far slower than real GPUs;
-// draw calls and triangles are exact. Budget: 120 draw calls on phone settings, 200 on desktop.
+// draw calls and triangles are exact. Budget: 140 draw calls on phone settings, 230 on desktop (tactical look, plan
+// section 6: the old 120 / 200 plus the post passes and the dressing meshes per zone).
 const { chromium } = require('playwright');
 const path = require('path'), http = require('http'), fs = require('fs');
 const ROOT = path.resolve(__dirname, '../../..');
 const TARGET = process.argv[2] || 'Play Inkbolt.html';
 const ARGS = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--enable-precise-memory-info'];
-const VIEWS = [{ name: 'phone-upright', w: 390, h: 844, touch: true, budget: 120 }, { name: 'phone-sideways', w: 844, h: 390, touch: true, budget: 120 }, { name: 'desktop', w: 1920, h: 1080, touch: false, budget: 200 }];
+const VIEWS = [{ name: 'phone-upright', w: 390, h: 844, touch: true, budget: 140 }, { name: 'phone-sideways', w: 844, h: 390, touch: true, budget: 140 }, { name: 'desktop', w: 1920, h: 1080, touch: false, budget: 230 }];
 let failures = 0;
 function serve() { return new Promise(res => { const s = http.createServer((req, r) => { fs.readFile(path.join(ROOT, decodeURIComponent(req.url.split('?')[0])), (e, d) => { if (e) { r.writeHead(404); return r.end(); } r.writeHead(200, { 'Content-Type': 'text/html' }); r.end(d); }); }).listen(0, () => res(s)); }); }
 const pct = (a, p) => { const s = a.slice().sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(s.length * p))]; };

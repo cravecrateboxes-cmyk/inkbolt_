@@ -45,7 +45,7 @@
     paper: { s: [0.6, 1.0], tint: [0.92, 0.90, 0.85], k: 0.9 }, leaves: { s: [0.7, 1.3], tint: [0.62, 0.48, 0.24], k: 0.9 },
     prints: { s: [0.8, 1.2], tint: [0.32, 0.27, 0.22], k: 0.6 },
     scars: { s: [0.6, 1.0], tint: [0.30, 0.30, 0.30], k: 0.8 }, scars2: { s: [0.6, 1.0], tint: [0.30, 0.30, 0.30], k: 0.8 },
-    grime: { s: [1.0, 2.6], tint: [0.40, 0.37, 0.33], k: 0.55 }, grime2: { s: [1.0, 2.6], tint: [0.40, 0.37, 0.33], k: 0.55 },
+    grime: { s: [1.0, 2.6], tint: [0.42, 0.39, 0.35], k: 0.42 }, grime2: { s: [1.0, 2.6], tint: [0.42, 0.39, 0.35], k: 0.42 },
     grimeBase: { s: [1.0, 1.4], a: 0.55, tint: [0.36, 0.33, 0.30], k: 0.6 },
     moss: { s: [0.8, 1.8], tint: [0.36, 0.48, 0.22], k: 0.7 }
   };
@@ -218,7 +218,7 @@
       var rr = rnd(Math.floor(h0 * 4294967296) ^ (zone.idx * 1231 + 7));
       var name = pickW(rules.wall, rr()), T = TYPES[name], cell = IB.DECALS.cell[name];
       if (!T || cell === undefined) return;
-      var w = T.s[0] + (T.s[1] - T.s[0]) * rr(), h = w * (T.a || 1);
+      var w = Math.min(0.9, T.s[0] + (T.s[1] - T.s[0]) * rr()), h = w * (T.a || 1);   // one module wide at most
       var x = zone.ox + W.c + 0.5, z = zone.oz + W.r + 0.5;
       var ex = x + dir[0] * 1.0, ez = z + dir[1] * 1.0;   // the open cell in front
       if (excluded(E, ex, ez)) { stat.skipW++; why(stat, 'excl'); return; }
