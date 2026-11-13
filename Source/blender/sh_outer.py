@@ -9,7 +9,7 @@ import random
 
 from sh_base import (SKit, CLIFF_H, T1, TRAIL_H, rock_face, rock_pillar, sandbag_row, sandbag_wall, crate, drum, pipe_rail,  # noqa: F401
                      lattice, rock_lump, steps)
-from kit_base import shutter_hull
+from kit_base import shutter_hull, panel_seams, bolt_row, kick_plate, base_trim, junction_box, rivet_strip  # noqa: F401
 
 ROCK = ('rock', 'rock2', 'rock3', 'rockL')
 
@@ -43,6 +43,13 @@ def build_cliffs(k, ao):
         k.bx(1.15, 1.35, -0.75, -0.62, 2.45, 2.65, 'steelD')
         k.bx(1.17, 1.33, -0.756, -0.75, 2.47, 2.63, 'lamp', ink=False)
         k.cyl(-0.3, -0.66, 0.0, 0.05, 0.05, 3.27, 'steel2', seg=6, ink=False)
+        # Stage 11 detail: formwork seams, base trim, door kick plate and bolts, a junction box on the conduit
+        panel_seams(k, -0.5, 1.5, 0.12, 3.28, -0.62, 1.0, 'concD', horizontal=[1.2, 2.32])
+        base_trim(k, -0.5, 0.05, -0.62, 'concD', h=0.11)
+        base_trim(k, 0.95, 1.5, -0.62, 'concD', h=0.11)
+        kick_plate(k, 0.12, 0.88, -0.675, 'steelD', h=0.24, z0=0.08, bolts='steel')
+        bolt_row(k, 0.15, 0.85, 1.96, -0.675, 6, 'steelD')
+        junction_box(k, -0.06, 1.55, -0.62, 'steel2', 'steelD', w=0.2, h=0.26)
     face('Cliff2_Bunker', 2, 15, bunker, z0=3.55)
 
     def slit(rnd):   # gun casemate: a dark embrasure with a machine-gun barrel, sandbags under it
@@ -53,6 +60,9 @@ def build_cliffs(k, ao):
         sandbag_row(k, -0.4, 1.4, -0.85, 0.0, h=0.2, d=0.36)
         sandbag_row(k, -0.3, 1.3, -0.85, 0.2, h=0.2, d=0.32, stagger=True)
         k.text('%d' % rnd.randint(10, 40), 1.25, -0.684, 2.35, 0.3, 'paint', font='display')
+        panel_seams(k, -0.5, 1.5, 0.45, 1.3, -0.62, 1.0, 'concD')   # vertical seams stop at the slit
+        panel_seams(k, -0.5, 1.5, 1.75, 2.88, -0.62, 1.0, 'concD', horizontal=[2.05])
+        bolt_row(k, -0.05, 1.05, 1.82, -0.62, 4, 'concD', s=0.03)   # formwork tie holes over the slit (clear of the seam)
     face('Cliff2_Slit', 2, 16, slit, z0=3.15)
 
     def vent(rnd):   # ventilation grille and pipes coming out of the rock
@@ -62,6 +72,8 @@ def build_cliffs(k, ao):
             k.bx(0.16, 0.84, -0.615, -0.6, z, z + 0.06, 'steelD', ink=False)
         k.cyl(1.2, -0.62, 0.0, 0.09, 0.09, 4.6, 'steel', seg=8)
         k.cyl(1.2, -0.62, 4.6, 0.12, 0.12, 0.25, 'steel2', seg=8)
+        rivet_strip(k, 0.12, 0.88, 1.36, -0.6, 'steelD', every=0.13)
+        rivet_strip(k, 0.12, 0.88, 0.44, -0.6, 'steelD', every=0.13)
     face('Cliff2_Vent', 2, 17, vent)
 
     k.begin()   # corner / notch pillar: rock on every side
@@ -81,6 +93,10 @@ def build_barriers(k, ao):
         if extra == 'drain':
             for s in (-1, 1):
                 k.bx(-0.16, 0.16, s * 0.2 - 0.004, s * 0.2 + 0.004, 0.13, 0.3, 'ink', ink=False)
+        for turn in (0, 180):   # formwork tie holes on both faces
+            k.push(0, 0, turn)
+            bolt_row(k, -0.42, 0.42, 0.62 if extra != 'drain' else 0.7, -0.2, 3, 'concD', s=0.03)
+            k.pop()
         k.col(-0.5, 0.5, -0.25, 0.25, 0.0, 1.16)
         k.finish(name, ao=ao)
     k.begin()
