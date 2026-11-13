@@ -103,6 +103,22 @@ def bundle(platform='plain', standalone=False, split=None):
                 data_tags.append('<script src="%s"></script>' % fn)
         else:
             game.append('window.IB = window.IB || {}; IB.GLB_GZ = true; IB.GLB_DATA = ' + json.dumps(data) + ';')
+    # tactical look detail textures (assets/tex/*.webp, plan Stage 5B.4): data URLs in IB.TEX_DATA (a side file in
+    # the artifact build); the dev and upload pages load them from assets/tex/ instead
+    tex_tags = []
+    if standalone:
+        tdir = os.path.join(SRC, 'assets', 'tex')
+        tex = {}
+        if os.path.isdir(tdir):
+            for fn in sorted(os.listdir(tdir)):
+                if fn.endswith('.webp'):
+                    tex[fn] = 'data:image/webp;base64,' + base64.b64encode(open(os.path.join(tdir, fn), 'rb').read()).decode()
+        line = 'window.IB = window.IB || {}; IB.TEX_DATA = ' + json.dumps(tex) + ';'
+        if split:
+            write(os.path.join(split, 'tex-1.js'), line + '\n')
+            tex_tags.append('<script src="tex-1.js"></script>')
+        else:
+            game.append(line)
     vendor_tags = []
     for s in scripts:
         if s.startswith('vendor/'):
@@ -113,7 +129,7 @@ def bundle(platform='plain', standalone=False, split=None):
         else:
             game.append('/* ---- %s ---- */\n%s' % (s, read(s)))
     if standalone and split:
-        vendor_tags += data_tags
+        vendor_tags += data_tags + tex_tags
     js = '\n'.join(vendor_tags) + '\n<script>\n' + inline_js('\n'.join(game)) + '\n</script>'
     html = re.sub(r'<!--BUILD:JS-->.*?<!--/BUILD:JS-->', lambda m: js, html, flags=re.S)
     return html
@@ -135,6 +151,8 @@ def main():
     os.makedirs(os.path.join(up, 'assets'))
     for fn in ASSETS.values():
         shutil.copy(os.path.join(SRC, 'assets', fn), os.path.join(up, 'assets'))
+    if os.path.isdir(os.path.join(SRC, 'assets', 'tex')):
+        shutil.copytree(os.path.join(SRC, 'assets', 'tex'), os.path.join(up, 'assets', 'tex'))
     # single-file offline build
     play = os.path.join(ROOT, 'Play Inkbolt.html')
     write(play, bundle('plain', True))
