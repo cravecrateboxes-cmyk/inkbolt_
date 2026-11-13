@@ -1,0 +1,187 @@
+{
+ "_doc": "Per plan: scene type for look-metrics.py (ext-day, ext-snow, ext-dusk, ext-night, int-lit, int-ind, int-dark), look family, optional hand-picked spots [{name, zone, x, z (zone cells) or wx, wz (world), yaw, pitch, aim, type}]. Without spots, look-shots.js uses its automatic 8-spot recipe.",
+ "mountains": {
+  "type": "ext-snow",
+  "family": "wild-ext"
+ },
+ "smallcity": {
+  "type": "ext-day",
+  "family": "urban-ext"
+ },
+ "classroom": {
+  "type": "int-lit",
+  "family": "giant-room"
+ },
+ "office": {
+  "type": "int-lit",
+  "family": "civic-int"
+ },
+ "bedroom": {
+  "type": "int-lit",
+  "family": "giant-room"
+ },
+ "coalmine": {
+  "type": "int-dark",
+  "family": "dark-int"
+ },
+ "castle": {
+  "type": "ext-day",
+  "family": "urban-ext"
+ },
+ "city2": {
+  "type": "ext-dusk",
+  "family": "urban-ext"
+ },
+ "factory": {
+  "type": "int-ind",
+  "family": "ind-int"
+ },
+ "livingroom": {
+  "type": "int-lit",
+  "family": "giant-room"
+ },
+ "garden": {
+  "type": "ext-day",
+  "family": "wild-ext"
+ },
+ "factory2": {
+  "type": "int-ind",
+  "family": "ind-int"
+ },
+ "island": {
+  "type": "ext-day",
+  "family": "wild-ext"
+ },
+ "mall": {
+  "type": "int-lit",
+  "family": "civic-int"
+ },
+ "police": {
+  "type": "int-ind",
+  "family": "ind-int"
+ },
+ "grove": {
+  "type": "ext-day",
+  "family": "wild-ext"
+ },
+ "spire": {
+  "type": "int-lit",
+  "family": "civic-int"
+ },
+ "foundry": {
+  "type": "int-ind",
+  "family": "ind-int"
+ },
+ "parking": {
+  "type": "int-ind",
+  "family": "ind-int"
+ },
+ "hotel": {
+  "type": "int-lit",
+  "family": "civic-int"
+ },
+ "techhq": {
+  "type": "int-lit",
+  "family": "civic-int"
+ },
+ "cargoship": {
+  "type": "ext-day",
+  "family": "mil-ext"
+ },
+ "datacenter": {
+  "type": "int-ind",
+  "family": "ind-int"
+ },
+ "downtown": {
+  "type": "ext-day",
+  "family": "urban-ext"
+ },
+ "highrise": {
+  "type": "int-lit",
+  "family": "civic-int"
+ },
+ "gemmine": {
+  "type": "int-dark",
+  "family": "dark-int"
+ },
+ "megastore": {
+  "type": "int-lit",
+  "family": "ind-int"
+ },
+ "townhomes": {
+  "type": "ext-day",
+  "family": "urban-ext"
+ },
+ "arctic": {
+  "type": "int-dark",
+  "family": "dark-int"
+ },
+ "resort": {
+  "type": "ext-day",
+  "family": "wild-ext"
+ },
+ "scrapyard": {
+  "type": "ext-night",
+  "family": "mil-ext"
+ },
+ "seabase": {
+  "type": "int-dark",
+  "family": "dark-int"
+ },
+ "stronghold": {
+  "type": "ext-dusk",
+  "family": "mil-ext"
+ },
+ "airport": {
+  "type": "int-lit",
+  "family": "civic-int"
+ },
+ "frontier": {
+  "type": "ext-day",
+  "family": "wild-ext"
+ },
+ "academy": {
+  "type": "int-lit",
+  "family": "civic-int"
+ },
+ "mossgarden": {
+  "type": "ext-day",
+  "family": "wild-ext"
+ },
+ "pelagic": {
+  "type": "ext-day",
+  "family": "mil-ext"
+ },
+ "icecream": {
+  "type": "int-lit",
+  "family": "civic-int"
+ },
+ "venetian": {
+  "type": "ext-day",
+  "family": "urban-ext"
+ },
+ "metro": {
+  "type": "int-dark",
+  "family": "dark-int"
+ },
+ "toyfactory": {
+  "type": "int-lit",
+  "family": "ind-int"
+ },
+ "airfield7": {
+  "type": "ext-day",
+  "family": "mil-ext"
+ },
+ "riviera": {
+  "type": "int-lit",
+  "family": "civic-int"
+ },
+ "observatory": {
+  "type": "ext-dusk",
+  "family": "mil-ext"
+ },
+ "toytown": {
+  "type": "ext-day",
+  "family": "urban-ext"
+ }
+}
