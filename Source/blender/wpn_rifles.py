@@ -8,7 +8,7 @@ def build_rivet(pal):
     stock on a buffer tube, flip-up irons on a full-length top rail.
     Rarity layers: Rare bolts on a strike plate, an aiming module, a flared magwell and a round counter; Epic adds an
     energy cell under the handguard feeding a coil shroud on the barrel; Legendary (Kingsgold) crowns the handguard
-    with a crest of fins, a sun-ray collar behind the brake, a royal seal on the receiver and a gem floating in the
+    with a crest of fins, a brake collar, a royal seal on the receiver and a gem floating in the
     stock window."""
     rake = 22
     k = Kit(pal)
@@ -17,8 +17,6 @@ def build_rivet(pal):
     # ---- upper receiver
     k.ext_y(rrect(0.048, 0.044, ct=0.006, cb=0.002, cy=0.034), -0.112, 0.140, 'gunmetal', ch0=0.004, ch1=0.003)
     plate(k, [(-0.104, 0.017), (-0.012, 0.017), (-0.004, 0.025), (-0.004, 0.047), (-0.104, 0.047)], HU, 'body2', sides=(-1,))      # left data panel
-    stencil(k, 'AR-22', HU + PR, -0.058, 0.0285, cap=0.011, sides=(-1,))
-    stencil(k, 'IB ARMS  5.56', HU + PR, -0.058, 0.0195, cap=0.0045, sides=(-1,), font='cond')
     plate(k, [(0.006, 0.015), (0.134, 0.015), (0.134, 0.051), (0.018, 0.051), (0.006, 0.039)], HU, 'gunmetal', t=0.003, sides=(-1,), hull=True)   # barrel-extension block
     bolts(k, HU + 0.003, [(0.018, 0.022), (0.124, 0.022), (0.124, 0.045)], sides=(-1,))
     slots(k, HU + 0.003, 0.040, 0.112, 0.036, 4, h=0.012, fill=0.45, sides=(-1,), slant=-28)
@@ -31,7 +29,6 @@ def build_rivet(pal):
     k.lathe([(0.0, 0), (0.0, 0.0068), (0.018, 0.0068), (0.018, 0.0052), (0.024, 0.0052), (0.024, 0)], 'steel2',
             (V((0.45, -0.89, 0)).normalized(), V((0, 0, 1)), V((0.89, 0.45, 0))), (0.019, -0.050, 0.040), 8, hull=False, bands=[None, None, None, 'ink', 'ink'])
     plate(k, [(-0.104, 0.017), (-0.070, 0.017), (-0.070, 0.047), (-0.104, 0.047)], HU, 'body2', sides=(1,))
-    stencil(k, 'RIVET', HU + PR, 0.104, 0.019, cap=0.008, sides=(1,))
     hazard(k, HU, 0.086, 0.132, 0.034, 0.048, n=4, sides=(1,))
     # ---- lower receiver, magwell
     k.ext_y(rrect(0.041, 0.034, c=0.003, cy=-0.004), -0.104, 0.140, 'gun2', ch0=0.004, ch1=0.004)
@@ -132,7 +129,7 @@ def build_rivet(pal):
     for s in (-1, 1):
         r4.box((s * (0.019 + PR / 2 - 0.0005), -0.230, 0.0135), (PR + 0.001, 0.090, 0.003), 'emis', skip=sk(s))
 
-    # ---- Legendary: handguard crest, sun-ray collar, royal seal, the gem in the stock window
+    # ---- Legendary: handguard crest, brake collar, royal seal, the gem in the stock window
     r5 = Kit(pal)
     for s in (-1, 1):                                                                                                                       # crest fins on the upper diagonals
         with r5.at((s * 0.0215, 0, bz + 0.0195), (0, s * 45, 0)):
@@ -140,10 +137,6 @@ def build_rivet(pal):
                 y0, y1 = a[1] + 0.002, b[0] - 0.002
                 r5.ext_x([(y0, 0.0), (y1, 0.0), (y1 - 0.006, 0.013), (y0 + 0.012, 0.013)], -0.0022, 0.0022, 'gun3', ch=0.0008)
                 r5.ext_x([(y0 + 0.006, 0.013), (y1 - 0.008, 0.013), (y1 - 0.011, 0.0165), (y0 + 0.011, 0.0165)], -0.0012, 0.0012, 'trim', ch=0, hull=False)
-    for i in range(8):                                                                                                                      # sun rays behind the brake
-        a = math.pi * 2 * (i + 0.5) / 8
-        with r5.at((0, 0.443, bz), (0, math.degrees(a), 0)):
-            r5.ext_x([(-0.010, 0.0170), (0.004, 0.0170), (-0.004, 0.0330), (-0.012, 0.0270)], -0.0018, 0.0018, 'gun3', ch=0.0006)
     r5.ring('y', (0, 0, bz), 0.4385, 0.4470, 0.0130, 0.0190, 'steel', seg=10)
     r5.ring('y', (0, 0, bz), 0.4405, 0.4450, 0.0175, 0.0190 + PR, 'trim', seg=10, hull=False)
     for s in (-1, 1):                                                                                                                       # royal seal on the magwell
@@ -173,8 +166,8 @@ def build_triplet(pal):
     through under the tube), quick-change barrel collar, gas regulator, an open three-port brake, foregrip.
     Rarity layers: Rare bolts on heel armour, a magwell funnel, an aiming module with its cable, a round counter and
     cheek rails; Epic slots an energy cell into the optic bridge, feeds the gas block through a conduit, lights the
-    three brake ports and the stock vents; Legendary (crimson lacquer) fans three forward-swept blades round the
-    barrel over a tsuba, a heel blade under the butt, lacquer slashes and a diamond mon on the stock."""
+    three brake ports and the stock vents; Legendary (crimson lacquer) rings the barrel with a tsuba, lacquer
+    slashes and a diamond mon on the stock."""
     rake = 18
     k = Kit(pal)
     bz = 0.034
@@ -190,15 +183,12 @@ def build_triplet(pal):
     k.box((HR + PR + 0.0022, -0.098, 0.0465), (0.0036, 0.004, 0.0075), 'steel2', skip=sk(1))                        # extractor
     k.ext_x([(-0.166, 0.036), (-0.153, 0.036), (-0.153, 0.057), (-0.161, 0.057)], HR - 0.001, HR + 0.0090, 'gun3', ch=0.0015)   # deflector
     plate(k, [(-0.030, 0.021), (0.112, 0.021), (0.112, 0.037), (-0.022, 0.037)], HR, 'gunmetal', sides=(1,))
-    stencil(k, 'TRIBOLT', HR + PR, 0.040, 0.0255, cap=0.008, sides=(1,))
     hazard(k, HR, 0.064, 0.112, 0.042, 0.056, n=4, sides=(1,))
     bolts(k, HR, [(-0.026, 0.050), (0.040, 0.050)], sides=(1,))
     # left: port cover, data panel, burst selector with its marks
     plate(k, rect(-0.152, -0.088, 0.037, 0.057, c=0.003), HR, 'gunmetal', sides=(-1,))
     bolts(k, HR + PR, [(-0.146, 0.042), (-0.094, 0.042), (-0.146, 0.052), (-0.094, 0.052)], r=0.0024, sides=(-1,))
     plate(k, [(-0.030, 0.021), (0.052, 0.021), (0.060, 0.029), (0.060, 0.046), (-0.022, 0.046)], HR, 'gunmetal', sides=(-1,))
-    stencil(k, 'AR-3', HR + PR, 0.016, 0.0315, cap=0.010, sides=(-1,))
-    stencil(k, 'IB ARMS  5.56  3RB', HR + PR, 0.016, 0.0245, cap=0.0042, sides=(-1,), font='cond')
     k.lathe([(HR - 0.002, 0.0055), (HR + 0.0040, 0.0055), (HR + 0.0040, 0)], 'steel2', (V((-1, 0, 0)), V((0, 1, 0)), V((0, 0, -1))), (0, 0.092, 0.031), 8, hull=False, caps=(False, True))
     k.xbar(-HR - 0.0075, -HR - 0.0035, [(0.074, 0.028), (0.094, 0.0265), (0.096, 0.0345), (0.076, 0.036)], 'gun3', ch=0, hull=False)
     for (y, z, c) in ((0.078, 0.045, 'mark'), (0.090, 0.048, 'mark'), (0.102, 0.045, 'red')):
@@ -306,17 +296,10 @@ def build_triplet(pal):
     fins(r4, (0, 0.3765, bz), (0.030, 0.024, 0.030), 3, axis='y', color='gun3', hull=True)
     slots(r4, HB + 2 * PR, -0.292, -0.180, -0.014, 5, h=0.014, fill=0.12, color='emis', slant=-24)
 
-    # ---- Legendary: three forward-swept blades over a tsuba, the heel blade, lacquer slashes, diamond mon
+    # ---- Legendary: a tsuba round the barrel, lacquer slashes, diamond mon
     r5 = Kit(pal)
-    for ang in (0, 90, -90):
-        with r5.at((0, 0, bz), (0, ang, 0)):
-            r5.ext_x([(0.322, 0.006), (0.350, 0.006), (0.368, 0.0185), (0.422, 0.0185), (0.449, 0.041), (0.412, 0.029), (0.356, 0.032), (0.324, 0.041), (0.330, 0.026)], -0.0016, 0.0016, 'steel', ch=0.0012)
-            r5.ext_x([(0.340, 0.0275), (0.356, 0.0245), (0.414, 0.0225), (0.438, 0.0320), (0.412, 0.0255), (0.358, 0.0280)], -0.0031, 0.0031, 'trim', ch=0, hull=False)
     r5.ring("y", (0, 0, bz), 0.3165, 0.3215, 0.0100, 0.0245, 'gun3', seg=8)
     r5.ring('y', (0, 0, bz), 0.3178, 0.3202, 0.0225, 0.0262, 'trim', seg=8, hull=False)
-    r5.ext_x([(-0.186, -0.058), (-0.288, -0.071), (-0.322, -0.110), (-0.262, -0.091), (-0.212, -0.079)], -0.0020, 0.0020, 'steel', ch=0.0015)
-    r5.ext_x([(-0.178, -0.055), (-0.294, -0.070), (-0.296, -0.080), (-0.180, -0.066)], -0.0080, 0.0080, 'gun3', ch=0.002)
-    bolts(r5, 0.0080, [(-0.200, -0.064), (-0.240, -0.069), (-0.280, -0.074)], r=0.0022, color='trim')
     plate(r5, [(-0.170, 0.0075), (-0.296, 0.0030), (-0.296, 0.0050), (-0.170, 0.0115)], HB + PR, 'trim', ch=0)
     plate(r5, [(0.146, 0.0205), (0.268, 0.0225), (0.268, 0.0245), (0.146, 0.0255)], HG + PR, 'trim', ch=0)
     plate(r5, [(-0.271, 0.046), (-0.258, 0.034), (-0.245, 0.046), (-0.258, 0.058)], HB, 'gun3', t=0.003, hull=True)
@@ -337,8 +320,8 @@ def build_longtom(pal):
     brake, and a fixed precision stock: cheek riser on two posts with thumb wheels, length-of-pull spacers, butt hook.
     Rarity layers: Rare adds an aiming module with its cable, a magwell funnel, a cartridge saddle, hook armour and
     a cant level; Epic mounts a capacitor behind the receiver feeding accelerator rails along the barrel (and lit
-    witness windows on the magazine); Legendary (Aquila gold) rings the barrel with three halos, wings the cheek
-    riser, arms the butt hook with a talon and inlays the walnut."""
+    witness windows on the magazine); Legendary (Aquila gold) rings the barrel with three halos and inlays the
+    walnut."""
     rake = 22
     k = Kit(pal)
     bz = 0.034
@@ -352,14 +335,11 @@ def build_longtom(pal):
     k.lathe([(HU, 0.0034), (HU + 0.012, 0.0034), (HU + 0.012, 0.0060), (HU + 0.021, 0.0060), (HU + 0.023, 0.0040), (HU + 0.023, 0)], 'steel', 'x',
             (0, 0.060, 0.0425), 8, caps=(False, True))
     plate(k, [(-0.106, 0.017), (-0.046, 0.017), (-0.038, 0.025), (-0.038, 0.034), (-0.106, 0.034)], HU, 'body2', sides=(1,))
-    stencil(k, 'LONGTOM', HU + PR, -0.074, 0.0215, cap=0.0075, sides=(1,))
     slots(k, HU, -0.102, -0.048, 0.043, 3, h=0.008, fill=0.4, sides=(1,), slant=28)
     plate(k, rect(0.092, 0.132, 0.018, 0.029, c=0.002), HU, 'steel2', sides=(1,))
     bolts(k, HU + PR, [(0.097, 0.0235), (0.127, 0.0235)], r=0.0022, sides=(1,))
     # left: data panel, barrel-trunnion block with cooling cuts
     plate(k, [(-0.106, 0.017), (-0.004, 0.017), (0.006, 0.027), (0.006, 0.050), (-0.106, 0.050)], HU, 'body2', sides=(-1,))
-    stencil(k, 'DMR-60', HU + PR, -0.052, 0.0300, cap=0.011, sides=(-1,))
-    stencil(k, 'IB ARMS  7.62  SEMI', HU + PR, -0.052, 0.0215, cap=0.0045, sides=(-1,), font='cond')
     plate(k, [(0.016, 0.015), (0.134, 0.015), (0.134, 0.051), (0.030, 0.051), (0.016, 0.037)], HU, 'gunmetal', t=0.003, sides=(-1,), hull=True)
     bolts(k, HU + 0.003, [(0.024, 0.021), (0.126, 0.021), (0.126, 0.045)], sides=(-1,))
     slots(k, HU + 0.003, 0.040, 0.114, 0.035, 5, h=0.016, fill=0.3, sides=(-1,))
@@ -368,7 +348,6 @@ def build_longtom(pal):
     k.ext_x([(0.074, 0.004), (0.138, 0.004), (0.140, -0.040), (0.134, -0.050), (0.072, -0.050), (0.070, -0.040)], -HM, HM, 'gun2', ch=0.003)
     k.ext_x([(0.066, -0.042), (0.142, -0.042), (0.146, -0.054), (0.062, -0.054)], -0.0265, 0.0265, 'frame2', ch=0.002)
     plate(k, rect(0.080, 0.132, -0.036, -0.009, c=0.004), HM, 'frame2')
-    stencil(k, '7.62', HM + PR, 0.106, -0.0265, cap=0.008)
     cross_pin(k, HM, 0.130, -0.001)
     cross_pin(k, HL, -0.094, 0.002)
     plate(k, [(-0.086, -0.017), (-0.014, -0.017), (-0.006, -0.009), (-0.006, 0.008), (-0.086, 0.008)], HL, 'frame2')
@@ -400,7 +379,6 @@ def build_longtom(pal):
     turret(k, (0.018, -0.014, oz + 0.013), 'x', r=0.0080, h=0.006, color='steel2')
     turret(k, (-0.018, -0.014, oz + 0.013), '-x', r=0.0065, h=0.004, color='steel2', cap='red')
     k.cbox((0, -0.014, oz + 0.0375), (0.006, 0.050, 0.004), 'red', ch=0.001, axis='y', hull=False)
-    stencil(k, '1.5X', 0.018, -0.040, oz + 0.0045, cap=0.0065, sides=(-1,))
     bolts(k, 0.018, [(0.020, oz + 0.005), (0.020, oz + 0.016)], r=0.0024)
     # ---- barrel group in the walnut guard: heavy barrel, gas block and piston, cage open right and on the upper diagonals
     k.lathe([(0.134, 0), (0.134, 0.0170), (0.150, 0.0170), (0.150, 0.0110), (0.336, 0.0110), (0.336, 0.0095), (0.538, 0.0095), (0.538, 0)],
@@ -462,7 +440,6 @@ def build_longtom(pal):
     mk = Kit(pal)
     mag_box(mk, 4, 0.040, -0.084, 0.056, 0.028, plate='gun3')
     my, mz = g2w(4, -0.001, 0.040 - 0.124 * 0.87)
-    stencil(mk, '20', 0.014, my, mz - 0.003, cap=0.006)
 
     # ---- Rare (and up): aiming module with its cable (left), magwell funnel, cartridge saddle, hook armour, cant level
     r3 = Kit(pal)
@@ -498,18 +475,11 @@ def build_longtom(pal):
         for s in (-1, 1):
             m4.box((s * (0.014 + PR + PR / 2 - 0.0005), y, z), (PR + 0.001, 0.0078, 0.0078), 'emis', skip=sk(s))
 
-    # ---- Legendary: three halos round the barrel, winged cheek riser, talon on the butt hook, gold inlays
+    # ---- Legendary: three halos round the barrel, gold inlays
     r5 = Kit(pal)
     for i, y in enumerate((0.4605, 0.4955, 0.530)):
         r5.ring('y', (0, 0, bz), y - 0.003, y + 0.003, 0.0235, 0.0275, 'gun3', seg=12)
         r5.ring('y', (0, 0, bz), y - 0.0012, y + 0.0012, 0.0260, 0.0295, 'trim', seg=12, hull=False)
-    for s in (-1, 1):
-        for j in range(3):                                                    # feathers sweeping back off the riser
-            with r5.at((s * 0.0150, -0.204 - j * 0.026, 0.060), (0, s * (34 - j * 6), 0)):
-                r5.ext_x([(0.004, -0.002), (-0.010, 0.014 + j * 0.002), (-0.058, 0.022 + j * 0.003), (-0.030, 0.008), (-0.014, -0.002)], -0.0014, 0.0014, 'gun3', ch=0.0008)
-                r5.ext_x([(-0.008, 0.006), (-0.012, 0.0125 + j * 0.002), (-0.050, 0.0195 + j * 0.003), (-0.030, 0.0115)], -0.0030, 0.0030, 'trim', ch=0, hull=False)
-    r5.ext_x([(-0.226, -0.050), (-0.238, -0.066), (-0.206, -0.092), (-0.222, -0.070), (-0.214, -0.058)], -0.0030, 0.0030, 'steel', ch=0.0015)
-    r5.ext_x([(-0.250, -0.071), (-0.226, -0.062), (-0.224, -0.044), (-0.240, -0.050), (-0.256, -0.060)], -HS - 0.0032, HS + 0.0032, 'gun3', ch=0.002)
     plate(r5, [(-0.156, 0.0105), (-0.306, 0.0080), (-0.306, 0.0105), (-0.220, 0.0125), (-0.156, 0.0140)], HS, 'trim', ch=0)
     for s in (-1, 1):
         n = (V((s, 0, 0)), V((0, 1, 0)), V((0, 0, s)))
@@ -553,12 +523,9 @@ def build_vanguard(pal):
     k.box((HU + PR, 0.044, 0.0355), (0.0036, 0.038, 0.010), 'steel', skip=sk(1))
     k.ext_x([(0.002, 0.026), (0.016, 0.026), (0.016, 0.044), (0.008, 0.044)], HU - 0.001, HU + 0.0085, 'gunmetal', ch=0.0015)
     plate(k, [(-0.108, 0.016), (-0.020, 0.016), (-0.012, 0.024), (-0.012, 0.042), (-0.108, 0.042)], HU, 'body2', sides=(1,))
-    stencil(k, 'VANGUARD', HU + PR, -0.060, 0.0195, cap=0.0075, sides=(1,))
     hazard(k, HU + PR, -0.100, -0.056, 0.031, 0.039, n=4, sides=(1,))
     # left: data plate, bolt catch
     plate(k, [(-0.108, 0.016), (0.058, 0.016), (0.066, 0.024), (0.066, 0.042), (-0.108, 0.042)], HU, 'body2', sides=(-1,))
-    stencil(k, 'AR-40', HU + PR, -0.050, 0.0265, cap=0.011, sides=(-1,))
-    stencil(k, 'IB ARMS  7.62 NATO', HU + PR, -0.050, 0.0190, cap=0.0045, sides=(-1,), font='cond')
     slots(k, HU + PR, 0.010, 0.056, 0.030, 3, h=0.012, fill=0.3, sides=(-1,))
     k.xbar(-HM - 0.0050, -HM + 0.0030, [(0.074, 0.006), (0.092, 0.006), (0.092, 0.020), (0.086, 0.024), (0.074, 0.016)], 'ink', ch=0, hull=False)
     k.box((-HM - 0.0052, 0.083, 0.014), (0.0022, 0.011, 0.010), 'steel2')

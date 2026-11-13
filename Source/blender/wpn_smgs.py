@@ -37,18 +37,12 @@ def build_buzz(pal):
     # cladding, markings, assembly bolts
     for s in (-1, 1):
         plate(k, [(-0.082, 0.028), (-0.030, 0.028), (-0.026, 0.032), (-0.026, 0.052), (-0.082, 0.052)], HU, 'body2', sides=(s,))
-    stencil(k, 'KV-9', HU + PR, -0.054, 0.0355, cap=0.012, sides=(-1,))
-    stencil(k, 'BUZZSAW  9MM', HU + PR, -0.054, 0.0300, cap=0.004, sides=(-1,), font='cond')
-    stencil(k, 'BUZZSAW', HU + PR, -0.054, 0.0375, cap=0.009, sides=(1,))
-    stencil(k, 'IB ARMS', HU + PR, -0.054, 0.0310, cap=0.004, sides=(1,), font='cond')
     slots(k, HU, -0.020, 0.012, 0.040, 4, h=0.016, fill=0.45, sides=(-1,), slant=-25)
     slots(k, HU, -0.022, 0.002, 0.036, 3, h=0.014, fill=0.45, sides=(1,), slant=-25)
     plate(k, [(0.024, 0.028), (0.134, 0.028), (0.134, 0.046), (0.030, 0.046), (0.024, 0.040)], HU, 'gunmetal', t=0.003, sides=(-1,), hull=True)
     bolts(k, HU + 0.003, [(0.030, 0.032), (0.128, 0.032), (0.128, 0.042)], sides=(-1,))
-    stencil(k, 'CAL 9X19', HU + 0.003, 0.080, 0.034, cap=0.006, sides=(-1,))
     plate(k, rect(0.072, 0.134, 0.028, 0.055, c=0.003), HU, 'body2', sides=(1,))
     hazard(k, HU + PR, 0.084, 0.126, 0.043, 0.051, n=4, sides=(1,))
-    stencil(k, 'KV-9', HU + PR, 0.104, 0.031, cap=0.008, sides=(1,))
     plate(k, rect(-0.090, 0.134, 0.0215, 0.0245), HU, 'trim', ch=0)
     bolts(k, HU, [(-0.086, 0.0555), (-0.050, 0.0555), (-0.0245, 0.0555)], r=0.0026)
     # ---- lower: trigger housing, controls, magwell
@@ -178,8 +172,8 @@ def build_whisk(pal):
     ported endcap; folding foregrip on a hinge block; sliding wire stock in bushings with its latch and a ribbed pad.
     Rarity layers: Rare adds an aiming module, a suppressor wrap, a magwell funnel, a round counter and butt plates;
     Epic slings an energy cell between the stock rods, runs a conduit to the can and adds cooling discs and glow
-    rings; Legendary (aurora) winds two ribbons of light round the suppressor under a crown of crystals, with star
-    emblems on the receiver and crystals on the butt."""
+    rings; Legendary (aurora) winds two ribbons of light round the suppressor, with star
+    emblems on the receiver."""
     rake = 8
     k = Kit(pal)
     bz = 0.032
@@ -196,9 +190,6 @@ def build_whisk(pal):
     rail(k, -0.075, 0.096, 0.058, w=0.022, clear=[(-0.070, -0.050)])
     sz = iron_rear(k, -0.060, 0.058, w=0.026, h=0.011)
     plate(k, rect(-0.066, 0.094, 0.018, 0.036, c=0.003), HU, 'body2')
-    stencil(k, 'KV-4', HU + PR, 0.012, 0.0215, cap=0.011, sides=(-1,))
-    stencil(k, 'WHIPLASH  4.6MM', HU + PR, 0.066, 0.0250, cap=0.004, sides=(-1,), font='cond')
-    stencil(k, 'WHIPLASH', HU + PR, 0.014, 0.0230, cap=0.008, sides=(1,))
     hazard(k, HU, 0.052, 0.088, 0.039, 0.046, n=4, sides=(1,))
     slots(k, HU, 0.006, 0.062, 0.008, 5, h=0.008, fill=0.5, slant=-20)
     bolts(k, HU, [(-0.070, 0.043), (-0.070, 0.003), (0.0945, 0.004)], r=0.0026)
@@ -297,7 +288,7 @@ def build_whisk(pal):
         y, z = g2w(rake, 0.004, -0.030)
         m4.box((s * (0.0165 + PR / 2 - 0.0005), y, z), (PR + 0.001, 0.004, 0.014), 'emis', skip=sk(s))
 
-    # ---- Legendary: aurora ribbons round the suppressor, crystal crown, star emblems, crystals on the butt
+    # ---- Legendary: aurora ribbons round the suppressor, star emblems
     r5 = Kit(pal)
     for ph, col in ((90, 'emis'), (270, 'trim')):
         pts, ups = [], []
@@ -309,18 +300,6 @@ def build_whisk(pal):
             ups.append(tuple(d))
         r5.tube(pts, col, sides=4, up=ups, hull=False, a0=45)
 
-    def shard(p, d, L, rr, col='steel'):
-        d = V(d).normalized()
-        u = d.orthogonal().normalized()
-        r5.lathe([(-0.004, rr), (L * 0.35, rr), (L * 0.7, rr * 0.75), (L, 0)], col, (d, u, d.cross(u)), p, 6, bands=[None, 'emis', None], caps=(False, True))
-    for s in (-1, 1):
-        for ang, L in ((35, 0.036), (75, 0.029), (115, 0.022)):
-            a = D(ang)
-            shard((s * math.sin(a) * 0.018, 0.114, bz + math.cos(a) * 0.018), (s * math.sin(a) * 0.86, -0.5, math.cos(a) * 0.86), L, 0.0056)
-        shard((s * 0.014, -0.150, 0.036), (s * 0.30, -0.40, 0.86), 0.024, 0.0042)
-        shard((s * 0.007, -0.153, 0.036), (s * 0.10, -0.55, 0.83), 0.016, 0.0034)
-        n = (V((s, 0, 0)), V((0, 1, 0)), V((0, 0, s)))
-        r5.lathe([(0.0, 0.0030), (0.0030, 0.0030), (0.0055, 0)], 'emis', n, (s * 0.021, -0.087, 0.050), 6, hull=False, caps=(False, True))
     star = []
     for i in range(8):
         a = D(45 * i + 90)
@@ -346,8 +325,8 @@ def build_hornet(pal):
     tower, three-lug muzzle; retractable stock on two rails from a back plate, with a cheek saddle and a ribbed pad.
     Rarity layers: Rare adds a receiver clamp, an aiming module with its cable, a magwell funnel, a round counter and
     butt plates; Epic slings an energy cell between the stock rails, runs a conduit down the receiver and charges the
-    cocking tube; Legendary (obsidian) is the hornet: a barbed stinger over the muzzle, a molten core glowing through
-    the handguard, molten vents, swept wings and striped magazine."""
+    cocking tube; Legendary (obsidian) is the hornet: a molten core glowing through
+    the handguard, molten vents and a striped magazine."""
     rake = 16
     k = Kit(pal)
     bz = 0.040
@@ -365,8 +344,6 @@ def build_hornet(pal):
     k.lathe([(0.0075, 0), (0.0075, 0.019), (0.0525, 0.019), (0.0525, 0)], 'ink', 'y', (0, 0, bz), 10, hull=False, a0=18)             # port
     k.lathe([(0.013, 0), (0.013, 0.0215), (0.045, 0.0215), (0.045, 0)], 'steel2', 'y', (0, 0, bz), 10, hull=False, a0=18)            # bolt
     plate(k, rect(-0.064, -0.006, 0.0335, 0.0465, c=0.002), RF, 'body2')
-    stencil(k, 'KV-7', RF + PR, -0.035, 0.0355, cap=0.009, sides=(-1,))
-    stencil(k, 'HORNET', RF + PR, -0.035, 0.0365, cap=0.007, sides=(1,))
     hazard(k, RF, 0.070, 0.112, 0.036, 0.044, n=4, sides=(1,))
     bolts(k, RF, [(0.064, 0.040), (0.118, 0.040)], r=0.0028)
     for ang in (36, 144):                                                                                                                 # cooling slots
@@ -391,8 +368,6 @@ def build_hornet(pal):
     # ---- lower: trigger housing, selector with its marks, pins, magwell with the paddle release
     k.ext_y(rrect(0.040, 0.034, c=0.004, cy=0.006), -0.080, 0.064, 'gun2', ch0=0.004, ch1=0.004)
     plate(k, rect(-0.020, 0.044, -0.005, 0.013, c=0.002), HL, 'frame2')
-    stencil(k, 'HORNET  9X19', HL + PR, 0.012, 0.0015, cap=0.005, sides=(-1,))
-    stencil(k, 'IB ARMS', HL + PR, 0.012, 0.0015, cap=0.005, sides=(1,))
     k.lathe([(HL - 0.003, 0.0050), (HL + 0.004, 0.0050), (HL + 0.004, 0)], 'steel2', (V((-1, 0, 0)), V((0, 1, 0)), V((0, 0, -1))), (0, -0.046, 0.006), 8, hull=False, caps=(False, True))
     k.xbar(-HL - 0.0070, -HL - 0.0035, [(-0.048, 0.002), (-0.028, 0.003), (-0.026, 0.010), (-0.046, 0.011)], 'gun3', ch=0, hull=False)
     for (y, z, c) in ((-0.058, 0.012, 'mark'), (-0.060, 0.005, 'red'), (-0.058, -0.002, 'red')):
@@ -475,15 +450,8 @@ def build_hornet(pal):
         r4.box((s * (0.013 + PR / 2 - 0.0005), 0.244, 0.036), (PR + 0.001, 0.010, 0.004), 'emis', skip=sk(s))
         r4.box((s * (0.017 + PR / 2 - 0.0005), -0.180, 0.0435), (PR + 0.001, 0.036, 0.003), 'emis', skip=sk(s))
 
-    # ---- Legendary: the hornet. Barbed stinger over the muzzle, molten core in the handguard, molten vents, wings
+    # ---- Legendary: the hornet. Molten core in the handguard, molten vents, striped magazine
     r5 = Kit(pal)
-    r5.lathe([(0.2535, 0.0100), (0.2535, 0.0210), (0.2600, 0.0225), (0.2660, 0.0206), (0.2685, 0.0198), (0.2760, 0.0175), (0.2785, 0.0168), (0.2905, 0.0150),
-              (0.2905, 0.0125)], 'gun3', 'y', (0, 0, bz), 8, bands=[None, None, None, 'emis', None, 'emis', None, None], caps=(False, False))
-    for ang in (45, 135, 225, 315):
-        a = D(ang)
-        d = V((math.cos(a) * 0.72, -0.69, math.sin(a) * 0.72)).normalized()
-        u = d.orthogonal().normalized()
-        r5.lathe([(-0.004, 0.0048), (0.005, 0.0048), (0.026, 0)], 'steel', (d, u, d.cross(u)), (math.cos(a) * 0.019, 0.264, bz + math.sin(a) * 0.019), 4, caps=(False, True))
     r5.lathe([(0.140, 0.0085), (0.140, 0.0115), (0.214, 0.0115), (0.214, 0.0085)], 'emis', 'y', (0, 0, bz), 8, hull=False, closed=True, a0=0)
     for ang in (36, 144):
         with flat(r5, ang):
@@ -491,14 +459,9 @@ def build_hornet(pal):
                 r5.box((0, 0.066 + i * 0.012, RF + PR * 1.5 - 0.0005), (0.006, 0.003, PR + 0.001), 'emis', skip=('-z',))
             for i in range(2, 4):
                 r5.box((0, -0.084 + i * 0.012, RF + PR * 1.5 - 0.0005), (0.006, 0.003, PR + 0.001), 'emis', skip=('-z',))
-            r5.ext_x([(0.129, RF - 0.001), (0.078, RF - 0.001), (0.050, RF + 0.018), (0.090, RF + 0.008)], -0.0045 - 0.0015, -0.0045 + 0.0015, 'steel', ch=0.0006)
-            r5.ext_x([(0.129, RF - 0.001), (0.102, RF - 0.001), (0.078, RF + 0.013), (0.108, RF + 0.006)], 0.0045 - 0.0015, 0.0045 + 0.0015, 'gun3', ch=0.0006)
     for s in (-1, 1):
         for i in range(3):
             r5.box((s * (HM + PR * 2.5), 0.074 + i * 0.008, -0.005), (PR, 0.0016, 0.014), 'emis', skip=sk(s))
-        d = V((s * 0.45, -0.80, 0.40)).normalized()
-        u = d.orthogonal().normalized()
-        r5.lathe([(-0.004, 0.0045), (0.004, 0.0045), (0.020, 0)], 'steel', (d, u, d.cross(u)), (s * 0.019, -0.102, 0.048), 4, caps=(False, True))
     m5 = Kit(pal)
     for t in (0.25, 0.50, 0.75):
         y, z = g2w(0, 0.036 * t * t, 0.036 + (-0.120 - 0.036) * t)

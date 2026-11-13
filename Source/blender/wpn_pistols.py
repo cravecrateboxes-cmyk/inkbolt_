@@ -27,10 +27,6 @@ def build_pip(pal):
     plate(k, [(-0.034, 0.017), (0.094, 0.017), (0.097, 0.020), (0.097, 0.040), (-0.031, 0.040), (-0.034, 0.037)], HS, 'body2', sides=(-1,))
     plate(k, [(-0.034, 0.017), (0.094, 0.017), (0.097, 0.020), (0.097, 0.040), (0.056, 0.040), (0.056, 0.030), (-0.026, 0.030), (-0.026, 0.040),
               (-0.031, 0.040), (-0.034, 0.037)], HS, 'body2', sides=(1,))
-    stencil(k, 'P-12', HS + PR, 0.012, 0.0255, cap=0.011, sides=(-1,))
-    stencil(k, 'WARDEN  9X19', HS + PR, 0.012, 0.0195, cap=0.004, sides=(-1,), font='cond')
-    stencil(k, 'WARDEN', HS + PR, 0.014, 0.0205, cap=0.007, sides=(1,))
-    stencil(k, 'IB ARMS', HS + PR, 0.076, 0.0215, cap=0.0045, sides=(1,), font='cond')
     plate(k, rect(-0.034, 0.097, 0.0105, 0.0135), HS, 'trim', ch=0)
     slots(k, HS, -0.082, -0.042, 0.027, 6, h=0.028, fill=0.45, slant=-14)                                                                   # cocking serrations
     slots(k, HS, 0.103, 0.139, 0.027, 5, h=0.026, fill=0.45, slant=-14)
@@ -71,7 +67,6 @@ def build_pip(pal):
     for i in range(4):
         k.box((0, 0.090 + i * 0.0115, -0.0105), (HF * 2 + 0.006, 0.006, 0.011), 'frame2')
     plate(k, rect(0.090, 0.124, -0.0035, 0.0018, c=0.0012), HF, 'frame2')
-    stencil(k, 'WX-4471', HF + PR, 0.107, -0.0024, cap=0.003, sides=(1,), font='cond')
     # controls: slide stop with its thumb shelf, takedown lever, pins, mag release
     k.xbar(-HF - 0.004, -HF + 0.001, [(0.050, -0.002), (0.052, 0.003), (0.012, 0.0055), (-0.012, 0.0075), (-0.015, 0.0025), (0.010, 0.0005)], 'gun3', ch=0, hull=False)
     k.box((-HF - 0.0048, -0.008, 0.0048), (0.0036, 0.011, 0.0058), 'gun3')
@@ -168,7 +163,7 @@ def build_handcannon(pal):
     Rarity layers: Rare bolts strike plates on the barrel, a brake collar, an aiming module on the lug, a six-pip
     counter and a target hammer spur; Epic winds glowing coils on the ejector rod, lights the rib vents, adds an
     energy cell, cooling fins and lit flutes; Legendary (Wyrmforged) turns the barrel into the wyrm: fanged jaws round
-    the muzzle with a burning eye, the body coiling back along the barrel, horns sweeping off the frame."""
+    the muzzle with a burning eye, the body coiling back along the barrel."""
     rake = 20
     k = Kit(pal)
     ZA = 0.032                  # cylinder axis = bore axis = barrel centre height
@@ -182,14 +177,11 @@ def build_handcannon(pal):
     # right: side plate with its screws; left: cylinder latch, pins
     plate(k, [(-0.029, -0.003), (-0.005, -0.003), (-0.005, 0.050), (-0.010, 0.055), (-0.018, 0.055), (-0.0295, 0.038)], HFR, 'body2', sides=(1,))
     bolts(k, HFR + PR, [(-0.025, 0.002), (-0.009, 0.002), (-0.012, 0.049)], sides=(1,), r=0.0028)
-    stencil(k, 'R-50', HFR + PR, -0.017, 0.022, cap=0.007, sides=(1,))
-    stencil(k, 'SN 0666', HFR + PR, -0.017, 0.015, cap=0.003, sides=(1,), font='cond')
     k.cbox((-HFR - 0.0025, -0.016, 0.034), (0.007, 0.015, 0.009), 'gun3', ch=0.0015, hull=False)
     for i in range(3):
         k.box((-HFR - 0.006 - PR / 2 + 0.0005, -0.020 + i * 0.004, 0.034), (PR + 0.001, 0.0018, 0.006), 'ink', skip=sk(-1))
     for (y, z, r) in ((-0.025, 0.045, 0.0030), (-0.024, 0.006, 0.0026), (-0.008, 0.006, 0.0026)):
         bolt(k, (-HFR, y, z), (-1, 0, 0), r)
-    stencil(k, 'IB ARMS', HFR, -0.016, 0.017, cap=0.004, sides=(-1,), font='cond')
     # crane on the yoke (left), yoke plates and the crane pin
     plate(k, [(0.052, -0.005), (0.075, -0.005), (0.075, 0.016), (0.064, 0.016), (0.052, 0.004)], HY, 'body2', sides=(-1,))
     bolt(k, (-HY - PR, 0.066, 0.004), (-1, 0, 0), 0.0034)
@@ -200,10 +192,6 @@ def build_handcannon(pal):
     k.cbox((0, 0.083, ZA), (0.030, 0.014, 0.047), 'body2', ch=0.002, axis='y')
     k.ext_y(rrect(0.026, 0.044, ct=0.005, cb=0.003, cy=ZA, seg=1), 0.074, BE, 'gunmetal', ch1=0.005)
     plate(k, [(0.096, 0.020), (0.268, 0.020), (0.274, 0.026), (0.274, 0.046), (0.096, 0.046)], HB, 'body2')
-    stencil(k, 'IRONJAW', HB + PR, 0.186, 0.0335, cap=0.009, sides=(-1,))
-    stencil(k, '.50 WYRM MAGNUM', HB + PR, 0.186, 0.0245, cap=0.0045, sides=(-1,), font='cond')
-    stencil(k, 'R-50', HB + PR, 0.200, 0.0300, cap=0.010, sides=(1,))
-    stencil(k, 'SIX  SHOT', HB + PR, 0.200, 0.0235, cap=0.004, sides=(1,), font='cond')
     hazard(k, HB + PR, 0.104, 0.134, 0.0365, 0.0425, n=4)
     slots(k, HB + PR, 0.236, 0.262, 0.040, 3, h=0.009, fill=0.4, slant=-20)                                  # barrel ports
     k.cbox((0, 0.172, 0.0635), (0.010, 0.186, 0.005), 'gun3', ch=0.001)                                         # rib
@@ -303,30 +291,20 @@ def build_handcannon(pal):
         with m4.at((0, 0, 0), (0, -(60 * i + 30), 0)):
             m4.box((R - 0.0072, 0.008, 0), (0.002, 0.022, 0.0026), 'emis')
 
-    # ---- Legendary: the wyrm. Fanged jaws round the muzzle, eye and brow horn, the body along the barrel, frame horns
+    # ---- Legendary: the wyrm. Eye at the muzzle, the body along the barrel
     r5 = Kit(pal)
-    upper = [(0.236, 0.052), (0.292, 0.052), (0.3035, 0.046), (0.3035, 0.037), (0.294, 0.0345), (0.290, 0.029), (0.286, 0.0345), (0.281, 0.029), (0.277, 0.0345),
-             (0.272, 0.030), (0.268, 0.0345), (0.262, 0.0345), (0.250, 0.040), (0.236, 0.044)]
-    lower = [(0.246, 0.003), (0.292, 0.003), (0.300, 0.008), (0.300, 0.0165), (0.290, 0.0165), (0.2855, 0.023), (0.281, 0.0165), (0.2765, 0.0165),
-             (0.272, 0.022), (0.268, 0.0165), (0.262, 0.0165), (0.244, 0.012)]
     for s in (-1, 1):
         x0, x1 = sorted((s * 0.0095, s * (HB + 0.005)))
-        r5.ext_x(upper, x0, x1, 'gun3', ch=0.001)
-        r5.ext_x(lower, x0, x1, 'gun3', ch=0.001)
         n = (V((s, 0, 0)), V((0, 1, 0)), V((0, 0, s)))
         r5.lathe([(-0.001, 0.0048), (0.0018, 0.0048), (0.0018, 0.0034), (0.0030, 0.0022), (0.0036, 0)], 'steel', n, (s * (HB + 0.005), 0.254, 0.0455), 6, hull=False,
                  bands=[None, None, 'emis', 'emis'], caps=(False, True))
-        x0, x1 = sorted((s * (HB + 0.001), s * (HB + 0.004)))
-        r5.ext_x([(0.262, 0.0515), (0.240, 0.0515), (0.222, 0.0605), (0.244, 0.0570)], x0, x1, 'steel', ch=0.0006)
-        xb = s * (HB + PR + 0.0035)                                                                                  # body
+        xb =s * (HB + PR + 0.0035)                                                                                  # body
         body = [(0.240, 0.046, 0.0075), (0.224, 0.0405, 0.0075), (0.206, 0.0310, 0.0072), (0.188, 0.0265, 0.0068), (0.170, 0.0310, 0.0062),
                 (0.156, 0.0385, 0.0052), (0.148, 0.0415, 0.0036), (0.143, 0.0400, 0.0)]
         r5.tube([((xb, y, z), w, w) for (y, z, w) in body], 'gun3', sides=6)
         for j in range(1, 6):                                                                                        # dorsal scales
             (y, z, w), (y2, z2, _) = body[j], body[j - 1]
             r5.bar((xb + s * 0.0045, y, z), (xb + s * 0.0045, (y + y2) / 2, (z + z2) / 2), 0.004, 0.0022, 'trim')
-        x0, x1 = sorted((s * (HFR - 0.001), s * (HFR + 0.0045)))                                                     # frame horns
-        r5.ext_x([(-0.022, 0.057), (-0.023, 0.047), (-0.031, 0.043), (-0.046, 0.056), (-0.066, 0.071), (-0.050, 0.0645), (-0.036, 0.0585)], x0, x1, 'steel', ch=0.001)
         r5.lathe([(-0.001, 0.0070), (PR, 0.0070), (PR, 0.0052), (PR * 2, 0.0040), (PR * 2 + 0.0008, 0)], 'gun3', n, (s * (HY + PR), 0.0635, 0.036), 4, hull=False,
                  bands=[None, None, 'emis', 'emis'], caps=(False, True), a0=0, sc=(0.5, 1.0))
     m5 = Kit(pal)
@@ -345,8 +323,7 @@ def build_twintap(pal):
     upswept beavertail, ambi safeties, thumb rest, flared magwell, extended magazine with a sleeve.
     Rarity layers: Rare adds a slide racker, a weapon light, an ambi thumb rest, compensator clamps, magwell weights and
     a round counter; Epic rings both barrels with glowing bands, fills the compensator ports with plasma and runs
-    conduits to it; Legendary (oil-slick chrome) is the prism crown: shards fanning off the compensator, a row of
-    prisms down the slide, swept tail fins and a gem in the hammer ring."""
+    conduits to it; Legendary (oil-slick chrome) adds compensator fins and a gem in the hammer ring."""
     rake = 18
     k = Kit(pal)
     HS, HF, ZT = 0.023, 0.020, 0.064              # half widths: slide, frame; slide top
@@ -375,9 +352,6 @@ def build_twintap(pal):
     slots(k, HS, -0.080, -0.052, 0.029, 4, h=0.040, fill=0.45, slant=-12)                                                                # cocking serrations
     plate(k, rect(-0.046, 0.018, 0.010, 0.050, c=0.003), HS, 'body2', sides=(-1,))
     plate(k, rect(-0.046, 0.018, 0.010, 0.0375, c=0.002), HS, 'body2', sides=(1,))
-    stencil(k, 'P-16', HS + PR, -0.014, 0.0245, cap=0.013, sides=(-1,))
-    stencil(k, 'TWINFIRE  3RD BURST', HS + PR, -0.014, 0.0155, cap=0.0045, sides=(-1,), font='cond')
-    stencil(k, 'TWINFIRE', HS + PR, -0.014, 0.019, cap=0.008, sides=(1,))
     # top: optic plate with its screws under the mini reflex, backup post
     top_slots(k, ZT, -0.026, 0.012, 6, w=0.009, fill=0.4, x=-0.006)
     k.box((0, -0.0555, ZT + PR / 2 - 0.0005), (0.022, 0.047, PR + 0.001), 'body2', skip=('-z',))
@@ -407,7 +381,6 @@ def build_twintap(pal):
         k.box((0, 0.088 + i * 0.011, -0.0135), (HF * 2 + 0.006, 0.006, 0.011), 'frame2')
     plate(k, rect(0.030, 0.112, -0.006, 0.002, c=0.0015), HF, 'frame2', sides=(1,))
     plate(k, rect(0.074, 0.112, -0.006, 0.002, c=0.0015), HF, 'frame2', sides=(-1,))
-    stencil(k, 'TF-0016', HF + PR, 0.066, -0.0035, cap=0.0032, sides=(1,), font='cond')
     k.xbar(-HF - 0.004, -HF + 0.001, [(0.000, -0.006), (0.038, -0.006), (0.042, -0.001), (0.004, 0.001)], 'gun3', ch=0, hull=False)     # slide stop
     bolt(k, (-HF - 0.004, 0.036, -0.0035), (-1, 0, 0), 0.0022, 0.0016)
     bolt(k, (HF, 0.036, -0.004), (1, 0, 0), 0.0030)
@@ -470,22 +443,9 @@ def build_twintap(pal):
         y, z = g2w(rake, 0.0, -0.016)
         m4.box((s * (0.0165 + PR / 2 - 0.0005), y, z - 0.004), (PR + 0.001, 0.018, 0.003), 'emis', skip=sk(s))
 
-    # ---- Legendary: the prism crown. Shards off the compensator, prisms down the slide, tail fins, the hammer gem
+    # ---- Legendary: compensator fins, the hammer gem, gold trim
     r5 = Kit(pal)
     for s in (-1, 1):
-        for ang in (-40, 0, 40):
-            d = V((s * 0.80 * math.cos(D(ang)), -0.60, 0.80 * math.sin(D(ang)))).normalized()
-            u = d.orthogonal().normalized()
-            r5.lathe([(-0.004, 0.0066), (0.006, 0.0066), (0.017, 0.0046), (0.034, 0)], 'steel', (d, u, d.cross(u)), (s * 0.024, 0.157, 0.034 + 0.016 * math.sin(D(ang))), 4,
-                     bands=[None, 'emis', None], caps=(False, True))
-        for i in range(4):
-            d = V((s * 0.20, -0.50, 0.84)).normalized()
-            u = d.orthogonal().normalized()
-            r5.lathe([(-0.003, 0.0042), (0.003, 0.0042), (0.0125, 0)], 'steel', (d, u, d.cross(u)), (s * 0.0092, 0.036 + i * 0.022, 0.0625), 4,
-                     bands=[None, 'emis'], caps=(False, True))
-        x0, x1 = sorted((s * (HS - 0.0025), s * (HS + 0.003)))
-        r5.ext_x([(-0.046, 0.050), (-0.060, 0.038), (-0.108, 0.062), (-0.096, 0.064), (-0.070, 0.052)], x0, x1, 'gun3', ch=0.0008)
-        r5.ext_x([(-0.046, 0.022), (-0.058, 0.010), (-0.104, 0.0165), (-0.092, 0.022), (-0.066, 0.024)], x0, x1, 'gun3', ch=0.0008)
         x0, x1 = sorted((s * 0.0150, s * 0.0180))                                                                                      # compensator fins
         r5.ext_x([(0.125, 0.061), (0.162, 0.061), (0.151, 0.0735), (0.133, 0.0690)], x0, x1, 'gun3', ch=0.0008)
         r5.bar((s * 0.0165, 0.134, 0.0705), (s * 0.0165, 0.150, 0.0745), 0.0045, 0.0016, 'trim')

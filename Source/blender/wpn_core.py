@@ -745,39 +745,6 @@ def hazard(k, hw, y0, y1, z0, z1, n=4, color='mark', sides=(-1, 1), lean=0.6, t=
         plate(k, prof, hw, color, t=t, ch=0.0, sides=sides)
 
 
-def stencil(k, text, hw, y, z, cap=0.008, color='mark', sides=(-1, 1), font='display', t=PR, align='c'):
-    """Stencilled lettering on the side faces (reads left to right on each side); z is the baseline."""
-    import ib_text
-    tris, w, x0 = ib_text.layout(text, font)
-    ou = {'c': -w / 2, 'l': 0.0, 'r': -w}[align] - x0
-    bm = k.bm
-    for s in sides:
-        before = set(bm.faces)
-        for tri in tris:
-            vs = [bm.verts.new(k.xf @ V((s * (hw + t), y + s * (u + ou) * cap, z + v * cap))) for (u, v) in tri]
-            f = bm.faces.new(vs)
-            f.normal_update()
-            if (k.xf.to_3x3() @ V((s, 0, 0))).dot(f.normal) < 0:
-                f.normal_flip()
-        k._reg(before, color, False)
-    return w * cap
-
-
-def top_stencil(k, text, z, y, cap=0.006, color='mark', x=0.0, font='display', t=PR):
-    """Lettering on a top face, read from behind the gun (the shooter's view): letters run along +x, tops toward +y."""
-    import ib_text
-    tris, w, x0 = ib_text.layout(text, font)
-    bm = k.bm
-    before = set(bm.faces)
-    for tri in tris:
-        vs = [bm.verts.new(k.xf @ V((x + (u - w / 2 - x0) * cap, y + v * cap, z + t))) for (u, v) in tri]
-        f = bm.faces.new(vs)
-        f.normal_update()
-        if (k.xf.to_3x3() @ V((0, 0, 1))).dot(f.normal) < 0:
-            f.normal_flip()
-    k._reg(before, color, False)
-
-
 def cable(k, pts, r=0.0028, color='rubber', sides=5, clamps=(), clamp_color='steel2'):
     """Cable / hose through 3D points; clamps: indices of points that get a clamp ring."""
     k.tube([(p, r * 2, r * 2) for p in pts], color, sides=sides, hull=False)

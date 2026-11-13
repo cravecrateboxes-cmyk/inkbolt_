@@ -31,13 +31,6 @@ def shell(k, c, z0, L=0.048, r=0.0080, axis='z'):
             'brass', axis, c, 8, hull=False, bands=[None, None, None, None, 'red', 'red', 'red'])
 
 
-def crystal(k, p, d, L, r, color='emis', sides=5, hull=True):
-    """Faceted crystal shard growing from p along d: a short root, the girdle, a point."""
-    d = V(d).normalized()
-    u = d.orthogonal().normalized()
-    k.lathe([(-0.003, r * 0.55), (L * 0.5, r), (L, 0)], color, (d, u, d.cross(u)), p, sides, hull=hull, caps=(False, True))
-
-
 def build_scrapper(pal):
     """SG-9 Scrapper: pump shotgun. Steel receiver with a five-shell side saddle on the left, ejection port with the
     bolt, ghost-ring rear sight and a ramped bead, loading port and lifter underneath, ventilated heat shield over the
@@ -46,8 +39,8 @@ def build_scrapper(pal):
     with its twin action bars when the gun is worked.
     Rarity layers: Rare adds shell loops on the stock, a weapon light on the shield, a breacher collar, a shell
     counter and toe armour; Epic winds glowing coils round the barrel under the shield, fed from a cell on the stock,
-    fins the muzzle and lights the pump; Legendary (Oni crimson) raises a dorsal row of spines on the shield, fangs
-    round the muzzle, a browed eye on each side of the receiver and flame inlays in the walnut."""
+    fins the muzzle and lights the pump; Legendary (Oni crimson) puts a browed eye on each side of the receiver and
+    flame inlays in the walnut."""
     rake = 20
     k = Kit(pal)
     bz = 0.040
@@ -60,10 +53,7 @@ def build_scrapper(pal):
     k.box((HR + PR, 0.030, 0.0445), (0.0036, 0.044, 0.015), 'steel', skip=sk(1))
     k.box((HR + PR + 0.0022, 0.047, 0.0445), (0.0036, 0.005, 0.009), 'steel2', skip=sk(1))
     plate(k, [(-0.104, 0.021), (-0.030, 0.021), (-0.022, 0.029), (-0.022, 0.050), (-0.104, 0.050)], HR, 'body2', sides=(1,))
-    stencil(k, 'SG-9', HR + PR, -0.064, 0.0340, cap=0.011, sides=(1,))
-    stencil(k, 'IB ARMS  12 GA', HR + PR, -0.064, 0.0255, cap=0.0045, sides=(1,), font='cond')
     plate(k, rect(-0.016, 0.112, 0.0225, 0.0255), HR, 'trim', ch=0, sides=(1,))
-    stencil(k, 'SCRAPPER', HR, 0.074, 0.0385, cap=0.0075, sides=(1,))
     # left: side saddle (backing plate, carrier block, five shells), accent line
     plate(k, rect(-0.070, 0.070, 0.022, 0.052, c=0.003), HR, 'steel2', t=0.003, sides=(-1,), hull=True)
     bolts(k, HR + 0.003, [(-0.065, 0.047), (0.065, 0.047), (-0.065, 0.027), (0.065, 0.027)], r=0.0026, sides=(-1,))
@@ -169,22 +159,11 @@ def build_scrapper(pal):
     for s in (-1, 1):
         m4.box((s * (0.023 + PR / 2 - 0.0005), 0.065, -0.0060), (PR + 0.001, 0.100, 0.002), 'emis', skip=sk(s))
 
-    # ---- Legendary: dorsal spines on the shield, fangs round the muzzle, browed eyes on the receiver, flame inlays
+    # ---- Legendary: browed eyes on the receiver, flame inlays
     r5 = Kit(pal)
-    for i, (a, b) in enumerate(ys[1:-1]):
-        hgt = 0.0125 if i % 2 == 0 else 0.0095
-        with r5.at((0, (a + b) / 2, BZ + 0.0195)):
-            r5.ext_x([(0.008, -0.002), (0.003, 0.0045), (-0.016, hgt), (-0.007, -0.002)], -0.0017, 0.0017, 'gun3', ch=0.0008)
-            r5.ext_x([(0.0005, 0.0040), (-0.0115, hgt - 0.0030), (-0.006, 0.0025)], -0.0030, 0.0030, 'trim', ch=0, hull=False)
-    for ang in (38, -38, 104, -104):
-        with r5.at((0, 0, BZ), (0, ang, 0)):
-            r5.ext_x([(0.520, 0.010), (0.540, 0.010), (0.554, 0.0185), (0.5735, 0.0195), (0.562, 0.0255), (0.543, 0.0290), (0.526, 0.0235)], -0.0018, 0.0018, 'steel', ch=0.0012)
-            r5.ext_x([(0.531, 0.0222), (0.543, 0.0262), (0.561, 0.0232), (0.5700, 0.0204), (0.558, 0.0208), (0.543, 0.0222)], -0.0032, 0.0032, 'trim', ch=0, hull=False)
     plate(r5, [(0.074, 0.047), (0.114, 0.0390), (0.114, 0.0450), (0.080, 0.0550)], HR, 'gun3', t=0.003, hull=True)
     plate(r5, [(0.080, 0.0365), (0.110, 0.0305), (0.110, 0.0350), (0.084, 0.0425)], HR, 'emis', ch=0)
     plate(r5, [(0.094, 0.0325), (0.098, 0.0315), (0.098, 0.0385), (0.094, 0.0400)], HR + PR, 'ink', ch=0)
-    plate(r5, [(-0.190, 0.040), (-0.240, 0.022), (-0.306, 0.034), (-0.250, 0.029), (-0.212, 0.038)], HS, 'steel', ch=0)   # claw marks: lit steel, not glow (they sit beside the eye when aiming)
-    plate(r5, [(-0.176, 0.018), (-0.226, 0.000), (-0.250, -0.012), (-0.232, 0.008), (-0.196, 0.022)], HS, 'steel', ch=0)
     m5 = Kit(pal)
     for (y0, y1) in ((0.0060, 0.0098), (0.1202, 0.1240)):
         m5.ext_y(rrect(0.0495, 0.0415, c=0.0107, cy=0.001), y0, y1, 'trim', hull=False)
@@ -202,8 +181,8 @@ def build_thunder(pal):
     the right.
     Rarity layers: Rare adds an aiming module with its cable, a shell counter behind the handle, butt armour and
     armour rings on the drum; Epic lays a cell under the carry handle, coils the barrel inside the shroud, fins the
-    muzzle and lights the drum; Legendary (Aurora) grows crystal shards along the shroud's shoulders and round the
-    compensator, draws constellations on the receiver and sets a starburst on each drum face."""
+    muzzle and lights the drum; Legendary (Aurora) draws constellations on the receiver and sets a starburst on each
+    drum face."""
     rake = 18
     k = Kit(pal)
     bz = 0.040
@@ -219,15 +198,11 @@ def build_thunder(pal):
     k.box((HR + PR + 0.0022, 0.054, 0.0485), (0.0036, 0.005, 0.009), 'steel2', skip=sk(1))
     k.ext_x([(-0.016, 0.038), (-0.004, 0.038), (-0.004, 0.058), (-0.011, 0.058)], HR - 0.001, HR + 0.0090, 'gunmetal', ch=0.0015)
     plate(k, [(-0.110, 0.024), (-0.030, 0.024), (-0.022, 0.032), (-0.022, 0.058), (-0.110, 0.058)], HR, 'body2', sides=(1,))
-    stencil(k, 'THUNDERCLAP', HR + PR, -0.066, 0.0290, cap=0.0068, sides=(1,))
     slots(k, HR + PR, -0.102, -0.034, 0.047, 4, h=0.012, fill=0.36, sides=(1,), slant=28)
     plate(k, [(0.070, 0.024), (0.144, 0.024), (0.144, 0.058), (0.070, 0.058)], HR, 'gunmetal', t=0.003, sides=(1,), hull=True)
     bolts(k, HR + 0.003, [(0.078, 0.030), (0.136, 0.030), (0.078, 0.052), (0.136, 0.052)], sides=(1,))
-    stencil(k, '12 GA', HR + 0.003, 0.107, 0.0370, cap=0.0085, sides=(1,))
     # left: data panel, trunnion plate with a hazard band
     plate(k, [(-0.110, 0.024), (0.040, 0.024), (0.052, 0.036), (0.052, 0.058), (-0.110, 0.058)], HR, 'body2', sides=(-1,))
-    stencil(k, 'SG-12', HR + PR, -0.050, 0.0370, cap=0.013, sides=(-1,))
-    stencil(k, 'IB ARMS  12 GA  AUTO', HR + PR, -0.050, 0.0280, cap=0.0048, sides=(-1,), font='cond')
     plate(k, [(0.062, 0.024), (0.144, 0.024), (0.144, 0.058), (0.072, 0.058), (0.062, 0.048)], HR, 'gunmetal', t=0.003, sides=(-1,), hull=True)
     bolts(k, HR + 0.003, [(0.070, 0.030), (0.136, 0.030), (0.136, 0.052)], sides=(-1,))
     hazard(k, HR + 0.003, 0.080, 0.128, 0.036, 0.048, n=4, sides=(-1,))
@@ -254,7 +229,6 @@ def build_thunder(pal):
     k.ext_x([(0.070, 0.006), (0.140, 0.006), (0.142, -0.030), (0.134, -0.040), (0.070, -0.040), (0.066, -0.028)], -HM, HM, 'gun2', ch=0.003)
     k.ext_x([(0.062, -0.032), (0.146, -0.032), (0.150, -0.044), (0.058, -0.044)], -0.0295, 0.0295, 'frame2', ch=0.002)
     plate(k, rect(0.088, 0.134, -0.029, -0.002, c=0.003), HM, 'frame2')
-    stencil(k, 'DRUM 20', HM + PR, 0.111, -0.0195, cap=0.0065)
     for s in (-1, 1):
         n = (V((s, 0, 0)), V((0, 1, 0)), V((0, 0, s)))
         k.lathe([(HM - 0.003, 0.0050), (HM + 0.0040, 0.0050), (HM + 0.0040, 0)], 'steel2', n, (0, 0.078, -0.014), 8, hull=False, caps=(False, True))
@@ -295,7 +269,6 @@ def build_thunder(pal):
     k.ext_x([(-0.114, 0.070), (-0.298, 0.060), (-0.300, -0.048), (-0.276, -0.054), (-0.170, -0.004), (-0.114, 0.006)], -HS, HS, 'gun2', ch=0.005)
     plate(k, [(-0.130, 0.012), (-0.170, 0.012), (-0.286, -0.036), (-0.286, 0.046), (-0.130, 0.055)], HS, 'frame2')
     slots(k, HS + PR, -0.274, -0.202, 0.020, 4, h=0.020, fill=0.34, slant=-26)
-    stencil(k, '12', HS + PR, -0.158, 0.026, cap=0.016)
     bolts(k, HS + PR, [(-0.136, 0.018), (-0.136, 0.046)])
     plate(k, [(-0.126, 0.0605), (-0.290, 0.0515), (-0.290, 0.0540), (-0.126, 0.0630)], HS, 'trim', ch=0)
     for s in (-1, 1):
@@ -359,27 +332,15 @@ def build_thunder(pal):
     for s in (-1, 1):
         m4.ring('x', C, min(s * 0.0310, s * 0.0390), max(s * 0.0310, s * 0.0390), 0.0290, 0.0325, 'emis', seg=14, hull=False)
 
-    # ---- Legendary: crystal shards on the shroud's shoulders and round the compensator, constellations, drum starbursts
+    # ---- Legendary: constellations, drum starbursts
     r5 = Kit(pal)
-    for s in (-1, 1):
-        for i, (a, b) in enumerate(zip(ys[:-1], ys[1:])):
-            ym = (a[1] + b[0]) / 2
-            L = (0.042, 0.028, 0.046, 0.026, 0.038, 0.024)[i % 6]
-            crystal(r5, (s * 0.0250, ym + 0.004, bz + 0.0260), (s * 0.78, -0.30 + 0.12 * (i % 3), 0.62), L, 0.0066)
-            crystal(r5, (s * 0.0250, ym - 0.010, bz + 0.0260), (s * 0.60, 0.25, 0.75), L * 0.55, 0.0046, color='gun3')
-    for i in range(5):
-        a = D(72 * i + 18)
-        crystal(r5, (0.0150 * math.cos(a), 0.444, bz + 0.0150 * math.sin(a)), (math.cos(a) * 0.80, -0.52, math.sin(a) * 0.80), 0.040 if i % 2 == 0 else 0.028, 0.0062)
-    stars = [(-0.096, 0.050), (-0.070, 0.036), (-0.040, 0.052), (-0.012, 0.040), (0.016, 0.052)]
+    stars =[(-0.096, 0.050), (-0.070, 0.036), (-0.040, 0.052), (-0.012, 0.040), (0.016, 0.052)]
     for s in (-1, 1):
         for (y, z) in (stars if s < 0 else stars[:2]):
             plate(r5, [(y - 0.0045, z), (y, z - 0.0045), (y + 0.0045, z), (y, z + 0.0045)], HR + PR, 'emis', t=0.0030, ch=0.0012, sides=(s,))
     r5.ext_x([(-0.096, 0.0495), (-0.070, 0.0355), (-0.070, 0.0367), (-0.096, 0.0507)], -HR - 2 * PR, -HR - PR + 0.0005, 'trim', hull=False)
     r5.ext_x([(-0.070, 0.0355), (-0.040, 0.0515), (-0.040, 0.0527), (-0.070, 0.0367)], -HR - 2 * PR, -HR - PR + 0.0005, 'trim', hull=False)
     r5.ext_x([(-0.040, 0.0520), (-0.012, 0.0400), (-0.012, 0.0412), (-0.040, 0.0532)], -HR - 2 * PR, -HR - PR + 0.0005, 'trim', hull=False)
-    crystal(r5, (0, -0.210, 0.060), (0, -0.35, 0.94), 0.040, 0.0078)
-    crystal(r5, (0.006, -0.238, 0.058), (0.2, -0.50, 0.87), 0.027, 0.0058, color='gun3')
-    crystal(r5, (-0.006, -0.184, 0.062), (-0.2, -0.20, 0.98), 0.024, 0.0054, color='gun3')
     m5 = Kit(pal)
     for s in (-1, 1):
         for j in range(8):

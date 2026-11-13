@@ -83,8 +83,6 @@ def build_brick(pal):
     rivets(k, HR + 0.003, [(0.141, 0.012), (0.079, 0.038)], sides=(-1,), r=0.0030)
     # left: data panel, riveted rails, slanted vents, barrel latch, feed port and tray
     plate(k, [(-0.120, 0.020), (-0.034, 0.020), (-0.026, 0.028), (-0.026, 0.066), (-0.120, 0.066)], HR, 'body2', sides=(-1,))
-    stencil(k, 'LMG-26', HR + PR, -0.073, 0.043, cap=0.013, sides=(-1,))
-    stencil(k, 'CAL 7.62', HR + PR, -0.073, 0.030, cap=0.0055, sides=(-1,), font='cond')
     rivets(k, HR + PR, [(-0.114, 0.026), (-0.114, 0.060), (-0.032, 0.060)], sides=(-1,))
     plate(k, [(-0.018, 0.048), (0.150, 0.048), (0.150, 0.057), (-0.012, 0.057)], HR, 'gunmetal', t=0.003, sides=(-1,), hull=True)
     rivets(k, HR + 0.003, [(-0.006 + i * 0.030, 0.0525) for i in range(3)] + [(0.144, 0.0525)], sides=(-1,))
@@ -107,7 +105,6 @@ def build_brick(pal):
     k.box((HR + 0.0025, 0.036, 0.0205), (0.003, 0.026, 0.003), 'steel2')
     k.cbox((HR + 0.006, 0.054, 0.0205), (0.016, 0.012, 0.011), 'gun3', ch=0.002, axis='x')
     plate(k, rect(-0.120, -0.040, 0.028, 0.066), HR, 'body2', sides=(1,))
-    stencil(k, 'BRICKLAYER', HR + PR, -0.080, 0.043, cap=0.008, sides=(1,))
     rivets(k, HR + PR, [(-0.114, 0.060), (-0.046, 0.060)], sides=(1,))
     # ---- feed cover: hinge at the front, latch at the rear, rail, stamped ribs; tangent rear sight
     k.ext_y(rrect(0.050, 0.012, ct=0.004, cb=0.0, cy=0.0855), -0.110, 0.130, 'gun3', ch0=0.004, ch1=0.004)
@@ -214,7 +211,6 @@ def build_brick(pal):
             mk.box((s * (HB + 0.001), y, -0.052), (0.004, 0.006, 0.070), 'gun2', skip=sk(s))
         mk.box((0, s * 0.0455, -0.052), (0.024, 0.004, 0.076), 'gun2', skip=('-y' if s > 0 else '+y',))
     plate(mk, rect(-0.026, 0.026, -0.086, -0.038, 0.004), HB, 'acc2')
-    stencil(mk, '200', HB + PR, 0.0, -0.070, cap=0.018)
     hazard(mk, HB, -0.026, 0.020, -0.033, -0.025, n=4)
     mk.ext_y([(-0.028, -0.022), (-0.028, -0.006), (-0.044, -0.004), (-0.044, 0.040), (-0.063, 0.040), (-0.063, -0.010), (-0.052, -0.024)], -0.021, 0.021,
              'gun2', ch0=0.002, ch1=0.002)
@@ -264,7 +260,7 @@ def build_brick(pal):
     energy_cell(r4o, (0, -0.266, 0.004), L=0.052, r=0.0085, cage_bars=3)
 
     # ---- Legendary (oil-slick chrome): swept chrome exhaust stacks with glowing throats along the heat shield, a
-    # prism core floating in the stock window, glowing feed cover ribs, a halo on the flash hider, chrome-bound ammo box
+    # gem core in the stock window, glowing feed cover ribs, a halo on the flash hider, chrome-bound ammo box
     r5 = Kit(pal)
     gaps = [(a[1] + b[0]) / 2 for a, b in zip(hy[:-1], hy[1:])]
     for s in (-1, 1):
@@ -280,10 +276,6 @@ def build_brick(pal):
     with r5.at((0, -0.262, 0.004)):
         r5.lathe([(-0.027, 0), (-0.009, 0.012), (0.009, 0.012), (0.027, 0)], 'emis', 'y', (0, 0, 0), 6, hull=False)
         r5.ring('y', (0, 0, 0), -0.0015, 0.0015, 0.0145, 0.0165, 'trim', seg=8, hull=False)
-        r5.lathe([(-0.030, 0), (-0.030, 0.0060), (-0.017, 0.0095), (-0.017, 0)], 'steel', 'y', (0, 0, 0), 6, hull=False, a0=0)
-    for i in range(6):
-        with r5.at((0, 0, bz), (0, 60 * i, 0)):
-            r5.ext([(0.469, 0.0150), (0.509, 0.0180), (0.505, 0.0270), (0.490, 0.0235)], 'steel', (0, 0, 0), (0, 1, 0), (1, 0, 0), (0, 0, 1), -0.0015, 0.0015)
     r5.ring('y', (0, 0, bz), 0.5045, 0.5085, 0.0165, 0.0215, 'trim', seg=12, hull=False)
     m5 = Kit(pal)
     for (sx, sy, a) in ((1, 1, 45), (-1, 1, 135), (-1, -1, 225), (1, -1, 315)):
@@ -303,7 +295,7 @@ def build_needle(pal):
     and a monopod.
     Rarity layers: Rare bolts on a rangefinder with its cable, an offset reflex, a ballistic computer, an ammo cuff
     and a magwell funnel; Epic adds accelerator coils fed by a conduit, plasma in the brake ports and (Epic alone) an
-    energy cell in the stock; Legendary (damascus and ivory) crowns the brake with leaf blades, rings the barrel in
+    energy cell in the stock; Legendary (damascus and ivory) rings the barrel in
     gold, sets ivory medallions with a gold star in the chassis, feathers the forend and hangs an armillary in the
     stock."""
     rake = 22
@@ -329,15 +321,11 @@ def build_needle(pal):
     k.cbox((0.0125, -0.121, bz + 0.0075), (0.008, 0.014, 0.0045), 'steel2', ch=0.001, rot=(0, -30, 0), hull=False)
     k.lathe([(0.098, 0), (0.098, 0.0170), (0.116, 0.0170), (0.116, 0)], 'steel2', 'y', (0, 0, bz), 8)
     k.box((-0.0200, -0.010, bz), (0.004, 0.110, 0.011), 'body2')                                                   # machined flat, proof marks, gas vents
-    stencil(k, 'IB-338 LONG ACTION', 0.022, -0.020, bz - 0.002, cap=0.0042, sides=(-1,), font='cond', t=0.0)
     for y in (0.028, 0.037):
         k.box((-0.022 - PR / 2 + 0.0005, y, bz), (PR + 0.001, 0.005, 0.005), 'ink', skip=sk(-1))
     # ---- chassis: side plates with stencils, magwell, paddle release, forend slots, trim line
     k.ext_x([(-0.100, 0.020), (0.320, 0.020), (0.330, 0.010), (0.330, -0.016), (0.120, -0.024), (0.080, -0.030), (-0.100, -0.030)], -HCH, HCH, 'gun3', ch=0.004)
     plate(k, [(-0.094, -0.014), (0.086, -0.014), (0.098, -0.002), (0.098, 0.014), (-0.094, 0.014)], HCH, 'acc2')
-    stencil(k, 'SR-160', HCH + PR, -0.034, -0.002, cap=0.011, sides=(-1,))
-    stencil(k, '.338 IB ARMS', HCH + PR, -0.034, -0.010, cap=0.0045, sides=(-1,), font='cond')
-    stencil(k, 'NEEDLE', HCH + PR, -0.034, -0.005, cap=0.009, sides=(1,))
     bolts(k, HCH + PR, [(-0.084, 0.006), (0.088, 0.004)])
     k.xbar(-HCH - 0.0040, -HCH + 0.0010, [(-0.092, 0.011), (-0.076, 0.011), (-0.078, 0.019), (-0.090, 0.019)], 'steel2', ch=0.0008, hull=False)   # bolt release
     k.ext_x([(0.012, -0.026), (0.090, -0.026), (0.088, -0.041), (0.014, -0.041)], -0.0255, 0.0255, 'acc2', ch=0.002)
@@ -457,11 +445,6 @@ def build_needle(pal):
     # ---- Legendary (damascus and ivory)
     r5 = Kit(pal)
     for s in (-1, 1):
-        with r5.at((0, 0, bz), (0, 0 if s > 0 else 180, 0)):
-            r5.ext_x([(0.588, 0.0150), (0.666, 0.0150), (0.656, 0.0240), (0.628, 0.0340), (0.598, 0.0300), (0.584, 0.0200)], -0.0020, 0.0020, 'gun3', ch=0)
-            r5.ext_x([(0.600, 0.0290), (0.628, 0.0340), (0.654, 0.0245), (0.628, 0.0305)], -0.0035, 0.0035, 'trim', ch=0, hull=False)
-        with r5.at((0, 0, bz), (0, 90 * s, 0)):
-            r5.ext_x([(0.590, 0.0140), (0.616, 0.0140), (0.612, 0.0250), (0.596, 0.0300)], -0.0018, 0.0018, 'gun3', ch=0)
         n = (V((s, 0, 0)), V((0, 1, 0)), V((0, 0, s)))
         r5.lathe([(-0.001, 0.0125), (0.0040, 0.0125), (0.0040, 0.0100), (0.0028, 0.0100), (0.0028, 0)], 'gun3', n, (s * (HCH + PR), 0.060, 0.000), 10,
                  hull=False, bands=[None, None, 'furn', 'furn'], caps=(False, True))
@@ -472,8 +455,6 @@ def build_needle(pal):
         plate(r5, rect(-0.276, -0.182, 0.0150, 0.0250, 0.003), 0.010, 'furn', sides=(s,))
         r5.box((s * (0.010 + PR * 1.5), -0.229, 0.020), (PR + 0.001, 0.080, 0.0020), 'trim', skip=sk(s))
         plate(r5, rect(-0.2955, -0.2835, -0.050, 0.018, 0.002), 0.0125, 'furn', sides=(s,))
-        for y0 in (0.130, 0.184):
-            r5.ext_x([(y0, 0.012), (y0 + 0.046, 0.012), (y0 + 0.056, 0.034), (y0 + 0.016, 0.027)], min(s * 0.0200, s * 0.0240), max(s * 0.0200, s * 0.0240), 'gun3', ch=0)
     for y in (0.200, 0.300, 0.580):
         r5.lathe([(y, 0), (y, 0.0160), (y + 0.012, 0.0160), (y + 0.012, 0)], 'gun3', 'y', (0, 0, bz), 12, hull=False)
         grooves(r5, y + 0.003, y + 0.009, 0.0160, bz, n=1, color='trim', seg=12, fill=0.7)
@@ -507,8 +488,7 @@ def build_railspike(pal):
     one-piece mount.
     Rarity layers: Rare bolts on an aiming module, vented rail covers, a charge gauge, a magwell funnel and a spare
     cell in the stock; Epic lights a plasma column down the bore, energy cells on the stock and conduits along the
-    receiver; Legendary (oil-slick chrome) fans prism wings off every clamp, raises a spine of spikes along the top
-    rail, floats prisms between the rails and crowns the emitter."""
+    receiver; Legendary (oil-slick chrome) puts glowing emitter bands on the barrel rings."""
     rake = 22
     k = Kit(pal)
     bz = 0.034
@@ -524,9 +504,6 @@ def build_railspike(pal):
     k.ext_y(rrect(0.052, 0.060, ct=0.010, cb=0.004, cy=0.030), -0.120, 0.140, 'gunmetal', ch0=0.005, ch1=0.004)
     plate(k, rect(-0.100, 0.120, 0.0055, 0.0085), HU, 'trim', ch=0)
     plate(k, [(-0.112, 0.018), (-0.040, 0.018), (-0.032, 0.026), (-0.032, 0.048), (-0.112, 0.048)], HU, 'body2')
-    stencil(k, 'SR-9', HU + PR, -0.074, 0.030, cap=0.012, sides=(-1,))
-    stencil(k, 'RAIL RIFLE 40KV', HU + PR, -0.074, 0.021, cap=0.0045, sides=(-1,), font='cond')
-    stencil(k, 'RAILSPIKE', HU + PR, -0.074, 0.029, cap=0.008, sides=(1,))
     rivets(k, HU + PR, [(-0.107, 0.043), (-0.037, 0.043)])
     k.box((-(HU + PR / 2 - 0.0005), -0.016, 0.031), (PR + 0.001, 0.014, 0.034), 'ink', skip=sk(-1))
     for i in range(5):
@@ -580,7 +557,6 @@ def build_railspike(pal):
            bands=[None, None, None, 'ink'])
     k.lathe([(0.640, 0), (0.640, 0.0048), (0.647, 0.0048), (0.647, 0)], 'lens', 'y', (0, 0, bz), 6, hull=False)
     rivets(k, 0.020, [(0.640, bz + 0.020), (0.640, bz - 0.020)], r=0.0030)
-    stencil(k, '40KV', 0.020, 0.640, bz - 0.004, cap=0.007, font='cond', t=PR)
     # ---- scope on a one-piece mount: saddle, turrets, battery cap, bolted rings
     sz = bz + 0.066
     scope(k, -0.160, 0.170, sz, rt=0.0125, ro=0.024, re=0.019, lo=0.055, le=0.048, seg=12)
@@ -628,7 +604,6 @@ def build_railspike(pal):
             mk.box((s * (0.015 + PR / 2 - 0.0005), y, -0.034), (PR + 0.001, 0.005, 0.050), 'frame2', skip=sk(s))
         mk.box((0, s * (0.028 + PR / 2 - 0.0005), -0.034), (0.018, PR + 0.001, 0.044), 'frame2', skip=('-y' if s > 0 else '+y',))
     hazard(mk, 0.015, -0.016, 0.012, -0.066, -0.060, n=4)
-    stencil(mk, 'CELL', 0.015, 0.0, -0.057, cap=0.0065, font='cond')
 
     # ---- Rare (and up)
     r3 = Kit(pal)
@@ -664,29 +639,12 @@ def build_railspike(pal):
     # ---- Legendary (oil-slick chrome)
     r5 = Kit(pal)
     for i, y in enumerate(rings):
-        for s in (-1, 1):
-            with r5.at((0, 0, bz), (0, -90 + s * 58, 0)):
-                r5.ext([(y + 0.002, 0.0320), (y + 0.020, 0.0320), (y + 0.016, 0.0480), (y - 0.004, 0.0640), (y - 0.022, 0.0720), (y - 0.006, 0.0520)], 'steel',
-                       (0, 0, 0), (0, 1, 0), (1, 0, 0), (0, 0, 1), -0.0016, 0.0016)
-                r5.ext([(y + 0.008, 0.0400), (y - 0.004, 0.0560), (y - 0.018, 0.0685), (y - 0.002, 0.0500)], 'trim', (0, 0, 0), (0, 1, 0), (1, 0, 0), (0, 0, 1),
-                       -0.0031, 0.0031, hull=False)
-        if i < 4:
-            g0 = y + 0.022
-            r5.ext_x([(g0 + 0.006, bz + 0.029), (g0 + 0.060, bz + 0.029), (g0 + 0.064, bz + 0.040), (g0 + 0.022, bz + 0.0345)], -0.0022, 0.0022, 'steel', ch=0)
-            r5.ext_x([(g0 + 0.026, bz + 0.0350), (g0 + 0.062, bz + 0.0395), (g0 + 0.064, bz + 0.0400), (g0 + 0.060, bz + 0.0372)], -0.0037, 0.0037, 'trim', ch=0, hull=False)
         if i < 4:
             with r5.at((0, y + 0.056, bz)):
                 r5.lathe([(-0.024, 0), (-0.008, 0.0115), (0.008, 0.0115), (0.024, 0)], 'emis', 'y', (0, 0, 0), 6, hull=False)
                 r5.lathe([(-0.0012, 0.0110), (-0.0012, 0.0136), (0.0012, 0.0136), (0.0012, 0.0110)], 'trim', 'y', (0, 0, 0), 8, hull=False, caps=(False, False), a0=0)
     for sx in (-1, 1):
-        for s in (-1, 1):
-            r5.lathe([(0.634, 0.0042), (0.646, 0.0042), (0.6555, 0)], 'steel', 'y', (sx * 0.0135, 0, bz + s * 0.0275), 6, caps=(False, True))
         r5.box((sx * (0.011 + PR / 2 - 0.0005), -0.236, 0.0180), (PR + 0.001, 0.090, 0.0024), 'trim', skip=sk(sx))
-        r5.ext_x([(0.126, 0.037), (0.126, 0.051), (0.030, 0.054), (0.002, 0.044), (0.034, 0.041)], min(sx * (HU + 0.0090), sx * (HU + 0.0112)),
-                 max(sx * (HU + 0.0090), sx * (HU + 0.0112)), 'steel', ch=0)
-        r5.ext_x([(0.122, 0.0465), (0.034, 0.0490), (0.008, 0.0440), (0.034, 0.0465)], min(sx * (HU + 0.0104), sx * (HU + 0.0127)),
-                 max(sx * (HU + 0.0104), sx * (HU + 0.0127)), 'trim', ch=0, hull=False)
-    r5.ext_x([(-0.292, -0.066), (-0.312, -0.072), (-0.320, -0.096), (-0.302, -0.080)], -0.0030, 0.0030, 'steel', ch=0)
     m5 = Kit(pal)
     for z in (-0.008, -0.052):
         m5.box((0, 0, z), (0.036, 0.068, 0.003), 'trim')

@@ -70,7 +70,6 @@ def build_hothead(pal):
     band(k, -0.2100, -0.2055, R, 0.0045, 'trim', C)
     band(k, -0.192, -0.062, R, 0.0055, 'furn', C, hull=True)
     grooves(k, -0.192, -0.066, R + 0.0055, bz, n=3, seg=16)
-    stencil(k, 'DANGER', (R + 0.0055) * math.cos(math.pi / 16), -0.149, bz - 0.003, cap=0.006, font='cond')
     with k.at(C, (0, -22.5, 0)):                                                                                  # optical sight bracket and its thumb screw
         k.cbox((0, 0.020, AP + 0.0030), (0.012, 0.060, 0.008), 'steel2', ch=0.002, axis='y')
         for y in (0.000, 0.040):
@@ -93,8 +92,6 @@ def build_hothead(pal):
                 ((0, 0.100, R + 0.006), 0.010, 0.009)], 'gun2', sides=6, up=(1, 0, 0))
         k.lathe([(0.030, 0), (0.030, 0.0072), (0.080, 0.0072), (0.080, 0)], 'rubber', 'y', (0, 0, R + 0.030), 8)
     # ---- stencils: model name and backblast chevrons (right), model code (left)
-    stencil(k, 'RL-3 HOTHEAD', AP, 0.058, bz - 0.0050, cap=0.010, sides=(1,))
-    stencil(k, 'RL-3', AP, 0.122, bz - 0.0055, cap=0.011, sides=(-1,))
     for i in range(3):
         y = -0.056 + i * 0.014
         plate(k, [(y, bz), (y + 0.007, bz + 0.0070), (y + 0.011, bz + 0.0070), (y + 0.004, bz), (y + 0.011, bz - 0.0070), (y + 0.007, bz - 0.0070)], AP, 'mark',
@@ -126,7 +123,6 @@ def build_hothead(pal):
     plate(k, [(-0.048, 0.002), (0.060, 0.002), (0.066, 0.008), (0.066, 0.027), (-0.048, 0.027)], 0.020, 'frame2')
     plate(k, rect(-0.046, 0.068, -0.0055, -0.0030), 0.020, 'trim', ch=0)
     studs(k, 0.020 + PR, [(-0.042, 0.022), (0.060, 0.022)])
-    stencil(k, 'RL-3', 0.020 + PR, 0.028, 0.008, cap=0.011, sides=(1,))
     k.lathe([(0.017, 0.0050), (0.0255, 0.0050), (0.0255, 0)], 'steel2', (V((-1, 0, 0)), V((0, 1, 0)), V((0, 0, -1))), (0, 0.016, 0.017), 8, hull=False, caps=(False, True))
     k.xbar(-0.0285, -0.0255, [(-0.004, 0.0125), (0.018, 0.0125), (0.020, 0.0215), (-0.002, 0.0200)], 'gun3', ch=0, hull=False)
     k.box((-0.0215 - PR / 2 + 0.0005, -0.014, 0.022), (PR + 0.001, 0.004, 0.004), 'mark', skip=sk(-1))
@@ -147,7 +143,6 @@ def build_hothead(pal):
     for s in (-1, 1):
         for y in (-0.024, 0.024):
             mk.box((s * (0.023 + PR / 2 - 0.0005), y, -0.036), (PR + 0.001, 0.005, 0.040), 'frame2', skip=sk(s))
-    stencil(mk, 'HE-3', 0.023, 0.0, -0.036, cap=0.009)
     hazard(mk, 0.023, -0.018, 0.014, -0.054, -0.048, n=4)
 
     # ---- Rare (and up): bell guard, rangefinder with its cable, sling, rocket counter
@@ -250,21 +245,16 @@ def build_murmur(pal):
     k.cbox((0, 0.040, bz), (FW - 0.006, 0.008, FH - 0.006), 'steel2', ch=0.003, axis='y')
     for y in (0.176, -0.090):
         k.box((0, y, bz), (FW - 0.006, 0.004, FH - 0.010), 'trim')
-    for i, x in enumerate((-dx, 0.0, dx)):
-        top_stencil(k, str(i + 1), ZT, -0.064, cap=0.012, x=x)
     # ---- front cover folded back on top, side data panels
     k.cbox((0, 0.187, ZT + 0.0024), (0.112, 0.062, 0.005), 'gun2', ch=0.002, axis='z')
     k.pin(-0.050, 0.050, 0.2185, ZT + 0.0050, 0.0028, color='steel2')
     top_slots(k, ZT + 0.0049, 0.192, 0.214, 2, w=0.070, fill=0.3)
-    top_stencil(k, 'COVER', ZT + 0.0049, 0.160, cap=0.007)
     for s in (-1, 1):
         k.cbox((s * (dx + R - 0.0015), 0.086, bz), (0.005, 0.078, 0.026), 'body2', ch=0.001, axis='y')
         for (y, zz) in ((0.052, 0.009), (0.120, 0.009), (0.052, -0.009), (0.120, -0.009)):
             bolt(k, (s * (dx + R + 0.001), y, bz + zz), (s, 0, 0), 0.0022, 0.0020, socket=False)
         k.cbox((s * (dx + R - 0.0015), -0.042, bz), (0.005, 0.050, 0.022), 'body2', ch=0.001, axis='y')
     hazard(k, dx + R + 0.001, -0.062, -0.028, bz - 0.0070, bz + 0.0070, n=4)
-    stencil(k, 'MURMUR', dx + R + 0.001, 0.086, bz - 0.0045, cap=0.010, sides=(1,))
-    stencil(k, 'ML-6', dx + R + 0.001, 0.086, bz - 0.0050, cap=0.011, sides=(-1,))
     with k.at((dx, 0, ZT)):                                                                                       # carrying handle on the right-hand tube
         for y in (-0.036, 0.030):
             k.cbox((0, y, 0.0035), (0.014, 0.012, 0.009), 'steel2', ch=0.002, axis='y', hull=False)
@@ -286,7 +276,6 @@ def build_murmur(pal):
             (tx - 0.0160, 0, tz - 0.0160), 8, bands=[None, None, 'steel2', 'steel2', 'steel2'])
     cable(k, [(tx - 0.0160, ty + 0.036, tz - 0.0160), (tx - 0.0200, ty + 0.046, tz - 0.0100), (tx - 0.0190, ty + 0.054, tz), (tx - 0.0140, ty + 0.056, tz + 0.004)], r=0.0026)
     plate(k, rect(ty - 0.040, ty + 0.040, tz + 0.008, tz + 0.011), -tx + 0.017, 'trim', ch=0, sides=(-1,))
-    stencil(k, 'CLU', -tx + 0.017, ty, tz - 0.006, cap=0.008, sides=(-1,))
     k.cbox((tx + 0.004, ty - 0.020, tz + 0.020), (0.010, 0.010, 0.008), 'red', ch=0.002)
     for i in range(2):
         k.box((tx - 0.004 + i * 0.010, ty + 0.012, tz + 0.018 + PR / 2 - 0.0005), (0.006, 0.010, PR + 0.001), 'rubber', skip=('-z',))
@@ -313,7 +302,6 @@ def build_murmur(pal):
     plate(k, [(-0.048, 0.002), (0.056, 0.002), (0.066, 0.012), (0.066, 0.027), (-0.048, 0.027)], 0.020, 'frame2')
     plate(k, rect(-0.046, 0.068, -0.0055, -0.0030), 0.020, 'trim', ch=0)
     studs(k, 0.020 + PR, [(-0.042, 0.022), (0.060, 0.022)])
-    stencil(k, 'ML-6', 0.020 + PR, 0.028, 0.008, cap=0.011, sides=(1,))
     k.lathe([(0.017, 0.0050), (0.0255, 0.0050), (0.0255, 0)], 'steel2', (V((-1, 0, 0)), V((0, 1, 0)), V((0, 0, -1))), (0, 0.016, 0.017), 8, hull=False, caps=(False, True))
     k.xbar(-0.0285, -0.0255, [(-0.004, 0.0125), (0.018, 0.0125), (0.020, 0.0215), (-0.002, 0.0200)], 'gun3', ch=0, hull=False)
     k.box((-0.0215 - PR / 2 + 0.0005, -0.014, 0.022), (PR + 0.001, 0.004, 0.004), 'mark', skip=sk(-1))
@@ -333,7 +321,6 @@ def build_murmur(pal):
     for s in (-1, 1):
         for y in (-0.027, 0.027):
             mk.box((s * (0.025 + PR / 2 - 0.0005), y, -0.032), (PR + 0.001, 0.005, 0.036), 'frame2', skip=sk(s))
-    stencil(mk, 'HM-6', 0.025, 0.0, -0.034, cap=0.009)
     hazard(mk, 0.025, -0.018, 0.014, -0.049, -0.044, n=4)
 
     # ---- Rare (and up): seeker bumper, illuminator and cable, missile counter, CLU sun shield, sling
