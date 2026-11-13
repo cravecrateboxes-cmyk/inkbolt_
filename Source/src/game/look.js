@@ -34,7 +34,7 @@
       uInkFade: { value: new THREE.Vector2(d.ink.fade[0], d.ink.fade[1]) },
       uGrid: { value: null }, uGridO: { value: new THREE.Vector4(0, 0, 1, 1) }, uGridY: { value: new THREE.Vector4(0.9, 2.6, 1, 0.01) },
       uGridI: { value: 0 }, uGridOn: { value: 0 },
-      uDetail: { value: null }, uDetailOn: { value: 0 },
+      uDetail: { value: null }, uDetailOn: { value: 0 }, uWet: { value: 0 }, uCaustic: { value: 0 }, uTime: { value: 0 },
       uGExpo: { value: 1 }, uGSat: { value: 1 }, uGCon: { value: 0 }, uGLo: { value: v3([1, 1, 1]) }, uGHi: { value: v3([1, 1, 1]) },
       uFlashP: { value: [0, 1, 2, 3].map(function () { return new THREE.Vector4(0, -999, 0, 1); }) },
       uFlashC: { value: [0, 1, 2, 3].map(function () { return new THREE.Vector4(0, 0, 0, 0); }) }
@@ -83,8 +83,10 @@
     if (IB.Shadows) IB.Shadows.begin(level);
     // the light volume: lamps modelled in the map are its lights; the start zone bakes now (the loader covers it)
     if (IB.LightGrid) { IB.LightGrid.begin(level, L); IB.LightGrid.bakeZoneNow(0); }
+    if (IB.Atmo) IB.Atmo.beginExtras(level, L);   // dust, lamp cones (Stage 7)
+    U.uWet.value = L.wet || 0; U.uCaustic.value = level.theme && level.theme.id === 'seabase' ? 1 : 0;
   };
-  Look.end = function () { Look.cur = null; if (IB.Shadows) IB.Shadows.end(); if (IB.LightGrid) IB.LightGrid.end(); };
+  Look.end = function () { Look.cur = null; if (IB.Atmo) IB.Atmo.endExtras(); if (IB.Shadows) IB.Shadows.end(); if (IB.LightGrid) IB.LightGrid.end(); };
   /* Flash lights (Stage 4.5): muzzle flashes and blasts light the world for a moment. 4 slots (fewer on low tiers),
      linear decay, inverse-square falloff with a radius cutoff, no shadows. Halved with Settings > reduce flashes. */
   var flashes = [0, 1, 2, 3].map(function () { return { t: 0, life: 0, i: 0 }; });
@@ -137,6 +139,12 @@
       if (I > best) { best = I; fr = C.x * I; fg = C.y * I; fb = C.z * I; }
     }
     V.uVmFlash.value.set(fr, fg, fb);
+    // smoke puffs (boom.js): sun direction and the light level around the player (plan 8.5)
+    var B = IB.Boom;
+    if (B && B.puffMesh && B.puffMesh.material.uniforms.uPuffK) {
+      var pu = B.puffMesh.material.uniforms, pk = Math.min(1.1, 0.25 + vm.k * 0.85);
+      pu.uLight.value.copy(Look.sunDir); pu.uPuffK.value.set(pk * vm.r, pk * vm.g, pk * vm.b);
+    }
   }
 
   // every frame, after the theme ticks, before R.render
@@ -157,6 +165,8 @@
     updateViewmodel(dt);
     if (IB.Atmo) IB.Atmo.updateHaze();
     if (IB.Shadows) IB.Shadows.update();
+    if (IB.Atmo) IB.Atmo.updateExtras(dt, vm.k);
+    U.uTime.value += dt;
     if (IB.LightGrid && IB.LightGrid.ready) {
       var G = IB.Game;
       if (G.zone !== Look._zone) { Look._zone = G.zone; IB.LightGrid.prioritise(G.zone || 0); }

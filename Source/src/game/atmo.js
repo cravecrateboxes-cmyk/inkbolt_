@@ -120,4 +120,98 @@
     var u = R.sky.material.uniforms;
     u.uClouds.value = look.sky.clouds; u.uDisc.value = look.sky.sunDisc ? 1 : 0;
   };
+
+  /* ---- Stage 7 extras (medium and high tiers only; absent on low and potato) ----
+     Dust motes: one Points cloud in a 14 m box that wraps around the camera, drifting; brightness from the light
+     volume at the camera (one CPU sample a frame) and the sun where the sky is visible. Kinds per look.dust:
+     'wind' / 'beams' / 'heavy' / 'motes' (dust), 'pollen', 'snow', 'embers', null (none).
+     Lamp cones: soft additive cones under the 32 nearest downward-facing lamp emitters, one instanced draw. */
+  var DUST = { wind: { n: 1, col: [1.0, 0.92, 0.80], size: 0.05, fall: 0.02, drift: 0.35 }, beams: { n: 0.8, col: [1.0, 0.95, 0.85], size: 0.04, fall: 0.01, drift: 0.08 },
+    heavy: { n: 1, col: [0.95, 0.92, 0.88], size: 0.045, fall: 0.02, drift: 0.06 }, motes: { n: 0.7, col: [1.0, 0.94, 0.80], size: 0.035, fall: 0.005, drift: 0.05 },
+    pollen: { n: 0.6, col: [1.0, 0.97, 0.75], size: 0.05, fall: 0.03, drift: 0.25 }, snow: { n: 1.2, col: [1.0, 1.0, 1.0], size: 0.08, fall: 0.7, drift: 0.3 },
+    embers: { n: 0.5, col: [1.0, 0.55, 0.2], size: 0.06, fall: -0.4, drift: 0.2 } };
+  var X = { dust: null, cones: null, kind: null, t: 0 }, BOX = 14;
+  function dustMat() {
+    return new THREE.ShaderMaterial({
+      uniforms: { uCol: { value: new THREE.Vector3(1, 1, 1) }, uSize: { value: 0.05 }, uScale: { value: 400 }, uCam: { value: new THREE.Vector3() }, uT: { value: 0 }, uFall: { value: 0 }, uDrift: { value: 0 } },
+      vertexShader: [
+        'uniform float uSize, uScale, uT, uFall, uDrift; uniform vec3 uCam; attribute float aSeed; varying float vA;',
+        'void main() {',
+        '  vec3 p = position + vec3( sin( uT * 0.3 + aSeed * 6.28 ) * uDrift * 2.0 + uT * uDrift, -uT * uFall, cos( uT * 0.23 + aSeed * 4.1 ) * uDrift * 2.0 );',
+        '  p = uCam + mod( p - uCam + ' + (BOX / 2).toFixed(1) + ', ' + BOX.toFixed(1) + ' ) - ' + (BOX / 2).toFixed(1) + ';',
+        '  vec4 mv = modelViewMatrix * vec4( p, 1.0 );',
+        '  float d = -mv.z; vA = smoothstep( 0.4, 1.5, d ) * ( 1.0 - smoothstep( 5.0, 7.0, d ) ) * ( 0.55 + 0.45 * sin( uT * 1.7 + aSeed * 40.0 ) );',
+        '  gl_PointSize = uSize * uScale / max( d, 0.1 );',
+        '  gl_Position = projectionMatrix * mv;',
+        '}'].join('\n'),
+      fragmentShader: 'uniform vec3 uCol; varying float vA; void main() { vec2 q = gl_PointCoord - 0.5; float a = smoothstep( 0.25, 0.0, dot( q, q ) ) * vA; if ( a < 0.01 ) discard; gl_FragColor = vec4( uCol * a, a ); }',
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false
+    });
+  }
+  function coneMat() {
+    return new THREE.ShaderMaterial({
+      uniforms: { uI: { value: 0.18 } },
+      vertexShader: 'attribute vec3 aCol; varying vec3 vCol; varying float vF; varying float vY; void main() { vCol = aCol; vY = uv.y;' +
+        ' vec4 w = modelMatrix * instanceMatrix * vec4( position, 1.0 ); vec3 n = normalize( mat3( modelMatrix * instanceMatrix ) * normal );' +
+        ' vec3 v = normalize( cameraPosition - w.xyz ); vF = pow( abs( dot( n, v ) ), 1.5 ); gl_Position = projectionMatrix * viewMatrix * w; }',
+      fragmentShader: 'uniform float uI; varying vec3 vCol; varying float vF; varying float vY; void main() { float a = vF * smoothstep( 0.0, 0.35, vY ) * ( 0.25 + 0.75 * vY ) * uI; gl_FragColor = vec4( vCol * a, a ); }',
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false
+    });
+  }
+  Atmo.beginExtras = function (level, L) {
+    Atmo.endExtras();
+    var R = IB.Render, T = IB.LOOKS.tier(R.tier);
+    if (!IB.Look.on || T.dust <= 0) return;
+    var theme = level.theme || {}, kind = L.dust;
+    if (theme.id === 'mountains' || theme.id === 'arctic' || theme.id === 'seabase') kind = null;   // own snow / marine snow: do not double
+    if (theme.id === 'foundry') kind = 'embers';
+    X.kind = kind;
+    if (kind && DUST[kind] && T.dust >= 1) {
+      var D = DUST[kind], n = Math.round((R.tier === 'high' ? 400 : 150) * D.n), pos = new Float32Array(n * 3), seed = new Float32Array(n);
+      for (var i = 0; i < n; i++) { pos[i * 3] = Math.random() * BOX; pos[i * 3 + 1] = Math.random() * BOX; pos[i * 3 + 2] = Math.random() * BOX; seed[i] = Math.random(); }
+      var g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
+      var m = dustMat(); m.uniforms.uSize.value = D.size; m.uniforms.uFall.value = D.fall; m.uniforms.uDrift.value = D.drift;
+      X.dust = new THREE.Points(g, m); X.dust.frustumCulled = false; X.dust.renderOrder = 8; X.dustDef = D;
+      R.scene.add(X.dust);
+    }
+    // lamp cones from downward-facing lamp emitters
+    var lights = (IB.LightGrid && IB.LightGrid.lights()) || [], down = lights.filter(function (l) { return l.ny < -0.6 && l.lamp > 0.3 && l.s > 0.25; });
+    if (down.length && T.dust >= 1) {
+      var cg = new THREE.CylinderGeometry(0.12, 1, 1, 16, 1, true); cg.translate(0, -0.5, 0);   // apex at the lamp, unit height downward
+      var uv = cg.attributes.uv; for (var k = 0; k < uv.count; k++) uv.setY(k, uv.getY(k));   // uv.y: 1 at the lamp, 0 at the floor
+      var N = 32, im = new THREE.InstancedMesh(cg, coneMat(), N), col = new Float32Array(N * 3);
+      cg.setAttribute('aCol', new THREE.InstancedBufferAttribute(col, 3));
+      im.frustumCulled = false; im.renderOrder = 7; im.count = 0;
+      X.cones = { mesh: im, list: down, col: col, last: -1 };
+      R.scene.add(im);
+    }
+  };
+  var _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3();
+  Atmo.updateExtras = function (dt, vmk) {
+    if (!X.dust && !X.cones) return;
+    var R = IB.Render, c = R.camera.position;
+    X.t += dt;
+    if (X.dust) {
+      var u = X.dust.material.uniforms, D = X.dustDef, k = Math.min(1.2, 0.15 + (vmk || 0.5)) * 0.55;
+      u.uT.value = X.t; u.uCam.value.copy(c); u.uScale.value = R.height * R.pixelRatio * 0.6;
+      u.uCol.value.set(D.col[0] * k, D.col[1] * k, D.col[2] * k);
+    }
+    if (X.cones && (X.t - X.cones.last > 0.5)) {   // re-pick the 32 nearest lamps twice a second
+      X.cones.last = X.t;
+      var C = X.cones, world = IB.Game.level && IB.Game.level.world, list = C.list.slice().sort(function (a, b) { return ((a.x - c.x) * (a.x - c.x) + (a.z - c.z) * (a.z - c.z)) - ((b.x - c.x) * (b.x - c.x) + (b.z - c.z) * (b.z - c.z)); });
+      var n = Math.min(32, list.length);
+      for (var i = 0; i < n; i++) {
+        var L = list[i], fy = world ? world.floorAt(L.x, L.z, L.y - 0.2) : 0, h = Math.max(0.5, Math.min(12, L.y - (fy || 0)));
+        _p.set(L.x, L.y, L.z); _s.set(h * 0.45, h, h * 0.45); _m4.compose(_p, _q, _s); C.mesh.setMatrixAt(i, _m4);
+        var g = Math.min(1, L.s / 1.5); C.col[i * 3] = L.r * g; C.col[i * 3 + 1] = L.g * g; C.col[i * 3 + 2] = L.b * g;
+      }
+      C.mesh.count = n; C.mesh.instanceMatrix.needsUpdate = true; C.mesh.geometry.attributes.aCol.needsUpdate = true;
+    }
+  };
+  Atmo.endExtras = function () {
+    var R = IB.Render;
+    if (X.dust) { R.scene.remove(X.dust); X.dust.geometry.dispose(); X.dust.material.dispose(); X.dust = null; }
+    if (X.cones) { R.scene.remove(X.cones.mesh); X.cones.mesh.geometry.dispose(); X.cones.mesh.material.dispose(); X.cones = null; }
+    X.t = 0;
+  };
 })(window.IB = window.IB || {});

@@ -14,7 +14,7 @@
 
   T.init = function (scene) {
     var A = IB.Assets, geo = A.get('HELD_Frag');
-    var mat = IB.Render.toonMaterial({ map: A.palette.weapons, baked: A.BAKED ? A.BAKED.weapons : 0 });
+    var mat = IB.Render.toonMaterial({ map: A.palette.weapons, baked: A.BAKED ? A.BAKED.weapons : 0, look: 'actor', surf: IB.Surface && IB.Surface.surf('weapons') });
     var ringMat = new THREE.MeshBasicMaterial({ color: IB.PAL.red, transparent: true, opacity: 0.55, depthWrite: false });
     var ringGeo = new THREE.RingGeometry(0.92, 1, 40);
     for (var i = 0; i < CAP; i++) {

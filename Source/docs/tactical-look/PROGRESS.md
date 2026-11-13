@@ -68,3 +68,24 @@ Stage 3), `?post=0` (the look without the post pass: the low-tier path).
   existing non-determinism, not caused by the look.
 - Stage 6: bars and comic words are drawn after the grade on layer 1. The bars test a packed copy of the world
   depth (taken before the viewmodel pass clears depth) and hide behind the gun via the viewmodel depth.
+
+### Gate results (stages 1 to 6)
+
+- Stage 1 passthrough (`?look=classic&post=1` vs `?look=classic`, metro + stronghold, 6 views): 99.88% to 100% of
+  pixels within 3/255 outside the gun (gate 99.5%). Differences inside the gun box are the idle sway, which
+  differs between any two runs.
+- `?look=classic` vs the untouched build: identical outside the gun box on metro; stronghold differs only in timed
+  animation (waterfalls, puffs). No change in the classic look.
+- HUD lock with the look on: file lock clean, HUD views 0 pixels different at 1280x720, 1920x1080, 844x390. Enemy
+  bars: interior bar pixels within 1/255 (the check now masks the baseline's bar pixels eroded by 1 px, because the
+  graded background legitimately changes the antialiased edges).
+- Light calibration: the prototype's sun intensity (2.6) blew sunlit snow out (22% of pixels clipped). Lit
+  surfaces must stay under white by construction (section 4.2), so all light levels were rescaled: defaults
+  sun 1.5 / ambient 0.40; mountains sun 0.95 (0.8% clipped after).
+- Stage 7: dust motes (one Points draw, kinds per family; none in mountains, arctic, seabase which have their
+  own snow), lamp cones under downward lamp emitters (one instanced draw, 32 nearest), wetness (`look.wet`:
+  parking 0.5, scrapyard 0.5, seabase 0.4, cargoship 0.3, metro 0.2), seabase caustics. Medium and high only.
+- Stage 8: robots, troopers, debris, canisters, thrown items, rockets, gems, world guns and moving lines use the
+  look ('actor' = no tiling detail + a cool rim that grows in the dark); robot light parts are fully emissive;
+  actors receive the sun shadow; smoke puffs follow the sun and the local light; GunSkins world instances take
+  the light volume at their own position (viewmodel and inventory instances untouched).

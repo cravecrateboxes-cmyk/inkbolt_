@@ -273,7 +273,7 @@
     // one gem mesh (fps-weapons PICKUP_Gem), three gem types by instance colour and scale (brief 4.6)
     FX.gemCap = 240;
     // gems shine: their own toon material with a cool blue self-light, so the facets read bright diamond blue in any light
-    var gemMat = IB.Render.toonMaterial({ map: IB.Assets.palette.weapons, baked: IB.Assets.BAKED ? IB.Assets.BAKED.weapons : 0 });
+    var gemMat = IB.Render.toonMaterial({ map: IB.Assets.palette.weapons, baked: IB.Assets.BAKED ? IB.Assets.BAKED.weapons : 0, look: 'actor', surf: IB.Surface && IB.Surface.surf('weapons') });
     gemMat.emissive = new THREE.Color(0x1E4E7A);
     FX.gemMesh = new THREE.InstancedMesh(IB.Assets.get('PICKUP_Gem'), gemMat, FX.gemCap);
     FX.gemMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); FX.gemMesh.frustumCulled = false;

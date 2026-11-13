@@ -30,7 +30,7 @@
   L.init = function (scene) {
     var A = IB.Assets;
     L.scene = scene;
-    var mat = IB.Render.toonMaterial({ map: A.palette.weapons, baked: A.BAKED ? A.BAKED.weapons : 0 });
+    var mat = IB.Render.toonMaterial({ map: A.palette.weapons, baked: A.BAKED ? A.BAKED.weapons : 0, look: 'actor', surf: IB.Surface && IB.Surface.surf('weapons') });
     if (A.geo.PROJ_Rocket) {
       L.mesh = new THREE.InstancedMesh(A.get('PROJ_Rocket'), mat, ROCKET_CAP);
       L.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); L.mesh.frustumCulled = false; L.mesh.count = 0; scene.add(L.mesh);

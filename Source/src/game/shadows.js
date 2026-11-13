@@ -82,6 +82,7 @@
   // per frame (IB.Look.update): follow the player; re-render while gates, doors or lifts move
   Sh.update = function () {
     if (!Sh.on) return;
+    actorT += 1; if (actorT % 60 === 1) markActors();
     if (R.tier !== lastKey) { lastKey = R.tier; Sh.begin(IB.Game.level); return; }
     Sh.refit(false);
     var level = IB.Game.level, v = 0;
@@ -94,6 +95,11 @@
     if (sig >= 0 && Math.abs(v - sig) > 1e-4) Sh.dirty();
     sig = v;
   };
+  // actors (robots, troopers, debris, pickups) live outside the level root and spawn later: receive the sun shadow
+  var actorT = 0;
+  function markActors() {
+    R.scene.traverse(function (o) { if ((o.isMesh || o.isInstancedMesh) && o.material && o.material.userData && o.material.userData.look === 'actor' && !o.receiveShadow) o.receiveShadow = true; });
+  }
   Sh.end = function () {
     Sh.on = false; center = null; sig = -1;
     if (R) { R.renderer.shadowMap.enabled = false; R.sun.castShadow = false; }

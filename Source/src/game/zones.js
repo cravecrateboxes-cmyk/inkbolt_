@@ -832,7 +832,7 @@
   var lineMats = {};
   function lineMat(fam) {
     if (lineMats[fam]) return lineMats[fam];
-    var m = IB.Render.toonMaterial({ map: IB.Assets.palette[fam], baked: IB.Assets.BAKED[fam] !== undefined ? IB.Assets.BAKED[fam] : 0.02 });
+    var m = IB.Render.toonMaterial({ map: IB.Assets.palette[fam], baked: IB.Assets.BAKED[fam] !== undefined ? IB.Assets.BAKED[fam] : 0.02, look: 'world', surf: IB.Surface && IB.Surface.surf(fam) });   // moving lines: the kit's surfaces
     var base = m.onBeforeCompile, key = m.customProgramCacheKey;
     m.onBeforeCompile = function (sh) {
       base(sh);

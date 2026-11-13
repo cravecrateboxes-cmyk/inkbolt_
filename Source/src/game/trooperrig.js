@@ -82,7 +82,7 @@
      (the carbine's vertices, aMask 0, are clipped away); U: share the flash uniform with the rig's other mesh */
   function soldierMat(tex, hideGun, U) {
     U = U || { value: new THREE.Vector3() };
-    var m = IB.Render.toonMaterial({ map: tex, skinning: true, uni: IB.Render.robotOutline, baked: IB.Assets.BAKED.troopers });
+    var m = IB.Render.toonMaterial({ map: tex, skinning: true, uni: IB.Render.robotOutline, baked: IB.Assets.BAKED.troopers, look: 'actor', surf: IB.Surface && IB.Surface.surf('troopers') });
     var base = m.onBeforeCompile;
     m.onBeforeCompile = function (sh) {
       base(sh);

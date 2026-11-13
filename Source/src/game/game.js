@@ -214,7 +214,7 @@
     var A = IB.Assets, guns = rackGuns(), WD = IB.WeaponDrops, LT = IB.LOOT, AR = G.level.theme.armory || {}, TIERS = AR.tiers || ARMORY_TIERS, GEAR = AR.gear || ARMORY_GEAR;
     var attach = Object.keys(LT.types).filter(function (k) { return LT.slots.indexOf(LT.types[k].slot) >= 0; });
     var worn = Object.keys(LT.types).filter(function (k) { return LT.worn.indexOf(LT.types[k].slot) >= 0; });
-    if (!G.worldWpnMat) G.worldWpnMat = R.toonMaterial({ map: A.palette.weapons, baked: A.BAKED ? A.BAKED.weapons : 0, outMax: 0.02 });
+    if (!G.worldWpnMat) G.worldWpnMat = R.toonMaterial({ map: A.palette.weapons, baked: A.BAKED ? A.BAKED.weapons : 0, outMax: 0.02, look: 'actor', surf: IB.Surface && IB.Surface.surf('weapons') });
     G.level.zones.forEach(function (z, zi) {
       var groups = {}, tags = [];
       (z.mounts || []).forEach(function (m) {
@@ -372,7 +372,7 @@
     G.weaponStands = [];
     if (G.mode === 'title') return;
     var z0 = G.level.zones[0], theme = G.level.theme, A = IB.Assets, standName = IB.themePiece(theme, theme.stand || 'Crate');
-    if (!G.worldWpnMat) G.worldWpnMat = R.toonMaterial({ map: A.palette.weapons, baked: A.BAKED.weapons, outMax: 0.02 });
+    if (!G.worldWpnMat) G.worldWpnMat = R.toonMaterial({ map: A.palette.weapons, baked: A.BAKED.weapons, outMax: 0.02, look: 'actor', surf: IB.Surface && IB.Surface.surf('weapons') });
     ensureSlot();
     ids = ids.filter(function (id) {
       var def = IB.WEAPONS[id]; if (!def) return false;
@@ -862,7 +862,7 @@
     G.pickups = [];
     var geo = { ammo: IB.Assets.get('PICKUP_Ammo'), health: IB.Assets.get('PICKUP_Health') };
     // their own material: the ink outline is capped at 2 cm, so a box across the zone is not swallowed in black
-    var pkMat = R.toonMaterial({ map: IB.Assets.palette.weapons, baked: IB.Assets.BAKED ? IB.Assets.BAKED.weapons : 0, outMax: 0.02 });
+    var pkMat = R.toonMaterial({ map: IB.Assets.palette.weapons, baked: IB.Assets.BAKED ? IB.Assets.BAKED.weapons : 0, outMax: 0.02, look: 'actor', surf: IB.Surface && IB.Surface.surf('weapons') });
     // big levels place up to ~10 of each on the map; robots drop more (ammo) and the health director adds cans
     for (var i = 0; i < 44; i++) {
       var kind = i < 22 ? 'ammo' : 'health';

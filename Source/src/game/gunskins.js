@@ -224,6 +224,23 @@
     mat.userData.tactical = true;
     return mat;
   };
+  /* Tactical look (plan 8.6): a gun lying or hanging in the world takes the light volume at its own position (sky
+     visibility for the sun, lamp light), so it does not glow in a dark armoury. Viewmodel and inventory instances are
+     other material objects and stay as they are. */
+  function worldGun(sh) {
+    var U = IB.Look.U;
+    ['uGrid', 'uGridO', 'uGridY', 'uGridI', 'uGridOn'].forEach(function (k) { sh.uniforms[k] = U[k]; });
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vIbW;')
+      .replace('vHull = 0.0;', 'vHull = 0.0;\n{ vec4 ibWp = vec4( transformed, 1.0 );\n#ifdef USE_INSTANCING\n ibWp = instanceMatrix * ibWp;\n#endif\n vIbW = ( modelMatrix * ibWp ).xyz; }');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vIbW;\n' +
+      'uniform sampler2D uGrid; uniform vec4 uGridO; uniform vec4 uGridY; uniform float uGridI, uGridOn;\n' +
+      'vec4 ibGridAtW( vec3 p ) { float n = uGridY.z, f = clamp( ( p.y - uGridY.x ) / uGridY.y, 0.0, n - 1.0 ), s0 = floor( f ), s1 = min( s0 + 1.0, n - 1.0 );\n' +
+      '  float u = ( p.x - uGridO.x ) * uGridO.z, vz = clamp( ( p.z - uGridO.y ) * uGridO.w, uGridY.w, 1.0 - uGridY.w );\n' +
+      '  return mix( texture2D( uGrid, vec2( u, ( vz + s0 ) / n ) ), texture2D( uGrid, vec2( u, ( vz + s1 ) / n ) ), f - s0 ); }\n')
+      .replace('vec3 outgoingLight = ibCol + totalEmissiveRadiance;', 'if ( uGridOn > 0.5 ) { vec4 ibGw = ibGridAtW( vIbW + vec3( 0.0, 0.3, 0.0 ) );' +
+        ' ibCol *= clamp( ibGw.a * 0.85 + dot( ibGw.rgb * ibGw.rgb * 4.0 * uGridI, vec3( 0.2126, 0.7152, 0.0722 ) ) * 0.6 + 0.12, 0.12, 1.0 ); }\n' +
+        'vec3 outgoingLight = ibCol + totalEmissiveRadiance;');
+  }
   /* outMax (optional): outline width cap for a gun shown enlarged in the world (IB.Render.toonMaterial) */
   GS.material = function (gunId, tier, uni, outMax) {
     var R = IB.Render, A = IB.Assets;
@@ -245,6 +262,7 @@
       for (var k in U) sh.uniforms[k] = U[k];
       var LK = uni === R.vmOutline ? VM_LIGHT : WORLD_LIGHT;
       for (k in LK) sh.uniforms[k] = LK[k];
+      if (uni !== R.vmOutline && IB.Look && IB.Look.on && IB.Look.U) worldGun(sh);
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vIbP; varying vec3 vIbN;')
         .replace('vHull = 0.0;', 'vHull = 0.0; vIbP = position; vIbN = normal;');
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + FRAG_PARS)

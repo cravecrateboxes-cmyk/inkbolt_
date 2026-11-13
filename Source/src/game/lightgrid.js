@@ -45,9 +45,10 @@
       var area = e.length() / 2; if (area < 1e-5) continue;
       var mx = a.x + (b.x + c.x) / 3, my = a.y + (b.y + c.y) / 3, mz = a.z + (b.z + c.z) / 3;
       var key = Math.floor(mx / CELL) + ',' + Math.floor(my / CELL) + ',' + Math.floor(mz / CELL), E = hash.get(key);
-      if (!E) { E = { x: 0, y: 0, z: 0, a: 0, r: 0, g: 0, b: 0, w: 0 }; hash.set(key, E); }
+      if (!E) { E = { x: 0, y: 0, z: 0, a: 0, r: 0, g: 0, b: 0, w: 0, ny: 0, lamp: 0 }; hash.set(key, E); }
       var col = hexRgb(T.col[cell]), k = area * w * mult;
       var sk = fam + ':' + T.names[cell] + (all ? '*' : ''); LG.cellStats[sk] = (LG.cellStats[sk] || 0) + k;   // diagnostics: light per cell
+      E.ny += (e.y / (2 * area)) * k; if (T.names[cell] && /^(lamp|light|bulb|sodium|lit)/i.test(T.names[cell])) E.lamp += k;   // facing (lamp cones)
       E.x += mx * k; E.y += my * k; E.z += mz * k; E.a += area * mult; E.w += k; E.r += col[0] * k; E.g += col[1] * k; E.b += col[2] * k;
     }
   }
@@ -69,7 +70,7 @@
     hash.forEach(function (E) {
       if (E.w < 1e-4) return;
       var s = Math.min(2.2, E.a * 2.4) * (E.w / E.a);
-      out.push({ x: E.x / E.w, y: E.y / E.w, z: E.z / E.w, s: s, r: E.r / E.w, g: E.g / E.w, b: E.b / E.w });
+      out.push({ x: E.x / E.w, y: E.y / E.w, z: E.z / E.w, s: s, r: E.r / E.w, g: E.g / E.w, b: E.b / E.w, ny: E.ny / E.w, lamp: E.lamp / E.w });
     });
     out.sort(function (p, q) { return q.s - p.s; });
     return out.slice(0, CAP);
@@ -360,5 +361,6 @@
     V = null; queue = []; cur = null; LG.ready = false; LG.maxSliceMs = 0;
     if (IB.Look && IB.Look.U) { IB.Look.U.uGridOn.value = 0; IB.Look.U.uGrid.value = null; }
   };
+  LG.lights = function () { return V ? V.lights : []; };
   LG.info = function () { return V ? { W: V.W, H: V.H, n: V.n, lights: V.lights.length, zones: LG.stats, collectMs: Math.round(LG.collectMs), maxSliceMs: +(LG.maxSliceMs || 0).toFixed(1) } : null; };
 })(window.IB = window.IB || {});

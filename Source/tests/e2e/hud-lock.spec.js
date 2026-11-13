@@ -52,8 +52,12 @@ if a.shape != b.shape:
 d = np.abs(a - b).max(-1)
 m = np.ones(d.shape, bool)
 if sys.argv[4] == 'bars':
+    # the bar pixels of the baseline, eroded by 1 px: the background behind the bars is graded with the look on,
+    # so antialiased edges legitimately differ; the bars' own pixels must not
     bg = np.array([40, 40, 40])
-    m = (np.abs(a - bg).max(-1) > 6) | (np.abs(b - bg).max(-1) > 6)
+    m = np.abs(a - bg).max(-1) > 6
+    for dy, dx in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+        m = m & np.roll(np.roll(m, dy, 0), dx, 1)
 n = max(1, int(m.sum()))
 print('%.6f %d %.6f %d' % (((d > 0) & m).sum() / n, int(d[m].max()) if m.any() else 0, ((d <= int(sys.argv[3])) & m).sum() / n, n))
 `;

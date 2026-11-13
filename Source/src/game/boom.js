@@ -267,7 +267,7 @@
     '  #include <fog_vertex>',
     '}'].join('\n');
   var PUFF_FS = [
-    'uniform vec3 uInk;', 'uniform vec3 uHL;', 'uniform vec3 uLight;', 'uniform vec3 uShade;', 'uniform float uDot;',
+    'uniform vec3 uInk;', 'uniform vec3 uHL;', 'uniform vec3 uLight;', 'uniform vec3 uShade;', 'uniform float uDot;', 'uniform vec3 uPuffK;',
     'varying vec3 vN;', 'varying vec3 vObj;', 'varying float vHull;', 'varying vec3 vCol;', 'varying vec3 vP;',
     '#include <fog_pars_fragment>',
     'void main() {',
@@ -286,6 +286,7 @@
     '      if (dot(q, q) < 0.05 + clamp(-0.1 - d, 0.0, 0.8) * 0.2) c *= 0.66;',   // halftone dots, denser deeper in shadow
     '    }',
     '  }',
+    '  if (vHull < 0.5) c *= uPuffK;',   // tactical look: the light where the smoke is (IB.Look); 1 in the classic look
     '  gl_FragColor = vec4(c, 1.0);',
     '  #include <fog_fragment>',
     '}'].join('\n');
@@ -294,7 +295,7 @@
     var m = new THREE.ShaderMaterial({
       uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, {
         uInk: { value: new THREE.Color(PAL.ink) }, uHL: { value: new THREE.Color(0xFFF8D8) }, uShade: { value: new THREE.Vector3(0.68, 0.58, 0.8) },
-        uLight: { value: new THREE.Vector3(-0.42, 0.78, 0.46).normalize() }, uDot: { value: 6 }, uOutBase: { value: 0.012 }, uOutK: { value: 0.002 } }]),
+        uLight: { value: new THREE.Vector3(-0.42, 0.78, 0.46).normalize() }, uDot: { value: 6 }, uPuffK: { value: new THREE.Vector3(1, 1, 1) }, uOutBase: { value: 0.012 }, uOutK: { value: 0.002 } }]),
       vertexShader: PUFF_VS, fragmentShader: PUFF_FS, fog: true
     });
     if (R && R.worldOutline) { m.uniforms.uOutBase = R.worldOutline.uOutBase; m.uniforms.uOutK = R.worldOutline.uOutK; }
@@ -1175,9 +1176,9 @@
     B.puffMesh = instanced(pg, puffMaterial(), PUFF_CAP, scene); instColor(B.puffMesh, PUFF_CAP);
     for (i = 0; i < PUFF_CAP; i++) puffs.push(newPuff());
     // debris
-    var dmat = R.toonMaterial({});
+    var dmat = R.toonMaterial({ look: 'actor', surf: IB.Surface && IB.Surface.surfFlat(3, 0.4) });
     makeBin('gear', gearGeo(), dmat, 40, scene); makeBin('bolt', boltGeo(), dmat, 40, scene); makeBin('plate', plateGeo(), dmat, 48, scene); makeBin('spring', springGeo(), dmat, 16, scene);
-    var pmat = A.palette && A.palette.bots ? R.toonMaterial({ map: A.palette.bots, baked: A.BAKED.bots }) : dmat;
+    var pmat = A.palette && A.palette.bots ? R.toonMaterial({ map: A.palette.bots, baked: A.BAKED.bots, look: 'actor', surf: IB.Surface && IB.Surface.surf('bots') }) : dmat;
     Object.keys(FLAV).forEach(function (k) {
       var f = FLAV[k]; if (!f.parts) return;
       f.binList = [];
@@ -1191,7 +1192,7 @@
     for (i = 0; i < CASE_CAP; i++) casings.push({ on: false, t: 0, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, rx: 0, ry: 0, rz: 0, wx: 0, wy: 0, wz: 0, s: 1, idx: i });
     // canisters
     var kg = canisterGeo(); B.canFx = instAttr(kg, 'aFx', CAN_CAP, 2);
-    B.canMesh = instanced(kg, R.toonMaterial({ fx: true }), CAN_CAP, scene);
+    B.canMesh = instanced(kg, R.toonMaterial({ fx: true, look: 'actor', surf: IB.Surface && IB.Surface.surfFlat(3, 0.45) }), CAN_CAP, scene);
     for (i = 0; i < CAN_CAP; i++) cans.push({ on: false, idx: i, state: 0, def: null, x: 0, z: 0, zone: 0, box: null, hp: 0, fuse: 0, fuse0: 1, flash: 0, t: 0, hiss: 0 });
     for (i = 0; i < EVENT_CAP; i++) events.push({ on: false, kind: 0, x: 0, y: 0, z: 0, t: 0, s: 1 });
     for (i = 0; i < FALL_CAP; i++) fallers.push({ on: false, x: 0, y: 0, z: 0, vy: 0, t: 0, smoke: 0, quiet: false, base: 0 });

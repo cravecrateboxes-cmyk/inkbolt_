@@ -28,6 +28,15 @@
     t.encoding = THREE.LinearEncoding; t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; t.flipY = false; t.needsUpdate = true;
     return (cache[fam] = t);
   };
+  S.surf = function (fam) { return { tex: S.texFor(fam) }; };
+  S.surfFlat = function (cls, gloss) { return { flat: { value: S.flat(cls, gloss) } }; };
+  // every cell one class (robot light parts: all emissive)
+  S.surfAll = function (cls) {
+    var C = (IB.SURFACE_CLASSES || [])[cls] || { gloss: 0.3, metal: 0 }, px = new Uint8Array(256);
+    for (var i = 0; i < 64; i++) { px[i * 4] = Math.round(C.gloss * 255); px[i * 4 + 1] = Math.round(C.metal * 255); px[i * 4 + 2] = Math.round(cls / 15 * 255); px[i * 4 + 3] = cls === 15 ? 255 : 0; }
+    var t = new THREE.DataTexture(px, 8, 8, THREE.RGBAFormat); t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; t.needsUpdate = true;
+    return { tex: t };
+  };
   // flat surface vector for materials without a palette (code-built floors): gloss, metal, class / 15, emissive
   S.flat = function (cls, gloss) { return new THREE.Vector4(gloss, 0, cls / 15, 0); };
 
@@ -39,12 +48,14 @@
     'uniform sampler2D uGrid; uniform vec4 uGridO; uniform vec4 uGridY; uniform float uGridI, uGridOn;',
     'uniform vec4 uFlashP[ 4 ]; uniform vec4 uFlashC[ 4 ];',
     'uniform float uGExpo, uGSat, uGCon; uniform vec3 uGLo, uGHi;',
+    'uniform float uWet, uCaustic, uTime;',
     // light volume: a 2D atlas of Y slices (lightgrid.js), two bilinear fetches mixed across slices
     'vec4 ibGridAt( vec3 p ) {',
     '  float n = uGridY.z, f = clamp( ( p.y - uGridY.x ) / uGridY.y, 0.0, n - 1.0 ), s0 = floor( f ), s1 = min( s0 + 1.0, n - 1.0 );',
     '  float u = ( p.x - uGridO.x ) * uGridO.z, vz = clamp( ( p.z - uGridO.y ) * uGridO.w, uGridY.w, 1.0 - uGridY.w );',
     '  return mix( texture2D( uGrid, vec2( u, ( vz + s0 ) / n ) ), texture2D( uGrid, vec2( u, ( vz + s1 ) / n ) ), f - s0 );',
     '}',
+    'float ibMirror0( float c ) { return c == 11.0 || c == 14.0 ? 1.0 : 0.0; }',
     'float ibH2( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }',
     'float ibN2( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f );',
     '  return mix( mix( ibH2( i ), ibH2( i + vec2( 1.0, 0.0 ) ), f.x ), mix( ibH2( i + vec2( 0.0, 1.0 ) ), ibH2( i + vec2( 1.0, 1.0 ) ), f.x ), f.y ); }'
@@ -121,6 +132,9 @@
     'ibA *= mix( 0.78, 1.0, smoothstep( 0.0, 0.9, ibAOs ) );',
     'if ( ibCls == 0.0 || ibCls == 3.0 ) ibA = mix( ibA, ibA * 1.18 + 0.03, ibWearK * 0.45 );',
     'if ( ibCls == 1.0 || ibCls == 8.0 ) ibA *= 1.0 - ibWearK * 0.08;',
+    // wetness (look.wet): upward faces in macro-noise patches get darker and glossier (plan 7.3)
+    'float ibWetK = uWet * smoothstep( 0.75, 0.95, ibNw.y ) * smoothstep( 0.42, 0.62, ibMacro ) * ( 1.0 - ibEm ) * ( 1.0 - ibMirror0( ibCls ) );',
+    'ibA *= 1.0 - ibWetK * 0.35;',
     'vec3 ibAL = pow( max( ibA, vec3( 0.0 ) ), vec3( 2.2 ) );',
     'vec3 ibNb = normalize( ( viewMatrix * vec4( ibNwB, 0.0 ) ).xyz );',   // bumped normal, view space
     // light
@@ -151,12 +165,18 @@
     '    if ( ibDd < ibFr2 * ibFr2 ) ibLoc += uFlashC[ i ].rgb * uFlashC[ i ].a * 6.0 / ( 1.0 + ibDd ) * ( 1.0 - sqrt( ibDd ) / ibFr2 ) * ( 0.35 + 0.65 * max( dot( ibNwB, ibFd * inversesqrt( max( ibDd, 1e-4 ) ) ), 0.0 ) );',
     '  }',
     '}',
+    // seabase: slow caustics in the lamp and sky light on upward faces (plan 7.5)
+    '#ifdef IB_DETAIL',
+    '  if ( uCaustic > 0.5 ) { float ibCa = texture( uDetail, vec3( vWP.xz * 0.21 + vec2( uTime * 0.02, 0.0 ), 0.0 ) ).r * texture( uDetail, vec3( vWP.zx * 0.27 - vec2( 0.0, uTime * 0.025 ), 0.0 ) ).r;',
+    '    ibLoc *= 1.0 + ( smoothstep( 0.22, 0.32, ibCa ) - 0.3 ) * 0.9 * max( ibNw.y, 0.0 ); }',
+    '#endif',
     'vec3 ibSun = ibLC * uSunI * ibNL * ibSh * ibSky;',
     // glass and water: a dark body (12% of the palette colour), the rest is reflection below
     'float ibMirror = ibCls == 11.0 || ibCls == 14.0 ? 1.0 : 0.0;',
     'vec3 ibCol = ibAL * ( ibSun + ibAmb + ibLoc ) * mix( 1.0, 0.16, ibMirror );',
     // specular: sun Blinn-Phong + sky / lamp sheen with Fresnel; none on foliage
-    'float ibGloss = clamp( ibS.r * ibGlossK * ( ibCls == 0.0 || ibCls == 3.0 ? 1.0 + ibWearK * 0.4 : 1.0 ) * mix( 1.0, 0.7, ( 1.0 - ibAOs ) ), 0.0, 1.0 ) * ( ibCls == 7.0 ? 0.0 : 1.0 );',
+    'float ibGlossW = ibWetK * 0.85;',
+    'float ibGloss = max( ibGlossW, clamp( ibS.r * ibGlossK * ( ibCls == 0.0 || ibCls == 3.0 ? 1.0 + ibWearK * 0.4 : 1.0 ) * mix( 1.0, 0.7, ( 1.0 - ibAOs ) ), 0.0, 1.0 ) * ( ibCls == 7.0 ? 0.0 : 1.0 ) );',
     'vec3 ibSpecC = mix( vec3( 0.04 ), ibAL, ibS.g );',
     'float ibNH = max( dot( ibNb, normalize( ibL + ibV ) ), 0.0 );',
     'float ibPow = mix( 6.0, 180.0, ibGloss * ibGloss );',
@@ -165,6 +185,11 @@
     'vec3 ibRd = reflect( -inverseTransformDirection( ibV, viewMatrix ), ibNwB );',
     'vec3 ibRefl = mix( uAmbGround, uAmbSky * mix( 1.0, 1.6, ibMirror ), clamp( ibRd.y * 0.5 + 0.5, 0.0, 1.0 ) ) * uAmbI * ibAmbK + ibLoc * 0.6;',
     'ibCol += ibRefl * ( ibSpecC + ( 1.0 - ibSpecC ) * max( ibFr, ibMirror * 0.22 ) ) * ibGloss * ibGloss * 1.4 * ibOcc;',
+    // actors: a cool view-space rim, stronger where the local light is dark (readability, plan 8.3)
+    '#ifdef IB_ACTOR',
+    '  float ibLit = clamp( dot( ibSun + ibAmb + ibLoc, vec3( 0.2126, 0.7152, 0.0722 ) ), 0.0, 1.0 );',
+    '  ibCol += vec3( 0.42, 0.50, 0.66 ) * pow( 1.0 - max( dot( ibNb, ibV ), 0.0 ), 3.0 ) * ( 0.10 + 0.32 * ( 1.0 - ibLit ) );',
+    '#endif',
     'ibCol = pow( max( ibCol, vec3( 0.0 ) ), vec3( 1.0 / 2.2 ) );',
     'ibCol = mix( ibCol, ibAlb * uEmBoost, ibEm );',   // emissive cells: unlit, boosted (bloom source above 1.0)
     'vec3 outgoingLight = ibCol + totalEmissiveRadiance;'
@@ -244,10 +269,10 @@
       .replace('#include <common>', '#include <common>\nvarying vec3 vWP;\nuniform vec2 uInkFade;')
       .replace(INK_CLASSIC, INK_LOOK)
       .replace('vHull = 0.0;', 'vHull = 0.0;\n{ vec4 ibW = vec4( transformed, 1.0 );\n#ifdef USE_INSTANCING\n ibW = instanceMatrix * ibW;\n#endif\n vWP = ( modelMatrix * ibW ).xyz; }');
-    var det = S.detailLevel();
+    var det = kind === 'world' ? S.detailLevel() : 0;   // actors: the light model without the tiling detail
     sh.uniforms.uDetail = U.uDetail; sh.uniforms.uDetailOn = U.uDetailOn;
     var gradeIn = !(IB.Post && IB.Post.on);
-    sh.fragmentShader = (det > 0 ? '#define IB_DETAIL ' + det + '\n' : '') + (gradeIn ? '#define IB_GRADE_IN_MATERIAL\n' : '') + sh.fragmentShader
+    sh.fragmentShader = (kind === 'actor' ? '#define IB_ACTOR\n' : '') + (det > 0 ? '#define IB_DETAIL ' + det + '\n' : '') + (gradeIn ? '#define IB_GRADE_IN_MATERIAL\n' : '') + sh.fragmentShader
       .replace('#include <shadowmap_pars_fragment>', '#include <shadowmap_pars_fragment>\n' + PARS + '\n' + DETAIL_PARS)
       .replace(OUTLINE_LINE, LIGHT)
       .replace('#include <fog_fragment>', FOG);
