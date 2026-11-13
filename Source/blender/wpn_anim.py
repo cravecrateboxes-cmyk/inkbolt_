@@ -86,7 +86,8 @@ def wrist_bend(side, MH, e, wr):
 
 
 def solve(rig, P):
-    """P: W (weapon delta), FR / FL (hand frames, rig space), curl {bone: deg}, mag (Mag bone delta).
+    """P: W (weapon delta), FR / FL (hand frames, rig space), mag (Mag bone delta), dig {side: {digit: (knuckle,
+    joint 2, joint 3[, spread]) deg from the rest pose, positive = closing; spread positive = toward the thumb}}.
     Returns {bone: pose basis}: each bone gets the rigid motion that takes its rest place to the target."""
     M = {'Root': Matrix.Identity(4), 'Camera': Matrix.Identity(4), 'Weapon': P['W'], 'Mag': P['mag']}
     for side in ('R', 'L'):
@@ -99,15 +100,10 @@ def solve(rig, P):
         M['FOREARM_' + side] = forearm_delta(side, MH, e, wr)
         if REPORT is not None:
             REPORT.setdefault(side, []).append(wrist_bend(side, MH, e, wr))
-        ax = (F0.to_3x3() @ V((0, 0, 1))).normalized()
-        lx = (F0.to_3x3() @ V((1, 0, 0))).normalized()     # hand's lateral axis: lifts a finger along the frame
-        sg = 1 if side == 'R' else -1
-        lift = P.get('lift', {})
-        for fn in FINGERS + ('THUMB1', 'THUMB2'):
-            bn = fn + '_' + side
-            h = rig.data.bones[bn].head_local
-            C = T(h) @ Matrix.Rotation(D(sg * P['curl'].get(bn, 0.0)), 4, ax) @ Matrix.Rotation(D(lift.get(bn, 0.0)), 4, lx) @ T(-h)
-            M[bn] = M['THUMB1_' + side if fn == 'THUMB2' else 'HAND_' + side] @ C
+        dig = P.get('dig', {}).get(side, {})
+        for dn in DIGITS:                  # each joint is a hinge about the digit's flexion axis; the knuckle also spreads
+            for i, Md in enumerate(digit_fk(side, dn, dig.get(dn, (0.0, 0.0, 0.0, 0.0)))):
+                M['%s%d_%s' % (dn, i + 1, side)] = MH @ Md
     out = {}
     for b in rig.data.bones:
         Rc = b.matrix_local
@@ -125,7 +121,8 @@ class Poser:
         self.carry = V(self.H['carry'])
         self.GR = mat_trs((0, 0, 0), (-self.info['rake'], 0, 0))
         self.GL = left_hold(wid)
-        self.cl0 = self.info.get('curl_L', 0.0)
+        self.digR, self.digL = self.info.get('dig_R', {}), self.info.get('dig_L', {})
+        self.trigger = self.info['cls'] != 'melee'
         self.magS = V(self.info['mag'])
         self.magT = self.magS - RIG['mag0']
 
@@ -135,25 +132,33 @@ class Poser:
         R = wr.to_4x4() if isinstance(wr, Matrix) else mat_trs((0, 0, 0), wr)     # melee keys give the rotation itself
         return T(self.carry) @ T(wl) @ R @ mat_trs((0, 0, 0), (0, 0, self.spin))
 
-    def __call__(self, wl=(0, 0, 0), wr=(0, 0, 0), trig=0.0, FL=None, FR=None, mag=None, curlL=0.0, curlR=0.0, idx=0.0, thumbL=0.0, thumbR=0.0,
-                 lift=0.0, hintL=None):
+    def __call__(self, wl=(0, 0, 0), wr=(0, 0, 0), trig=0.0, FL=None, FR=None, mag=None, handL=None, handR=None, hintL=None):
+        """One pose. wl / wr: weapon offset and rotation about the grip; trig: trigger pull 0..1; FL / FR: a hand
+        frame in rig space when the hand leaves its hold; handL / handR: the hand's digits: None = the weapon's
+        fitted hold, a SHAPES name, or {digit: (knuckle, joint 2, joint 3[, spread])} from rest (see fit)."""
         W = self.wm(wl, wr)
         if FL is None and self.GL is None:                   # one-handed melee: support fist up in a guard, low left
-            FL, curlL, thumbL = MELEE_GUARD, curlL + 30, thumbL - 15
-        if FL is None and self.info['cls'] == 'pistol':      # two-hand pistol hold
-            thumbL, curlL = thumbL + PISTOL_LEFT[6], curlL + PISTOL_LEFT[7]
-        elif FL is None:                                     # foregrip / handguard: close on the part
-            thumbL, curlL = thumbL + self.cl0, curlL + self.cl0
-        if self.offk and FR is None:          # trigger finger straight along the frame (sprint, slide, reload, draw)
-            idx += self.offk * self.H['sprint']['idx']
-            lift += self.offk * self.H['sprint']['lift']
-        curl = {'INDEX_R': 14 * trig + idx, 'INDEX_L': curlL, 'THUMB1_L': thumbL, 'THUMB1_R': thumbR}
-        for fn in ('MIDDLE', 'RING', 'PINKY'):
-            curl[fn + '_R'] = curlR
-            curl[fn + '_L'] = curlL
+            FL, handL = MELEE_GUARD, handL or 'fist'
+        dR = dict(hand_shape('R', handR) if isinstance(handR, str) else handR if handR is not None else self.digR)
+        dL = dict(hand_shape('L', handL) if isinstance(handL, str) else handL if handL is not None else self.digL)
+        if self.trigger and handR is None:
+            i0 = dR.get('INDEX', (0.0, 0.0, 0.0, 0.0))
+            if self.offk and FR is None:      # trigger finger straight along the frame (sprint, slide, reload, draw)
+                rest, S = RIG['REST']['R']['INDEX'], self.H['sprint']
+                k = self.offk
+                dR['INDEX'] = (k * S['idx'], k * (SHAPES['point']['f'][1] - rest[1]), k * (SHAPES['point']['f'][2] - rest[2]), k * S['lift'])
+            else:                             # on the trigger; the pull closes the last two joints
+                dR['INDEX'] = (i0[0], i0[1] + 5 * trig, i0[2] + 9 * trig, i0[3] if len(i0) > 3 else 0.0)
         return {'W': W, 'FR': FR if FR is not None else W @ self.GR, 'FL': FL if FL is not None else W @ self.GL,
-                'mag': mag if mag is not None else W @ T(self.magT), 'curl': curl, 'lift': {'INDEX_R': lift},
+                'mag': mag if mag is not None else W @ T(self.magT), 'dig': {'R': dR, 'L': dL},
                 'hint': {'L': V(hintL)} if hintL is not None else {}}
+
+    def fit(self, key, side, F, sd=None):
+        """Digits of a hand closed on this weapon (or on sd) with its frame at F (weapon space); cached by key."""
+        c = self.info.setdefault('fits', {})
+        if key not in c:
+            c[key] = fit_digits(side, sd or bvh_sd(hold_bvh(self.wid)), F @ RIG['F0'][side].inverted())
+        return c[key]
 
     offk = 0.0
 
@@ -227,6 +232,18 @@ THROW_L = [(0.20, (-0.16, -0.10, -0.32), (-30, 0, 0)), (0.36, (-0.42, -0.18, 0.0
 THROW_DIP = ((0.03, -0.03, -0.09), (-22, 12, -14))
 
 
+HELD = {'can': (0.0335, 0.046), 'shell': (0.0105, 0.036)}      # things in the HOLD_L socket: radius, half length (fam_weapons.build_held)
+
+
+def held_fit(name):
+    """Support-hand digits closed on a thing held in the HOLD_L socket."""
+    if name not in RIG.setdefault('held', {}):
+        r, h = HELD[name]
+        F0 = RIG['F0']['L']
+        RIG['held'][name] = fit_digits('L', can_sd(r, h, F0 @ T((0.0, HAND['cy'], -0.046))), Matrix.Identity(4))
+    return RIG['held'][name]
+
+
 def melee_actions(p, action):
     wid = p.wid
     for name, (dur, keys) in MELEE_SWINGS[wid].items():
@@ -235,13 +252,13 @@ def melee_actions(p, action):
         frames = []
         for key in keys:
             f, wl, wr = key[0], key[1], key[2]
-            kw = {'curlR': 10}
+            kw = {}
             if len(key) > 3:
                 kw['mag'] = p.mag_at(p.wm(wl, wr), mat_trs((0, 0, 0), key[3]))
             frames.append((round(f * n), p(wl, wr, **kw)))
         action(wid + '_' + name, frames)
     rest = DIAG[-1]
-    action(wid + '_Idle', [(0, p(rest[1], rest[2], curlR=10)), (30, p(rest[1], rest[2], curlR=10))])
+    action(wid + '_Idle', [(0, p(rest[1], rest[2])), (30, p(rest[1], rest[2]))])
     p.spin = 0.0
 
 
@@ -250,8 +267,9 @@ def throw_action(p, action):
     dl, dr = THROW_DIP
     keys = [(0, p())]
     p.off()
+    can = held_fit('can')
     for f, loc, rot in THROW_L:
-        keys.append((round(f * n), p(dl, dr, FL=mat_trs(loc, rot), curlL=12, thumbL=-6)))
+        keys.append((round(f * n), p(dl, dr, FL=mat_trs(loc, rot), handL=can if f < THROW_RELEASE + 0.01 else 'open')))
     p.off(0)
     keys.append((round(0.88 * n), p((0.0, 0.002, 0.002), (-1.0, 0.0, 0.5))))
     keys.append((n, p()))
@@ -277,8 +295,9 @@ def shell_reload(p, r):
     W = p.wm(tl, tr)
     port = W @ T(V(p.info['port']) + V((0.0, 0.0, -0.035))) @ mat_trs((0, 0, 0), (0, 180, 0))
     low = T((-0.16, -0.06, -0.40)) @ mat_trs((0, 0, 0), (-40, 0, 0))
-    return [(0, p(tl, tr)), (fr(0.25), p(tl, tr, FL=low)), (fr(0.55), p(tl, tr, FL=port @ T((0, 0, -0.03)))),
-            (fr(0.72), p(tl, tr, FL=port)), (r, p(tl, tr))]
+    sh = held_fit('shell')
+    return [(0, p(tl, tr)), (fr(0.25), p(tl, tr, FL=low, handL=sh)), (fr(0.55), p(tl, tr, FL=port @ T((0, 0, -0.03)), handL=sh)),
+            (fr(0.72), p(tl, tr, FL=port, handL=sh)), (r, p(tl, tr))]
 
 
 def build_actions(rig):
@@ -382,7 +401,7 @@ def build_actions(rig):
         p.off()
         if S['style'] == 'high':
             fa, fb = (free_hand('L', at_ndc(*q[0]), q[1], q[2]) for q in S['pump'])
-            fist = dict(curlL=S['fist'], thumbL=-18)
+            fist = dict(handL='fist')
             action(wid + '_Sprint', [(0, p(*S['a'], FL=fa, **fist)), (9, p(*S['b'], FL=fb, **fist)), (18, p(*S['a'], FL=fa, **fist))])
         else:
             action(wid + '_Sprint', [(0, p(*S['a'])), (9, p(*S['b'])), (18, p(*S['a']))])
@@ -390,7 +409,7 @@ def build_actions(rig):
         # palm to the ground, fingers relaxed open; the free hand follows its forearm (free_hand: no snapped wrist)
         Sl = H['slide']
         h1, h2 = (free_hand('L', at_ndc(*q[0]), q[1], q[2], Sl['hint']) for q in Sl['hand'])
-        o = dict(curlL=Sl['curl'], thumbL=Sl['thumb'], hintL=Sl['hint'])
+        o = dict(handL='open', hintL=Sl['hint'])
         action(wid + '_Slide', [(0, p(*Sl['a'], FL=h1, **o)), (7, p(*Sl['b'], FL=h2, **o)), (15, p(*Sl['a'], FL=h1, **o))])
         p.off(0)
     rig.animation_data.action = bpy.data.actions['PIP_Idle']
@@ -418,26 +437,28 @@ def mag_reload(p, r):
     in_hand = lambda FL: FL @ G.inverted() @ T(-RIG['mag0'])
     low = T(V(R['low'])) @ mat_trs((0, 0, 0), (-25, 0, 0)) @ T(p.magS) @ G
     mid = T(V(R['low']) * 0.45 + V((-0.03, 0.02, 0.0))) @ mat_trs((0, 0, 0), (-12, 0, 6)) @ T(p.magS) @ G   # arc up from the pouch
+    # the support hand's digits closed round the magazine (fitted on the magazine alone, in its own space)
+    gm = p.fit('mag', 'L', G, bvh_sd(hold_bvh(p.wid, gun=False)))
     keys = [(0, p())]
     p.off()
     keys.append((fr(0.08), p(tl, tr)))                                                              # tilt: show the well
-    keys.append((fr(0.17), p(tl1, tr1, FL=at_mag(W1, -0.05), mag=p.mag_at(W1, T((0, 0, -0.03))))))   # hand on the mag, pull
-    keys.append((fr(0.26), p(tl, tr, FL=low, mag=p.mag_at(W, T((0, -0.02, -0.60)) @ mat_trs((0, 0, 0), (-30, -20, 0))))))
-    keys.append((fr(0.36), p(tl1, tr1, FL=low, mag=in_hand(low))))                                    # fresh mag from the pouch
-    keys.append((fr(0.45), p(tl1, tr1, FL=mid, mag=in_hand(mid))))
+    keys.append((fr(0.17), p(tl1, tr1, FL=at_mag(W1, -0.05), mag=p.mag_at(W1, T((0, 0, -0.03))), handL=gm)))   # hand on the mag, pull
+    keys.append((fr(0.26), p(tl, tr, FL=low, mag=p.mag_at(W, T((0, -0.02, -0.60)) @ mat_trs((0, 0, 0), (-30, -20, 0))), handL='relaxed')))
+    keys.append((fr(0.36), p(tl1, tr1, FL=low, mag=in_hand(low), handL=gm)))                          # fresh mag from the pouch
+    keys.append((fr(0.45), p(tl1, tr1, FL=mid, mag=in_hand(mid), handL=gm)))
     F1 = at_mag(W, -0.085)
-    keys.append((fr(0.53), p(tl, tr, FL=F1, mag=in_hand(F1))))                                        # lined up under the well
+    keys.append((fr(0.53), p(tl, tr, FL=F1, mag=in_hand(F1), handL=gm)))                              # lined up under the well
     Wd = p.wm(tuple(c + d for c, d in zip(tl, (0, 0, -0.004))), tr)                                    # weapon gives a little
     F2 = at_mag(Wd, -0.002)
-    keys.append((fr(0.61), p(tuple(c + d for c, d in zip(tl, (0, 0, -0.004))), tr, FL=F2, mag=in_hand(F2))))
+    keys.append((fr(0.61), p(tuple(c + d for c, d in zip(tl, (0, 0, -0.004))), tr, FL=F2, mag=in_hand(F2), handL=gm)))
     sl_, sr_ = R['seat']
-    keys.append((fr(0.67), p(sl_, sr_, FL=at_mag(p.wm(sl_, sr_), 0.006))))                              # palm slap: seats, bump up
+    keys.append((fr(0.67), p(sl_, sr_, FL=at_mag(p.wm(sl_, sr_), 0.006), handL=hand_shape('L', 'relaxed', 0.6))))   # palm slap: seats, bump up
     keys.append((fr(0.72), p(tl, tr)))
     if a['style'] == 'bolt':      # right hand works the bolt to chamber
         W0 = p.wm()
         for t, off, rot in ((0.76, (0, 0, 0), (0, 30, 0)), (0.81, (-0.010, 0, 0.020), (0, -20, 0)), (0.87, (-0.010, -0.065, 0.020), (0, -20, 0)),
                             (0.92, (-0.010, 0, 0.020), (0, -20, 0))):
-            keys.append((fr(t), p(FR=knob_frame(p, W0, off, rot))))
+            keys.append((fr(t), p(FR=knob_frame(p, W0, off, rot), handR=knob_hand(p))))
         p.off(0)
         keys.append((r, p()))
         return keys
@@ -445,10 +466,12 @@ def mag_reload(p, r):
     ch, pull = a['charge']
     tl3, tr3 = (0.0, 0.0, -0.006), (6, -6, -10)
     Wc = p.wm(tl3, tr3)
-    side = Wc @ T((min(ch[0], -0.020) - 0.026, ch[1] + 0.020, ch[2] - 0.004)) @ mat_trs((0, 0, 0), (-35, 0, -10))
-    keys.append((fr(0.80), p(tl3, tr3, FL=side, curlL=6)))
+    Fs = T((min(ch[0], -0.020) - 0.026, ch[1] + 0.020, ch[2] - 0.004)) @ mat_trs((0, 0, 0), (-35, 0, -10))
+    side = Wc @ Fs
+    gc = p.fit('charge', 'L', Fs)                                                                     # digits closed on the slide / handle
+    keys.append((fr(0.80), p(tl3, tr3, FL=side, handL=gc)))
     tl4, tr4 = (0.0, -0.004, -0.004), (5, -7, -10)                                                    # slide snaps home: a jolt
-    keys.append((fr(0.88), p(tl4, tr4, FL=T(Wc.to_3x3() @ V(pull)) @ side, curlL=6)))
+    keys.append((fr(0.88), p(tl4, tr4, FL=T(Wc.to_3x3() @ V(pull)) @ side, handL=gc)))
     p.off(0)
     keys.append((fr(0.95), p((0.0, 0.002, 0.002), (-1.0, 0.0, 0.5))))                                # small overshoot back to rest
     keys.append((r, p()))
@@ -475,17 +498,18 @@ def revolver_reload(p, r):
     p.off()
     t1 = ((0.0, 0.0, -0.01), (10, -30, -8))
     W1 = p.wm(*t1)
-    keys.append((fr(0.12), p(*t1, FL=side(W1))))
-    keys.append((fr(0.22), p(*t1, FL=side(W1), mag=swing(W1, 85))))
+    cup = hand_shape('L', 'relaxed')
+    keys.append((fr(0.12), p(*t1, FL=side(W1), handL=cup)))
+    keys.append((fr(0.22), p(*t1, FL=side(W1), mag=swing(W1, 85), handL=cup)))
     t2 = ((0.0, -0.03, 0.03), (55, -20, -10))
     W2 = p.wm(*t2)
-    keys.append((fr(0.34), p(*t2, FL=W2 @ T((-0.034, 0.075, 0.0)) @ mat_trs((0, 0, 0), (0, 0, -90)), mag=swing(W2, 85))))
+    keys.append((fr(0.34), p(*t2, FL=W2 @ T((-0.034, 0.075, 0.0)) @ mat_trs((0, 0, 0), (0, 0, -90)), mag=swing(W2, 85), handL=cup)))
     t3 = ((0.0, 0.0, -0.02), (-25, -25, -8))
     W3 = p.wm(*t3)
     low = T((-0.16, -0.10, -0.46)) @ mat_trs((0, 0, 0), (-40, 0, 0))
-    keys.append((fr(0.46), p(*t3, FL=low, mag=swing(W3, 85))))
-    keys.append((fr(0.62), p(*t3, FL=W3 @ T((-0.040, 0.075, 0.010)) @ mat_trs((0, 0, 0), (-90, 0, -90)), mag=swing(W3, 85))))
-    keys.append((fr(0.74), p(*t1, FL=side(W1), mag=swing(W1, 0))))
+    keys.append((fr(0.46), p(*t3, FL=low, mag=swing(W3, 85), handL='fist')))
+    keys.append((fr(0.62), p(*t3, FL=W3 @ T((-0.040, 0.075, 0.010)) @ mat_trs((0, 0, 0), (-90, 0, -90)), mag=swing(W3, 85), handL=cup)))
+    keys.append((fr(0.74), p(*t1, FL=side(W1), mag=swing(W1, 0), handL=cup)))
     p.off(0)
     keys.append((fr(0.88), p((0.0, 0.002, 0.003), (-2.0, 1.0, 0.5))))     # cylinder snapped home: settle with a little swing
     keys.append((r, p()))
@@ -497,6 +521,12 @@ def knob_frame(p, W, off, rot):
     return W @ T(V(p.info['bolt']) + V(off)) @ mat_trs((0, 0, 0), rot) @ T((-0.030, -0.006, 0.010))
 
 
+def knob_hand(p):
+    """Strong hand's digits closed on the bolt knob (fitted where the hand first takes it)."""
+    F = T(V(p.info['bolt'])) @ mat_trs((0, 0, 0), (0, 30, 0)) @ T((-0.030, -0.006, 0.010))
+    return p.fit('knob', 'R', F)
+
+
 def bolt_cycle(p, n, kick):
     """Shot, then the right hand works the bolt (up, back, forward, down) and returns to the grip."""
     info = p.info
@@ -504,10 +534,11 @@ def bolt_cycle(p, n, kick):
     knob = lambda off, rot: knob_frame(p, W, off, rot)
     f = lambda t: round(n * t)
     keys = [(0, p(trig=1)), (2, p(*kick, trig=1)), (f(0.15), p())]
-    keys.append((f(0.28), p(FR=knob((0, 0, 0), (0, 30, 0)))))
-    keys.append((f(0.40), p(FR=knob((-0.010, 0, 0.020), (0, -20, 0)))))
-    keys.append((f(0.55), p(FR=knob((-0.010, -0.065, 0.020), (0, -20, 0)))))
-    keys.append((f(0.70), p(FR=knob((-0.010, 0, 0.020), (0, -20, 0)))))
-    keys.append((f(0.80), p(FR=knob((0, 0, 0), (0, 30, 0)))))
+    kh = knob_hand(p)
+    keys.append((f(0.28), p(FR=knob((0, 0, 0), (0, 30, 0)), handR=kh)))
+    keys.append((f(0.40), p(FR=knob((-0.010, 0, 0.020), (0, -20, 0)), handR=kh)))
+    keys.append((f(0.55), p(FR=knob((-0.010, -0.065, 0.020), (0, -20, 0)), handR=kh)))
+    keys.append((f(0.70), p(FR=knob((-0.010, 0, 0.020), (0, -20, 0)), handR=kh)))
+    keys.append((f(0.80), p(FR=knob((0, 0, 0), (0, 30, 0)), handR=kh)))
     keys.append((n, p()))
     return keys

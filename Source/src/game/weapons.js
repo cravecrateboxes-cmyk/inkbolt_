@@ -26,7 +26,7 @@
     // crossfades (s) between arm clips. 'Far' variants are used when the arms come from an unrelated pose (a sprint,
     // a half-done reload); sprint-in takes the class fade (VM_CLASS.fade), sprint-out that times sprintOut
     fade: { loop: 0.14, slideIn: 0.14, slideOut: 0.18, sprintOut: 0.9, fire: 0.03, fireFar: 0.08, reload: 0.1, reloadFar: 0.16,
-      shell: 0.04, holster: 0.07, holsterFar: 0.11, draw: 0 /* a cut: out of frame */, melee: 0.055, throwNear: 0.06, throwFar: 0.11 },
+      shell: 0.04, holster: 0.07, holsterFar: 0.11, draw: 0 /* a cut: out of frame */, melee: 0.07, throwNear: 0.06, throwFar: 0.11 },
     // look sway: the gun lags a turn, overshoots a little when the turn stops, and rolls into it
     sway: [13, 0.5], swayGain: 0.000011 /* m per px/s of look */, swayMaxX: 0.05, swayMaxY: 0.04, swayYaw: 1.6, swayPitch: 1.4, swayRoll: 1.1,
     // strafe lean and start / stop inertia (targets follow the local velocity / 6 m/s)
@@ -36,6 +36,7 @@
     vert: [13, 0.55], vertGain: 0.0045 /* m per m/s */, vertMax: 0.04, vertPitch: 0.7 /* rad per m */, apexFloat: 0.008, apexSpeed: 3.5 /* |vy| under this floats */,
     // landing: one push from the impact speed, compress then settle
     land: [17, 0.42], landGain: 0.14 /* m/s of gun per m/s of impact */, landMin: 1, landMaxV: 2.4, landPitch: 0.9 /* rad per m */, landRoll: 0.45,
+    landRate: 28 /* 1/s: the push arrives over a few frames, not in one */,
     // walk / sprint bob. Phase is player.bobT (distance moved): side sway once per two steps, bounce once per step
     bobX: 0.009, bobY: 0.01, bobPitch: 0.007, bobYaw: 0.008, bobRoll: 0.02, bobLag: 0.6 /* rad the bounce trails the footfall */, bobEase: 10 /* 1/s amplitude ease */,
     sprint: [12, 0.65], slide: [15, 0.5],
@@ -49,12 +50,13 @@
       cancel: [-0.035, -0.06, 0.05], throwIn: [-0.008, 0, 0.02], drawEnd: [-0.004, -0.012, 0], meleeIn: [-0.012, 0, -0.03] },
     // holster / draw: how far the viewmodel is lowered on top of the Holster / Draw clips (at stow = 1), enough that the
     // gun is out of frame when the models swap but back in view within a few frames of the draw
-    stowX: 0.02, stowY: -0.08, stowZ: 0.03, stowPitch: -0.22, stowRoll: 0.12, stowRise: 22 /* 1/s, a leftover stow clearing */,
+    // (times VM_CLASS.stow: the launchers are big and need more)
+    stowX: 0.02, stowY: -0.1, stowZ: 0, stowPitch: 0.1, stowRoll: 0.1, stowRise: 22 /* 1/s, a leftover stow clearing */,
     // melee exit: over the tail of a swing (after this fraction of it) the melee weapon drops out of frame for the gun
     meleeOut: 0.8, meleeDropY: -0.26, meleeDropPitch: -0.35, meleeDropRoll: 0.2,
     // fire kick: each shot pushes a slow 'return' spring (per class: kickFreq / kickDamp) and the gun snaps onto it
     kickSnap: [70, 0.6], kickYaw: 3 /* rad per m of side push */, kickCap: 3 /* most pushes that can pile up */,
-    shove: [-0.05, -0.07]   // V with no melee weapon: punch forward [m, rad]
+    shove: [-0.045, -0.06]   // V with no melee weapon: punch forward [m, rad]
   };
   /* Per weapon class, layered on top of the Blender rig actions (the authored poses come from HANDLING in
      Source/blender/fam_weapons.py: pistols sprint at high ready, muzzle up by the face; long guns at low ready across
@@ -71,6 +73,7 @@
        hipX/Y/Z   extra hip-fire offset (m): the bulky launchers sit lower, further right and further out so they
                   don't fill the screen or cover the HUD (aiming still lines up the sight)
        weight     scales landing, jump and dip amounts (a heavy gun moves more and feels slower)
+       stow       scales how far the gun is lowered for a swap (VM_TUNE.stow*)
        bob        walk-bob scale
        kickBack   push back per shot (m);  kickPitch: muzzle flip per shot (rad)
        kickRoll   random roll per shot (rad);  kickSide: random side push per shot (m)
@@ -78,7 +81,7 @@
        kickFreq   return spring frequency (rad/s): low = a long heavy recovery;  kickDamp: its damping ratio */
   var VM_CLASS = {
     rifle: { ads: 0.29, adsIn: 0.22, adsOut: 0.2, adsRoll: 0.05, adsDip: 0.006, adsKeep: 0.1, sprintBob: 1.7, sprintRoll: 1, fade: 0.2,
-      hipX: 0, hipY: 0, hipZ: 0, weight: 1, bob: 1,
+      hipX: 0, hipY: 0, hipZ: 0, weight: 1, stow: 1, bob: 1,
       kickBack: 0.008, kickPitch: 0.014, kickRoll: 0.012, kickSide: 0.0025, kickDrop: 0.15, kickFreq: 15, kickDamp: 0.5 },
     pistol: { ads: 0.34, adsIn: 0.17, adsOut: 0.15, adsRoll: 0.035, sprintBob: 1.15, sprintRoll: 0.45, fade: 0.18, weight: 0.75,
       kickBack: 0.009, kickPitch: 0.04, kickRoll: 0.02, kickSide: 0.003, kickFreq: 17, kickDamp: 0.45 },
@@ -89,9 +92,10 @@
       kickBack: 0.03, kickPitch: 0.055, kickRoll: 0.03, kickSide: 0.004, kickDrop: 0.3, kickFreq: 8.5, kickDamp: 0.55 },
     shotgun: { ads: 0.2, adsIn: 0.23, weight: 1.15,
       kickBack: 0.028, kickPitch: 0.055, kickRoll: 0.035, kickSide: 0.006, kickDrop: 0.3, kickFreq: 9.5 },
-    rocket: { ads: 0.34, adsIn: 0.3, adsOut: 0.25, adsRoll: 0.07, hipX: 0.035, hipY: -0.03, hipZ: -0.16, weight: 1.5,
+    rocket: { ads: 0.34, adsIn: 0.3, adsOut: 0.25, adsRoll: 0.07, hipX: 0.035, hipY: -0.03, hipZ: -0.16, weight: 1.5, stow: 2.2,
       kickBack: 0.03, kickPitch: 0.04, kickRoll: 0.045, kickSide: 0.006, kickDrop: 0.4, kickFreq: 7.5, kickDamp: 0.6 }
   };
+  W.vmTune = VM_TUNE;   // live: change a value from the console (IB.Weapons.vmTune.bobY = 0.02) to try it
   var _vmc = {};
   // the merged row for a class (cached: do not change the object it returns)
   W.vmClass = function (cls) {
@@ -104,7 +108,7 @@
   // viewmodel motion state (springs and blends), one per weapon state, made once
   function newMotion() {
     return { swx: 0, swxv: 0, swy: 0, swyv: 0, str: 0, strv: 0, fwd: 0, fwdv: 0, vert: 0, vertv: 0, land: 0, landv: 0, spv: 0, slv: 0,
-      by: 0, byv: 0, bp: 0, bpv: 0, br: 0, brv: 0, bobA: 0, ads: 0, adsP: 1, adsDir: -1, stow: 0, stow0: 0, out: 0, air: 0, airVy: 0, spr: 0, sld: 0 };
+      by: 0, byv: 0, bp: 0, bpv: 0, br: 0, brv: 0, landq: 0, bobA: 0, ads: 0, adsP: 1, adsDir: -1, stow: 0, stow0: 0, out: 0, air: 0, airVy: 0, spr: 0, sld: 0 };
   }
   function mo(s) { return s.vm || (s.vm = newMotion()); }
   // one semi-implicit step of a spring o[x] (velocity o[v]) toward target; f = [frequency, damping ratio]
@@ -651,11 +655,12 @@
     if (!live) {
       // frozen frame: every spring at rest, the blends on their targets
       m.swx = m.swxv = m.swy = m.swyv = m.str = m.strv = m.fwd = m.fwdv = m.vert = m.vertv = m.land = m.landv = m.spv = m.slv = 0;
-      m.by = m.byv = m.bp = m.bpv = m.br = m.brv = m.stow = m.out = 0; m.bobA = moveT; m.ads = s.aim; m.adsP = 1; m.adsDir = s.aim > 0.5 ? 1 : -1;
+      m.by = m.byv = m.bp = m.bpv = m.br = m.brv = m.landq = m.stow = m.out = 0; m.bobA = moveT; m.ads = s.aim; m.adsP = 1; m.adsDir = s.aim > 0.5 ? 1 : -1;
       m.air = 0; m.spr = sprinting ? 1 : 0; m.sld = sliding ? 1 : 0;
     } else {
       // events: landing (one push, scaled by how fast the player came down), sprint and slide entries
-      if (ground && m.air && -m.airVy > T.landMin) m.landv -= Math.min(T.landMaxV, -m.airVy * T.landGain) * wg;
+      if (ground && m.air && -m.airVy > T.landMin) m.landq += Math.min(T.landMaxV, -m.airVy * T.landGain) * wg;
+      u = m.landq * Math.min(1, dt * T.landRate); m.landq -= u; m.landv -= u;
       if (!ground) m.airVy = player.vy;
       m.air = ground ? 0 : 1;
       if (sprinting !== !!m.spr) { m.spr = sprinting ? 1 : 0; if (!s.melee) bump(s, sprinting ? T.dip.sprintIn : T.dip.sprintOut, wg); }   // anticipation dip, settle
@@ -728,7 +733,7 @@
     else { rz += 0.05 * sl * hip; y -= 0.008 * sl * hip; rx -= 0.02 * sl * hip; }
     // cover dips and the stow
     y += m.by * half; rx += m.bp * half; rz += m.br * half;
-    u = m.stow; x += T.stowX * u; y += T.stowY * u; z += T.stowZ * u; rx += T.stowPitch * u; rz += T.stowRoll * u;
+    u = m.stow * vc.stow; x += T.stowX * u; y += T.stowY * u; z += T.stowZ * u; rx += T.stowPitch * u; rz += T.stowRoll * u;
     u = m.out; y += T.meleeDropY * u; rx += T.meleeDropPitch * u; rz += T.meleeDropRoll * u;
     // arm animation: once-clips (draw, fire, reload, holster) fall back to the Idle / Sprint / Slide loop
     if (W.mixer && (g || s.melee)) {

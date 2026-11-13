@@ -77,9 +77,9 @@ test('arm action lengths follow the weapon table (reload, draw 0.3 s, holster 0.
   }
 });
 
-test('arms are one skinned mesh on a 22-bone rig', () => {
+test('arms are one skinned mesh on a 40-bone rig (three joints per finger and thumb)', () => {
   assert.strictEqual(G.weapons.skins.length, 1);
-  assert.strictEqual(G.weapons.skins[0].joints.length, 22);
+  assert.strictEqual(G.weapons.skins[0].joints.length, 40);
 });
 
 test('GLBs are quantized (KHR_mesh_quantization) and carry the outline attribute', () => {
