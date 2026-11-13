@@ -46,6 +46,10 @@ def type_of(name, spots):
         for s in v.get('spots', []) or []:
             if base == plan + '-' + s['name'] and s.get('type'):
                 return s['type']
+        zt = v.get('zoneTypes') or {}
+        z = base[len(plan) + 1:].split('-')[0]
+        if z.startswith('z') and z[1:] in zt:
+            return zt[z[1:]]
         return v.get('type')
     return None
 

@@ -103,3 +103,16 @@ Stage 3), `?post=0` (the look without the post pass: the low-tier path).
 - Decision: the snow range of section 4.2 (mean 0.40 to 0.55) is too dark for a snowfield that fills most of the
   frame; mountains reads right at mean ~0.60 with under 1% clipped. The review sheet is the judge (as section
   4.2 says); the range stays as a guide and mountains is accepted above it unless the owner disagrees.
+- Second pass: stronghold halls indoor fill 0.8, lamp light x2.0 (zone 2 was still 0.11 to 0.18 mean). Metrics now
+  take per-zone scene types from `look-spots.json` `zoneTypes` (stronghold zone 2 = int-dark, observatory zone 2 =
+  int-lit): mixed maps are judged against the right range.
+
+### Stage 8 checks
+
+- `troops.spec.js` (SHOTS=1): ALL PASS, no console errors. The committed troops review pictures were black
+  (taken with the render loop paused before); the new ones render: soldiers and the Blade Bot read clearly,
+  props cast sun shadows. Soldier armour reads very dark: owner question at Checkpoint 1.
+- `latebots.spec.js`: ALL PASS (Hawk accent colours, Crawler two-tone skins, no console errors).
+- `gear-shots.js`: the committed `review/gear-*.png` were stale (another save state and the old gun designs), so
+  the inventory pictures are compared base build vs look build instead. Its last shot (a pickup card in play)
+  times out on the CPU renderer with the look on (it waits on game time at 1920x1080), as trap T25 warns.

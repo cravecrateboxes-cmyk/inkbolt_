@@ -1,5 +1,5 @@
 {
- "_doc": "Per plan: scene type for look-metrics.py (ext-day, ext-snow, ext-dusk, ext-night, int-lit, int-ind, int-dark), look family, optional hand-picked spots [{name, zone, x, z (zone cells) or wx, wz (world), yaw, pitch, aim, type}]. Without spots, look-shots.js uses its automatic 8-spot recipe.",
+ "_doc": "Per plan: scene type for look-metrics.py (ext-day, ext-snow, ext-dusk, ext-night, int-lit, int-ind, int-dark), look family, optional hand-picked spots [{name, zone, x, z (zone cells) or wx, wz (world), yaw, pitch, aim, type}]. Without spots, look-shots.js uses its automatic 8-spot recipe. Optional \"zoneTypes\": {\"1\": \"int-dark\"} sets the scene type of automatic spots z1-* (mixed maps).",
  "mountains": {
   "type": "ext-snow",
   "family": "wild-ext"
@@ -130,7 +130,10 @@
  },
  "stronghold": {
   "type": "ext-dusk",
-  "family": "mil-ext"
+  "family": "mil-ext",
+  "zoneTypes": {
+   "1": "int-dark"
+  }
  },
  "airport": {
   "type": "int-lit",
@@ -178,7 +181,10 @@
  },
  "observatory": {
   "type": "ext-dusk",
-  "family": "mil-ext"
+  "family": "mil-ext",
+  "zoneTypes": {
+   "1": "int-lit"
+  }
  },
  "toytown": {
   "type": "ext-day",
