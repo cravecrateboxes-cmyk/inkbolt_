@@ -30,6 +30,7 @@ from mathutils import Matrix, Vector
 
 from ib_lib import *  # noqa: F401,F403
 import ib_lib
+import enemy_detail as ED
 
 FAM = 'troopers'
 ib_lib.GLB[FAM] = 'fps-troopers.glb'
@@ -147,6 +148,24 @@ def _carbine(m, deg=False):
     m.cyl((0.034, 0.34, 0.05), 0.012, 0.012, 0.08, 'steel2', seg=8, rot=(rad(-90), 0, 0))   # light
     m.box((0, -0.15, 0.045), (0.034, 0.17, 0.05), 'steel')          # stock
     m.box((0, -0.24, 0.035), (0.04, 0.025, 0.09), 'strap')
+    # detail pass (no outline of its own): top rail ridges, handguard vents, ejection port, charging handle, mag ribs,
+    # a sling loop, muzzle ports
+    d = getattr(m, 'd', m)
+    for y in (0.13, 0.155, 0.18, 0.205):
+        d.box((0, y, 0.091), (0.04, 0.008, 0.006), 'strap')
+    for y in (0.25, 0.275, 0.30, 0.325, 0.35, 0.375):
+        d.box((0, y, 0.087), (0.044, 0.008, 0.006), 'steel')
+    for sx in (-1, 1):
+        for y in (0.25, 0.285, 0.32):
+            d.box((sx * 0.029, y, 0.055), (0.006, 0.025, 0.012), 'strap')
+        d.box((sx * 0.0225, 0.55, 0.06), (0.006, 0.012, 0.008), 'steel2')
+    d.box((0.0255, 0.10, 0.06), (0.006, 0.05, 0.02), 'strap')
+    d.box((0, -0.055, 0.092), (0.02, 0.02, 0.012), 'steel2')
+    a = rad(14)
+    for dz in (-0.03, -0.05):
+        c = Vector((0, 0.125, -0.035)) + Matrix.Rotation(math.radians(a), 3, 'X') @ Vector((0, 0, dz))
+        d.box(tuple(c), (0.040, 0.056, 0.006), 'strap', rot=(a, 0, 0))
+    d.box((0, -0.20, 0.016), (0.012, 0.03, 0.02), 'steel2')
     return Vector((0, 0.56, 0.06))
 
 
@@ -169,6 +188,20 @@ def _launcher(m):
     m.box((0, -0.235, 0.045), (0.045, 0.03, 0.10), 'strap')          # butt pad
     m.box((0.036, 0.21, 0.125), (0.012, 0.05, 0.05), 'tan')          # quadrant sight
     m.box((0, 0.12, 0.145), (0.02, 0.05, 0.025), 'strap')            # leaf sight
+    # detail pass (no outline of its own): drum flutes, top rail ridges, barrel rings, a sling swivel, stock rings
+    d = getattr(m, 'd', m)
+    ap = 0.068 * math.cos(math.pi / 6) + 0.003
+    for k in range(6):
+        b = 30 + 60 * k
+        r = math.radians(b)
+        d.box((math.cos(r) * ap, 0.095, 0.048 + math.sin(r) * ap), (0.02, 0.11, 0.006), 'glbody', rot=(0, 90 - b, 0))
+    for y in (-0.028, -0.008, 0.012):
+        d.box((0, y, 0.098), (0.04, 0.008, 0.006), 'strap')
+    for y in (0.21, 0.25):
+        d.cyl((0, y, 0.095), 0.0365, 0.0365, 0.008, 'glbody2', seg=10, rot=R90, caps=False)
+    d.box((0, 0.40, 0.055), (0.008, 0.02, 0.02), 'steel')
+    for y in (-0.10, -0.18):
+        d.box((0, y, 0.065), (0.036, 0.01, 0.041), 'strap')
     return Vector((0, 0.46, 0.095))
 
 
@@ -176,8 +209,10 @@ def _held(pal, name, frame, build, to_rest, hull_t):
     """a gun built in the grip frame (aim pose), mapped back to the rest pose and skinned 100 % to the right hand"""
     m = Model(pal)
     m.parent = frame
+    m.d = ED.Deco(pal)
+    m.d.parent = frame
     tip = build(m)
-    obj = build_object(name, m, 0.0, hull_t)
+    obj = ED.finish(name, m, m.d, 0.0, hull_t)
     obj.data.transform(to_rest)
     hull = obj.data.attributes.get('_HULL')
     if hull:   # outline directions rotate with the mesh
@@ -225,8 +260,9 @@ def build_mech(rig, pal, ht):
         m.box = lambda loc, size, c, rot=(0, 0, 0), bevel=True: box(loc, size, c, rot, bevel and min(size) >= 0.06)
         cyl = m.cyl
         m.cyl = lambda loc, r1, r2, h, c, seg=8, rot=(0, 0, 0): cyl(loc, r1, r2, h, c, seg=min(seg, 8), rot=rot, bevel=r1 >= 0.06)
+        m.d = ED.Deco(pal)          # small detail (bolts, vents, hoses): same bone, no outline of its own
         fn(m)
-        obj = build_object('TROOPER_m_' + name, m, 0.014, ht)
+        obj = ED.finish('TROOPER_m_' + name, m, m.d, 0.014, ht)
         # slim 20 % across the bone (height and length unchanged); feet only narrower; hands and claws keep the grip
         if 'hand' not in bone and '_f_' not in bone and 'thumb' not in bone:
             h, t = B(bone)
@@ -256,6 +292,12 @@ def build_mech(rig, pal, ht):
             m.box((sx * 0.19, 0.0, 0.91), (0.05, 0.22, 0.18), 'mplate2')
             m.cyl((sx * 0.218, 0.0, 0.92), 0.05, 0.05, 0.014, 'servo', seg=10, rot=RY(sx))
         m.box((0, 0.14, 0.95), (0.16, 0.06, 0.10), 'mplate2')
+        for sx in (-1, 1):                                       # detail: side plate bolts, back vent slats
+            for y in (-0.075, 0.075):
+                for z in (0.85, 0.97):
+                    m.d.cyl((sx * 0.213, y, z), 0.009, 0.009, 0.008, 'servo', seg=6, rot=RY(sx))
+        for z in (0.925, 0.945, 0.965):
+            m.d.box((0, 0.1715, z), (0.12, 0.007, 0.01), 'servo')
     P('hips', 'DEF-hips', hips)
 
     # ---- narrow waist: a chrome column in a servo collar
@@ -270,6 +312,9 @@ def build_mech(rig, pal, ht):
         m.box((0, 0.02, 1.19), (0.24, 0.20, 0.10), 'mframe')
         m.box((0, -0.085, 1.195), (0.18, 0.03, 0.07), 'mplate2')
         m.box((0, -0.101, 1.195), (0.012, 0.005, 0.05), 'cable', bevel=False)
+        for sx in (-1, 1):                                       # detail: side vent slats
+            for z in (1.17, 1.19, 1.21):
+                m.d.box((sx * 0.1215, 0.02, z), (0.007, 0.12, 0.008), 'servo')
     P('chestlo', 'DEF-spine.002', chest_lo)
 
     def chest(m):      # the wide chunky torso
@@ -292,6 +337,20 @@ def build_mech(rig, pal, ht):
             m.box((0, 0.205, z), (0.22, 0.012, 0.012), 'servo')
         for sx in (-1, 1):
             m.beam((sx * 0.11, 0.19, 1.44), (sx * 0.24, 0.14, 1.48), 0.018, 'cable')
+        # detail: a vent grille down the middle of the chest plate, bolted side plates, a bezel round the reactor
+        # cell, cooling slats on the reactor pack, bolts on the collar shelf
+        with ED.at(m.d, ED.axis_frame(Matrix.Rotation(math.radians(-4), 4, 'X') @ Vector((0, -0.02, 0)) + Vector((0, -0.14, 1.37)),
+                                      Matrix.Rotation(math.radians(-4), 3, 'X') @ Vector((0, -1, 0)))):
+            ED.grille(m.d, 0, -0.01, 0.07, 0.15, 5, color='mframe', slat='servo')
+        for sx in (-1, 1):
+            for y in (-0.06, 0.10):
+                for z in (1.29, 1.43):
+                    m.d.cyl((sx * 0.293, y, z), 0.01, 0.01, 0.008, 'servo', seg=6, rot=RY(sx))
+            for z in (1.33, 1.355, 1.38, 1.405):
+                m.d.box((sx * 0.1415, 0.17, z), (0.007, 0.045, 0.01), 'servo')
+            for x in (-0.11, 0.11):
+                m.d.cyl((x, sx * 0.08 + 0.02, 1.508), 0.009, 0.009, 0.006, 'servo', seg=6)
+        m.d.cyl((0, 0.198, 1.39), 0.068, 0.068, 0.014, 'mframe', seg=12, rot=(-90, 0, 0))
     P('chest', 'DEF-spine.003', chest)
 
     # ---- short neck + small boxy head set low, one red optic
@@ -309,6 +368,16 @@ def build_mech(rig, pal, ht):
         m.box((0, -0.10, 1.53), (0.10, 0.03, 0.03), 'servo')                          # chin vent
         for sx in (-1, 1):
             m.box((sx * 0.082, -0.02, 1.575), (0.016, 0.10, 0.06), 'servo')
+        # detail: lid bolts, chin vent slats, ear sensor lenses, a stub antenna with a red tip
+        for x in (-0.045, 0.045):
+            for y in (-0.075, 0.015):
+                m.d.cyl((x, y, 1.643), 0.008, 0.008, 0.007, 'servo', seg=6)
+        for x in (-0.03, 0.0, 0.03):
+            m.d.box((x, -0.1165, 1.53), (0.012, 0.007, 0.022), 'mframe')
+        for sx in (-1, 1):
+            m.d.cyl((sx * 0.088, -0.03, 1.575), 0.014, 0.014, 0.006, 'chrome', seg=8, rot=RY(sx))
+        m.d.cyl((0.045, 0.03, 1.643), 0.006, 0.006, 0.022, 'cable', seg=5)
+        m.d.cyl((0.045, 0.03, 1.66), 0.01, 0.01, 0.01, 'optic', seg=6)
     P('head', 'DEF-head', head)
 
     for side, sx in (('L', 1), ('R', -1)):
@@ -324,6 +393,14 @@ def build_mech(rig, pal, ht):
             stencil(m, x, y - 0.132, z - 0.04, 0.12, 3)
             m.box((x + sx * 0.101, y, z), (0.006, 0.16, 0.10), 'mplate2', bevel=False)
             m.cyl((uh.x + sx * 0.19, uh.y, uh.z - 0.01), 0.07, 0.07, 0.04, 'servo', seg=10, rot=RY(sx))
+            # detail: bolts on the top plate, a vent on the back face, a rivet row under the stencil
+            for dx in (-0.065, 0.065):
+                for dy in (-0.09, 0.09):
+                    m.d.cyl((x + sx * 0.02 + dx, y + dy, z + 0.123), 0.009, 0.009, 0.007, 'servo', seg=6)
+            with ED.at(m.d, ED.axis_frame((x, y + 0.13, z), (0, 1, 0))):
+                ED.grille(m.d, 0, 0, 0.12, 0.10, 4, color='mframe', slat='servo')
+            for dx in (-0.06, -0.02, 0.02, 0.06):
+                m.d.cyl((x + dx, y - 0.13, z - 0.075), 0.008, 0.008, 0.007, 'servo', seg=6, rot=(90, 0, 0))
         P('sh' + side, 'DEF-shoulder.' + side, shoulder)
 
         def upper(m, uh=uh, ut=ut, sx=sx):
@@ -335,6 +412,10 @@ def build_mech(rig, pal, ht):
             m.cyl((mx - sx * L * 0.42, uh.y - 0.08, uh.z - 0.03), 0.024, 0.024, 0.08, 'mframe', seg=8, rot=RY(sx))
             m.cyl((ut.x, ut.y + 0.075, ut.z), 0.07, 0.07, 0.15, 'servo', seg=10, rot=R90X)           # elbow servo
             m.cyl((ut.x, ut.y + 0.095, ut.z), 0.03, 0.03, 0.19, 'chrome', seg=8, rot=R90X)
+            # detail: bolts at the ends of the top plate, a hose along the back
+            for dx in (-L * 0.2, L * 0.2):
+                m.d.cyl((mx + dx, uh.y, uh.z + 0.079), 0.008, 0.008, 0.006, 'servo', seg=6)
+            ED.cable(m.d, [(mx - sx * L * 0.3, uh.y + 0.072, uh.z + 0.03), (mx, uh.y + 0.08, uh.z), (mx + sx * L * 0.3, uh.y + 0.072, uh.z - 0.03)], 0.016, 'cable')
         P('ua' + side, 'DEF-upper_arm.' + side, upper)
 
         def fore(m, fh=fh, ft=ft, sx=sx):    # thick, segmented forearm
@@ -346,6 +427,10 @@ def build_mech(rig, pal, ht):
             for dy in (-0.06, 0.06):     # twin pistons over the top
                 m.cyl((fh.x + sx * L * 0.05, fh.y + dy, fh.z + 0.085), 0.013, 0.013, L * 0.9, 'chrome', seg=6, rot=RY(sx))
             m.cyl((ft.x - sx * 0.025, ft.y, ft.z), 0.05, 0.05, 0.05, 'servo', seg=10, rot=RY(sx))       # wrist collar
+            for k in range(3):                                   # detail: two bolts on the back of each segment
+                cx = fh.x + sx * (0.06 + k * (L - 0.06) / 3 + (L - 0.06) / 6)
+                for dz in (-0.04, 0.04):
+                    m.d.cyl((cx, fh.y + (0.16 - 0.01 * k) / 2 - 0.002, fh.z + dz), 0.009, 0.009, 0.008, 'servo', seg=6, rot=(-90, 0, 0))
         P('fa' + side, 'DEF-forearm.' + side, fore)
 
         def hand(m, hh=hh, sx=sx):          # clamp hand: a heavy block with an upper jaw
@@ -389,6 +474,12 @@ def build_mech(rig, pal, ht):
             m.cyl((x + sx * 0.095, 0.0, tt.z + 0.05), 0.013, 0.013, 0.30, 'chrome', seg=6)
             m.cyl((tt.x - sx * 0.10, tt.y, tt.z), 0.075, 0.075, 0.20, 'servo', seg=10, rot=RY(sx))   # knee servo
             m.cyl((tt.x - sx * 0.11, tt.y, tt.z), 0.03, 0.03, 0.22, 'chrome', seg=8, rot=RY(sx))
+            # detail: bolts on the front plate, a vent on the outer side
+            for dx in (-0.05, 0.05):
+                for z in (0.67, 0.855):
+                    m.d.cyl((x + dx, -0.103, z), 0.009, 0.009, 0.007, 'servo', seg=6, rot=(90, 0, 0))
+            with ED.at(m.d, ED.axis_frame((x - sx * 0.08, 0.0, 0.70), (-sx, 0, 0))):
+                ED.grille(m.d, 0, 0, 0.10, 0.12, 4, color='mframe', slat='servo')
         P('th' + side, 'DEF-thigh.' + side, thigh)
 
         def shin(m, sh_=sh_, st=st, sx=sx):  # tall heavy shin
@@ -402,12 +493,23 @@ def build_mech(rig, pal, ht):
                 m.cyl((x + dx, 0.11, 0.13), 0.016, 0.016, 0.34, 'chrome', seg=6)        # back pistons
             m.box((x, 0.0, 0.13), (0.14, 0.16, 0.05), 'servo')
             m.sphere((st.x, st.y, st.z), 0.055, 'servo', seg=(10, 6))
+            # detail: bolts round the front inset, a vent on the outer side
+            for dx in (-0.045, 0.045):
+                for z in (0.20, 0.40):
+                    m.d.cyl((x + dx, -0.105, z), 0.008, 0.008, 0.007, 'servo', seg=6, rot=(90, 0, 0))
+            with ED.at(m.d, ED.axis_frame((x - sx * 0.09, 0.0, 0.32), (-sx, 0, 0))):
+                ED.grille(m.d, 0, 0, 0.12, 0.14, 5, color='mframe', slat='servo')
         P('sh' + side + '2', 'DEF-shin.' + side, shin)
 
         def foot(m, fo=fo, sx=sx):          # big flat foot
             x = fo.x + sx * 0.01
             m.box((x, 0.0, 0.045), (0.22, 0.24, 0.09), 'mframe')
             m.box((x, 0.13, 0.035), (0.18, 0.05, 0.07), 'mplate2')
+            for sx2 in (-1, 1):                                  # detail: tread blocks along both sides, top bolts
+                for y in (-0.08, -0.03, 0.02, 0.07):
+                    m.d.box((x + sx2 * 0.111, y, 0.025), (0.008, 0.03, 0.03), 'servo')
+                for y in (-0.08, 0.06):
+                    m.d.cyl((x + sx2 * 0.08, y, 0.088), 0.009, 0.009, 0.007, 'servo', seg=6)
         P('ft' + side, 'DEF-foot.' + side, foot)
 
         def toe(m, to=to, sx=sx):
@@ -416,6 +518,9 @@ def build_mech(rig, pal, ht):
             for k in range(3):
                 m.box((x - 0.07 + 0.07 * k, -0.28, 0.035), (0.05, 0.02, 0.06), 'mframe')
             m.box((x, -0.20, 0.072), (0.14, 0.08, 0.006), 'mhaz', bevel=False)
+            for dx in (-0.095, 0.095):                           # detail: bolts on the toe plate
+                for y in (-0.15, -0.25):
+                    m.d.cyl((x + dx, y, 0.068), 0.009, 0.009, 0.008, 'servo', seg=6)
         P('toe' + side, 'DEF-toe.' + side, toe)
     return parts
 
@@ -505,7 +610,18 @@ def BUILD(ao=False):
     m.box((hc.x - hs.x * 0.16, gy + fy * 0.021, eye + 0.012), (hs.x * 0.22, 0.004, 0.012), 'lenshi')
     for sx in (-1, 1):
         m.box((hc.x + sx * hs.x * 0.5, hc.y, eye), (0.012, hs.y * 0.9, 0.03), 'strap')
-    gear.append(build_object('TROOPER_g_head', m, 0.0, ht))
+    # detail pass (no outline of its own): rail bolts, a flipped-up NVG pair on the mount, a velcro patch on the crown,
+    # a battery pack on the back pouch
+    d = ED.Deco(pal)
+    for sx in (-1, 1):
+        for dy in (-0.045, 0.045):
+            d.cyl((hc.x + sx * (rx * 0.99 + 0.006), hc.y + dy, cz + 0.03), 0.006, 0.006, 0.006, 'steel2', seg=6,
+                  rot=(0, 90 * sx, 0))
+        d.cyl((hc.x + sx * 0.018, hc.y + fy * (ry * 0.98 + 0.025), cz + 0.082), 0.012, 0.012, 0.04, 'steel2', seg=8, rot=(-90 * fy, 0, 0))
+    d.box((hc.x, hc.y + fy * (ry * 0.98 + 0.02), cz + 0.075), (0.05, 0.016, 0.02), 'steel')
+    d.box((hc.x, hc.y + 0.02, hh.z + 0.026), (0.06, 0.05, 0.012), 'pad')
+    d.box((hc.x, hc.y - fy * (ry * 0.95 + 0.026), cz + 0.07), (0.05, 0.012, 0.04), 'steel2')
+    gear.append(ED.finish('TROOPER_g_head', m, d, 0.0, ht))
 
     # plate carrier
     cl, ch = _bbox(body, dom, lambda n: 'spine.002' in n or 'spine.003' in n)
@@ -532,7 +648,36 @@ def BUILD(ao=False):
     m.beam((cc.x - cs.x * 0.38, back - fy * 0.07, pz + ph * 0.05 + 0.07), (cc.x - cs.x * 0.42, back - fy * 0.07, pz + ph * 0.05 + 0.3), 0.012, 'strap')
     m.box((cc.x + 0.03, back - fy * 0.085, pz - ph * 0.05), (0.2, 0.07, ph * 0.66), 'vest2')
     m.box((cc.x + 0.03, back - fy * 0.123, pz + ph * 0.08), (0.08, 0.012, 0.08), 'cell')
-    gear.append(build_object('TROOPER_g_vest', m, 0.0, ht))
+    # detail pass (no outline of its own): MOLLE webbing on the cummerbunds, side-release buckles, bungee bands on the
+    # mag pouches, slider buckles on the shoulder straps, a drag handle on the back plate, a velcro admin strip
+    d = ED.Deco(pal)
+    for sx in (-1, 1):                                    # grenade pouches on the cummerbunds (behind the webbing)
+        m.box((cc.x + sx * (cs.x * 0.44 + 0.052), cc.y - fy * 0.075, pz - ph * 0.2), (0.04, 0.055, 0.075), 'vest2')
+        d.box((cc.x + sx * (cs.x * 0.44 + 0.052), cc.y - fy * 0.075, pz - ph * 0.2 + 0.0405), (0.046, 0.061, 0.012), 'vest')
+    for sx in (-1, 1):
+        xo = cc.x + sx * (cs.x * 0.44 + 0.025)
+        for k in range(3):
+            d.box((xo + sx * 0.002, cc.y, pz - ph * 0.18 - 0.04 + 0.04 * k), (0.008, abs(front - back) * 0.8, 0.012), 'vest2')
+        d.box((xo + sx * 0.004, front + fy * 0.012, pz - ph * 0.18), (0.012, 0.03, 0.03), 'steel')
+        x = cc.x + sx * pw * 0.3
+        a = Vector((x, front + fy * 0.02, pz + ph / 2 - 0.02))
+        b = Vector((x, cc.y, pz + ph / 2 + 0.05))
+        d.parent = _seg_frame(a, b, Vector((0, 0, 1)))
+        d.box((0, 0, (b - a).length * 0.4), (0.058, 0.058, 0.02), 'steel')
+        d.parent = Matrix.Identity(4)
+    for i in (-1, 0, 1):
+        x = cc.x + i * 0.078
+        for dz in (-0.03, 0.02):
+            d.box((x, front + fy * 0.107, pz - ph * 0.22 + dz), (0.06, 0.006, 0.012), 'strap')
+    for sx in (-1, 1):
+        d.box((cc.x + sx * 0.035, back - fy * 0.02, pz + ph / 2 + 0.012), (0.012, 0.022, 0.03), 'strap')
+    d.box((cc.x, back - fy * 0.02, pz + ph / 2 + 0.03), (0.09, 0.03, 0.012), 'strap')
+    d.box((cc.x, front + fy * 0.059, pz + ph * 0.3 - 0.045), (pw * 0.62, 0.008, 0.022), 'vest2')
+    hy = back - fy * 0.1235                               # bungee X over the hydration pack (round the cell)
+    for sx in (-1, 1):
+        d.beam((cc.x + 0.03 - 0.08, hy, pz - ph * 0.05 + sx * 0.07), (cc.x + 0.03 - 0.045, hy, pz - ph * 0.05 + sx * 0.035), 0.008, 'strap')
+        d.beam((cc.x + 0.03 + 0.08, hy, pz - ph * 0.05 + sx * 0.07), (cc.x + 0.03 + 0.045, hy, pz - ph * 0.05 + sx * 0.035), 0.008, 'strap')
+    gear.append(ED.finish('TROOPER_g_vest', m, d, 0.0, ht))
     core = Vector((cc.x + 0.03, back - fy * 0.123, pz + ph * 0.08))
     # Grenadier's bandolier of 40 mm grenades across the plate carrier (part of TROOPER_GL, rigid on the chest)
     m = Model(pal)
@@ -565,7 +710,24 @@ def BUILD(ao=False):
     m.box((th.x if sxr > 0 else tl.x, tc.y, th.z - 0.12) if False else (tc.x + sxr * ((th.x - tl.x) * 0.5 + 0.03), tc.y, th.z - 0.13), (0.045, 0.1, 0.17), 'vest2')
     m.box((tc.x + sxr * ((th.x - tl.x) * 0.5 + 0.03), tc.y - fy * 0.02, th.z - 0.03), (0.03, 0.035, 0.06), 'steel')
     m.box((bc.x - sxr * bs.x * 0.42, bc.y - fy * bs.y * 0.3, bh.z - 0.12), (0.06, 0.1, 0.12), 'vest2')
-    gear.append(build_object('TROOPER_g_belt', m, 0.0, ht))
+    lx = -tc.x - sxr * ((th.x - tl.x) * 0.5 + 0.022)          # drop-leg utility pouch on the other thigh
+    m.box((lx, tc.y + fy * 0.01, th.z - 0.16), (0.04, 0.09, 0.11), 'vest2')
+    # detail pass (no outline of its own): buckle latch, leg straps over the holster, a holster hood, a medic pouch with
+    # a patch on the left front of the belt, a flap on the dump pouch
+    d = ED.Deco(pal)
+    d.box((bc.x, bc.y + fy * (bs.y * 0.5 + 0.0395), bh.z - 0.03), (0.03, 0.006, 0.02), 'steel2')
+    hx = tc.x + sxr * ((th.x - tl.x) * 0.5 + 0.03)
+    for z in (th.z - 0.18, th.z - 0.10):
+        d.box((hx, tc.y, z), (0.052, 0.108, 0.02), 'strap')
+    d.box((hx, tc.y, th.z - 0.043), (0.052, 0.06, 0.012), 'vest')
+    px = bc.x - sxr * bs.x * 0.30
+    d.box((px, bc.y + fy * (bs.y * 0.5 + 0.02), bh.z - 0.07), (0.06, 0.035, 0.065), 'vest2')
+    d.box((px, bc.y + fy * (bs.y * 0.5 + 0.0395), bh.z - 0.065), (0.025, 0.006, 0.025), 'red')
+    d.box((bc.x - sxr * bs.x * 0.42, bc.y - fy * bs.y * 0.3, bh.z - 0.0585), (0.066, 0.106, 0.008), 'strap')
+    d.box((lx, tc.y + fy * 0.01, th.z - 0.1015), (0.046, 0.096, 0.012), 'vest')
+    for z in (th.z - 0.19, th.z - 0.13):
+        d.box((lx, tc.y + fy * 0.01, z), (0.046, 0.096, 0.016), 'strap')
+    gear.append(ED.finish('TROOPER_g_belt', m, d, 0.0, ht))
 
     # knee pads + elbow pads
     m = Model(pal)
@@ -575,7 +737,14 @@ def BUILD(ao=False):
         m.box((k.x, k.y + fy * 0.09, k.z - 0.01), (0.07, 0.006, 0.07), 'strap')
         e = rig.data.bones['DEF-forearm.' + side].head_local
         m.box((e.x, e.y - fy * 0.045, e.z), (0.09, 0.035, 0.08), 'pad')
-    gear.append(build_object('TROOPER_g_pads', m, 0.0, ht))
+    # detail pass (no outline of its own): a hard cap ridge on the knee pads, elbow pad straps
+    d = ED.Deco(pal)
+    for side in ('L', 'R'):
+        k = rig.data.bones['DEF-shin.' + side].head_local
+        d.box((k.x, k.y + fy * 0.0905, k.z + 0.045), (0.08, 0.006, 0.012), 'steel')
+        e = rig.data.bones['DEF-forearm.' + side].head_local
+        d.box((e.x, e.y - fy * 0.0655, e.z), (0.02, 0.006, 0.086), 'strap')
+    gear.append(ED.finish('TROOPER_g_pads', m, d, 0.0, ht))
 
     # weights: each gear piece takes the body's weights from the nearest surface
     for g in gear:
