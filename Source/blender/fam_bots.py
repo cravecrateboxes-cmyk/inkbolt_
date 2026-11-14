@@ -21,6 +21,7 @@ from mathutils import Euler, Matrix, Quaternion, Vector
 
 from ib_lib import *  # noqa: F401,F403
 import ib_lib
+import enemy_detail as ED
 
 
 def _lighten(hx, k=0.12):
@@ -235,6 +236,43 @@ def build_crawler(pal):
     for z in (0.47, 0.54):
         p.on_facet(8, 10, 0.32, 0.003, z, (0.022, 0.008, 0.022), 'tin2')                # seam rivets
     p.cyl((0, 0, 0.77), 0.152, 0.152, 0.02, 'gunmetal', seg=10, caps=False, deco=True)
+    # detail pass: rolled base bead, hip mounts with pivot pins, lid bolts, hinge and latch, a bezel round the sensor
+    # slot, back vent and rivets, pouch flaps and buckles, hazard stencil, serial plate, antenna collar, lamp holder
+    rz = lambda z: 0.32 - (z - 0.30) * (0.01 / 0.42)                                   # can radius at height z
+    p.cyl((0, 0, 0.318), 0.327, 0.327, 0.022, 'trim', seg=10, caps=False, deco=True)
+    for x, y in [(-0.25, -0.25), (0.25, -0.25), (0.25, 0.25), (-0.25, 0.25)]:
+        a = math.atan2(y, x)
+        u, t = Vector((math.cos(a), math.sin(a), 0)), Vector((-math.sin(a), math.cos(a), 0))
+        p.box(tuple(u * 0.3175 + Vector((0, 0, 0.35))), (0.075, 0.07, 0.06), 'trim', rot=(0, 0, math.degrees(a)), deco=True)
+        c = u * 0.345 + Vector((0, 0, 0.33))
+        p.limb(tuple(c - t * 0.05), tuple(c + t * 0.05), 0.02, 0.02, 'steel', seg=6, deco=True)
+    ED.bolt_ring(p, 0, 0, 0.77, 0.30, 10, r=0.012, h=0.007, phase=0.2)
+    for x in (-0.07, 0.07):
+        p.limb((x - 0.03, 0.352, 0.745), (x + 0.03, 0.352, 0.745), 0.016, 0.016, 'gunmetal', seg=6, deco=True)
+    p.box((0, -0.341, 0.735), (0.07, 0.02, 0.04), 'steel', deco=True)
+    p.box((0, -0.354, 0.72), (0.03, 0.012, 0.05), 'gunmetal', deco=True)
+    for sx in (-1, 1):
+        p.box((sx * 0.178, -0.30, 0.60), (0.016, 0.104, 0.086), 'trim', deco=True)
+    p.box((0, -0.2995, 0.556), (0.336, 0.099, 0.014), 'trim', deco=True)
+    with ED.at(p, ED.facet_frame(2, 10, rz(0.66), 0.66)):
+        ED.grille(p, 0, 0, 0.15, 0.07, 4, slat='tin2')
+    with ED.at(p, ED.facet_frame(2, 10, rz(0.528), 0.528)):                            # back battery box
+        ED.pad(p, 0, 0, 0.16, 0.08, 0.03, 'trim')
+        ED.grille(p, 0, 0, 0.12, 0.05, 3, slat='tin2', base=0.03)
+    for k in (1, 3, 5):                                                                   # bolted side armour plates
+        with ED.at(p, ED.facet_frame(k, 10, rz(0.528), 0.528)):
+            ED.pad(p, 0, 0, 0.15, 0.085, 0.006, 'tin3')
+            ED.bolts(p, [(sx * 0.06, sy * 0.03) for sx in (-1, 1) for sy in (-1, 1)], r=0.009, top=0.004, color='tin2', seg=4, base=0.006)
+    for k in (4, 0):
+        p.on_facet(k, 10, 0.335, 0.052, 0.446, (0.142, 0.008, 0.045), 'pouch')
+        p.on_facet(k, 10, 0.335, 0.059, 0.42, (0.024, 0.006, 0.09), 'trim')
+        p.on_facet(k, 10, 0.335, 0.064, 0.425, (0.032, 0.006, 0.022), 'steel')
+    with ED.at(p, ED.facet_frame(6, 10, rz(0.525), 0.525)):
+        ED.chevrons(p, 0, 0, 0.10, 0.05, 4)
+    with ED.at(p, ED.facet_frame(9, 10, rz(0.53), 0.53)):
+        ED.serial_plate(p, 0, 0, 0.08, 0.035)
+    p.cyl((0.12, 0.08, 0.765), 0.03, 0.03, 0.03, 'gunmetal', seg=6, deco=True)
+    p.cyl((0.12, 0.08, 0.995), 0.028, 0.028, 0.035, 'gunmetal', seg=6, deco=True)
     body = p.build('BOT_CRAWLER_Body')
     socket('BOT_CRAWLER_CORE', body, (0, 0, 0.82))
     for i, (x, y) in enumerate([(-0.25, -0.25), (0.25, -0.25), (0.25, 0.25), (-0.25, 0.25)]):
@@ -244,6 +282,13 @@ def build_crawler(pal):
         p.box(((0.035 if i % 2 else -0.035), 0, -0.05 - i * 0.085), (0.13, 0.06, 0.04), 'spring', deco=True)
     p.box((0, 0, -0.15), (0.03, 0.03, 0.3), 'gunmetal')
     p.cyl((0, 0, -0.355), 0.09, 0.07, 0.05, 'gunmetal', seg=5)
+    # detail pass: hip knuckle, hydraulic piston behind the spring, ankle collar, three toe claws
+    p.cyl((-0.04, 0, 0), 0.03, 0.03, 0.08, 'trim', seg=6, rot=(0, 90, 0), deco=True)
+    ED.piston(p, (0, 0.045, -0.03), (0, 0.045, -0.29), 0.014, 0.008, k=0.5, body='trim', rod='steel')
+    p.cyl((0, 0, -0.315), 0.028, 0.028, 0.03, 'trim', seg=6, deco=True)
+    for a in (-90, 30, 150):
+        r = math.radians(a)
+        p.box((0.085 * math.cos(r), 0.085 * math.sin(r), -0.34), (0.05, 0.03, 0.022), 'trim', rot=(0, 0, a), deco=True)
     p.build('BOT_CRAWLER_Leg', bevel=False, hull=0.01)
     p = Part(pal)
     p.box((0, 0, 0), (0.09, 0.09, 0.09), 'light')
@@ -374,6 +419,31 @@ def build_gunner(pal):
     p.box((0, 0.347, 0.45), (0.40, 0.008, 0.10), 'ink', deco=True)                       # rear hull vent
     p.cyl((lx, ly, 0.92), 0.03, 0.022, 0.035, 'steel', seg=6, deco=True)                  # antenna base
     p.box((0, -0.02, 0.962), (0.44, 0.52, 0.006), 'ink', deco=True)                       # dark bay (shows when the cowl lifts)
+    # detail pass: twin lamps on the chest plate, serial plates and rivet rows on the sponsons, exhaust stubs and
+    # a grab rail on the power pack, skid bolts, pod rivets, hinge brackets, tow hook, battery cables in the bay
+    with ED.at(p, on_edge(P_, 6, 0.5, 0.0)):
+        for x in (-0.11, 0.11):
+            ED.lamp(p, x, 0.0, 0.02, lens='sticker', w=0.006, base=0.009)
+    for sx in (-1, 1):
+        p.parent = Matrix.Translation((sx * 0.25, 0, 0.33)) @ Matrix.Rotation(math.radians(7 * sx), 4, 'Y') @ Matrix.Translation((-sx * 0.25, 0, -0.33))
+        p.box((sx * 0.3015, 0.12, 0.62), (0.007, 0.10, 0.06), 'sticker', deco=True)
+        for z, w in ((0.632, 0.07), (0.608, 0.045)):
+            p.box((sx * 0.3055, 0.115, z), (0.006, w, 0.01), 'ink', deco=True)
+        for y in (-0.24, -0.14, -0.04, 0.06, 0.16):
+            p.cyl((sx * 0.296, y, 0.775), 0.012, 0.012, 0.008, 'steel', seg=6, rot=(0, sx * 90, 0), deco=True)
+    p.parent = Matrix.Identity(4)
+    for x in (-0.17, 0.17):
+        p.cyl((x, 0.40, 0.92), 0.026, 0.026, 0.05, 'gunmetal', seg=6, deco=True)
+        p.cyl((x, 0.40, 0.967), 0.015, 0.015, 0.006, 'ink', seg=6, deco=True)
+    for sx in (-1, 1):
+        for y in (-0.25, -0.17):
+            p.cyl((sx * 0.217, y, 0.03), 0.011, 0.011, 0.008, 'steel', seg=6, rot=(0, sx * 90, 0), deco=True)
+        p.cyl((0.437, -0.20 + 0.10 * (sx + 1), 0.73), 0.009, 0.009, 0.007, 'steel', seg=4, rot=(0, 90, 0), deco=True)
+        p.box((sx * 0.20, 0.335, 0.965), (0.05, 0.04, 0.03), 'gunmetal', deco=True)
+    p.box((0, 0.355, 0.20), (0.08, 0.03, 0.05), 'gunmetal', deco=True)
+    p.box((0, 0.378, 0.195), (0.03, 0.03, 0.03), 'steel', deco=True)
+    ED.cable(p, [(0.12, -0.36, 0.905), (0.12, -0.20, 0.968), (0.05, 0.10, 0.968)], 0.018, 'rubber')
+    ED.cable(p, [(-0.12, -0.36, 0.905), (-0.12, -0.20, 0.972), (-0.05, 0.10, 0.972)], 0.018, 'red')
     body = p.build('BOT_GUNNER_Body')
     socket('BOT_GUNNER_CORE', body, (0, py, pz))
     socket('BOT_GUNNER_HINGE', body, G_HINGE)
@@ -397,6 +467,16 @@ def build_gunner(pal):
         p.cyl((sx * 0.30 - 0.05, 0, 0.0), 0.028, 0.028, 0.10, 'gunmetal', seg=6, rot=(0, 90, 0), deco=True)  # knuckles
         for y in (-0.15, -0.45):
             p.cyl((sx * 0.25, y, 0.081), 0.014, 0.014, 0.008, 'steel', seg=6, deco=True)  # bolts
+    # detail pass: panel seams across the cowl, a grab handle on the spine, spine bolts
+    for sx in (-1, 1):
+        for y in (-0.30, -0.60):
+            p.box((sx * 0.245, y, 0.086), (0.12, 0.012, 0.006), 'ink', deco=True)
+    for x in (-0.05, 0.05):
+        p.box((x, -0.12, 0.125), (0.015, 0.009, 0.025), 'steel', deco=True)
+    p.box((0, -0.12, 0.135), (0.14, 0.015, 0.015), 'steel', deco=True)
+    for y in (-0.25, -0.40, -0.52):
+        for x in (-0.13, 0.13):
+            p.cyl((x, y, 0.113), 0.01, 0.01, 0.006, 'steel', seg=4, deco=True)
     p.build('BOT_GUNNER_Lid')
 
     # twin autocannon (origin on the battery axis; barrels along -Y)
@@ -411,6 +491,17 @@ def build_gunner(pal):
         p.box((sx * 0.062, -0.29, 0.0), (0.006, 0.12, 0.016), 'ink', deco=True)          # shroud cooling slots
     p.box((0, -0.29, 0.037), (0.10, 0.12, 0.006), 'ink', deco=True)
     p.box((0, -0.12, 0.082), (0.11, 0.05, 0.006), 'amber', deco=True)                     # receiver hazard band
+    # detail pass: barrel cooling rings, side ammo drum with a feed chute, receiver bolts and top rail slots
+    for sx in (-1, 1):
+        for y in (-0.385, -0.415):
+            p.cyl((sx * 0.032, y, 0), 0.031, 0.031, 0.012, 'gunmetal', seg=6, rot=(90, 0, 0), caps=False, deco=True)
+        for y in (-0.09, -0.19):
+            p.cyl((sx * 0.073, y, 0.045), 0.01, 0.01, 0.006, 'steel', seg=4, rot=(0, sx * 90, 0), deco=True)
+    p.cyl((-0.073, -0.14, -0.02), 0.05, 0.05, 0.025, 'bin2', seg=8, rot=(0, -90, 0), deco=True)
+    p.cyl((-0.096, -0.14, -0.02), 0.022, 0.022, 0.006, 'steel', seg=6, rot=(0, -90, 0), deco=True)
+    p.box((-0.085, -0.145, 0.03), (0.016, 0.04, 0.03), 'gunmetal', deco=True)
+    for y in (-0.08, -0.19):
+        p.box((0, y, 0.0815), (0.06, 0.012, 0.007), 'ink', deco=True)
     gun = p.build('BOT_GUNNER_Gun', bevel=False)
     socket('BOT_GUNNER_GUN', gun, (0, -0.51, 0))
 
@@ -420,6 +511,16 @@ def build_gunner(pal):
     p.cyl((-w / 2, 0, 0), G_WHEEL_R, G_WHEEL_R, w, 'rubber', seg=8, rot=(0, 90, 0))
     p.cyl((-w / 2 - 0.004, 0, 0), 0.072, 0.072, w + 0.008, 'bin2', seg=6, rot=(0, 90, 0), deco=True)     # armoured hub
     p.cyl((-w / 2 - 0.01, 0, 0), 0.026, 0.026, w + 0.02, 'gunmetal', seg=6, rot=(0, 90, 0), deco=True)   # axle nut
+    # detail pass: tread lugs on every tyre facet, five hub bolts on each face
+    ap = G_WHEEL_R * math.cos(math.pi / 8)
+    for j in range(8):
+        b = math.radians(22.5 + 45 * j)
+        r = ap + 0.005
+        p.box((0, r * math.cos(b), r * math.sin(b)), (0.066, 0.03, 0.014), 'rubber', rot=(math.degrees(b) - 90, 0, 0), deco=True)
+    for sx in (-1, 1):
+        for j in range(5):
+            b = 2 * math.pi * j / 5
+            p.cyl((sx * 0.0395, 0.048 * math.cos(b), 0.048 * math.sin(b)), 0.009, 0.009, 0.007, 'steel', seg=6, rot=(0, sx * 90, 0), deco=True)
     p.build('BOT_GUNNER_Wheel', bevel=False)
 
     p = Part(pal)
@@ -463,6 +564,34 @@ def build_bomber(pal):
         p.cyl((sx * 0.277, 0, 0.13), 0.045, 0.045, 0.014, 'alu', seg=6, rot=(0, sx * 90, 0), deco=True)
     p.cyl((0, cy, 0.465), 0.072, 0.072, 0.02, 'core2', seg=8, caps=False, deco=True)
     p.cyl((0, cy, 0.61), 0.016, 0.016, 0.03, 'gunmetal', seg=6, deco=True)
+    # detail pass: roller mudguards, bolted fork plates with a slot, cradle bolts, moulded flutes on the shoulder,
+    # neck thread rings, a pressure gauge and a hose from the canister valve to the neck, a second canister clamp,
+    # explosive diamonds and a barcode on the label
+    for sy in (-1, 1):
+        arc = [(sy * r * math.cos(math.radians(a)), B_AXLE[2] + r * math.sin(math.radians(a)))
+               for r, angs in ((0.165, range(18, 79, 12)), (0.155, range(78, 17, -12))) for a in angs]
+        sprism(p, arc, -0.20, 0.20, 'steel', deco=True)
+    for sx in (-1, 1):
+        for y in (-0.025, 0.025):
+            p.cyl((sx * 0.275, y, 0.285), 0.009, 0.009, 0.008, 'steel', seg=6, rot=(0, sx * 90, 0), deco=True)
+        p.box((sx * 0.2785, 0, 0.225), (0.007, 0.04, 0.035), 'ink', deco=True)
+    ED.bolt_ring(p, 0, 0, 0.32, 0.222, 8, r=0.01, h=0.007, phase=math.pi / 8, seg=5)
+    for k in range(0, SEG, 2):
+        p.on_slope(k, SEG, (0.212, 0.665), (0.165, 0.725), 0.5, 0.003, (0.034, 0.006, 0.05), 'glass2')
+    for z in (0.848, 0.858):
+        p.band(z, z + 0.006, 0.081, 'glass2', seg=8)
+    p.cyl((0, cy, 0.525), 0.072, 0.072, 0.02, 'core2', seg=8, caps=False, deco=True)
+    p.cyl((0, cy - 0.064, 0.43), 0.026, 0.026, 0.008, 'gunmetal', seg=8, rot=(90, 0, 0), deco=True)
+    p.cyl((0, cy - 0.070, 0.43), 0.02, 0.02, 0.005, 'paper', seg=8, rot=(90, 0, 0), deco=True)
+    p.box((0.006, cy - 0.0765, 0.435), (0.004, 0.004, 0.018), 'ink', rot=(0, 30, 0), deco=True)
+    ED.cable(p, [(0, cy, 0.632), (0, -0.25, 0.70), (0, -0.20, 0.735), (0, -0.12, 0.765)], 0.016, 'rubber')
+    for k in (5, 11):
+        with ED.at(p, ED.facet_frame(k, SEG, 0.232, 0.51)):
+            ED.pad(p, 0, 0, 0.042, 0.042, 0.004, 'red', base=0.0, rot=45)
+            ED.pad(p, 0, 0, 0.012, 0.012, 0.003, 'ink', base=0.004)
+    with ED.at(p, ED.facet_frame(2, SEG, 0.232, 0.51)):
+        for i, w in enumerate((0.004, 0.008, 0.003, 0.006, 0.004, 0.009, 0.003)):
+            ED.pad(p, -0.024 + 0.008 * i, 0, w, 0.04, 0.003, 'ink')
     body = p.build('BOT_BOMBER_Body', bevel=False)
     socket('BOT_BOMBER_CORE', body, (0, cy, 0.48))
     socket('BOT_BOMBER_AXLE', body, B_AXLE)
@@ -475,6 +604,17 @@ def build_bomber(pal):
         p.cyl((x - 0.012, 0, 0), B_ROLLER_R + 0.006, B_ROLLER_R + 0.006, 0.024, 'steel', seg=10, rot=(0, 90, 0),
               caps=False, deco=True)
     p.cyl((-0.228, 0, 0), 0.06, 0.06, 0.456, 'alu', seg=6, rot=(0, 90, 0), deco=True)    # end hubs (one through-rod)
+    # detail pass: tread lugs on every facet (three rows between the steel rings), hub bolts on both ends
+    ap = B_ROLLER_R * math.cos(math.pi / 10)
+    for j in range(10):
+        b = math.radians(36 * j)
+        for x, w in ((0.0, 0.18), (-0.172, 0.06), (0.172, 0.06)):
+            r = ap + 0.004
+            p.box((x, r * math.cos(b), r * math.sin(b)), (w, 0.028, 0.012), 'rubber', rot=(math.degrees(b) - 90, 0, 0), deco=True)
+    for sx in (-1, 1):
+        for j in range(4):
+            b = math.pi / 4 + math.pi / 2 * j
+            p.cyl((sx * 0.226, 0.034 * math.cos(b), 0.034 * math.sin(b)), 0.009, 0.009, 0.008, 'steel', seg=5, rot=(0, sx * 90, 0), deco=True)
     p.build('BOT_BOMBER_Roller', bevel=False)
 
     # crimp cap + fuse wick (origin on the neck top)
@@ -485,6 +625,11 @@ def build_bomber(pal):
         p.beam(a, b, 0.016, 'wick')
     p.cyl((0, 0, -0.012), 0.095, 0.095, 0.02, 'capred', seg=10, caps=False, deco=True)   # crimp skirt
     p.cyl((0, 0, 0.046), 0.026, 0.02, 0.025, 'alu', seg=6, deco=True)                     # wick holder
+    # detail pass: crimp teeth round the skirt, knurled grip ridges, a crimp ring on the wick holder
+    for k in range(10):
+        p.on_facet(k, 10, 0.095, 0.0, -0.002, (0.014, 0.008, 0.018), 'red')
+        p.on_facet(k, 10, 0.088, 0.0, 0.034, (0.012, 0.007, 0.022), 'capred', phase=math.pi / 10)
+    p.cyl((0, 0, 0.056), 0.025, 0.025, 0.008, 'gunmetal', seg=6, caps=False, deco=True)
     cap = p.build('BOT_BOMBER_Cap', bevel=False)
     socket('BOT_BOMBER_WICK', cap, (0.022, 0.0, 0.185))
 
@@ -515,6 +660,26 @@ def build_drone(pal):
     p.band(0.18, 0.29, 0.195, 'paper', seg=SEG)                                           # white ribbon
     p.band(0.37, 0.43, 0.196, 'ink', seg=SEG)                                             # sensor slot (all round)
     p.band(0.388, 0.412, 0.2, 'amber', seg=SEG)                                           # sensor strip
+    # detail pass: rolled top chime and bottom bead, a seam strip down the back, side vents, a can label with
+    # stencil bars, two side cameras over the sensor slot, a gimbal yoke round the gun
+    p.band(0.563, 0.572, 0.168, 'alu', seg=SEG)
+    p.band(0.075, 0.09, 0.194, 'can2', seg=SEG)
+    for z0, z1 in ((0.095, 0.175), (0.295, 0.365), (0.435, 0.495)):
+        p.on_facet(2, SEG, 0.19, 0.0, (z0 + z1) / 2, (0.016, 0.007, z1 - z0), 'can2')
+    for k in (0, 5):
+        with ED.at(p, ED.facet_frame(k, SEG, 0.19, 0.33)):
+            ED.grille(p, 0, 0, 0.07, 0.05, 3, slat='can2')
+    with ED.at(p, ED.facet_frame(10, SEG, 0.19, 0.13)):
+        ED.pad(p, 0, 0, 0.075, 0.07, 0.004, 'paper')
+        ED.stencil(p, -0.005, 0.016, 0.05, 0.008, 3, base=0.004)
+        ED.pad(p, -0.012, -0.004, 0.04, 0.006, 0.003, 'ink', base=0.004)
+        ED.pad(p, -0.006, -0.018, 0.052, 0.006, 0.003, 'ink', base=0.004)
+    for k in (11, 6):
+        with ED.at(p, ED.facet_frame(k, SEG, 0.19, 0.465)):
+            ED.pad(p, 0, 0, 0.04, 0.03, 0.012, 'gunmetal')
+            ED.lamp(p, 0, 0, 0.009, lens='teal', w=0.004, base=0.012, seg=6)
+    for sx in (-1, 1):
+        p.box((sx * 0.048, D_PIVOT[1], -0.01), (0.012, 0.04, 0.06), 'gunmetal', deco=True)
     body = p.build('BOT_DRONE_Body', bevel=False)
     socket('BOT_DRONE_CORE', body, (0, 0, -0.01))
     socket('BOT_DRONE_LID', body, D_LID)
@@ -537,6 +702,23 @@ def build_drone(pal):
     p.cyl((0, 0, -0.16), 0.03, 0.03, 0.16, 'gunmetal', seg=6, caps=False, deco=True)     # post (shows when lifted)
     p.box((0, -0.06, 0.026), (0.05, 0.085, 0.008), 'alu', deco=True)                       # pull tab
     p.cyl((0.0, 0.08, 0.022), 0.009, 0.009, 0.16, 'ink', seg=4, deco=True)               # antenna
+    # detail pass: rotor guards (a ring on two struts round each rotor disc), motor housings (cooling fins, bell
+    # cap), nav lamps on the pods, bolts where the arms cross the lid, a lamp holder under the light
+    for k in range(4):
+        a = math.radians(45 + 90 * k)
+        x, y = D_ARM * math.cos(a), D_ARM * math.sin(a)
+        p.parent = Matrix.Translation((x, y, 0))
+        p.lathe([(0.19, 0.084), (0.199, 0.084), (0.199, 0.102), (0.19, 0.102), (0.19, 0.084)], 'gunmetal', seg=12, deco=True)
+        for da in (-50, 50):
+            b = a + math.radians(180 + da)
+            p.beam((0.04 * math.cos(b), 0.04 * math.sin(b), 0.05), (0.192 * math.cos(b), 0.192 * math.sin(b), 0.09), 0.012, 'gunmetal', deco=True)
+        for z in (0.018, 0.042):
+            p.cyl((0, 0, z), 0.05, 0.05, 0.008, 'gunmetal', seg=6, caps=False, deco=True)
+        p.cyl((0, 0, 0.072), 0.032, 0.028, 0.014, 'gunmetal', seg=6, deco=True)
+        p.box((0.046 * math.cos(a), 0.046 * math.sin(a), 0.06), (0.014, 0.014, 0.012), 'red' if k in (1, 2) else 'teal', rot=(0, 0, math.degrees(a)), deco=True)
+        p.parent = Matrix.Identity(4)
+    ED.bolt_ring(p, 0, 0, 0.022, 0.135, 4, r=0.01, h=0.006, phase=0.0)
+    p.cyl((0.0, 0.08, 0.145), 0.02, 0.02, 0.025, 'gunmetal', seg=6, deco=True)
     lid = p.build('BOT_DRONE_Lid', bevel=False)
     for k, q in enumerate(pods):
         socket('BOT_DRONE_ROTOR%d' % k, lid, q)
@@ -547,6 +729,8 @@ def build_drone(pal):
     p.box((0, 0, 0.0), (0.30, 0.042, 0.008), 'ink')
     for sx in (-1, 1):
         p.box((sx * 0.168, 0, 0.0), (0.036, 0.042, 0.008), 'amber', deco=True)
+        p.box((sx * 0.085, sx * 0.012, 0.0), (0.12, 0.012, 0.014), 'gunmetal', deco=True)   # raised leading edge
+    p.cyl((0, 0, -0.008), 0.022, 0.018, 0.02, 'gunmetal', seg=6, deco=True)                # hub cap
     p.build('BOT_DRONE_Rotor', bevel=False, hull=0.008)
 
     # gun on its gimbal (origin on the pivot, barrel along -Y)
@@ -556,6 +740,14 @@ def build_drone(pal):
     p.cyl((0, -0.17, 0), 0.036, 0.036, 0.04, 'gunmetal', seg=6, rot=(90, 0, 0))
     p.cyl((0, -0.06, 0), 0.031, 0.031, 0.03, 'amber', seg=6, rot=(90, 0, 0), caps=False, deco=True)
     p.cyl((0, -0.207, 0), 0.018, 0.018, 0.006, 'ink', seg=6, rot=(90, 0, 0), deco=True)
+    # detail pass: cooling rings on the barrel, ported muzzle brake, ammo box under the breech, a sight on top
+    for y in (-0.10, -0.125, -0.15):
+        p.cyl((0, y, 0), 0.03, 0.03, 0.008, 'gunmetal', seg=6, rot=(90, 0, 0), caps=False, deco=True)
+    for sx in (-1, 1):
+        p.box((sx * 0.034, -0.19, 0), (0.008, 0.014, 0.016), 'ink', deco=True)
+    p.box((0, 0.0, -0.038), (0.05, 0.045, 0.028), 'can2', deco=True)
+    p.box((0, 0.0, -0.0545), (0.03, 0.03, 0.006), 'amber', deco=True)
+    p.box((0, -0.01, 0.036), (0.012, 0.03, 0.016), 'gunmetal', deco=True)
     gun = p.build('BOT_DRONE_Gun', bevel=False)
     socket('BOT_DRONE_GUN', gun, (0, -0.22, 0))
 
@@ -638,6 +830,12 @@ def build_soldier(pal):
     p.box((0, -0.16, -0.462), (0.115, 0.06, 0.07), 'suit2')
     p.box((0, -0.045, -0.50), (0.10, 0.25, 0.008), 'ink', deco=True)                     # sole
     p.box((0, -0.0785, -0.16), (0.05, 0.008, 0.08), 'amber', deco=True)                  # shin stripe
+    # detail pass: boot strap with a buckle, knee bolts, a calf piston
+    p.box((0, -0.045, -0.385), (0.138, 0.278, 0.02), 'suit2', deco=True)
+    p.box((0.072, -0.08, -0.385), (0.008, 0.03, 0.028), 'steel', deco=True)
+    for x in (-0.04, 0.04):
+        p.cyl((x, -0.102, 0.0), 0.01, 0.01, 0.006, 'gunmetal', seg=4, rot=(90, 0, 0), deco=True)
+    ED.piston(p, (0, 0.06, -0.05), (0, 0.06, -0.33), 0.016, 0.009, k=0.5)
     p.build('BOT_SOLDIER_Shin', bevel=False)
 
     # ---- torso A (trooper) and B (heavy); origin on the waist; gold core on the chest
@@ -699,6 +897,10 @@ def build_soldier(pal):
         p.cyl((s * 0.13, 0, 0.14), 0.05, 0.05, 0.05, 'gunmetal', seg=8, rot=(0, s * 90, 0))
         p.box((s * 0.0195, 0.02, 0.315), (0.008, 0.20, 0.02), 'red', deco=True)
     _slit(p)
+    for s in (-1, 1):                                                                        # detail: side rails + rivets
+        p.box((s * 0.158, 0.0, 0.205), (0.012, 0.18, 0.02), 'gunmetal', deco=True)
+        for y in (-0.06, 0.06):
+            p.cyl((s * 0.164, y, 0.205), 0.008, 0.008, 0.008, 'steel', seg=4, rot=(0, s * 90, 0), deco=True)
     hA = p.build('BOT_SOLDIER_HelmA')
     socket('BOT_SOLDIER_VISOR', hA, (S_SLIT[0], S_SLIT[1] - 0.004, S_SLIT[2]))
 
@@ -713,6 +915,10 @@ def build_soldier(pal):
         for z in (0.12, 0.165):
             p.box((s * 0.145, 0.04, z), (0.008, 0.12, 0.02), 'ink', deco=True)
     _slit(p)
+    for s in (-1, 1):                                                                        # detail: brow bolts, top vents
+        p.cyl((s * 0.11, -0.188, 0.215), 0.01, 0.01, 0.008, 'gunmetal', seg=4, rot=(90, 0, 0), deco=True)
+    for x in (-0.06, 0.0, 0.06):
+        p.box((x, 0.06, 0.277), (0.03, 0.10, 0.006), 'ink', deco=True)
     p.build('BOT_SOLDIER_HelmB')
 
     p = Part(pal)                                                                            # C: tall, cheek guards, mohawk
@@ -724,6 +930,8 @@ def build_soldier(pal):
     for y, z in ((-0.07, 0.33), (0.02, 0.36), (0.11, 0.33)):
         p.box((0, y, z), (0.03, 0.08, 0.09), 'red')
     _slit(p)
+    for s in (-1, 1):                                                                        # detail: cheek guard bolts
+        p.cyl((s * 0.14, -0.09, 0.07), 0.01, 0.01, 0.008, 'gunmetal', seg=4, rot=(0, s * 90, 8 * s), deco=True)
     p.build('BOT_SOLDIER_HelmC')
 
     p = Part(pal)
@@ -763,6 +971,9 @@ def build_soldier(pal):
     p = Part(pal)
     arm(p, S_HAND_L, (0.5, 0.2, -1.0), 0.33, 0.32)
     p.box((S_HAND_L[0] + 0.0, S_HAND_L[1], S_HAND_L[2] + 0.042), (0.06, 0.07, 0.008), 'suit2', deco=True)   # knuckle plate
+    e = Vector(_elbow((0, 0, 0), S_HAND_L, 0.33, 0.32, (0.5, 0.2, -1.0)))                  # detail: forearm piston
+    h = Vector(S_HAND_L)
+    ED.piston(p, tuple(e + (h - e) * 0.15 + Vector((0, 0, -0.075))), tuple(e + (h - e) * 0.75 + Vector((0, 0, -0.07))), 0.014, 0.008)
     al = p.build('BOT_SOLDIER_ArmL', bevel=False)
     socket('BOT_SOLDIER_HANDL', al, (S_HAND_L[0], S_HAND_L[1] - 0.02, S_HAND_L[2] + 0.07))
 
@@ -772,6 +983,11 @@ def build_soldier(pal):
     p.cyl((0, 0, 0.05), 0.024, 0.024, 0.025, 'amber', seg=6)
     p.cyl((0, 0, -0.012), 0.049, 0.049, 0.026, 'red', seg=8, caps=False, deco=True)
     p.box((0.047, 0, 0.015), (0.008, 0.022, 0.06), 'ink', deco=True)
+    # detail pass: grip ribs, a fuse collar and a pull ring
+    for z in (-0.04, 0.025):
+        p.cyl((0, 0, z), 0.048, 0.048, 0.008, 'ink', seg=8, caps=False, deco=True)
+    p.cyl((0, 0, 0.046), 0.03, 0.03, 0.012, 'steel', seg=6, deco=True)
+    p.cyl((-0.03, 0, 0.075), 0.014, 0.014, 0.006, 'steel', seg=6, rot=(90, 0, 0), caps=False, deco=True)
     p.build('BOT_SOLDIER_Nade', bevel=False, hull=0.008)
 
 
@@ -804,6 +1020,36 @@ def build_blader(pal):
     for k in (2, 5, 8, 11):
         p.on_slope(k, SEG, (0.42, 0.55), (0.28, 0.61), 0.5, 0.004, (0.05, 0.006, 0.05), 'ink', phase=ph)
     p.cyl((0, 0, 0.625), 0.18, 0.18, 0.02, 'gunmetal', seg=10, caps=False, deco=True)
+    # detail pass: a bezel round the sensor slot, rim bolts between the bands, a seam band on the shoulder, bolts on
+    # the crown, three thruster nozzles under the saucer, hub post collar and slip rings
+    with ED.at(p, ED.facet_frame(8, SEG, 0.49, 0.43, phase=ph)):
+        ED.pad(p, 0, 0, 0.25, 0.052, 0.004, 'gunmetal')
+    for k in range(SEG):
+        if k in (7, 8, 9):
+            continue
+        with ED.at(p, ED.facet_frame(k, SEG, 0.49, 0.43, phase=ph)):
+            ED.bolts(p, [(-0.07, 0), (0.07, 0)], r=0.011, top=0.006, color='violet2', seg=4)
+    (r0, z0), (r1, z1) = (0.49, 0.48), (0.42, 0.55)
+    n = Vector((z1 - z0, r0 - r1)).normalized() * 0.004
+    p.lathe([(r0 + (r1 - r0) * t + n.x, z0 + (z1 - z0) * t + n.y) for t in (0.42, 0.58)], 'violet2', seg=SEG, phase=ph, deco=True)
+    for k in range(1, SEG, 2):
+        p.on_slope(k, SEG, (0.28, 0.61), (0.17, 0.63), 0.5, 0.0, (0.022, 0.006, 0.022), 'gunmetal', phase=ph)
+    for k in range(SEG):                                                                    # crown armour plates + vent slats
+        with ED.at(p, ED.slope_frame(k, SEG, (0.42, 0.55), (0.28, 0.61), 0.5, phase=ph)):
+            if k in (2, 5, 8, 11):
+                for y in (-0.014, 0.0, 0.014):
+                    ED.pad(p, 0, y, 0.044, 0.006, 0.003, 'gunmetal', base=0.010)
+            else:
+                ED.pad(p, 0, 0, 0.12, 0.08, 0.006, 'violet2')
+                ED.bolts(p, [(-0.045, 0.025), (0.045, 0.025)], r=0.009, top=0.004, color='gunmetal', seg=4, base=0.006)
+    for j in range(3):
+        a = math.radians(90 + 120 * j)
+        x, y = 0.15 * math.cos(a), 0.15 * math.sin(a)
+        p.cyl((x, y, 0.13), 0.04, 0.032, 0.04, 'gunmetal', seg=8, deco=True)
+        p.cyl((x, y, 0.124), 0.026, 0.026, 0.008, 'teal', seg=8, deco=True)
+    p.cyl((0, 0, 0.66), 0.055, 0.055, 0.03, 'steel', seg=8, deco=True)
+    for z in (0.75, 0.80):
+        p.cyl((0, 0, z), 0.05, 0.05, 0.012, 'amber', seg=8, caps=False, deco=True)
     body = p.build('BOT_BLADER_Body')
     socket('BOT_BLADER_CORE', body, (0, 0, 0.67))
     socket('BOT_BLADER_HUB', body, X_HUB)
@@ -817,6 +1063,20 @@ def build_blader(pal):
     p.box((X_GRIP[0], 0, 0), (0.08, 0.09, 0.08), 'violet2', bevel=True)
     p.cyl((0, 0, 0.04), 0.06, 0.06, 0.008, 'amber', seg=8, deco=True)
     p.cyl((-0.34, 0, 0.05), 0.04, 0.04, 0.008, 'ink', seg=6, deco=True)
+    # detail pass: lightening holes in the arms, a hydraulic piston over the weapon arm, clamp bolts and jaw slit,
+    # weight plates on the counterweight, bolts round the hub drum
+    for sy in (-1, 1):
+        for x in (0.16, 0.25, 0.34, -0.15, -0.24):
+            p.box((x, sy * 0.0315, 0), (0.045 if x > 0 else 0.04, 0.005, 0.024), 'ink', deco=True)
+        for x in (0.45, 0.49):
+            p.cyl((x, sy * 0.045, 0.022), 0.009, 0.009, 0.006, 'steel', seg=4, rot=(sy * -90, 0, 0), deco=True)
+    ED.piston(p, (0.10, 0, 0.045), (0.40, 0, 0.045), 0.012, 0.007, k=0.55, body='gunmetal', rod='steel')
+    for x in (0.10, 0.40):
+        p.box((x, 0, 0.034), (0.022, 0.016, 0.022), 'gunmetal', deco=True)
+    p.box((X_GRIP[0] + 0.0, 0, 0.0425), (0.07, 0.012, 0.006), 'ink', deco=True)
+    for z in (-0.03, -0.065):
+        p.cyl((-0.34, 0, z), 0.074, 0.074, 0.008, 'gunmetal', seg=8, caps=False, deco=True)
+    ED.bolt_ring(p, 0, 0, 0.04, 0.095, 8, r=0.01, h=0.006, phase=math.pi / 8, seg=4)
     hub = p.build('BOT_BLADER_Hub', bevel=False)
     socket('BOT_BLADER_GRIP', hub, X_GRIP)
 
@@ -837,6 +1097,40 @@ def build_blader(pal):
         w = 0.068 - 0.014 * t
         st.append((x, -w / 2 + sori, w / 2 + sori, 0.009 - 0.002 * t))
     p.blade(st, (1.06, -0.07 - 0.005, 0.0), 'blade', 'paper')
+    # detail pass: diamond ito wrap on four sides of the handle, seppa washers and a ring on the guard, a fuller
+    # (bo-hi) groove line along both flats of the blade near the spine
+    for j in range(4):
+        b = math.radians(22.5 + 90 * j)
+        for i, x in enumerate((-0.12, -0.08, -0.04, 0.0, 0.04, 0.08)):
+            p.parent = Matrix.Rotation(b - math.pi / 2, 4, 'X')
+            p.box((x, 0, 0.0215), (0.013, 0.013, 0.006), 'paper', rot=(0, 0, 45), deco=True)
+            p.parent = Matrix.Identity(4)
+    for x in (0.109, 0.142):
+        p.cyl((x, 0, 0), 0.034, 0.034, 0.006, 'amber', seg=8, rot=(0, 90, 0), deco=True)
+    for x in (0.117, 0.137):
+        p.cyl((x, 0, 0), 0.052, 0.052, 0.006, 'ink', seg=12, rot=(0, 90, 0), caps=False, deco=True)
+    for sz in (-1, 1):
+        for a, b in zip(st[1:], st[2:]):
+            if b[0] > 0.86:
+                break
+            pts = []
+            for (x, yb, ye, t), s_ in ((a, 0.14), (b, 0.14), (b, 0.42), (a, 0.42)):
+                ys, yh = yb + (ye - yb) * 0.3, yb + (ye - yb) * 0.72
+                pts.append(Vector((x, ys + (yh - ys) * s_, sz * (t + (t * 0.5 - t) * s_))))
+            o = sum(pts, Vector()) / 4
+            u = (pts[1] - pts[0]).normalized()
+            nrm = (pts[1] - pts[0]).cross(pts[3] - pts[0]).normalized()
+            if nrm.z * sz < 0:
+                nrm = -nrm
+            w = nrm.cross(u)
+            F = Matrix((u, w, nrm)).transposed().to_4x4()
+            F.translation = o
+            q = [((v - o).dot(u), (v - o).dot(w)) for v in pts]
+            if _parea(q) < 0:
+                q = list(reversed(q))
+            p.parent = F
+            p.prism(q, -0.0015, 0.003, 'gunmetal', deco=True)
+            p.parent = Matrix.Identity(4)
     p.build('BOT_BLADER_Katana', bevel=False, hull=0.01)
 
     # electric axe
@@ -851,6 +1145,21 @@ def build_blader(pal):
     p.prism([(0.67, -0.06), (0.70, -0.17), (0.73, -0.06)], -0.01, 0.01, 'steel')
     for xc in (0.56, 0.60):
         p.cyl((xc, 0, 0), 0.036, 0.036, 0.014, 'teal', seg=8, rot=(0, 90, 0), caps=False, deco=True)
+    # detail pass: wrapped grip rings, head bolts and hazard stencils on both faces, a bevel line along the blade
+    # inside the glowing edge, a power cable from the battery over the head, a pommel cap
+    for x in (0.10, 0.145, 0.19, 0.235, 0.28):
+        p.cyl((x, 0, 0), 0.033, 0.033, 0.009, 'gunmetal', seg=8, rot=(0, 90, 0), caps=False, deco=True)
+    for sz in (-1, 1):
+        for x in (0.655, 0.745):
+            for y in (-0.025, 0.025):
+                p.cyl((x, y, sz * 0.0355), 0.008, 0.008, 0.008, 'steel', seg=4, rot=(0, 0 if sz > 0 else 180, 0), deco=True)
+        p.box((0.70, 0.0, sz * 0.0385), (0.05, 0.03, 0.006), 'amber', deco=True)
+        for x in (0.687, 0.70, 0.713):
+            p.box((x, 0.0, sz * 0.0435), (0.005, 0.024, 0.004), 'ink', rot=(0, 0, 30), deco=True)
+        p.prism([(0.575, 0.205), (0.70, 0.235), (0.825, 0.205), (0.83, 0.217), (0.70, 0.249), (0.57, 0.217)],
+                *(sorted((sz * 0.0125, sz * 0.018))), 'gunmetal', deco=True)
+    ED.cable(p, [(0.68, -0.09, 0.02), (0.68, -0.05, 0.052), (0.70, 0.03, 0.052), (0.72, 0.06, 0.02)], 0.012, 'ink')
+    p.cyl((-0.13, 0, 0), 0.034, 0.03, 0.012, 'amber', seg=8, rot=(0, 90, 0), deco=True)
     p.build('BOT_BLADER_Axe', bevel=False, hull=0.01)
 
     p = Part(pal)
@@ -892,6 +1201,35 @@ def build_crawler2(pal):
     p.cyl((-0.15, 0.09, 0.755), 0.014, 0.014, 0.13, 'ink', seg=4, deco=True)            # stub antenna
     p.box((-0.15, 0.09, 0.895), (0.04, 0.04, 0.03), 'plate2', deco=True)
     p.cyl((0, 0, 0.765), 0.152, 0.152, 0.02, 'gunmetal', seg=10, caps=False, deco=True)
+    # detail pass: hip mounts with pivot pins, cap rim bolts, head ring vents, chin grille, back heat sink, rivets on
+    # the shell plates, bolted belt armour, serial plate, antenna collar and lamp holder (plates keep the key colours)
+    rz = lambda z: 0.32 - (z - 0.30) * (0.01 / 0.30)
+    for x, y in [(-0.25, -0.25), (0.25, -0.25), (0.25, 0.25), (-0.25, 0.25)]:
+        a = math.atan2(y, x)
+        u, t = Vector((math.cos(a), math.sin(a), 0)), Vector((-math.sin(a), math.cos(a), 0))
+        p.box(tuple(u * 0.3175 + Vector((0, 0, 0.355))), (0.075, 0.07, 0.06), 'gunmetal', rot=(0, 0, math.degrees(a)), deco=True)
+        c = u * 0.345 + Vector((0, 0, 0.33))
+        p.limb(tuple(c - t * 0.05), tuple(c + t * 0.05), 0.02, 0.02, 'steel', seg=6, deco=True)
+    ED.bolt_ring(p, 0, 0, 0.765, 0.212, 8, r=0.011, h=0.007, color='gunmetal', phase=0.3)
+    for k in (1, 2, 3):                                                                   # head ring vents
+        with ED.at(p, ED.slope_frame(k, SEG, (0.31, 0.60), (0.25, 0.73), 0.5)):
+            ED.grille(p, 0, 0, 0.09, 0.06, 3, color='ink', slat='gunmetal')
+    with ED.at(p, ED.facet_frame(7, SEG, rz(0.555), 0.555)):                             # chin grille under the visor
+        ED.grille(p, 0, 0, 0.12, 0.05, 3, color='ink', slat='gunmetal', base=0.009)   # over the panel line
+    with ED.at(p, ED.facet_frame(2, SEG, rz(0.553), 0.553)):                             # back heat sink
+        ED.pad(p, 0, 0, 0.15, 0.07, 0.006, 'gunmetal')
+        for i in range(5):
+            ED.pad(p, -0.06 + 0.03 * i, 0, 0.008, 0.06, 0.02, 'ink', base=0.006)
+    for k in (0, 4, 6, 8):                                                                # rivets on the shell plates
+        with ED.at(p, ED.facet_frame(k, SEG, rz(0.555), 0.555)):
+            ED.bolts(p, [(sx * 0.07, sy * 0.03) for sx in (-1, 1) for sy in (-1, 1)], r=0.009, top=0.004, color='gunmetal', seg=4)
+    for k in (2, 4, 0, 9, 5):                                                             # bolted belt armour
+        with ED.at(p, ED.facet_frame(k, SEG, 0.335, 0.405, out=0.052)):
+            ED.bolts(p, [(sx * 0.042, 0.035) for sx in (-1, 1)], r=0.01, top=0.005, color='gunmetal', seg=6)
+    with ED.at(p, ED.facet_frame(0, SEG, rz(0.535), 0.535)):
+        ED.serial_plate(p, 0, 0, 0.07, 0.03, color='paper')
+    p.cyl((0.12, 0.08, 0.765), 0.03, 0.03, 0.03, 'gunmetal', seg=6, deco=True)
+    p.cyl((0.12, 0.08, 0.995), 0.028, 0.028, 0.035, 'gunmetal', seg=6, deco=True)
     p.build('BOT_CRAWLER_Body2')
     # legs: armoured thigh guard and a wide plated foot, same pivot and length
     p = Part(pal)
@@ -901,6 +1239,15 @@ def build_crawler2(pal):
     p.box((0, 0, -0.17), (0.034, 0.034, 0.30), 'plate')
     p.box((0, -0.022, -0.25), (0.044, 0.01, 0.09), 'plate2', deco=True)
     p.cyl((0, 0, -0.355), 0.095, 0.07, 0.05, 'plate2', seg=6)
+    # detail pass: hip knuckle, hydraulic piston, ankle collar, toe claws, knee bolts
+    p.cyl((-0.05, 0, 0), 0.026, 0.026, 0.10, 'gunmetal', seg=6, rot=(0, 90, 0), deco=True)
+    ED.piston(p, (0, 0.045, -0.06), (0, 0.045, -0.29), 0.014, 0.008, k=0.5, body='gunmetal', rod='steel')
+    p.cyl((0, 0, -0.315), 0.029, 0.029, 0.03, 'gunmetal', seg=6, deco=True)
+    for a in (-90, 30, 150):
+        r = math.radians(a)
+        p.box((0.088 * math.cos(r), 0.088 * math.sin(r), -0.34), (0.05, 0.03, 0.022), 'gunmetal', rot=(0, 0, a), deco=True)
+    for x in (-0.03, 0.03):
+        p.cyl((x, -0.0395, -0.02), 0.009, 0.009, 0.006, 'gunmetal', seg=4, rot=(90, 0, 0), deco=True)
     p.build('BOT_CRAWLER_Leg2', bevel=False, hull=0.01)
     # specks: white flecks and a stencil chevron, 4 mm proud of the shell (drawn over Body2, no outline)
     p = Part(pal)
@@ -961,6 +1308,37 @@ def build_hawk(pal):
         p.box((0, y, top + 0.0475), (0.12, 0.008, 0.006), 'ink', deco=True)
     p.box((0, -0.04, top + 0.0475), (0.03, 0.10, 0.006), 'hawk3', deco=True)
     p.cyl((0, 0.47, H_CEN), 0.084, 0.084, 0.03, 'plate2', seg=10, rot=(-90, 0, 0), caps=False, deco=True)
+    # detail pass: panel seam rings round the fuselage, a sensor bezel round the nose eye, a dorsal sensor turret,
+    # intake slats, pylon bolts, a blade antenna under the belly, a collar round the core, cooling rings and nozzle
+    # petals on the thruster, serial stencils on the fins
+    p.parent = Matrix.Translation((0, 0, H_CEN)) @ Matrix.Rotation(math.radians(90), 4, 'X') @ Matrix.Diagonal(Vector((1, 0.72, 1, 1)))
+    rp = lambda z: next(r0 + (r1 - r0) * (z - z0) / (z1 - z0) for (r0, z0), (r1, z1) in zip(prof, prof[1:]) if z0 <= z <= z1)
+    for zc in (-0.27, 0.28):
+        p.lathe([(rp(zc - 0.005) + 0.0055, zc - 0.005), (rp(zc + 0.005) + 0.0055, zc + 0.005)], 'ink', seg=SEG, phase=ph, deco=True)
+    p.parent = Matrix.Identity(4)
+    ly = Vector((0, math.cos(math.radians(-28)), math.sin(math.radians(-28))))
+    p.box(tuple(Vector((0, -0.385, H_CEN + 0.07)) + ly * 0.012), (0.19, 0.06, 0.06), 'gunmetal', rot=(-28, 0, 0), deco=True)
+    p.cyl((0, 0.145, top + 0.0425), 0.03, 0.026, 0.022, 'hawk3', seg=8, deco=True)
+    p.box((0, 0.118, top + 0.055), (0.03, 0.012, 0.012), 'lens', deco=True)
+    for sx in (-1, 1):
+        for z in (H_CEN - 0.055, H_CEN - 0.03, H_CEN - 0.005):
+            p.box((sx * 0.222, -0.157, z), (0.020, 0.008, 0.006), 'gunmetal', deco=True)
+        for y in (-0.02, 0.06):
+            p.cyl((sx * 0.25, y, H_FAN[2] + 0.018), 0.01, 0.01, 0.006, 'steel', seg=4, deco=True)
+        p.parent = Matrix.Translation((sx * 0.045, 0, top + 0.03)) @ Matrix.Rotation(math.radians(-30 * sx), 4, 'Y') @ _YZX
+        for i in range(3):
+            p.box((0.31 + 0.025 * i, 0.07, sx * 0.0135), (0.012, 0.03, 0.005), 'hawk3', deco=True)
+        p.parent = Matrix.Identity(4)
+    p.box((0, -0.06, H_CEN - 0.155), (0.006, 0.07, 0.035), 'hawk2', rot=(25, 0, 0), deco=True)
+    p.parent = Matrix.Translation((0, 0.17, H_CEN - 0.145)) @ Matrix.Diagonal(Vector((1, 1.2, 1, 1)))
+    p.cyl((0, 0, 0), 0.082, 0.082, 0.014, 'gunmetal', seg=10, caps=False, deco=True)
+    p.parent = Matrix.Identity(4)
+    for y in (0.415, 0.445):
+        p.cyl((0, y, H_CEN), 0.088, 0.088, 0.01, 'ink', seg=10, rot=(-90, 0, 0), caps=False, deco=True)
+    for k in range(8):
+        a = 2 * math.pi * (k + 0.5) / 8
+        p.box((0.074 * math.cos(a), 0.54, H_CEN + 0.074 * math.sin(a)), (0.03, 0.03, 0.008), 'gunmetal',
+              rot=(0, -math.degrees(a) + 90, 0), deco=True)
     body = p.build('BOT_HAWK_Body')
     socket('BOT_HAWK_CORE', body, (0, 0.17, H_CEN - 0.15))
     for i, sx in enumerate((-1, 1)):
@@ -977,6 +1355,14 @@ def build_hawk(pal):
     p.cyl((0, 0, -0.05), 0.04, 0.03, 0.05, 'hawk', seg=8)
     p.lathe([(0.206, 0.0), (0.206, 0.024)], 'plate', seg=12, deco=True)
     p.cyl((0, 0, -0.056), 0.03, 0.03, 0.008, 'plate2', seg=8, deco=True)
+    # detail pass: twelve bolts round the duct lip, four extra stator vanes, cooling bands on the motor housing
+    for k in range(12):
+        p.on_slope(k, 12, (0.205, -0.01), (0.20, 0.045), 0.82, 0.0, (0.014, 0.007, 0.014), 'gunmetal')
+    for k in range(4):
+        a = math.pi / 4 + math.pi / 2 * k
+        p.beam((0.045 * math.cos(a), 0.045 * math.sin(a), -0.02), (0.152 * math.cos(a), 0.152 * math.sin(a), -0.02), 0.012, 'gunmetal', deco=True)
+    for z in (-0.045, -0.03):
+        p.cyl((0, 0, z), 0.043, 0.043, 0.007, 'gunmetal', seg=8, caps=False, deco=True)
     p.build('BOT_HAWK_Fan', bevel=False, hull=0.01)
     # rotor: three blades
     p = Part(pal)
@@ -984,6 +1370,11 @@ def build_hawk(pal):
         a = 2 * math.pi * k / 3
         p.box((math.cos(a) * 0.075, math.sin(a) * 0.075, 0.0), (0.12, 0.034, 0.008), 'gunmetal', rot=(18, 0, math.degrees(a)))
     p.cyl((0, 0, -0.012), 0.026, 0.026, 0.024, 'hawk3', seg=8)
+    # detail pass: a spinner cone on the hub, dark blade tips
+    p.cyl((0, 0, 0.012), 0.02, 0.006, 0.02, 'gunmetal', seg=6, deco=True)
+    for k in range(3):
+        a = 2 * math.pi * k / 3
+        p.box((math.cos(a) * 0.131, math.sin(a) * 0.131, 0.0), (0.016, 0.042, 0.016), 'gunmetal', rot=(18, 0, math.degrees(a)), deco=True)
     p.build('BOT_HAWK_Rotor', bevel=False, hull=0.006)
     # chin turret (origin = pivot, barrels along -Y)
     p = Part(pal)
@@ -992,6 +1383,14 @@ def build_hawk(pal):
         p.cyl((sx * 0.025, -0.03, -0.005), 0.016, 0.016, 0.16, 'gunmetal', seg=6, rot=(90, 0, 0))
         p.cyl((sx * 0.025, -0.18, -0.005), 0.021, 0.021, 0.03, 'ink', seg=6, rot=(90, 0, 0))
     p.cyl((0, -0.035, 0), 0.0675, 0.0675, 0.02, 'plate', seg=10, rot=(90, 0, 0), caps=False, deco=True)
+    # detail pass: vented barrel jackets, side armour cheeks with a sensor lens, an ammo feed on top
+    for sx in (-1, 1):
+        p.cyl((sx * 0.025, -0.07, -0.005), 0.021, 0.021, 0.06, 'hawk', seg=6, rot=(90, 0, 0), deco=True)
+        for y in (-0.085, -0.105):
+            p.box((sx * 0.025, y, 0.0135), (0.008, 0.01, 0.006), 'ink', deco=True)
+        p.box((sx * 0.058, 0.0, 0.0), (0.02, 0.07, 0.05), 'hawk2', deco=True)
+    p.box((0.069, -0.02, 0.008), (0.004, 0.016, 0.016), 'lens', deco=True)
+    p.box((0, 0.01, 0.064), (0.04, 0.05, 0.02), 'gunmetal', deco=True)
     gun = p.build('BOT_HAWK_Gun', bevel=False)
     socket('BOT_HAWK_GUN', gun, (0, -0.21, -0.005))
     # sensor eye (coloured by the game)
