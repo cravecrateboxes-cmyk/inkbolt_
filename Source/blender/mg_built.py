@@ -6,6 +6,7 @@ arch, the potting shed and nursery props, the hatch and the backdrop manor (see 
 import math
 import random
 
+import mg_detail as MD
 from mg_base import TER, RISE, TREAD, WALL_H, zcol, stonecol, mosscol, blob, puff, bloom, frond, ring, baluster, urn  # noqa: F401
 
 LEAF = zcol('leafL', 'leaf', 'leafD', 0.45)
@@ -60,6 +61,7 @@ def wall_module(k, rnd, x0, x1, kind):
         k.bx(0.14, 0.86, -0.58, 0.49, 3.75, 3.9, 'stone2')
         k.cyl(0.5, -0.04, 3.9, 0.12, 0.1, 0.12, 'stone', seg=6)
         k.sph(0.5, -0.04, 4.18, 0.19, 'stone2', seg=(6, 4))
+    MD.wall_detail(k, x0, x1, kind)
 
 
 def build_walls(k, ao):
@@ -77,6 +79,7 @@ def build_walls(k, ao):
     k.bx(-0.56, 0.56, -0.56, 0.56, 3.8, 3.95, 'stone2')
     k.cyl(0, 0, 3.95, 0.14, 0.12, 0.12, 'stone', seg=8)
     k.sph(0, 0, 4.28, 0.23, 'stone2', seg=(8, 5))
+    MD.wallcorner_detail(k)
     k.finish('WallCorner', ao=ao)
 
 
@@ -103,6 +106,7 @@ def build_gate(k, ao):
     k.bx(-1.15, 1.15, -0.07, 0.07, 3.56, 3.98, 'verd')
     k.text('MOSSWOOD GARDENS', 0.0, -0.074, 3.64, 0.27, 'tulipW', maxw=2.1, font='display')
     k.text('MOSSWOOD GARDENS', 0.0, 0.074, 3.64, 0.27, 'tulipW', face='y+', maxw=2.1, font='display')
+    MD.gate_detail(k)
     k.finish('GateFrame', ao=ao)
     k.begin()
     Hs = 3.05
@@ -118,6 +122,7 @@ def build_gate(k, ao):
         k.cyl(x, 0, top, 0.04, 0.0, 0.14, 'bronze', seg=4, ink=False)
     for s in (-1, 1):
         k.cyl(s * 0.75, -0.06, 1.6, 0.16, 0.16, 0.02, 'bronze', seg=10, rot=(90, 0, 0), ink=False)
+    MD.shutter_detail(k)
     obj = k.finish('GateShutter', ao=False)
     from kit_base import shutter_hull
     shutter_hull(k.pal, obj)
@@ -192,6 +197,7 @@ def build_terrace(k, ao):
     k.bx(-0.5, 0.5, 0.13, 0.49, TER + 0.84, TER + 0.98, 'stone')
     terrace_cols(k)
     k.col(-0.5, 0.5, 0.12, 0.5, TER, TER + 0.98)
+    MD.terracewall_detail(k)
     k.finish('TerraceWall', ao=ao)
     # balustrade with a pier, a pilaster down the face and an urn of flowers
     rnd = random.Random(432)
@@ -209,6 +215,7 @@ def build_terrace(k, ao):
     terrace_cols(k)
     k.col(-0.5, 0.5, 0.12, 0.5, TER, TER + 0.98)
     k.col(-0.3, 0.3, 0.02, 0.62, TER, TER + 1.85)
+    MD.terracewall_p_detail(k)
     k.finish('TerraceWall_P', ao=ao)
     # corner pier
     rnd = random.Random(433)
@@ -221,6 +228,7 @@ def build_terrace(k, ao):
     for (x, y) in ((0.3, 0.53), (-0.3, 0.53), (0.53, 0.0)):
         puff(k, rnd, x, y, 0.3, 0.15, MOSS, n=5, flat=0.6, ink=False)
     k.col(-0.5, 0.5, -0.5, 0.5, 0.0, TER + 1.22)
+    MD.terracecorner_detail(k)
     k.finish('TerraceCorner', ao=ao)
     # back cells against the garden wall: the terrace body and a raised flower border (planter toward +Y)
     for name, seed, fl in (('TerraceBack_A', 434, 'tulipY'), ('TerraceBack_B', 435, 'roseP')):
@@ -284,6 +292,7 @@ def stair(k, ao, name, hw, ch=0.4):
         for (y0, y1) in ((-2.08, -0.9), (-0.9, 0.3), (0.3, 1.5), (1.5, 2.5)):
             zt = (line(y1) if y1 <= 1.5 else TER + 0.12) + 0.85
             k.col(xi, xo, y0, y1, 0.0, zt)
+    MD.stair_detail(k, hw, ch)
     k.finish(name, ao=ao)
 
 
@@ -314,6 +323,7 @@ def pergola(k, ao):
     bench(k, 0.0, 0.55, 1.6)
     k.col(-0.8, 0.8, 0.25, 0.83, 0.0, 0.47)
     k.col(-0.8, 0.8, 0.73, 0.85, 0.47, 0.9)
+    MD.pergola_detail(k)
     k.finish('Pergola', ao=ao)
 
 
@@ -328,6 +338,7 @@ def bench(k, x, y, w=1.9):
         y0 = y - 0.3 + j * 0.25
         k.bx(x - h, x + h, y0 + 0.01, y0 + 0.24, 0.42, 0.47, 'wood')
     k.bx(x - h + 0.03, x + h - 0.03, y + 0.2, y + 0.26, 0.6, 0.86, 'wood')
+    MD.bench_detail(k, x, y, w)
 
 
 # ================================================================ fountains and water
@@ -534,6 +545,7 @@ def build_bridge(k, ao):
             pts = [(s * (W + 0.005), t0, zu(t0)), (s * (W + 0.005), t1, zu(t1)), (s * (W + 0.005), t1, zu(t1) + 0.2), (s * (W + 0.005), t0, zu(t0) + 0.2)]
             k.poly(pts, 'stone3' if i % 2 else 'stoneD', (s, 0, 0))
     k.wcol(-P, P, -1.5, 1.5, 0.0, 0.9)
+    MD.bridge_detail(k, W, P)
     for (x, y) in ((-1.3, -1.6), (1.35, 1.7), (1.3, -2.1)):
         puff(k, rnd, x, y, 0.9 if abs(y) < 1.5 else 0.4, 0.16, MOSS, n=5, flat=0.5, ink=False)
     k.finish('Bridge', ao=ao)
@@ -660,6 +672,7 @@ def build_glasshouse(k, ao):
         k.beam((x, y * 0.98, z - 0.05), (x + 0.1, y * 0.96, z - L), 0.025, 'leafD', ink=False)
         for j in range(3):
             puff(k, rnd, x + 0.05, y * 0.96, z - L * (0.35 + 0.3 * j), 0.11, 'leaf', n=4, flat=0.8, ink=False)
+    MD.glasshouse_detail(k, D)
     k.finish('Landmark_Glasshouse', ao=ao)
     # glass (additive companion): walls, transoms over the doors, the vault, the gable fans, the lantern
     k.begin()
@@ -740,6 +753,7 @@ def build_gazebo(k, ao):
         if x1 - x0 < 0.1:
             x0, x1 = x0 - 0.06, x1 + 0.06
         k.col(x0, x1, y0, y1, 0.36, 1.28)
+    MD.gazebo_detail(k, cols)
     k.finish('Gazebo', ao=ao)
 
 
@@ -833,6 +847,7 @@ def build_props(k, ao):
     k.hullp([(x, y, 3.1) for x in (-0.18, 0.18) for y in (-0.18, 0.18)] + [(0, 0, 3.35)], 'iron')
     k.cyl(0, 0, 3.35, 0.04, 0.0, 0.15, 'iron', seg=4, ink=False)
     k.col(-0.17, 0.17, -0.17, 0.17, 0.0, 2.75)
+    MD.lamp_detail(k)
     k.finish('LampPost', ao=ao)
     k.begin()
     k.bx(-0.11, 0.11, -0.11, 0.11, 2.78, 3.08, 'amber', ink=False)
@@ -845,6 +860,7 @@ def build_props(k, ao):
     k.bx(-0.28, 0.28, -0.28, 0.28, 0.72, 0.82, 'stone2')
     urn(k, 0.0, 0.0, 0.82, 0.95, fl='tulip', rnd=rnd)
     k.col(-0.3, 0.3, -0.3, 0.3, 0.0, 1.45)
+    MD.urn_detail(k)
     k.finish('Urn', ao=ao)
     # sundial and armillary sphere on pedestals
     k.begin()
@@ -874,6 +890,7 @@ def build_props(k, ao):
     k.sph(C[0], C[1], C[2], 0.08, 'bronze', seg=(6, 4))
     k.cyl(0, 0, 1.08, 0.06, 0.05, 0.08, 'bronze', seg=6, ink=False)
     k.col(-0.3, 0.3, -0.3, 0.3, 0.0, 2.0)
+    MD.armillary_detail(k)
     k.finish('Armillary', ao=ao)
     # finger signposts (dark green boards, white lettering, both faces)
     for name, words in (('Signpost_A', ((20, 'FOUNTAIN'), (150, 'GLASSHOUSE'), (265, 'TERRACE'))),
@@ -890,6 +907,7 @@ def build_props(k, ao):
             k.text(w, 0.58, 0.034, z + 0.05, 0.12, 'tulipW', face='y+', maxw=0.86, font='display')
             k.pop()
         k.col(-0.1, 0.1, -0.1, 0.1, 0.0, 2.45)
+        MD.signpost_detail(k, words)
         k.finish(name, ao=ao)
     # tea table [2, 2]: a round white iron table, two chairs, a teapot and cups
     k.begin()
@@ -931,6 +949,7 @@ def build_props(k, ao):
     k.bx(-0.55, 0.55, -0.03, 0.03, 2.5, 2.82, 'iron')
     k.text('THE MAZE', 0.0, -0.034, 2.58, 0.16, 'tulipW', maxw=0.95)
     k.text('THE MAZE', 0.0, 0.034, 2.58, 0.16, 'tulipW', face='y+', maxw=0.95)
+    MD.mazearch_detail(k)
     k.finish('MazeArch', ao=ao)
     build_nursery(k, ao)
 
@@ -969,6 +988,7 @@ def build_nursery(k, ao):
         else:
             k.bx(x - 0.1, x + 0.1, -1.98, -1.94, 0.0, 0.26, 'iron', ink=False)
     k.col(-2.3, 2.3, -1.6, 1.7, 0.0, 2.4)
+    MD.shed_detail(k)
     k.finish('Shed', ao=ao)
     # potting bench [2, 1] (front -Y)
     rnd = random.Random(512)

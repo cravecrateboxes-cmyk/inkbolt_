@@ -493,7 +493,7 @@
     trail: { wall: 'TrailWall', variants: ['TrailWall', 'TrailWall_B', 'TrailWall', 'TrailWall_C'], height: 2.6 },
     hatch: 'Hatch', stand: 'Crate',
     backdrop: { build: buildGarden },
-    budget: { prop: 2000, landmark: 6000, total: 52000 },
+    budget: { prop: 2500, landmark: 8000, total: 52000 },
     garden: GARDEN, terrainHeight: terrainHeight, sampleCurve: resample,
     allPieces: function () { return PIECES.slice(); },
     levels: {
