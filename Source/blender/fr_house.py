@@ -8,6 +8,7 @@ Walls stand inside the footprint (front wall centre at the porch's back edge + T
 import math
 import random
 
+import fr_detail as FD
 from fr_base import (FLOOR, RISE, TREAD, by_normal, wall, window, gable, gable_end, shed_roof, stairs, rail_run,
                      lantern, crate, barrel, sack, post, log_x, log_y, segments)
 
@@ -219,6 +220,8 @@ def house(k, W, D, pd, eave, style='log', out='log', inside='plank', holes=None,
         k.bx(cx - 0.45, cx + 0.45, cy - 0.45, cy + 0.45, ch, ch + 0.12, 'stone2')
         if cols:
             k.col(cx - 0.4, cx + 0.4, cy - 0.4, cy + 0.4, 0.0, ch)
+    FD.house_detail(k, W, D, pd, T, FLOOR, style, out, holes, ztop, ff_top, roof, roof_c, walkin, sign, chimney, shutters,
+                   yf, yb, porch_posts(W, holes.get('f', [])), ridge)
     return F
 
 
@@ -670,6 +673,7 @@ def build_smithy(k, ao):
     sb = y0 + 0.02 - 0.04          # the name board hangs on the front beam's face
     k.bx(-1.1, 1.1, sb, sb + 0.04, H - 0.55, H + 0.2, 'plank2')
     k.text('SMITHY', 0.0, sb - 0.004, H - 0.42, 0.34, 'plankW', maxw=1.9, font='display')
+    FD.smithy_detail(k, fx0, fx1, fy0, fy1, H, x0, x1, y0, y1)
     k.finish('Smithy', ao=ao)
 
 
@@ -700,6 +704,7 @@ def build_stable(k, ao):
         k.bx(x - 0.5, x + 0.5, y1 - 0.75, y1 - 0.2, 0.0, 0.75, 'plank2')
         k.bx(x - 0.42, x + 0.42, y1 - 0.68, y1 - 0.27, 0.75, 0.78, 'hay', ink=False)
         k.col(x - 0.5, x + 0.5, y1 - 0.75, y1 - 0.2, 0.0, 0.78)
+    FD.stable_detail(k, x0, x1, y0, y1, H)
     k.finish('Stable', ao=ao)
 
 

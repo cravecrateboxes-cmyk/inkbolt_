@@ -7,6 +7,8 @@ See fr_base.py for the conventions."""
 import math
 import random
 
+import fr_detail as FD
+
 from fr_base import (polyline, FLOOR, RISE, TREAD, WALL_H, by_normal, barkcol, rock, log_x, log_y, post, rail_run, lantern,
                      crate, barrel, sack, shed_roof, gable, stairs)
 
@@ -16,6 +18,8 @@ def palisade_log(k, x, y, h, r, rnd, z0=0.0, seg=5, ink=True):
     """one sharpened stockade log"""
     k.cyl(x, y, z0, r, r * 0.96, h - z0, 'log' if rnd.random() < 0.6 else 'log3', seg=seg, caps=False, ink=ink)
     k.cyl(x, y, h, r * 0.96, 0.02, r * 1.6, 'logEnd', seg=seg, caps=False, ink=ink)
+    FD.spike_cap(k, x, y, h, r, seg)
+    FD.rope_band(k, x, y, min(1.15, h * 0.45), r, seg)
 
 
 def build_palisade(k, ao):
@@ -28,6 +32,7 @@ def build_palisade(k, ao):
             palisade_log(k, x, -0.2, h, 0.255, rnd)
         # the backing rail on the inside (-Y) face, spiked through (stopped short of a corner on an end module)
         k.bx(-0.3 if extra == 'L' else -0.5, 0.3 if extra == 'R' else 0.5, -0.56, -0.42, 2.6, 2.78, 'log2')
+        FD.palisade_rail_bolts(k, -0.3 if extra == 'L' else -0.5, 0.3 if extra == 'R' else 0.5, -0.56, 2.69)
         if extra == 'brace':
             k.beam((0.0, -0.5, 2.55), (0.0, -1.25, 0.0), 0.14, 'log2')
             k.bx(-0.12, 0.12, -1.38, -1.14, 0.0, 0.08, 'stone2', ink=False)
@@ -44,6 +49,8 @@ def build_palisade(k, ao):
     for (x, y) in ((-0.25, -0.25), (0.25, -0.25), (-0.25, 0.25), (0.25, 0.25)):
         palisade_log(k, x, y, WALL_H + 0.1 + rnd.uniform(-0.1, 0.15), 0.25, rnd)
     k.cyl(0, 0, 2.4, 0.62, 0.62, 0.12, 'iron2', seg=8, caps=False, ink=False)
+    for f in ('+x', '-x', '+y', '-y'):
+        FD.bolt(k, 0.62 if f == '+x' else (-0.62 if f == '-x' else 0), 0.62 if f == '+y' else (-0.62 if f == '-y' else 0), 2.46, f, s=0.045)
     k.finish('Palisade_Corner', ao=ao)
 
 
@@ -68,6 +75,7 @@ def build_gate(k, ao):
     shed_roof(k, -2.45, 2.45, 0.7, 0.0, 4.4, 4.95, 0.1, 'shingle', 'shingle2')
     k.col(-2.5, -1.5, -0.36, 0.36, 0.0, 4.8)
     k.col(1.5, 2.5, -0.36, 0.36, 0.0, 4.8)
+    FD.gate_frame_detail(k)
     k.finish('GateFrame', ao=ao)
     k.begin()
     Hs = 3.05
@@ -81,6 +89,7 @@ def build_gate(k, ao):
         for z in (0.5, 2.6):
             k.bx(min(sx * 0.3, sx * 1.45), max(sx * 0.3, sx * 1.45), -0.16, -0.13, z + 0.03, z + 0.14, 'iron2', ink=False)
     k.bx(-0.04, 0.04, -0.175, -0.076, 0.0, Hs - 0.04, 'iron2', ink=False)
+    FD.gate_shutter_detail(k)
     obj = k.finish('GateShutter', ao=False)
     from kit_base import shutter_hull
     shutter_hull(k.pal, obj)
@@ -174,6 +183,7 @@ def build_tower(k, ao):
         for t in (0.15, 0.55, 0.92):
             yy = y0 + (py0 - y0) * t
             k.bx(x - 0.04, x + 0.04, yy - 0.04, yy + 0.04, Z * t, Z * t + 1.0, 'log2', ink=False)
+    FD.tower_detail(k, Z, py0, py1, y0, legs, Z + 2.25)
     k.finish('Tower', ao=ao)
 
 
@@ -254,6 +264,7 @@ def build_well(k, ao):
     k.cyl(0, 0, 0.88, 0.14, 0.17, 0.22, 'plank2', seg=8)
     gable(k, -0.9, 0.9, -0.7, 0.7, 2.25, 2.85, 0.08, 'shingle', 'shingle2', over=0.2, ridge_along='x')
     k.col(-0.86, 0.86, -0.86, 0.86, 0.0, 0.88)
+    FD.well_detail(k)
     k.finish('Well', ao=ao)
 
 
@@ -271,6 +282,7 @@ def build_arch(k, ao):
     for x in (-3.0, 3.0):
         k.beam((x, 0.0, 4.88), (x, 0.0, 5.0), 0.04, 'iron2', ink=False)
     k.text('CINDER RIDGE OUTPOST', 0.0, -0.064, 4.17, 0.52, 'plankW', maxw=6.8, font='display')
+    FD.arch_detail(k)
     k.finish('Arch', ao=ao)
 
 
@@ -279,9 +291,9 @@ def build_corral(k, ao):
     def rails(y0, y1):
         for z in (0.5, 1.15):
             k.bx(-0.04, 0.04, y0, y1, z - 0.045, z + 0.045, 'log')
-    k.begin(); rails(-0.497, 0.497); post(k, 0, 0, 0.0, 1.35, 0.075, 'log2'); k.col(-0.08, 0.08, -0.5, 0.5, 0.0, 1.3); k.finish('FenceFull', ao=ao)
+    k.begin(); rails(-0.497, 0.497); post(k, 0, 0, 0.0, 1.35, 0.075, 'log2'); FD.fence_detail(k); k.col(-0.08, 0.08, -0.5, 0.5, 0.0, 1.3); k.finish('FenceFull', ao=ao)
     k.begin(); rails(-0.497, -0.06); k.col(-0.08, 0.08, -0.5, 0.0, 0.0, 1.3); k.finish('FenceHalf', ao=ao)
-    k.begin(); post(k, 0, 0, 0.0, 1.4, 0.085, 'log2'); k.cyl(0, 0, 1.4, 0.085, 0.04, 0.08, 'logEnd', seg=6, caps=False); k.finish('FencePost', ao=ao)
+    k.begin(); post(k, 0, 0, 0.0, 1.4, 0.085, 'log2'); k.cyl(0, 0, 1.4, 0.085, 0.04, 0.08, 'logEnd', seg=6, caps=False); FD.post_detail(k); k.finish('FencePost', ao=ao)
     # hitching rail [3, 1] along X
     k.begin()
     for x in (-1.25, 1.25):
@@ -290,6 +302,7 @@ def build_corral(k, ao):
     for x in (-0.5, 0.4):
         k.cyl(x, 0.0, 0.62, 0.02, 0.02, 0.38, 'rope', seg=4, ink=False)
     k.col(-1.4, 1.4, -0.1, 0.1, 0.0, 1.07)
+    FD.hitch_detail(k)
     k.finish('HitchRail', ao=ao)
     # water trough [2, 1]
     k.begin()
@@ -298,6 +311,7 @@ def build_corral(k, ao):
     for x in (-0.75, 0.75):
         k.bx(x - 0.06, x + 0.06, -0.3, 0.3, 0.0, 0.15, 'log2', ink=False)
     k.col(-0.9, 0.9, -0.35, 0.35, 0.0, 0.7)
+    FD.trough_detail(k)
     k.finish('Trough', ao=ao)
     # hay bales [2, 1]: two bales and one on top
     k.begin()
@@ -321,6 +335,7 @@ def wheel(k, x, y, z, r, w=0.09, spokes=6, c='plank2'):
         a = i / spokes * 2 * math.pi
         k.beam((x, y + math.cos(a) * 0.1, z + math.sin(a) * 0.1), (x, y + math.cos(a) * r * 0.95, z + math.sin(a) * r * 0.95), 0.04, 'plank', ink=False)
     k.cyl(x - 0.09, y, z, 0.11, 0.11, 0.18, 'iron2', seg=6, rot=(0, 90, 0))
+    FD.wheel_extra(k, x, y, z, r, 1 if x > 0 else -1)
 
 
 def build_wagons(k, ao):
@@ -351,6 +366,7 @@ def build_wagons(k, ao):
     barrel(k, -0.45, 2.15, 0.0, 0.26, 0.75)
     k.col(-1.07, 1.07, -1.95, 1.85, 0.0, 2.45)
     k.col(-0.3, 0.3, 1.88, 2.42, 0.0, 0.75)
+    FD.wagon_straps(k)
     k.finish('Wagon', ao=ao)
     # hand cart [2, 3]: two big wheels, a plank bed with firewood, handles toward -Y
     k.begin()
@@ -365,6 +381,7 @@ def build_wagons(k, ao):
             log_y(k, -0.7, 0.75, -0.4 + j * 0.26 + (i % 2) * 0.12, 0.84 + i * 0.13, 0.065, 'log' if (i + j) % 2 else 'log2', seg=5, ink=False)
     k.bx(-0.06, 0.06, 0.6, 0.72, 0.0, 0.62, 'plank2', ink=False)
     k.col(-0.82, 0.82, -0.95, 0.95, 0.0, 1.2)
+    FD.cart_straps(k)
     k.finish('Cart', ao=ao)
 
 
@@ -432,6 +449,7 @@ def build_small(k, ao):
     k.bx(-0.04, 0.04, -0.65, -0.12, 2.55, 2.62, 'iron2')
     lantern(k, 0.0, -0.58, 2.55)
     k.col(-0.13, 0.13, -0.13, 0.13, 0.0, 2.7)
+    FD.lamp_detail(k)
     k.finish('LampPost', ao=ao)
     k.begin()
     k.cyl(0.0, -0.58, 2.24, 0.065, 0.065, 0.2, 'fire2', seg=6, ink=False)
@@ -444,8 +462,10 @@ def build_small(k, ao):
         k.hullp([(0.08, -0.03, 0.0), (0.95, -0.03, 0.0), (1.1, -0.03, 0.12), (0.95, -0.03, 0.24), (0.08, -0.03, 0.24),
                  (0.08, 0.03, 0.0), (0.95, 0.03, 0.0), (1.1, 0.03, 0.12), (0.95, 0.03, 0.24), (0.08, 0.03, 0.24)], 'plank')
         k.text(word, 0.52, -0.034, 0.05, 0.14, 'ink', maxw=0.75, font='display')
+        FD.sign_board_nails(k)
         k.pop()
     k.col(-0.08, 0.08, -0.08, 0.08, 0.0, 2.5)
+    FD.sign_detail(k)
     k.finish('Signpost', ao=ao)
 
 
