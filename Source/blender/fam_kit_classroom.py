@@ -262,6 +262,8 @@ def wall_base(m, window_open=False, dado=True, panel=True):
     m.bx(-0.5, -0.497, 15.52, 0.5, -0.42, 15.68, 'honeyDk', flat=True)    # cornice bead
     m.bx(-0.5, -0.46, 15.68, 0.5, -0.42, WH, 'trim', flat=True)           # frieze
     CD.wall_detail(m, window_open, dado, panel)
+    if not window_open:   # painted block coursing on the tall cream wall (map asset upgrade)
+        CS.block_coursing(m, z0=5.63 if dado else 5.5)
 
 
 def build_walls():
@@ -1068,6 +1070,14 @@ def book_lying(m, L, W, Tk, col, M):
     m.bx(-L / 2, -W / 2, 0, L / 2, W / 2, b, col)
     m.bx(-L / 2, -W / 2, b, -L / 2 + 0.07, W / 2, Tk - b, col)
     m.bx(-L / 2 + 0.07, -W / 2 + 0.025, b, L / 2 - 0.025, W / 2 - 0.025, Tk - b, 'paper', flat=True)
+    # (map asset upgrade) a rounded spine, page lines on the three page edges
+    arc = [(-L / 2 - 0.03 * math.cos(t), Tk / 2 + (Tk / 2 - 0.004) * math.sin(t)) for t in [math.radians(a) for a in (-90, -45, 0, 45, 90)]]
+    CS.hullp(m, [(x, y, z) for (x, z) in arc + [(-L / 2 + 0.01, 0.004), (-L / 2 + 0.01, Tk - 0.004)] for y in (-W / 2 + 0.004, W / 2 - 0.004)], col)
+    for z in (b + (Tk - 2 * b) * 0.35, b + (Tk - 2 * b) * 0.7):
+        m.bx(L / 2 - 0.028, -W / 2 + 0.035, z - 0.004, L / 2 - 0.022, W / 2 - 0.035, z + 0.004, 'paperDk', flat=True)
+        for s in (-1, 1):
+            y0, y1 = sorted((s * (W / 2 - 0.028), s * (W / 2 - 0.022)))
+            m.bx(-L / 2 + 0.08, y0, z - 0.004, L / 2 - 0.035, y1, z + 0.004, 'paperDk', flat=True)
     m.parent = Matrix.Identity(4)
 
 

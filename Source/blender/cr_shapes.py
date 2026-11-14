@@ -52,6 +52,41 @@ def sill_plant(m, x, y, z, tall=False, cols=('leaf', 'leaf')):
         leaf(m, base, tip, 0.13 if tall else 0.16, cols[i % len(cols)], lift=0.05)
 
 
+def quad_y(m, x0, x1, z0, z1, y, color):
+    """One flat quad facing -Y at plane y (painted line); its own shape, the caller marks it flat."""
+    P = m.parent
+    vs = [m.bm.verts.new(P @ Vector(p)) for p in ((x0, y, z0), (x0, y, z1), (x1, y, z1), (x1, y, z0))]
+    f = m.bm.faces.new(vs)
+    f.normal_update()
+    if f.normal.dot(P.to_3x3() @ Vector((0, -1, 0))) < 0:
+        f.normal_flip()
+    m.nshape += 1
+    f[m.shape] = m.nshape
+    f.material_index = m.pal.index(color)
+
+
+def block_coursing(m, z0=5.63, z1=15.45, yf=-0.42, course=1.2, color='paperDk'):
+    """Painted block wall on the cream upper wall of a 1 m module: a mortar line every course, running bond (a joint
+    in the middle of the module on odd courses, half joints at both module edges on even courses, so neighbouring
+    modules complete each other). Flat quads 6 mm proud; joints stop where the lines start (no overlap)."""
+    y = yf - 0.006
+    zs = [z0]
+    while zs[-1] + course < z1 - 0.3:
+        zs.append(zs[-1] + course)
+    for z in zs[1:]:
+        quad_y(m, -0.495, 0.495, z - 0.012, z + 0.012, y, color)
+        m.flat()
+    for k, (za, zb) in enumerate(zip(zs[:-1], zs[1:])):
+        lo, hi = za + (0.012 if k else 0.0), zb - 0.012
+        if k % 2:
+            quad_y(m, -0.012, 0.012, lo, hi, y, color)
+            m.flat()
+        else:
+            for (xa, xb) in ((-0.497, -0.488), (0.488, 0.497)):
+                quad_y(m, xa, xb, lo, hi, y, color)
+                m.flat()
+
+
 def eraser(m):
     """Jumbo eraser (weapon stand / cover, footprint 0.94 x 0.68 x 0.86): a chamfered block with one end rubbed down
     into a rounded slope, a printed card sleeve with lips, labels and a stripe, and a few rubbed-off crumbs."""
