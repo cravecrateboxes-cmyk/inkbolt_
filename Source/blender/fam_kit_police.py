@@ -29,6 +29,7 @@ import ib_lib
 import ib_text
 from fam_kit_smallcity import PM, post_hull
 from kit_util import col_box, tag
+import police_detail as pd
 
 FAM = 'kit-police'
 PFX = 'KIT_POLICE_'
@@ -149,8 +150,10 @@ def face_y(S, z):
     return CORE - 0.05
 
 
-def wall_base(m, S, skip=()):
+def wall_base(m, S, skip=(), fit=True):
     """the style's bands across the module (fronts, tops and bottoms only: neighbours hide the ends and the back)"""
+    if fit:
+        pd.wall_fit(m, S, lambda z: face_y(S, z))
     for i, (z0, z1, c, d) in enumerate(STY[S]):
         if i in skip:
             continue
@@ -176,6 +179,7 @@ def corner_piece(pal, ao, S):
     for z0, z1, c, dd in STY[S]:
         h = 0.5 - (0.08 - dd)          # deeper recess for the recessed bands, flush for the proud ones
         m.bx(-h, h, -h, h, z0, z1, c, cull=('b' if z0 == 0 else '') + ('t' if z1 >= H else ''))
+    pd.corner_guard_post(m, S, STY)
     fin('Corner' + S, m, ao)
 
 
@@ -244,7 +248,7 @@ def badge(m, S, z=2.45, r=0.3):
 def build_walls(pal, ao):
     for S in STY:
         if S != 'R':   # the range's plain module is the padded one (acoustic)
-            m = new(pal); wall_base(m, S); fin('W' + S, m, ao)
+            m = new(pal); wall_base(m, S); pd.wall_top(m, S, lambda z: face_y(S, z)); fin('W' + S, m, ao)
         corner_piece(pal, ao, S)
 
     # ---- lobby
@@ -338,6 +342,7 @@ def door(m, S, leaf, trim):
     m.bx(-0.3, 0.3, y - 0.06, y - 0.005, 1.0, 1.05, 'chrome', cull='k')
     m.bx(-0.16, 0.16, y - 0.012, y - 0.005, 1.95, 2.05, trim, cull='k', hull='none')    # door sign
     m.bx(-0.39, 0.39, y - 0.012, y - 0.005, 0.0, 0.18, 'steel', cull='kb', hull='none')  # kick plate
+    pd.door_fit(m, y)
 
 
 def sign(m, S, plate, ink, edge, icon='text'):
@@ -448,6 +453,7 @@ def cage(m, S):
     for k in range(7):
         z = 1.55 + k * 0.2
         m.bx(-0.38, 0.38, y - 0.045, y - 0.03, z - 0.008, z + 0.008, 'steel', cull='k', hull='none')
+    pd.cage_fit(m, y)
 
 
 def firstaid(m, S):
@@ -470,6 +476,7 @@ def extinguisher(m, S):
     m.bx(-0.06, 0.06, y - 0.225, y - 0.215, 0.75, 0.95, 'white', hull='none')          # label (on the tank front)
     m.bx(-0.15, 0.15, y - 0.012, y + 0.01, 1.85, 2.15, 'red', cull='k')                # sign above
     m.bx(-0.05, 0.05, y - 0.018, y - 0.012, 1.9, 2.1, 'white', cull='k', hull='none')
+    pd.call_point(m, S, lambda z: face_y(S, z))
 
 
 def toolboard(m, S):
@@ -515,7 +522,8 @@ def roller(m, S, part):
     m.bx(a, b, CORE - 0.12, CORE, 3.3, 3.6, 'slate', cull='k' + side, hull='noside' if side else 'full')
     for k in range(4):   # hazard chevrons along the bottom slat
         x = a + 0.08 + k * (b - a - 0.16) / 3.0
-        m.bx(x - 0.05, x + 0.05, y - 0.026, y - 0.02, 0.05, 0.25, 'yellow' if k % 2 else 'ink', cull='k', hull='none')
+        m.bx(x - 0.05, x + 0.05, y - 0.006, y + 0.003, 0.05, 0.25, 'yellow' if k % 2 else 'ink', cull='k', hull='none')
+    pd.roller_fit(m, part, a, b)
 
 
 def acoustic(m):
@@ -812,6 +820,7 @@ def build_rack(pal, ao):
             m.bx(x - 0.18, x + 0.18, 0.0, 0.015, z0 + 0.1, z0 + 0.125, 'chrome', cull='k')
     for k, x in enumerate((-0.9, 0.0, 0.9)):      # helmets on the header
         helmet(m, x, 0.43, 2.45 + 0.03, 'navy' if k != 1 else 'olive', s=0.9)
+    pd.rack_fit(m, SLOT_X, SLOT_Z)
     fin('WeaponRack', m, ao, cols=[col_box(-1.5, 0.0, 0, 1.5, 0.5, 2.6)])
 
 
@@ -847,6 +856,7 @@ def build_bench(pal, ao):
     m.bx(-0.07, 0.07, 0.22, 0.38, 0.926, 1.0, 'blue')                                  # vice
     m.bx(-0.09, 0.09, 0.14, 0.22, 0.95, 1.06, 'steel2')
     m.cy((0.0, 0.18, 1.0), 0.012, 0.012, 0.2, 'chrome', seg=6, rot=(0, 90, 0))
+    pd.bench_fit(m)
     fin('Workbench', m, ao, cols=[col_box(-0.97, -0.44, 0, 0.97, 0.44, 0.926), col_box(-0.86, 0.18, 0.926, 0.86, 0.43, 1.5)])
 
 
@@ -873,6 +883,7 @@ def build_shelf(pal, ao):
     for k, (x, w, h, c) in enumerate(((-0.6, 0.5, 0.3, 'sand'), (-0.02, 0.44, 0.24, 'navy'), (0.5, 0.56, 0.36, 'olive'))):
         m.bx(x - w / 2, x + w / 2, 0.06, 0.42, 1.64, 1.64 + h, c)
     m.bx(-0.88, -0.6, 0.1, 0.4, 1.94, 2.07, 'khaki')
+    pd.shelf_fit(m, (0.24, 0.7, SHELF_TOP, 1.64, 2.12))
     fin('GearShelf', m, ao, cols=[col_box(-1.0, -0.03, 0, 1.0, 0.5, 2.15)])
 
 
@@ -896,6 +907,7 @@ def build_props(pal, ao):
             m.bx(-0.3, 0.1, -0.155, -0.15, 2.08, 2.14, 'ink', cull='k', hull='none')
         else:
             helmet(m, 0.18, 0.15, 2.03, 'navy')
+        pd.locker_fit(m)
         fin(name, m, ao, cols=[col_box(-0.46, -0.24, 0, 0.46, 0.48, 2.0)])
 
     m = new(pal)   # sandbags, one run module along X: four courses of rounded bags
@@ -956,6 +968,7 @@ def build_props(pal, ao):
         mug(m, -0.72, -0.15, 0.76, 'red' if side else 'white')
         chair(m, -0.15 + 0.1 * side, -0.72, 180 + (8 if side else -6), 'navy' if side else 'slate')
         m.parent = P
+    pd.desk_fit(m)
     fin('DeskPod', m, ao, cols=[col_box(-0.92, -0.42, 0, 0.92, 0.42, 1.15), col_box(-0.45, -0.98, 0, 0.15, -0.42, 0.55),
                                 col_box(-0.25, 0.42, 0, 0.35, 0.98, 0.55)])
 
@@ -988,6 +1001,7 @@ def build_props(pal, ao):
     m.sp((0, 0.33, 2.85), 0.08, 'black', seg=(8, 4))
     for sx in (-0.95, 0.95):
         chair(m, sx, -0.42, 180 + 0, 'navy')
+    pd.ops_fit(m)
     fin('OpsConsole', m, ao, cols=[col_box(-1.95, -0.12, 0, 1.95, 0.5, 1.1), col_box(-1.22, -0.68, 0, -0.68, -0.12, 0.55),
                                    col_box(0.68, -0.68, 0, 1.22, -0.12, 0.55)])
 
@@ -1007,6 +1021,7 @@ def build_props(pal, ao):
     m.bx(-0.17, 0.17, -0.12, 0.12, 0.0, 0.02, 'steel2')
     m.box((0, 0.12, 0.13), (0.33, 0.015, 0.24), 'steel2', rot=(-12, 0, 0), bevel=False)
     m.parent = P
+    pd.brief_fit(m)
     fin('BriefRow', m, ao, cols=[col_box(-1.85, 0.1, 0, 1.85, 0.75, 0.77), col_box(-1.8, -0.75, 0, 1.8, -0.18, 0.5)])
 
     m = new(pal)   # lectern
@@ -1226,6 +1241,7 @@ def build_landmarks(pal, ao):
     for sx in (-1, 1):
         for y in (-2.0, 1.7):
             wheel_x(m, sx * 1.02 if sx > 0 else -1.02, y, outward=sx)
+    pd.van_fit(m)
     fin('Landmark_Van', m, ao, cols=[col_box(-1.3, -3.05, 0, 1.3, 2.75, 2.5)])
 
     m = new(pal)   # holding cell 4 x 3: bars along the front (-Y), solid back and sides, bench, toilet, number plate
@@ -1276,6 +1292,7 @@ def build_landmarks(pal, ao):
         papers(m, x, -0.42, 1.1, 20 if x > 0 else -15, 'white')
     m.cy((1.0, -0.42, 1.1), 0.08, 0.08, 0.02, 'black', seg=8)
     m.bx(0.96, 1.04, -0.44, -0.4, 1.12, 1.3, 'black')                                  # desk bell / mic
+    pd.frontdesk_fit(m)
     fin('Landmark_FrontDesk', m, ao, cols=[col_box(-2.95, -0.65, 0, 2.95, 0.75, 1.1)])
 
 
