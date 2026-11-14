@@ -26,6 +26,7 @@ from mathutils import Matrix, Vector
 
 from ib_lib import *  # noqa: F401,F403
 import ib_lib
+import smallcity_detail as SD
 
 FAM = 'kit-smallcity'
 PRE = 'KIT_SMALLCITY_'
@@ -313,6 +314,7 @@ def build_walls(pal, ao):
             m = PM(pal)
             facade_common(m, mat, n, upper_windows=(kind != 'Pier'))
             shopfront(m, shop, {'Win': 'win', 'Door': 'door', 'Pier': 'pier'}[kind])
+            SD.wall_detail(m, kind, MATS[mat][1], n, si)
             out.append(make('Wall%s_%d' % (kind, si), m, ao=ao))
     for mat, n in sorted({(st[0], st[2]) for st in STYLES}):
         out.append(pilaster(pal, mat, n, ao))
@@ -728,6 +730,7 @@ def build_lamp(pal, name, kind, ao):
     m.bx(0.08, 0.4, -0.012, 0.012, 2.62, 3.53, 'shopBurg')                             # banner
     m.bx(0.075, 0.405, -0.016, 0.016, 3.24, 3.36, 'shopMustard', hull='none')
     m.bx(0.075, 0.405, -0.016, 0.016, 2.74, 2.8, 'awnCream', hull='none')
+    SD.lamp_detail(m)
     obj = make(name, m, ao=ao)
     col_box(obj, 0, -0.14, 0.14, -0.14, 0.14, 0, 4.6)
 
@@ -761,6 +764,7 @@ def build_furniture(pal, ao):
         m.bx(cx - 0.12, cx + 0.12, -0.215, -0.165, 0.81, 0.85, 'ink', hull='none')       # headline bar
         m.bx(cx - 0.11, cx + 0.03, -0.215, -0.165, 0.66, 0.76, 'glassD', hull='none')    # photo
         m.bx(cx + 0.06, cx + 0.14, -0.21, -0.17, 0.44, 0.54, 'iron', hull='none')        # coin box
+    SD.newsbox_detail(m)
     obj = make('NewsBoxes', m, bevel=0.012, ao=ao)
     col_box(obj, 0, -0.45, 0.45, -0.21, 0.21, 0, 1.06)
     m = PM(pal)
@@ -773,6 +777,7 @@ def build_furniture(pal, ao):
     m.bx(-0.13, 0.13, -0.272, -0.25, 0.86, 0.91, 'ink', hull='none')
     m.bx(-0.1, 0.1, -0.268, -0.25, 0.5, 0.68, 'paper', hull='none')
     m.bx(-0.04, 0.04, -0.29, -0.25, 1.12, 1.18, 'ironL', hull='none')
+    SD.mailbox_detail(m)
     obj = make('Mailbox', m, bevel=0.015, ao=ao)
     col_box(obj, 0, -0.25, 0.25, -0.27, 0.27, 0, 1.24)
     m = PM(pal)
@@ -786,6 +791,7 @@ def build_furniture(pal, ao):
     m.cy((-0.2, 0, 0.42), 0.055, 0.055, 0.09, 'red', seg=8, rot=(0, 90, 0))
     m.cy((0, -0.1, 0.38), 0.07, 0.07, 0.1, 'red', seg=8, rot=(90, 0, 0))
     m.cy((0, -0.2, 0.38), 0.05, 0.05, 0.02, 'paper', seg=6, rot=(90, 0, 0), hull='none')
+    SD.hydrant_detail(m)
     obj = make('Hydrant', m, ao=ao)
     col_box(obj, 0, -0.18, 0.18, -0.18, 0.18, 0, 0.8)
     m = PM(pal)
@@ -795,6 +801,7 @@ def build_furniture(pal, ao):
         m.cy((0, 0, z), 0.265, 0.27, 0.05, 'ironL', seg=12, hull='none')
     m.cy((0, 0, 0.9), 0.29, 0.29, 0.05, 'iron', seg=12)
     m.cy((0, 0, 0.95), 0.22, 0.22, 0.01, 'ink', seg=12, hull='none')
+    SD.bin_detail(m)
     obj = make('Bin', m, ao=ao)
     col_box(obj, 0, -0.29, 0.29, -0.29, 0.29, 0, 0.96)
 
@@ -881,6 +888,7 @@ def build_bench(pal, ao):
         m.bx(-0.95, 0.95, y - 0.055, y + 0.055, 0.42, 0.47, 'woodL')
     for z in (0.6, 0.78):
         m.bx(-0.95, 0.95, 0.12, 0.17, z, z + 0.12, 'woodL')
+    SD.bench_detail(m)
     obj = make('Bench', m, ao=ao)
     col_box(obj, 0, -0.95, 0.95, -0.28, 0.26, 0, 0.95)
 
@@ -906,6 +914,7 @@ def build_shelter(pal, ao):
     m.bx(0.3, 0.75, -1.2, 1.2, 0.45, 0.5, 'woodL')                                     # bench
     for y in (-1.0, 1.0):
         m.bx(0.45, 0.6, y - 0.04, y + 0.04, 0.05, 0.45, 'iron', hull='none')
+    SD.shelter_detail(m)
     obj = make('Shelter', m, ao=ao)
     col_box(obj, 0, 0.8, 0.92, -1.92, 1.92, 0, 2.3)
     col_box(obj, 1, -0.32, 0.8, -1.92, -1.78, 0, 2.3)
