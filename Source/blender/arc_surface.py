@@ -7,6 +7,7 @@ import math
 
 from arc_base import *  # noqa: F401,F403
 import arc_base as B
+import arc_detail as AD
 
 
 def drum(m, x, y, z=0.0, c='blueP', lying=False, deg=0.0, r=0.23, h=0.82):
@@ -71,6 +72,7 @@ def build_trench(pal, ao):
     m.cy((0, -0.6, 2.25), 0.18, 0.18, 0.2, 'steelD', seg=8)
     lump(m, RND(310), 0.0, 0.6, 0.7, 1.6, 0.25, 2.18, 'snowW', n=7, top=2)
     m.cy((0, -2.55, 1.25), 0.25, 0.25, 0.06, 'black', seg=8, rot=(90, 0, 0), hull='none')
+    AD.fuel_tank(m)
     make('FuelTank', m, ao, cols=[cb(-1.0, -2.6, 0, 1.0, 2.6, 2.25)])
     # ---- drums, crates
     m = new(pal); drum(m, -0.24, -0.2, c='blueP'); drum(m, 0.24, -0.2, c='orange'); drum(m, 0.0, 0.23, c='redE')
@@ -136,6 +138,7 @@ def build_trench(pal, ao):
             m.cy((0, 0, top), 0.04, 0.04, 1.6, 'steelK', seg=5)
             m.cy((0, 0, top + 1.6), 0.08, 0.08, 0.08, 'redE', seg=6)
             hullp(m, [(-w, -w - 0.05, top * 0.62), (w, -w - 0.05, top * 0.62), (0.0, -w - 0.12, top * 0.66)], 'frost', hull='none')
+        AD.mast_a(m, top, w, lean)
         m.parent = old
         if lean:
             m.cy((0.55, -0.6, 0.25), 0.45, 0.12, 0.2, 'panelW', seg=10, rot=(20, -60, 0))
@@ -189,6 +192,7 @@ def build_trench(pal, ao):
     m.cy((1.2, 0.6, 1.9), 0.12, 0.12, 1.3, 'black', seg=8)
     m.cy((1.2, 0.6, 3.2), 0.2, 0.2, 0.08, 'steelK', seg=8)
     icicles(m, rnd, -2.6, 2.6, -1.92, 1.16, 7, 0.45)
+    AD.hut(m)
     make('BuriedHut', m, ao, cols=[cb(-2.8, -1.95, 0, 2.8, 1.95, 1.4), cb(-2.7, -1.0, 1.4, 2.7, 1.0, 2.3)])
     # ---- buried module [8, 3]: an old container lab buried to its roof; the roof (2.2 m) is walkable
     m = new(pal)
@@ -209,6 +213,7 @@ def build_trench(pal, ao):
     m.cy((2.4, 0.8, ROOF), 0.04, 0.04, 2.0, 'steelK', seg=5)
     for (x, y, rx, ry, h) in ((-2.5, -1.35, 1.3, 0.25, 1.3), (0.4, -1.35, 1.6, 0.22, 1.0), (2.6, 1.35, 1.2, 0.25, 1.5), (-1.2, 1.35, 1.6, 0.25, 1.2)):
         lump(m, rnd, x, y, rx, ry, h, 0.0, 'snowL', n=7, top=2)
+    AD.buried_module(m, ROOF)
     make('BuriedModule', m, ao, cols=[cb(-3.75, -1.3, 0, 3.75, 1.3, ROOF, True)])
     # ---- generator skid [3, 2]
     m = new(pal)
@@ -221,6 +226,7 @@ def build_trench(pal, ao):
     m.cy((0.9, 0.3, 2.4), 0.12, 0.12, 0.05, 'black', seg=8, hull='none')
     text_front(m, 'GEN 1', 0.16, -0.706, -0.4, 1.38, 'black')
     lump(m, RND(380), -0.2, 0.0, 1.1, 0.6, 0.22, 1.6, 'snowW', n=7, top=2)
+    AD.genset_s(m)
     make('Genset_S', m, ao, cols=[cb(-1.4, -0.8, 0, 1.4, 0.8, 1.6)])
 
 

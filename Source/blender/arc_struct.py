@@ -7,6 +7,7 @@ import math
 
 from arc_base import *  # noqa: F401,F403
 import arc_base as B
+import arc_detail as AD
 
 # ---------------------------------------------------------------- strata: (bottom of band, colour, line under it)
 FIRN = [(0.0, 'iceM', None), (1.6, 'ice', 'iceD'), (3.0, 'firn', 'line'), (4.2, 'iceL', 'snowD'), (5.9, 'ice', None),
@@ -104,6 +105,8 @@ def st_face(m, x0=-0.5, x1=0.5, z1=CS, y=-0.5, s=-1, seam=True):
     f(m, x0, x1, y + s * 0.003, z1 - 0.12, z1, 'panelG')
     if seam and x0 <= -0.49:
         f(m, x0, x0 + 0.012, y + s * 0.003, 1.06, z1 - 0.12, 'panelG')
+    if x0 <= -0.49 and x1 >= 0.49:
+        AD.wall_face(m, 'S', s)
 
 
 def mess_face(m, x0=-0.5, x1=0.5, z1=CS, y=-0.5, s=-1, seam=True):
@@ -116,6 +119,8 @@ def mess_face(m, x0=-0.5, x1=0.5, z1=CS, y=-0.5, s=-1, seam=True):
     f(m, x0, x1, y + s * 0.003, z1 - 0.12, z1, 'panelG')
     if seam and x0 <= -0.49:
         f(m, x0, x0 + 0.012, y + s * 0.006, 0.14, 1.08, 'woodD')
+    if x0 <= -0.49 and x1 >= 0.49:
+        AD.wall_face(m, 'M', s)
 
 
 def lab_face(m, x0=-0.5, x1=0.5, z1=CL, y=-0.5, s=-1, seam=True):
@@ -127,6 +132,8 @@ def lab_face(m, x0=-0.5, x1=0.5, z1=CL, y=-0.5, s=-1, seam=True):
     if seam and x0 <= -0.49:
         f(m, x0, x0 + 0.012, y + s * 0.003, 0.12, 1.18, 'panelG')
         f(m, x0, x0 + 0.012, y + s * 0.003, 1.26, z1 - 0.3, 'panelG')
+    if x0 <= -0.49 and x1 >= 0.49:
+        AD.wall_face(m, 'L', s)
 
 
 def shell_face(m, x0=-0.5, x1=0.5, rnd=None, v='A', top=True):
@@ -161,6 +168,8 @@ def fac_face(m, x0=-0.5, x1=0.5, rnd=None, v='A', top=True):
         cornice(m, rnd or RND(2), x0, x1)
     frost_spots(m, rnd or RND(4), x0 + 0.02, x1 - 0.02, 2.9, 3.8, -0.506, 3)
     drift_skirt(m, x0, x1, 0.32, 0.42)
+    if x0 <= -0.49 and x1 >= 0.49:
+        AD.fac_face(m)
 
 
 def plant_face(m, x0=-0.5, x1=0.5, rnd=None, v='A', top=True):
@@ -327,6 +336,7 @@ def build_walls(pal, ao):
     poly(m, [(-0.36, -0.586, 1.06), (0.36, -0.586, 1.06), (0.36, -0.586, 1.5), (-0.36, -0.586, 1.8)], 'snowS', (0, -1, 0))
     frost_spots(m, RND(34), -0.34, 0.34, 1.9, 2.6, -0.589, 5)
     icicles(m, RND(35), -0.4, 0.4, -0.6, 0.99, 4, 0.25)
+    AD.fac_window(m)
     make('Fac_Window', m, ao)
     m = new(pal); fac_face(m, v='B', rnd=RND(36))   # broken window, ice bursting out
     m.bx(-0.42, 0.42, -0.58, -0.5, 1.0, 2.7, 'steelD', cull='k')
@@ -340,12 +350,14 @@ def build_walls(pal, ao):
     for k in range(5):
         fq(m, -0.32, 0.32, -0.603, 2.66 + k * 0.12, 2.72 + k * 0.12, 'steelD')
     icicles(m, RND(39), -0.34, 0.34, -0.62, 2.6, 4, 0.3)
+    AD.fac_vent(m)
     make('Fac_Vent', m, ao)
     m = new(pal); fac_face(m, v='B', rnd=RND(40))   # bulkhead light (dead) and a hose box
     m.cy((0.0, -0.5, 3.3), 0.13, 0.13, 0.1, 'steelK', seg=8, rot=(90, 0, 0))
     m.cy((0.0, -0.6, 3.3), 0.1, 0.1, 0.02, 'lampC', seg=8, rot=(90, 0, 0), hull='none')
     m.bx(-0.3, 0.3, -0.7, -0.5, 1.1, 1.7, 'redE', cull='k')
     text_front(m, 'FIRE HOSE', 0.07, -0.703, 0.0, 1.5, 'paper', maxw=0.5)
+    AD.fac_light(m)
     make('Fac_Light', m, ao)
     # the name board over the windows: one piece 12 m long, stacked on the westmost of its facade modules
     m = new(pal)
@@ -369,6 +381,8 @@ def build_walls(pal, ao):
         for v in ('A', 'B'):
             m = new(pal); fn(m)
             rnd = RND(60 + ord(S) + ord(v))
+            if v == 'A':
+                AD.wall_run(m, S)
             frost_spots(m, rnd, -0.48, 0.48, 2.8 if v == 'A' else 1.6, CS - 0.14, -0.506, 3 if v == 'A' else 7)
             if v == 'B':   # rime along the ceiling line, icicles off it
                 m.prism([(-0.5, CS - 0.2), (-0.58, CS - 0.1), (-0.58, CS - 0.04), (-0.5, CS - 0.01)], -0.42, 0.42, ['frost'], hull='noside', skip=(3,))
@@ -399,6 +413,8 @@ def build_walls(pal, ao):
     # ---- the deep labs: interior (L), the modules' outer shell (seen from the caves), plant hall (P), glacier ice (C)
     for v in ('A', 'B'):
         m = new(pal); lab_face(m); frost_spots(m, RND(90 + ord(v)), -0.48, 0.48, 3.0 if v == 'A' else 1.4, CL - 0.32, -0.506, 3 if v == 'A' else 8)
+        if v == 'A':
+            AD.wall_run(m, 'L')
         if v == 'B':
             m.prism([(-0.5, CL - 0.32), (-0.58, CL - 0.22), (-0.58, CL - 0.15), (-0.5, CL - 0.12)], -0.42, 0.42, ['frost'], hull='noside', skip=(3,))
             icicles(m, RND(93), -0.38, 0.38, -0.55, CL - 0.3, 4, 0.4)
