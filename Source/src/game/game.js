@@ -1157,6 +1157,11 @@
     if (Z.updateBelow && G.player) Z.updateBelow(G.level, G.player);   // theme.below.levels: the street under this zone
     Z.updateLines(G.level, G.mode === 'paused' || G.mode === 'menu' ? 0 : dtRaw, G.mode === 'play' ? G.player : null);   // moving assembly lines
     if (IB.SkillHUD) IB.SkillHUD.update(G, dtRaw);   // Undercover badge + cloak look
+    // Undercover glows red (owner request): ui/skillhud.js sets the robots' cloak outline (it was a stealth blue); this
+    // recolours it the same frame, before the render, with the same gentle pulse
+    var RO_ = R.robotOutline;
+    if (RO_ && R.cloak && R.cloak.value > 0) { var pu_ = Math.sin(performance.now() * 0.008); RO_.uInk.value.setRGB(1.0, 0.16 + 0.08 * pu_, 0.12 + 0.05 * pu_); }
+    if (IB.HelperSight) IB.HelperSight.update(G);   // Handy Helpers: ghosts through walls, edge glows toward helpers out of view
     if (IB.Look) IB.Look.update(dtRaw);   // tactical look: per-frame state (shadow refit, flashes, haze fits)
     R.render(G.mode === 'play' ? !G.dead && !G.ws.hidden : G.mode === 'title');
     Inp.endFrame();

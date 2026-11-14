@@ -58,8 +58,8 @@
   ].join('\n');
 
   /* Undercover (IB.Render.cloak 0..1, driven by ui/skillhud.js): the world goes a comic ink black, greyed with shades
-     (no streaks); robots (their own material) keep their colours, get a cold blue sheen and a thick,
-     bright stealth-blue outline drawn after the fog so they read from across the map. */
+     (no streaks); robots (their own material) keep their colours, get a red sheen and a thick,
+     glowing red outline drawn after the fog (owner: red, was blue) so they read from across the map. */
   var ONE = { value: 1 };
   var CLOAK_WORLD = [
     'if ( uCloak > 0.0 ) {',
@@ -74,7 +74,7 @@
   var CLOAK_ROBOT = [
     'if ( uCloak > 0.0 ) {',
     '  if ( vHull > 0.5 ) gl_FragColor.rgb = mix( gl_FragColor.rgb, uInk, uCloak );',
-    '  else gl_FragColor.rgb = mix( gl_FragColor.rgb, gl_FragColor.rgb * 0.55 + vec3( 0.10, 0.42, 0.85 ), uCloak * 0.55 );',
+    '  else gl_FragColor.rgb = mix( gl_FragColor.rgb, gl_FragColor.rgb * 0.55 + vec3( 0.85, 0.12, 0.10 ), uCloak * 0.55 );',
     '}'
   ].join('\n');
 
@@ -284,7 +284,7 @@
     r.setClearColor(PAL.ink, 1);
     R.gradient = makeGradient();
     R.worldOutline = outlineUniforms(0.012, 3.2);
-    // robots: the world's outline width (shared uniforms) but their own ink colour (Undercover tints it a stealthy blue)
+    // robots: the world's outline width (shared uniforms) but their own ink colour (Undercover tints it a glowing red)
     R.robotOutline = { uInk: { value: new THREE.Color(PAL.ink) }, uOutBase: R.worldOutline.uOutBase, uOutK: R.worldOutline.uOutK, px: R.worldOutline.px };
     R.vmOutline = outlineUniforms(0.0035, 2.2);
     R.cloak = { value: 0 }; R.robotHull = { value: 1 };   // Undercover look (ui/skillhud.js)
