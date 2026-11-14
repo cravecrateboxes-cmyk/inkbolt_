@@ -12,6 +12,7 @@ import math
 
 from ap_base import *  # noqa: F401,F403
 import ap_base as B
+import ap_detail as D
 
 R = 1.95          # fuselage radius
 CZ = 3.25         # fuselage centre height
@@ -216,6 +217,7 @@ def wheels4(m, xs, ys, r, w, c='tire'):
     for x in xs:
         for y in ys:
             wheel(m, x, y, r, r, w, c=c, seg=8)
+            D.hub(m, x, y, r, w)
 
 
 def build_gse(pal, ao):
@@ -233,6 +235,7 @@ def build_gse(pal, ao):
     m.bx(-0.2, 0.2, -2.0, -1.8, 0.4, 0.55, 'steelD', hull='none')
     m.cy((0.55, 1.2, 2.08), 0.08, 0.08, 0.12, 'orange', seg=6, hull='none')
     wheels4(m, (-0.85, 0.85), (-1.1, 1.1), 0.36, 0.3)
+    D.tug_fit(m)
     make('Tug', m, ao, cols=[cb(-1.0, -1.85, 0.0, 1.0, 1.8, 1.35), cb(-0.75, 0.3, 1.35, 0.75, 1.7, 2.08)])
     # baggage tractor [2, 2]: a small yellow tractor with a seat and a roof
     m = new(pal)
@@ -246,6 +249,7 @@ def build_gse(pal, ao):
         m.bx(x - 0.025, x + 0.025, -0.3, -0.25, 0.95, 1.85, 'black', hull='none', cull='bt')
     m.cy((-0.1, 0.05, 0.95), 0.03, 0.03, 0.3, 'black', seg=4, hull='none', rot=(30, 0, 0))
     wheels4(m, (-0.6, 0.6), (-0.6, 0.6), 0.28, 0.22)
+    D.tractor_fit(m)
     make('BagTractor', m, ao, cols=[cb(-0.7, -0.95, 0.0, 0.7, 0.95, 1.15), cb(-0.65, -0.3, 1.15, 0.65, 1.0, 1.92)])
     # baggage cart [2, 3]: a flatbed with side rails, a canopy, bags; the drawbar forward (-Y)
     m = new(pal)
@@ -261,6 +265,7 @@ def build_gse(pal, ao):
         m.bx(x0, x1, y0, y1, 0.55 if h < 0.6 else 0.89, 0.55 + h if h < 0.6 else 1.2, c, cull='b')
     m.bm_((0.0, -1.3, 0.5), (0.0, -2.0, 0.3), 0.06, 'steelD')
     wheels4(m, (-0.7, 0.7), (-0.9, 0.9), 0.24, 0.16)
+    D.cart_fit(m)
     make('BagCart', m, ao, cols=[cb(-0.88, -1.33, 0.0, 0.88, 1.33, 1.82)])
     # fuel truck [3, 7]: a cab forward (-Y), the tank (JET A-1), the hose reel and a platform at the back
     m = new(pal)
@@ -275,6 +280,7 @@ def build_gse(pal, ao):
     m.bx(-0.9, 0.9, 2.6, 3.4, 0.85, 1.9, 'steel')
     cyl_x(m, -0.6, 0.6, 3.0, 2.25, 0.32, 'red', seg=8)
     wheels4(m, (-1.0, 1.0), (-2.6, 1.4, 2.6), 0.5, 0.36)
+    D.fuel_fit(m)
     make('FuelTruck', m, ao, cols=[cb(-1.2, -3.4, 0.0, 1.2, -1.6, 2.6), cb(-1.2, -1.6, 0.0, 1.2, 3.4, 2.95)])
     # passenger stairs truck [2, 6]: a cab forward (-Y) under the top platform (at DOCK, with a canopy), the stair
     # rising from the ground at the back (+Y) to the platform (walkable steps: climb it), side stringers and rails
@@ -310,6 +316,7 @@ def build_gse(pal, ao):
     text_side(m, 'SKYLARK', 0.22, 0.823, 0.6, 1.2, 'paper', 'x+', maxw=1.5)
     text_side(m, 'SKYLARK', 0.22, -0.823, 0.6, 1.2, 'paper', 'x-', maxw=1.5)
     wheels4(m, (-1.0, 1.0), (-2.4, 1.9), 0.4, 0.28)
+    D.stairtruck_fit(m, DOCK)
     make('StairTruck', m, ao, cols=cols)
     # belt loader [2, 6]: a low chassis with an inclined belt (to a hold door at 2.2 m), a driver's seat on the side
     m = new(pal)
@@ -322,6 +329,7 @@ def build_gse(pal, ao):
         m.bm_((0.0, y, 0.7), (0.0, y, 0.75 + (3.0 - y) / 5.9 * 1.5), 0.12, 'steelD')
     m.bx(0.55, 0.8, -1.0, -0.3, 0.7, 1.2, 'black')
     wheels4(m, (-0.7, 0.7), (-2.2, 2.2), 0.3, 0.25)
+    D.loader_fit(m)
     make('BeltLoader', m, ao, cols=[cb(-0.8, -3.0, 0.0, 0.8, 3.0, 0.9), cb(-0.45, -2.9, 0.9, 0.45, 0.5, 2.4)])
     # ULD containers on a dolly [2, 2] (AKE shape: a sloped lower side), Skylark tag
     m = new(pal)
@@ -334,6 +342,7 @@ def build_gse(pal, ao):
     text_front(m, 'AKE 2081 SK', 0.12, -0.756, 0.0, 1.6, 'paper', maxw=1.0)
     for k in range(3):
         fq(m, -0.7, 0.7, -0.756, 0.6 + k * 0.28, 0.63 + k * 0.28, 'steel')
+    D.uld_fit(m)
     make('ULD', m, ao, cols=[cb(-0.9, -0.9, 0.0, 0.9, 0.9, 2.0)])
     # ground power unit [2, 2] with its cable coiled on top
     m = new(pal)
@@ -344,6 +353,7 @@ def build_gse(pal, ao):
     m.cy((0.0, 0.3, 1.4), 0.4, 0.4, 0.14, 'black', seg=8)
     m.bm_((0.0, -0.9, 0.5), (0.0, -1.5, 0.3), 0.06, 'steelD')
     wheels4(m, (-0.65, 0.65), (-0.6, 0.6), 0.22, 0.14)
+    D.gpu_fit(m)
     make('GPU', m, ao, cols=[cb(-0.7, -0.9, 0.0, 0.7, 0.9, 1.54)])
     # towbar [1, 4] (lying on the apron)
     m = new(pal)
