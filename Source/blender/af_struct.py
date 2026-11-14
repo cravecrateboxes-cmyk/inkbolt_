@@ -9,6 +9,7 @@ from mathutils import Matrix
 from af_base import *  # noqa: F401,F403
 from af_base import new, make, text, hazard, plate, box_lines, stair_x, stair_y, rail_x, rail_y, window_y, window_x, arch_pts, vault, tyre_stack
 from kit_base import shutter_hull
+import af_detail as DT
 
 
 # ================================================================ T-wall blast barriers (zone walls, 3.6 m)
@@ -30,6 +31,7 @@ def twall(m, seam=True, cap=True, end=False):
             m.bx(x - 0.06, x + 0.06, -0.37, -0.33, WALL_H, WALL_H + 0.12, 'steelD', hull='none', cull='b')
     # weathering: the sand-blown foot of the inside face
     fq(m, -0.5, 0.47, y0 - 0.003, 0.0, 0.22, 'sandD')
+    DT.twall(m, WALL_H, cap)
 
 
 def build_twalls(pal, ao):
@@ -57,6 +59,7 @@ def build_twalls(pal, ao):
     fq(m, -0.18, 0.18, -0.783, WALL_H + 0.46, WALL_H + 0.62, 'lamp')
     m.cy((0.0, -0.535, 1.5), 0.02, 0.02, WALL_H - 1.6, 'black', seg=5, hull='none')
     m.bx(-0.09, 0.09, -0.535, -0.5, 1.2, 1.5, 'steelD', cull='k')
+    DT.twall_light(m)
     make('TWall_Light', m, ao, cols=TW_COL)
     # a warning board
     m = new(pal); twall(m)
@@ -66,6 +69,7 @@ def build_twalls(pal, ao):
     text(m, 'NO ENTRY WITHOUT', 0.0, -0.536, 1.78, 0.1, 'black', font='cond', maxw=0.76)
     text(m, 'AUTHORISATION', 0.0, -0.536, 1.6, 0.1, 'black', font='cond', maxw=0.76)
     text(m, 'AIRFIELD 7', 0.0, -0.536, 1.42, 0.1, 'redD', font='cond', maxw=0.76)
+    DT.twall_sign(m)
     make('TWall_Sign', m, ao, cols=TW_COL)
     # concertina wire coils along the top
     m = new(pal); twall(m, cap=False)
@@ -109,6 +113,7 @@ def build_barriers(pal, ao):
         if lamp:
             m.cy((0.0, -0.22, BAR_H + 0.4), 0.025, 0.025, 0.12, 'black', seg=5, hull='none')
             m.cy((0.0, -0.22, BAR_H + 0.52), 0.07, 0.07, 0.1, 'lampR', seg=8)
+        DT.barriers(m, BAR_H)
         make(name, m, ao, cols=[cb(-0.5, -0.5, 0.0, 0.5, 0.05, BAR_H)])
 
 
@@ -130,6 +135,7 @@ def build_gate(pal, ao):
     for face, y in (('y-', -0.386), ('y+', 0.386)):
         text(m, 'AIRFIELD 7', 0.0, y, 3.62, 0.42, 'white', face=face, maxw=2.8)
         text(m, '7TH AIR WING', 0.0, y, 3.47, 0.11, 'sandL', face=face, font='cond', maxw=1.5)
+    DT.gate_frame(m)
     make('GateFrame', m, ao, cols=[cb(-2.5, -0.5, 0.0, -1.55, 0.5, 4.6), cb(1.55, -0.5, 0.0, 2.5, 0.5, 4.6)])
     m = new(pal)
     Hs = 3.05
@@ -296,6 +302,7 @@ def build_tower(pal, ao):
     m.cy((-1.0, -4.6, T), 0.04, 0.04, 1.3, 'steelD', seg=5)
     m.cy((-1.0, -4.6, T + 1.3), 0.14, 0.14, 0.32, 'dark', seg=8)
     vdisc(m, -1.0, -4.744, T + 1.46, 0.1, 'lampG', seg=8)
+    DT.tower(m)
     make('Landmark_Tower', m, ao, cols=cols)
 
 
@@ -584,6 +591,7 @@ def build_hangar(pal, ao):
             fq(m, x, x + 0.06, D - t - 0.008, 1.8, 2.45, 'black')
     text(m, 'SAFETY FIRST', 6.0, D - t - 0.004, 4.2, 0.5, 'redD', font='cond', maxw=6.0)
     # the roof collision for shots (players never get up there)
+    DT.hangar(m, W, D, E, t)
     make('Hangar', m, ao, cols=cols)
 
 
@@ -645,6 +653,7 @@ def build_barracks(pal, ao):
     m.cy((-7.0, 2.5, 6.75), 1.0, 1.0, 1.6, 'white2', seg=10)
     m.bx(3.0, 5.0, 1.0, 3.0, 6.75, 7.75, 'concL', cull='b')
     m.cy((8.5, 3.5, 6.75), 0.05, 0.05, 3.0, 'steelD', seg=5)
+    DT.barracks(m, G)
     make('Barracks', m, ao, cols=cols)
 
 
