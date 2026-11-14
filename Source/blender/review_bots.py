@@ -3,6 +3,7 @@ like the game (palette colour x the toon light bands, the baked ink shell drawn 
 
     python3 review_bots.py --bots ../assets/fps-bots.glb --troopers ../assets/fps-troopers.glb --out /tmp/x.png
     python3 review_bots.py ... --before <old-bots.glb> <old-troopers.glb>     # before / after pairs, one row each
+    python3 review_bots.py ... --before <a> <a> --before <b> <b> --labels original,rounded,angular   # 3-way (oldest first)
     python3 review_bots.py ... --only crawler,hawk --res 360
 
 Reads the GLBs (nothing is rebuilt): parts sit on their sockets as src/game/ai.js and troops.js pose them at rest,
@@ -262,7 +263,9 @@ def main(argv):
     ap = argparse.ArgumentParser()
     ap.add_argument('--bots', default=os.path.join(HERE, '..', 'assets', 'fps-bots.glb'))
     ap.add_argument('--troopers', default=os.path.join(HERE, '..', 'assets', 'fps-troopers.glb'))
-    ap.add_argument('--before', nargs=2, default=None, metavar=('BOTS', 'TROOPERS'))
+    ap.add_argument('--before', nargs=2, action='append', default=None, metavar=('BOTS', 'TROOPERS'),
+                    help='an earlier build; repeat for several (oldest first), each gets its own columns')
+    ap.add_argument('--labels', default=None, help='comma-separated column labels, oldest first, ending with the new build')
     ap.add_argument('--only', default=None)
     ap.add_argument('--res', type=int, default=320)
     ap.add_argument('--out', default=os.path.join(HERE, '..', 'dist', 'look', 'enemies', 'enemies-sheet.png'))
@@ -273,16 +276,23 @@ def main(argv):
     tmp = os.path.join(os.path.dirname(os.path.abspath(a.out)), '_tiles')
     os.makedirs(tmp, exist_ok=True)
     new = render_set(a.bots, a.troopers, enemies, a.res, 'after', tmp)
-    old = render_set(a.before[0], a.before[1], enemies, a.res, 'before', tmp) if a.before else None
+    olds = [render_set(b[0], b[1], enemies, a.res, 'before%d' % k, tmp) for k, b in enumerate(a.before or [])]
+    labels = a.labels.split(',') if a.labels else (['before'] * len(olds) if len(olds) < 2 else
+                                                   ['before %d' % (k + 1) for k in range(len(olds))]) + ['after']
     groups = {}
     for i, ((en, view, tris), f) in enumerate(new):
         row = groups.setdefault(en, [])
-        if old:
+        for k, old in enumerate(olds):
             (_, _, t0), f0 = old[i]
-            row.append(('%s %s  before %d tris' % (en, view, t0), Image.open(f0).convert('RGB')))
-        row.append(('%s %s  after %d tris' % (en, view, tris), Image.open(f).convert('RGB')))
-    cols = 4 if old else 2
-    title = 'INKBOLT enemies: before / after detail pass' if old else 'INKBOLT enemies'
+            row.append(('%s %s  %s %d tris' % (en, view, labels[k], t0), Image.open(f0).convert('RGB')))
+        row.append(('%s %s  %s %d tris' % (en, view, labels[-1], tris), Image.open(f).convert('RGB')))
+    cols = 4 if len(olds) == 1 else len(olds) + 1    # several earlier builds: one row per view, oldest first
+    if not olds:
+        title = 'INKBOLT enemies'
+    elif a.labels:
+        title = 'INKBOLT enemies: ' + ' / '.join(labels)
+    else:
+        title = 'INKBOLT enemies: before / after detail pass'
     if a.split:
         base = os.path.splitext(a.out)[0]
         for en, row in groups.items():

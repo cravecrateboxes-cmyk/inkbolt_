@@ -17,11 +17,13 @@ The carbine's vertices carry colour alpha 0 (the game's aMask): the Grenadier hi
 Levels 20+ (same rig and animations, one pool of rigs in trooperrig.js):
   TROOPER_GL     a 6-shot 40 mm grenade launcher (round drum, chamfered frame) skinned to the right hand (the
                  Grenadier); socket TROOPER_GL_MUZZLE
-  TROOPER_MECH   the Robot Trooper: a heavy industrial walker of rigid sculpted armour, each part skinned 100 % to
-                 one bone: domed, layered pauldrons round a small rounded head set low with one red optic, a barrel
-                 chest with pillowed pectoral plates on a narrow piston waist (round back reactor, socket
-                 TROOPER_MECH_CORE), tapered piston arms with round servo joints and clamp hands, tapered legs with
-                 curved thigh plates and shin guards on sculpted feet, stencils and hazard marks, its own carbine.
+  TROOPER_MECH   the Robot Trooper: a heavy industrial walker of rigid, angular hard-surface armour (flat faceted
+                 plates with crisp one-segment chamfers, octagonal joints), each part skinned 100 % to one bone:
+                 faceted pauldrons under swept cap plates round a slim faceted head set low (a pointed visor with
+                 one red hex optic), a broad angular chest of raked pectoral plates on a narrow piston waist
+                 (octagonal back reactor, socket TROOPER_MECH_CORE), segmented octagonal piston arms with clamp
+                 hands, tapered octagonal legs with ridged thigh plates, knee caps and shin guards on angular feet,
+                 stencils and hazard marks, its own carbine.
                  Plate keys mplate / mplate2 / mhaz are recoloured per robot (trooperrig.js MECH_VARIANTS).
 Blender: Z up, the mannequin faces -Y (game +Z).
 """
@@ -344,20 +346,22 @@ def _rigid(pal, name, build, bone, hull_t):
 
 
 def build_mech(rig, pal, ht):
-    """the Robot Trooper body: a heavy industrial walker (rest pose = T pose, facing -Y) built from rigid, sculpted
-    armour, one bone each: domed, layered pauldrons round a small rounded head set low between them, a barrel chest
-    with pillowed pectoral plates on a narrow piston waist, tapered piston arms with round servo joints and
-    telescoping forearm segments, tapered legs with curved thigh plates and shin guards, sculpted feet. Worn plates,
-    stencil bars and hazard chevrons. The rounded back reactor's glowing cell stays the weak spot (socket
+    """the Robot Trooper body: a heavy industrial walker (rest pose = T pose, facing -Y) in angular, hard-surface
+    armour (flat faceted plates, crisp one-segment chamfers, octagonal joints), rigid, one bone each: swept, raked
+    pauldrons round a slim faceted head set low between them (a pointed visor with one red optic), a broad angular
+    chest of raked pectoral plates over a narrow piston waist, segmented octagonal piston arms with clamp hands,
+    tapered octagonal legs with ridged thigh plates, knee caps and shin guards, angular feet. Worn plates, stencil
+    bars and hazard chevrons. The octagonal back reactor's glowing cell stays the weak spot (socket
     TROOPER_MECH_CORE). Every part is skinned 100 % to one bone."""
     B = lambda n: (rig.data.bones[n].head_local.copy(), rig.data.bones[n].tail_local.copy())
     R90X, RY = (90, 0, 0), lambda sx: (0, 90 * sx, 0)
     RB = (-90, 0, 0)                               # cylinder axis -> +y (out of the back)
     parts = []
     SLIM = 0.8
-    rb, rc, rl = S.rbox, S.rcyl, S.rlimb
+    rb, rc, pr = S.rbox, S.rcyl, S.prism
     FF = lambda *a, **k: S.face_frame(*a, on=CUR[0], **k)     # detail frames snap onto the part's surface
     CUR = [None]
+    O8 = 22.5                                      # octagon phase: flats (not corners) up / down / fore / aft
 
     def P(name, bone, fn):
         m = Model(pal)
@@ -380,110 +384,121 @@ def build_mech(rig, pal, ht):
         vg.add(list(range(len(obj.data.vertices))), 1.0, 'REPLACE')
         parts.append(obj)
 
-    def bolt(m, F, u, v, r=0.009, c='servo'):
+    def bolt(m, F, u=0.0, v=0.0, r=0.009, c='servo'):
         with ED.at(m.d, F):
             m.d.cyl((u, v, -0.002), r, r, 0.007, c, seg=6)
 
-    # ---- pelvis: a rounded, tapering skirt with a shield-shaped codpiece and round hip guards
+    def mirror(poly, sx):
+        return [(sx * u, v) for u, v in poly]
+
+    # ---- pelvis: a chamfered, tapering skirt with a pointed codpiece shield and raked hip guards
     def hips(m):
-        rb(m, (0, 0.02, 0.93), (0.34, 0.22, 0.15), 'mframe', r=0.05, cuts=(1, 1, 0), bot=(0.86, 0.9), puff=(0, 0.012, 0))
-        cp = dict(rot=(8, 0, 0), cuts=(2, 0, 0), bot=(0.72, 1.0), curve=[('y', 'x', 0.024)], puff=(0, 0.006, 0))
-        rb(m, (0, -0.10, 0.90), (0.18, 0.04, 0.16), 'mplate', cham=0.012, **cp)
-        with ED.at(m.d, FF((0, -0.10, 0.90), (0.18, 0.04, 0.16), '-y', 0, 0.025, **cp)):
-            ED.stencil(m.d, 0, 0, 0.10, 0.018, 3, color='mhaz', top=0.004)
+        rb(m, (0, 0.02, 0.93), (0.34, 0.22, 0.15), 'mframe', cham=0.03, bot=(0.8, 0.88))
+        cpl, cpr = (0, -0.10, 0.90), (8, 0, 0)
+        pr(m, cpl, [(-0.09, 0.08), (0.09, 0.08), (0.09, -0.01), (0.0, -0.08), (-0.09, -0.01)], 0.04, 'mplate',
+           rot=cpr, cham=0.01, s0=(0.88, 0.9))
+        with ED.at(m.d, FF(cpl, (0.18, 0.04, 0.16), '-y', 0, 0.035, rot=cpr)):
+            ED.stencil(m.d, 0, 0, 0.09, 0.018, 3, color='mhaz', top=0.004)
         for sx in (-1, 1):
-            hp = dict(rot=RY(sx), cuts=(1, 1, 0), puff=(0, 0, 0.014), cham=0.016)
+            hp = dict(rot=RY(sx), top=(0.86, 0.88), cham=0.016)
             rb(m, (sx * 0.19, 0.0, 0.91), (0.18, 0.22, 0.05), 'mplate2', **hp)   # local z -> out of the hip
-            rc(m, (sx * 0.213, 0.0, 0.92), 0.05, 0.05, 0.022, 'servo', seg=10, rot=RY(sx), cham=0.008)
-            for y, z in ((-0.075, 0.85), (0.075, 0.975)):
-                if True:
-                    with ED.at(m.d, FF((sx * 0.19, 0.0, 0.91), (0.18, 0.22, 0.05), '+z', -sx * (z - 0.91), y, **hp)):
-                        m.d.cyl((0, 0, -0.002), 0.009, 0.009, 0.007, 'servo', seg=6)
-        rb(m, (0, 0.135, 0.95), (0.16, 0.06, 0.10), 'mplate2', cham=0.02, cuts=(1, 0, 0), puff=(0, 0.008, 0))
-        with ED.at(m.d, FF((0, 0.135, 0.95), (0.16, 0.06, 0.10), '+y', 0, 0, puff=(0, 0.008, 0))):
+            rc(m, (sx * 0.213, 0.0, 0.92), 0.05, 0.05, 0.022, 'servo', seg=8, rot=RY(sx), cham=0.008, phase=O8)
+            for y, z in ((-0.07, 0.86), (0.07, 0.965)):
+                bolt(m, FF((sx * 0.19, 0.0, 0.91), (0.18, 0.22, 0.05), '+z', -sx * (z - 0.91), y, **hp))
+        bk = dict(cham=0.02, bot=(0.8, 0.9))
+        rb(m, (0, 0.135, 0.95), (0.16, 0.06, 0.10), 'mplate2', **bk)
+        with ED.at(m.d, FF((0, 0.135, 0.95), (0.16, 0.06, 0.10), '+y', 0, 0.005, **bk)):
             for z in (-0.02, 0.0, 0.02):
-                ED.pad(m.d, 0, z, 0.10, 0.008, 0.004, 'servo')
+                ED.pad(m.d, 0, z, 0.09, 0.008, 0.004, 'servo')
     P('hips', 'DEF-hips', hips)
 
-    # ---- narrow waist: a chrome column in a rounded servo collar
+    # ---- narrow waist: a chrome column in an octagonal servo collar
     def ab(m):
-        rc(m, (0, 0.02, 0.99), 0.06, 0.06, 0.16, 'chrome', seg=10)
-        rc(m, (0, 0.02, 1.005), 0.085, 0.085, 0.04, 'servo', seg=12, cham=0.012)
+        rc(m, (0, 0.02, 0.99), 0.06, 0.06, 0.16, 'chrome', seg=8, phase=O8)
+        rc(m, (0, 0.02, 1.005), 0.085, 0.085, 0.04, 'servo', seg=8, cham=0.012, phase=O8)
         for sx in (-1, 1):
             m.d.cyl((sx * 0.085, 0.03, 0.98), 0.012, 0.012, 0.18, 'chrome', seg=6)
     P('ab', 'DEF-spine.001', ab)
 
-    def chest_lo(m):   # tapering belly with two layered, curved ab plates
-        core = dict(r=0.04, cuts=(1, 0, 0), bot=(0.82, 0.9), puff=(0.01, 0, 0))
+    def chest_lo(m):   # tapering belly with two layered, raked ab plates
+        core = dict(cham=0.025, bot=(0.8, 0.88))
         rb(m, (0, 0.02, 1.19), (0.25, 0.20, 0.10), 'mframe', **core)
         for z, w, cz in ((1.214, 0.18, 0.042), (1.172, 0.15, 0.036)):
-            rb(m, (0, -0.083, z), (w, 0.035, cz), 'mplate2', cham=0.01, cuts=(2, 0, 0), curve=[('y', 'x', 0.022)])
+            pr(m, (0, -0.083, z), [(-w / 2, cz / 2), (w / 2, cz / 2), (w / 2 - 0.02, -cz / 2), (-w / 2 + 0.02, -cz / 2)],
+               0.035, 'mplate2', cham=0.008, s0=(0.92, 0.8))
         for sx in (-1, 1):                                       # detail: side vent slats
-            with ED.at(m.d, FF((0, 0.02, 1.19), (0.25, 0.20, 0.10), ('+x' if sx > 0 else '-x'), 0, 0, **core)):
+            with ED.at(m.d, FF((0, 0.02, 1.19), (0.25, 0.20, 0.10), ('+x' if sx > 0 else '-x'), 0, 0.01, **core)):
                 for z in (-0.02, 0.0, 0.02):
                     ED.pad(m.d, 0, z, 0.10, 0.008, 0.004, 'servo')
     P('chestlo', 'DEF-spine.002', chest_lo)
 
-    def chest(m):      # the wide barrel torso, layered plates
-        core = dict(r=0.06, cuts=(1, 1, 0), bot=(0.86, 0.9), puff=(0.012, 0.012, 0))
+    def chest(m):      # the broad angular torso: raked pectoral plates meeting in a V over a tapering core
+        core = dict(cham=0.04, bot=(0.8, 0.88))
         rb(m, (0, 0.02, 1.36), (0.52, 0.28, 0.26), 'mframe', **core)
-        for sx in (-1, 1):                                       # pillowed pectoral plates, outer edges wrapping back
-            pec = dict(rot=(-6, 0, sx * 14), cuts=(1, 0, 1), puff=(0, 0.01, 0), bot=(0.86, 1.0))
-            loc = (sx * 0.112, -0.138, 1.39)
-            rb(m, loc, (0.20, 0.045, 0.19), 'mplate', r=0.018, **pec)
-            with ED.at(m.d, FF(loc, (0.20, 0.045, 0.19), '-y', sx * 0.03, 0.02, **pec)):      # stencil / patch bars
+        for sx in (-1, 1):                     # pectoral plates: outer lower corner cut away, outer edges raked back
+            rot, loc = (-6, 0, sx * 14), (sx * 0.112, -0.138, 1.39)
+            pec = [(-0.1, 0.095), (0.1, 0.095), (0.1, -0.035), (0.045, -0.095), (-0.1, -0.095)]
+            pr(m, loc, mirror(pec, sx), 0.045, 'mplate', rot=rot, cham=0.012, s0=(0.9, 0.9))
+            F = lambda u, v: FF(loc, (0.20, 0.045, 0.19), '-y', u, v, rot=rot)
+            with ED.at(m.d, F(sx * 0.02, 0.025)):          # stencil / patch bars
                 ED.stencil(m.d, 0, 0, 0.10 if sx < 0 else 0.07, 0.018, 4 if sx < 0 else 2, color='mframe' if sx < 0 else 'patch', top=0.004)
-            with ED.at(m.d, FF(loc, (0.20, 0.045, 0.19), '-y', sx * 0.04, -0.055, **pec)):     # hazard chevrons
+            with ED.at(m.d, F(-sx * 0.03, -0.05)):         # hazard chevrons
                 ED.chevrons(m.d, 0, 0, 0.07, 0.03, 3, color='mhaz', ink='servo')
-            with ED.at(m.d, FF(loc, (0.20, 0.045, 0.19), '-y', -sx * 0.055, 0.06, **pec)):     # rivet
-                m.d.cyl((0, 0, -0.002), 0.012, 0.012, 0.008, 'servo', seg=6)
-            side = dict(rot=RY(sx), cuts=(1, 0, 0), puff=(0, 0, 0.012))                      # curved side plates
-            rb(m, (sx * 0.272, 0.02, 1.36), (0.18, 0.22, 0.04), 'mplate2', cham=0.014, **side)
-            for y, z in ((-0.06, 1.29), (0.10, 1.43)):
-                if True:
-                    with ED.at(m.d, FF((sx * 0.272, 0.02, 1.36), (0.18, 0.22, 0.04), '+z', -sx * (z - 1.36), y - 0.02, **side)):
-                        m.d.cyl((0, 0, -0.002), 0.01, 0.01, 0.008, 'servo', seg=6)
-        rb(m, (0, -0.145, 1.345), (0.07, 0.05, 0.20), 'mplate2', cham=0.016, cuts=(0, 0, 1), bot=(0.7, 1.0), puff=(0, 0.008, 0))   # keel
-        with ED.at(m.d, FF((0, -0.145, 1.345), (0.07, 0.05, 0.20), '-y', 0, 0.035, bot=(0.7, 1.0), puff=(0, 0.008, 0))):
+            bolt(m, F(-sx * 0.06, 0.065), r=0.012)
+            side = dict(rot=RY(sx), top=(0.84, 0.88), cham=0.014)                              # raked side plates
+            rb(m, (sx * 0.272, 0.02, 1.36), (0.18, 0.22, 0.04), 'mplate2', **side)
+            for y, z in ((-0.06, 1.30), (0.10, 1.42)):
+                bolt(m, FF((sx * 0.272, 0.02, 1.36), (0.18, 0.22, 0.04), '+z', -sx * (z - 1.36), y - 0.02, **side), r=0.01)
+        kl = dict(cham=0.016, bot=(0.7, 1.0))
+        rb(m, (0, -0.145, 1.345), (0.07, 0.05, 0.20), 'mplate2', **kl)   # keel
+        with ED.at(m.d, FF((0, -0.145, 1.345), (0.07, 0.05, 0.20), '-y', 0, 0.035, **kl)):
             ED.grille(m.d, 0, 0, 0.062, 0.09, 4, color='mframe', slat='servo')
-        rb(m, (0, -0.118, 1.252), (0.38, 0.07, 0.06), 'mplate2', cham=0.02, cuts=(3, 0, 0), curve=[('y', 'x', 0.035)])   # belly lip
-        rb(m, (0, 0.02, 1.497), (0.31, 0.22, 0.034), 'mplate2', cham=0.012, top=(0.9, 0.88))                              # collar
+        pr(m, (0, -0.118, 1.252), [(-0.19, 0.03), (0.19, 0.03), (0.15, -0.03), (-0.15, -0.03)], 0.07, 'mplate2',
+           cham=0.016, s0=(0.94, 0.8))                                                                     # belly lip
+        rb(m, (0, 0.02, 1.497), (0.31, 0.22, 0.034), 'mplate2', cham=0.012, top=(0.9, 0.88))              # collar
         for sx in (-1, 1):
             for x in (-0.11, 0.11):
                 m.d.cyl((x, sx * 0.075 + 0.02, 1.511), 0.009, 0.009, 0.006, 'servo', seg=6)
-        # back: a rounded reactor drum with the glowing cell (the weak spot) in a bezel, flanked by finned coolers
-        rc(m, (0, 0.145, 1.39), 0.095, 0.095, 0.07, 'mplate2', seg=14, rot=RB, cham=0.022)
-        rc(m, (0, 0.205, 1.39), 0.055, 0.052, 0.02, 'cell', seg=12, rot=RB)
-        m.d.cyl((0, 0.212, 1.39), 0.068, 0.068, 0.008, 'mframe', seg=12, rot=RB)
+        # back: an octagonal reactor drum with the glowing cell (the weak spot) in a bezel, flanked by finned coolers
+        rc(m, (0, 0.145, 1.39), 0.095, 0.095, 0.07, 'mplate2', seg=8, rot=RB, cham=0.02, phase=O8)
+        rc(m, (0, 0.205, 1.39), 0.055, 0.052, 0.02, 'cell', seg=8, rot=RB, phase=O8)
+        rc(m.d, (0, 0.212, 1.39), 0.068, 0.068, 0.008, 'mframe', seg=8, rot=RB, phase=O8)
         for sx in (-1, 1):
-            cool = dict(cuts=(0, 0, 1), puff=(0, 0.008, 0))
-            rb(m, (sx * 0.135, 0.165, 1.375), (0.06, 0.06, 0.22), 'mplate2', cham=0.018, **cool)
+            cool = dict(cham=0.016, top=(0.8, 0.85))
+            rb(m, (sx * 0.135, 0.165, 1.375), (0.06, 0.06, 0.22), 'mplate2', **cool)
             with ED.at(m.d, FF((sx * 0.135, 0.165, 1.375), (0.06, 0.06, 0.22), '+y', 0, 0, **cool)):
                 for z in (-0.05, 0.0, 0.05):
-                    ED.pad(m.d, 0, z, 0.036, 0.009, 0.004, 'servo')
+                    ED.pad(m.d, 0, z, 0.03, 0.009, 0.004, 'servo')
             m.d.limb((sx * 0.11, 0.19, 1.47), (sx * 0.24, 0.13, 1.49), 0.011, 0.011, 'cable', seg=6)
     P('chest', 'DEF-spine.003', chest)
 
-    # ---- short neck + small rounded head set low, one red optic
+    # ---- short neck + slim faceted head set low: a pointed visor band with one red optic
     def neck(m):
-        rc(m, (0, 0.0, 1.47), 0.035, 0.035, 0.06, 'chrome', seg=10)
+        rc(m, (0, 0.0, 1.47), 0.035, 0.035, 0.06, 'chrome', seg=8, phase=O8)
     P('neck', 'DEF-neck', neck)
 
     def head(m):
-        rb(m, (0, -0.02, 1.575), (0.15, 0.16, 0.11), 'mplate', r=0.045, cuts=(1, 1, 0), top=(0.86, 0.88), puff=(0.006, 0.008, 0))
-        S.ell(m, (0, -0.025, 1.62), 0.071, 'mplate2', seg=(12, 5), scale=(1.0, 1.08, 0.38), zmin=0.0)    # domed lid
-        rb(m, (0, -0.086, 1.585), (0.128, 0.04, 0.052), 'mframe', cham=0.012, cuts=(2, 0, 0), curve=[('y', 'x', 0.026)])  # visor band
-        rc(m, (0.03, -0.098, 1.585), 0.03, 0.03, 0.014, 'servo', seg=10, rot=R90X, cham=0.004)          # optic housing
-        S.ell(m, (0.03, -0.117, 1.585), 0.023, 'optic', seg=(8, 4), scale=(1, 1, 0.5), rot=R90X)     # the optic (off-centre)
-        m.d.sphere((0.022, -0.128, 1.592), 0.006, 'optichi', seg=(6, 4), scale=(1, 0.5, 1))
-        m.d.box((-0.035, -0.1065, 1.585), (0.03, 0.006, 0.012), 'mhaz')
-        rb(m, (0, -0.095, 1.535), (0.10, 0.04, 0.034), 'servo', cham=0.012, curve=[('y', 'x', 0.012)])    # chin
+        rb(m, (0, -0.02, 1.575), (0.15, 0.16, 0.11), 'mplate', cham=0.026, top=(0.8, 0.84))
+        rb(m, (0, -0.025, 1.638), (0.12, 0.14, 0.03), 'mplate2', cham=0.01, top=(0.62, 0.7))             # faceted lid
+        vl, vs = (0, -0.086, 1.585), (0.128, 0.04, 0.052)
+        vb = dict(cuts=(1, 0, 0), curve=[('y', 'x', 0.026)], top=(0.96, 1.0), bot=(0.9, 1.0))
+        rb(m, vl, vs, 'mframe', cham=0.01, **vb)                                                        # pointed visor
+        F = FF(vl, vs, '-y', 0.03, 0, **vb)
+        with ED.at(m, F):                                       # the optic (off-centre): a hex lens in a hex housing
+            rc(m, (0, 0, -0.004), 0.029, 0.029, 0.014, 'servo', seg=6, cham=0.004)
+            rc(m, (0, 0, 0.008), 0.021, 0.017, 0.007, 'optic', seg=6)
+        with ED.at(m.d, F):
+            m.d.box((-0.006, 0.006, 0.0165), (0.008, 0.006, 0.007), 'optichi')
+        with ED.at(m.d, FF(vl, vs, '-y', -0.035, 0, **vb)):
+            ED.pad(m.d, 0, 0, 0.026, 0.012, 0.004, 'mhaz')
+        pr(m, (0, -0.095, 1.535), [(-0.05, 0.017), (0.05, 0.017), (0.03, -0.017), (-0.03, -0.017)], 0.04, 'servo',
+           cham=0.008, s0=(0.9, 0.85))                                                                     # chin
         for sx in (-1, 1):
-            rc(m, (sx * 0.07, -0.02, 1.575), 0.032, 0.03, 0.018, 'servo', seg=8, rot=RY(sx), cham=0.005)   # ear discs
-            m.d.cyl((sx * 0.086, -0.02, 1.575), 0.014, 0.014, 0.006, 'chrome', seg=8, rot=RY(sx))
-        for x in (-0.025, 0.0, 0.025):
-            m.d.box((x, -0.116, 1.535), (0.012, 0.007, 0.02), 'mframe')
-        m.d.cyl((0.045, 0.03, 1.625), 0.006, 0.006, 0.037, 'cable', seg=5)
+            rc(m, (sx * 0.07, -0.02, 1.575), 0.032, 0.028, 0.018, 'servo', seg=6, rot=RY(sx), cham=0.005)   # ear discs
+            m.d.cyl((sx * 0.086, -0.02, 1.575), 0.014, 0.014, 0.006, 'chrome', seg=6, rot=RY(sx))
+        for x in (-0.016, 0.0, 0.016):
+            m.d.box((x, -0.1155, 1.535), (0.008, 0.007, 0.016), 'mframe')
+        m.d.cyl((0.045, 0.03, 1.612), 0.006, 0.006, 0.05, 'cable', seg=5)
         m.d.cyl((0.045, 0.03, 1.66), 0.01, 0.01, 0.01, 'optic', seg=6)
     P('head', 'DEF-head', head)
 
@@ -493,67 +508,69 @@ def build_mech(rig, pal, ht):
         hh, htl = B('DEF-hand.' + side)
         sxf = '+x' if sx > 0 else '-x'
 
-        def shoulder(m, uh=uh, sx=sx, sxf=sxf):   # the big domed pauldron with a curved cap plate layered over it
+        def shoulder(m, uh=uh, sx=sx):   # a faceted pauldron under a swept, faceted cap plate and a flared skirt plate
             x, y, z = uh.x + sx * 0.06, uh.y + 0.01, uh.z + 0.03
-            base = dict(r=0.06, cuts=(1, 0, 1), puff=(0.016, 0.014, 0.016))
-            rb(m, (x, y, z), (0.19, 0.25, 0.21), 'mplate', **base)
-            cap = dict(cuts=(1, 2, 0), curve=[('z', 'x', -0.035), ('z', 'y', -0.04)])
-            capl = (x + sx * 0.022, y, z + 0.125)
-            rb(m, capl, (0.19, 0.27, 0.03), 'mplate2', cham=0.012, **cap)
-            rb(m, (x + sx * 0.11, y, z - 0.03), (0.04, 0.23, 0.11), 'mplate2', cham=0.014, cuts=(0, 2, 0),
-               curve=[('x', 'y', -sx * 0.03)])                                                               # outer lip
-            with ED.at(m.d, FF((x, y, z), (0.19, 0.25, 0.21), '-y', -sx * 0.01, 0.045, **base)):           # hazard band
-                ED.pad(m.d, 0, 0, 0.12, 0.028, 0.004, 'mhaz')
-            with ED.at(m.d, FF((x, y, z), (0.19, 0.25, 0.21), '-y', -sx * 0.01, -0.035, **base)):
+            base = dict()                       # detail frames: the block's faces (snapped onto the faceted prism)
+            prof = [(-0.125, 0.055), (-0.085, 0.105), (0.11, 0.105), (0.125, 0.085), (0.125, -0.105), (-0.095, -0.105),
+                    (-0.125, -0.07)]            # side profile (y, z): front corners cut away, the rear top clipped
+            out = (0.92, 0.9)
+            pr(m, (x, y, z), prof, 0.19, 'mplate', axis='x', cham=0.022, s0=out if sx < 0 else None, s1=out if sx > 0 else None)
+            capl, capr = (x + sx * 0.022, y, z + 0.122), (0, sx * 12, 0)       # swept cap, drooping outward
+            cap = [(-0.095, -0.12), (0.05, -0.14), (0.1, -0.09), (0.1, 0.1), (0.065, 0.135), (-0.095, 0.13)]
+            pr(m, capl, mirror(cap, sx), 0.032, 'mplate2', axis='z', rot=capr, cham=0.012, s1=(0.9, 0.92))
+            lip = dict(rot=(0, -sx * 10, 0), cham=0.014, bot=(1.0, 0.78))
+            rb(m, (x + sx * 0.11, y, z - 0.03), (0.04, 0.23, 0.11), 'mplate2', **lip)                    # flared outer skirt
+            with ED.at(m.d, FF((x, y, z), (0.19, 0.25, 0.21), '-y', -sx * 0.01, 0.012, **base)):           # hazard band
+                ED.pad(m.d, 0, 0, 0.11, 0.026, 0.004, 'mhaz')
+            with ED.at(m.d, FF((x, y, z), (0.19, 0.25, 0.21), '-y', -sx * 0.01, -0.03, **base)):
                 ED.stencil(m.d, 0, 0, 0.11, 0.018, 3, color='mframe', top=0.004)
             with ED.at(m.d, FF((x, y, z), (0.19, 0.25, 0.21), '+y', 0, 0, **base)):                       # back vent
                 ED.grille(m.d, 0, 0, 0.11, 0.09, 4, color='mframe', slat='servo')
-            for dx in (-0.06, 0.06):
-                for dy in (0.0,):
-                    with ED.at(m.d, FF(capl, (0.19, 0.27, 0.03), '+z', dx, dy, **cap)):
-                        m.d.cyl((0, 0, -0.002), 0.009, 0.009, 0.007, 'servo', seg=6)
-            rc(m, (uh.x + sx * 0.19, uh.y, uh.z - 0.01), 0.07, 0.07, 0.04, 'servo', seg=10, rot=RY(sx), cham=0.012)
+            for dx in (-0.055, 0.045):
+                bolt(m, FF(capl, (0.19, 0.27, 0.032), '+z', sx * dx, 0.0, rot=capr))
+            rc(m, (uh.x + sx * 0.19, uh.y, uh.z - 0.01), 0.07, 0.07, 0.04, 'servo', seg=8, rot=RY(sx), cham=0.012, phase=O8)
         P('sh' + side, 'DEF-shoulder.' + side, shoulder)
 
-        def upper(m, uh=uh, ut=ut, sx=sx):   # tapered bicep with an arched plate, a piston and a round elbow servo
+        def upper(m, uh=uh, ut=ut, sx=sx):   # octagonal, tapered bicep under a ridged plate, a piston, an octagonal elbow
             mx = (uh.x + ut.x) / 2 + sx * 0.04
             L = abs(ut.x - uh.x)
-            rb(m, (mx, uh.y, uh.z), (0.13, 0.13, L * 0.7), 'mplate2', rot=RY(sx), r=0.045, axes='z', top=(0.84, 0.84))
-            arch = dict(cuts=(1, 2, 0), curve=[('z', 'y', -0.022)], top=None)
-            rb(m, (mx - sx * 0.01, uh.y, uh.z + 0.066), (L * 0.5, 0.11, 0.024), 'mplate', cham=0.009, cuts=(1, 2, 0), curve=[('z', 'y', -0.022)])
-            m.d.limb((mx - sx * L * 0.4, uh.y - 0.075, uh.z - 0.03), (mx + sx * L * 0.42, uh.y - 0.075, uh.z - 0.03), 0.014, 0.014, 'chrome', seg=8)
-            m.d.limb((mx - sx * L * 0.42, uh.y - 0.075, uh.z - 0.03), (mx - sx * L * 0.42 + sx * 0.08, uh.y - 0.075, uh.z - 0.03), 0.024, 0.024, 'mframe', seg=8)
-            rc(m, (ut.x, ut.y + 0.075, ut.z), 0.07, 0.07, 0.15, 'servo', seg=10, rot=R90X, cham=0.018)   # elbow servo
-            m.d.cyl((ut.x, ut.y + 0.095, ut.z), 0.03, 0.03, 0.19, 'chrome', seg=8, rot=R90X)
+            rb(m, (mx, uh.y, uh.z), (0.13, 0.13, L * 0.7), 'mplate2', rot=RY(sx), cham=0.036, axes='z', top=(0.84, 0.84))
+            arch = dict(cuts=(0, 1, 0), curve=[('z', 'y', -0.03)])
+            al = (mx - sx * 0.01, uh.y, uh.z + 0.064)
+            rb(m, al, (L * 0.5, 0.11, 0.024), 'mplate', cham=0.008, **arch)
+            m.d.limb((mx - sx * L * 0.4, uh.y - 0.075, uh.z - 0.03), (mx + sx * L * 0.42, uh.y - 0.075, uh.z - 0.03), 0.014, 0.014, 'chrome', seg=6)
+            m.d.limb((mx - sx * L * 0.42, uh.y - 0.075, uh.z - 0.03), (mx - sx * L * 0.42 + sx * 0.08, uh.y - 0.075, uh.z - 0.03), 0.024, 0.024, 'mframe', seg=6)
+            rc(m, (ut.x, ut.y + 0.075, ut.z), 0.07, 0.07, 0.15, 'servo', seg=8, rot=R90X, cham=0.018, phase=O8)   # elbow servo
+            m.d.cyl((ut.x, ut.y + 0.095, ut.z), 0.03, 0.03, 0.19, 'chrome', seg=6, rot=R90X)
             for dx in (-L * 0.15, L * 0.15):
-                with ED.at(m.d, FF((mx - sx * 0.01, uh.y, uh.z + 0.066), (L * 0.5, 0.11, 0.024), '+z', dx, 0, **arch)):
-                    m.d.cyl((0, 0, -0.002), 0.008, 0.008, 0.006, 'servo', seg=6)
+                bolt(m, FF(al, (L * 0.5, 0.11, 0.024), '+z', dx, 0.024, **arch), r=0.008)
             ED.cable(m.d, [(mx - sx * L * 0.3, uh.y + 0.07, uh.z + 0.025), (mx, uh.y + 0.075, uh.z), (mx + sx * L * 0.3, uh.y + 0.066, uh.z - 0.02)], 0.016, 'cable')
         P('ua' + side, 'DEF-upper_arm.' + side, upper)
 
-        def fore(m, fh=fh, ft=ft, sx=sx):    # telescoping, tapered forearm segments under a curved gauntlet plate
+        def fore(m, fh=fh, ft=ft, sx=sx):    # telescoping, tapered octagonal forearm segments under a ridged gauntlet
             L = abs(ft.x - fh.x)
             step = (L - 0.06) / 3
             for k in range(3):
                 cx = fh.x + sx * (0.06 + k * step + step / 2)
-                seg_ = dict(rot=RY(sx), r=0.034, axes='z', top=(0.88, 0.88))
-                rb(m, (cx, fh.y, fh.z), (0.15 - 0.012 * k, 0.16 - 0.012 * k, step + 0.006), 'mplate' if k != 1 else 'mplate2', **seg_)
-                for dz in (-0.035, 0.035):
-                    with ED.at(m.d, FF((cx, fh.y, fh.z), (0.15 - 0.012 * k, 0.16 - 0.012 * k, step + 0.006), '+y', -sx * dz, 0, **seg_)):
-                        m.d.cyl((0, 0, -0.002), 0.009, 0.009, 0.008, 'servo', seg=6)
-            gl = dict(rot=RY(sx), cuts=(0, 2, 0), curve=[('x', 'y', 0.02 * sx)], top=(1.0, 0.8))             # top gauntlet plate
+                seg_ = dict(rot=RY(sx), cham=0.032, axes='z', top=(0.86, 0.86))
+                sz = (0.15 - 0.012 * k, 0.16 - 0.012 * k, step + 0.006)
+                rb(m, (cx, fh.y, fh.z), sz, 'mplate' if k != 1 else 'mplate2', **seg_)
+                for dz in (-0.03, 0.03):
+                    bolt(m, FF((cx, fh.y, fh.z), sz, '+y', -sx * dz, 0, **seg_))
+            gl = dict(rot=RY(sx), cuts=(0, 1, 0), curve=[('x', 'y', 0.03 * sx)], top=(1.0, 0.8))             # ridged gauntlet
             gloc = (fh.x + sx * L * 0.5, fh.y - 0.005, fh.z + 0.085)
             rb(m, gloc, (0.03, 0.13, L * 0.62), 'mplate2', cham=0.01, **gl)
-            with ED.at(m.d, FF(gloc, (0.03, 0.13, L * 0.62), '-x' if sx > 0 else '+x', 0, 0, **gl)):
-                ED.pad(m.d, 0, 0.0, 0.02, L * 0.45, 0.004, 'mhaz')
+            for u in (-0.03, 0.03):
+                with ED.at(m.d, FF(gloc, (0.03, 0.13, L * 0.62), '-x' if sx > 0 else '+x', u, 0, **gl)):
+                    ED.pad(m.d, 0, 0.0, 0.016, L * 0.42, 0.004, 'mhaz')
             for dy in (-0.05, 0.05):     # twin pistons under the arm
-                m.d.limb((fh.x + sx * L * 0.06, fh.y + dy, fh.z - 0.085), (fh.x + sx * L * 0.94, fh.y + dy, fh.z - 0.08), 0.013, 0.013, 'chrome', seg=8)
-            rc(m, (ft.x - sx * 0.025, ft.y, ft.z), 0.05, 0.05, 0.05, 'servo', seg=10, rot=RY(sx), cham=0.012)   # wrist collar
+                m.d.limb((fh.x + sx * L * 0.06, fh.y + dy, fh.z - 0.085), (fh.x + sx * L * 0.94, fh.y + dy, fh.z - 0.08), 0.013, 0.013, 'chrome', seg=6)
+            rc(m, (ft.x - sx * 0.025, ft.y, ft.z), 0.05, 0.05, 0.05, 'servo', seg=8, rot=RY(sx), cham=0.012, phase=O8)   # wrist collar
         P('fa' + side, 'DEF-forearm.' + side, fore)
 
-        def hand(m, hh=hh, sx=sx):          # clamp hand: a rounded block with an upper jaw
+        def hand(m, hh=hh, sx=sx):          # clamp hand: a chamfered block with a ridged upper jaw
             rb(m, (hh.x + sx * 0.06, hh.y + 0.0, hh.z), (0.12, 0.13, 0.08), 'mframe', cham=0.02)
-            rb(m, (hh.x + sx * 0.07, hh.y + 0.0, hh.z + 0.05), (0.10, 0.12, 0.022), 'mplate2', cham=0.008, cuts=(0, 1, 0), curve=[('z', 'y', -0.008)])
+            rb(m, (hh.x + sx * 0.07, hh.y + 0.0, hh.z + 0.05), (0.10, 0.12, 0.022), 'mplate2', cham=0.008, cuts=(0, 1, 0), curve=[('z', 'y', -0.012)])
             m.d.box((hh.x + sx * 0.07, hh.y - 0.0655, hh.z), (0.06, 0.006, 0.012), 'mhaz')
         P('hand' + side, 'DEF-hand.' + side, hand)
         for f in ('index', 'middle', 'ring', 'pinky', 'thumb'):
@@ -573,8 +590,8 @@ def build_mech(rig, pal, ht):
             def seg2(m, a=a2, b=b3, t=t):
                 m.parent = _seg_frame(a, b, Vector((0, 0, 1)))
                 L = (b - a).length
-                rb(m, (0, 0, L / 2), (t, t * 0.9, L), 'chrome', cham=0.006, axes='z', top=(0.8, 0.8))
-                rb(m, (0, 0, L * 0.95), (t * 1.2, t * 1.15, 0.022), 'mhaz', cham=0.007, axes='z')   # claw tip
+                rb(m, (0, 0, L / 2), (t, t * 0.9, L), 'chrome', cham=0.006, axes='z', top=(0.7, 0.7))
+                rb(m, (0, 0, L * 0.95), (t * 1.2, t * 1.15, 0.022), 'mhaz', cham=0.007, axes='z', top=(0.8, 0.8))   # claw tip
                 m.parent = Matrix.Identity(4)
             P(f + '1' + side, n1, seg1)
             P(f + '2' + side, n2, seg2)
@@ -584,66 +601,70 @@ def build_mech(rig, pal, ht):
         fo, ftt = B('DEF-foot.' + side)
         to, tot = B('DEF-toe.' + side)
 
-        def thigh(m, th=th, tt=tt, sx=sx, sxf=sxf):   # tapered thigh with a curved front plate, round knee servo
+        def thigh(m, th=th, tt=tt, sx=sx):   # tapered octagonal thigh with a ridged front plate, octagonal knee servo
             x = (th.x + tt.x) / 2
-            core = dict(r=0.05, axes='z', cuts=(0, 0, 1), bot=(0.84, 0.86), puff=(0.01, 0.01, 0))
+            core = dict(cham=0.042, axes='z', bot=(0.84, 0.86))
             cz = (th.z + tt.z) / 2 + 0.01
             rb(m, (x, 0.0, cz), (0.16, 0.18, th.z - tt.z - 0.10), 'mplate2', **core)
-            pl = dict(cuts=(2, 0, 1), curve=[('y', 'x', 0.03)], puff=(0, 0.006, 0), bot=(0.78, 1.0))
-            rb(m, (x, -0.096, 0.765), (0.135, 0.026, 0.22), 'mplate', cham=0.011, **pl)
-            with ED.at(m.d, FF((x, -0.096, 0.765), (0.135, 0.026, 0.22), '-y', 0, 0.035, **pl)):
-                ED.stencil(m.d, 0, 0, 0.08, 0.018, 2, color='mhaz', top=0.004)
-            for dx in (-0.04, 0.04):
-                for z in (0.855,):
-                    with ED.at(m.d, FF((x, -0.096, 0.765), (0.135, 0.026, 0.22), '-y', dx * (1 if z > 0.75 else 0.8), z - 0.765, **pl)):
-                        m.d.cyl((0, 0, -0.002), 0.009, 0.009, 0.007, 'servo', seg=6)
-            m.d.limb((x + sx * 0.1, 0.0, tt.z + 0.05), (x + sx * 0.1, 0.0, tt.z + 0.35), 0.013, 0.013, 'chrome', seg=8)
-            rc(m, (tt.x - sx * 0.10, tt.y, tt.z), 0.075, 0.075, 0.20, 'servo', seg=10, rot=RY(sx), cham=0.018)   # knee servo
-            m.d.cyl((tt.x - sx * 0.11, tt.y, tt.z), 0.03, 0.03, 0.22, 'chrome', seg=8, rot=RY(sx))
+            pl = dict(cuts=(1, 0, 0), curve=[('y', 'x', 0.034)], bot=(0.78, 1.0))
+            pll, pls = (x, -0.096, 0.765), (0.135, 0.026, 0.22)
+            rb(m, pll, pls, 'mplate', cham=0.01, **pl)
+            for u in (-0.03, 0.03):                       # a stencil bar and a bolt on each facet of the ridge
+                with ED.at(m.d, FF(pll, pls, '-y', u, 0.035, **pl)):
+                    ED.pad(m.d, 0, 0, 0.022, 0.018, 0.004, 'mhaz')
+                bolt(m, FF(pll, pls, '-y', u, 0.09, **pl))
+            m.d.limb((x + sx * 0.1, 0.0, tt.z + 0.05), (x + sx * 0.1, 0.0, tt.z + 0.35), 0.013, 0.013, 'chrome', seg=6)
+            rc(m, (tt.x - sx * 0.10, tt.y, tt.z), 0.075, 0.075, 0.20, 'servo', seg=8, rot=RY(sx), cham=0.018, phase=O8)   # knee servo
+            m.d.cyl((tt.x - sx * 0.11, tt.y, tt.z), 0.03, 0.03, 0.22, 'chrome', seg=6, rot=RY(sx))
             with ED.at(m.d, FF((x, 0.0, cz), (0.16, 0.18, th.z - tt.z - 0.10), '-x' if sx > 0 else '+x', 0, 0.70 - cz, **core)):
-                ED.grille(m.d, 0, 0, 0.10, 0.11, 4, color='mframe', slat='servo')
+                ED.grille(m.d, 0, 0, 0.09, 0.11, 4, color='mframe', slat='servo')
         P('th' + side, 'DEF-thigh.' + side, thigh)
 
-        def shin(m, sh_=sh_, st=st, sx=sx):  # tall calf tapering to the ankle, a domed knee cap, a curved shin guard
+        def shin(m, sh_=sh_, st=st, sx=sx):  # tall octagonal calf tapering to the ankle, a ridged knee cap and shin guard
             x = (sh_.x + st.x) / 2
-            rb(m, (x, -0.072, 0.50), (0.15, 0.06, 0.11), 'mplate2', rot=(10, 0, 0), r=0.026, cuts=(1, 0, 0), puff=(0, 0.014, 0))   # knee cap
-            core = dict(r=0.055, axes='z', cuts=(0, 0, 1), bot=(0.8, 0.84), puff=(0.012, 0.012, 0))
+            rb(m, (x, -0.072, 0.50), (0.15, 0.06, 0.11), 'mplate2', rot=(10, 0, 0), cham=0.016, cuts=(1, 0, 0),
+               curve=[('y', 'x', 0.04)], bot=(0.8, 1.0))                                                    # knee cap
+            core = dict(cham=0.045, axes='z', bot=(0.78, 0.82))
             rb(m, (x, 0.005, 0.30), (0.18, 0.19, 0.30), 'mplate', **core)
-            gd = dict(cuts=(2, 0, 1), curve=[('y', 'x', 0.034)], puff=(0, 0.006, 0), bot=(0.74, 1.0))
-            rb(m, (x, -0.104, 0.31), (0.135, 0.026, 0.25), 'mplate2', cham=0.011, **gd)
-            with ED.at(m.d, FF((x, -0.104, 0.31), (0.135, 0.026, 0.25), '-y', 0, 0.05, **gd)):
-                ED.pad(m.d, 0, 0, 0.08, 0.016, 0.004, 'mhaz')
-            with ED.at(m.d, FF((x, -0.104, 0.31), (0.135, 0.026, 0.25), '-y', 0, -0.06, **gd)):
-                ED.stencil(m.d, 0, 0, 0.07, 0.018, 3, color='mframe', top=0.004)
+            gd = dict(cuts=(1, 0, 0), curve=[('y', 'x', 0.034)], bot=(0.74, 1.0))
+            gl_, gs = (x, -0.104, 0.31), (0.135, 0.026, 0.25)
+            rb(m, gl_, gs, 'mplate2', cham=0.01, **gd)
+            for u in (-0.03, 0.03):                       # hazard bar and stencil marks on each facet of the ridge
+                with ED.at(m.d, FF(gl_, gs, '-y', u, 0.05, **gd)):
+                    ED.pad(m.d, 0, 0, 0.03, 0.016, 0.004, 'mhaz')
+                with ED.at(m.d, FF(gl_, gs, '-y', u, -0.05, **gd)):
+                    ED.stencil(m.d, 0, 0, 0.03, 0.018, 2, color='mframe', top=0.004)
             for dx in (-0.06, 0.06):
-                m.d.limb((x + dx, 0.122, 0.13), (x + dx, 0.122, 0.47), 0.016, 0.016, 'chrome', seg=8)    # back pistons
+                m.d.limb((x + dx, 0.122, 0.13), (x + dx, 0.122, 0.47), 0.016, 0.016, 'chrome', seg=6)    # back pistons
             rb(m, (x, 0.005, 0.13), (0.14, 0.16, 0.05), 'servo', cham=0.015)
-            S.ell(m, (st.x, st.y, st.z), 0.055, 'servo', seg=(8, 5))
+            rc(m, (st.x - 0.05, st.y, st.z), 0.05, 0.05, 0.10, 'servo', seg=8, rot=RY(1), cham=0.014, phase=O8)  # ankle
             with ED.at(m.d, FF((x, 0.005, 0.30), (0.18, 0.19, 0.30), '-x' if sx > 0 else '+x', 0, 0.02, **core)):
-                ED.grille(m.d, 0, 0, 0.11, 0.12, 4, color='mframe', slat='servo')
+                ED.grille(m.d, 0, 0, 0.09, 0.12, 4, color='mframe', slat='servo')
         P('sh' + side + '2', 'DEF-shin.' + side, shin)
 
-        def foot(m, fo=fo, sx=sx):          # sculpted foot: a rounded wedge with a round heel
+        def foot(m, fo=fo, sx=sx):          # angular foot: a chamfered wedge with a raked heel and a ridged instep plate
             x = fo.x + sx * 0.01
-            rb(m, (x, 0.0, 0.045), (0.22, 0.24, 0.09), 'mframe', r=0.032, cuts=(0, 1, 0), top=(0.8, 0.9))
-            rb(m, (x, 0.125, 0.04), (0.18, 0.06, 0.08), 'mplate2', r=0.028, axes='xz')
-            rb(m, (x, -0.035, 0.095), (0.14, 0.13, 0.03), 'mplate2', cham=0.01, cuts=(1, 0, 0), rot=(-8, 0, 0), curve=[('z', 'x', -0.01)])   # instep plate
+            rb(m, (x, 0.0, 0.045), (0.22, 0.24, 0.09), 'mframe', cham=0.022, top=(0.8, 0.9))
+            pr(m, (x, 0.125, 0.04), [(-0.03, 0.04), (0.03, 0.04), (0.01, -0.04), (-0.03, -0.04)], 0.18, 'mplate2',
+               axis='x', cham=0.016)                                                                         # raked heel
+            rb(m, (x, -0.035, 0.095), (0.14, 0.13, 0.03), 'mplate2', cham=0.01, cuts=(1, 0, 0), rot=(-8, 0, 0), curve=[('z', 'x', -0.034)])   # instep plate
             for sx2 in (-1, 1):                                  # detail: tread blocks along both sides
                 for y in (-0.06, 0.0, 0.06):
                     m.d.box((x + sx2 * 0.104, y, 0.03), (0.008, 0.03, 0.026), 'servo')
         P('ft' + side, 'DEF-foot.' + side, foot)
 
-        def toe(m, to=to, sx=sx):          # rounded toe cap narrowing to the front, three rounded claws
+        def toe(m, to=to, sx=sx):          # angular toe cap narrowing to a blunt point, three wedge claws
             x = to.x + sx * 0.01
 
             def nose(p):
                 f = max(0.0, (-p.y - 0.01) / 0.07)
-                p.x *= 1 - 0.18 * f * f
+                p.x *= 1 - 0.2 * f
                 return p
-            toecap = dict(r=0.03, cuts=(0, 1, 0), top=(0.84, 0.9), warp=nose)
+            toecap = dict(cham=0.02, cuts=(0, 1, 0), top=(0.84, 0.9), warp=nose)
             rb(m, (x, -0.20, 0.036), (0.23, 0.16, 0.072), 'mplate2', **toecap)
             for k in range(3):
-                rb(m, (x - 0.06 + 0.06 * k, -0.274, 0.032), (0.045, 0.035, 0.058), 'mframe', r=0.014, axes='y')
+                pr(m, (x - 0.06 + 0.06 * k, -0.274, 0.032), [(-0.0175, -0.004), (-0.004, 0.029), (0.0175, 0.029), (0.0175, -0.029),
+                   (-0.0175, -0.029)], 0.045, 'mframe', axis='x', cham=0.006)          # wedge claws, raked to the front
             with ED.at(m.d, FF((x, -0.20, 0.036), (0.23, 0.16, 0.072), '+z', 0, 0.0, **toecap)):
                 ED.pad(m.d, 0, 0, 0.10, 0.07, 0.004, 'mhaz')
         P('toe' + side, 'DEF-toe.' + side, toe)
