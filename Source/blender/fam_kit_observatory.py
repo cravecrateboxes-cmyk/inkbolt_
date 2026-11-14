@@ -14,6 +14,7 @@ import ob_struct as S
 import ob_summit as SU
 import ob_dome as D
 import col_fit
+from ob_detail import DKit
 
 # pieces whose single collision boxes the fit re-cuts to what they show (blender/col_fit.py)
 col_fit.FIT[B.FAM] = ['Vsat_*', 'Snowcat', 'Cylinders', 'Drum', 'Cairn', 'Outcrop', 'Rock_*', 'Spectro_*', 'OpticTable',
@@ -23,7 +24,7 @@ col_fit.FIT[B.FAM] = ['Vsat_*', 'Snowcat', 'Cylinders', 'Drum', 'Cairn', 'Outcro
 
 def build_kit_observatory(ao):
     pal = Palette(B.FAM)
-    k = B.OKit(pal, B.PFX, B.HULL_T)
+    k = DKit(pal, B.PFX, B.HULL_T)
     S.build_faces(k, ao)
     S.build_art(k, ao)
     S.build_doors(k, ao)
