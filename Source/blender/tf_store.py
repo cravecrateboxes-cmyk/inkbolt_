@@ -9,6 +9,7 @@ import random
 
 from tf_base import *  # noqa: F401,F403
 import tf_base as B
+import tf_detail as D
 from ms_racks import beam
 
 LEVELS = (1.9, 3.8, 5.7, 7.6)
@@ -77,6 +78,7 @@ def tall_bay(pal, ao, name, seed, end=None):
                     continue
                 slot(m, rnd, s, a, b, z, 1.5 if li < 3 else 1.6)
         (fq if s < 0 else bq)(m, -1.5, -1.42, s * 1.003, 2.3, 2.6, 'paper')
+    D.rack_detail(m, end)
     make(name, m, ao, cols=[cb(-1.5, -1.02, 0.0, 1.5, 1.02, HT)])
 
 
@@ -136,6 +138,7 @@ def build_mezzanine(pal, ao):
         bq(m, -0.1, 0.1, 0.103, z0, z1, c)
         lq(m, -0.103, -0.1, 0.1, z0, z1, c)
         rq(m, 0.103, -0.1, 0.1, z0, z1, c)
+    D.deck_column_detail(m)
     make('DeckColumn', m, ao, cols=[cb(-0.1, -0.1, 0.0, 0.1, 0.1, UNDER)])
 
 
