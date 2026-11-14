@@ -40,6 +40,12 @@ ROBOTS = {
                ('BOT_BLADER_Light', ['BOT_BLADER_LIGHT'])],
     'bladerAxe': [('BOT_BLADER_Body', None), ('BOT_BLADER_Hub', ['BOT_BLADER_HUB']), ('BOT_BLADER_Axe', ['BOT_BLADER_HUB', 'BOT_BLADER_GRIP']),
                   ('BOT_BLADER_Light', ['BOT_BLADER_LIGHT'])],
+    # kusarigama: the weight in the clamp, four chain segments laid out straight ahead (the game lays up to 16 along the
+    # thrown chain, game +Z = Blender -Y) and the sickle at the end of them
+    'bladerKusari': [('BOT_BLADER_Body', None), ('BOT_BLADER_Hub', ['BOT_BLADER_HUB']), ('BOT_BLADER_Fundo', ['BOT_BLADER_HUB', 'BOT_BLADER_GRIP']),
+                     *[('BOT_BLADER_Chain', ['BOT_BLADER_HUB', 'BOT_BLADER_GRIP', 'BOT_BLADER_CHAIN', (0, -0.2 * i, 0)]) for i in range(4)],
+                     ('BOT_BLADER_Kusari', ['BOT_BLADER_HUB', 'BOT_BLADER_GRIP', 'BOT_BLADER_CHAIN', (0, -0.8, 0)]),
+                     ('BOT_BLADER_Light', ['BOT_BLADER_LIGHT'])],
     'hawk': [('BOT_HAWK_Body', None), *[(p, ['BOT_HAWK_FAN%d' % i]) for i in range(2) for p in ('BOT_HAWK_Fan', 'BOT_HAWK_Rotor')],
              ('BOT_HAWK_Gun', ['BOT_HAWK_GUNPIVOT']), ('BOT_HAWK_Light', ['BOT_HAWK_LIGHT'])],
     'soldierBot': [('BOT_SOLDIER_Hips', None), ('BOT_SOLDIER_Thigh', ['BOT_SOLDIER_HIP0']), ('BOT_SOLDIER_Thigh', ['BOT_SOLDIER_HIP1']),
@@ -51,7 +57,7 @@ ROBOTS = {
                      ('BOT_SOLDIER_TorsoB', (0.0, 0.0, -0.75))],
 }
 TROOPERS = {'soldier': ['TROOPER'], 'grenadier': ['TROOPER', 'TROOPER_GL'], 'mech': ['TROOPER_MECH']}
-ORDER = ['crawler', 'crawler2', 'gunner', 'bomber', 'drone', 'blader', 'bladerAxe', 'hawk', 'soldierBot', 'soldierParts',
+ORDER = ['crawler', 'crawler2', 'gunner', 'bomber', 'drone', 'blader', 'bladerAxe', 'bladerKusari', 'hawk', 'soldierBot', 'soldierParts',
          'soldier', 'grenadier', 'mech']
 
 
