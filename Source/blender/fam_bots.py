@@ -574,7 +574,7 @@ def build_bomber(pal):
     for k in range(0, SEG, 2):
         p.on_slope(k, SEG, (0.212, 0.665), (0.165, 0.725), 0.5, 0.003, (0.034, 0.006, 0.05), 'glass2')
     for z in (0.848, 0.858):
-        p.band(z, z + 0.006, 0.081 + (z - 0.848) * 0.0, 'glass2', seg=8)
+        p.band(z, z + 0.006, 0.081, 'glass2', seg=8)
     p.cyl((0, cy, 0.525), 0.072, 0.072, 0.02, 'core2', seg=8, caps=False, deco=True)
     p.cyl((0, cy - 0.064, 0.43), 0.026, 0.026, 0.008, 'gunmetal', seg=8, rot=(90, 0, 0), deco=True)
     p.cyl((0, cy - 0.070, 0.43), 0.02, 0.02, 0.005, 'paper', seg=8, rot=(90, 0, 0), deco=True)
