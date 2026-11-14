@@ -77,6 +77,62 @@ def new(pal):
     return PM(pal)
 
 
+def prune_hidden(m):
+    """Drop faces nobody can see (the kit's GLB is size-capped): faces lying on the ground facing down, and axis-aligned
+    faces that press against an opposite-facing face of a solid part which covers them (a box standing on a slab,
+    a wall meeting a floor). Only solids count as covering: a flat painted quad has no body behind it."""
+    bm = m.bm
+    bm.normal_update()
+    bm.faces.index_update()
+    lay = m.shape
+    lo, hi = {}, {}
+    for f in bm.faces:
+        s = f[lay]
+        for v in f.verts:
+            c = v.co
+            a = lo.setdefault(s, [1e9] * 3)
+            b = hi.setdefault(s, [-1e9] * 3)
+            for i in range(3):
+                a[i] = min(a[i], c[i])
+                b[i] = max(b[i], c[i])
+    buckets = {}
+    info = {}
+    for f in bm.faces:
+        n = f.normal
+        ax = max(range(3), key=lambda i: abs(n[i]))
+        if abs(n[ax]) < 0.9999:
+            continue
+        sg = 1 if n[ax] > 0 else -1
+        pl = f.verts[0].co[ax]
+        o = [i for i in range(3) if i != ax]
+        mn = [min(v.co[i] for v in f.verts) for i in o]
+        mx = [max(v.co[i] for v in f.verts) for i in o]
+        rect = len(f.verts) == 4 and abs(f.calc_area() - (mx[0] - mn[0]) * (mx[1] - mn[1])) < 1e-7
+        info[f.index] = (ax, sg, pl, mn, mx, rect)
+        buckets.setdefault((ax, round(pl, 4)), []).append(f)
+    dead = set()
+    for (ax, pl), lst in buckets.items():
+        if abs(pl) < 1e-4 and ax == 2:
+            dead.update(f for f in lst if info[f.index][1] < 0)       # on the ground, facing down
+        for fa in lst:
+            ia = info[fa.index]
+            for fb_ in lst:
+                if fb_ is fa:
+                    continue
+                ib_ = info[fb_.index]
+                if ib_[1] == ia[1] or not ib_[5]:
+                    continue
+                s = fb_[lay]
+                if hi[s][ax] - lo[s][ax] < 0.02:      # a flat sheet: no body
+                    continue
+                e = 1e-5
+                if ib_[3][0] - e <= ia[3][0] and ia[4][0] <= ib_[4][0] + e and ib_[3][1] - e <= ia[3][1] and ia[4][1] <= ib_[4][1] + e:
+                    dead.add(fa)
+                    break
+    if dead:
+        bmesh.ops.delete(bm, geom=list(dead), context='FACES')
+
+
 def make(name, m, ao, bevel=0.0, cols=None, hull=HT):
     """build one kit piece; cols: collision boxes [(centre, half, walk?)] as box() / wbox() return them"""
     full = PFX + name
@@ -84,6 +140,7 @@ def make(name, m, ao, bevel=0.0, cols=None, hull=HT):
     sh = {}
     for f in m.bm.faces:
         sh.setdefault(f[m.shape], NAMES[f.material_index])
+    prune_hidden(m)
     try:
         obj = build_object(full, m, bevel, hull, ao=ao)
     except ZFightError as e:   # name the colours of the clashing shapes (debug aid)

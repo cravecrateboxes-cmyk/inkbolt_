@@ -7,6 +7,9 @@ import math
 import random
 
 from townhomes_base import *  # noqa: F401,F403
+import townhomes_detail as TD
+
+EMB = TD.EMB
 from fam_kit_city2 import GW  # noqa: F401  (gate opening half width, shared with the other street kits)
 
 
@@ -99,6 +102,12 @@ def build_fences(pal, ao):
     def picket_post(m):
         m.bx(-0.06, 0.06, -0.06, 0.06, 0.0, 1.05, 'trim')
         m.fan((0, 0, 1.05), 1.15, 0.085, 4, ['trim'], rot=math.pi / 4)
+        TD.bx(m, -0.075, 0.075, -0.075, 0.075, 1.047, 1.075, 'trimD', cull='b')           # cap collar
+        TD.bx(m, -0.075, 0.075, -0.075, 0.075, 0.0, 0.1, 'trimD', cull='b')     # foot skirt
+        for z in (0.25, 0.75):                                                   # rail brackets on both runs
+            for sy in (-1, 1):
+                a, b = (0.057, 0.066) if sy > 0 else (-0.066, -0.057)
+                TD.bx(m, -0.035, 0.035, a, b, z - 0.05, z + 0.05, 'steel', cull='tblr' + ('f' if sy > 0 else 'k'))
         return 0.07
     run_pieces(pal, ao, 'Picket', picket, picket_post, 1.0, w=0.1)
 
@@ -106,6 +115,8 @@ def build_fences(pal, ao):
     def iron(m, y0, y1):
         m.bx(-0.16, 0.16, y0, y1, 0.0, 0.4, 'stone', hull='full', cull='bfk')
         m.bx(-0.19, 0.19, y0, y1, 0.4, 0.48, 'stoneD', hull='full', cull='fk')
+        lq(m, -0.164, y0 + 0.005, y1 - 0.005, 0.19, 0.21, 'stoneD')     # a bed joint in the plinth, both faces
+        rq(m, 0.164, y0 + 0.005, y1 - 0.005, 0.19, 0.21, 'stoneD')
         for z in (0.6, 1.65):
             m.bx(-0.02, 0.02, y0, y1, z, z + 0.04, 'iron', hull='full')
         n = int(round((y1 - y0) / 0.14))
@@ -119,6 +130,8 @@ def build_fences(pal, ao):
         m.bx(-0.26, 0.26, -0.26, 0.26, 0.0, 1.9, 'stone', cull='b')
         m.bx(-0.3, 0.3, -0.3, 0.3, 1.9, 2.04, 'stoneD')
         m.fan((0, 0, 2.04), 2.2, 0.26, 4, ['stoneD'], rot=math.pi / 4)
+        TD.courses(m, 0.26, 0.26, (0.7, 1.4))
+        TD.skirt(m, 0, 0, 0.26, 0.26, 0.12)
         return 0.3
     run_pieces(pal, ao, 'Iron', iron, iron_post, 1.88, w=0.38)
 
@@ -139,6 +152,8 @@ def build_fences(pal, ao):
         m.bx(-0.32, 0.32, -0.32, 0.32, 0.0, 2.3, 'stone', cull='b')
         m.bx(-0.37, 0.37, -0.37, 0.37, 2.3, 2.44, 'stoneD')
         m.bx(-0.1, 0.1, -0.1, 0.1, 2.44, 2.5, 'iron')
+        TD.courses(m, 0.32, 0.32, (0.8, 1.6))
+        TD.skirt(m, 0, 0, 0.32, 0.32, 0.12)
         m.bx(-0.13, 0.13, -0.13, 0.13, 2.5, 2.84, 'glassL')
         m.fan((0, 0, 2.84), 3.02, 0.2, 4, ['iron'], rot=math.pi / 4)
         return 0.37
@@ -209,6 +224,8 @@ def build_furniture(pal, ao):
     m.cy((0, 0, 0.35), 0.06, 0.05, 2.75, 'iron', seg=5, hull='none')
     m.bx(-0.16, 0.16, -0.16, 0.16, 3.1, 3.16, 'iron')
     m.cy((0, 0, 3.16), 0.15, 0.2, 0.42, 'glassL', seg=5)
+    TD.ring(m, 0, 0, 0.4, 0.075, 0.04, 'steel', seg=5)
+    TD.ring(m, 0, 0, 2.9, 0.075, 0.04, 'steel', seg=5)
     m.fan((0, 0, 3.58), 3.82, 0.24, 5, ['iron'])
     m.cy((0, 0, 3.82), 0.03, 0.01, 0.1, 'iron', seg=4, hull='none')
     make('Lamp', m, ao, cols=[box(-0.13, -0.13, 0.0, 0.13, 0.13, 2.4)])
@@ -227,11 +244,15 @@ def build_furniture(pal, ao):
     m.cy((0, -0.27, 1.18), 0.12, 0.12, 0.5, 'iron', seg=8, rot=(-90, 0, 0))
     m.bx(0.12, 0.14, 0.05, 0.1, 1.15, 1.4, 'red', hull='none')
     m.bx(0.12, 0.14, 0.1, 0.22, 1.33, 1.4, 'red', hull='none')
+    TD.bx(m, -0.03, 0.03, -0.306, -0.285, 1.165, 1.215, 'steel', cull='tblrk')    # door latch
+    m.cy((0, -0.266, 1.18), 0.125, 0.125, 0.024, 'steel', seg=8, rot=(90, 0, 0), hull='none')     # door rim
+    TD.bx(m, -0.075, 0.075, -0.075, 0.075, 0.0, 0.1, 'trimD', cull='b')           # post skirt
     make('PostBox', m, ao, cols=[box(-0.12, -0.3, 0.0, 0.12, 0.26, 1.32)])
     # street-name sign over a stop sign
     for (name, w1, w2) in (('StreetSign', 'LARKSPUR LN', 'MEADOW CT'),):
         m = new(pal)
         m.cy((0, 0, 0), 0.035, 0.035, 2.95, 'steel', seg=5, hull='none')
+        TD.ring(m, 0, 0, 2.95 - EMB, 0.045, 0.035, 'iron', seg=5)
         m.bx(-0.75, 0.75, -0.02, 0.02, 2.6, 2.82, 'doorG')
         txt(m, w1, 0.0, -0.024, 2.71, 0.13, 'trim', font='display', maxw=1.35)
         txt(m, w1, 0.0, 0.024, 2.71, 0.13, 'trim', face='y+', font='display', maxw=1.35)
@@ -390,6 +411,10 @@ def build_gate(pal, ao):
         a0, a1 = math.pi * k / 6, math.pi * (k + 1) / 6
         m.bm_((math.cos(a0) * 1.48, 0.0, 3.24 + math.sin(a0) * 0.55), (math.cos(a1) * 1.48, 0.0, 3.24 + math.sin(a1) * 0.55), 0.07 if k % 2 else 0.06, 'iron', hull='none')
     m.bx(-0.75, 0.75, -0.06, 0.06, 3.35, 3.7, 'trim')
+    for x in (-0.7, 0.7):
+        for z in (3.4, 3.65):
+            TD.bolt_plate(m, x, -0.06, z, '-y', 'steel', s=0.026, out=0.008, cull='tblrk')
+            TD.bolt_plate(m, x, 0.06, z, '+y', 'steel', s=0.026, out=0.008, cull='tblrf')
     txt(m, 'THE COMMONS', 0.0, -0.064, 3.525, 0.2, 'iron', font='display', maxw=1.35)
     txt(m, 'THE COMMONS', 0.0, 0.064, 3.525, 0.2, 'iron', face='y+', font='display', maxw=1.35)
     make('GateFrame', m, ao, cols=[box(-GW, -0.55, 0.0, -1.5, 0.55, H + 0.16), box(1.5, -0.55, 0.0, GW, 0.55, H + 0.16)])

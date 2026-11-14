@@ -5,6 +5,9 @@ landmark) with its skip and building materials. Front = -Y (game +Z, south: the 
 import math
 
 from townhomes_base import *  # noqa: F401,F403
+import townhomes_detail as TD
+
+EMB = TD.EMB
 from townhomes_houses import window, door, clip_rects, frame_front, frame_back, fz, fbox, carriage_lamp  # noqa: F401
 from townhomes_rooms import sofa, table, chair, shelf, picture, counter_run, plant, rug, lamp, stool  # noqa: F401
 
@@ -48,6 +51,9 @@ def iron_leaf(m, x0, x1, y, z0, h, arch=0.25):
         top = z0 + h + arch * math.sin(math.pi * u) * 0.6
         m.bx(x - 0.016, x + 0.016, y - 0.016, y + 0.016, z0 + 0.05, top, 'iron', hull='none', cull='b')
     m.cy((((x0 + x1) / 2), y, z0 + 0.55), 0.16, 0.16, 0.04, 'lineY', seg=8, rot=(90, 0, 0), hull='none')
+    for zz in (z0 + 0.45,):      # hinge strap on the hanging post
+        m.bx(x0 - 0.043, x0 + 0.2, y - 0.047, y + 0.047, zz, zz + 0.05, 'steel', hull='none', cull='blr')
+    m.bx(x1 - 0.043, x1 + 0.043, y - 0.047, y + 0.047, z0 + 0.95, z0 + 1.05, 'steel', hull='none', cull='blr')   # latch box
 
 
 # ================================================================ the gated entrance (zone 1 landmark) [16, 6]
@@ -83,11 +89,28 @@ def gate_landmark(pal, ao):
     fq(m, -0.75, 0.75, by0 - 0.014, 1.15, 1.35, 'woodD')
     fq(m, -0.25, 0.25, by0 - 0.018, 1.35, 1.7, 'iron')
     fq(m, -0.21, 0.21, by0 - 0.022, 1.39, 1.66, 'glassD')
+    # belt course, corner boards, window sills and muntins
+    TD.bx(m, bx0 - 0.035, bx1 + 0.035, by0 - 0.035, by1 + 0.035, 0.93, 0.975, 'stoneD', cull='b')
+    for (cx, cy_) in ((bx0, by0), (bx1, by1), (bx0, by1), (bx1, by0)):
+        sx_, sy_ = (1 if cx < 0 else -1), (1 if cy_ < 0 else -1)
+        xa, xb = sorted((cx - sx_ * 0.02, cx + sx_ * 0.1))
+        ya, yb = sorted((cy_ - sy_ * 0.02, cy_ + sy_ * 0.1))
+    for (yy, sg) in ((by0, -1), (by1, 1)):
+        a, b = sorted((yy + sg * 0.05, yy - sg * EMB))
+        TD.bx(m, bx0 + 0.13, bx1 - 0.13, a, b, 1.04, 1.1, 'stoneD', cull='blr' + ('k' if sg < 0 else 'f'))
+        for xx in (0.0,):
+            a2, b2 = sorted((yy + sg * 0.007, yy + sg * 0.026))
+            TD.bx(m, xx - 0.012, xx + 0.012, a2, b2, 1.15, 2.4, 'iron', cull='tblr' + ('k' if sg < 0 else 'f'))
+            a3, b3 = sorted((yy + sg * 0.007, yy + sg * 0.02))
+            TD.bx(m, bx0 + 0.2, xx - 0.012, a3, b3, 1.765, 1.79, 'iron', cull='tblr' + ('k' if sg < 0 else 'f'))
+            TD.bx(m, xx + 0.012, bx1 - 0.2, a3, b3, 1.765, 1.79, 'iron', cull='tblr' + ('k' if sg < 0 else 'f'))
     # roof: a hip roof with a lantern
     m.bx(bx0 - 0.3, bx1 + 0.3, by0 - 0.3, by1 + 0.3, H, H + 0.3, 'trim')
     txt(m, 'LARKSPUR GLEN', 0.0, by0 - 0.305, H + 0.15, 0.17, 'iron', font='serif', maxw=2.4)
     txt(m, 'RESIDENTS & GUESTS', 0.0, by1 + 0.305, H + 0.15, 0.15, 'iron', face='y+', font='display', maxw=2.4)
     m.fan((0, 0, H + 0.3), H + 1.4, 1.85 * 1.41, 4, ['shingle'], rot=math.pi / 4)
+    for (hx, hy) in ((1, 1), (1, -1), (-1, 1), (-1, -1)):     # hip rolls
+        m.bm_((hx * 0.06, hy * 0.06, H + 1.36), (hx * 1.78, hy * 1.78, H + 0.36), 0.08, 'shingleD', hull='none')
     m.bx(-0.28, 0.28, -0.28, 0.28, H + 0.95, H + 1.5, 'trim')
     m.fan((0, 0, H + 1.5), H + 1.9, 0.45, 4, ['doorT'], rot=math.pi / 4)
     m.cy((0, 0, H + 1.9), 0.02, 0.02, 0.4, 'iron', seg=4, hull='none')
@@ -100,6 +123,11 @@ def gate_landmark(pal, ao):
         m.bx(x - 0.22, x + 0.22, y - 0.22, y + 0.22, 0.0, 1.05, 'lineY')
         fq(m, x - 0.18, x + 0.18, y - 0.224, 0.75, 0.95, 'iron')
         solid(cols, x - 0.22, y - 0.22, 0.0, x + 0.22, y + 0.22, 1.05)
+        TD.bx(m, x - 0.27, x + 0.27, y - 0.27, y + 0.27, 0.0, 0.035, 'steel', cull='b')       # base plate
+        for (bx_, by_) in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
+            TD.bolt_plate(m, x + bx_ * 0.245, y + by_ * 0.245, 0.035, '+z', 'chrome', s=0.03, out=0.012, cull='bfklr')
+        TD.bx(m, x - 0.235, x + 0.235, y - 0.235, y + 0.235, 1.047, 1.085, 'iron', cull='b')   # lid
+        TD.bx(m, x - 0.04, x + 0.04, y - 0.236, y - 0.217, 0.5, 0.58, 'chrome', cull='tblrk')  # lock
         if sx < 0:   # exit lane: arm down across the lane, red and white bands, a rest post at the far side
             for k in range(8):
                 a = x - 0.2 - k * 0.48
@@ -432,7 +460,9 @@ def pool_fence(pal, ao):
     for z in (0.1, 1.15):
         m.bx(0.0, 0.9, -0.025, 0.025, z, z + 0.05, 'iron')
     pickets_x(m, 0.0, 0.9, 0.0, 0.15, 1.15, 0.12, 0.022, 'iron')
+    m.bx(-0.01, 0.2, -0.03, 0.03, 0.65, 0.7, 'steel', hull='none', cull='blr')      # hinge strap along the leaf
     m.parent = Matrix.Identity(4)
+    m.bx(0.434, 0.452, -0.03, 0.03, 0.95, 1.05, 'steel', hull='none', cull='tblr')      # latch box on the strike post
     make('PoolGate', m, ao, cols=[box(-0.56, -0.06, 0.0, -0.44, 0.06, 1.36), box(0.44, -0.06, 0.0, 0.56, 0.06, 1.36),
                                     box(-0.5, -0.92, 0.0, -0.22, 0.0, 1.25)])
 
@@ -460,6 +490,11 @@ def mail_kiosk(pal, ao):
         m.bx(x - 0.08, x + 0.08, y - 0.08, y + 0.08, 0.0, 2.55, 'trim')
         solid(cols, x - 0.08, y - 0.08, 0.0, x + 0.08, y + 0.08, 2.55)
     m.bx(-1.95, 1.95, -1.45, 1.45, 2.55, 2.75, 'trim')
+    for sg in (-1, 1):       # drip flange along the beam's foot
+        a, b = sorted((sg * 1.45 - sg * EMB, sg * 1.485))
+        TD.bx(m, -1.945, 1.945, a, b, 2.535, 2.57, 'trimD', cull='blr' + ('k' if sg < 0 else 'f'))
+        a, b = sorted((sg * 1.95 - sg * EMB, sg * 1.987))
+        TD.bx(m, a, b, -1.44, 1.44, 2.535, 2.57, 'trimD', cull='bfk' + ('r' if sg < 0 else 'l'))
     m.fan((0, 0, 2.75), 3.45, 2.6, 4, ['shingle'], rot=math.pi / 4)
     m.bx(-1.9, 1.9, -1.4, 1.4, 0.0, 0.1, 'stone', hull='none', cull='b')
     m.bx(-1.3, 1.3, -0.42, 0.42, 0.1, 0.35, 'stoneD')
@@ -476,9 +511,15 @@ def mail_kiosk(pal, ao):
             x0 = -1.15 + c * 0.64
             f(m, x0, x0 + 0.6, yy, 0.42, 0.85, 'sidG')
         f(m, -1.0, 1.0, yy + s * 0.004, 1.76, 1.81, 'trim')
+        a, b = sorted((yy + s * 0.012 + s * 0.003, yy - s * 0.003))
+        for c in range(3):
+            TD.bx(m, -1.15 + c * 0.64 + 0.26, -1.15 + c * 0.64 + 0.34, a, b, 0.6, 0.64, 'chrome', cull='tblr' + ('k' if s < 0 else 'f'))   # parcel locker pulls
+        a, b = sorted((s * 0.455 - s * EMB, s * 0.417))
+        TD.bx(m, -1.295, 1.295, a, b, 1.947, 1.98, 'steel', cull='blr' + ('k' if s < 0 else 'f'))   # drip hood
     txt(m, 'LARKSPUR GLEN', 0.0, -1.454, 2.65, 0.12, 'iron', font='display', maxw=2.2)
     solid(cols, -1.3, -0.42, 0.0, 1.3, 0.42, 1.95)
     m.bx(1.35, 1.65, -0.2, 0.2, 0.0, 0.75, 'doorG')
+    TD.bx(m, 1.34, 1.66, -0.21, 0.21, 0.745, 0.79, 'steel', cull='b')
     solid(cols, 1.35, -0.2, 0.0, 1.65, 0.2, 0.75)
     make('MailKiosk', m, ao, cols=cols)
 
