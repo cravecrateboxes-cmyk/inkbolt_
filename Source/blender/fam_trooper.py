@@ -914,7 +914,7 @@ def BUILD(ao=False):
             bpy.ops.object.datalayout_transfer(modifier='dt')
         _apply_mod(g, dt)
 
-    # groin protector: a small rounded flap hanging from under the front of the belt over the crotch. Weighted to the
+    # groin protector (in the trouser colour, owner: match): a small rounded flap hanging from under the front of the belt over the crotch. Weighted to the
     # hips, its lower edge blending a little into both thighs, so it rides the pelvis and eases with the stride.
     zt, zb = bh.z - 0.05, crotch.z + 0.03
     def front_at(z):
@@ -926,7 +926,7 @@ def BUILD(ao=False):
     m = Model(pal)
     m.parent = _seg_frame(ta, tb, F)              # local z down the flap, local y out of the body
     L = (tb - ta).length
-    S.rbox(m, (0, 0, L / 2), (0.12, 0.014, L), 'pad', cham=0.006, cuts=(2, 0, 1), top=(0.6, 1.0),
+    S.rbox(m, (0, 0, L / 2), (0.12, 0.014, L), 'uniform', cham=0.006, cuts=(2, 0, 1), top=(0.6, 1.0),
            curve=[('y', 'x', -0.022)], puff=(0, 0.004, 0))
     m.parent = Matrix.Identity(4)
     flap = build_object('TROOPER_g_groin', m, 0.0, ht)
