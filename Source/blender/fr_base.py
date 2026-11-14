@@ -26,6 +26,7 @@ from ib_lib import *  # noqa: F401,F403
 import ib_lib
 import ib_text
 from kit_base import Kit
+import fr_detail as FD
 
 FAM = 'kit-frontier'
 PFX = 'KIT_FRONTIER_'
@@ -452,6 +453,7 @@ def crate(k, x, y, z, sx, sy, sz, c='plank', c2='plank2', ink=True):
         k.bx(x - sx / 2, x + sx / 2, yy - b / 2, yy + b / 2, z + sz * 0.42, z + sz * 0.58, c2, ink=False)
     for xx in (x - sx / 2 - b / 2, x + sx / 2 + b / 2):
         k.bx(xx - b / 2, xx + b / 2, y - sy / 2, y + sy / 2, z + sz * 0.42, z + sz * 0.58, c2, ink=False)
+    FD.crate_detail(k, x, y, z, sx, sy, sz, c2)
 
 
 def barrel(k, x, y, z, r=0.3, h=0.85, c='plank2', hoop='iron', ink=True):
@@ -459,6 +461,7 @@ def barrel(k, x, y, z, r=0.3, h=0.85, c='plank2', hoop='iron', ink=True):
     k.cyl(x, y, z + h * 0.5, r, r * 0.88, h * 0.5, c, seg=8, ink=ink)
     for zz in (z + 0.1 * h, z + 0.85 * h):
         k.cyl(x, y, zz, r * 0.94 + 0.012, r * 0.94 + 0.012, 0.045, hoop, seg=8, caps=False, ink=False)
+    FD.barrel_hoops(k, x, y, z, r, h, hoop)
 
 
 def sack(k, rnd, x, y, z, s=1.0, c='canvas2'):
