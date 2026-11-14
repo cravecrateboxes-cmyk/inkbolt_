@@ -86,7 +86,7 @@
       dress: { density: 0.35, floor: [['prints', 2], ['grime', 1]], base: [['grime2', 1]], wall: [['grimeBase', 2], ['crack3', 1]], clutter: [['StonesA', 1], ['StonesB', 1]] } },
     smallcity: { family: 'urban-ext', type: 'ext-day', sunI: 1.35, sunColor: '#FFDDB4', ambI: 0.38 },   // late afternoon: a warmer, lower-key sun
     classroom: { family: 'giant-room', type: 'int-lit' },
-    office: { family: 'civic-int', type: 'int-lit' },
+    office: { family: 'civic-int', type: 'int-lit', ambI: 0.30, indoorAmb: 0.30, grid: { intensity: 0.28 }, exposure: 0.88, albCeil: 0.70 },   // white open-plan floor under rows of light panels: was 52-80% clipped
     bedroom: { family: 'giant-room', type: 'int-lit', floor: { cls: 4, gloss: 0.24 }, ambI: 0.66, indoorAmb: 0.72, albSat: 1.0, grade: { sat: 1.06, contrast: 0.14 } },
     coalmine: { family: 'dark-int', type: 'int-dark', indoorAmb: 0.55, ambI: 0.42, ambFloor: 0.05, grid: { intensity: 2.2 }, exposure: 1.15 },   // was 36-79% near black: lamps on rock need help to read
     castle: { family: 'urban-ext', type: 'ext-day', floor: { cls: 8, gloss: 0.08 }, sunI: 1.3, albCeil: 0.74 },   // pale sandstone: keep it off white
@@ -99,7 +99,7 @@
     mall: { family: 'civic-int', type: 'int-lit', floor: { cls: 10, gloss: 0.40 }, ambI: 0.42, indoorAmb: 0.45, grid: { intensity: 0.72 }, grade: { sat: 1.0, contrast: 0.22 } },
     police: { family: 'ind-int', type: 'int-ind', exposure: 0.86, albCeil: 0.72, indoorAmb: 0.24 },   // white tiled floor clipped
     grove: { family: 'wild-ext', type: 'ext-day', floor: { cls: 6, gloss: 0.04 } },
-    spire: { family: 'civic-int', type: 'int-lit' },
+    spire: { family: 'civic-int', type: 'int-lit', ambI: 0.32, indoorAmb: 0.32, grid: { intensity: 0.32 }, exposure: 0.9, albCeil: 0.72 },   // white atrium: was 34-58% clipped
     foundry: { family: 'ind-int', type: 'int-ind', indoorAmb: 0.48, grid: { intensity: 1.4 } },   // 30 m halls: lamps far from the floor
     parking: { family: 'ind-int', type: 'int-ind', wet: 0.5 },
     hotel: { family: 'civic-int', type: 'int-lit' },
@@ -114,7 +114,7 @@
     arctic: { family: 'dark-int', type: 'int-dark', floor: { cls: 13, gloss: 0.3 } },
     resort: { family: 'wild-ext', type: 'ext-day' },
     scrapyard: { family: 'mil-ext', type: 'ext-night', sky: { sunDisc: false }, sunI: 0.6, ambI: 0.25, wet: 0.5 },
-    seabase: { family: 'dark-int', type: 'int-dark', wet: 0.4 },
+    seabase: { family: 'dark-int', type: 'int-dark', wet: 0.4, indoorAmb: 0.40, ambI: 0.40, grid: { intensity: 1.3 }, exposure: 1.08 },   // was 0.10 mean, 18% near black
     stronghold: { family: 'mil-ext', type: 'ext-dusk', sky: { sunDisc: false }, sunI: 1.5, ambI: 0.38, ambSky: [0.62, 0.60, 0.72], ambGround: [0.52, 0.40, 0.30], sunColor: '#FFD6AE', indoorAmb: 0.8, grid: { intensity: 2.0 }, floor: { cls: 1, gloss: 0.12 }, albSat: 1.0, fog: { length: 260, sunGlow: [1.0, 0.72, 0.48] } },
     airport: { family: 'civic-int', type: 'int-lit' },
     frontier: { family: 'wild-ext', type: 'ext-day' },
