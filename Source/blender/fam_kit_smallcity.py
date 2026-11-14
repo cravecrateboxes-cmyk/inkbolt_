@@ -27,6 +27,8 @@ from mathutils import Matrix, Vector
 from ib_lib import *  # noqa: F401,F403
 import ib_lib
 import smallcity_detail as SD
+import sc_shapes as SC
+import random
 
 FAM = 'kit-smallcity'
 PRE = 'KIT_SMALLCITY_'
@@ -485,10 +487,18 @@ def build_trail(pal, ao):
     base(m)
     m.bx(0.25, 0.55, -0.4, 0.4, 0.9, 1.2, 'planter', hull='full')
     m.bx(0.29, 0.51, -0.36, 0.36, 1.2, 1.22, 'soil', hull='none')
-    for j, (y, c) in enumerate(((-0.28, 'flowerP'), (-0.1, 'leaf2'), (0.08, 'flowerP'), (0.26, 'paintY'))):
-        m.sphere((0.4, y, 1.32 + 0.03 * (j % 2)), 0.11, c, seg=(6, 4))
-    for j, (y, z, r) in enumerate(((-0.3, 2.66, 0.2), (0.05, 2.7, 0.24), (0.32, 2.64, 0.18), (0.22, 2.38, 0.14))):
-        m.sphere((0.2, y, z), r, 'leaf' if j % 2 else 'leafD', seg=(7, 5), rot=(0, 0, j * 31))
+    prnd = random.Random(53)
+    SC.shrub(m, prnd, (0.4, 0.0, 1.3), 0.3)                                            # foliage in the box
+    for j, (y, c) in enumerate(((-0.28, 'flowerP'), (0.08, 'flowerP'), (0.26, 'paintY'), (-0.08, 'paintY'))):
+        SC.blob(m, prnd, (0.42 + 0.04 * (j % 2), y, 1.42 + 0.03 * (j % 2)), 0.06, c, n=8, jag=0.1, hull='none')
+    # creeper spilling over the coping: clumps along the top and two hanging trails down the trail face
+    def leafc(f):
+        return 'leaf2' if f.normal.z > 0.5 else ('leafD' if f.normal.z < -0.2 else 'leaf')
+    for j, (y, z, r) in enumerate(((-0.3, 2.68, 0.2), (0.05, 2.72, 0.24), (0.32, 2.66, 0.18))):
+        SC.blob(m, prnd, (0.12, y, z), r, leafc, n=10, squash=(1.1, 1.0, 0.7))
+    for (y, z0, n) in ((0.22, 2.5, 3), (-0.24, 2.55, 2)):
+        for i in range(n):
+            SC.blob(m, prnd, (0.28, y + prnd.uniform(-0.04, 0.04), z0 - i * 0.2), 0.11 - i * 0.015, 'leafD' if i % 2 else 'leaf', n=8, squash=(0.6, 1.0, 1.0))
     make('TrailWall_Planter', m, ao=ao)
 
 
@@ -595,7 +605,7 @@ def build_car(pal, name, body, taxi=False, ao=False):
     for sx in (-1, 1):
         for y in (-1.22, 1.22):
             wheel(m, sx * 0.9, y, 0.34, 0.24, seg=8)
-    m.bx(-0.89, 0.89, -1.92, 1.92, 0.3, 0.9, body, bevel=True)                      # lower body
+    SC.car_body(m, body)                                                              # lower body (arches, hood)
     for sy in (-1, 1):
         y0, y1 = sorted((sy * 1.84, sy * 1.96))
         m.bx(-0.86, 0.86, y0, y1, 0.28, 0.46, 'chrome')                              # bumpers
@@ -636,18 +646,17 @@ def build_van(pal, ao):
     for sx in (-1, 1):
         for y in (-1.62, 1.55):
             wheel(m, sx * 0.97, y, 0.38, 0.26)
-    m.bx(-0.95, 0.95, -2.42, -1.12, 0.34, 1.25, 'paper', cull='b')                     # cab lower
+    SC.van_body(m)                                                                    # cab lower + cargo box
     cab = [(-2.42, 1.25), (-2.02, 2.08), (-1.12, 2.08), (-1.12, 1.25)]
     m.prism(cab, -0.92, 0.92, ['paper'])
     m.prism(slant(cab[0], cab[1], 0.1, 0.92, -0.01, 0.006), -0.84, 0.84, ['ink'], hull='none')
     m.prism(slant(cab[0], cab[1], 0.15, 0.87, -0.004, 0.014), -0.78, 0.78, ['glass'], hull='none')
     m.prism([(-2.18, 1.3), (-1.97, 1.98), (-1.3, 1.98), (-1.3, 1.3)], -0.926, 0.926, ['ink'], hull='none')
     m.prism([(-2.14, 1.34), (-1.95, 1.94), (-1.34, 1.94), (-1.34, 1.34)], -0.932, 0.932, ['glass'], hull='none')
-    m.bx(-0.98, 0.98, -1.12, 2.45, 0.4, 2.7, 'paper', bevel=True)                      # cargo box
     for sx in (-1, 1):
         inner = 'l' if sx > 0 else 'r'
         x0, x1 = sorted((sx * 0.982, sx * 0.989))
-        m.bx(x0, x1, -1.0, 2.33, 0.55, 1.3, 'shopTeal', hull='none', cull=inner)       # two-tone livery: teal skirt
+        m.bx(x0, x1, -1.0, 2.33, 0.92, 1.3, 'shopTeal', hull='none', cull=inner)       # two-tone livery: teal band
         x0, x1 = sorted((sx * 0.982, sx * 0.992))
         m.bx(x0, x1, -1.0, 2.33, 1.3, 1.38, 'shopMustard', hull='none', cull=inner)    # mustard pinstripe
         if sx > 0:                                                                       # sun-disc emblem (no lettering)
@@ -676,16 +685,17 @@ def build_bus(pal, ao):
     """City bus 3 x 9: cream with a teal band, burgundy skirt, window band, two doors on its right (-X) side."""
     m = PM(pal)
     for sx in (-1, 1):
-        for y in (-2.9, 2.75):
+        for y in (-2.35, 2.75):          # front axle behind the front door (it used to sit under the door)
             wheel(m, sx * 1.285, y, 0.5, 0.3, seg=12)
-    m.bx(-1.27, 1.27, -4.42, 4.42, 0.35, 3.05, 'carCream', bevel=True)
+    SC.bus_body(m)
     for sx in (-1, 1):
         x0, x1 = sorted((sx * 1.2, sx * 1.278))
         m.bx(x0, x1, -3.9, 3.95, 1.6, 2.45, 'glassD', hull='none')                   # window band
         x0, x1 = sorted((sx * 1.22, sx * 1.276))
         m.bx(x0, x1, -4.3, 4.3, 1.25, 1.45, 'shopTeal', hull='none')                 # livery band
         x0, x1 = sorted((sx * 1.225, sx * 1.276))
-        m.bx(x0, x1, -4.3, 4.3, 0.42, 0.68, 'shopBurg', hull='none')                 # skirt
+        for (ya, yb) in ((-4.3, -2.99), (-1.71, 2.11), (3.39, 4.3)):
+            m.bx(x0, x1, ya, yb, 0.42, 0.68, 'shopBurg', hull='none')               # skirt between the arches
         x0, x1 = sorted((sx * 1.205, sx * 1.284))
         for y in (-2.4, -0.9, 0.6, 2.1):
             m.bx(x0, x1, y - 0.06, y + 0.06, 1.58, 2.47, 'ink', hull='none')        # pillars
@@ -742,11 +752,7 @@ def build_tree(pal, ao):
     m.bx(-0.3, 0.3, -0.3, 0.3, 0.04, 0.058, 'soil', hull='none', cull='b')
     for y in (-0.15, 0.15):
         m.bx(-0.31, 0.31, y - 0.02, y + 0.02, 0.05, 0.062, 'ironL', hull='none', cull='b')
-    m.cy((0, 0, 0.044), 0.12, 0.09, 2.6, 'trunk', seg=7)
-    m.bm_((0, 0, 1.9), (0.45, 0.18, 2.75), 0.08, 'trunk')
-    m.sp((0, 0, 3.4), 1.2, 'leaf', seg=(8, 5), scale=(1, 1, 0.9))
-    m.sp((0.62, 0.3, 2.95), 0.8, 'leaf2', seg=(7, 4))
-    m.sp((-0.5, -0.38, 3.15), 0.85, 'leafD', seg=(7, 4))
+    SC.street_tree(m, random.Random(5))
     obj = make('StreetTree', m, ao=ao)
     col_box(obj, 0, -0.15, 0.15, -0.15, 0.15, 0, 2.5)
 
@@ -810,31 +816,22 @@ def build_junk(pal, ao):
     """Alley / street clutter 1 x 1 (no paving): fruit crates, trash bags, cardboard boxes."""
     m = PM(pal)
 
-    def crate(cx, cy, z, w, d, fruit):
-        m.bx(cx - w / 2, cx + w / 2, cy - d / 2, cy + d / 2, z, z + 0.3, 'woodL')
-        for sy in (-1, 1):
-            y0, y1 = sorted((cy + sy * d / 2, cy + sy * (d / 2 + 0.004)))
-            m.bx(cx - w / 2 + 0.03, cx + w / 2 - 0.03, y0, y1, z + 0.13, z + 0.16, 'wood', hull='none')
-        for i in range(2):
-            fx = cx - w / 6 + i * w / 3
-            m.sp((fx, cy + (0.07 if i % 2 else -0.07), z + 0.3), 0.085, fruit, seg=(5, 3), hull='none')
-    crate(-0.22, 0, 0, 0.42, 0.56, 'brickO')
-    crate(0.22, 0, 0, 0.42, 0.56, 'leaf2')
+    rnd = random.Random(31)
+    SC.fruit_crate(m, -0.22, 0, 0, 0.42, 0.56, 'brickO', rnd)
+    SC.fruit_crate(m, 0.22, 0, 0, 0.42, 0.56, 'leaf2', rnd)
     m.parent = Matrix.Rotation(math.pi / 2, 4, 'Z')
-    crate(0, 0, 0.3, 0.42, 0.56, 'red')
+    SC.fruit_crate(m, 0, 0, 0.3, 0.42, 0.56, 'red', rnd)
     m.parent = Matrix.Identity(4)
     obj = make('Crates', m, bevel=0.012, ao=ao)
     col_box(obj, 0, -0.44, 0.44, -0.29, 0.29, 0, 0.9)
     m = PM(pal)
-    for (x, y, z, r, c) in ((-0.2, -0.12, 0.26, 0.3, 'bag'), (0.22, -0.05, 0.25, 0.28, 'leafD'), (0.0, 0.2, 0.24, 0.27, 'bag'), (0.02, -0.02, 0.6, 0.24, 'bag')):
-        m.sp((x, y, z), r, c, seg=(7, 4), scale=(1.0, 0.9, 0.95))
-        m.cy((x, y, z + r * 0.9), 0.05, 0.02, 0.12, c, seg=5, hull='none')
+    SC.trash_bags(m, random.Random(17))
     obj = make('TrashBags', m, ao=ao)
     col_box(obj, 0, -0.46, 0.46, -0.4, 0.45, 0, 0.85)
     m = PM(pal)
+    rnd = random.Random(23)
     for (x0, x1, y0, y1, z0, z1) in ((-0.44, 0.06, -0.38, 0.12, 0, 0.45), (0.1, 0.44, -0.3, 0.32, 0, 0.38), (-0.36, 0.02, -0.3, 0.08, 0.45, 0.78), (0.12, 0.4, -0.22, 0.2, 0.38, 0.6)):
-        m.bx(x0, x1, y0, y1, z0, z1, 'stoneS')
-        m.bx((x0 + x1) / 2 - 0.04, (x0 + x1) / 2 + 0.04, y0 - 0.004, y1 + 0.004, z1 - 0.06, z1 + 0.004, 'stoneB', hull='none')
+        SC.card_box(m, x0, x1, y0, y1, z0, z1, rnd)
     obj = make('Boxes', m, bevel=0.01, ao=ao)
     col_box(obj, 0, -0.44, 0.44, -0.38, 0.32, 0, 0.78)
 
@@ -865,8 +862,9 @@ def build_planter(pal, ao):
     m.bx(-0.46, 0.46, -0.36, 0.36, 0.05, 0.62, 'planter', cull='bt')
     m.bx(-0.48, 0.48, -0.38, 0.38, 0.62, 0.68, 'stoneC', cull='b')
     m.bx(-0.42, 0.42, -0.32, 0.32, 0.6, 0.7, 'soil', hull='none', cull='b')
-    m.sp((-0.2, 0.0, 0.86), 0.3, 'leafD', seg=(7, 4), scale=(1, 0.9, 0.8))
-    m.sp((0.22, 0.02, 0.84), 0.28, 'leaf', seg=(7, 4), scale=(1, 0.9, 0.8))
+    prnd = random.Random(41)
+    SC.shrub(m, prnd, (-0.2, 0.0, 0.84), 0.34)
+    SC.shrub(m, prnd, (0.22, 0.02, 0.82), 0.32)
     for (x, y, z, c) in ((-0.32, -0.16, 0.92, 'flowerP'), (0.05, 0.14, 1.0, 'paintY'), (0.36, -0.12, 0.9, 'flowerP')):
         m.sp((x, y, z), 0.075, c, seg=(5, 3), hull='none')
     obj = make('Planter', m, bevel=0.015, ao=ao)
@@ -1078,6 +1076,20 @@ def build_backdrop(pal):
             for k in range(3):
                 x = x0 + 1.4 + k * 2.6
                 m.bx(x - 0.55, x + 0.55, -5.08, -4.95, z, z + 1.6, 'glassD', hull='none')
+                if f:                                                       # sills and lintels (upper floors)
+                    m.bx(x - 0.7, x + 0.7, -5.2, -4.95, z - 0.16, z - 0.02, 'stoneC', hull='none')
+                    m.bx(x - 0.66, x + 0.66, -5.14, -4.95, z + 1.66, z + 1.86, 'stoneC', hull='none')
+        # (map asset upgrade) a cornice under the cap, a painted shop front with a door on the ground floor,
+        # chimney stacks on the roof so the row no longer reads as three plain boxes
+        m.bx(x0 + 0.03, x0 + 7.97, -5.22, -4.95, h - 0.55, h - 0.2, 'stoneC', hull='none')
+        shop = ('shopTeal', 'shopBurg', 'shopGreen')[i]
+        m.bx(x0 + 0.4, x0 + 7.6, -5.1, -4.95, 0.0, 2.2, shop, hull='none', cull='b')
+        m.bx(x0 + 0.8, x0 + 5.0, -5.14, -5.1 + 0.003, 0.5, 1.9, 'glassD', hull='none')
+        m.bx(x0 + 5.6, x0 + 6.8, -5.14, -5.1 + 0.003, 0.0, 2.0, 'wood', hull='none', cull='b')
+        m.bx(x0 + 0.4, x0 + 7.6, -5.16, -5.1 + 0.003, 2.2, 2.45, 'awnCream', hull='none')
+        for cx in (x0 + 1.6, x0 + 6.3 - i * 0.8):
+            m.bx(cx - 0.45, cx + 0.45, 1.5, 2.3, h - 0.1, h + 1.7 + 0.2 * i, 'brickR')
+            m.bx(cx - 0.55, cx + 0.55, 1.4, 2.4, h + 1.7 + 0.2 * i, h + 1.9 + 0.2 * i, 'stoneC')
     make('Backdrop_Row', m)
     m = PM(pal)                                                    # church tower and steeple
     m.bx(-3.5, 3.5, -3.5, 3.5, 0, 24, 'stoneS')

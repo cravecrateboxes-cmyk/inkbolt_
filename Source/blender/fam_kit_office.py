@@ -19,6 +19,8 @@ from mathutils import Matrix, Vector
 from ib_lib import *  # noqa: F401,F403
 import ib_lib
 import of_detail
+import of_shapes as OS
+import random
 
 FAM = 'kit-office'
 PFX = 'KIT_OFFICE_'
@@ -212,39 +214,13 @@ def mug(k, x, y, z, c):
 
 
 def small_plant(k, x, y, z):
-    k.cyl(x, y, z, 0.07, 0.09, 0.14, 'pot', seg=6, ink=False)
-    k.sph(x, y, z + 0.24, 0.13, 'leaf', seg=(6, 4))
+    OS.small_plant(k, random.Random(int(abs(x * 100 + y * 37 + z * 11)) + 3), x, y, z)
 
 
 def potted(k, x, y, kind='fig', s=1.0):
-    """Floor plant in a planter; base at (x, y, 0)."""
-    if kind == 'fig':
-        k.cyl(x, y, 0, 0.22 * s, 0.27 * s, 0.55 * s, 'pot', seg=10)
-        k.cyl(x, y, 0.55 * s, 0.23 * s, 0.23 * s, 0.004, 'soil', seg=10, ink=False)
-        k.cyl(x, y, 0.554 * s, 0.03, 0.025, 0.8 * s, 'trunk', seg=5, ink=False)
-        for (dx, dy, dz, r, c) in ((0, 0, 1.55, 0.36, 'leaf'), (0.2, -0.12, 1.25, 0.3, 'leaf2'),
-                                   (-0.2, 0.1, 1.3, 0.32, 'leaf'), (0.05, 0.22, 1.05, 0.26, 'leaf2'),
-                                   (-0.1, -0.2, 1.8, 0.24, 'leaf2')):
-            k.sph(x + dx * s, y + dy * s, dz * s, r * s, c, seg=(7, 5))
-    elif kind == 'snake':
-        k.bx(x - 0.22 * s, x + 0.22 * s, y - 0.22 * s, y + 0.22 * s, 0, 0.45 * s, 'graphite2')
-        k.qz(x - 0.19 * s, x + 0.19 * s, y - 0.19 * s, y + 0.19 * s, 0.45 * s + 0.004, 1, 'soil')
-        blades = ((0, 0, 1.3), (0.1, 0.06, 1.15), (-0.11, 0.04, 1.2), (0.05, -0.1, 1.05), (-0.06, -0.09, 1.25),
-                  (0.12, -0.04, 0.95), (-0.13, -0.02, 1.0), (0.0, 0.12, 1.1))
-        for i, (dx, dy, top) in enumerate(blades):
-            a = (x + dx * s, y + dy * s, 0.44 * s)
-            b = (x + dx * 1.9 * s, y + dy * 1.9 * s, top * s)
-            k.beam(a, b, 0.055 * s, 'leaf' if i % 2 else 'leaf2')
-    else:   # palm
-        k.cyl(x, y, 0, 0.24 * s, 0.2 * s, 0.5 * s, 'pot', seg=10)
-        k.cyl(x, y, 0.5 * s, 0.17 * s, 0.17 * s, 0.004, 'soil', seg=10, ink=False)
-        for i in range(7):
-            a = i / 7 * math.pi * 2
-            ca, sa = math.cos(a), math.sin(a)
-            mid = (x + ca * 0.18 * s, y + sa * 0.18 * s, (1.15 + 0.12 * (i % 3)) * s)
-            k.beam((x + ca * 0.03, y + sa * 0.03, 0.5 * s), mid, 0.03, 'trunk', ink=False)
-            k.beam(mid, (x + ca * 0.62 * s, y + sa * 0.62 * s, (0.95 + 0.1 * (i % 2)) * s), 0.09 * s,
-                   'leaf' if i % 2 else 'leaf2')
+    """Floor plant in a planter; base at (x, y, 0). (of_shapes: faceted foliage, pointed blades, palm fronds)"""
+    rnd = random.Random(int(abs(x * 100 + y * 37)) + {'fig': 1, 'snake': 2}.get(kind, 3))
+    {'fig': OS.fig, 'snake': OS.snake}.get(kind, OS.palm)(k, x, y, s, rnd)
 
 
 # ================================================================ wall modules
@@ -502,6 +478,7 @@ def stand(k):
         k.qy(-0.42, 0.42, z0, z1, -0.423, -1, 'column')
         k.bx(-0.14, 0.14, -0.45, -0.423, z1 - 0.1, z1 - 0.06, 'graphite', ink=False)
         k.qy(-0.06, 0.06, z1 - 0.2, z1 - 0.14, -0.426, -1, 'teal' if i == 0 else 'white')
+    OS.stand_detail(k)
     return k
 
 
@@ -530,8 +507,17 @@ def lateral_file(k, kind):
         for i in range(9):
             x = -0.34 + i * 0.085
             lean = 0.12 if i % 2 else -0.1
-            k.beam((x, 0, 1.18), (x + lean * 0.6, lean * 0.5, 1.55 + 0.08 * (i % 3)), 0.035, 'leaf' if i % 3 else 'leaf2')
+            for j, dy in enumerate((-0.06, 0.05)):     # (map asset upgrade) pointed, bent grass blades in two rows
+                tip = (x + lean * 0.6 + 0.03 * j, dy + lean * 0.5 * (1 if j else -1), 1.5 + 0.08 * ((i + j) % 3))
+                OS.blade(k, (x + 0.02 * j, dy, 1.17), tip, 0.06, 'leaf' if (i + j) % 3 else 'leaf2', bend=(lean * 0.15, dy * 0.4))
     of_detail.file_fittings(k)
+    for sd in (-1, 1):      # (map asset upgrade) pressed side panels with lips, a toe kick round the sides and back
+        k.qx(-0.22, 0.22, 0.12, 0.9, sd * 0.473, sd, 'column')
+        k.qx(-0.26, 0.26, 0.0, 0.05, sd * 0.473, sd, 'graphite')
+        for z in (0.12, 0.9):
+            k.bx(min(sd * 0.47, sd * 0.482), max(sd * 0.47, sd * 0.482), -0.23, 0.23, z - 0.012, z, 'steel', ink=False)
+    k.qy(-0.42, 0.42, 0.12, 0.9, 0.283, 1, 'column')
+    k.qy(-0.45, 0.45, 0.0, 0.05, 0.283, 1, 'graphite')
     k.col(-0.48, 0.48, -0.29, 0.29, 0, 1.03)
     return k
 
@@ -568,10 +554,8 @@ def copier(k, kind):
     else:   # archive boxes
         boxes = ((-0.45, -0.03, -0.2, 0.2, 0, 0.3), (0.03, 0.45, -0.22, 0.18, 0, 0.3),
                  (-0.32, 0.1, -0.17, 0.23, 0.3, 0.6), (0.14, 0.44, -0.24, 0.12, 0.3, 0.56), (-0.2, 0.2, -0.2, 0.2, 0.6, 0.88))
-        for i, (x0, x1, y0, y1, z0, z1) in enumerate(boxes):
-            k.bx(x0, x1, y0, y1, z0, z1, 'cardboard')
-            k.qy(x0 + 0.02, x1 - 0.02, z1 - 0.06, z1 - 0.003, y0 - 0.003, -1, 'oak2')       # lid band
-            k.qy((x0 + x1) / 2 - 0.06, (x0 + x1) / 2 + 0.06, z0 + 0.1, z0 + 0.15, y0 - 0.006, -1, 'white')   # label
+        for (x0, x1, y0, y1, z0, z1) in boxes:
+            OS.archive_box(k, x0, x1, y0, y1, z0, z1)
         k.col(-0.45, 0.45, -0.24, 0.23, 0, 0.88)
     return k
 
@@ -978,29 +962,29 @@ def lounge(k, variant):
     k.qz(-1.7, 1.7, -1.3, 1.3, 0.014, 1, 'rug')
     k.qz(-1.6, 1.6, -1.2, 1.2, 0.017, 1, 'fabricLight')
     # sofa along +Y facing -Y
-    k.bx(-1.1, 1.1, 0.6, 1.4, 0.1, 0.42, sofa)
-    k.bx(-1.1, 1.1, 1.15, 1.4, 0.42, 0.85, sofa)
+    OS.soft_box(k, -1.1, 1.1, 0.6, 1.4, 0.1, 0.42, sofa)
+    OS.soft_box(k, -1.1, 1.1, 1.15, 1.4, 0.42, 0.85, sofa)
     for s in (-1, 1):
         x0, x1 = srt(s * 0.92, s * 1.1)
-        k.bx(x0, x1, 0.6, 1.15, 0.42, 0.62, sofa)
+        OS.soft_box(k, x0, x1, 0.6, 1.15, 0.42, 0.62, sofa)
         for yy in (0.66, 1.34):
             k.bx(s * 1.0 - 0.03, s * 1.0 + 0.03, yy - 0.03, yy + 0.03, 0, 0.1, 'walnut2', ink=False)
     for i in range(3):
         x0 = -0.92 + i * 0.6133
-        k.bx(x0, x0 + 0.6133, 0.6, 1.15, 0.42, 0.52, sofa)
+        OS.soft_box(k, x0 + 0.006, x0 + 0.6073, 0.6, 1.15, 0.42, 0.52, sofa)
     for x in (-0.55, 0.55):
-        k.bx(x - 0.22, x + 0.22, 0.95, 1.12, 0.52, 0.86, 'fabricLight' if variant == 'A' else 'amber')
+        OS.soft_box(k, x - 0.22, x + 0.22, 0.95, 1.12, 0.52, 0.86, 'fabricLight' if variant == 'A' else 'amber')
     # armchairs
     for s in (-1, 1):
         k.push(s * 1.5, -0.45, -s * 90 + s * 15)
-        k.bx(-0.38, 0.38, -0.35, 0.38, 0.12, 0.42, arm)
-        k.bx(-0.38, 0.38, 0.2, 0.38, 0.42, 0.8, arm)
+        OS.soft_box(k, -0.38, 0.38, -0.35, 0.38, 0.12, 0.42, arm)
+        OS.soft_box(k, -0.38, 0.38, 0.2, 0.38, 0.42, 0.8, arm)
         for t in (-1, 1):
             x0, x1 = srt(t * 0.26, t * 0.38)
-            k.bx(x0, x1, -0.35, 0.2, 0.42, 0.6, arm)
+            OS.soft_box(k, x0, x1, -0.35, 0.2, 0.42, 0.6, arm)
             for yy in (-0.3, 0.32):
                 k.bx(t * 0.32 - 0.025, t * 0.32 + 0.025, yy - 0.025, yy + 0.025, 0, 0.12, 'walnut2', ink=False)
-        k.bx(-0.26, 0.26, -0.35, 0.2, 0.42, 0.5, 'fabricLight' if variant == 'A' else 'cap')
+        OS.soft_box(k, -0.26, 0.26, -0.35, 0.2, 0.42, 0.5, 'fabricLight' if variant == 'A' else 'cap')
         k.pop()
     # coffee table
     k.bx(-0.6, 0.6, -0.4, 0.2, 0.36, 0.4, 'oak')
@@ -1015,6 +999,9 @@ def lounge(k, variant):
     k.cyl(1.6, 1.2, 0.0, 0.14, 0.14, 0.03, 'graphite', seg=8, ink=False)
     k.cyl(1.6, 1.2, 0.03, 0.015, 0.015, 1.45, 'graphite', seg=5, ink=False)
     k.cyl(1.6, 1.2, 1.4, 0.2, 0.14, 0.28, 'glow', seg=10)
+    k.cyl(1.6, 1.2, 1.392, 0.206, 0.206, 0.018, 'graphite', seg=10, ink=False)     # shade rims and a finial
+    k.cyl(1.6, 1.2, 1.672, 0.146, 0.146, 0.016, 'graphite', seg=10, ink=False)
+    k.cyl(1.6, 1.2, 1.688, 0.03, 0.012, 0.06, 'graphite', seg=6, ink=False)
     k.col(-1.1, 1.1, 0.6, 1.4, 0, 0.85)
     for s in (-1, 1):
         x0, x1 = srt(s * 1.12, s * 1.88)

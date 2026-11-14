@@ -2526,7 +2526,7 @@
     trail: { wall: 'TrailWall', height: 16.5, variants: TRAILS },
     hatch: 'Hatch', stand: 'Eraser',
     backdrop: null,
-    budget: { prop: 2500, landmark: 4000, total: 70000 },
+    budget: { prop: 2500, landmark: 4000, total: 76000 },
     allPieces: function () {
       var letters = LETTERS.split('').map(function (L) { return 'Alpha_' + L; });
       var turnedPieces = TURNED[90].map(function (n) { return n + '_R90'; }).concat(TURNED[270].map(function (n) { return n + '_R270'; }));
@@ -7499,7 +7499,7 @@
       // pine forest on snowy knolls just outside the valley (seen over the treelines, the gates and the exit path)
       { piece: 'Backdrop_Forest', count: 20, radius: [26, 40], scale: [0.95, 1.3], squeezeX: 0.5, face: true }
     ] },
-    budget: { prop: 2500, landmark: 4000, total: 60000 },
+    budget: { prop: 2500, landmark: 6000, total: 60000 },
     allPieces: function () { return cliffNames().concat(ROCKS, OTHER); },
     levels: {
       mountains: {
@@ -10600,7 +10600,7 @@
       { piece: 'Backdrop_Office', count: 5, radius: [48, 60], scale: [1.0, 1.3], face: true, squeezeX: 0.85 },
       { piece: 'Backdrop_Church', count: 2, radius: [36, 40], scale: [1.0, 1.1], face: true, squeezeX: 0.8 }
     ] },
-    budget: { prop: 1200, landmark: 4000, total: 60000 },
+    budget: { prop: 2500, landmark: 4000, total: 60000 },
     allPieces: function () {
       return allWalls().concat(['Walk', 'WalkB', 'Plaza', 'PlazaB', 'LaneW', 'LaneY', 'Zebra', 'Manhole', 'GateFrame', 'GateShutter', 'TrailWall', 'TrailWall_Posters', 'TrailWall_Door', 'TrailWall_Planter', 'Hatch',
         'Lamp', 'LampP', 'StreetTree', 'BarrierR', 'BarrierW', 'Jersey', 'Planter', 'Bench', 'Van', 'Bus', 'Shelter', 'Cart',

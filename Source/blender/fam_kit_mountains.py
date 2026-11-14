@@ -20,6 +20,7 @@ from ib_lib import *  # noqa: F401,F403
 import ib_lib
 from kit_base import join_into
 import mtn_pieces as MP
+import mtn_shapes as MS
 
 FAM = 'kit-mountains'
 PFX = 'KIT_MOUNTAINS_'
@@ -223,21 +224,9 @@ def rock_col(z0, h, snow=0.62, base='rock2', mid='rock', light='rock3', snowc='s
 
 
 def spruce(m, x, y, h, r, rnd, tiers=3, base=0.45, snow=True, trunk=0.13, pts=7):
-    """Snowy spruce: trunk + star tiers (dark low, light high) with lifted snow caps."""
-    m.cyl((x, y, 0), trunk, trunk * 0.7, base + 0.7, 'trunk', seg=6, bevel=False)
-    span = h - base
-    for k in range(tiers):
-        t = k / tiers
-        zb = base + span * t * 0.74
-        rr = r * (1 - t * 0.6)
-        th = (h - zb) if k == tiers - 1 else span * (0.5 - t * 0.1)
-        ph = 5.0 + k * 17.0 + rnd.uniform(-2, 2)
-        col = ('pine2', 'pine', 'pine3', 'pine3')[min(k, 3)]
-        star(m, (x, y, zb), rr, th, col, pts=pts, droop=0.13 * rr, phase=ph, under_color='pine2')
-        if snow:
-            s = 0.5
-            star(m, (x, y, zb + th * (1 - s) + 0.07), rr * s, th * s, 'snow', pts=pts, inner=0.72, droop=0.05 * rr,
-                 phase=ph, fan=False)
+    """Snowy spruce: tapered trunk and whorls of drooping, snow-loaded fronds (mtn_shapes.frond_tree)."""
+    MS.frond_tree(m, hull, top_z, rnd, x, y, h, r, base + 0.25, tiers, trunk_r=trunk, snow=snow, fronds=pts if h > 4.0 else pts - 1,
+                  lean=(rnd.uniform(-0.12, 0.12), rnd.uniform(-0.12, 0.12)), flare=h > 4.0)
 
 
 def new(pal):
@@ -314,6 +303,35 @@ def cliff_module(pal, a, b, seed, rib=False):
                (cx - 0.12 + j(), -0.52 + j(), 0.3 * h), (cx + 0.12 + j(), -0.49 + j(), 0.33 * h),
                (cx - 0.08 + j(), -0.3 + j(), 0.58 * h), (cx + 0.07 + j(), -0.26 + j(), 0.6 * h), (cx + j(), -0.16, 0.67 * h)]
         hull(m, clamp_pts(pts, 0.45, 2.0), rock_col(0, h, base='rock', mid='rock3', light='rock3'))
+    # jutting slabs on the three rock bands (map asset upgrade): break the long flat terraces into blocks of varied
+    # depth; each stays inside the module (|x| <= 0.42) and at most 12 cm in front of the cell line
+    cr = random.Random(seed + 3)
+    h = LEVELS[min(a, b)]
+    f1, f2, f3 = ((0.20, 0.47, 0.71), (0.17, 0.43, 0.68), (0.22, 0.50, 0.74), (0.15, 0.41, 0.66))[min(a, b)]
+    prof = cliff_profile(min(a, b))[:9]           # the rock face, foot to crest
+
+    def face_y(z):
+        for (y0, za), (y1, zb) in zip(prof[:-1], prof[1:]):
+            if za <= z <= zb and zb > za:
+                return y0 + (y1 - y0) * (z - za) / (zb - za)
+        return prof[-1][0]
+    for j in range(cr.choice((1, 2, 2))):
+        H = cr.uniform(1.3, 2.6)
+        z0 = cr.uniform(0.25, f3 * h - H * 0.6)
+        z1 = min(z0 + H, h * 0.86)
+        cx = cr.uniform(-0.2, 0.2) if j == 0 else -cx * 0.6 + cr.uniform(-0.1, 0.1)
+        w0, w1 = cr.uniform(0.22, 0.36), cr.uniform(0.12, 0.26)
+        t = cr.uniform(-0.12, 0.12)               # the buttress leans sideways a little
+        yf0, yf1 = max(face_y(z0) - cr.uniform(0.07, 0.12), -0.62), face_y(z1) - cr.uniform(0.03, 0.07)
+        zm = (z0 + z1) / 2
+        yfm = min(face_y(zm), (yf0 + yf1) / 2) - cr.uniform(0.04, 0.1)
+        P = [(cx - w0, face_y(z0) + 0.2, z0), (cx + w0, face_y(z0) + 0.2, z0), (cx - w0 * 0.8, yf0, z0), (cx + w0 * 0.9, yf0 + 0.03, z0 + 0.05),
+             (cx + t / 2 - (w0 + w1) / 2, max(yfm, -0.6), zm + cr.uniform(-0.2, 0.2)), (cx + t / 2 + (w0 + w1) / 2 * 0.8, max(yfm + 0.03, -0.6), zm),
+             (cx + t - w1, yf1, z1 - 0.1), (cx + t + w1 * 0.7, yf1 + 0.02, z1), (cx + t, face_y(z1) + 0.2, z1 + 0.1)]
+        hull(m, clamp_pts(P, 0.42, 2.0), rock_col(0, h, base='rock2', mid='rock', light='rock3'))
+        # no ink shell on the slabs: their outlines turned the whole cliff line into black scratches at 30 m
+        m.flat = getattr(m, 'flat', set())
+        m.flat.add(m.nshape)
     return m
 
 
@@ -379,10 +397,7 @@ def build_rocks(pal, ao):
     for name, seed, h, rx, ry in (('Boulder_A', 3, 1.12, 0.47, 0.44), ('Boulder_B', 8, 0.92, 0.48, 0.4), ('Boulder_C', 15, 1.3, 0.42, 0.46)):
         m = new(pal)
         rnd = random.Random(seed)
-        hull(m, clamp_pts(rock_pts(rnd, (0.02, 0.02), rx, ry, h, n=7, top=3), 0.48), rock_col(0, h))
-        # a smaller stone leaning on it
-        sx, sy = rnd.choice([(-0.28, -0.3), (0.3, -0.28), (-0.3, 0.28)])
-        hull(m, clamp_pts(rock_pts(rnd, (sx, sy), 0.18, 0.16, h * 0.42, n=5, top=2), 0.49), rock_col(0, h * 0.4))
+        MS.boulder(m, hull, rock_pts, clamp_pts, rock_col, rnd, h, rx, ry)
         finish(name, m, ao, cols=[((0, 0, h / 2), (0.46, 0.46, h / 2))])
     for name, seed, h in (('Outcrop_A', 21, 2.3), ('Outcrop_B', 34, 1.9)):
         m = new(pal)
@@ -400,23 +415,18 @@ def build_cover(pal, ao):
         m = new(pal)
         rnd = random.Random(seed)
         m.box((0, 0, 0.41), (1.0, 0.62, 0.82), 'stone2', bevel=False)
+        # dry-stone courses: three courses of irregular, chamfered stones of varied length, height and depth
+        # (they stop 2 cm short of the module ends, so neighbouring modules never overlap)
         for fy in (-1, 1):
-            x = -0.5
-            row = 0
-            while x < 0.42:
-                w = rnd.uniform(0.4, 0.52)
-                w = min(w, 0.46 - x)
-                if w > 0.12:
-                    for zr in (0, 1):
-                        zc = 0.2 + zr * 0.38 + rnd.uniform(-0.03, 0.03)
-                        hh = rnd.uniform(0.26, 0.32)
-                        d = rnd.uniform(0.02, 0.05)
-                        m.box((x + w / 2 + (0.06 if zr else 0), fy * (0.31 + d / 2), zc), (w - 0.05, d + 0.004 * (zr + 1), hh),
-                              'stone' if (row + zr) % 2 else 'rock3', bevel=False)
-                x += w
-                row += 1
+            MS.stone_courses(m, hull, rnd, fy, 0.31, -0.48, 0.48, ((0.02, 0.3), (0.3, 0.57), (0.57, 0.82)))
         m.box((0, 0, 0.89), (1.0, 0.72, 0.14), 'snow', bevel=False)
-        m.box((rnd.uniform(-0.1, 0.1), 0, 0.985), (0.74, 0.5, 0.05), 'snow', bevel=False)
+        # snow heaped along the coping: an uneven mound (kept off the module ends so runs read as one wall)
+        sx = rnd.uniform(-0.08, 0.08)
+        hull(m, [(sx - 0.42, -0.3, 0.955), (sx + 0.42, -0.3, 0.955), (sx - 0.42, 0.3, 0.955), (sx + 0.42, 0.3, 0.955),
+                 (sx - 0.3, -0.2, 1.0 + rnd.uniform(0, 0.03)), (sx + 0.32, -0.18, 1.0 + rnd.uniform(0, 0.03)),
+                 (sx - 0.28, 0.2, 1.0 + rnd.uniform(0, 0.03)), (sx + 0.3, 0.19, 1.0 + rnd.uniform(0, 0.03)),
+                 (sx + rnd.uniform(-0.1, 0.1), rnd.uniform(-0.05, 0.05), 1.05 + rnd.uniform(0, 0.03))],
+             lambda f: 'snow' if f.normal.z > 0.5 else 'snow2')
         finish(name, m, ao, cols=[((0, 0, 0.5), (0.5, 0.36, 0.5))])
     # split-rail fence (rails flush with the cell: runs join up)
     m = new(pal)
@@ -436,7 +446,9 @@ def build_cover(pal, ao):
         paint(m, fs, lambda f: 'logend' if abs(f.normal.x) > 0.9 else ('snow' if f.normal.z > 0.6 and f.calc_center_median().z > 0.8 else 'log'))
     for sx in (-0.42, 0.42):
         for fy in (-1, 1):
-            m.box((sx, fy * 0.52, 0.42), (0.07, 0.07, 0.84), 'log2', bevel=False)
+            m.box((sx, fy * 0.52, 0.39), (0.07, 0.07, 0.78), 'log2', bevel=False)
+            m.cyl((sx, fy * 0.52, 0.78), 0.05, 0.0, 0.12, 'log2', seg=4, rot=(0, 0, 45), bevel=False)   # sharpened top
+    MS.logpile_detail(m, r)
     finish('LogPile', m, ao, cols=[((0, 0, 0.5), (0.5, 0.48, 0.5))])
     # supply crate (also the weapon stand) and the canvas bundle stacked on some
     m = new(pal)
@@ -451,31 +463,22 @@ def build_cover(pal, ao):
     MP.crate(m)
     finish('Crate', m, ao, bevel=0.015, cols=[((0, 0, 0.5), (0.48, 0.48, 0.5))])
     m = new(pal)
-    m.box((0, 0, 0.3), (0.78, 0.66, 0.58), 'canvas')
-    for x in (-0.22, 0.22):
-        m.box((x, 0, 0.3), (0.06, 0.7, 0.62), 'rope', bevel=False)
-    m.box((0, 0, 0.605), (0.6, 0.5, 0.04), 'snow', bevel=False)
+    MS.tarp_bundle(m, hull, random.Random(87))
     finish('Bundle', m, ao, bevel=0.03)
 
 
 # ================================================================ pines ('t' 1x1) and spruce stands ('F' 2x2)
 def build_trees(pal, ao):
-    for name, seed, h, r, trunk_h, tiers in (('Pine_A', 2, 7.2, 1.3, 1.9, 4), ('Pine_B', 6, 5.6, 1.08, 1.6, 3), ('Pine_C', 13, 6.4, 1.2, 1.8, 4)):
+    # three distinct pines: a full straight one, a younger narrow one, an old one leaning off the wind with a dead stub
+    for name, seed, h, r, trunk_h, tiers, lean, stub in (('Pine_A', 2, 7.2, 1.3, 1.6, 5, (0.0, 0.0), False),
+                                                        ('Pine_B', 6, 5.6, 1.0, 1.4, 4, (0.1, -0.08), False),
+                                                        ('Pine_C', 13, 6.6, 1.22, 1.9, 4, (0.32, 0.18), True)):
         m = new(pal)
         rnd = random.Random(seed)
-        m.cyl((0, 0, 0), 0.19, 0.12, trunk_h + 1.0, 'trunk', seg=7, bevel=False)
-        span = h - trunk_h
-        for k in range(tiers):
-            t = k / tiers
-            zb = trunk_h + span * t * 0.76
-            rr = r * (1 - t * 0.62)
-            th = (h - zb) if k == tiers - 1 else span * (0.46 - t * 0.08)
-            ph = 5.0 + k * 19.0 + rnd.uniform(-2, 2)
-            star(m, (0, 0, zb), rr, th, ('pine2', 'pine', 'pine', 'pine3')[k], droop=0.14 * rr, phase=ph, under_color='pine2')
-            star(m, (0, 0, zb + th * 0.5 + 0.07), rr * 0.5, th * 0.5, 'snow', inner=0.72, droop=0.05 * rr, phase=ph, fan=False)
-        # snow ring at the foot
-        hull(m, [(math.cos(a) * 0.42, math.sin(a) * 0.42, 0) for a in [i * 0.9 for i in range(7)]] +
-             [(math.cos(a) * 0.3, math.sin(a) * 0.3, 0.09) for a in [i * 0.9 + 0.4 for i in range(7)]], 'snow')
+        MS.frond_tree(m, hull, top_z, rnd, 0, 0, h, r, trunk_h, tiers, trunk_r=0.19, lean=lean, stub=stub)
+        # snow banked round the foot, uneven
+        hull(m, [(math.cos(a) * rnd.uniform(0.42, 0.56), math.sin(a) * rnd.uniform(0.42, 0.56), 0) for a in [i * 0.9 for i in range(7)]] +
+             [(math.cos(a) * 0.3, math.sin(a) * 0.3, rnd.uniform(0.08, 0.13)) for a in [i * 0.9 + 0.4 for i in range(7)]], 'snow')
         finish(name, m, ao, cols=[((0, 0, 1.3), (0.24, 0.24, 1.3))])
     for name, seed, trees in (('SpruceCluster_A', 17, [(-0.4, 0.35, 6.4, 1.2), (0.5, -0.2, 4.7, 0.95), (-0.35, -0.55, 3.3, 0.7)]),
                               ('SpruceCluster_B', 29, [(0.35, 0.4, 5.6, 1.1), (-0.5, -0.1, 4.2, 0.9), (0.45, -0.6, 2.9, 0.62)])):
@@ -911,11 +914,27 @@ def build_ropebridge(pal, ao):
                      rock_col(0, H))
         rock += hull(m, clamp_pts([(x + cx, y, z) for x, y, z in rock_pts(rr, (sx * 0.35, -0.05), 1.1, 1.0, H * 0.2, z0=H * 0.8, n=6, top=3, waist=(0.5, 0.8))], 6.95, 1.95),
                      rock_col(0, H, snow=0.5))
+        # (map asset upgrade) fractured slabs and ledges on the upper tower so it reads as jointed rock, not three
+        # stacked lumps; all above 2.4 m, clear of the fitted collision band near the ground; own random stream
+        cr = random.Random(seed + 900)
+        for k in range(6):
+            a = k / 6 * 2 * math.pi + cr.uniform(-0.3, 0.3)
+            z0 = cr.uniform(2.4, H * 0.72)
+            hz = cr.uniform(0.9, 1.8)
+            rad = 1.25 - 0.45 * (z0 / H)
+            if math.cos(a) * sx < -0.4 and z0 + hz > 6.8:
+                continue          # keep clear of the timber cribbing the deck lands on
+            c = (cx + math.cos(a) * rad, math.sin(a) * rad * 0.95)
+            rock += hull(m, clamp_pts([(x, y, z) for x, y, z in rock_pts(cr, c, cr.uniform(0.45, 0.7), cr.uniform(0.4, 0.6), hz, z0=z0, n=6, top=2,
+                                                                       waist=(0.35, 0.7))], 6.95, 1.95), rock_col(0, H))
         # a wind-bent spruce on the summit
         tx, ty = cx + sx * 0.75, 0.55
         tz = top_z(rock, tx, ty) or H
         m.parent = Matrix.Translation((tx, ty, tz - 0.12))
-        spruce(m, 0, 0, 2.7, 0.78, rr, tiers=3, base=0.25)
+        # own random stream for the tree, so the rocks after it (and the fitted collision) stay as they were
+        spruce(m, 0, 0, 2.7, 0.78, random.Random(seed + 777), tiers=3, base=0.25)
+        for _ in range(3):
+            rr.uniform(-2, 2)
         m.parent = Matrix.Identity(4)
         # masonry abutment the bridge lands on, posts with rope wraps
         # timber cribbing the deck lands on (log courses crossing at the corners)
@@ -1189,14 +1208,9 @@ def build_backdrop(pal):
     hull(m, [(math.cos(a) * 17, math.sin(a) * 8, 0.0) for a in [i * 0.7 for i in range(9)]] +
          [(math.cos(a) * 11, math.sin(a) * 5, 2.6) for a in [i * 0.9 + 0.3 for i in range(7)]],
          lambda f: 'snow' if f.normal.z > 0.5 else 'snow2')
-    for i in range(13):
-        x, y = rnd.uniform(-13, 13), rnd.uniform(-5, 5)
-        h = rnd.uniform(7, 12.5)
-        r = h * 0.22
-        m.cyl((x, y, 0), 0.25, 0.2, 2.5, 'trunk', seg=4, bevel=False)
-        star(m, (x, y, 1.2), r, h * 0.55, 'pine2', pts=5, inner=0.6, droop=0.2, phase=rnd.uniform(0, 30), fan=False)
-        star(m, (x, y, 1.2 + h * 0.4), r * 0.7, h * 0.6, 'pine', pts=5, inner=0.6, droop=0.15, phase=rnd.uniform(0, 30), fan=False)
-        star(m, (x, y, 1.2 + h * 0.4 + h * 0.3 + 0.12), r * 0.35, h * 0.3, 'snow', pts=5, inner=0.7, droop=0.05, phase=rnd.uniform(0, 30), fan=False)
+    for i in range(15):
+        x, y = rnd.uniform(-13.5, 13.5), rnd.uniform(-5, 5)
+        MS.ragged_tree(m, star, rnd, x, y, rnd.uniform(6.5, 12.5))
     finish('Backdrop_Forest', m, False, hull_t=0.08)
 
 

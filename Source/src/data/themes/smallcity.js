@@ -145,7 +145,7 @@
       { piece: 'Backdrop_Office', count: 5, radius: [48, 60], scale: [1.0, 1.3], face: true, squeezeX: 0.85 },
       { piece: 'Backdrop_Church', count: 2, radius: [36, 40], scale: [1.0, 1.1], face: true, squeezeX: 0.8 }
     ] },
-    budget: { prop: 1200, landmark: 4000, total: 60000 },
+    budget: { prop: 2500, landmark: 4000, total: 60000 },
     allPieces: function () {
       return allWalls().concat(['Walk', 'WalkB', 'Plaza', 'PlazaB', 'LaneW', 'LaneY', 'Zebra', 'Manhole', 'GateFrame', 'GateShutter', 'TrailWall', 'TrailWall_Posters', 'TrailWall_Door', 'TrailWall_Planter', 'Hatch',
         'Lamp', 'LampP', 'StreetTree', 'BarrierR', 'BarrierW', 'Jersey', 'Planter', 'Bench', 'Van', 'Bus', 'Shelter', 'Cart',

@@ -21,6 +21,7 @@ from ib_lib import *  # noqa: F401,F403
 import ib_lib
 import ib_text
 import cr_detail as CD
+import cr_shapes as CS
 
 FAM = 'kit-classroom'
 PRE = 'KIT_CLASSROOM_'
@@ -261,6 +262,8 @@ def wall_base(m, window_open=False, dado=True, panel=True):
     m.bx(-0.5, -0.497, 15.52, 0.5, -0.42, 15.68, 'honeyDk', flat=True)    # cornice bead
     m.bx(-0.5, -0.46, 15.68, 0.5, -0.42, WH, 'trim', flat=True)           # frieze
     CD.wall_detail(m, window_open, dado, panel)
+    if not window_open:   # painted block coursing on the tall cream wall (map asset upgrade)
+        CS.block_coursing(m, z0=5.63 if dado else 5.5)
 
 
 def build_walls():
@@ -308,10 +311,16 @@ def build_walls():
 
 
 def tree_crowns(m, xs, seed):
-    """Round tree tops behind the hedge band on the glass (flat discs, three depths so neighbours never coincide)."""
+    """Tree tops behind the hedge band on the glass: lobed crowns (a union of round lobes, cr_shapes.lobed_crown),
+    flat, three depths so neighbours never coincide."""
     for i, (x, z, r) in enumerate(xs):
         lv = (i + seed) % 3
-        disc(m, x, -0.247 + 0.003 * lv, z, r, 0.011 + 0.0065 * lv, 'tree' if (i + seed) % 2 else 'tree2', 14)
+        k = (i * 3 + seed) % 4
+        lobes = ((-0.62, -0.22, 0.62), (0.58, -0.3, 0.6), (0.12, 0.52, 0.55), (-0.3, 0.42, 0.5))
+        use = [(dx * r, dz * r, rr * r) for j, (dx, dz, rr) in enumerate(lobes) if j != k]
+        m.parent = Matrix.Identity(4)
+        CS.lobed_crown(m, x, -0.247 + 0.003 * lv, z, r * 0.78, 0.011 + 0.0065 * lv, 'tree' if (i + seed) % 2 else 'tree2', use)
+        m.flat()
 
 
 def build_window_bays():
@@ -360,11 +369,7 @@ def build_window_bays():
 
 
 def plant(m, x, y, z, tall=False):
-    m.cyl((x, y, z), 0.2, 0.27, 0.5, 'terra', seg=8, bevel=False)
-    m.cyl((x, y, z + 0.44), 0.29, 0.29, 0.12, 'terra', seg=8, bevel=False)
-    leaves = [(0, 0, 0.45, 0, 0.2), (-0.16, 0.0, 0.32, 28, 0.17), (0.17, 0.02, 0.36, -30, 0.18)]
-    for (dx, dy, h, tilt, r) in leaves:
-        m.sphere((x + dx * 1.6, y + dy, z + 0.62 + h * (1.3 if tall else 1.0)), r, 'leaf', seg=(6, 4), scale=(1.0, 0.7, 2.4 if not tall else 2.9), rot=(0, tilt, 0))
+    CS.sill_plant(m, x, y, z, tall)
 
 
 CARD = ['crayR', 'crayB', 'crayY', 'crayG', 'crayO', 'crayP']
@@ -895,10 +900,7 @@ def build_hatch(ao):
 def build_eraser(ao):
     """Weapon stand / cover: a jumbo pink eraser with a cardboard sleeve."""
     m = K()
-    m.bx(-0.47, -0.34, 0, 0.47, 0.34, 0.86, 'pink', bevel=True)
-    m.bx(-0.16, -0.353, 0.004, 0.3, 0.353, 0.866, 'crayB')
-    m.bx(-0.1, -0.357, 0.36, 0.24, -0.353, 0.5, 'white', flat=True)
-    m.bx(-0.1, 0.353, 0.36, 0.24, 0.357, 0.5, 'white', flat=True)
+    CS.eraser(m)
     m.colbox(-0.47, -0.34, 0, 0.47, 0.34, 0.86)
     finish('Eraser', m, bevel=0.05, ao=ao)
 
@@ -1068,6 +1070,14 @@ def book_lying(m, L, W, Tk, col, M):
     m.bx(-L / 2, -W / 2, 0, L / 2, W / 2, b, col)
     m.bx(-L / 2, -W / 2, b, -L / 2 + 0.07, W / 2, Tk - b, col)
     m.bx(-L / 2 + 0.07, -W / 2 + 0.025, b, L / 2 - 0.025, W / 2 - 0.025, Tk - b, 'paper', flat=True)
+    # (map asset upgrade) a rounded spine, page lines on the three page edges
+    arc = [(-L / 2 - 0.03 * math.cos(t), Tk / 2 + (Tk / 2 - 0.004) * math.sin(t)) for t in [math.radians(a) for a in (-90, -45, 0, 45, 90)]]
+    CS.hullp(m, [(x, y, z) for (x, z) in arc + [(-L / 2 + 0.01, 0.004), (-L / 2 + 0.01, Tk - 0.004)] for y in (-W / 2 + 0.004, W / 2 - 0.004)], col)
+    for z in (b + (Tk - 2 * b) * 0.35, b + (Tk - 2 * b) * 0.7):
+        m.bx(L / 2 - 0.028, -W / 2 + 0.035, z - 0.004, L / 2 - 0.022, W / 2 - 0.035, z + 0.004, 'paperDk', flat=True)
+        for s in (-1, 1):
+            y0, y1 = sorted((s * (W / 2 - 0.028), s * (W / 2 - 0.022)))
+            m.bx(-L / 2 + 0.08, y0, z - 0.004, L / 2 - 0.035, y1, z + 0.004, 'paperDk', flat=True)
     m.parent = Matrix.Identity(4)
 
 
