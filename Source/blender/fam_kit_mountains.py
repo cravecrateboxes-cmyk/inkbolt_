@@ -329,6 +329,9 @@ def cliff_module(pal, a, b, seed, rib=False):
              (cx + t / 2 - (w0 + w1) / 2, max(yfm, -0.6), zm + cr.uniform(-0.2, 0.2)), (cx + t / 2 + (w0 + w1) / 2 * 0.8, max(yfm + 0.03, -0.6), zm),
              (cx + t - w1, yf1, z1 - 0.1), (cx + t + w1 * 0.7, yf1 + 0.02, z1), (cx + t, face_y(z1) + 0.2, z1 + 0.1)]
         hull(m, clamp_pts(P, 0.42, 2.0), rock_col(0, h, base='rock2', mid='rock', light='rock3'))
+        # no ink shell on the slabs: their outlines turned the whole cliff line into black scratches at 30 m
+        m.flat = getattr(m, 'flat', set())
+        m.flat.add(m.nshape)
     return m
 
 
