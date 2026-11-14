@@ -9,6 +9,7 @@ import random
 
 from sb_base import *  # noqa: F401,F403
 import sb_base as B
+import sb_detail as SD
 
 
 def rboxes(m, boxes, c, hull='full'):
@@ -77,6 +78,7 @@ def build_moonpool(pal, ao):
         cols.append(cb(a, -PY, 0.0, b, PY, rh))
     cols.append(cb(-PX, -PY, 0.0, PX, PY, 2.4))
     cols.append(cb(4.6, 3.6, 0.0, 5.3, 4.3, 1.15))
+    SD.moonpool(m, PX, PY, CW, CH)
     make('Landmark_MoonPool', m, ao, cols=cols)
     g = new(pal)
     for k, c in enumerate(('scrG', 'fireR', 'hazY', 'scrG')):
@@ -159,6 +161,7 @@ def build_dockgear(pal, ao):
     m.bx(0.69, 0.92, -0.5, 0.05, 0.14, 0.75, 'steelL', cull='b')
     m.bm_((-0.3, -0.35, 1.25), (-0.3, -1.0, 2.6), 0.04, 'cable', hull='none')
     fq(m, -0.4, 0.4, -0.803, 0.02, 0.12, 'hazY')
+    SD.winch(m)
     make('Winch', m, ao, cols=[cb(-0.95, -0.8, 0.0, 0.95, 0.8, 1.4)])
     # umbilical spool [2, 2]: a big reel between A-frames
     m = new(pal)
@@ -300,6 +303,7 @@ def build_dive(pal, ao):
         m.bxr(x0 + 0.62, -0.05, 0.42, 0.18, 0.04, 0.6, 'rubber', rot=(8, 0, 0))
         m.cy((x0 + 0.6, 0.06, 1.05), 0.14, 0.14, 0.08, 'cable', seg=6, rot=(90, 0, 0))
         m.bx(x0 + 0.1, x0 + 0.76, -0.4, -0.37, 2.0, 2.12, 'paper', hull='none')
+    SD.dive_locker(m)
     make('DiveLocker', m, ao, cols=[cb(-0.95, -0.4, 0.0, 0.95, 0.45, 2.28)])
     # scuba tank rack [2, 1]: six bottles strapped in a frame
     m = new(pal)
@@ -313,6 +317,7 @@ def build_dive(pal, ao):
         m.cy((x, 0.08, 1.2), 0.035, 0.035, 0.1, 'chrome', seg=5, hull='none')
     for z in (0.45, 0.95):
         m.bx(-0.95, 0.95, -0.07, -0.03, z, z + 0.06, 'rubber', hull='none')
+    SD.tank_rack(m)
     make('TankRack', m, ao, cols=[cb(-0.95, -0.06, 0.0, 0.95, 0.4, 1.5)])
     # dive gear table [2, 1]: helmets, regulators, a hose coil and a toolbox
     m = new(pal)

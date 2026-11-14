@@ -8,6 +8,7 @@ import math
 
 from sb_base import *  # noqa: F401,F403
 import sb_base as B
+import sb_detail as SD
 from fam_kit_bedroom import normals_up
 
 
@@ -27,6 +28,7 @@ def wall_service(m, rib=True):
     fq(m, -0.5, 0.5, -0.506, 1.08, 1.17, 'hazY')
     fq(m, -0.5, 0.5, -0.506, 4.3, 4.45, 'rib')
     fq(m, -0.5, 0.5, -0.506, 4.45, H, 'plate')
+    SD.wall_service(m)
 
 
 def wall_research(m):
@@ -37,6 +39,7 @@ def wall_research(m):
     fq(m, -0.5, 0.5, -0.506, 1.07, 1.09, 'tealD')
     fq(m, -0.5, 0.5, -0.506, 3.2, 3.24, 'lampC')
     fq(m, -0.5, 0.5, -0.506, 4.5, H, 'panelG')
+    SD.wall_research(m)
 
 
 def wall_hull(m):
@@ -50,6 +53,7 @@ def wall_hull(m):
             fq(m, x - 0.018, x + 0.018, -0.509, z + 0.07, z + 0.106, 'rivet')
     fq(m, -0.5, -0.484, -0.503, 0.5, H, 'hullD')
     fq(m, -0.5, 0.5, -0.506, 6.9, 7.1, 'hullD')
+    SD.wall_hull(m)
 
 
 STYLES = {'S': wall_service, 'R': wall_research, 'H': wall_hull}
@@ -87,6 +91,10 @@ def build_walls(pal, ao):
     for S, fn in STYLES.items():
         m = new(pal)
         fn(m)
+        if S == 'S':
+            SD.service_run(m)
+        elif S == 'R':
+            SD.research_run(m)
         make('W' + S, m, ao)
         m = new(pal)
         body, trim, acc = {'S': ('steel', 'rib', ('hazY', 1.08, 1.17)), 'R': ('panel', 'seam', ('tealM', 0.95, 1.07)),
@@ -106,6 +114,8 @@ def build_walls(pal, ao):
     fq(m, -0.5, 0.5, -0.506, 1.08, 1.17, 'hazY')
     fq(m, -0.5, 0.5, -0.506, 4.3, 4.45, 'rib')
     fq(m, -0.5, 0.5, -0.506, 4.45, H, 'plate')
+    SD.wall_service(m)
+    SD.port_rim(m, 1.5, 0.3)
     make('WS_Port', m, ao)
     port_glass('WS_Port_Glass', pal)
     m = new(pal)
@@ -113,6 +123,8 @@ def build_walls(pal, ao):
     fq(m, -0.5, 0.5, -0.509, 0.0, 0.15, 'seam')
     fq(m, -0.5, 0.5, -0.506, 0.95, 1.07, 'tealM')
     fq(m, -0.5, 0.5, -0.506, 4.5, H, 'panelG')
+    SD.wall_research(m)
+    SD.port_rim(m, 1.75, 0.34)
     make('WR_Port', m, ao)
     port_glass('WR_Port_Glass', pal, z=1.75, r=0.34)
 
@@ -208,6 +220,7 @@ def build_walls(pal, ao):
     m.bx(-0.3, 0.3, -0.54, -0.5, 2.1, 2.5, 'steelL', cull='k')
     gauge(m, -0.14, -0.54, 2.3)
     gauge(m, 0.14, -0.54, 2.3)
+    SD.valve_panel(m)
     make('WS_Valve', m, ao)
     for name, top, sub in (('WS_SignDock', 'DOCK B', 'MOON POOL'), ('WS_SignPump', 'PUMPS', 'BALLAST')):
         m = new(pal)
@@ -303,6 +316,7 @@ def build_doors(pal, ao):
     hazard_up(m, -1.2, 1.2, -1.0, -0.6, SILL + 0.003, 5)
     hazard_up(m, -1.2, 1.2, 0.6, 1.0, SILL + 0.003, 5)
     uq(m, -1.2, 1.2, -0.06, 0.06, SILL + 0.003, 'rubber')
+    SD.bulkhead(m)
     make('Bulkhead', m, ao, cols=[cb(-1.5, -1.0, 0.0, -1.12, 1.0, DH), cb(1.2, -1.0, 0.0, 1.5, 1.0, DH),
                                   cb(-1.2, -1.0, 0.0, 1.2, 1.0, SILL, True)])
     g = new(pal)
@@ -437,6 +451,7 @@ def build_mezzanine(pal, ao):
             y1 = L / 2 if k == n else y0 + run
             top = min(DECK, (k + 1) * DECK / n) + 1.0
             cols.append(cb(a, y0, 0.0, b, y1, top))
+    SD.stair(m, W, L, n, landing, DECK)
     make('Stair', m, ao, cols=cols)
 
 
@@ -517,6 +532,7 @@ def build_gate(pal, ao):
     ring(m, 0, 0, 0.103, 0.98, 1.15, 'hazY', seg=20)
     m.cy((0, 0, 0.1), 0.9, 0.86, 0.06, 'steel', seg=20)
     wheel(m, 0.0, 0.0, 0.22, 0.42, 'hazY', axis='z')
+    SD.hatch(m)
     make('Hatch', m, ao, bevel=0.015)
 
 

@@ -10424,7 +10424,7 @@
     trail: { wall: 'TrailWall', variants: ['TrailWall_B', 'TrailWall_C', 'TrailWall_B'], height: 4.6 },
     hatch: 'Hatch', stand: 'Crate_A',
     backdrop: { build: buildSea },
-    budget: { prop: 2800, landmark: 4000, total: 45000 },
+    budget: { prop: 2800, landmark: 4000, total: 52000 },
     allPieces: function () { return PIECES.slice(); },
     levels: {
       seabase: {
