@@ -24,6 +24,7 @@ from mathutils import Matrix, Vector
 from ib_lib import *  # noqa: F401,F403
 import ib_lib
 from fam_kit_smallcity import PM, post_hull, col_box, ring
+import castle_detail as cd
 
 FAM = 'kit-castle'
 PRE = 'KIT_CASTLE_'
@@ -118,8 +119,9 @@ def curtain(pal, name, merlon, extra, seed, ao):
     m = PM(pal)
     rnd = random.Random(seed)
     m.bx(-0.5, 0.5, -0.5, 0.5, 0, WALK, 'stone', hull='noside', cull='bt')
-    # battered plinth
-    m.prism([(-0.5, 0.0), (-0.74, 0.0), (-0.74, 0.32), (-0.5, 1.6)], -0.5, 0.5, ['stoneD'], hull='noside', skip=(3,))
+    # battered plinth (the postern's plinth is cut back to its two ends: steps lead up to the door)
+    for (px0, px1) in (((-0.5, -0.48), (0.48, 0.5)) if extra == 'door' else ((-0.5, 0.5),)):
+        m.prism([(-0.5, 0.0), (-0.74, 0.0), (-0.74, 0.32), (-0.5, 1.6)], px0, px1, ['stoneD'], hull='noside', skip=(3,))
     # mortar courses (full width: they join along a run)
     for z in (2.3, 3.5, 4.7, 5.9):
         m.bx(-0.5, 0.5, F(0.008), -0.5, z, z + 0.035, 'mortar', hull='none', cull='ktblr')
@@ -166,6 +168,7 @@ def curtain(pal, name, merlon, extra, seed, ao):
         for z in (0.5, 1.6):
             m.det(-0.35, 0.35, 0.07, 0.03, z, z + 0.07, 'iron')
         m.det(0.18, 0.24, 0.08, 0.04, 1.0, 1.08, 'gold')
+    cd.curtain_detail(m, extra, merlon, seed)
     return make(name, m, ao=ao)
 
 
@@ -182,6 +185,7 @@ def inner(pal, ao):
     m.bx(-0.5, 0.5, -0.5, 0.5, WALK, WALK + 0.14, 'stoneL', hull='noside', cull='b')
     m.bx(-0.44, 0.44, -0.47, 0.03, WALK + 0.14, WALK + 1.25, 'stone', cull='b')
     m.bx(-0.47, 0.47, -0.5, 0.06, WALK + 1.25, WALK + 1.36, 'stoneL')
+    cd.inner_detail(m)
     return make('Curtain_Inner', m, ao=ao)
 
 
@@ -204,6 +208,7 @@ def corner(pal, ao):
             m.bx(x0, x1, y0, y1, 8.48, 9.5, 'stone', cull='b')
             m.bx(x0 - 0.03, x1 + 0.03, y0 - 0.03, y1 + 0.03, 9.5, 9.6, 'stoneL')
     m.bx(-0.22, 0.22, -0.22, 0.22, 8.48, 8.9, 'stoneD', cull='b')
+    cd.corner_detail(m)
     return make('Corner', m, ao=ao)
 
 
@@ -321,6 +326,7 @@ def build_gate(pal, ao):
     poly_y(m, [(0.04, 12.5), (1.3, 12.25), (0.04, 12.0)], -0.02, 0.02, 'bannerR')
     # passage soffit and the portcullis slot
     m.bx(-1.505, 1.505, -0.12, 0.12, 3.06, 3.2, 'iron', hull='none', cull='t')
+    cd.gate_detail(m)
     obj = make('GateFrame', m, ao=ao)
     return obj
 
@@ -348,6 +354,7 @@ def build_shutter(pal):
     for k in range(7):
         x = -1.29 + k * 0.43
         m.cy((x, 0, 0.0), 0.0, 0.07, 0.22, 'iron', seg=4, hull='none')
+    cd.shutter_detail(m)
     sh = make('GateShutter', m, hull=0)
     m = PM(pal)
     m.bx(-1.5, 1.5, -0.15, 0.15, 0, H, 'HULL')
@@ -385,6 +392,7 @@ def build_trail(pal, ao):
     m.bx(-0.36, 0.36, -0.5, 0.5, WALK, WALK + 0.14, 'stoneL', hull='noend')
     m.bx(-0.27, 0.27, -0.25, 0.25, WALK + 0.14, WALK + 1.1, 'stone', cull='b')
     m.bx(-0.3, 0.3, -0.28, 0.28, WALK + 1.1, WALK + 1.2, 'stoneL')
+    cd.trail_detail(m)
     make('TrailWall', m, ao=ao)
 
 
@@ -450,6 +458,8 @@ def build_crates(pal, ao):
     crate(m, -0.2, -0.1, 0, 0.52)
     crate(m, 0.26, 0.18, 0, 0.42, 'wood')
     crate(m, -0.18, -0.08, 0.52, 0.4, 'wood')
+    for a in ((-0.2, -0.1, 0, 0.52), (0.26, 0.18, 0, 0.42), (-0.18, -0.08, 0.52, 0.4)):
+        cd.crate_detail(m, a[0], a[1], a[2], a[3])
     obj = make('Crates', m, bevel=0.012, ao=ao)
     col_box(obj, 0, -0.47, 0.47, -0.38, 0.4, 0, 0.92)
     m = PM(pal)                                                                               # grain sacks
@@ -557,6 +567,7 @@ def build_brazier(pal, ao):
     m.cy((0, 0, 1.79), 0.3, 0.3, 0.02, 'woodD', seg=8, hull='none')
     flame(m, 0, 0, 1.8, 1.4)
     flame(m, 0.13, 0.08, 1.835, 0.8)
+    cd.brazier_detail(m)
     obj = make('Brazier', m, ao=ao)
     col_box(obj, 0, -0.33, 0.33, -0.33, 0.33, 0, 1.9)
 
@@ -575,6 +586,7 @@ def build_bannerpole(pal, ao):
             y0, y1 = sorted((sy * 0.025, sy * 0.034))
             m.bx(0.12, 0.9, y0, y1, 4.95, 5.05, c2, hull='none')
             poly_y(m, [(0.51, 4.6), (0.75, 4.1), (0.51, 3.4), (0.27, 4.1)], y0, y1, c2, hull='none')
+        cd.bannerpole_detail(m)
         obj = make(name, m, ao=ao)
         col_box(obj, 0, -0.3, 0.3, -0.3, 0.3, 0, 2.0)
 
@@ -620,6 +632,7 @@ def build_stalls(pal, ao):
         for k in range(8):
             x = -1.6 + 0.2 + k * 0.4
             poly_y(m, [(x - 0.2, 2.5), (x + 0.2, 2.5), (x, 2.26)], -1.075, -1.055, stripe if k % 2 else 'canvas', hull='none')
+        cd.stall_detail(m)
         obj = make(name, m, ao=ao)
         col_box(obj, 0, -1.5, 1.5, -0.98, 0.9, 0, 1.0)
         col_box(obj, 1, -1.5, 1.5, -0.98, 0.9, 2.0, 2.6)
@@ -689,6 +702,7 @@ def build_well(pal, ao):
     m.bx(-1.3, 1.3, -0.07, 0.07, 2.42, 2.58, 'woodD')
     poly_y(m, [(-0.98, 2.58), (0.98, 2.58), (0.0, 3.12)], -0.06, 0.06, 'woodL')
     m.cy((0, 0, 0.0), 1.48, 1.42, 0.12, 'cobbleD', seg=14)
+    cd.well_detail(m)
     obj = make('Landmark_Well', m, bevel=0.015, ao=ao)
     col_box(obj, 0, -1.2, 1.2, -1.2, 1.2, 0, 1.0)
     col_box(obj, 1, -1.35, 1.35, -1.0, 1.0, 2.4, 3.2)
@@ -742,6 +756,7 @@ def build_tower(pal, ao):
             m.parent = Matrix.Identity(4)
             m.cy((0, 0, 11.77), 0.05, 0.04, 3.2, 'woodD', seg=5)
             poly_y(m, [(0.04, 14.8), (1.25, 14.5), (0.04, 14.2)], -0.02, 0.02, 'bannerR')
+        cd.tower_detail(m, R, roof)
         obj = make(name, m, ao=ao)
         col_box(obj, 0, -2.3, 2.3, -2.3, 2.3, 0, 11.0)
 
@@ -863,6 +878,7 @@ def build_keep(pal, ao):
     m.cy((0, 0, 17.0), 6.3, 0.0, 3.0, 'slate', seg=4, rot=(0, 0, 45), caps=False)
     m.cy((0, 0, 19.6), 0.06, 0.04, 4.0, 'woodD', seg=5)
     poly_y(m, [(0.05, 23.5), (2.2, 23.0), (0.05, 22.4)], -0.02, 0.02, 'bannerB')
+    cd.keep_detail(m, W, D)
     obj = make('Landmark_Keep', m, ao=ao)
     col_box(obj, 0, -W - 0.4, W + 0.4, -D - 0.4, D + 0.4, 0, 17.0)
     col_box(obj, 1, -4.45, 1.35, -D - 1.75, -D, 0, 4.7)

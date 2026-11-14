@@ -2160,7 +2160,7 @@
       { piece: 'Backdrop_Village', count: 6, radius: [58, 66], scale: [1.0, 1.2], face: true, squeezeX: 0.8 },
       { piece: 'Backdrop_Hills', count: 9, radius: [76, 92], scale: [1.1, 1.5], face: true, squeezeX: 0.85 }
     ] },
-    budget: { prop: 2500, landmark: 5000, total: 70000 },
+    budget: { prop: 2500, landmark: 8000, total: 70000 },
     allPieces: function () {
       var out = WALLS.concat(['GateFrame', 'GateShutter', 'TrailWall', 'Hatch',
         'Backdrop_Rampart', 'Backdrop_Tower', 'Backdrop_Village', 'Backdrop_Hills']);
