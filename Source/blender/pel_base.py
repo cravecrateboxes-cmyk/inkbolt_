@@ -98,6 +98,8 @@ def new(pal, rot=0.0):
 
 def make(name, m, ao, bevel=0.0, cols=None, hull=HT):
     full = PFX + name
+    import pel_detail
+    pel_detail.apply(name, m)
     obj = build_object(full, m, bevel, hull, ao=ao)
     post_hull(obj, m.hmode)
     TRIS[full] = sum(len(p.vertices) - 2 for p in obj.data.polygons)
