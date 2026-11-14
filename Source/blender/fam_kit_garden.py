@@ -27,6 +27,7 @@ from mathutils import Matrix, Vector
 from ib_lib import *  # noqa: F401,F403
 import ib_lib
 from kit_base import Kit, rz, srt, rock_pts, shutter_hull
+import garden_detail as GD
 
 FAM = 'kit-garden'
 PFX = 'KIT_GARDEN_'
@@ -253,6 +254,7 @@ def gate_frame(k):
         y = rnd.uniform(-0.4, 0.4)
         blob(k, x, y, WALL_H + 0.45, 0.32, 0.3, 0.14, 'leaf' if i % 2 else 'leafD', 70 + i, n=6)
         k.sph(x + 0.1, y - 0.18, WALL_H + 0.56, 0.07, 'blossom2' if i % 2 else 'red', seg=(5, 3), ink=False)
+    GD.gate_detail(k)
     k.col(-2.5, -1.5, -0.55, 0.55, 0, WALL_H)
     k.col(1.5, 2.5, -0.55, 0.55, 0, WALL_H)
     return k
@@ -269,6 +271,7 @@ def gate_shutter(k):
     k.bx(-1.5, 1.5, -0.07, 0.07, 0, 0.2, 'woodD', ink=False)
     for f in (-1, 1):
         k.qy(-0.5, 0.5, 1.0, 1.06, f * 0.073, f, 'flY')
+    GD.shutter_detail(k)
     return k
 
 
@@ -284,6 +287,7 @@ def trail_wall(k, kind):
         k.cyl(0, -0.4, 0, 0.07, 0.05, 2.6, 'paintG2', seg=6)
         k.bx(-0.13, 0.13, -0.53, -0.27, 2.6, 2.92, 'glass')
         k.cyl(0, -0.4, 2.92, 0.2, 0.04, 0.16, 'paintG2', seg=6)
+        GD.trail_lamp_detail(k)
     elif kind == 'Rose':
         for i in range(8):
             x = rnd.uniform(-0.4, 0.4)
@@ -437,6 +441,7 @@ def picket(k):
         k.hullp([(x - 0.045, -0.02, 0.05), (x + 0.045, -0.02, 0.05), (x - 0.045, 0.02, 0.05), (x + 0.045, 0.02, 0.05),
                  (x - 0.045, -0.02, 0.88), (x + 0.045, -0.02, 0.88), (x - 0.045, 0.02, 0.88), (x + 0.045, 0.02, 0.88),
                  (x, -0.02, 0.97), (x, 0.02, 0.97)], 'paintW')
+    GD.picket_detail(k)
     k.col(-0.5, 0.5, -0.07, 0.07, 0, 1.05)
     return k
 
@@ -455,6 +460,7 @@ def bench(k):
     for i in range(2):
         z = 0.58 + i * 0.2
         k.bxr(0.0, 0.22 + i * 0.05, z, 1.9, 0.04, 0.12, 'wood', rot=(-15, 0, 0))
+    GD.bench_detail(k)
     k.col(-0.95, 0.95, -0.3, 0.3, 0, 0.9)
     return k
 
@@ -474,6 +480,7 @@ def picnic(k):
         k.bx(-0.95, 0.95, s * 0.62 - 0.13, s * 0.62 + 0.13, 0.42, 0.47, 'wood')
     k.cyl(0.3, 0.05, 0.78, 0.08, 0.08, 0.14, 'plR', seg=8)
     k.cyl(-0.35, -0.1, 0.78, 0.14, 0.14, 0.02, 'paintW', seg=8)
+    GD.picnic_detail(k)
     k.col(-0.95, 0.95, -0.45, 0.45, 0, 0.8)
     k.col(-0.95, 0.95, -0.75, -0.45, 0, 0.47)
     k.col(-0.95, 0.95, 0.45, 0.75, 0, 0.47)
@@ -501,6 +508,7 @@ def lamp(k):
     k.cyl(0, 0, 2.9, 0.2, 0.2, 0.06, 'paintG2', seg=6)
     k.cyl(0, 0, 2.96, 0.16, 0.2, 0.34, 'lamp', seg=6)
     k.cyl(0, 0, 3.3, 0.26, 0.03, 0.2, 'paintG2', seg=6)
+    GD.lamp_detail(k)
     k.col(-0.15, 0.15, -0.15, 0.15, 0, 3.0)
     return k
 
@@ -510,6 +518,7 @@ def litter_bin(k):
     k.cyl(0, 0, 0, 0.25, 0.27, 0.85, 'paintG', seg=8)
     k.cyl(0, 0, 0.85, 0.29, 0.29, 0.08, 'paintG2', seg=8)
     k.cyl(0, 0, 0.5, 0.275, 0.275, 0.08, 'flY', seg=8, ink=False, caps=False)
+    GD.bin_detail(k)
     k.col(-0.28, 0.28, -0.28, 0.28, 0, 0.93)
     return k
 
@@ -600,6 +609,7 @@ def gazebo(k):
     eo = [(math.cos((i + 0.5) / 8 * 2 * math.pi) * Re, math.sin((i + 0.5) / 8 * 2 * math.pi) * Re) for i in range(8)]
     k.hullp([(x, y, F + 2.5) for x, y in eo] + [(0, 0, F + 4.1)], 'roofR')
     k.hullp([(x * 0.85, y * 0.85, F + 2.38) for x, y in eo] + [(x * 0.85, y * 0.85, F + 2.5) for x, y in eo], 'paintW')
+    GD.gazebo_detail(k, F, posts, eo)
     k.cyl(0, 0, F + 4.0, 0.1, 0.03, 0.6, 'flY', seg=6)
     k.sph(0, 0, F + 4.62, 0.09, 'flY', seg=(6, 4))
     return k
@@ -627,6 +637,7 @@ def shed(k):
              (-1.8, 0, 2.95), (1.8, 0, 2.95), (-1.8, -1.45, 2.25), (1.8, -1.45, 2.25)], 'roofS')
     k.cyl(1.85, 0.6, 0, 0.3, 0.3, 0.9, 'plB2', seg=8)
     k.cyl(1.85, 0.6, 0.9, 0.32, 0.32, 0.05, 'plB', seg=8)
+    GD.shed_detail(k)
     k.col(-1.6, 1.6, -1.25, 1.25, 0, 2.95)
     k.col(1.55, 2.15, 0.3, 0.9, 0, 0.95)
     return k
@@ -656,6 +667,7 @@ def sandpit(k):
     k.poly([(0.62, 0.5, 0.9), (0.85, 0.5, 0.82), (0.62, 0.5, 0.74)], 'red', (0, -1, 0))
     k.cyl(-0.8, -0.6, 0.12, 0.12, 0.16, 0.22, 'plR', seg=8)
     k.beam((-0.2, -0.9, 0.13), (0.3, -0.5, 0.4), 0.04, 'plB')
+    GD.sandpit_detail(k)
     k.col(0.3, 0.9, 0.2, 0.8, 0, 0.62)
     return k
 
@@ -675,6 +687,7 @@ def swings(k):
             k.beam((x + dx, 0, 2.4), (x + dx, 0, 0.5), 0.025, 'metal2')
         k.bx(x - 0.27, x + 0.27, -0.12, 0.12, 0.45, 0.52, c)
         k.qz(x - 0.5, x + 0.5, -0.6, 0.6, ZD['swingmat'], 1, 'mat2')
+    GD.swings_detail(k)
     return k
 
 
@@ -690,6 +703,7 @@ def seesaw(k):
         k.bxr(x, 0, z + 0.06, 0.34, 0.36, 0.05, 'plR', rot=(0, -ang, 0))
         k.bx(x - s * 0.25 - 0.03, x - s * 0.25 + 0.03, -0.2, 0.2, z + 0.05, z + 0.35, 'plB2')
         k.bx(x - s * 0.25 - 0.03, x - s * 0.25 + 0.03, -0.22, 0.22, z + 0.35, z + 0.4, 'plB2')
+    GD.seesaw_detail(k)
     k.col(-1.9, 1.9, -0.2, 0.2, 0, 0.75)
     return k
 
@@ -711,6 +725,7 @@ def monkey_bars(k):
     for i in range(12):
         x = -2.2 + i * 0.4
         k.bx(x - 0.03, x + 0.03, -0.36, 0.36, H + 0.02, H + 0.08, 'plY')
+    GD.monkey_detail(k)
     k.qz(-2.9, 2.9, -0.7, 0.7, ZD['swingmat'], 1, 'mat')
     return k
 
@@ -754,6 +769,7 @@ def deck(p, x0, x1, z0, z1, h, opens=None, post_top=None, panel=('plB', 'plG'), 
                 p.bx(a, b, zz, zz + 0.06, h, h + TOP - 0.12, c)
                 p.bx(a, b, zz - 0.005, zz + 0.065, h + TOP - 0.12, h + TOP, 'plY')
                 p.col(a, b, zz - 0.01, zz + 0.07, h, h + TOP)
+                GD.rail_bolts(p, side, a, b, zz, h + TOP - 0.06)
                 if b - a > 1.0:      # a porthole / tic-tac-toe badge on the outside face
                     m = (a + b) / 2
                     s = -1 if side == 'N' else 1
@@ -768,6 +784,8 @@ def deck(p, x0, x1, z0, z1, h, opens=None, post_top=None, panel=('plB', 'plG'), 
                 p.bx(xx, xx + 0.06, a, b, h, h + TOP - 0.12, c)
                 p.bx(xx - 0.005, xx + 0.065, a, b, h + TOP - 0.12, h + TOP, 'plY')
                 p.col(xx - 0.01, xx + 0.07, a, b, h, h + TOP)
+                GD.rail_bolts(p, side, a, b, xx, h + TOP - 0.06)
+    GD.deck_posts(p, x0, x1, z0, z1)
     if roof:
         cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
         e = 0.45
@@ -923,6 +941,7 @@ def play_tower(k):
     slide_x(p, -1.4, -0.6, -1.5, -1, DECK)
     climb_x(p, -1.8, -0.2, 1.5, 1, DECK)
     pole(p, 1.95, -2.58, DECK)
+    GD.pole_detail(p, 1.95, -2.58)
     p.bx(1.66, 1.92, -2.62, -2.54, DECK + 0.6, DECK + 0.66, 'metal')
     # a steering wheel and a periscope on the north rail
     p.cyl(0.0, -2.62, DECK + 0.45, 0.32, 0.32, 0.06, 'plR', seg=10, rot=(90, 0, 0))
@@ -1007,6 +1026,7 @@ def play_fort_links(k):
     slide_x(p, -0.4, 0.4, -11.0, -1, DECK)                              # TW down to the west
     slide_x(p, -0.4, 0.4, 11.0, 1, DECK, color='plG', side='plO')       # TE down to the east
     pole(p, 11.45, -2.08, DECK)
+    GD.pole_detail(p, 11.45, -2.08)
     p.bx(11.16, 11.42, -2.12, -2.04, DECK + 0.6, DECK + 0.66, 'metal')
     return k
 
@@ -1149,6 +1169,7 @@ def play_ship(k):
     p.bx(3.6, 4.4, -0.5, 0.5, D1, D1 + 0.25, 'woodD')
     p.cyl(3.6, 0.0, D1 + 0.45, 0.2, 0.16, 1.2, 'ink', seg=8, rot=(0, 90, 0))
     p.col(3.5, 4.8, -0.5, 0.5, D1, D1 + 0.7)
+    GD.ship_detail(p, D1, D2)
     # blue sea painted round the hull, with wave crests
     p.top(-10.0, 10.0, -5.0, 5.0, ZD['sea'], 'mat2')
     for (x, z) in ((-8.0, -4.0), (-5.0, -3.6), (6.0, -3.8), (-7.5, 3.8), (4.5, 4.2), (7.8, 3.0), (8.2, -2.0)):
@@ -1175,12 +1196,14 @@ def deck_rails(p, x0, x1, z0, z1, h, opens):
                 p.bx(a, b, zz, zz + 0.06, h, h + TOP - 0.12, 'plB')
                 p.bx(a, b, zz - 0.005, zz + 0.065, h + TOP - 0.12, h + TOP, 'plY')
                 p.col(a, b, zz - 0.01, zz + 0.07, h, h + TOP)
+                GD.rail_bolts(p, side, a, b, zz, h + TOP - 0.06)
         else:
             xx = x1 - 0.07 if side == 'E' else x0 + 0.01
             for (a, b) in spans(z0 + 0.08, z1 - 0.08, opens.get(side, [])):
                 p.bx(xx, xx + 0.06, a, b, h, h + TOP - 0.12, 'plR')
                 p.bx(xx - 0.005, xx + 0.065, a, b, h + TOP - 0.12, h + TOP, 'plY')
                 p.col(xx - 0.01, xx + 0.07, a, b, h, h + TOP)
+                GD.rail_bolts(p, side, a, b, xx, h + TOP - 0.06)
 
 
 # ================================================================ backdrop
