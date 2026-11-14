@@ -167,7 +167,7 @@
     trail: { wall: 'TrailWall', height: 16.5, variants: TRAILS },
     hatch: 'Hatch', stand: 'Eraser',
     backdrop: null,
-    budget: { prop: 2000, landmark: 4000, total: 70000 },
+    budget: { prop: 2500, landmark: 4000, total: 70000 },
     allPieces: function () {
       var letters = LETTERS.split('').map(function (L) { return 'Alpha_' + L; });
       var turnedPieces = TURNED[90].map(function (n) { return n + '_R90'; }).concat(TURNED[270].map(function (n) { return n + '_R270'; }));

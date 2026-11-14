@@ -20,6 +20,7 @@ from mathutils import Matrix, Vector
 from ib_lib import *  # noqa: F401,F403
 import ib_lib
 import ib_text
+import cr_detail as CD
 
 FAM = 'kit-classroom'
 PRE = 'KIT_CLASSROOM_'
@@ -241,7 +242,7 @@ def land_at(lat, lon):
 
 
 # ================================================================ walls
-def wall_base(m, window_open=False, dado=True):
+def wall_base(m, window_open=False, dado=True, panel=True):
     """The 1 m plaster module (room side -Y): skirting, mint wainscot, dado rail, cream upper wall, cornice.
     Front face of the body at y -0.42; everything stays inside the cell (x +-0.5, y >= -0.53). No outline."""
     m.wall = True
@@ -259,6 +260,7 @@ def wall_base(m, window_open=False, dado=True):
     m.bx(-0.5, -0.45, 15.45, 0.5, -0.42, 15.52, 'ink', flat=True)         # line under the cornice
     m.bx(-0.5, -0.497, 15.52, 0.5, -0.42, 15.68, 'honeyDk', flat=True)    # cornice bead
     m.bx(-0.5, -0.46, 15.68, 0.5, -0.42, WH, 'trim', flat=True)           # frieze
+    CD.wall_detail(m, window_open, dado, panel)
 
 
 def build_walls():
@@ -274,7 +276,9 @@ def build_walls():
     finish('Wall_Corner', m)
     # light switch at a toy's-eye 7 m (a real 1.2 m)
     m = K()
-    wall_base(m)
+    wall_base(m, panel=False)
+    CD.socket_plate(m, 0.0, 1.6, -0.42)
+    CD.switch_extras(m)
     m.bx(-0.21, -0.47, 6.8, 0.21, -0.42, 7.55, 'white')
     m.bx(-0.06, -0.52, 7.08, 0.06, -0.47, 7.3, 'trim', rot=(14, 0, 0))
     for z in (6.9, 7.45):
@@ -289,6 +293,7 @@ def build_walls():
     for i in range(5):
         z = 11.82 + i * 0.22
         m.bx(-0.37, -0.53, z - 0.03, 0.37, -0.476, z + 0.03, "steel", rot=(28, 0, 0), flat=True)
+    CD.vent_screws(m)
     finish('Wall_Vent', m)
     # window wall without its own glass (a Win_Bay piece on the bay's centre cell glazes the whole 5 m bay)
     m = K()
@@ -350,6 +355,7 @@ def build_window_bays():
                 m.cyl((1.12 + k * 0.08, -0.55 + (k - 1) * 0.06, 5.9), 0.04, 0.04, 0.42, c, seg=6, rot=((k - 1) * 9, (k - 1) * 7, 0), bevel=False)
         else:
             plant(m, 0.6, -0.55, 5.62)
+        CD.window_detail(m)
         finish('Win_Bay_' + v, m, bevel=0.015, ao=False)
 
 
@@ -466,6 +472,7 @@ def build_cork():
         m.cyl((0, 0, 0), 0.2, 0.2, 0.02, CARD[i % 6], seg=3, bevel=False)
     m.parent = Matrix.Identity(4)
     m.bx(-3.9, -0.6, 12.82, 3.9, -0.57, 12.86, 'ink', flat=True)
+    CD.cork_detail(m)
     finish('Wall_Cork', m)
 
 
@@ -937,6 +944,7 @@ def desk(m, items):
     m.bx(0.4, 0.95, 3.4, 1.9, 2.4, 3.62, 'crayR')
     # foot bar on the front legs (jumpable)
     m.bx(-2.55, 3.04, 0.45, 2.55, 3.16, 0.6, 'steel')
+    CD.desk_detail(m)
     m.colbox(-2.6, 3.0, 0, 2.6, 3.2, 0.6)
     m.colbox(-2.9, -0.4, 4.15, 2.9, 3.4, 4.45)
     m.colbox(-2.3, 0.15, 3.3, 2.3, 2.95, 4.15)
@@ -973,6 +981,7 @@ def chair(m, M):
         m.cyl((x, -0.95, 0), 0.12, 0.12, 4.85, 'steel', seg=6, bevel=False)
         m.bx(x - 0.045, -0.95, 0.85, x + 0.045, 0.95, 0.97, 'steel')
     m.bx(-1.2, -1.12, 3.7, 1.2, -0.98, 4.75, 'honey')
+    CD.chair_detail(m)
     m.parent = Matrix.Identity(4)
 
 
@@ -1146,6 +1155,7 @@ def bookcase(m, flip):
             i += 1
         # a couple of books leaning at the end of the row
         m.box((2.55, -0.05, z + 0.62), (0.2, 1.3, 1.25), cols[(si + 4) % len(cols)], rot=(0, -14, 0), bevel=False)
+    CD.bookcase_detail(m)
     m.parent = Matrix.Identity(4)
     m.colbox(-2.95, -0.85, 0, 2.95, 0.85, 5.62)
 
@@ -1274,6 +1284,7 @@ def build_teacher_desk(ao):
     m.cyl((2.3, -1.2, z), 0.32, 0.32, 0.08, 'rubber', seg=10, bevel=False)
     m.sphere((2.3, -1.2, z + 0.12), 0.27, 'amber', seg=(10, 5), scale=(1, 1, 0.9))
     m.cyl((2.3, -1.2, z + 0.36), 0.05, 0.05, 0.12, 'amber', seg=6, bevel=False)
+    CD.teacher_desk_detail(m)
     m.colbox(1.8, -2.1, 0, 4.6, 2.1, 4.45)
     m.colbox(-4.6, -2.1, 0, -4.3, 2.1, 4.45)
     m.colbox(-4.3, -2.13, 0.9, 1.8, -1.9, 4.45)
@@ -1345,6 +1356,7 @@ def build_chalkboard(ao):
     m.parent = Matrix.Identity(4)
     m.bx(-1.2, -0.2, 5.48, 0.2, 0.15, 5.6, 'felt')
     m.bx(-1.2, -0.2, 5.6, 0.2, 0.15, 5.8, 'honeyDk')
+    CD.chalkboard_detail(m)
     m.colbox(-10.95, 0.25, 5.3, 10.95, yb, 12.8)
     m.colbox(-10.6, -0.35, 5.3, 10.6, 0.25, 5.62)
     finish('Landmark_Chalkboard', m, bevel=0.03, ao=False)
