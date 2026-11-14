@@ -33,6 +33,7 @@ from mathutils import Vector
 from ib_lib import *  # noqa: F401,F403
 import ib_lib
 import fam_kit_office as O
+import spire_detail as D
 
 FAM = 'kit-spire'
 PFX = 'KIT_SPIRE_'
@@ -439,15 +440,18 @@ def rail(k, y0, y1):
 def rails(k):
     k.begin()
     rail(k, -0.5, -0.068)                     # half module: stops at the post in the cell centre
+    D.rail(k, -0.5, -0.068)
     k.col(-0.09, 0.09, -0.5, 0.0, 0, 1.1)
     k.finish('Rail')
     k.begin()
     rail(k, -0.5, 0.5)
+    D.rail(k, -0.5, 0.5)
     k.col(-0.09, 0.09, -0.5, 0.5, 0, 1.1)
     k.finish('RailFull')
     k.begin()
     k.bx(-0.065, 0.065, -0.065, 0.065, 0, 1.06, 'dia')
     k.bx(-0.08, 0.08, -0.08, 0.08, 1.06, 1.1, 'brass', ink=False)
+    D.rail_post(k)
     k.finish('RailPost')
 
 
@@ -461,6 +465,7 @@ def columns(k):
         k.cyl(0, 0, 1.4, 0.285, 0.285, 0.06, 'brass', seg=12, ink=False, caps=False)
         k.cyl(0, 0, h - 0.5, 0.27, 0.42, 0.42, 'dia', seg=12)
         k.bx(-0.44, 0.44, -0.44, 0.44, h - 0.08, h - 0.004, 'brass', ink=False)
+        D.column(k, h)
         k.col(-0.36, 0.36, -0.36, 0.36, 0, h)
         k.finish(name)
 
@@ -1206,13 +1211,18 @@ def build_kit_spire(ao):
     k = SKit(pal)
     # walls
     for j in range(6):
-        dia_slice(k, j).finish('Dia_%d' % j)
+        D.dia_slice(dia_slice(k, j), j)
+        k.finish('Dia_%d' % j)
     for tag, rot in CORNERS:
         dia_corner(k, rot).finish('DiaCorner_%s' % tag)
-    gate_side(k).finish('GateSide', ao=ao)
+    gate_side(k)
+    D.gate_side(k)
+    k.finish('GateSide', ao=ao)
     core(k).finish('Core', ao=ao)
     for kind in ('Stone', 'Wood', 'Art', 'ScreenA', 'ScreenB'):
-        inner_wall(k, kind).finish('Wall_%s' % kind, ao=ao)
+        inner_wall(k, kind)
+        D.inner_wall(k, kind)
+        k.finish('Wall_%s' % kind, ao=ao)
     # gate, bridge, ceiling, hatch, stand
     gate_frame(k).finish('GateFrame', ao=ao)
     shutter = gate_shutter(k).finish('GateShutter')
@@ -1221,12 +1231,20 @@ def build_kit_spire(ao):
     tmp = build_object('tmp_shutter_hull', m, 0, 0.02)
     hull_only(tmp)
     join_into(shutter, tmp)
-    trail_wall(k).finish('TrailWall', ao=ao)
-    trail_wall(k, 'Plant').finish('TrailWall_Plant', ao=ao)
-    trail_wall(k, 'Sign').finish('TrailWall_Sign', ao=ao)
+    trail_wall(k)
+    D.trail_wall(k)
+    k.finish('TrailWall', ao=ao)
+    trail_wall(k, 'Plant')
+    D.trail_wall(k)
+    k.finish('TrailWall_Plant', ao=ao)
+    trail_wall(k, 'Sign')
+    D.trail_wall(k)
+    k.finish('TrailWall_Sign', ao=ao)
     ceil_strip(k).finish('CeilStrip')
     hatch(k).finish('Hatch', ao=ao)
-    stand(k).finish('Stand', ao=ao)
+    stand(k)
+    D.stand(k)
+    k.finish('Stand', ao=ao)
     # circulation
     rails(k)
     columns(k)
@@ -1246,16 +1264,30 @@ def build_kit_spire(ao):
     decking(k).finish('Decking')
     carpet(k).finish('Carpet')
     # lobby
-    reception_desk(k).finish('Landmark_Reception', ao=ao)
+    reception_desk(k)
+    D.reception(k)
+    k.finish('Landmark_Reception', ao=ao)
     for v in ('A', 'B'):
         O.lounge(k, v).finish('Lounge_%s' % v, ao=ao)
     spire_model(k).finish('Landmark_Model', ao=ao)
-    turnstile(k).finish('Turnstile', ao=ao)
-    totem(k).finish('Totem', ao=ao)
-    planter(k, 'A').finish('Planter', ao=ao)
-    planter(k, 'B').finish('Planter_B', ao=ao)
-    olive_planter(k).finish('OlivePlanter', ao=ao)
-    bench(k).finish('Bench', ao=ao)
+    turnstile(k)
+    D.turnstile(k)
+    k.finish('Turnstile', ao=ao)
+    totem(k)
+    D.totem(k)
+    k.finish('Totem', ao=ao)
+    planter(k, 'A')
+    D.planter_a(k)
+    k.finish('Planter', ao=ao)
+    planter(k, 'B')
+    D.planter_b(k)
+    k.finish('Planter_B', ao=ao)
+    olive_planter(k)
+    D.olive_planter(k)
+    k.finish('OlivePlanter', ao=ao)
+    bench(k)
+    D.bench(k)
+    k.finish('Bench', ao=ao)
     for kind, nm in (('fig', 'Plant_Fig'), ('palm', 'Plant_Palm'), ('snake', 'Plant_Snake')):
         O.plant(k, kind).finish(nm, ao=ao)
     # garden
@@ -1268,8 +1300,10 @@ def build_kit_spire(ao):
     lamp(k).finish('Lamp', ao=ao)
     boulder(k).finish('Boulder', ao=ao)
     # trading floor
-    trade_desk(k, 0).finish('TradeDesk_A', ao=ao)
-    trade_desk(k, 1).finish('TradeDesk_B', ao=ao)
+    for v, nm in ((0, 'TradeDesk_A'), (1, 'TradeDesk_B')):
+        trade_desk(k, v)
+        D.trade_desk(k)
+        k.finish(nm, ao=ao)
     O.meeting(k, 'A').finish('Boardroom', ao=ao)
     O.exec_desk(k).finish('Exec', ao=ao)
     bolt_sculpture(k).finish('Landmark_Bolt', ao=ao)
