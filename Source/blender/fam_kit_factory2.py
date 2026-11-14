@@ -27,6 +27,7 @@ from ib_lib import *  # noqa: F401,F403
 import ib_lib
 from kit_base import Kit, rz, srt, shutter_hull
 import ib_text
+import f2_detail as FD
 
 FAM = 'kit-factory2'
 PFX = 'KIT_FACTORY2_'
@@ -395,6 +396,7 @@ def wall_module(k, kind, endL=False, endR=False):
         k.bx(-0.2, 0.2, -0.75, -0.53, 1.2, 1.9, 'red')
         k.cyl(0, -0.76, 1.55, 0.15, 0.15, 0.02, 'rubber', seg=10, rot=(90, 0, 0), ink=False)
         k.qy(-0.12, 0.12, 2.0, 2.15, -0.536, -1, 'red')
+    FD.wall_detail(k, kind, endL, endR)
     return k
 
 
@@ -413,6 +415,7 @@ def column(k):
     k.stripes(-0.34, 0.34, 0.1, 1.5, -1.183, -1, 4, ca='hazard')
     k.qy(-0.22, 0.22, 2.6, 2.95, -1.186, -1, 'cream')
     k.qy(-0.13, 0.13, 2.68, 2.87, -1.189, -1, 'oxide')
+    FD.column_detail(k)
     return k
 
 
@@ -535,6 +538,7 @@ def gate_frame(k):
         stencil_digit(k, 2, 0.18, 4.35, 0.42, 0.7, f * 0.763, f, c='oxide')
         k.cyl(1.95, f * 0.5, 4.2, 0.13, 0.13, 0.16, 'steelDark', seg=8)          # beacons on the header
         k.cyl(1.95, f * 0.5, 4.36, 0.11, 0.08, 0.22, 'hot', seg=8)
+    FD.gate_frame_detail(k)
     return k
 
 
@@ -551,6 +555,7 @@ def gate_shutter(k):
     for j in range(8):
         x0 = -1.5 + j * 3 / 8
         k.bx(x0, x0 + 3 / 8, -0.07, 0.07, 0, 0.35, 'ink' if j % 2 else 'orange', ink=False)
+    FD.gate_shutter_detail(k)
     return k
 
 
@@ -576,6 +581,7 @@ def trail_wall(k):
     k.qz(-0.5, 0.5, -0.75, -0.38, 0.012, 1, 'orange')
     k.bx(-0.5, 0.5, 0.25, 0.28, 0.0, WALL_H - 0.4, 'cream', ink=False)
     siding_ribs(k, 0.3, WALL_H - 0.45, 0.283, 1, c='cream2')
+    FD.trail_detail(k)
     return k
 
 
@@ -611,6 +617,7 @@ def hatch(k):
         k.bx(x - 0.02, x + 0.02, 1.8, 1.84, ROOF + 0.1, WALL_H - 0.6, 'steelDark', ink=False)
     k.cyl(0, 1.82, WALL_H - 0.9, 0.45, 0.45, 0.12, 'orange', seg=12, rot=(0, 90, 0))
     pool_disc(k, 0.0, 1.8, Z['hatch'], 1.2, 7)
+    FD.hatch_detail(k)
     return k
 
 
@@ -730,6 +737,8 @@ def jig_tile(k, kind):
     ST0..ST1, so the mechs change stage at x = 4.75 out of sight; the houses at the run ends hide the pop in / out."""
     k.begin()
     line_base(k)
+    if kind != 'Feed':
+        FD.line_fence_detail(k)
     H = 8.4
     if kind in ('Feed', 'Armour', 'Paint'):
         booth(k, {'Feed': 'Drive', 'Armour': 'Armour', 'Paint': 'Paint'}[kind], H=H)
@@ -1063,6 +1072,7 @@ def weld_cell(k, kind):
     k.col(-1.95, 1.95, 1.84, 1.96, 0, 2.5)
     k.col(-1.96, -1.84, -1.95, 1.95, 0, 2.5)
     k.col(1.84, 1.96, -1.95, 1.95, 0, 2.5)
+    FD.weld_cell_detail(k, kind)
     k.col(-1.05, 0.65, -0.55, 0.75, 0, 1.4)
     k.col(0.6, 1.6, 0.5, 1.5, 0, 1.6)
     return k
@@ -1083,6 +1093,7 @@ def machine(k, kind):
         k.bx(1.4, 1.75, -1.0, -0.72, 1.0, 1.6, 'panel')
         k.qy(1.45, 1.7, 1.35, 1.52, -1.003, -1, 'screen')
         k.qy(1.47, 1.57, 1.1, 1.2, -1.003, -1, 'red')
+        FD.brake_detail(k)
         k.col(-1.97, 1.97, -0.72, 0.72, 0, 3.25)
     else:
         k.bx(-1.9, 1.9, -0.9, 0.9, 0.0, 0.8, 'steelDark')
@@ -1096,6 +1107,7 @@ def machine(k, kind):
         k.bx(0.22, 0.63, -0.15, 0.15, 1.2, 1.7, 'steelDark')
         k.cyl(0.42, 0.0, 0.98, 0.04, 0.02, 0.22, 'steelDark', seg=6, ink=False)
         k.qz(0.2, 0.65, -0.25, 0.25, 0.955, 1, 'hot')
+        FD.plasma_detail(k)
         k.col(-1.95, 1.95, -1.0, 1.0, 0, 1.9)
     return k
 
@@ -1123,6 +1135,7 @@ def chassis_jig(k, kind):
         k.beam((1.9, f * 1.62, 0.2), (2.8, f * 1.62, 1.5), 0.04, 'hazard', ink=False)
         k.beam((1.9, f * 1.62, 1.6), (2.8, f * 1.62, 3.0), 0.04, 'hazard', ink=False)
     robot_arm(k, 2.35, 0.0, -90, z=4.6, reach=1.0, tool='weld', s=1.1)
+    FD.jig_scaffold_detail(k)
     k.col(-2.4, 1.3, -1.35, 1.35, 0, 4.5)
     k.col(1.85, 2.85, -1.65, 1.65, 0, 4.6)
     return k
