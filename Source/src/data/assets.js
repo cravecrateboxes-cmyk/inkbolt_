@@ -88,7 +88,7 @@
       bladerKusari: { parts: { BOT_BLADER_Body: 1, BOT_BLADER_Hub: 1, BOT_BLADER_Fundo: 1, BOT_BLADER_Chain: 16, BOT_BLADER_Kusari: 1, BOT_BLADER_Light: 1 }, max: 7000 },
       // levels 35+: the Jet Trooper, every part (two legs, two pods on their arms with lids, two flames)
       jet: { parts: { BOT_JET_Hips: 1, BOT_JET_Thigh: 2, BOT_JET_Shin: 2, BOT_JET_Torso: 1, BOT_JET_Seam: 1, BOT_JET_Head: 1, BOT_JET_Light: 1, BOT_JET_ArmR: 1,
-        BOT_JET_ArmL: 1, BOT_JET_PodArm: 2, BOT_JET_Pod: 2, BOT_JET_Lid: 2, BOT_JET_Flame: 2 }, max: 9500 }
+        BOT_JET_ArmL: 1, BOT_JET_PodArm: 2, BOT_JET_Pod: 2, BOT_JET_Lid: 2, BOT_JET_Flame: 2 }, max: 12000 }
     },
     kitMax: 90000, kitPropMax: 2500   // raised for the tactical look kit detail pass (plan Stage 11.3)
   };
