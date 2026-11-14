@@ -31,6 +31,7 @@ from mathutils import Vector
 from ib_lib import *  # noqa: F401,F403
 import ib_lib
 from kit_base import Kit, srt, rock_pts, clamp_pts, shutter_hull
+import island_detail as ID
 
 FAM = 'kit-island'
 PFX = 'KIT_ISLAND_'
@@ -325,6 +326,7 @@ def seawall(k, seed, kind):
         k.cyl(0.2, -0.3, 0, 0.06, 0.05, 1.9, 'metal2', seg=6)
         k.bx(0.08, 0.32, -0.42, -0.18, 1.9, 2.16, 'glow')
         k.cyl(0.2, -0.3, 2.16, 0.18, 0.04, 0.16, 'metal2', seg=4, rot=(0, 0, 45))
+    ID.seawall(k, kind)
     return k
 
 
@@ -347,6 +349,7 @@ def crate(k, seed, kind):
         k.bx(-h - 0.02, h + 0.02, -0.06, 0.06, hz * 0.55, hz * 0.62, 'rope')
         k.bx(-0.06, 0.06, -h - 0.02, h + 0.02, hz * 0.4, hz * 0.47, 'rope')
         star(k, (0.15, -0.1, hz + 0.01), 0.28, 0.04, 'leaf2', pts=5, inner=0.4, droop=0.0, under=0.1)
+    ID.crate(k, h, hz, kind)
     return k
 
 
@@ -356,6 +359,7 @@ def barrels(k, seed, kind):
 
     def barrel(x, y, c='barrel'):
         k.cyl(x, y, 0, 0.3, 0.3, 0.9, c, seg=10)
+        ID.barrel_hoops(k, x, y)
         for t in (0.12, 0.78):
             k.cyl(x, y, t * 0.9, 0.312, 0.312, 0.07, 'metal2', seg=10, caps=False, ink=False)
     if kind == 'A':
@@ -364,6 +368,7 @@ def barrels(k, seed, kind):
     else:
         barrel(0.18, 0.2, c='barrel2')
         k.cyl(-0.45, -0.2, 0.3, 0.3, 0.3, 0.9, 'barrel', seg=10, rot=(0, 90, 18))
+        ID.barrel_hoops(k, -0.45, -0.2, lying=18)
         k.cyl(0.18, 0.2, 0.9, 0.22, 0.22, 0.012, 'metal', seg=8, ink=False)
     return k
 
@@ -427,8 +432,11 @@ def fence(k, seed):
     k.begin()
     for x in (-0.35, 0.35):
         k.cyl(x, 0, 0, 0.07, 0.06, 1.2 + rnd.uniform(-0.08, 0.08), 'drift', seg=5, rot=(rnd.uniform(-5, 5), rnd.uniform(-5, 5), 0))
+    rails = []
     for z in (0.45, 0.88):
-        k.bxr(0, -0.08, z + rnd.uniform(-0.04, 0.04), 0.96, 0.07, 0.09, 'drift2', rot=(0, rnd.uniform(-4, 4), 0))
+        rails.append(z + rnd.uniform(-0.04, 0.04))
+        k.bxr(0, -0.08, rails[-1], 0.96, 0.07, 0.09, 'drift2', rot=(0, rnd.uniform(-4, 4), 0))
+    ID.fence(k, rails)
     k.col(-0.5, 0.5, -0.15, 0.15, 0, 1.15)
     return k
 
@@ -466,6 +474,7 @@ def torch(k, seed):
         k.cyl(0, 0, z, 0.066, 0.066, 0.04, 'wood2', seg=6, caps=False, ink=False)
     k.cyl(0, 0, 1.85, 0.08, 0.17, 0.28, 'thatch2', seg=6)
     k.cyl(0, 0, 2.13, 0.12, 0.02, 0.32, 'flame', seg=5)
+    ID.torch(k)
     k.col(-0.12, 0.12, -0.12, 0.12, 0, 2.0)
     return k
 
@@ -477,6 +486,7 @@ def signpost(k, seed):
     k.bxr(-0.24, 0, 1.18, 0.6, 0.05, 0.2, 'plank', rot=(0, -5, 0))
     for (x, z, w) in ((0.25, 1.55, 0.4), (-0.2, 1.18, 0.34)):
         k.qy(x - w / 2, x + w / 2, z - 0.025, z + 0.025, -0.03, -1, 'wood2')
+    ID.signpost(k)
     k.col(-0.12, 0.12, -0.12, 0.12, 0, 2.0)
     return k
 
@@ -491,6 +501,7 @@ def umbrella(k, seed):
     for x in (-0.28, 0.28):
         k.bx(x - 0.03, x + 0.03, -0.9, -0.84, 0, 0.28, 'paper')
         k.bx(x - 0.03, x + 0.03, -0.4, -0.34, 0, 0.28, 'paper')
+    ID.umbrella(k)
     k.col(-0.1, 0.1, -0.1, 0.1, 0, 2.0)
     return k
 
@@ -715,6 +726,7 @@ def jetty(k, seed):
     k.bx(-1.12, -1.04, 0.0, 3.6, 0.82, 0.88, 'rope')
     k.bx(1.04, 1.12, 0.0, 3.6, 0.82, 0.88, 'rope')
     k.cyl(0.6, 3.4, 0.16, 0.18, 0.18, 0.22, 'barrel2', seg=8)
+    ID.jetty(k)
     return k
 
 
@@ -744,6 +756,7 @@ def hut(k, seed):
         k.bx(-0.45, 0.45, -2.62 - i * 0.0, -2.5, 0.2 + i * 0.22, 0.25 + i * 0.22, 'wood2')
     for x in (-0.48, 0.48):
         k.bxr(x, -2.55, 0.5, 0.06, 0.06, 1.15, 'wood', rot=(-12, 0, 0))
+    ID.hut(k)
     k.col(-2.2, 2.2, -2.35, 2.25, 0, 3.4)
     return k
 
@@ -928,6 +941,7 @@ def gate_frame(k):
     for sgn in (-1, 1):
         k.hullp([(-2.6, sgn * 0.95, 3.7), (2.6, sgn * 0.95, 3.7), (-2.6, sgn * 0.95, 3.85), (2.6, sgn * 0.95, 3.85),
                  (-2.4, 0, 4.55), (2.4, 0, 4.55)], lambda f: 'thatch' if f.normal.z > 0.2 else 'thatch2')
+    ID.gate(k)
     return k
 
 
@@ -965,6 +979,7 @@ def trail_wall(k, seed, kind):
         k.cyl(0.3, -0.12, 2.39, 0.1, 0.02, 0.3, 'flame', seg=5)
     elif kind == 'Palm':
         palm(k, rnd, 0.0, 0.2, rnd.uniform(5.5, 7.0), lean=0.12, ang=math.radians(rnd.uniform(-60, 60)), r=1.6, nuts=False)
+    ID.trail_wall(k, kind)
     return k
 
 
@@ -979,6 +994,7 @@ def hatch(k):
     for i in range(6):
         a = i / 6 * math.pi * 2
         k.cyl(math.cos(a) * 1.18, math.sin(a) * 1.18, 0.12, 0.07, 0.07, 0.06, 'amber', seg=6, ink=False)
+    ID.hatch(k)
     return k
 
 
