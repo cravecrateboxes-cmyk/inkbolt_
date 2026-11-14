@@ -999,17 +999,17 @@ def build_soldier(pal):
 #   Axe (Voltaxe): steel shaft with grips, gunmetal head, battery, teal coils, wide blade with a glowing edge.
 X_HUB = (0, 0, 0.84)
 X_GRIP = (0.47, 0, 0)
+X_SAU = [(0.0, 0.155), (0.235, 0.158), (0.345, 0.238), (0.45, 0.332), (0.482, 0.372), (0.488, 0.43), (0.482, 0.484),
+         (0.452, 0.522), (0.42, 0.55), (0.28, 0.61), (0.17, 0.63), (0.0, 0.635)]      # saucer profile (r, z)
 
 
 def build_blader(pal):
     import bot_shapes_ground as SG
     SEG, PH = 16, -math.pi / 16          # facet centres every 22.5 deg (facet 12 = front -Y, under the sensor bar)
-    SAU = [(0.0, 0.155), (0.235, 0.158), (0.345, 0.238), (0.45, 0.332), (0.482, 0.372), (0.488, 0.43), (0.482, 0.484),
-           (0.452, 0.522), (0.42, 0.55), (0.28, 0.61), (0.17, 0.63), (0.0, 0.635)]
     CR = ((0.42, 0.55), (0.28, 0.61))                                                     # the crown slope
     p = Part(pal)
     # smooth saucer: rolled rim, rounded underside, a gold core dome on the crown and a round hub post
-    p.lathe(SAU, 'violet', seg=SEG, phase=PH)
+    p.lathe(X_SAU, 'violet', seg=SEG, phase=PH)
     p.sphere((0, 0, 0.62), 0.17, 'core', seg=(12, 5), scale=(1, 1, 0.68))
     p.cyl((0, 0, 0.70), 0.045, 0.045, 0.16, 'gunmetal', seg=12)                              # hub post
     # ---- deco: rim bands, hazard chevrons, under-thruster glow, crown vents, core seat
@@ -1163,6 +1163,177 @@ def build_blader(pal):
     p = Part(pal)
     SG.rbox(p, (0, 0, 0), (0.20, 0.035, 0.02), 'light', r=0.008, n=1, rot=(90, 0, 0))
     p.build('BOT_BLADER_Light', bevel=False, hull=0.006)
+    build_blader2(pal)                                                                   # the levels 30+ skin
+
+
+# ================================================================ BLADE BOT, ADVANCED SKIN (levels 30+)
+# Same saucer, hub, pivots, sockets and hit volumes as the Blade Bot (the parts are swapped in by the game, the sockets
+# stay on Body / Hub / Fundo): a tactical refit in the same violet family. Body2: segmented rim armour, a wrap-around
+# sensor visor round the lit sensor bar (Light), dark crown plates with cyan sensor lenses between them, a swept sensor
+# fin with a glowing leading edge, a cyan ring round the gold core, a few amber hazard tabs kept for fun. Hub2: an
+# armoured drum with a sensor ring, plated arms, an armoured counterweight. Sharper weapons with glowing cyan edges:
+# Katana2 (straighter blade with a clipped tanto point, octagonal guard, segmented grip), Axe2 (crescent blade with
+# horned tips, a longer spike, armoured head), Kusari2 (narrower sickle with a long point, dark handle). The chain
+# and the weight (Fundo) are shared with the normal skin.
+def build_blader2(pal):
+    import bot_shapes_ground as SG
+    SEG, PH = 16, -math.pi / 16
+    CR = ((0.42, 0.55), (0.28, 0.61))
+    p = Part(pal)
+    p.lathe(X_SAU, 'violet', seg=SEG, phase=PH)
+    p.sphere((0, 0, 0.62), 0.17, 'core', seg=(12, 5), scale=(1, 1, 0.68))
+    p.cyl((0, 0, 0.70), 0.045, 0.045, 0.16, 'gunmetal', seg=12)                              # hub post
+    # swept sensor fin on the back of the crown (clear of the spinning hub)
+    SG.sprism2(p, [(0.20, 0.585), (0.36, 0.555), (0.37, 0.585), (0.27, 0.735), (0.235, 0.735)], -0.012, 0.012, 'gunmetal',
+               c=0.004, r=[0.0, 0.0, 0.01, 0.015, 0.01], n=1)
+    # sensor visor pods either side of the lit sensor bar (the Light part sits between them, on a bezel)
+    for a0, a1 in ((236, 257), (283, 304)):
+        SG.arc_plate(p, 0.46, 0.50, 0.398, 0.462, a0, a1, 2, 'ink', c=0.008)
+    # ---- deco: visor lenses, rim armour segments, crown plates and sensor lenses, fin edge, core ring, belly
+    for a0, a1 in ((240, 253), (287, 300)):
+        SG.arc_plate(p, 0.494, 0.506, 0.418, 0.442, a0, a1, 2, 'lens', deco=True)
+    SG.arc_plate(p, 0.466, 0.484, 0.403, 0.457, 257, 283, 2, 'gunmetal', deco=True)
+    for a in (330, 30, 90, 150, 210):
+        SG.arc_plate(p, 0.476, 0.506, 0.386, 0.474, a - 22, a + 22, 2, 'violet2', c=0.009, deco=True)
+        for da in (-11, 11):
+            q = math.radians(a + da)
+            n = Vector((math.cos(q), math.sin(q), 0))
+            with ED.at(p, ED.axis_frame(tuple(n * (0.506 * math.cos(math.radians(11)) - 0.0005) + Vector((0, 0, 0.43))), tuple(n))):
+                ED.bolt(p, 0, 0, r=0.009, top=0.004, color='steel', seg=4)
+    (r0, z0), (r1, z1) = CR
+    nrm = Vector((z1 - z0, r0 - r1)).normalized()
+    plate = lambda t0, t1, d0, d1: [(r0 + (r1 - r0) * t + nrm.x * d, z0 + (z1 - z0) * t + nrm.y * d) for t, d in
+                                    ((t0, d0), (t1, d0), (t1, d1), (t0, d1))]
+    for a in (0, 90, 180, 270):                                                           # dark crown armour
+        SG.sweep(p, plate(0.08, 0.9, -0.006, 0.01), math.radians(a - 33.75), math.radians(a + 33.75), 3, 'gunmetal', deco=True)
+    for k in (2, 6, 10, 14):                                                              # cyan sensor lenses between them
+        with ED.at(p, ED.slope_frame(k, SEG, CR[0], CR[1], 0.5, phase=PH)):
+            ED.lamp(p, 0, 0, 0.018, lens='lens', rim='gunmetal', w=0.008, seg=6)
+    SG.sprism2(p, [(0.268, 0.725), (0.358, 0.58), (0.372, 0.586), (0.282, 0.732)], -0.0155, 0.0155, 'lens', deco=True)
+    p.lathe([(0.18, 0.62), (0.18, 0.645)], 'gunmetal', seg=SEG, deco=True)
+    p.lathe([(0.188, 0.627), (0.188, 0.638)], 'lens', seg=SEG, deco=True)
+    for k in (2, 6, 10, 14):                                                              # amber hazard tabs (the fun)
+        p.on_slope(k, SEG, (0.345, 0.238), (0.45, 0.332), 0.55, 0.004, (0.07, 0.006, 0.07), 'amber', phase=PH)
+    for k in (0, 4, 8, 12):
+        with ED.at(p, ED.slope_frame(k, SEG, (0.345, 0.238), (0.45, 0.332), 0.55, phase=PH)):
+            ED.grille(p, 0, 0, 0.08, 0.05, 3, color='ink', slat='gunmetal')
+    p.cyl((0, 0, 0.150), 0.18, 0.18, 0.008, 'lens', seg=12, deco=True)
+    p.cyl((0, 0, 0.140), 0.08, 0.08, 0.008, 'paper', seg=10, deco=True)
+    for j in range(3):
+        a = math.radians(90 + 120 * j)
+        x, y = 0.15 * math.cos(a), 0.15 * math.sin(a)
+        p.cyl((x, y, 0.128), 0.04, 0.032, 0.04, 'gunmetal', seg=8, deco=True)
+        p.cyl((x, y, 0.122), 0.026, 0.026, 0.008, 'lens', seg=8, deco=True)
+    p.cyl((0, 0, 0.66), 0.055, 0.055, 0.03, 'steel', seg=12, deco=True)
+    p.cyl((0, 0, 0.75), 0.05, 0.05, 0.012, 'amber', seg=12, caps=False, deco=True)
+    p.cyl((0, 0, 0.80), 0.05, 0.05, 0.012, 'lens', seg=12, caps=False, deco=True)
+    p.build('BOT_BLADER_Body2')
+
+    # hub: dark armoured drum with a cyan sensor ring, plated arm, armoured amber counterweight, plated clamp
+    p = Part(pal)
+    p.lathe([(0.0, -0.04), (0.11, -0.04), (0.12, -0.028), (0.12, 0.028), (0.11, 0.04), (0.0, 0.04)], 'gunmetal', seg=12)
+    SG.cprism(p, [(-0.33, -0.028), (-0.06, -0.034), (0.08, -0.034), (0.45, -0.026), (0.45, 0.026), (0.08, 0.034),
+                  (-0.06, 0.034), (-0.33, 0.028)], -0.025, 0.025, 'gunmetal', c=0.01)
+    p.parent = Matrix.Translation((-0.34, 0, 0))
+    p.lathe([(0.0, -0.05), (0.06, -0.05), (0.07, -0.038), (0.07, 0.038), (0.06, 0.05), (0.0, 0.05)], 'amber', seg=10)
+    p.parent = Matrix.Identity(4)
+    SG.rbox(p, (X_GRIP[0], 0, 0), (0.08, 0.09, 0.08), 'violet2', r=0.022, n=1, c=0.012)
+    p.cyl((0, 0, -0.008), 0.124, 0.124, 0.016, 'lens', seg=12, caps=False, deco=True)
+    p.cyl((0, 0, 0.038), 0.07, 0.07, 0.008, 'violet2', seg=12, deco=True)
+    p.cyl((0, 0, 0.044), 0.03, 0.03, 0.008, 'lens', seg=8, deco=True)
+    for x0, x1 in ((0.12, 0.40), (-0.30, -0.10)):                                         # side armour on the arms
+        for sy in (-1, 1):
+            xm, w = (x0 + x1) / 2, x1 - x0
+            ym = sy * (0.034 - (xm - 0.08) / 0.37 * 0.008 if xm > 0 else 0.034 - (-0.06 - xm) / 0.27 * 0.006)
+            SG.rbox(p, (xm, ym + sy * 0.004, 0), (w, 0.028, 0.012), 'violet2', r=0.012, n=1, rot=(sy * -90, 0, 0), deco=True)
+    p.cyl((-0.34, 0, -0.03), 0.074, 0.074, 0.008, 'gunmetal', seg=10, caps=False, deco=True)
+    p.cyl((-0.34, 0, 0.02), 0.074, 0.074, 0.008, 'gunmetal', seg=10, caps=False, deco=True)
+    p.cyl((-0.34, 0, 0.048), 0.04, 0.04, 0.008, 'ink', seg=8, deco=True)
+    p.box((X_GRIP[0], 0, 0.0425), (0.05, 0.014, 0.006), 'lens', deco=True)
+    for sy in (-1, 1):
+        for x in (0.458, 0.482):
+            p.cyl((x, sy * 0.043, 0.022), 0.009, 0.009, 0.006, 'steel', seg=4, rot=(sy * -90, 0, 0), deco=True)
+    ED.piston(p, (0.10, 0, 0.045), (0.40, 0, 0.045), 0.012, 0.007, k=0.55, body='gunmetal', rod='steel', seg=6)
+    for x in (0.10, 0.40):
+        p.box((x, 0, 0.034), (0.022, 0.016, 0.022), 'gunmetal', deco=True)
+    ED.bolt_ring(p, 0, 0, 0.04, 0.095, 6, r=0.01, h=0.006, phase=math.pi / 6, seg=4)
+    p.build('BOT_BLADER_Hub2', bevel=False)
+
+    # katana: straighter blade with a clipped (tanto) point and a glowing cyan edge, octagonal guard, segmented grip
+    p = Part(pal)
+    XA = Matrix.Rotation(math.radians(90), 4, 'Y')
+    p.cyl((-0.15, 0, 0), 0.022, 0.022, 0.27, 'ink', seg=8, rot=(0, 90, 0))
+    p.parent = Matrix.Translation((-0.16, 0, 0)) @ XA
+    p.lathe([(0.0, -0.012), (0.022, -0.012), (0.028, -0.004), (0.028, 0.012), (0.0, 0.012)], 'gunmetal', seg=8)
+    p.parent = Matrix.Identity(4)
+    SG.sprism2(p, SG.squircle(0.064, 0.064, 8, 2.0, phase=math.pi / 8), 0.12, 0.14, 'gunmetal', c=0.005)   # guard
+    SG.rbox(p, (0.1525, 0.0, 0), (0.026, 0.05, 0.035), 'steel', r=0.006, n=1, rot=(0, 90, 0))
+    st = []
+    n = 7
+    for i in range(n):
+        t = i / (n - 1)
+        x = 0.165 + 0.80 * t
+        sori = -0.035 * t * t
+        w = 0.066 - 0.024 * t
+        st.append((x, -w / 2 + sori, w / 2 + sori, 0.0095 - 0.0025 * t, 0.6))
+    SG.blade(p, st, (1.065, -0.052, 0.0), 'blade', 'lens')
+    for x in (-0.12, -0.08, 0.06, 0.09):
+        p.cyl((x - 0.006, 0, 0), 0.026, 0.026, 0.012, 'gunmetal', seg=8, rot=(0, 90, 0), caps=False, deco=True)
+    p.cyl((-0.176, 0, 0), 0.016, 0.016, 0.006, 'lens', seg=8, rot=(0, 90, 0), deco=True)   # pommel light
+    p.cyl((0.141, 0, 0), 0.036, 0.036, 0.004, 'violet2', seg=8, rot=(0, 90, 0), deco=True)
+    p.build('BOT_BLADER_Katana2', bevel=False, hull=0.01)
+
+    # electric axe: crescent blade with horned tips and a glowing edge, longer spike, armoured head
+    p = Part(pal)
+    p.cyl((-0.10, 0, 0), 0.024, 0.024, 0.90, 'gunmetal', seg=10, rot=(0, 90, 0))
+    p.cyl((-0.12, 0, 0), 0.03, 0.03, 0.03, 'steel', seg=10, rot=(0, 90, 0))
+    p.cyl((0.08, 0, 0), 0.029, 0.029, 0.22, 'ink', seg=10, rot=(0, 90, 0), caps=False)
+    SG.rbox(p, (0.70, 0.0, 0), (0.12, 0.085, 0.075), 'gunmetal', r=0.025, n=1, c=0.012)
+    SG.rbox(p, (0.70, -0.065, 0), (0.08, 0.05, 0.055), 'teal', r=0.012, n=1, c=0.008)
+    SG.cprism(p, SG.fillet([(0.62, 0.02), (0.78, 0.02), (0.835, 0.12), (0.876, 0.292), (0.70, 0.262), (0.524, 0.292),
+                            (0.565, 0.12)], [0.0, 0.0, 0.03, 0.0, 0.0, 0.0, 0.03], n=1), -0.014, 0.014, 'steel', c=0.007)
+    p.prism([(0.54, 0.272), (0.70, 0.244), (0.86, 0.272), (0.876, 0.296), (0.70, 0.268), (0.524, 0.296)], -0.019, 0.019, 'lens')
+    SG.cprism(p, [(0.665, -0.06), (0.70, -0.205), (0.735, -0.06)], -0.011, 0.011, 'steel', c=0.005)
+    for xc in (0.56, 0.60):
+        p.cyl((xc, 0, 0), 0.036, 0.036, 0.014, 'lens', seg=10, rot=(0, 90, 0), caps=False, deco=True)
+    for x in (0.12, 0.19, 0.26):
+        p.cyl((x, 0, 0), 0.033, 0.033, 0.009, 'gunmetal', seg=10, rot=(0, 90, 0), caps=False, deco=True)
+    for sz in (-1, 1):
+        SG.rbox(p, (0.70, 0.0, sz * 0.0395), (0.09, 0.06, 0.008), 'violet2', r=0.012, n=1, deco=True)
+        p.box((0.70, 0.0, sz * 0.0455), (0.05, 0.012, 0.006), 'lens', deco=True)
+        p.prism([(0.58, 0.215), (0.70, 0.19), (0.82, 0.215), (0.828, 0.228), (0.70, 0.204), (0.572, 0.228)],
+                *(sorted((sz * 0.0125, sz * 0.018))), 'gunmetal', deco=True)
+    ED.cable(p, [(0.68, -0.09, 0.02), (0.68, -0.05, 0.052), (0.70, 0.03, 0.052), (0.72, 0.06, 0.02)], 0.012, 'ink')
+    p.cyl((-0.13, 0, 0), 0.034, 0.03, 0.012, 'lens', seg=10, rot=(0, 90, 0), deco=True)
+    p.build('BOT_BLADER_Axe2', bevel=False, hull=0.01)
+
+    # sickle: dark handle with wraps and a cyan ring, a narrower kama blade with a long point and a glowing edge
+    p = Part(pal)
+    K = Matrix.Diagonal(Vector((1.4, 1.4, 1.4, 1)))
+    YA = Matrix.Rotation(math.radians(90), 4, 'X')
+    p.parent = K @ Matrix.Rotation(math.radians(90), 4, 'Y')
+    _torus(p, 0.018, 0.006, 'chain', seg=6)
+    p.parent = K
+    p.cyl((0, -0.022, 0), 0.016, 0.021, 0.025, 'steel', seg=10, rot=(90, 0, 0))
+    SG.tlimb(p, (0, -0.045, 0), (0, -0.375, 0), 0.021, 0.025, 'gunmetal', seg=10)
+    for y in (-0.09, -0.15, -0.21, -0.27):
+        p.cyl((0, y, 0), 0.028, 0.028, 0.018, 'ink', seg=10, rot=(90, 0, 0), caps=False, deco=True)
+    p.cyl((0, -0.33, 0), 0.029, 0.029, 0.01, 'lens', seg=10, rot=(90, 0, 0), caps=False, deco=True)
+    p.parent = K @ Matrix.Translation((0, -0.37, 0)) @ YA
+    p.lathe([(0.0, 0.0), (0.026, 0.0), (0.031, 0.007), (0.031, 0.043), (0.026, 0.05), (0.0, 0.05)], 'steel', seg=8)
+    p.parent = K @ Matrix.Translation((0, -0.395, 0))
+    st = []
+    n = 7
+    for i in range(n):
+        t = i / (n - 1)
+        x = 0.012 + 0.32 * t
+        curve = 0.14 * t * t
+        w = 0.066 - 0.042 * t
+        st.append((x, -w / 2 + curve, w / 2 + curve, 0.0085 - 0.003 * t, 0.6))
+    SG.blade(p, st, (0.385, 0.205, 0.0), 'blade', 'lens')
+    p.parent = K
+    SG.cprism(p, [(-0.005, -0.37), (-0.06, -0.395), (-0.005, -0.42)], -0.012, 0.012, 'steel', c=0.005)   # back spike
+    p.build('BOT_BLADER_Kusari2', bevel=False, hull=0.009)
 
 
 # ================================================================ CRAWLER, ADVANCED SKIN (levels 20+)

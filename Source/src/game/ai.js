@@ -28,6 +28,8 @@
   // share of Crawlers in the old look: all before level 20, then phased out (1/2 on 20, 1/4 on 21, none from 22)
   AI.oldShare = function (L) { return L < AI.SKIN2_LEVEL ? 1 : L === AI.SKIN2_LEVEL ? 0.5 : L === AI.SKIN2_LEVEL + 1 ? 0.25 : 0; };
   AI.SKIN2_LEVEL = 20; AI.SKIN2 = { grey: '#9AA1AB', black: '#2A2D34', specks: 1 / 3 };   // the Crawler's advanced skin
+  // the Blade Bot's advanced skin (troops.js: Body2 / Hub2 / Katana2 / Axe2 / Kusari2): every Blade Bot from level 30, look only
+  AI.BLADER_SKIN2_LEVEL = 30; AI.bladerSkin = function (L) { return L >= AI.BLADER_SKIN2_LEVEL ? 1 : 0; };
   var STEP_UP = 0.4;   // the highest walkable step a ground robot climbs onto (matches IB.Zones NAV_STEP)
   var ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
   var _m = new THREE.Matrix4(), _m2 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _v = new THREE.Vector3(), _s = new THREE.Vector3(1, 1, 1), _up = new THREE.Vector3(0, 1, 0), _ax = new THREE.Vector3(1, 0, 0), _c = new THREE.Color(), _dir = { x: 0, z: 0 }, _tmp = [], _mz = { x: 0, y: 0, z: 0 };

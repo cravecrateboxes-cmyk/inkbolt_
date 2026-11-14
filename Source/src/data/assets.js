@@ -25,6 +25,8 @@
       'BOT_HAWK_CORE', 'BOT_HAWK_FAN0', 'BOT_HAWK_FAN1', 'BOT_HAWK_GUNPIVOT', 'BOT_HAWK_GUN', 'BOT_HAWK_LIGHT',
       // the Blade Bot's kusarigama (weight, chain segment, sickle)
       'BOT_BLADER_Fundo', 'BOT_BLADER_Chain', 'BOT_BLADER_Kusari', 'BOT_BLADER_CHAIN',
+      // levels 30+: the Blade Bot's advanced skin (same sockets as the normal skin)
+      'BOT_BLADER_Body2', 'BOT_BLADER_Hub2', 'BOT_BLADER_Katana2', 'BOT_BLADER_Axe2', 'BOT_BLADER_Kusari2',
       // levels 35+: the Jet Trooper (game/jets.js)
       'BOT_JET_Hips', 'BOT_JET_Thigh', 'BOT_JET_Shin', 'BOT_JET_Torso', 'BOT_JET_Seam', 'BOT_JET_Head', 'BOT_JET_Light', 'BOT_JET_ArmR', 'BOT_JET_ArmL',
       'BOT_JET_PodArm', 'BOT_JET_Pod', 'BOT_JET_Lid', 'BOT_JET_Flame',
@@ -86,6 +88,10 @@
       hawk: { parts: { BOT_HAWK_Body: 1, BOT_HAWK_Fan: 2, BOT_HAWK_Rotor: 2, BOT_HAWK_Gun: 1, BOT_HAWK_Light: 1 }, max: 4800 },
       // the kusarigama Blade Bot: body, hub, weight, a full 16-segment chain and the sickle
       bladerKusari: { parts: { BOT_BLADER_Body: 1, BOT_BLADER_Hub: 1, BOT_BLADER_Fundo: 1, BOT_BLADER_Chain: 16, BOT_BLADER_Kusari: 1, BOT_BLADER_Light: 1 }, max: 7300 },
+      // levels 30+: the Blade Bot's advanced skin, each weapon (chain and weight shared with the normal skin)
+      bladerSkin2: { parts: { BOT_BLADER_Body2: 1, BOT_BLADER_Hub2: 1, BOT_BLADER_Katana2: 1, BOT_BLADER_Light: 1 }, max: 4250 },
+      bladerSkin2Axe: { parts: { BOT_BLADER_Body2: 1, BOT_BLADER_Hub2: 1, BOT_BLADER_Axe2: 1, BOT_BLADER_Light: 1 }, max: 4550 },
+      bladerSkin2Kusari: { parts: { BOT_BLADER_Body2: 1, BOT_BLADER_Hub2: 1, BOT_BLADER_Fundo: 1, BOT_BLADER_Chain: 16, BOT_BLADER_Kusari2: 1, BOT_BLADER_Light: 1 }, max: 7850 },
       // levels 35+: the Jet Trooper, every part (two legs, two pods on their arms with lids, two flames)
       jet: { parts: { BOT_JET_Hips: 1, BOT_JET_Thigh: 2, BOT_JET_Shin: 2, BOT_JET_Torso: 1, BOT_JET_Seam: 1, BOT_JET_Head: 1, BOT_JET_Light: 1, BOT_JET_ArmR: 1,
         BOT_JET_ArmL: 1, BOT_JET_PodArm: 2, BOT_JET_Pod: 2, BOT_JET_Lid: 2, BOT_JET_Flame: 2 }, max: 9500 }

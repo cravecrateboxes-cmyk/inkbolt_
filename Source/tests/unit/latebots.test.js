@@ -115,3 +115,36 @@ test('the level-19 waves converted for level 20 keep the difficulty on a smooth 
   assert.ok(tough('mech') * LATE.mech > tough('gunner') * 0.9 && tough('mech') * LATE.mech < tough('gunner') * 1.6);
   assert.ok(tough('hawk') * LATE.hawk > tough('drone') * 0.9 && tough('hawk') * LATE.hawk < tough('drone') * 1.4);
 });
+
+// Blade Bot's advanced skin (levels 30+): look only. New meshes for the body, hub and weapons on the normal skin's
+// sockets (chain and weight shared), registered and budgeted within +20 % of the normal skin; the switch is a level
+// test in game/ai.js read by game/troops.js, which swaps meshes and nothing else.
+test('blade bot advanced skin: meshes, sockets, budgets and the level 30 switch', () => {
+  require('../../src/data/assets.js');
+  const SKIN = ['BOT_BLADER_Body2', 'BOT_BLADER_Hub2', 'BOT_BLADER_Katana2', 'BOT_BLADER_Axe2', 'BOT_BLADER_Kusari2'];
+  for (const n of SKIN) assert.ok(IB.ASSET_NAMES.bots.includes(n), n);
+  const d = fs.readFileSync(path.join(__dirname, '../../assets/fps-bots.glb'));
+  const g = JSON.parse(d.toString('utf8', 20, 20 + d.readUInt32LE(12)));
+  const node = (n) => g.nodes.find((x) => x.name === n);
+  const kids = (n) => (node(n).children || []).map((i) => g.nodes[i].name).sort();
+  for (const n of SKIN) assert.ok(node(n) && node(n).mesh !== undefined, n + ' mesh');
+  // the skin parts carry no sockets of their own: the game keeps reading CORE / HUB / LIGHT / GRIP / CHAIN off the
+  // normal skin, so the pivots and hit volumes cannot drift
+  for (const n of SKIN) assert.deepEqual(kids(n), [], n + ' has no sockets');
+  assert.deepEqual(kids('BOT_BLADER_Body'), ['BOT_BLADER_CORE', 'BOT_BLADER_HUB', 'BOT_BLADER_LIGHT']);
+  assert.deepEqual(kids('BOT_BLADER_Hub'), ['BOT_BLADER_GRIP']);
+  // budgets: each skin row mirrors its normal row (2-suffixed body, hub and weapon) within +20 %
+  const R = IB.TRI_BUDGET.robots;
+  for (const [skin, base] of [['bladerSkin2', 'blader'], ['bladerSkin2Axe', 'bladerAxe'], ['bladerSkin2Kusari', 'bladerKusari']]) {
+    const want = Object.fromEntries(Object.entries(R[base].parts).map(([n, k]) => [/_(Body|Hub|Katana|Axe|Kusari)$/.test(n) ? n + '2' : n, k]));
+    assert.deepEqual(R[skin].parts, want, skin + ' parts');
+    assert.ok(R[skin].max <= R[base].max * 1.2, skin + ' budget ' + R[skin].max + ' vs ' + R[base].max);
+  }
+  // the switch: every Blade Bot from level 30 on, none before; the pose swaps meshes only
+  const ai = fs.readFileSync(path.join(__dirname, '../../src/game/ai.js'), 'utf8');
+  assert.match(ai, /AI\.BLADER_SKIN2_LEVEL = 30;/);
+  const sw = new Function('AI', ai.match(/AI\.bladerSkin = function \(L\) \{[^}]*\};/)[0] + ' return AI.bladerSkin;')({ BLADER_SKIN2_LEVEL: 30 });
+  assert.deepEqual([1, 20, 29, 30, 31, 50].map(sw), [0, 0, 0, 1, 1, 1]);
+  const tr = fs.readFileSync(path.join(__dirname, '../../src/game/troops.js'), 'utf8');
+  for (const n of SKIN) assert.ok(tr.includes(n.replace('BOT_BLADER_', '') + ": { count: 1, asset: '" + n + "', opt: true }"), n + ' in troops.js');
+});
