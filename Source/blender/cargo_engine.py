@@ -9,6 +9,7 @@ import math
 
 from cargo_base import *  # noqa: F401,F403
 import ib_text
+import cargo_detail as D
 
 NCYL, PITCH = 6, 3.4
 CYL_Y = [-(NCYL - 1) / 2 * PITCH + k * PITCH for k in range(NCYL)]
@@ -112,7 +113,7 @@ def build_main_engine(pal, ao):
     m.cy((2.0, 11.0, 1.3), 0.25, 0.25, 0.6, 'signB', seg=8)
     for sx in (-1, 1):   # ladders up the frame box, side platforms at the cylinder covers
         m.parent = Matrix.Translation((sx * 2.2, -6.8, 0.0)) @ Matrix.Rotation(math.radians(-90 * sx), 4, 'Z')
-        ladder(m, 0.0, 0.0, 1.63, 8.55, c='yel', face=-1)
+        ladder(m, 0.0, 0.0, 1.63, 8.55, c='yel', face=-1, brk=False)
         m.parent = Matrix.Identity(4)
     make('Landmark_EngineAft', m, ao, cols=[cb(-3.47, -10.0, 3.28, -2.2, 9.2, 4.72), cb(-4.3, -10.3, 2.9, -3.3, -8.5, 4.8),
                                              cb(-4.3, 7.7, 2.9, -3.3, 9.5, 4.8), cb(-1.35, 10.35, 0.1, 1.35, 11.6, 2.8),
@@ -177,6 +178,7 @@ def build_aux(pal, ao):
         tube(m, (x, 0.0, 0.32), (x, -0.4, 0.32), 0.1, c, seg=8)
         m.cy((x, -0.34, 0.45), 0.02, 0.02, 0.3, 'steelD', seg=6, hull='none')
         m.cy((x, -0.34, 0.75), 0.13, 0.13, 0.03, 'fireR', seg=8)
+    D.pumps_detail(m)
     make('Pumps', m, ao, cols=[cb(-0.8, -0.3, 0, 0.8, 0.3, 1.45)])
     # starting-air bottles [2,1]
     m = new(pal)
@@ -189,6 +191,7 @@ def build_aux(pal, ao):
         m.cy((x, 0, 3.5), 0.14, 0.14, 0.03, 'fireR', seg=8)
         m.cy((x, -0.45, 1.6), 0.11, 0.11, 0.04, 'paper', seg=8, rot=(90, 0, 0), hull='none')
     tube(m, (-0.48, 0.0, 3.45), (0.48, 0.0, 3.45), 0.05, 'steelD')
+    D.airbottles_detail(m)
     make('AirBottles', m, ao, cols=[cb(-0.93, -0.45, 0, 0.93, 0.45, 3.5)])
     # auxiliary boiler [3,3]: lagged shell, burner, gauge glass, a ladder, the uptake to the deckhead
     m = new(pal)
@@ -203,8 +206,9 @@ def build_aux(pal, ao):
     m.bx(0.75, 0.85, -0.98, -0.88, 2.0, 3.0, 'glass')
     ib_text.draw(m, 'AUX BOILER', 0.0, -1.21, 4.4, 0.24, 'ink', face='y-', font='cond')
     m.parent = Matrix.Translation((-0.85, 0.85, 0.0)) @ Matrix.Rotation(math.radians(135), 4, 'Z')
-    ladder(m, 0.0, 0.0, 0.32, 8.9, c='yel', face=1)
+    ladder(m, 0.0, 0.0, 0.32, 8.9, c='yel', face=1, brk=False)
     m.parent = Matrix.Identity(4)
+    D.boiler_detail(m)
     make('Boiler', m, ao, cols=[cb(-1.2, -0.5, 0, 1.2, 0.5, 8.6), cb(-0.5, -1.2, 0, 0.5, 1.2, 8.6), cb(-0.85, -0.85, 0, 0.85, 0.85, 8.6), cb(-0.6, -1.5, 0.3, 0.6, -1.1, 1.6)])
     # settling tank [4,3]: a steel tank box, sight glass, manhole, ladder, label
     m = new(pal)
@@ -219,6 +223,7 @@ def build_aux(pal, ao):
     m.parent = Matrix.Translation((-1.903, 0.5, 0.0)) @ Matrix.Rotation(math.radians(-90), 4, 'Z')
     ladder(m, 0.0, 0.0, 0.0, 3.9, c='yel', face=-1)
     m.parent = Matrix.Identity(4)
+    D.tank_detail(m)
     make('Tank', m, ao, cols=[cb(-1.9, -1.3, 0, 1.9, 1.3, 3.4)])
     # valve manifold [2,1]: a header with colour-coded valves on stands
     m = new(pal)
@@ -230,6 +235,7 @@ def build_aux(pal, ao):
         m.cy((x, 0, 0.85), 0.08, 0.08, 0.35, 'steelL', seg=6)
         m.cy((x, 0, 1.4), 0.14, 0.14, 0.03, c, seg=8)
         tube(m, (x, 0.0, 0.85), (x, 0.0, 0.1), 0.06, 'deckG', seg=6)
+    D.manifold_detail(m)
     make('Manifold', m, ao, cols=[cb(-0.95, -0.15, 0, 0.95, 0.15, 1.45)])
     # workshop bench [4,1]: bench with a vice, a drill press, a small lathe
     m = new(pal)

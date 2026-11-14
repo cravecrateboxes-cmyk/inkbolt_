@@ -9,6 +9,7 @@ import math
 from cargo_base import *  # noqa: F401,F403
 import cargo_base as B
 import ib_text
+import cargo_detail as D
 
 
 # ================================================================ main deck: bulwarks (west / east zone walls)
@@ -72,6 +73,7 @@ def build_bulwarks(pal, ao):
             m.cy((0.0, -0.35, 1.1), 0.05, 0.05, 2.6, 'supWD', seg=8)
             m.bx(-0.18, 0.18, -0.6, -0.3, 3.55, 3.8, 'steelD')
             dq(m, -0.15, 0.15, -0.58, -0.32, 3.547, 'light')
+        D.bulwark_detail(m, v)
         make('Bul_' + v, m, ao)
 
 
@@ -114,6 +116,7 @@ def build_superstructure(pal, ao):
     for v in ('Win', 'Blank', 'Door', 'Vent', 'Top'):
         m = new(pal)
         sup_face(m, v)
+        D.sup_detail(m, v, DECKS, H)
         make('Sup_' + v, m, ao)
     # the line's name across the upper decks, split over modules (stacked on Sup_Top by the theme): HALCYON / LINES
     for word, n in (('HALCYON', 10), ('LINES', 7)):
@@ -133,7 +136,7 @@ def fc_face(m):
     # the forecastle deck edge and its guard rail
     m.bx(-0.5, 0.5, -0.6, -0.5, FC - 0.05, FC + 0.12, 'deckGD', hull='noside', cull='k')
     m.bx(-0.5, 0.5, -0.5, 0.5, FC, FC + 0.12, 'deckG', hull='none', cull='bf')
-    rail_run(m, -0.5, 0.5, -0.4, FC + 0.12, h=1.05, c='supW')
+    rail_run(m, -0.5, 0.5, -0.4, FC + 0.12, h=1.05, c='supW', foot=True)
 
 
 def build_forecastle(pal, ao):
@@ -156,6 +159,7 @@ def build_forecastle(pal, ao):
                 fq(m, -0.33, 0.33, -0.506, 0.78 + k * 0.18, 0.86 + k * 0.18, 'steelD')
         elif v == 'Sign':
             sign(m, 0.0, -0.503, 1.9, 0.86, 0.5, 'MUSTER', bg='exitG')
+        D.fc_detail(m, v, FC)
         make('Fc_' + v, m, ao)
 
 
@@ -175,7 +179,7 @@ def build_hold_walls(pal, ao):
         corrugation(m)
         fq(m, -0.2, 0.2, -0.503, 0.0, 0.25, 'holdD')
         if v == 'Ladder':
-            ladder(m, 0.0, -0.5, 0.0, H - 0.4, c='yel', cage=True)
+            ladder(m, 0.0, -0.5, 0.0, H - 0.4, c='yel', cage=True, emb=0.07)
         elif v == 'Lamp':   # floodlight under the coaming, a junction box low down
             m.bx(-0.25, 0.25, -0.85, -0.5, 11.2, 11.6, 'steelD')
             poly(m, [(-0.22, -0.853, 11.23), (0.22, -0.853, 11.23), (0.22, -0.853, 11.57), (-0.22, -0.853, 11.57)], 'light', (0, -1, 0))
@@ -187,6 +191,7 @@ def build_hold_walls(pal, ao):
             m.bx(-0.45, 0.45, -0.75, -0.5, 9.8, 11.4, 'holdD', cull='k')
             for k in range(6):
                 fq(m, -0.42, 0.42, -0.753, 9.95 + k * 0.24, 10.05 + k * 0.24, 'steelD')
+        D.hb_detail(m, v)
         make('Hb_' + v, m, ao)
     # the hold number painted big across the bulkhead (stacked on Hb_Plain by the theme)
     n = 5
@@ -216,6 +221,7 @@ def build_hold_walls(pal, ao):
         elif v == 'Lamp':
             m.bx(-0.25, 0.25, -0.8, -0.5, 11.2, 11.6, 'steelD')
             poly(m, [(-0.22, -0.803, 11.23), (0.22, -0.803, 11.23), (0.22, -0.803, 11.57), (-0.22, -0.803, 11.57)], 'light', (0, -1, 0))
+        D.hs_detail(m, v)
         make('Hs_' + v, m, ao)
 
 
@@ -255,6 +261,7 @@ def build_er_walls(pal, ao):
             fq(m, -0.12, 0.12, -0.437, 1.9, 2.1, 'paper')
             fq(m, -0.2, -0.12, -0.437, 1.85, 2.15, 'paper')
             fq(m, 0.12, 0.2, -0.437, 1.85, 2.15, 'paper')
+        D.er_detail(m, v)
         make('Er_' + v, m, ao)
 
 
@@ -314,6 +321,7 @@ def build_gate(pal, ao):
         gate_face(m, fy)
         for z in (5.6, 9.2, 11.6):   # stiffeners on the trunk plating
             m.bx(-2.5, 2.5, min(fy * 0.6, fy * 0.66), max(fy * 0.6, fy * 0.66), z, z + 0.1, 'supG', hull='noside', cull='')
+    D.gate_detail(m)
     make('GateFrame', m, ao, cols=[cb(-2.5, -0.6, 0, -1.5, 0.6, 3.44), cb(1.5, -0.6, 0, 2.5, 0.6, 3.44)], side=2.45)
     # sliding watertight door leaf
     m = new(pal)
@@ -416,6 +424,7 @@ def build_stair(pal, ao, name, W, L, rise, n, landing):
             m.bx(xr - 0.018, xr + 0.018, y - 0.018, y + 0.018, z, z + 0.92, 'yel', hull='none', cull='bt')
         m.bx(xr - 0.018, xr + 0.018, L / 2 - 0.07, L / 2 - 0.035, rise, rise + 0.92, 'yel', hull='none', cull='bt')
     m.bx(-W / 2 + 0.08, W / 2 - 0.08, L / 2 - 0.04, L / 2, 0.0, rise - 0.05, 'steelL', cull='b')
+    D.stair_detail(m, W, L, rise, n, landing)
     make(name, m, ao, cols=cols)
 
 
@@ -437,9 +446,11 @@ def build_rails(pal, ao):
     m = new(pal)
     rail(m, -0.5, 0.5)
     m.bx(-0.025, 0.025, -0.025, 0.025, 0.14, 1.0, 'yel', hull='none')
+    D.rail_detail(m, 'full')
     make('RailFull', m, ao, cols=[cb(-0.06, -0.5, 0, 0.06, 0.5, 1.06)])
     m = new(pal)
     m.bx(-0.035, 0.035, -0.035, 0.035, 0.0, 1.08, 'yel', cull='b')
+    D.rail_detail(m, 'post')
     make('RailPost', m, ao)
 
 
@@ -463,11 +474,13 @@ def build_markings(pal, ao):
     m = new(pal)
     uq(m, -0.5, 0.5, -0.03, 0.03, 0.003, 'deckGD')
     uq(m, -0.08, 0.08, -0.12, 0.12, 0.006, 'steelD')
+    D.seam_marking(m)
     make('Seam', m, ao)
     m = new(pal)
     for x in (-0.25, 0.25):
         uq(m, x - 0.09, x + 0.09, -0.06, 0.06, 0.003, 'steelD')
         uq(m, x - 0.05, x + 0.05, -0.025, 0.025, 0.006, 'ink')
+    D.sockets_marking(m)
     make('Sockets', m, ao)
     for k in (1, 2, 3):
         m = new(pal)
