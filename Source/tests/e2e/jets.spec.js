@@ -249,9 +249,9 @@ function serve() {
     // close-ups: a Jet Trooper with its pods up and open, front three-quarter and from behind; the kusarigama
     const jetClose = { type: 'jet', x: -9, z: -20, elem: 'shock', yaw: 2.75, y: 0, set: { pod: 1, lidA: 1, podAim: 0, thrust: 0.9, air: 0, hyT: 0, hy: 0 } };
     await pose([jetClose]);
-    await shot('jets-close-front.png', [-8.4, 1.55, -22.5, Math.PI + 0.22, -0.08], 40);
+    await shot('jets-close-front.png', [-9, 1.45, -22.6, Math.PI, -0.06], 40);
     await pose([Object.assign({}, jetClose, { elem: 'acid', yaw: 0.45 })]);
-    await shot('jets-close-back.png', [-8.4, 2.1, -22.4, Math.PI + 0.22, -0.2], 40);
+    await shot('jets-close-back.png', [-9, 2.0, -22.6, Math.PI, -0.16], 40);
     await pose([{ type: 'blader', x: -9, z: -20, state: 'attack', see: true, set: { weaponId: 'kusari', act: 'whirl', km: 'whirl', kR: 1.6, kangV: 4 }, hold: { state: 'attack', act: 'whirl', st: 0.2, km: 'whirl', kR: 1.6, kangV: 4 } }], 0.3);
     await shot('jets-close-kusari.png', [-9, 2.2, -23.2, Math.PI, -0.38], 42);
   }
