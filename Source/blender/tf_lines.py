@@ -9,6 +9,7 @@ import random
 
 from tf_base import *  # noqa: F401,F403
 import tf_base as B
+import tf_detail as D
 
 BT = B.BELT
 
@@ -28,7 +29,7 @@ def belt_frame(m, x0=-0.5, x1=0.5, legs=True):
 
 
 def build_belts(pal, ao):
-    m = new(pal); belt_frame(m)
+    m = new(pal); belt_frame(m); D.belt_detail(m)
     make('Belt', m, ao, cols=[cb(-0.5, -0.48, 0.0, 0.5, 0.48, 0.98)])
     # end hoods (local +X = downstream): a tunnel over the belt with a strip curtain on the open mouth, the drive motor
     # on the closed end (Feed: closed upstream; Exit: closed downstream), a photo-eye and a little lamp
@@ -54,6 +55,7 @@ def build_belts(pal, ao):
         fq(m, -0.22, 0.22, -W - 0.006, Hh - 0.42, Hh - 0.12, 'pWhite')
         text_front(m, 'IN' if kind == 'Feed' else 'OUT', 0.14, -W - 0.009, 0.0, Hh - 0.36, 'brandB')
         m.cy((0.0, 0.0, Hh + 0.08), 0.05, 0.05, 0.12, 'gD' if kind == 'Feed' else 'gA', seg=6)
+        D.hood_detail(m, kind)
         make('Belt_' + kind, m, ao, cols=[cb(-L, -W, 0.0, L, W, Hh + 0.08)])
     m = new(pal)
     m.bx(-0.025, 0.025, -0.38, 0.38, 0.0, 0.012, 'steel', hull='none', cull='b')
@@ -71,6 +73,7 @@ def build_belts(pal, ao):
         x = -0.333 + k * 0.333
         m.cy((x, -0.38, BT - 0.035), 0.035, 0.035, 0.76, 'chrome', seg=6, rot=(-90, 0, 0), caps=False, hull='none')
     m.bx(-0.5, 0.5, -0.38, 0.38, 0.74, 0.75, 'steelD', hull='none', cull='t')
+    D.rollers_detail(m)
     make('Rollers', m, ao, cols=[cb(-0.5, -0.44, 0.0, 0.5, 0.44, 0.98)])
 
 
@@ -170,6 +173,7 @@ def build_line_props(pal, ao):
         m.bx(-0.24, 0.04, -0.12, 0.08, 1.0, 1.22, 'gB')
         fq(m, -0.18, -0.02, -0.123, 1.06, 1.16, 'pWhite')
         m.bx(-0.18, -0.02, -0.1, 0.06, 1.22, 1.34, 'gB', hull='none')
+        D.bench_detail(m)
         make('Bench_' + 'AB'[v], m, ao, cols=[cb(-0.95, -0.4, 0.0, 0.95, 0.4, 0.92), cb(-0.95, 0.04, 0.92, 0.95, 0.4, 2.1)])
         make_glow('Bench_' + 'AB'[v] + '_LED', g)
     # flow rack of parts totes [2, 1] (1.9 m): three sloped levels of coloured totes
@@ -186,6 +190,7 @@ def build_line_props(pal, ao):
             m.bx(x0 + 0.01, x0 + 0.42, -0.36, 0.36, z, z + 0.26, c, cull='b', hull='none')
             fq(m, x0 + 0.1, x0 + 0.32, -0.363, z + 0.08, z + 0.17, 'paper')
             uq(m, x0 + 0.04, x0 + 0.39, -0.32, 0.32, z + 0.2, rnd.choice(['pWhite', 'gC', 'pPink', 'steel']))
+    D.totes_detail(m)
     make('Totes', m, ao, cols=[cb(-0.95, -0.4, 0.0, 0.95, 0.4, 1.9)])
     # andon tower: a stack light on a post with a line counter (the lamps glow)
     m = new(pal)
@@ -199,6 +204,7 @@ def build_line_props(pal, ao):
         z = 2.36 + k * 0.16
         m.cy((0, 0, z), 0.08, 0.08, 0.14, 'chrome', seg=6)
         g.cy((0, 0, z + 0.01), 0.083, 0.083, 0.12, c, seg=6, caps=False)
+    D.andon_detail(m)
     make('Andon', m, ao, cols=[cb(-0.2, -0.2, 0.0, 0.2, 0.2, 2.9)])
     make_glow('Andon_LED', g)
     # parts cart: a two-deck trolley of totes, a handle
@@ -587,6 +593,7 @@ def build_packing(pal, ao):
         m.bx(sx * 0.92 - 0.03, sx * 0.92 + 0.03, 0.34, 0.4, 0.92, 1.9, 'steelD', cull='')
     m.bx(-0.89, 0.89, 0.345, 0.395, 1.84, 1.89, 'steelD', cull='')
     m.cy((-0.4, 0.37, 1.6), 0.18, 0.18, 0.08, 'cardL', seg=10, rot=(90, 0, 0))
+    D.bench_detail(m, (0.42, 0.84))
     make('PackBench', m, ao, cols=[cb(-0.95, -0.4, 0.0, 0.95, 0.4, 1.3)])
     make_glow('PackBench_LED', g)
     # finished goods: pallets of printed toy cartons (three loads) and a pallet of flat cartons

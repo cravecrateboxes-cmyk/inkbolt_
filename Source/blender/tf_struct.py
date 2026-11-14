@@ -9,6 +9,7 @@ import random
 
 from tf_base import *  # noqa: F401,F403
 import tf_base as B
+import tf_detail as D
 from ms_struct import lamp, ext_point
 
 
@@ -16,7 +17,7 @@ from ms_struct import lamp, ext_point
 WIN0, WIN1 = 8.4, 10.2      # clerestory ribbon (production) / translucent band (warehouse) heights
 
 
-def wall_prod(m, z0=0.0, x0=-0.5, x1=0.5):
+def wall_prod(m, z0=0.0, x0=-0.5, x1=0.5, detail=True, plain=False):
     """production hall: skirting, cream block to 2.6 m, the red / blue band, white cladding with a rib a metre, the
     clerestory's sill and head flashings and mullion (its panes are the glow companion WinP), cladding to the roof"""
     if z0 < 0.14:
@@ -35,6 +36,8 @@ def wall_prod(m, z0=0.0, x0=-0.5, x1=0.5):
         fq(m, x - 0.02, x + 0.02, -0.512, WIN0, WIN1, 'steelD')
     fq(m, x0, x1, -0.503, WIN0 - 0.12, WIN0, 'steelD')
     fq(m, x0, x1, -0.503, WIN1, WIN1 + 0.1, 'steelD')
+    if detail and z0 == 0.0 and x0 == -0.5 and x1 == 0.5:
+        D.wall_detail(m, 'P', plain)
 
 
 def win_prod(g, x0=-0.5, x1=0.5):
@@ -44,7 +47,7 @@ def win_prod(g, x0=-0.5, x1=0.5):
         fq(g, x - 0.34, x - 0.26, -0.509, WIN0 + 0.2, WIN1 - 0.2, 'cool')
 
 
-def wall_ware(m, z0=0.0, x0=-0.5, x1=0.5, rail=True):
+def wall_ware(m, z0=0.0, x0=-0.5, x1=0.5, rail=True, detail=True, plain=False):
     """warehouse: grey painted block to 2.4 m with a yellow bump rail, insulated panels, the blue / red stripe, a
     translucent daylight band (glow companion WinK)"""
     if z0 < 0.14:
@@ -64,6 +67,8 @@ def wall_ware(m, z0=0.0, x0=-0.5, x1=0.5, rail=True):
     fq(m, x0, x1, -0.503, WIN1 + 0.4, WIN1 + 0.5, 'steelD')
     if rail and z0 < 0.4:
         m.bx(x0, x1 - 0.1, -0.6, -0.5, 0.42, 0.62, 'hazY', cull='kb')
+    if detail and z0 == 0.0 and x0 == -0.5 and x1 == 0.5:
+        D.wall_detail(m, 'K', plain)
 
 
 def win_ware(g, x0=-0.5, x1=0.5):
@@ -82,13 +87,14 @@ def pilaster(m, S):
     m.bx(-0.24, 0.24, -0.86, -0.5, 0.0, 1.0, 'hazY', cull='bk')
     for z in (0.3, 0.7):
         fq(m, -0.24, 0.24, -0.863, z, z + 0.12, 'black')
+    D.pilaster_detail(m)
 
 
 def build_walls(pal, ao):
     for S in ('P', 'K'):
         fn, wfn, base = FIN[S]
         logo = S == 'P'
-        m = new(pal); fn(m); make('W' + S, m, ao)
+        m = new(pal); fn(m, plain=True); make('W' + S, m, ao)
         m = new(pal); fn(m); pilaster(m, S); make('W' + S + '_Col', m, ao)
         g = new(pal); wfn(g); make_glow('Win' + S, g)
         # corner post: the finish on all four sides (no windows)
@@ -100,15 +106,17 @@ def build_walls(pal, ao):
             bq(m, -0.5, 0.5, 0.503, z0, z1, c)
             lq(m, -0.503, -0.5, 0.5, z0, z1, c)
             rq(m, 0.503, -0.5, 0.5, z0, z1, c)
+        D.corner_guards(m)
         make('Corner' + S, m, ao)
         # fire point
-        m = new(pal); fn(m); ext_point(m); make('W' + S + '_Fire', m, ao)
+        m = new(pal); fn(m); ext_point(m); D.fire_extras(m); make('W' + S + '_Fire', m, ao)
         # fire exit door: painted steel leaf in the wall plane, push bar, the running-man sign glows
-        m = new(pal); fn(m)
+        m = new(pal); fn(m, plain='door')
         m.bx(-0.48, 0.48, -0.56, -0.503, 0.0, 2.3, 'steelD', cull='kb')
         fq(m, -0.42, 0.42, -0.563, 0.02, 2.22, 'steel')
         m.bx(-0.36, 0.36, -0.64, -0.563, 1.0, 1.08, 'chrome')
         fq(m, -0.4, 0.4, -0.566, 1.5, 1.8, 'brandR')
+        D.exit_detail(m)
         m.bx(-0.3, 0.3, -0.62, -0.503, 2.45, 2.75, 'paper', cull='k')
         make('W' + S + '_Exit', m, ao)
         # electrical panel with conduits up the wall
@@ -119,6 +127,7 @@ def build_walls(pal, ao):
         text_front(m, 'DANGER 480V', 0.06, -0.703, -0.16, 2.02, 'black', font='cond', maxw=0.26)
         for x in (-0.24, 0.0, 0.24):
             m.cy((x, -0.58, 2.4), 0.03, 0.03, WIN0 - 2.5, 'steelD', seg=6, caps=True, hull='none')
+        D.panel_detail(m)
         make('W' + S + '_Panel', m, ao)
         # safety board: days without an accident, a notice sheet, the hard-hat rule
         m = new(pal); fn(m)
@@ -290,6 +299,7 @@ def build_gate(pal, ao):
     m.bx(-1.2, 1.2, 0.45, 0.62, 4.6, 5.3, 'hazY')
     text_back(m, 'SAFETY FIRST', 0.3, 0.623, 0.0, 4.82, 'black', maxw=2.1)
     m.bx(-0.55, 0.55, 0.45, 0.62, 3.95, 4.4, 'paper')
+    D.gate_detail(m)
     make('GateFrame', m, ao, cols=[cb(-1.86, -0.62, 0, -1.5, 0.62, 3.3), cb(1.5, -0.62, 0, 1.86, 0.62, 3.3)])
     g = new(pal)
     bq(g, -0.45, 0.45, 0.623, 4.0, 4.35, 'exitG')
@@ -419,6 +429,7 @@ def board(pal, ao, name, word, c, sub=None, w=2.4, fg='paper', band='hazY', pic=
             poly(m, [(xp + 0.36 * math.cos(a / 8 * math.pi), s * 0.066, z0 + 0.55 + 0.36 * math.sin(a / 8 * math.pi)) for a in range(16)], pic, (0, s, 0))
     for x in (-w + 0.4, w - 0.4):
         m.bx(x - 0.012, x + 0.012, -0.012, 0.012, z1, -0.012, 'steelD', hull='none', cull='t')
+    D.sign_frame(m, w, 0.06, z0, z1, (-w + 0.4, w - 0.4))
     make(name, m, ao)
 
 
@@ -444,6 +455,7 @@ def build_signs(pal, ao):
         for s in (-1, 1):
             (text_front if s < 0 else text_back)(m, num, 0.58, s * 0.068, -0.92 * (1 if s < 0 else -1), z0 + 0.16, 'paper', maxw=0.62)
             (text_front if s < 0 else text_back)(m, words, 0.34, s * 0.053, 0.38 * (1 if s < 0 else -1), z0 + 0.25, 'paper', maxw=1.7)
+        D.sign_frame(m, 1.3, 0.05, z0, z1, (-1.0, 1.0))
         make('Aisle_' + num, m, ao)
 
 
@@ -475,6 +487,7 @@ def build_floors(pal, ao):
     m.cy((0, 0, 0), 0.34, 0.34, 1.2, 'hazY', seg=12)
     for z in (0.35, 0.8):
         m.cy((0, 0, z), 0.343, 0.343, 0.12, 'black', seg=12, caps=False, hull='none')
+    D.column_detail(m)
     make('Column', m, ao, cols=[cb(-0.35, -0.35, 0, 0.35, 0.35, 1.2), cb(-0.17, -0.17, 1.2, 0.17, 0.17, H)])
 
 
