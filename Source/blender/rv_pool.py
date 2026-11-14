@@ -8,6 +8,7 @@ walkable (robots and the player step over them and wade).
 import math
 
 from rv_base import H, DECK, RISE, TREAD, WATER, COP, RKit, srt, txt, disc, vdisc, frame_y, potted, bougainvillea
+import rv_detail as RD
 from hotel_base import armchair, sofa, coffee_table, flowers, side_table
 
 
@@ -57,7 +58,10 @@ def pool_seg(k, end):
             k.cyl(x + dx, -Y + C + 0.12, COP - 0.15, 0.022, 0.022, 0.95, 'chrome', seg=5, ink=False)
             k.beam((x + dx, -Y + C + 0.12, COP + 0.8), (x + dx, -Y + 0.15, COP + 0.8), 0.04, 'chrome', ink=False)
             k.beam((x + dx, -Y + 0.15, COP + 0.78), (x + dx, -Y + 0.15, COP), 0.032, 'chrome', ink=False)
+        for dx in (-0.25, 0.25):
+            RD.ladder_flange(k, x + dx, -Y + 0.15, COP)
         k.col(x - 0.3, x + 0.3, -Y + 0.1, -Y + C + 0.16, COP, COP + 0.85)
+    RD.coping_detail(k, X, Y, C, end)
     if end == 'N':
         # La Vague: a bronze wave on a mosaic plinth in the water near the north end
         px, py = X - 2.2, 1.5
@@ -120,6 +124,7 @@ def lounger_at(k, x, y, deg, cushion='ivory', towel='wine'):
     k.m.box((0, 0.66, 0.5), (0.66, 0.75, 0.05), 'teak', rot=(40, 0, 0), bevel=False)
     k._mark(False)
     k.cyl(-0.2, -0.65, 0.46, 0.08, 0.08, 0.4, towel, seg=8, rot=(0, 90, 0))
+    RD.lounger_detail(k)
     k.pop()
 
 
@@ -304,6 +309,7 @@ def planter(k):
             for j in range(3):
                 a = j * 2.1
                 k.cyl(x + math.cos(a) * 0.12, math.sin(a) * 0.14, 0.88, 0.035, 0.02, 0.22, 'blush', seg=3, ink=False)
+    RD.planter_detail(k)
     k.col(-1.5, 1.5, -0.45, 0.45, 0, 0.75)
     return k
 

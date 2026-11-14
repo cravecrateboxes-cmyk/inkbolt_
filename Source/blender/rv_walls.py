@@ -14,6 +14,7 @@ import math
 from rv_base import (H, DECK, WALLH, FH, WATER, RKit, srt, txt, disc, vdisc, frame_y, arch_pts, shutter, balconette,
                      bougainvillea, potted)
 from hotel_base import sconce, painting, flowers
+import rv_detail as RD
 
 Y0 = -0.497          # a module's face plane (3 mm in from the cell edge: a corner neighbour's bands end on it)
 
@@ -58,6 +59,7 @@ def iw_face(k, kind, v=0, dz=0.0):
         k.bx(-0.36, 0.36, y - 0.05, y, 1.35, 3.6, 'ivory')
         k.qy(-0.3, 0.3, 1.41, 3.54, y - 0.053, -1, 'crystal2')
         k.poly([(-0.2, y - 0.056, 2.0), (-0.12, y - 0.056, 2.0), (0.05, y - 0.056, 2.9), (-0.03, y - 0.056, 2.9)], 'glint', (0, -1, 0))
+    RD.iw_face_detail(k, y, dz, kind)
 
 
 def inner_wall(k, kind, v=0, dz=0.0):
@@ -86,6 +88,7 @@ def core(k):
     k.bx(-0.497, 0.497, -0.497, 0.497, 0.0, H - 0.42, 'stucco')
     k.bx(-0.5, 0.5, -0.5, 0.5, DECK - 0.4, DECK - 0.04, 'stuccoD', ink=False)
     k.bx(-0.5, 0.5, -0.5, 0.5, H - 0.42, H - 0.012, 'stone', ink=False)
+    RD.core_detail(k)
     k.col(-0.5, 0.5, -0.5, 0.5, WALLH, H)
     return k
 
@@ -114,6 +117,7 @@ def suite_door(k, num=0):
     txt(k, str(100 + num), 0, y - 0.049, 1.63, 0.1, 'black', font='display', valign='m', maxw=0.17)
     k.qy(0.2, 0.3, 0.6, 0.8, y - 0.046, -1, 'emerald')
     lsconce(k, 0, y, 3.3)
+    RD.suite_door_detail(k, y)
     k.col(-0.5, 0.5, -0.5, 0.5, WALLH, H)
     return k
 
@@ -135,6 +139,7 @@ def service_door(k):
         vdisc(k, s * 0.215, y - 0.069, 1.62, 0.1, 'crystal2')
     k.bx(-0.5, 0.5, y - 0.1, y, 2.5, 2.92, 'navy')
     txt(k, 'CUISINE', 0, y - 0.103, 2.71, 0.17, 'cream', font='sans', valign='m', maxw=0.86)
+    RD.service_door_detail(k, y)
     k.col(-0.5, 0.5, -0.5, 0.5, WALLH, H)
     return k
 
@@ -159,6 +164,7 @@ def doorway(k, part, lintel=2.7):
         if part == side:
             x0, x1 = srt(xs * 0.494, xs * 0.34)
             k.bx(x0, x1, -0.6, 0.6, 0, lintel + 0.22, 'ivory')
+    RD.doorway_detail(k, part, lintel)
     k.col(-0.5, 0.5, -0.5, 0.5, WALLH, H)
     return k
 
@@ -192,6 +198,7 @@ def sea_win(k, side):
     dx0, dx1 = srt(far + sx * 0.02, far + sx * 0.28)
     k.bx(dx0, dx1, -0.42, -0.3, 0.5, AZ - 0.34, 'wine')
     k.bx(-0.5, 0.5, -0.46, -0.28, AZ - 0.3, AZ - 0.05, 'wine2', ink=False)
+    RD.sea_win_detail(k, sx, AZ, R)
     return k
 
 
@@ -204,6 +211,7 @@ def sea_pier(k):
     k.bx(-0.38, 0.38, -0.62, -0.5, H - 0.85, H - 0.6, 'stone', ink=False)
     k.bx(-0.497, 0.497, -0.62, -0.494, H - 0.42, H - 0.004, 'stone', ink=False)
     lsconce(k, 0, -0.56, 2.9)
+    RD.pier_detail(k)
     return k
 
 
@@ -461,6 +469,7 @@ def f_door(k):
         k.bx(-0.48, 0.48, -0.6, -0.497, zs - 0.08, zs, 'stone', ink=False)
         if i == 0:
             balconette(k, -0.46, 0.46, z + 0.02, -0.5)
+    RD.door_hardware(k, -0.5, 3.58)
     return k
 
 
@@ -552,6 +561,7 @@ def p_door(k, sign=None):
     if sign:
         k.qy(-0.5, 0.5, 3.62, 4.0, -0.503, -1, 'wine2')
         txt(k, sign, 0, -0.506, 3.81, 0.17, 'gold', font='serif', valign='m', maxw=0.92, clip=None)
+    RD.door_hardware(k, -0.5, 2.98)
     p_parapet(k)
     return k
 
@@ -619,6 +629,7 @@ def sea_bal(k, lamp=False):
         k.cyl(0, 0, 1.18, 0.05, 0.04, 2.1, 'ivory', seg=6)
         k.cyl(0, 0, 3.28, 0.16, 0.2, 0.36, 'glow', seg=8)
         k.cyl(0, 0, 3.64, 0.2, 0.04, 0.16, 'ivory', seg=8)
+    RD.sea_bal_detail(k, lamp)
     return k
 
 
