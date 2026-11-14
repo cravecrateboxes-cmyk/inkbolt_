@@ -333,3 +333,32 @@ kept); any of it can change later from the owner's play test. Work goes on with 
   check; trimming the datacenter rack hinges and the highrise city-below would be the first levers.
 - In-game sheets after the pass (`dist/look/s11` vs `cp1`): detail reads up close (column base bolts and guards,
   shelf label holders, kick plates), nothing floats or flickers; zero page and game errors on all eight maps.
+
+### Stage 13. Final pass
+
+- 13.1 / 13.2: every map loaded with the final build (`look-diag.js` over all 45 plans; results below); the 38-map
+  tour and the pilot sets cover the shots and metrics. The full e2e suite was not re-run end to end on this CPU
+  renderer (hours per spec); the specs that guard this work were run: hud-lock, perf, troops, latebots,
+  readability, vfx-shots (comic words), plus unit tests after every merge.
+- 13.3 tiers: high (all sheets), low (stronghold, metro, mall, bedroom).
+- 13.4 fallbacks: `?posttest=b|c|d` and `?webgl1=1` all correct.
+- 13.5 sizes: artifact files 2.5 to 5.9 MB each (limit 16 MB), nine files, about 44 MB in total.
+- 13.6 `LOOK.md` (how it works, the knobs, rules) and `KIT-BRIEF.md` written; nothing deleted from this folder.
+
+### Owner play-test list (13.8)
+
+One map per look family, with `?lookstats=1` (frame time, draw calls and tier print to the browser console every
+2 s): mountains (wild-ext), stronghold (mil-ext), downtown (urban-ext), datacenter (ind-int), metro (dark-int),
+mall (civic-int), bedroom (giant-room); plus coalmine (darkest map) and highrise (most triangles). For each: frame
+rate and the tier it settles on, anything that still reads as "toy", anything too dark or too bright, and whether
+enemies are easy to see. Open questions from Checkpoint 1 still stand (interior darkness, ink thickness, colour,
+bloom and grain, soldier armour, the bright snow).
+
+### Final load check (all 45 maps, final build)
+
+- 45 of 45 load with 0 page errors and 0 game errors; most draw calls 131 (budget 230).
+- Triangles at the entry over the 750,000 guide: seabase 1,090,751 after its kit pass (258,000 before): the pipe
+  and tray runs and bolt rows sat on wall modules that repeat thousands of times. Removed from the plain wall
+  modules (detail kept on doors, hatches, ports, valves, moon pool, labs and equipment): now 318,389. Collision
+  unchanged. Highrise 1,024,707 (967,238 with its pre-pass kit: already over; the city below dominates): left for
+  the owner's frame-rate check.

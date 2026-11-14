@@ -28,7 +28,7 @@ def wall_service(m, rib=True):
     fq(m, -0.5, 0.5, -0.506, 1.08, 1.17, 'hazY')
     fq(m, -0.5, 0.5, -0.506, 4.3, 4.45, 'rib')
     fq(m, -0.5, 0.5, -0.506, 4.45, H, 'plate')
-    SD.wall_service(m)
+    # SD.wall_service(m): left out (wall modules repeat thousands of times per level; triangle budget, plan section 6)
 
 
 def wall_research(m):
@@ -39,7 +39,7 @@ def wall_research(m):
     fq(m, -0.5, 0.5, -0.506, 1.07, 1.09, 'tealD')
     fq(m, -0.5, 0.5, -0.506, 3.2, 3.24, 'lampC')
     fq(m, -0.5, 0.5, -0.506, 4.5, H, 'panelG')
-    SD.wall_research(m)
+    # SD.wall_research(m): left out (wall modules repeat thousands of times per level; triangle budget, plan section 6)
 
 
 def wall_hull(m):
@@ -53,7 +53,7 @@ def wall_hull(m):
             fq(m, x - 0.018, x + 0.018, -0.509, z + 0.07, z + 0.106, 'rivet')
     fq(m, -0.5, -0.484, -0.503, 0.5, H, 'hullD')
     fq(m, -0.5, 0.5, -0.506, 6.9, 7.1, 'hullD')
-    SD.wall_hull(m)
+    # SD.wall_hull(m): left out (wall modules repeat thousands of times per level; triangle budget, plan section 6)
 
 
 STYLES = {'S': wall_service, 'R': wall_research, 'H': wall_hull}
@@ -91,10 +91,8 @@ def build_walls(pal, ao):
     for S, fn in STYLES.items():
         m = new(pal)
         fn(m)
-        if S == 'S':
-            SD.service_run(m)
-        elif S == 'R':
-            SD.research_run(m)
+        # SD.service_run / SD.research_run (pipe and tray runs) left out: these modules repeat hundreds of times
+        # per level and the runs took the map from 258,000 to 1.09 million triangles at the entry
         make('W' + S, m, ao)
         m = new(pal)
         body, trim, acc = {'S': ('steel', 'rib', ('hazY', 1.08, 1.17)), 'R': ('panel', 'seam', ('tealM', 0.95, 1.07)),
