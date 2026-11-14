@@ -5,6 +5,7 @@ import math
 from mathutils import Matrix
 
 from parking_base import *  # noqa: F401,F403
+import parking_detail as DT
 from ib_lib import _clip
 
 # stacking (no two kinds ever share a height where they overlap): bays 3 - 12 mm, hatching 15, arrows / lane lines / crossings 18,
@@ -207,6 +208,7 @@ def build_props(pal, ao):
         else:
             mat = None
         m.prism([(1.2, 0.95), (1.3, 0.95), (1.3, 1.05), (1.2, 1.05)], 0.35, 3.4, stripes, mat=mat)
+        DT.barrier_detail(m)
         make(name, m, ao, cols=[cb(-0.45, -2.0, 0, 0.45, 2.0, 0.18), cb(-0.3, -1.45, 0, 0.3, -0.85, 1.6), cb(-0.3, 0.93, 0, 0.3, 1.57, 1.2)])
     # pay station (1 x 1)
     m = new(pal)
@@ -221,6 +223,7 @@ def build_props(pal, ao):
     m.bx(-0.2, 0.2, -0.05, 0.05, 1.82, 2.22, 'paper')
     for fy in (-1, 1):
         (text_front if fy < 0 else text_back)(m, 'P', 0.06, fy * 0.053, 0.0, 1.88, 'signB')
+    DT.paystation_detail(m)
     make('PayStation', m, ao, cols=[cb(-0.34, -0.25, 0, 0.34, 0.25, 1.82)])
     # traffic cones
     for name, n in (('Cone', 1), ('Cones', 2)):
@@ -244,6 +247,7 @@ def build_props(pal, ao):
     for z in (0.55, 0.75):
         m.cy((0, 0, z), 0.123, 0.123, 0.08, 'ink', seg=10, hull='none', caps=False)
     m.cy((0, 0, 0.0), 0.17, 0.17, 0.04, 'steelD', seg=10)
+    DT.bollard_detail(m)
     make('Bollard', m, ao, cols=[cb(-0.13, -0.13, 0, 0.13, 0.13, 1.0)])
     # jersey barriers (2 x 1): concrete with reflectors, plastic red / white
     prof = [(-0.3, 0.0), (0.3, 0.0), (0.3, 0.08), (0.12, 0.3), (0.08, 0.82), (-0.08, 0.82), (-0.12, 0.3), (-0.3, 0.08)]

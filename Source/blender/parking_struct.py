@@ -4,6 +4,7 @@ import math
 
 from parking_base import *  # noqa: F401,F403
 import parking_base as B
+import parking_detail as DT
 
 
 def inset(prof, d):
@@ -142,6 +143,7 @@ def build_walls(pal, ao):
                     fq(m, -0.5, 0.5, -0.509, 1.72 + k * 0.19, 1.75 + k * 0.19, 'steel')
                 fq(m, -0.5, 0.5, -0.509, 1.62, 1.7, 'ink')
                 m.bx(-0.496, 0.496, -0.78, -0.5, 3.18, 3.5, 'galv', hull='noside', cull='k')
+            DT.lo_detail(m, v)
             make('Lo_%s_%s' % (L, v), m, ao)
         # ---- upper storey (3.6 - 7.0)
         for v in ('Plain', 'Num', 'Arrow', 'Pipe', 'Pier'):
@@ -163,6 +165,7 @@ def build_walls(pal, ao):
                     m.bx(-0.35, 0.42, -0.72, -0.5, z, z + 0.06, 'steelD', hull='none')
             elif v == 'Pier':
                 wall_pier(m, c, cl, DECK + 0.18, 6.72, ext=False)
+            DT.up_detail(m, v)
             make('Up_%s_%s' % (L, v), m, ao)
     # beside the split-level platform (1.8 m, solid): the kerb and the colour band sit over the platform
     for L, (c, cl) in LEVELS.items():
@@ -178,9 +181,11 @@ def build_walls(pal, ao):
             m = new(pal)
             wall_lo(m, c, cl, trim=t)
             kerb(m, 0.0, trim=t)
+            DT.lo_detail(m, 'End', t)
             make('Lo_%s_End%s' % (L, t), m, ao)
             m = new(pal)
             wall_up(m, c, cl, trim=t)
+            DT.up_detail(m, 'End', t)
             make('Up_%s_End%s' % (L, t), m, ao)
     # corner posts (fill the notch where two walls meet): hazard bands, full height
     for name, sx, sy in (('NW', 1, -1), ('NE', -1, -1), ('SW', 1, 1), ('SE', -1, 1)):
@@ -226,6 +231,7 @@ def column(m, h, code):
     text_side(m, 'P', 0.05, 0.325, 0.0, 2.235, 'paper', 'x+')
     text_side(m, 'P', 0.05, -0.325, 0.0, 2.235, 'paper', 'x-')
     m.bx(-0.32, 0.32, -0.32, 0.32, h - 0.25, h - 0.18, 'lvB', hull='none')
+    DT.column_detail(m, h)
 
 
 def build_columns(pal, ao):
@@ -250,15 +256,18 @@ def build_rails(pal, ao):
         m.bx(-0.02, 0.02, y0, y1, 0.66, 0.71, 'galv', hull='none')
     m = new(pal)
     rail(m, -0.5, -0.1)
+    DT.rail_detail(m, -0.5, -0.1)
     make('Rail', m, ao, cols=[cb(-0.1, -0.5, 0, 0.1, 0.0, 1.1)])
     m = new(pal)
     rail(m, -0.5, 0.5)
     m.bx(-0.03, 0.03, -0.03, 0.03, 0.35, 1.0, 'galv', hull='none')
+    DT.rail_detail(m, -0.5, 0.5, post_at=(0.0, 0.0))
     make('RailFull', m, ao, cols=[cb(-0.1, -0.5, 0, 0.1, 0.5, 1.1)])
     m = new(pal)   # junction / end post: upstand block, galvanised post, a cap that meets the top rails
     m.bx(-0.1, 0.1, -0.1, 0.1, 0.0, 0.35, 'concL', cull='b')
     m.bx(-0.04, 0.04, -0.04, 0.04, 0.35, 1.0, 'galv')
     m.bx(-0.1, 0.1, -0.1, 0.1, 1.0, 1.1, 'lineY')
+    DT.plate(m, 0.0, 0.0, 0.35, 0.075)
     make('RailPost', m, ao)
 
 
@@ -290,6 +299,10 @@ def build_ramp(pal, ao, name, L, rise, lane, curb):
         for k in range(n + 1):
             y = -L / 2 + 0.3 + k * (L - 0.6) / n
             m.bx(xc - 0.04, xc + 0.04, y - 0.04, y + 0.04, s(y) + 0.2, s(y) + 1.12, 'galv', cull='b')
+            DT.ramp_post_plate(m, xc, y, s(y) + 0.22)
+        for k in range(n):   # kerb expansion joints midway between the posts
+            y = -L / 2 + 0.3 + (k + 0.5) * (L - 0.6) / n
+            DT.kerb_joint(m, a + 0.01, b - 0.01, y, s)
         for dz, c, t in ((1.1, 'lineY', 0.07), (0.7, 'galv', 0.05)):
             m.bm_((xc, -L / 2 + 0.22, s(-L / 2 + 0.22) + dz), (xc, L / 2 - 0.05, s(L / 2 - 0.05) + dz), t, c)
 
@@ -352,6 +365,8 @@ def build_stair(pal, ao, name, W, L, rise, n, wall=0.15, landing=0.0):
             poly(m, [(xo, y0b, rise / n + 0.25), (xo, yt, rise + 0.25), (xo, yt, rise + 0.6), (xo, y0b, rise / n + 0.6)], 'lvB', (sx, 0, 0))
         xi = sx * (W / 2 - 0.06)
         m.bm_((xi, -L / 2 + 0.2, rise / n + 0.9), (xi, yt, rise + 0.9), 0.05, 'lineY')
+        rz0, rz1 = rise / n + 0.9, rise + 0.9
+        DT.stair_brackets(m, xi, -L / 2 + 0.2, rz0, yt, rz1, sx * (W / 2), max(2, int((yt + L / 2) // 1.6)))
         if landing > 0:
             m.bm_((xi, yt + 0.03, rise + 0.9), (xi, L / 2 - 0.05, rise + 0.9), 0.044, 'lineY')
         for k in range(n + 1):
@@ -436,6 +451,7 @@ def build_gate(pal, ao):
                 pts = [(y0, 0.55), (y0 + 0.18, 0.55), (y0 + 0.38, 0.825), (y0 + 0.18, 1.1), (y0, 1.1), (y0 + 0.2, 0.825)]
                 poly(m, [(0.256, p[0], p[1]) for p in pts[:3] + [pts[5]]], 'paper', (1, 0, 0))
                 poly(m, [(0.256, p[0], p[1]) for p in [pts[5], pts[2], pts[3], pts[4]]], 'paper', (1, 0, 0))
+        DT.trail_detail(m, name)
         make(name, m, ao)
     # exit hatch: round steel plate with a yellow hazard ring
     m = new(pal)
