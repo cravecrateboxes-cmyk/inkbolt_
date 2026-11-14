@@ -38,7 +38,7 @@ fs.mkdirSync(OUT, { recursive: true });
           const x = Zn.ox + c + 0.5, z = Zn.oz + r + 0.5;
           if (!IB.Zones.isOpen(Zn, x, z)) continue;
           // need open cells round it (room for the robot)
-          let ok = true; for (let d = -1; d <= 1 && ok; d++) for (let e = -1; e <= 1 && ok; e++) if (!IB.Zones.isOpen(Zn, x + d, z + e)) ok = false;
+          let ok = true; for (let d = -2; d <= 2 && ok; d++) for (let e = -2; e <= 2 && ok; e++) if (!IB.Zones.isOpen(Zn, x + d, z + e)) ok = false;   // 2 m of open floor all round: props must not hide the robot
           if (!ok) continue;
           const s = LG.sampleAt(x, 1.0, z); if (!s) continue;
           const L = s.local, v = 0.2126 * L[0] + 0.7152 * L[1] + 0.0722 * L[2] + s.sky * 0.5;   // sampleAt -> { local: [r, g, b], sky }
@@ -55,7 +55,7 @@ fs.mkdirSync(OUT, { recursive: true });
             for (let k = 0; k < 32 && !cams[D]; k++) {
               const a = k / 32 * Math.PI * 2, px = best.x + Math.sin(a) * D, pz = best.z + Math.cos(a) * D;
               if (!IB.Zones.isOpen(Zn, px, pz)) continue;
-              if (!world.los(px, 1.6, pz, best.x, 0.8, best.z)) continue;
+              if (!world.los(px, 1.6, pz, best.x, 0.35, best.z) || !world.los(px, 1.6, pz, best.x, 1.2, best.z)) continue;   // crawler and soldier height
               cams[D] = { x: px, z: pz };
             }
           }
