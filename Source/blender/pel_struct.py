@@ -7,6 +7,7 @@ import math
 from pel_base import *  # noqa: F401,F403
 from pel_base import new, make, text, steps, stair_visual, stair_side_cols, hazard, hazard_up, window_band, window_band_x, rot_cols
 from kit_base import shutter_hull
+import pel_detail as PD
 
 
 # ================================================================ deck-edge railing (zone walls over the sea)
@@ -364,6 +365,7 @@ def build_island(pal, ao):
         x = x0
         while x <= x1 + 1e-6:
             m.cy((x, y, G), 0.04, 0.04, 1.11, 'yellow', seg=6)
+            PD.rail_foot(m, x, y, G)
             x += (x1 - x0) / max(1, round((x1 - x0) / 2.0))
 
     def rail_y(x, y0, y1):
@@ -373,6 +375,7 @@ def build_island(pal, ao):
         n = max(1, round((y1 - y0) / 2.0))
         for i in range(1, n):   # the corner posts belong to the rails along X
             m.cy((x, y0 + (y1 - y0) * i / n, G), 0.04, 0.04, 1.11, 'yellow', seg=6)
+            PD.rail_foot(m, x, y0 + (y1 - y0) * i / n, G)
     rail_x(-4.92, 4.92, -9.92)
     rail_y(4.92, -9.92, 9.92)
     rail_x(2.25, 4.92, 9.92)
@@ -380,6 +383,7 @@ def build_island(pal, ao):
     # the stair up the west face: rises toward -Y (south) from y = +1.6 to the landing at y = -7.4
     m.push(-4.0, -2.9, 180)   # local frame: x flipped, +Y = Blender -Y; the stair runs local y -4.5 .. 4.5
     stair_visual(m, -0.95, 0.9, -4.5, 18, rails=(False, True))
+    PD.stair_detail(m, -0.95, 0.9, -4.5, 18)
     # a solid side under the outer stringer (local +X is the outer side: the stair is closed underneath)
     m.prism([(-4.5, 0.0), (4.5, 0.0), (4.5, G - 0.3)], 0.86, 0.92, ['navyD'])
     m.pop()
@@ -480,6 +484,7 @@ def build_tower2(pal, ao):
         x = x0
         while x <= x1 + 1e-6:
             m.cy((x, y, G), 0.04, 0.04, 1.11, 'yellow', seg=6)
+            PD.rail_foot(m, x, y, G)
             x += (x1 - x0) / max(1, round((x1 - x0) / 2.0))
 
     def rail_y(x, y0, y1):
@@ -488,14 +493,17 @@ def build_tower2(pal, ao):
         n = max(1, round((y1 - y0) / 2.0))
         for i in range(1, n):   # the corner posts belong to the rails along X
             m.cy((x, y0 + (y1 - y0) * i / n, G), 0.04, 0.04, 1.11, 'yellow', seg=6)
+            PD.rail_foot(m, x, y0 + (y1 - y0) * i / n, G)
     rail_x(-3.92, 3.92, -5.92)
     rail_y(3.92, -5.92, 5.92)
     rail_x(-1.95, 0.4, 5.92)
     rail_y(-3.92, -5.92, -4.55)
     rail_y(-1.98, -4.4, 5.92)
     m.cy((-1.98, -4.4, G), 0.04, 0.04, 1.11, 'yellow', seg=6)
+    PD.rail_foot(m, -1.98, -4.4, G)
     m.push(-3.0, 0.0, 180)
     stair_visual(m, -0.95, 0.9, -4.5, 18, rails=(False, True))
+    PD.stair_detail(m, -0.95, 0.9, -4.5, 18)
     m.prism([(-4.5, 0.0), (4.5, 0.0), (4.5, G - 0.3)], 0.86, 0.92, ['navyD'])
     m.pop()
     # the balustrade along the balcony's west edge over the stair (the stair's inner rail): nobody steps sideways from
