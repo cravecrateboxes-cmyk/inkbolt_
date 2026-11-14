@@ -10,6 +10,7 @@ import random
 
 from ap_base import *  # noqa: F401,F403
 import ap_base as B
+import ap_detail as D
 
 
 def legs(m, x0, x1, y0, y1, h, c='chrome', t=0.04):
@@ -56,12 +57,14 @@ def build_checkin(pal, ao):
         m.bx(-0.85, -0.35, yc - 0.25, yc + 0.25, 0.5, 0.6, 'black')
         a3, b3 = sorted((yc - s * 0.2, yc - s * 0.27))
         m.bx(-0.85, -0.35, a3, b3, 0.6, 1.05, 'black')
+        D.desk_side(m, s)
 
     def belt(m, x0, x1):
         m.bx(x0, x1, -0.55, 0.55, 0.0, BELT - 0.04, 'steelD', hull='noside', cull='b')
         uq(m, x0, x1, -0.45, 0.45, BELT, 'rubber')
         for s in (-1, 1):
             m.bx(x0, x1, s * 0.5 - 0.05, s * 0.5 + 0.05, BELT - 0.04, BELT + 0.12, 'chrome', hull='noside', cull='b')
+        D.belt_fit(m, x0, x1, BELT)
     for key in ('Mid', 'End', 'Hood'):
         m = new(pal)
         g = new(pal)
@@ -77,6 +80,7 @@ def build_checkin(pal, ao):
             bq(m, -1.42, -1.18, 1.003, 2.3, 3.0, 'gB')
             text_side(m, 'CHECK-IN', 0.26, -1.456, 0.0, 2.5, 'navy', 'x-', maxw=1.7)
             cols.append(cb(-1.45, -1.0, 0.0, -1.15, 1.0, 3.2))
+            D.island_end_fit(m)
         if key == 'Hood':   # the belt runs into a hood (the bags drop to the baggage hall below)
             m.bx(0.4, 1.5, -0.7, 0.7, 0.0, 1.5, 'steel', cull='b')
             m.bx(0.38, 0.42, -0.5, 0.5, BELT, 1.3, 'black', hull='none', cull='b')
@@ -87,6 +91,7 @@ def build_checkin(pal, ao):
             bq(m, 0.5, 1.4, 0.703, 1.1, 1.4, 'sun')
             text_back(m, 'BAGGAGE', 0.14, 0.706, 0.95, 1.18, 'black', font='cond', maxw=0.8)
             cols.append(cb(0.4, -0.7, 0.0, 1.5, 0.7, 1.5))
+            D.island_hood_fit(m)
         make('Isl_' + key, m, ao, cols=cols)
         make_glow('Isl_' + key + '_LED', g)
     # bags on the belts (moving-line items; lying flat, front along +X): hard shells and a soft duffel
@@ -105,6 +110,7 @@ def build_checkin(pal, ao):
     fq(m, -0.28, 0.28, -0.203, 0.6, 0.66, 'sky')
     poly(g, [(-0.24, -0.3, 1.22), (0.24, -0.3, 1.22), (0.24, 0.16, 1.55), (-0.24, 0.16, 1.55)], 'scrB', (0, -0.6, 0.8))
     m.bx(-0.12, 0.12, -0.21, -0.2, 0.3, 0.38, 'black', hull='none', cull='k')
+    D.kiosk_fit(m)
     make('Kiosk', m, ao, cols=[cb(-0.3, -0.32, 0.0, 0.3, 0.24, 1.6)])
     make_glow('Kiosk_LED', g)
     # the departures board [10, 2]: a double-sided flight board on two legs, lit rows (glow companion)
@@ -127,6 +133,7 @@ def build_checkin(pal, ao):
                                 (2.5, 4.4, ('scrG', 'scrG', 'sun', 'scrG', 'scrR', 'scrG', 'sun', 'scrG', 'scrG')[r])):
                 x0, x1 = (u0, u1) if s < 0 else (-u1, -u0)
                 Q(g, x0, x1, s * 0.306, z - 0.09, z + 0.09, c)
+    D.board_fit(m)
     make('Board', m, ao, cols=[cb(-4.5, -0.3, 0.0, -4.1, 0.3, 2.8), cb(4.1, -0.3, 0.0, 4.5, 0.3, 2.8)])
     make_glow('Board_LED', g)
     # information desk [4, 2]: a curved front in panels, a timber top, the blue i sign
@@ -153,6 +160,7 @@ def build_checkin(pal, ao):
     m = new(pal)
     m.cy((0, 0, 0), 0.17, 0.17, 0.03, 'steelD', seg=6, hull='none')
     m.cy((0, 0, 0.03), 0.04, 0.04, 0.95, 'chrome', seg=6)
+    D.beltpost_fit(m)
     make('BeltPost', m, ao, cols=[cb(-0.17, -0.17, 0.0, 0.17, 0.17, 1.0)])
     # bench [4, 1] (Blender X along it): timber slats on two steel legs, backless (seen from both sides)
     m = new(pal)
@@ -161,6 +169,7 @@ def build_checkin(pal, ao):
     m.bx(-1.95, 1.95, -0.25, 0.25, 0.42, 0.48, 'wood', hull='noside')
     for k in range(1, 5):
         uq(m, -1.95, 1.95, -0.25 + k * 0.1 - 0.008, -0.25 + k * 0.1 + 0.008, 0.483, 'woodD')
+    D.bench_fit(m)
     make('Bench', m, ao, cols=[cb(-1.95, -0.25, 0.0, 1.95, 0.25, 0.48)])
     # baggage trolley (front -Y: the handle at +Y), with a suitcase on some
     for key in ('', 'B'):
@@ -404,6 +413,7 @@ def build_gates(pal, ao):
     for k in range(5):
         x = max(-1.92, min(1.92, -2.0 + k * 1.0))
         m.bx(x - 0.03, x + 0.03, -0.28, 0.14, 0.466, 0.68, 'black', hull='none', cull='b')
+    D.seats_fit(m)
     make('Seats', m, ao, cols=[cb(-1.95, -0.32, 0.0, 1.95, 0.3, 0.5), cb(-1.95, 0.15, 0.0, 1.95, 0.3, 1.05)])
     # gate podium [3, 1] (front -Y: the passenger side): a curved counter, two screens, a boarding-pass reader
     m = new(pal)
@@ -420,6 +430,7 @@ def build_gates(pal, ao):
     fq(g, -1.2, 1.2, 0.397, 1.8, 2.5, 'screen')
     text_front(g, 'BOARDING', 0.22, 0.394, 0.0, 2.2, 'sun', maxw=1.6)
     text_front(g, 'SKYLARK AIR', 0.13, 0.394, 0.0, 1.95, 'paper', maxw=1.4)
+    D.gatepod_fit(m)
     make('GatePod', m, ao, cols=[cb(-1.45, -0.4, 0.0, 1.45, 0.5, 1.1), cb(-1.3, 0.4, 0.0, 1.3, 0.5, 2.6)])
     make_glow('GatePod_LED', g)
     # charging pillar and a flight-information pylon (two screens back to back on a post)
@@ -432,6 +443,7 @@ def build_gates(pal, ao):
         Q(m, -0.12, 0.12, s * 0.183, 0.7, 0.95, 'black')
         Q(g, -0.08, 0.08, s * 0.186, 0.98, 1.05, 'scrG')
         (lq if s < 0 else rq)(m, s * 0.183, -0.12, 0.12, 0.7, 0.95, 'black')
+    D.charge_fit(m)
     make('Charge', m, ao, cols=[cb(-0.2, -0.2, 0.0, 0.2, 0.2, 1.16)])
     make_glow('Charge_LED', g)
     m = new(pal)

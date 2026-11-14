@@ -6,6 +6,7 @@ import math
 
 from ap_base import *  # noqa: F401,F403
 import ap_base as B
+import ap_detail as D
 
 GY = -4.5        # the apron outside the terminal lies 4.5 m under the departures floor
 
@@ -16,6 +17,7 @@ def build_back(pal, ao):
     m.cy((1.6, 0.0, -0.15), 1.6, 1.6, 3.0, 'steelD', seg=10)
     m.cy((1.6, 0.0, 2.85), 1.7, 1.5, 0.25, 'wallL', seg=10)
     m.cy((1.6, 0.0, GY), 0.5, 0.5, -0.15 - GY, 'conc', seg=8, caps=False)
+    D.rotunda_fit(m, GY)
     make('Bk_Rotunda', m, ao)
     # tunnel section: 1 m long along X (stretched by the theme), 2.8 wide, 2.7 tall, a window band each side
     m = new(pal)
@@ -24,6 +26,7 @@ def build_back(pal, ao):
         (fq if s < 0 else bq)(m, 0.0, 1.0, s * 1.403, 1.0, 1.7, 'glass')
         (fq if s < 0 else bq)(m, 0.0, 1.0, s * 1.406, 0.3, 0.4, 'sky')
     uq(m, 0.0, 1.0, -1.3, 1.3, 2.703, 'wallL')
+    D.tunnel_fit(m)
     make('Bk_Tunnel', m, ao)
     # drive column: two telescopic legs on a wheel bogie (from the apron up to 1.3 m under the departures floor,
     # under the tunnel where it hangs lowest)
@@ -33,6 +36,7 @@ def build_back(pal, ao):
     m.bx(-0.5, 0.5, -1.2, 1.2, GY + 0.35, GY + 0.8, 'steelD')
     for y in (-0.9, 0.9):
         m.cy((-0.22, y, GY + 0.35), 0.35, 0.35, 0.44, 'tire', seg=8, rot=(0, 90, 0))
+    D.drive_fit(m, GY)
     make('Bk_Drive', m, ao)
     # cab: a short box with a window, the black bellows canopy at +X (it meets the fuselage), a yellow bumper
     m = new(pal)
@@ -43,6 +47,7 @@ def build_back(pal, ao):
     for k in range(4):
         fq(m, 1.05 + k * 0.17, 1.12 + k * 0.17, -1.503, 0.05, 2.7, 'rubber')
     m.bx(1.0, 1.75, -1.5, 1.5, -0.12, 0.0, 'sun')
+    D.cab_fit(m)
     make('Bk_Cab', m, ao)
     # control tower (~46 m): a tapered shaft on a base block, the glass cab (an inverted octagonal frustum), the roof
     # with a radar dome and masts

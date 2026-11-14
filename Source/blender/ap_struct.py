@@ -10,6 +10,7 @@ import random
 
 from ap_base import *  # noqa: F401,F403
 import ap_base as B
+import ap_detail as D
 
 
 # ================================================================ terminal walls (front face y = -0.5)
@@ -31,6 +32,7 @@ def wall_term(m, z0=0.0, z1=H):
             fq(m, -0.5, 0.5, -0.503, z - 0.01, z + 0.01, 'joint')
         fq(m, -0.01, 0.01, -0.506, max(3.3, z0), 13.5, 'joint')
         fq(m, -0.5, 0.5, -0.5, 13.5, H, 'ceil')
+    D.wall_fit(m, z0, z1)
 
 
 def core(m):
@@ -62,6 +64,7 @@ def curtain(m, kind='A', z0=0.0):
     else:
         glint(m, 0.0, yg, 4.0, 1.6)
         glint(m, -0.25, yg, 11.0, 1.2)
+    D.curtain_fit(m, kind, z0)
 
 
 def ext_point(m, x=0.0):
@@ -82,8 +85,9 @@ def build_walls(pal, ao):
     for (c, z0, z1) in (('stoneD', 0.0, 0.15), ('stone', 0.15, 3.0), ('wood', 3.0, 3.3), ('ceil', 13.5, H)):
         fq(m, -0.5, 0.5, -0.503, z0, z1, c); bq(m, -0.5, 0.5, 0.503, z0, z1, c)
         lq(m, -0.503, -0.5, 0.5, z0, z1, c); rq(m, 0.503, -0.5, 0.5, z0, z1, c)
+    D.corner_post_fit(m)
     make('CornerT', m, ao)
-    m = new(pal); core(m); make('WC', m, ao)
+    m = new(pal); core(m); D.core_fit(m); make('WC', m, ao)
     m = new(pal)
     m.bx(-0.5, 0.5, -0.5, 0.5, 0.0, H, 'conc', cull='bt')
     make('CornerC', m, ao)
@@ -93,6 +97,7 @@ def build_walls(pal, ao):
     for key, w1, w2, bg, fg in ADS:
         m = new(pal); wall_term(m)
         m.bx(-0.45, 0.45, -0.62, -0.503, 0.55, 3.0, 'steelD', cull='k')
+        D.lightbox_frame(m)
         make('WT_Ad' + key, m, ao)
         g = new(pal)
         fq(g, -0.4, 0.4, -0.623, 0.6, 2.95, bg)
@@ -118,6 +123,7 @@ def build_walls(pal, ao):
     m.bx(-0.48, 0.48, -0.6, -0.503, 1.6, 3.6, 'black', cull='k')
     fq(m, -0.48, 0.48, -0.603, 3.32, 3.56, 'sun')
     text_front(m, 'DEPARTURES', 0.15, -0.606, 0.0, 3.37, 'black', maxw=0.85)
+    D.fids_frame(m)
     make('WT_FIDS', m, ao)
     g = new(pal)
     for k in range(3):
@@ -148,6 +154,7 @@ def build_walls(pal, ao):
     m.bx(0.5 - 0.02, 0.5, -0.6, -0.5, 1.3, 1.5, 'black', hull='none', cull='k')
     fq(m, -0.3, 0.3, -0.566, 1.5, 1.72, 'red')
     text_front(m, 'STAFF ONLY', 0.12, -0.569, 0.0, 1.55, 'paper', maxw=0.55)
+    D.staff_door_fit(m)
     make('WT_Door', m, ao)
     # wayfinding: a black sign with yellow lettering and an arrow (two versions)
     for key, word, arrow in (('A', 'GATES  A1-A6', 1), ('B', 'CHECK-IN', -1)):
@@ -156,6 +163,7 @@ def build_walls(pal, ao):
         text_front(m, word, 0.32, -0.563, -0.08 * arrow, 4.17, 'sun', maxw=0.72)
         x = 0.4 * arrow
         poly(m, [(x - 0.06 * arrow, -0.564, 4.2), (x + 0.04 * arrow, -0.564, 4.35), (x - 0.06 * arrow, -0.564, 4.5)], 'sun', (0, -1, 0))
+        D.sign_frame(m)
         make('WT_Way' + key, m, ao)
     # ---- the curtain wall
     for kind in ('A', 'B', 'M'):
@@ -163,6 +171,7 @@ def build_walls(pal, ao):
     m = new(pal)
     m.bx(-0.5, 0.5, -0.5, -0.2, 0.0, 0.3, 'wallL', cull='b')
     m.bx(-0.12, 0.12, -0.47, -0.23, 0.3, H, 'mull', cull='b')
+    D.corner_glass_fit(m)
     make('CornerG', m, ao)
     # entrance doors in the curtain wall: an automatic sliding pair per module under a lit header
     m = new(pal); curtain(m, 'M', z0=3.0)
@@ -178,6 +187,7 @@ def build_walls(pal, ao):
     glint(m, -0.3, yg - 0.03, 0.8, 1.0)
     fq(m, -0.4, 0.4, -0.563, 2.78, 2.98, 'scrG')
     m.bx(-0.5, 0.5, -0.12, 0.5, -0.01, 0.0, 'conc', hull='none', cull='bfklr')
+    D.entrance_fit(m)
     make('WG_Door', m, ao)
     g = new(pal)
     fq(g, -0.4, 0.4, -0.566, 2.78, 2.98, 'scrG')
@@ -193,6 +203,7 @@ def build_walls(pal, ao):
     glint(m, -0.3, -0.403, 0.6, 1.2)
     m.bx(0.3, 0.36, -0.44, -0.4, 1.0, 1.15, 'chrome', hull='none', cull='k')
     m.bx(-0.5, 0.5, -0.5, 0.5, -0.01, 0.0, 'stoneD', hull='none', cull='bfklr')
+    D.bridge_fit(m)
     make('WG_Bridge', m, ao)
     g = new(pal)
     fq(g, -0.4, 0.4, -0.563, 2.6, 3.3, 'screen')
@@ -540,6 +551,7 @@ def build_decks(pal, ao):
     m = new(pal); grail(m, -0.5, -0.07); make('GRailHalf', m, ao, cols=[cb(-0.05, -0.5, 0.0, 0.05, 0.0, 1.1)])
     m = new(pal)
     m.bx(-0.04, 0.04, -0.04, 0.04, 0.0, 1.12, 'chrome', cull='b')
+    D.railpost_fit(m, 0.04, 1.12)
     make('GRailPost', m, ao)
 
     # scaffold guard rail (hangar work platforms): yellow top / mid rails and a toe board
@@ -551,11 +563,13 @@ def build_decks(pal, ao):
     m = new(pal); yrail(m, -0.5, -0.045); make('YRailHalf', m, ao, cols=[cb(-0.04, -0.5, 0.0, 0.04, 0.0, 1.08)])
     m = new(pal)
     m.bx(-0.035, 0.035, -0.035, 0.035, 0.0, 1.1, 'sun', cull='b')
+    D.railpost_fit(m, 0.035, 1.1, capc='black')
     make('YRailPost', m, ao)
     # terminal deck column (white, round) and the hangar platform posts (yellow square tube, one per platform level)
     m = new(pal)
     m.cy((0, 0, 0), 0.22, 0.22, DECK - 0.4, 'wallW', seg=8, caps=False)
     m.cy((0, 0, 0), 0.26, 0.26, 0.12, 'steelD', seg=8, hull='none')
+    D.deckcol_fit(m, DECK - 0.4)
     make('DeckCol', m, ao, cols=[cb(-0.22, -0.22, 0, 0.22, 0.22, DECK - 0.4)])
     for key, top in (('Post', DOCK - 0.4), ('Post2', 2 * DOCK - 0.4)):
         m = new(pal)
@@ -710,4 +724,5 @@ def build_floors(pal, ao):
         a = math.pi / 4 + i * math.pi / 2
         m.bm_((0.0, 0.0, 8.4), (math.cos(a) * 3.0, math.sin(a) * 3.0, H - 0.05), 0.26, 'wallW')
         m.cy((math.cos(a) * 3.0, math.sin(a) * 3.0, H - 0.12), 0.3, 0.36, 0.12, 'chrome', seg=6, hull='none')
+    D.column_fit(m)
     make('Column', m, ao, cols=[cb(-0.38, -0.38, 0, 0.38, 0.38, 8.6)])
