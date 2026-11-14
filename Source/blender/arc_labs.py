@@ -7,6 +7,7 @@ import math
 
 from arc_base import *  # noqa: F401,F403
 import arc_base as B
+import arc_detail as AD
 
 
 def ring_y(m, x, y, z, r, c, seg=8, w=0.012, face=-1):
@@ -38,7 +39,7 @@ def build_archive(pal, ao):
             poly(m, [(xs, -0.35, 1.7), (xs, 0.35, 1.7), (xs, 0.35, 2.2), (xs, -0.35, 2.2)], 'paper', (sx, 0, 0))
             text_side(m, 'CORES', 0.14, xs + sx * 0.003, 0.0, 1.85, 'blueP', 'x-' if sx < 0 else 'x+')
     for v, end in (('CoreRack_A', None), ('CoreRack_EndL', 'L'), ('CoreRack_EndR', 'R')):
-        m = new(pal); rack(m, end)
+        m = new(pal); rack(m, end); AD.rack(m, end)
         x0 = -1.56 if end == 'L' else -1.5
         x1 = 1.56 if end == 'R' else 1.5
         make(v, m, ao, cols=[cb(x0, -0.46, 0, x1, 0.46, 2.45)])
@@ -172,6 +173,7 @@ def build_power(pal, ao):
     text_side(m, 'GEN 2', 0.3, 1.103, -0.2, 0.9, 'paper', 'x+', maxw=1.5)
     for k in range(3):
         hullp(m, [(-1.0 + k * 0.8, -1.6, 2.15), (-0.6 + k * 0.8, -1.6, 2.15), (-0.8 + k * 0.8, -1.4, 2.4)], 'frost', hull='none')
+    AD.gen_set(m)
     make('GenSet', m, ao, cols=[cb(-1.8, -2.8, 0, 1.8, 2.8, 0.3), cb(-1.2, -2.6, 0.3, 1.2, 2.1, 2.15), cb(-1.6, 1.0, 0.3, -1.2, 2.6, 1.8)])
     # ---- boiler [4, 4]: vertical fire-tube boiler, burner, insulation bands, pipes up into the ice
     m = new(pal)
@@ -186,6 +188,7 @@ def build_power(pal, ao):
     tube(m, (1.1, -0.5, 2.6), (1.7, -1.2, 2.6), 0.14, 'steelL', seg=8)
     tube(m, (1.7, -1.2, 2.6), (1.7, -1.2, 5.8), 0.14, 'steelL', seg=8)
     m.cy((-1.0, -1.0, 2.4), 0.18, 0.18, 0.06, 'paper', seg=8, rot=(90, 0, 30), hull='none')
+    AD.boiler(m)
     make('Boiler', m, ao, cols=[cb(-1.8, -1.8, 0, 1.8, 1.8, 0.25), cb(-1.2, -1.0, 0.25, 1.2, 1.4, 3.6), cb(-0.55, -1.75, 0.25, 0.55, -0.95, 1.3)])
     # ---- pipe run (1 cell, along X): two big insulated pipes on a stand
     m = new(pal)
@@ -203,6 +206,7 @@ def build_power(pal, ao):
     text_front(m, 'DAY TANK', 0.22, -0.756, 0.0, 0.7, 'black', maxw=1.8)
     m.cy((0.9, 0.3, 1.6), 0.1, 0.1, 0.3, 'steelD', seg=6)
     uq(m, -1.2, 0.5, -0.6, 0.6, 1.603, 'frost')
+    AD.day_tank(m)
     make('DayTank', m, ao, cols=[cb(-1.4, -0.85, 0, 1.4, 0.85, 1.6)])
     # ---- switchboard [4, 1] (back on +Y)
     m = new(pal)
@@ -216,6 +220,7 @@ def build_power(pal, ao):
         m.bx(x + 0.25, x + 0.31, -0.26, -0.2, 0.9, 1.2, 'black', hull='none')
         fq(m, x - 0.3, x + 0.1, -0.206, 0.4, 0.55, 'orange' if k % 2 else 'yel')
     frost_spots(m, rnd, -1.9, 1.9, 1.8, 2.15, -0.209, 6)
+    AD.switchboard(m)
     make('Switchboard', m, ao, cols=[cb(-1.95, -0.2, 0, 1.95, 0.48, 2.2)])
     # ---- pump [2, 1]
     m = new(pal)

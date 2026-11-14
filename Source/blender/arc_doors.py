@@ -7,6 +7,7 @@ import math
 from arc_base import *  # noqa: F401,F403
 import arc_base as B
 import arc_struct as S
+import arc_detail as AD
 
 OW = 1.2   # half the door opening width
 
@@ -71,6 +72,7 @@ def build_doors(pal, ao):
     uq(m, -OW, OW, -1.0, 1.0, 0.012, 'steelD')
     for k in range(6):
         uq(m, -OW + 0.1, OW - 0.1, -0.9 + k * 0.32, -0.9 + k * 0.32 + 0.1, 0.016, 'black')
+    AD.door_frame(m, 1.0)
     make('DoorX', m, ao, cols=door_cols(1.0))
     # interior door [3, 1]: casings both sides, a number plate
     m = new(pal)
@@ -81,6 +83,7 @@ def build_doors(pal, ao):
         int_upper(m, s * 0.5, s, CS)
         (fq if s < 0 else bq)(m, -1.5, -OW - 0.1, s * 0.5, 0.0, DH + 0.1, 'panelW')
         (fq if s < 0 else bq)(m, OW + 0.1, 1.5, s * 0.5, 0.0, DH + 0.1, 'panelW')
+    AD.door_frame(m, 0.5)
     make('DoorI', m, ao, cols=door_cols(0.5))
     # lab door [3, 2]: cave side (front): an insulated steel portal in the module's skin; lab side (back)
     for name, upper in (('DoorL', True),):
@@ -98,6 +101,7 @@ def build_doors(pal, ao):
         int_upper(m, 1.0, 1, CL)
         bq(m, -1.5, -OW - 0.1, 1.0, 0.0, DH + 0.1, 'panelW'); bq(m, OW + 0.1, 1.5, 1.0, 0.0, DH + 0.1, 'panelW')
         frost_spots(m, RND(211), -1.45, 1.45, 3.0, 4.3, -1.009, 6)
+        AD.door_frame(m, 1.0, cw=0.14, deg_sides=(0,))
         make(name, m, ao, cols=door_cols(1.0))
     # breaches [3, 2]: the wall torn open, bent panels and ice round a jagged hole
     for name in ('Breach', 'BreachIce'):
@@ -144,6 +148,7 @@ def build_doors(pal, ao):
     casing(m, 1.003, 1, 'steelK')
     int_upper(m, 1.0, 1, CL)
     bq(m, -1.5, -OW - 0.1, 1.0, 0.0, DH + 0.1, 'panelW'); bq(m, OW + 0.1, 1.5, 1.0, 0.0, DH + 0.1, 'panelW')
+    AD.door_frame(m, 1.0, cw=0.16, deg_sides=(0,))
     make('VaultDoor', m, ao, cols=door_cols(1.0))
 
     def leaf(m, dmg, rnd):
@@ -161,7 +166,7 @@ def build_doors(pal, ao):
                 r = rnd.uniform(0.06, 0.14) * (1 + dmg * 0.4)
                 poly(m, [(x + math.cos(i / 6 * 6.283) * r * rnd.uniform(0.6, 1), -0.756 - j * 0.003, z + math.sin(i / 6 * 6.283) * r * rnd.uniform(0.6, 1)) for i in range(6)], 'steelD' if dmg < 2 else 'black', (0, -1, 0))
     for st, dmg in (('_Leaf', 0), ('_Leaf_D1', 1), ('_Leaf_D2', 2)):
-        m = new(pal); leaf(m, dmg, RND(240 + dmg))
+        m = new(pal); leaf(m, dmg, RND(240 + dmg)); AD.vault_leaf(m, dmg)
         make('VaultDoor' + st, m, ao, cols=[cb(-OW, -0.8, 0.0, OW, -0.4, DH)])
     m = new(pal)   # the burst leaf: a slab torn off its hinge, leaning in the opening, shards
     m.bxr(-0.85, -0.25, 0.8, 0.5, 0.3, 1.7, 'steelL', rot=(0, 18, 12))
@@ -190,6 +195,7 @@ def build_gate(pal, ao):
             m.cy((sx * 2.1, y, 3.75), 0.12, 0.12, 0.09, 'redE', seg=8, rot=(fy * -90, 0, 0))
         S.strata(m, S.CAVE, S.BULGE['C'], at=y, s=fy, u0=-2.5, u1=2.5, zmin=4.1)
         m.bx(-2.5, 2.5, min(y, y + fy * 0.1), max(y, y + fy * 0.1), 7.3, 7.4, 'iceL', hull='noside')
+        AD.gate_frame(m, fy)
     make('GateFrame', m, ao, cols=[cb(-2.5, -0.6, 0, -1.5, 0.6, 3.44), cb(1.5, -0.6, 0, 2.5, 0.6, 3.44)], side=2.45)
     # the shutter: an insulated steel door leaf, frost and a hazard foot
     m = new(pal)
@@ -238,6 +244,7 @@ def build_gate(pal, ao):
                  (math.cos(a1) * 1.15, math.sin(a1) * 1.15, 0.123), (math.cos(a1) * 0.98, math.sin(a1) * 0.98, 0.123)], 'orange' if i % 2 else 'black', (0, 0, 1))
     m.bx(-0.3, 0.3, 0.9, 1.1, 0.0, 0.26, 'steelD')
     text_up(m, 'DEEP LIFT', 0.12, 0.183, 0.0, 0.0, 'paper')
+    AD.hatch(m)
     make('Hatch', m, ao, bevel=0.015)
 
 

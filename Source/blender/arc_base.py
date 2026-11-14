@@ -194,6 +194,12 @@ def chevrons(m, x0, x1, y, z0, z1, n, back=False, ca='orange', cb_='black'):
         (bq if back else fq)(m, x0 + i * w, x0 + (i + 1) * w, y, z0, z1, ca if i % 2 else cb_)
 
 
+def _foot(m, x, y, z0, c):
+    """a base flange under a guard-rail post (arc_detail.rail_foot)"""
+    import arc_detail
+    arc_detail.rail_foot(m, x, y, z0, c)
+
+
 def rail_x(m, x0, x1, y, z0, h=1.05, c='orange', post=1.0, toe=True):
     """guard rail along X at y: posts, top and knee rail, toe board"""
     L = x1 - x0
@@ -205,6 +211,7 @@ def rail_x(m, x0, x1, y, z0, h=1.05, c='orange', post=1.0, toe=True):
     for k in range(n + 1):
         px = min(max(x0 + k * L / n, x0 + 0.03), x1 - 0.03)
         m.bx(px - 0.025, px + 0.025, y - 0.025, y + 0.025, z0, z0 + h - 0.05, c, hull='none', cull='bt')
+        _foot(m, px, y, z0, c)
 
 
 def rail_y(m, x, y0, y1, z0, h=1.05, c='orange', post=1.0, toe=True):
@@ -217,6 +224,7 @@ def rail_y(m, x, y0, y1, z0, h=1.05, c='orange', post=1.0, toe=True):
     for k in range(n + 1):
         py = min(max(y0 + k * L / n, y0 + 0.03), y1 - 0.03)
         m.bx(x - 0.025, x + 0.025, py - 0.025, py + 0.025, z0, z0 + h - 0.05, c, hull='none', cull='bt')
+        _foot(m, x, py, z0, c)
 
 
 def frost_spots(m, rnd, x0, x1, z0, z1, y, n, face=-1, c='frost'):
