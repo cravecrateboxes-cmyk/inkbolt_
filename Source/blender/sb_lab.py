@@ -9,6 +9,7 @@ import random
 
 from sb_base import *  # noqa: F401,F403
 import sb_base as B
+import sb_detail as SD
 from kit_util import hull_pts
 from fam_kit_bedroom import normals_up
 
@@ -371,6 +372,7 @@ def build_labprops(pal, ao):
                     uq(m, x, x + 0.03, y - 0.07, y + 0.07, 1.023, 'sedimL')
             m.bx(0.45, 0.85, -0.25, 0.1, 0.92, 0.94, 'rib')
             m.bxr(0.65, 0.12, 1.06, 0.38, 0.02, 0.26, 'rib', rot=(-15, 0, 0))
+        SD.bench(m)
         make(name, m, ao, cols=[cb(-0.97, -0.45, 0.0, 0.97, 0.45, 0.95)])
     # core rack [2, 1] (back to the wall): sediment cores in tubes on four shelves
     m = new(pal)
