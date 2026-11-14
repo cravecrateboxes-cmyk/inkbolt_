@@ -18,6 +18,7 @@ from mathutils import Matrix, Vector
 
 from ib_lib import *  # noqa: F401,F403
 import ib_lib
+import of_detail
 
 FAM = 'kit-office'
 PFX = 'KIT_OFFICE_'
@@ -258,6 +259,7 @@ def window_module(k, kind, rot):
     k.bx(-0.44, 0.5, -0.5, 0.42, 3.55, H, 'ceil')                   # shade pocket / header
     k.bx(-0.5, 0.5, -0.36, 0.9, -0.5, 0.03, 'ledge')                # exterior slab edge
     k.bx(-0.5, 0.5, 0.84, 0.9, 0.03, 0.15, 'mullion', ink=False)    # parapet rail
+    of_detail.window_fittings(k)
     if kind == 'B':     # comic glass glints
         k.poly([(-0.3, -0.37, 1.25), (-0.22, -0.37, 1.25), (0.2, -0.37, 2.55), (0.12, -0.37, 2.55)], 'glint', (0, -1, 0))
         k.poly([(-0.08, -0.37, 1.45), (-0.045, -0.37, 1.45), (0.3, -0.37, 2.5), (0.265, -0.37, 2.5)], 'glint', (0, -1, 0))
@@ -277,6 +279,7 @@ def win_column(k, rot):
     k.bx(-0.5, 0.5, 0.84, 0.9, 0.03, 0.15, 'mullion', ink=False)
     k.qy(-0.3, -0.18, 1.2, 1.32, -0.503, -1, 'white')               # thermostat
     k.qy(-0.28, -0.2, 1.24, 1.29, -0.506, -1, 'screen2')
+    of_detail.column_fittings(k)
     return k
 
 
@@ -298,6 +301,7 @@ def drywall(k, kind):
     for s in (-1, 1):
         y0, y1 = srt(s * 0.497, s * 0.508)
         k.bx(-0.49, 0.49, y0, y1, 0, 0.1, 'graphite', ink=False)
+    of_detail.dry_fittings(k, kind)
     return dry_decor(k, kind)
 
 
@@ -438,7 +442,7 @@ def gate_shutter(k):
     return k
 
 
-def trail_wall(k):
+def trail_wall(k, faces=(1, -1)):
     """Corridor drywall (1 m along Blender Y, 0.5 m thick), both faces alike, teal wayfinding stripe."""
     k.begin()
     k.bx(-0.25, 0.25, -0.5, 0.5, 0, H, 'drywall')
@@ -448,13 +452,14 @@ def trail_wall(k):
         k.bx(x0, x1, -0.5, 0.5, 1.15, 1.25, 'teal', ink=False)
         k.bx(x0, x1, -0.5, 0.5, 1.3, 1.33, 'fabricBlue', ink=False)
         k.qx(-0.5, -0.49, 0.1, H, s * 0.253, s, 'drywall2')        # board joint
+    of_detail.trail_fittings(k, faces)
     return k
 
 
 def trail_variant(k, kind):
     """Corridor drywall with something on its trail face (+X): a framed print, a whiteboard, a status screen or a
     fire cabinet (the drywall partition decor, turned onto the 0.5 m trail slab)."""
-    trail_wall(k)
+    trail_wall(k, faces=(-1,))
     k.push(-0.2415, 0, 90, z=0.05)   # drywall frame: its -Y face (y -0.5) lands just proud of the stripe (x +0.2585)
     dry_decor(k, kind)
     k.pop()
@@ -526,6 +531,7 @@ def lateral_file(k, kind):
             x = -0.34 + i * 0.085
             lean = 0.12 if i % 2 else -0.1
             k.beam((x, 0, 1.18), (x + lean * 0.6, lean * 0.5, 1.55 + 0.08 * (i % 3)), 0.035, 'leaf' if i % 3 else 'leaf2')
+    of_detail.file_fittings(k)
     k.col(-0.48, 0.48, -0.29, 0.29, 0, 1.03)
     return k
 
@@ -581,6 +587,7 @@ def tall_cabinet(k, kind):
             k.bx(x0, x1, -0.3, -0.273, 0.85, 1.15, 'graphite', ink=False)
         k.bx(-0.36, 0.1, -0.2, 0.2, 1.85, 2.1, 'cardboard')
         k.bx(0.16, 0.42, -0.18, 0.16, 1.85, 2.0, 'cardboard')
+        of_detail.tall_fittings(k)
     else:               # open shelving with binders
         for s in (-1, 1):
             x0, x1 = srt(s * 0.46, s * 0.48)
@@ -639,6 +646,7 @@ def counter(k, kind):
         k.qy(x0, x1, 0.14, 0.86, -0.273, -1, 'cap')
     k.bx(-0.07, -0.04, -0.3, -0.273, 0.6, 0.8, 'steel', ink=False)
     k.bx(0.04, 0.07, -0.3, -0.273, 0.6, 0.8, 'steel', ink=False)
+    of_detail.counter_fittings(k)
     T = 0.94
     if kind == 'Sink':
         k.qz(-0.25, 0.25, -0.2, 0.16, T + 0.003, 1, 'steel2')
@@ -751,6 +759,7 @@ def cubicle_pod(k, variant):
             x0, x1 = srt(sx * 1.93, sx * 1.99)
             cx0, cx1 = srt(sx * 1.926, sx * 1.994)
             panel_x(x0, x1, y0, y1, cx0, cx1, cy0, cy1, [('x', sx * 1.927, -sx, b0, b1), ('x', sx * 1.993, sx, b0, b1)])
+    of_detail.cubicle_feet(k)
     k.col(-1.993, 1.993, -0.041, 0.041, 0, 1.47)
     for sy in (-1, 1):
         y0, y1 = srt(sy * 0.041, sy * 1.993)
@@ -787,6 +796,7 @@ def cubicle_pod(k, variant):
         x0, x1 = srt(sx * 0.035, sx * 1.93)
         k.col(x0, x1, *srt(sy * 0.041, sy * 0.735), 0, 0.75)
         k.col(*srt(sx * 0.041, sx * 0.735), *srt(sy * 0.735, sy * 1.6), 0, 0.75)
+        of_detail.cubicle_quad(B)
         # screen, keyboard, chair
         monitor(k, sx * 1.0, sy * 0.25, face(0, 1), 0.75, 'screen' if (qi + (variant == 'B')) % 2 == 0 else 'screen2')
         keyboard(k, sx * 1.0, sy * 0.47, face(0, 1), 0.75)
@@ -835,6 +845,7 @@ def bench(k):
         k.bx(-0.3 + sy * 0.05, 0.0 + sy * 0.05, *srt(sy * 0.2, sy * 0.5), 0.75, 0.765, 'paper', ink=False)
         mug(k, 1.5, sy * 0.35, 0.75, 'teal' if sy < 0 else 'amber')
     small_plant(k, 0.4, 0.25, 0.75)
+    of_detail.bench_fittings(k)
     return k
 
 
@@ -907,6 +918,7 @@ def meeting(k, variant):
         k.qx(y, y + 0.16, 1.25, 1.25 + h, -3.444, 1, 'white' if i % 2 else 'glow')
     k.col(-3.75, -3.35, -0.95, 0.95, 0, 0.7)
     k.col(-3.56, -3.45, -0.82, 0.82, 0.7, 2.05)
+    of_detail.meeting_fittings(k, 'walnut2' if variant == 'A' else 'cap', frame, GY, xs, doors)
     potted(k, 3.35, -2.35, 'snake', 0.8)
     k.col(3.15, 3.55, -2.55, -2.15, 0, 0.5)
     return k
@@ -950,6 +962,7 @@ def exec_desk(k):
         w = 0.06 + 0.02 * (j % 2)
         k.bx(x, x + w, 1.18, 1.4, 0.72, 0.98 + 0.03 * (j % 3), c, ink=False)
         x += w + 0.005
+    of_detail.exec_fittings(k, srt)
     small_plant(k, 0.9, 1.27, 0.72)
     k.bx(0.1, 0.4, 1.2, 1.38, 0.72, 0.95, 'black')                                   # photo frame
     k.qy(0.13, 0.37, 0.74, 0.92, 1.197, -1, 'screen2')
@@ -1052,6 +1065,7 @@ def elevators(k):
         fx0, fx1 = srt(s * 5.97, s * 6.03)
         k.bx(fx0, fx1, 1.0, 1.6, 0.8, 1.6, 'red')
         k.qx(1.05, 1.55, 0.85, 1.55, s * 6.033, s, 'glint')
+    of_detail.lift_fittings(k)
     k.col(-5.97, 5.97, -2.97, 2.97, 0, 4.0)
     return k
 
@@ -1083,6 +1097,7 @@ def reception(k):
     for i, (x, h) in enumerate(((-0.35, 1.0), (0.0, 1.35), (0.35, 0.8))):            # emblem: three towers
         k.bx(x - 0.12, x + 0.12, 1.12, 1.2, 1.5, 1.5 + h, 'brass')
     k.bx(-0.55, 0.55, 1.14, 1.2, 1.38, 1.44, 'teal', ink=False)
+    of_detail.reception_fittings(k)
     potted(k, -2.6, 0.75, 'fig', 0.95)
     potted(k, 2.6, 0.75, 'palm', 0.95)
     k.col(-2.6, 2.6, -0.72, 0.25, 0, 1.16)

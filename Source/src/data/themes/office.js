@@ -128,7 +128,7 @@
         [80, 42, 18, 16, '#E8DECB', '#64798E'],
         [110, 42, 9, 9, '#A4D0C6', '#87AFCB']
       ] },
-    budget: { prop: 2000, landmark: 4000, total: 70000 },
+    budget: { prop: 2500, landmark: 4000, total: 70000 },
     allPieces: function () {
       var out = [];
       ['A', 'B', 'C'].forEach(function (k) { ['', '_W', '_E'].forEach(function (s) { out.push('Win_' + k + s); }); });
