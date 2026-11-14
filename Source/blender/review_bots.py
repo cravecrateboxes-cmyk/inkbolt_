@@ -50,8 +50,33 @@ ROBOTS = {
     'soldierParts': [('BOT_SOLDIER_HelmB', (-0.45, 0, 0.2)), ('BOT_SOLDIER_HelmC', (0.0, 0, 0.2)), ('BOT_SOLDIER_Nade', (0.42, 0, 0.3)),
                      ('BOT_SOLDIER_TorsoB', (0.0, 0.0, -0.75))],
 }
+
+
+def _jet(objs):
+    """Jet Trooper posed as src/game/jets.js poses it in a volley: legs straight, both pods raised on their arms
+    (pod = 1), lids flipped open (lidA = 1), podAim 0, flames at thrust 0.6. Game rz(a) = Blender rotation -a about Y,
+    game rx = Blender rx, the game's (1, ext, 1) stretch = Blender (1, 1, ext)."""
+    S = lambda n: objs[n].matrix_world.translation.copy()
+    W, T, R = S('BOT_JET_WAIST'), Matrix.Translation, Matrix.Rotation
+    out = [('BOT_JET_Hips', T((0, 0, 0)))]
+    for i in range(2):
+        h = S('BOT_JET_HIP%d' % i)
+        out += [('BOT_JET_Thigh', T(h)), ('BOT_JET_Shin', T(h + Vector((0, 0, -0.48))))]
+    out += [('BOT_JET_Torso', T(W)), ('BOT_JET_Seam', T(W)), ('BOT_JET_Head', T(W + S('BOT_JET_NECK'))),
+            ('BOT_JET_Light', T(W + S('BOT_JET_NECK') + S('BOT_JET_SLIT'))),
+            ('BOT_JET_ArmR', T(W + S('BOT_JET_SHOULDER0'))), ('BOT_JET_ArmL', T(W + S('BOT_JET_SHOULDER1')))]
+    top = S('BOT_JET_PODTOP').z
+    for i, sx in enumerate((-1, 1)):
+        arm = T(W + S('BOT_JET_ARM%d' % i)) @ R(-sx * 0.2, 4, 'Y')
+        pod = arm @ T((0, 0, top)) @ R(sx * 0.2, 4, 'Y')
+        out += [('BOT_JET_PodArm', arm), ('BOT_JET_Pod', pod), ('BOT_JET_Lid', pod @ T(S('BOT_JET_LID')) @ R(-1.95, 4, 'X'))]
+        out.append(('BOT_JET_Flame', T(W + S('BOT_JET_NOZ%d' % i)) @ Matrix.Diagonal(Vector((0.97, 0.97, 1.1, 1)))))
+    return out
+
+
+ROBOTS['jet'] = _jet
 TROOPERS = {'soldier': ['TROOPER'], 'grenadier': ['TROOPER', 'TROOPER_GL'], 'mech': ['TROOPER_MECH']}
-ORDER = ['crawler', 'crawler2', 'gunner', 'bomber', 'drone', 'blader', 'bladerAxe', 'hawk', 'soldierBot', 'soldierParts',
+ORDER = ['crawler', 'crawler2', 'gunner', 'bomber', 'drone', 'blader', 'bladerAxe', 'hawk', 'jet', 'soldierBot', 'soldierParts',
          'soldier', 'grenadier', 'mech']
 
 
@@ -102,9 +127,12 @@ def tris_of(o):
 def place(objs, enemy, mat):
     """Linked duplicates of the enemy's parts at their sockets; returns (objects, triangle count)."""
     out, tris = [], 0
-    for part, at in ROBOTS[enemy]:
+    items = ROBOTS[enemy](objs) if callable(ROBOTS[enemy]) else ROBOTS[enemy]
+    for part, at in items:
         src = objs[part]
-        if at is None:
+        if isinstance(at, Matrix):
+            p = at
+        elif at is None:
             p = Vector((0, 0, 0))
         elif isinstance(at, tuple):
             p = Vector(at)
@@ -113,7 +141,7 @@ def place(objs, enemy, mat):
             for s in at:
                 p += Vector(s) if isinstance(s, tuple) else objs[s].matrix_world.translation
         o = bpy.data.objects.new('R_' + part, src.data)
-        o.matrix_world = Matrix.Translation(p)
+        o.matrix_world = p if isinstance(p, Matrix) else Matrix.Translation(p)
         o.data.materials.clear(); o.data.materials.append(mat)
         bpy.context.scene.collection.objects.link(o)
         out.append(o)
