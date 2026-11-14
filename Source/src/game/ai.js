@@ -217,7 +217,7 @@
         scene.add(im);
         // opt: a shape variant (only some robots wear it): drawn only in frames where a live robot uses it
         T.parts[pn] = { name: pn, mesh: im, count: P.count, fx: im.geometry.attributes.aFx || null, tint: im.geometry.attributes.aTint || null,
-          tint2: im.geometry.attributes.aTint2 || null, opt: !!P.opt, used: false };
+          tint2: im.geometry.attributes.aTint2 || null, opt: !!P.opt, used: false, lc: P.lightColor || null };   // lc: a light part's own colour (r)
         T.partList.push(T.parts[pn]);
       });
       // corpse geometry: whole robot in rest pose, all ink
@@ -1182,9 +1182,10 @@
       if (v.wheelR) r.roll += fwd * dt / v.wheelR;
       if (fly) {
         // hover: altitude bob, bank into the strafe, rotors
-        if (r.state !== 'stagger' && r.state !== 'blinded') r.y += ((flyY(r) + Math.sin(r.idleT * 1.7 + r.slot) * 0.1) - r.y) * Math.min(1, dt * 3);
+        if (r.state !== 'stagger' && r.state !== 'blinded') r.y += ((flyY(r) + (v.bob ? v.bob(r) : Math.sin(r.idleT * 1.7 + r.slot) * 0.1)) - r.y) * Math.min(1, dt * (v.climb || 3));
         // never into the ceiling / a deck overhead, never through the floor (stagger and blind drift included)
-        r.y = clamp(r.y, r.fy + 0.15, Math.max(r.fy + 0.15, r.ceil - v.y1 - 0.1));
+        var fmin = v.minFly !== undefined ? v.minFly : 0.15;   // a flyer that can land (Jet Trooper) stands on the floor
+        r.y = clamp(r.y, r.fy + fmin, Math.max(r.fy + fmin, r.ceil - v.y1 - 0.1));
         var side = r.vx * Math.cos(r.yaw) - r.vz * Math.sin(r.yaw);
         r.bankX += (clamp(fwd * 0.05, -0.3, 0.3) - r.bankX) * Math.min(1, dt * 5);
         r.bankZ += (clamp(-side * 0.05, -0.3, 0.3) - r.bankZ) * Math.min(1, dt * 5);
@@ -1241,12 +1242,15 @@
       if (Pt.tint && _rob.tint) Pt.tint.setXYZ(idx, _rob.tint.r, _rob.tint.g, _rob.tint.b);
       if (Pt.tint2 && _rob.tint2) Pt.tint2.setXYZ(idx, _rob.tint2.r, _rob.tint2.g, _rob.tint2.b);
       if (Pt.fx) Pt.fx.setXYZW(idx, _rob.flash > 0 ? 1 : 0, 0, _tk, _ta);
-      else if (Pt.mesh.instanceColor) Pt.mesh.setColorAt(idx, _c.set(_T.vis.lightColor ? _T.vis.lightColor(_rob) : lightDefault(_rob)));
+      else if (Pt.mesh.instanceColor) Pt.mesh.setColorAt(idx, _c.set(Pt.lc ? Pt.lc(_rob) : _T.vis.lightColor ? _T.vis.lightColor(_rob) : lightDefault(_rob)));
       return P;
     },
     // a part this robot does not show (another shape variant, a grenade not in hand)
     hide: function (name, k) { var Pt = _T.parts[name]; Pt.mesh.setMatrixAt(_rob.slot * Pt.count + (k || 0), ZERO); return P; },
     mul: function (m) { _cur.multiply(m); return P; },
+    // the current frame's origin in world space (muzzles, tube mouths), or replace the frame with a world matrix
+    pos: function (out) { out.x = _cur.elements[12]; out.y = _cur.elements[13]; out.z = _cur.elements[14]; return P; },
+    mat: function (m) { _cur.copy(m); return P; },
     // legacy one-liner: translate, pitch about X, stretch Y
     set: function (name, k, lx, ly, lz, rx, sy) { return P.root().t(lx, ly, lz).rx(rx || 0).s(1, sy, 1).emit(name, k); }
   };

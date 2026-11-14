@@ -102,7 +102,7 @@
   /* XP: per robot wrecked = kill[type] x (1 + 0.1 (L - 1)) at campaign level L; clearing level L pays clear(L).
      need(n) = total XP to reach LV n: 900 (n - 1) + 49.3 (n - 1)^2.73 (LV 2 900, LV 10 ~28k, LV 20 ~170k, LV 30 ~510k). */
   IB.XP = {
-    kill: { crawler: 10, drone: 10, bomber: 12, gunner: 14, tosser: 14, shieldbot: 18, bruiser: 30, binhive: 30, soldier: 30, blader: 30, mech: 22, grenadier: 30, hawk: 18,
+    kill: { crawler: 10, drone: 10, bomber: 12, gunner: 14, tosser: 14, shieldbot: 18, bruiser: 30, binhive: 30, soldier: 30, blader: 30, mech: 22, grenadier: 30, hawk: 18, jet: 34, rocketeer: 32,
       skimmer: 400, dumpstertank: 500, cartcolossus: 600, compactorprime: 800 },
     killDefault: 10,
     levelMul: 0.1,

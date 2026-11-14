@@ -18,7 +18,7 @@ const all = (p) => p.zones.reduce((a, z) => a.concat(z.waves), []);
 const cost = (p) => all(p).reduce((a, w) => a + w.reduce((b, e) => b + e[1] * E[e[0]].cost, 0), 0);
 
 test('new robot rows: ids, first level 20, a place in ENEMY_ORDER, the Soldier\'s plumbing', () => {
-  assert.deepEqual(IB.ENEMY_ORDER.slice(-3), NEW);
+  assert.deepEqual(IB.ENEMY_ORDER.slice(10, 13), NEW);
   for (const id of NEW) {
     const e = E[id];
     assert.equal(e.id, id); assert.equal(e.first, 20);

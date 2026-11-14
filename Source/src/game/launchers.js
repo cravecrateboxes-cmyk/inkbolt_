@@ -93,7 +93,7 @@
     settle();
     L.dropped = 0; L.dry = 0;
     var soldiers = 0, bladers = 0;
-    ((g.plan && g.plan.zones) || []).forEach(function (z) { (z.waves || []).forEach(function (w) { w.forEach(function (e) { if (e[0] === 'soldier' || e[0] === 'grenadier') soldiers += e[1]; else if (e[0] === 'blader') bladers += e[1]; }); }); });
+    ((g.plan && g.plan.zones) || []).forEach(function (z) { (z.waves || []).forEach(function (w) { w.forEach(function (e) { if (e[0] === 'soldier' || e[0] === 'grenadier' || e[0] === 'rocketeer') soldiers += e[1]; else if (e[0] === 'blader') bladers += e[1]; }); }); });
     L.soldiers = soldiers; L.bladers = bladers;
     L.budget = GL() ? GL().rocketBudget(soldiers) : 12;
   };
@@ -179,7 +179,7 @@
   // ---------------- Murmur: locks and the salvo ----------------
   function center(r) { var v = IB.AI.VIS[r.type]; return r.y + (v ? (v.y0 + v.y1) / 2 : 0.6); }
   function lockable(r) { return r.on && !(r.rogue > 0) && r.state !== 'spawn' && r.state !== 'pose' && r.state !== 'off'; }
-  var THREAT = { soldier: 0.25, grenadier: 0.25, mech: 0.2, hawk: 0.15, bruiser: 0.25, blader: 0.15, bomber: 0.2, shieldbot: 0.1 };
+  var THREAT = { soldier: 0.25, grenadier: 0.25, rocketeer: 0.25, jet: 0.2, mech: 0.2, hawk: 0.15, bruiser: 0.25, blader: 0.15, bomber: 0.2, shieldbot: 0.1 };
   /* up to def.locks targets in front: robots in the lock cone with a clear line, best first (centre of the view,
      close, threatening: winding up, attacking or seeing you, heavy types); with fewer robots the aim point and
      spots around it fill the rest. [{robot|null, x, y, z}] */
