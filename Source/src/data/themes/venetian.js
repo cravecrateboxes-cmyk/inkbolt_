@@ -423,7 +423,7 @@
     trail: { wall: 'Calle_A', variants: ['Calle_B', 'Calle_C', 'Calle_A'], height: 3.4, byTrail: { 0: { wall: 'Bridge_A', variants: ['Bridge_A', 'Bridge_B', 'Bridge_A'], height: 1.1 } } },
     hatch: 'Hatch', stand: 'Crates',
     backdrop: { build: buildCity },
-    budget: { prop: 4400, landmark: 4000, total: 60000 },
+    budget: { prop: 4800, landmark: 4000, total: 60000 },
     allPieces: function () { return PIECES.slice(); },
     levels: {
       venetian: {

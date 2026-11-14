@@ -9,6 +9,7 @@ from ven_base import (kit, done, arch_curve, arched_opening, rect_opening, glint
                       text, wall_parts)
 from ven_facade import Y, house, corner_block, balcony, window, door, bands, spec, seed
 from kit_base import shutter_hull
+import ven_detail as D
 
 
 # ================================================================ the mansion's canal face (zone 2 south wall, back)
@@ -107,6 +108,7 @@ def garden_wall(k, rnd, kind):
     if kind == 'A':
         k.qy(-0.32, 0.18, 1.4, 2.0, Y - 0.006, -1, 'plaster')
     k.bxc(-0.5, 0.5, Y - 0.06, Y + 0.06, top - 0.12, top, 'stone', cull='lr')
+    D.wall_coping_joint(k, top)
     k.qy(-0.5, 0.5, 0.0, 0.25, Y - 0.012, -1, 'stoneD')
     if kind == 'N':
         arched_opening(k, -0.3, 0.3, 1.0, 1.95, 'round', 0.25, 'brick', frame='stone', fw=0.06, reveal='terraD')
@@ -151,6 +153,13 @@ def quay(k, rnd, kind):
     k.qy(-0.5, 0.5, -0.3, -0.27, 0.503, 1, 'stone')
     if kind == 'R':
         k.cyl(0, 0.505, -0.5, 0.1, 0.1, 0.02, 'iron', seg=8, rot=(-90, 0, 0), ink=False)
+        D.mooring_ring(k)
+    D.quay_joints(k)
+    if kind == 'P':
+        D.pier_panel(k)
+        D.lamp_collars(k, 0, -0.3, ((1.52, 0.065), (1.95, 0.062)))
+    else:
+        D.coping_joint(k, 0.0, -0.51, -0.27, 1.1)
 
 
 # ================================================================ the gate portal, the facades over the gates
@@ -313,6 +322,7 @@ def build_trail(pal, ao):
         k.qz(-0.5, 0.5, -0.25, -0.11, 0.006, 1, 'cobble')
         k.qz(-0.5, 0.5, 0.11, 0.25, 0.006, 1, 'cobble')
         k.bxc(-0.5, 0.5, 0.25, 0.32, -0.9, 0.06, 'stone', cull='lrb', ink=False)
+        D.bridge_detail(k, lamp)
         k.qy(-0.5, 0.5, -0.9, 0.0, 0.324, 1, 'stoneD')
         k.pop()
         done(k, name, ao)
