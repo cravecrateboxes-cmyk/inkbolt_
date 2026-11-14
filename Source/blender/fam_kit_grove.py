@@ -34,6 +34,7 @@ from mathutils import Vector
 from ib_lib import *  # noqa: F401,F403
 import ib_lib
 from kit_base import Kit, rock_pts
+import grove_detail as gd
 
 FAM = 'kit-grove'
 PFX = 'KIT_GROVE_'
@@ -370,9 +371,11 @@ def build_redwood(k, ao, name, seed):
     # outer stringers under the hollow treads, one per flight
     def ttop(i):
         return T[i][4]
-    k.beam((-0.25, -3.06, ttop(4) - 0.34), (1.85, -3.06, ttop(8) - 0.34), 0.14, 'woodd')
-    k.beam((3.06, -1.75, ttop(10) - 0.34), (3.06, 1.75, ttop(17) - 0.34), 0.14, 'woodd')
-    k.beam((1.75, 3.06, ttop(19) - 0.34), (0.25, 3.06, ttop(22) - 0.34), 0.14, 'woodd')
+    stringers = [((-0.25, -3.06, ttop(4) - 0.34), (1.85, -3.06, ttop(8) - 0.34), '-y'),
+                 ((3.06, -1.75, ttop(10) - 0.34), (3.06, 1.75, ttop(17) - 0.34), '+x'),
+                 ((1.75, 3.06, ttop(19) - 0.34), (0.25, 3.06, ttop(22) - 0.34), '+y')]
+    for (sa, sb, _f) in stringers:
+        k.beam(sa, sb, 0.14, 'woodd')
     # support posts from the ground (log posts) that carry on up as rail posts
     posts = [((3.06, -3.06), ttop(9)), ((3.06, 3.06), ttop(18)), ((3.06, -0.25), ttop(13)), ((1.25, 3.06), ttop(20))]
     for (px, py), tz in posts:
@@ -461,6 +464,12 @@ def build_redwood(k, ao, name, seed):
     k.beam((-1.75, 0.0, DECK + 2.6), (-2.3, 0.0, DECK + 2.6), 0.06, 'woodd')
     k.bx(-2.38, -2.22, -0.08, 0.08, DECK + 2.0, DECK + 2.45, 'window')
     k.bx(-2.4, -2.2, -0.1, 0.1, DECK + 2.45, DECK + 2.53, 'woodd')
+    braces = [((math.cos(math.radians(a)) * 1.5, math.sin(math.radians(a)) * 1.5, DECK - 2.6),
+               (math.cos(math.radians(a)) * 3.5, math.sin(math.radians(a)) * 3.5, DECK - 0.32)) for a in (135, 180, 225, 270, 315)]
+    rposts = ([(px, py, top, '-y') for (px, py, top) in rail_pts['S']] + [(px, py, top, '+x') for (px, py, top) in rail_pts['E']] +
+              [(px, py, top, '+y') for (px, py, top) in rail_pts['N']])
+    gd.redwood(k, DECK, FOOT, E2, [(px, py, tz) for (px, py), tz in posts], stringers, braces, rposts,
+               (-2.38, -2.22, -0.08, 0.08, DECK + 2.0, DECK + 2.45))
     # ---- above: broken stubs, then the crown
     for i in range(4):
         a = rnd.uniform(0, 2 * math.pi)
@@ -837,15 +846,19 @@ def build_cabin(k, ao):
     k.sph(0.9, Y0 - 0.1, 1.25, 0.05, 'amber', seg=(5, 3))
     window(k, -1.75, Y0, 1.15, 0.8, 0.8, -1)
     window(k, -0.2, Y1, 1.2, 0.9, 0.75, 1)
+    gd.window_detail(k, -1.75, Y0, 1.15, 0.8, 0.8, -1)
+    gd.window_detail(k, -0.2, Y1, 1.2, 0.9, 0.75, 1)
     k.bx(1.65, 1.85, Y0 - 0.16, Y0 - 0.0, 1.95, 2.0, 'woodd')
     k.bx(1.69, 1.81, Y0 - 0.2, Y0 - 0.08, 1.62, 1.92, 'window')
     # saltbox roof: ridge along X at y = 0.6, front slope down over the porch, short back slope
     yr, zr = 0.6, 4.35
+    roofs = []
     for (ya, za) in ((-3.1, 2.22), (Y1 + 0.35, 3.05)):
         L = math.hypot(yr - ya, zr - za)
         ang = math.degrees(math.atan2(zr - za, yr - ya))
         cy, cz = (ya + yr) / 2, (za + zr) / 2
         sgn = 1 if ya < yr else -1
+        roofs.append((ya, za, ang, sgn))
         k.bxr(0, cy, cz + 0.1, 6.0, L + 0.06, 0.16, 'roof', rot=(sgn * ang, 0, 0))
         for i in range(1, 6):   # shingle courses
             t = i / 6.0
@@ -884,6 +897,7 @@ def build_cabin(k, ao):
     k.cyl(-1.6, 1.9, 3.3, 0.04, 0.03, 3.2, 'gunmetal', seg=5)
     k.bx(-1.9, -1.3, 1.88, 1.92, 5.9, 5.94, 'gunmetal')
     k.col(X0 - 0.1, X1 + 0.1, Y0, Y1 + 0.1, 0, H + 0.2)
+    gd.cabin(k, ((X0, Y0), (X1, Y0), (X0, Y1), (X1, Y1)), Y0, yr, zr, roofs)
     k.finish('Landmark_Cabin', ao=ao)
 
 
@@ -946,6 +960,7 @@ def build_camp(k, ao):
     for x in (-0.98, 0.98):
         k.bx(x - 0.04, x + 0.04, -0.06, 0.06, 0, 1.3, 'woodd')
     k.bx(-1.0, 1.0, -0.45, 0.45, 1.25, 1.31, 'roof')
+    gd.woodpile(k)
     k.col(-1.0, 1.0, -0.36, 0.36, 0, 1.25)
     k.finish('Woodpile', ao=ao)
     # signpost with arrow boards
@@ -956,7 +971,9 @@ def build_camp(k, ao):
         k.bx(0.05, L, -0.03, 0.03, -0.1, 0.1, c)
         k.hullp([(L, -0.03, -0.1), (L, 0.03, -0.1), (L, -0.03, 0.1), (L, 0.03, 0.1), (L + 0.14, -0.03, 0.0), (L + 0.14, 0.03, 0.0)], c)
         k.bx(0.15, L - 0.05, -0.037, -0.031, -0.03, 0.03, 'ink' if c == 'sign' else 'sign', ink=False)
+        gd.sign_bolt(k, L)
         k.pop()
+    gd.signpost(k, (1.72, 1.43))
     k.col(-0.1, 0.1, -0.1, 0.1, 0, 2.2)
     rock(k, random.Random(113), 0.1, 0.05, 0.22, 0.2, 0.18, z0=-0.03, col=baldcol)
     k.finish('Signpost', ao=ao)
@@ -968,6 +985,7 @@ def build_camp(k, ao):
     k.bx(0.32, 0.52, -0.1, 0.1, 1.84, 1.92, 'gunmetal')
     k.bx(0.32, 0.52, -0.1, 0.1, 1.42, 1.48, 'gunmetal')
     k.beam((0.42, 0, 1.92), (0.42, 0, 1.98), 0.02, 'gunmetal', ink=False)
+    gd.lantern_post(k)
     k.col(-0.1, 0.1, -0.1, 0.1, 0, 2.1)
     k.finish('Lantern', ao=ao)
     # supply crate (also the weapon stand) and a barrel
@@ -977,6 +995,7 @@ def build_camp(k, ao):
         k.bx(x - 0.03 if x < 0 else x - 0.0, x + 0.0 if x < 0 else x + 0.03, -0.32, 0.32, -0.0, 0.52, 'wood2')
     k.bx(-0.37, 0.37, -0.32, 0.32, 0.22, 0.28, 'wood2')
     k.bx(-0.12, 0.12, -0.306, -0.3, 0.32, 0.44, 'roof', ink=False)
+    gd.crate(k)
     k.col(-0.4, 0.4, -0.3, 0.3, 0, 0.55)
     k.finish('Crate', ao=ao)
     k.begin()
@@ -984,6 +1003,7 @@ def build_camp(k, ao):
     for z in (0.12, 0.72):
         k.cyl(0, 0, z, 0.312, 0.312, 0.05, 'gunmetal', seg=10)
     k.cyl(0, 0, 0.9, 0.26, 0.26, 0.01, 'wood', seg=10, ink=False)
+    gd.barrel(k)
     k.col(-0.28, 0.28, -0.28, 0.28, 0, 0.9)
     k.finish('Barrel', ao=ao)
 
@@ -1001,6 +1021,7 @@ def build_walkway(k, ao):
     k.bx(-0.5, 0.5, -0.465, -0.435, 0.5, 0.53, 'rope', ink=False)
     k.beam((-0.48, -0.45, 0.06), (-0.06, -0.45, 0.94), 0.02, 'rope', ink=False)
     k.wcol(-0.5, 0.5, -0.5, 0.5, -0.16, 0.0)
+    gd.bridge(k)
     k.col(-0.5, 0.5, -0.5, -0.42, 0.0, 1.05)
     k.finish('Bridge', ao=ao)
     # platform rail on a cell's north (+Y) edge, and an L for the north-west corner
@@ -1015,6 +1036,7 @@ def build_walkway(k, ao):
             k.bx(-0.495, -0.405, -0.5, 0.395, 0.97, 1.05, 'wood3')
             k.bx(-0.465, -0.435, -0.5, 0.39, 0.5, 0.53, 'rope', ink=False)
             k.col(-0.5, -0.42, -0.5, 0.42, 0.0, 1.05)
+        gd.rail(k, corner)
         k.finish(name, ao=ao)
     # trestle pier under a bridge (1 x 2, base on the ground, cap under the bridge stringers at 8.7)
     rnd = random.Random(121)
@@ -1028,6 +1050,7 @@ def build_walkway(k, ao):
     for (za, zb) in ((0.9, 4.2), (4.6, 7.9)):
         k.beam((0, -0.7, za), (0, 0.7, zb), 0.1, 'wood')
         k.beam((0.04, 0.7, za), (0.04, -0.7, zb), 0.1, 'wood3')
+    gd.pier(k, top, (-0.72, 0.72))
     k.finish('Pier', ao=ao)
 
 
@@ -1165,6 +1188,7 @@ def build_gate(k, ao):
     for sx in (-1, 1):
         k.bx(sx * 1.82 - 0.12, sx * 1.82 + 0.12, -0.42, -0.3, 2.4, 2.75, 'window')
         k.bx(sx * 1.82 - 0.14, sx * 1.82 + 0.14, -0.44, -0.28, 2.75, 2.82, 'gunmetal')
+    gd.gate_frame(k, lambda x: 0.3 - 0.02 * (x + 2.45) / 4.9)
     k.finish('GateFrame', ao=ao)
     # shutter: a palisade of logs with the amber / ink band at the foot
     k.begin()
@@ -1176,6 +1200,7 @@ def build_gate(k, ao):
         k.bx(-1.5, 1.5, -0.2, -0.13, z, z + 0.16, 'woodd', ink=False)
     for i in range(8):
         k.bx(-1.5 + i * 3 / 8, -1.5 + (i + 1) * 3 / 8, -0.08, 0.08, 0.0, 0.5, 'ink' if i % 2 else 'amber', ink=False)
+    gd.shutter(k)
     obj = k.finish('GateShutter', ao=False)
     from kit_base import shutter_hull
     shutter_hull(k.pal, obj)
@@ -1207,6 +1232,7 @@ def build_gate(k, ao):
     for i in range(6):
         a = i / 6 * math.pi * 2
         k.cyl(math.cos(a) * 1.08, math.sin(a) * 1.08, 0.12, 0.07, 0.07, 0.05, 'amber', seg=6)
+    gd.hatch(k)
     k.finish('Hatch', ao=ao)
 
 

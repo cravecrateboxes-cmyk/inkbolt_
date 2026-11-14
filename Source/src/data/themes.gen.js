@@ -4794,7 +4794,7 @@
     trail: { wall: 'TrailWall', variants: ['TrailWall_B', 'TrailWall_C'], height: 2.6 },
     hatch: 'Hatch', stand: 'Crate',
     backdrop: { build: buildForest },
-    budget: { prop: 1600, landmark: 7000, total: 60000 },
+    budget: { prop: 2500, landmark: 8000, total: 60000 },
     allPieces: function () { return PIECES; },
     levels: {
       grove: {
