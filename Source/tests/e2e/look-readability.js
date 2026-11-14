@@ -33,7 +33,7 @@ fs.mkdirSync(OUT, { recursive: true });
         __TEST__.setTier(t);
         while (!IB.LightGrid.idle()) IB.LightGrid.work(50);
         const G = IB.Game, Zn = G.level.zones[0], LG = IB.LightGrid, world = G.level.world;
-        let best = null;
+        const cands = [];
         for (let r = 2; r < Zn.h - 2; r++) for (let c = 2; c < Zn.w - 2; c++) {
           const x = Zn.ox + c + 0.5, z = Zn.oz + r + 0.5;
           if (!IB.Zones.isOpen(Zn, x, z)) continue;
@@ -42,22 +42,29 @@ fs.mkdirSync(OUT, { recursive: true });
           if (!ok) continue;
           const s = LG.sampleAt(x, 1.0, z); if (!s) continue;
           const v = 0.2126 * s[0] + 0.7152 * s[1] + 0.0722 * s[2] + s[3] * 0.5;
-          if (!best || v < best.v) best = { x, z, v };
+          cands.push({ x, z, v });
         }
-        if (!best) return null;
+        if (!cands.length) return null;
+        cands.sort((a, b) => a.v - b.v);
         // camera spots at 12 and 30 m with a clear line of sight (eye 1.6 m, target 0.8 m)
-        const cams = {};
-        for (const D of [12, 30]) {
-          for (let k = 0; k < 16 && !cams[D]; k++) {
-            const a = k / 16 * Math.PI * 2, px = best.x + Math.sin(a) * D, pz = best.z + Math.cos(a) * D;
-            if (!IB.Zones.isOpen(Zn, px, pz)) continue;
-            if (!world.los(px, 1.6, pz, best.x, 0.8, best.z)) continue;
-            cams[D] = { x: px, z: pz };
+        // the darkest cells first; a cell must have a clear sight line at both 12 m and 30 m (room-and-pillar
+        // layouts block 30 m from many cells, so walk down the darkest 5% until one has both)
+        for (const best of cands.slice(0, Math.max(10, Math.ceil(cands.length * 0.05)))) {
+          const cams = {};
+          for (const D of [12, 30]) {
+            for (let k = 0; k < 32 && !cams[D]; k++) {
+              const a = k / 32 * Math.PI * 2, px = best.x + Math.sin(a) * D, pz = best.z + Math.cos(a) * D;
+              if (!IB.Zones.isOpen(Zn, px, pz)) continue;
+              if (!world.los(px, 1.6, pz, best.x, 0.8, best.z)) continue;
+              cams[D] = { x: px, z: pz };
+            }
           }
+          if (cams[12] && cams[30]) return { x: best.x, z: best.z, v: best.v, cams, rank: cands.indexOf(best), of: cands.length };
         }
-        return { x: best.x, z: best.z, v: best.v, cams };
+        return null;
       }, TIER);
-      if (!target) { rows.push({ plan, err: 'no dark cell' }); continue; }
+      if (!target) { rows.push({ plan, err: 'no dark cell with a 12 m and a 30 m sight line' }); console.log(plan, 'no dark cell with both sight lines'); continue; }
+      console.log(plan, 'darkest usable cell: rank', target.rank, 'of', target.of, 'light', target.v.toFixed(3));
       for (const D of [12, 30]) {
         const cam = target.cams[D];
         if (!cam) { rows.push({ plan, D, err: 'no clear line of sight at ' + D + ' m' }); continue; }
