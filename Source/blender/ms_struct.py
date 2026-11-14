@@ -9,6 +9,7 @@ import random
 
 from ms_base import *  # noqa: F401,F403
 import ms_base as B
+import ms_detail as DT
 
 
 # ================================================================ walls
@@ -72,7 +73,9 @@ def ext_point(m, x=0.0):
 
 def build_walls(pal, ao):
     for S, fn in (('S', wall_sales), ('K', wall_stock)):
-        m = new(pal); fn(m); make('W' + S, m, ao)
+        m = new(pal); fn(m)
+        DT.sales_wall(m) if S == 'S' else DT.stock_wall(m, conduit=True)
+        make('W' + S, m, ao)
         # corner post: the finish on all four sides
         m = new(pal)
         m.bx(-0.5, 0.5, -0.5, 0.5, 0.0, H, 'wallW' if S == 'S' else 'wallL', cull='bt')
@@ -84,7 +87,9 @@ def build_walls(pal, ao):
             rq(m, 0.503, -0.5, 0.5, z0, z1, c)
         make('Corner' + S, m, ao)
         # fire point
-        m = new(pal); fn(m); ext_point(m); make('W' + S + '_Fire', m, ao)
+        m = new(pal); fn(m); ext_point(m); DT.extinguisher_straps(m)
+        DT.sales_wall(m) if S == 'S' else DT.stock_wall(m)
+        make('W' + S + '_Fire', m, ao)
     # sales floor art --------------------------------------------------------------
     # sprinkler riser with the fire-department valve and a red sign
     m = new(pal); wall_sales(m)
@@ -93,6 +98,7 @@ def build_walls(pal, ao):
     m.bm_((0.0, -0.62, 1.31), (0.0, -0.82, 1.31), 0.07, 'chrome')
     m.bx(-0.2, 0.2, -0.53, -0.503, 2.0, 2.3, 'brandR', cull='k')
     text_front(m, 'RISER', 0.12, -0.533, 0.0, 2.09, 'paper')
+    DT.sales_wall(m, lower=True)
     make('WS_Riser', m, ao)
     # fire exit door (painted steel door in the wall plane, push bar, running-exit sign that glows)
     m = new(pal); wall_sales(m)
@@ -102,6 +108,8 @@ def build_walls(pal, ao):
     fq(m, -0.4, 0.4, -0.566, 1.5, 1.8, 'brandR')
     text_front(m, 'ALARM WILL SOUND', 0.07, -0.569, 0.0, 1.6, 'paper', font='cond', maxw=0.72)
     m.bx(-0.3, 0.3, -0.62, -0.503, 2.45, 2.75, 'paper', cull='k')
+    DT.exit_door_detail(m)
+    DT.sales_wall(m, lower=False)
     make('WS_Exit', m, ao)
     m = new(pal)
     fq(m, -0.27, 0.27, -0.623, 2.48, 2.72, 'exitG')
@@ -468,6 +476,7 @@ def build_signs(pal, ao):
             (text_front if s < 0 else text_back)(m, num, 0.58, yy, -0.92, z0 + 0.16, 'navy', maxw=0.62)
             (text_front if s < 0 else text_back)(m, words, 0.32, s * 0.053, 0.38, z0 + 0.3, 'paper', maxw=1.7)
             (text_front if s < 0 else text_back)(m, 'AISLE', 0.12, s * 0.053, 0.38, z0 + 0.13, 'hazY', font='cond', maxw=0.6)
+        DT.sign_frame(m, 1.3, 0.05, z0, z1, (-1.0, 1.0))
         make('Aisle_' + num, m, ao)
     DEPTS = [('Produce', 'PRODUCE', 'leaf'), ('Tech', 'ELECTRONICS', 'navy'), ('Apparel', 'APPAREL', 'pPink'),
              ('Frozen', 'FROZEN', 'pSky'), ('Receiving', 'RECEIVING', 'hazY'), ('Staging', 'STAGING', 'hazY')]
@@ -482,6 +491,7 @@ def build_signs(pal, ao):
             (text_front if s < 0 else text_back)(m, word, 0.5, s * 0.063, 0.0, z0 + 0.22, fg, maxw=4.4)
         for x in (-2.0, 2.0):
             m.bx(x - 0.012, x + 0.012, -0.012, 0.012, z1, -0.012, 'steelD', hull='none', cull='t')
+        DT.sign_frame(m, 2.4, 0.06, z0, z1, (-2.0, 2.0))
         make('Dept_' + key, m, ao)
 
 
@@ -516,4 +526,5 @@ def build_floors(pal, ao):
     m.cy((0, 0, 0), 0.34, 0.34, 1.2, 'hazY', seg=12)
     for z in (0.35, 0.8):
         m.cy((0, 0, z), 0.343, 0.343, 0.12, 'black', seg=12, caps=False, hull='none')
+    DT.column_detail(m)
     make('Column', m, ao, cols=[cb(-0.35, -0.35, 0, 0.35, 0.35, 1.2), cb(-0.17, -0.17, 1.2, 0.17, 0.17, H)])

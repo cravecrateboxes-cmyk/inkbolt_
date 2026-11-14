@@ -6518,7 +6518,7 @@
     trail: { wall: 'TrailWall', variants: ['TrailWall_B', 'TrailWall_C', 'TrailWall_B'], height: 10.0 },
     hatch: 'Hatch', stand: 'Pal_Low',
     backdrop: null,
-    budget: { prop: 1600, landmark: 2000, total: 40000 },
+    budget: { prop: 2000, landmark: 2000, total: 45000 },
     allPieces: function () { return PIECES.slice(); },
     borrowed: function () { return BORROWED.slice(); },
     levels: {

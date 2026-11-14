@@ -7,6 +7,7 @@ import random
 
 from ms_base import *  # noqa: F401,F403
 import ms_base as B
+import ms_detail as DT
 
 
 def rbox(m, loc, size, c, rot=(0, 0, 0), hull='full'):
@@ -224,6 +225,7 @@ def build_checkout(pal, ao):
         yy = 2.2 + s * 0.083
         (fq if s < 0 else bq)(g, -0.65, -0.35, yy, 2.33, 2.59, 'exitG')
         (text_front if s < 0 else text_back)(g, 'OPEN', 0.14, yy + s * 0.003, -0.5, 2.39, 'paper')
+    DT.checkout_detail(m)
     make('Checkout', m, ao, cols=[cb(-0.95, -2.45, 0.0, -0.05, 2.3, 0.92), cb(-1.22, -1.1, 0.0, -0.96, -0.7, 1.48),
                                   cb(1.1, -1.6, 0.0, 1.48, 2.3, 1.35)])
     make_glow('Checkout_LED', g)
@@ -282,6 +284,7 @@ def build_carts(pal, ao):
     m.bx(1.72, 1.98, -0.04, 0.04, 1.3, 1.65, 'brand')
     text_front(m, 'CARTS', 0.1, -0.043, 1.85, 1.43, 'paper', maxw=0.24)
     cart(m, -1.25, 0.0, 0.0, n=5)
+    DT.corral_detail(m)
     make('CartCorral', m, ao, cols=[cb(-1.95, -0.45, 0.0, 1.96, 0.45, 1.1)])
 
 

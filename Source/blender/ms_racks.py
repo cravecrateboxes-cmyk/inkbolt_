@@ -10,6 +10,7 @@ import random
 
 from ms_base import *  # noqa: F401,F403
 import ms_base as B
+import ms_detail as DT
 
 PROD = GOODS + ['card', 'cardL', 'pWhite']
 
@@ -106,6 +107,8 @@ def sales_bay(pal, ao, name, seed, kinds, end=None):
         shelf_row(m, rnd, -1.4, xb - 0.03, yi, yo, 1.035, 1.93, cols, face=s, nb=nb)
         bay_slots(m, rnd, s, -1.42, xb, 2.07, 1.72, PROD)
         bay_slots(m, rnd, s, -1.42, xb, 3.87, 1.6, PROD)
+    DT.rack_detail(m, Ht, [(-1.5, end == 'L')] + ([(1.42, True)] if end == 'R' else []),
+                   [(0.0, 0.12), (0.95, 1.03), (1.95, 2.07), (3.75, 3.87)], -1.42, xb)
     make(name, m, ao, cols=[cb(-1.5, -1.02, 0.0, 1.5, 1.02, Ht)])
 
 
@@ -126,6 +129,8 @@ def tall_bay(pal, ao, name, seed, end=None):
             dq(m, -1.42, xb, a, b, z - 0.03, 'wire')
             bay_slots(m, rnd, s, -1.42, xb, z, 1.5, PROD, empty=0.25)
         (fq if s < 0 else bq)(m, -1.5, -1.42, s * 1.003, 2.3, 2.6, 'paper')
+    DT.rack_detail(m, Ht, [(-1.5, end == 'L')] + ([(1.42, True)] if end == 'R' else []),
+                   [(1.63, 1.75), (3.38, 3.5), (5.13, 5.25), (6.88, 7.0)], -1.42, xb)
     make(name, m, ao, cols=[cb(-1.5, -1.02, 0.0, 1.5, 1.02, Ht)])
 
 
