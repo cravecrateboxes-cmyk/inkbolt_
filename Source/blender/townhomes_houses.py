@@ -17,6 +17,9 @@ the player up (zones.js layered nav).
 import math
 
 from townhomes_base import *  # noqa: F401,F403
+import townhomes_detail as TD
+
+EMB = TD.EMB
 
 SIDING_STEP = 0.3
 
@@ -122,11 +125,13 @@ def window(m, x0, x1, z0, z1, trim='trim', shutters=False, sill=True, grille=Tru
             fz(m, a, b, z0 - 0.02, z1 + 0.04, 0.016, 'shut')
             zz = (z0 + z1) / 2
             fz(m, a + 0.04, b - 0.04, zz - 0.015, zz + 0.015, 0.02, 'iron')
+    TD.window_detail(m, x0, x1, z0, z1, shutters=shutters, sill=sill, arch=arch, flowerbox=bool(box))
 
 
 def door(m, x0, x1, z0, z1, open_=False, trim='trim', transom=True, arch=False, panels=True):
     """front door: casing, transom light; closed: a panelled leaf with a knob; open: the dark doorway is left as a
     hole in the wall and the leaf stands swung in (drawn by the caller inside)"""
+    TD.door_detail(m, x0, x1, z0, z1, open_=open_, arch=arch, transom=transom)
     fz(m, x0 - 0.12, x0, z0, z1 + (0.12 if not arch else 0.0), 0.014, trim)
     fz(m, x1, x1 + 0.12, z0, z1 + (0.12 if not arch else 0.0), 0.014, trim)
     if not arch:
@@ -151,6 +156,7 @@ def carriage_lamp(m, x, z):
     fbox(m, x - 0.09, x + 0.09, z - 0.12, z + 0.16, 0.04, 0.22, 'iron', cull='')
     fz(m, x - 0.06, x + 0.06, z - 0.09, z + 0.12, 0.224, 'glassL')
     fbox(m, x - 0.11, x + 0.11, z + 0.16, z + 0.2, 0.03, 0.24, 'iron', cull='')
+    TD.lamp_detail(m, x, z)
 
 
 def house_number(m, x, z, n):
@@ -200,6 +206,7 @@ def roof_gable_x(m, y0, y1, eave, pitch, x0=-HW, x1=HW, over=0.35, c='shingle', 
     for (yy, s) in ((ya, -1), (yb, 1)):
         a, b = srt(yy, yy + s * 0.04)
         m.bx(x0, x1, a, b, za - 0.12, za + t * 0.6, 'trim', hull='none', cull='')
+        TD.gutter_run(m, x0, x1, yy, za, s)
     return R, k, t
 
 
@@ -253,11 +260,15 @@ def porch_balcony(m, cols, body):
     uq(m, -HW + 0.05, HW - 0.05, -5.5, FW, GF + 0.004, 'woodD')
     m.bx(-HW + 0.05, HW - 0.05, -6.0, -5.5, 0.0, GF / 2, 'stone', cull='b')
     cols += [wbox(-HW + 0.05, -5.5, 0, HW - 0.05, FW, GF), wbox(-HW + 0.05, -6.0, 0, HW - 0.05, -5.5, GF / 2)]
+    TD.nosing(m, -HW + 0.05, HW - 0.05, -5.5, GF)
+    TD.nosing(m, -HW + 0.05, HW - 0.05, -6.0, GF / 2)
     for sx in (-1, 1):
         x = sx * 2.72
         m.bx(x - 0.13, x + 0.13, -5.95, -5.69, GF / 2, GF / 2 + 0.25, 'trim')
         post(m, x, -5.82, GF / 2 + 0.25, UF - SLAB - 0.2, 0.1, 'trim', seg=8)
         m.bx(x - 0.13, x + 0.13, -5.95, -5.69, UF - SLAB - 0.2, UF - SLAB, 'trim')
+        m.cy((x, -5.82, GF / 2 + 0.25 - EMB), 0.125, 0.125, 0.045, 'trim', seg=8, hull='none')
+        m.cy((x, -5.82, UF - SLAB - 0.2 - 0.042), 0.125, 0.125, 0.045, 'trim', seg=8, hull='none')
         cols.append(box(x - 0.13, -5.95, GF / 2, x + 0.13, -5.69, UF - SLAB))
     # the balcony slab (porch ceiling under it), fascia, rail
     m.bx(-HW + 0.04, HW - 0.04, -6.05, FW, UF - SLAB, UF, 'trim')
@@ -269,6 +280,7 @@ def porch_balcony(m, cols, body):
     m.bx(-HW + 0.04, HW - 0.04, -6.05, -5.95, z0, z0 + 0.08, 'trim', cull='b')
     pickets_x(m, -HW + 0.12, HW - 0.12, -6.0, z0 + 0.08, z1 - 0.07, 0.2, 0.05, 'trim')
     cols.append(box(-HW + 0.04, -6.05, z0, HW - 0.04, -5.95, z1))
+    TD.rail_cap(m, -HW + 0.04, HW - 0.04, -6.0, z1)
     for sx in (-1, 1):
         a, b = srt(sx * (HW - 0.04), sx * (HW - 0.14))
         m.bx(a, b, -5.95, FW, z1 - 0.07, z1, 'trim')
@@ -291,6 +303,8 @@ def stoop_iron(m, cols):
     m.bx(x0, x1, -5.4, FW, 0.0, GF, 'stone', cull='b')
     m.bx(x0, x1, -5.95, -5.4, 0.0, GF / 2, 'stone', cull='b')
     cols += [wbox(x0, -5.4, 0, x1, FW, GF), wbox(x0, -5.95, 0, x1, -5.4, GF / 2)]
+    TD.nosing(m, x0, x1, -5.4, GF)
+    TD.nosing(m, x0, x1, -5.95, GF / 2)
     for x in (x0 + 0.04, x1 - 0.04):
         m.bm_((x, -5.9, 0.95), (x, -5.4, GF + 0.95), 0.045, 'iron')
         m.bm_((x, -5.38, GF + 0.95), (x, FW, GF + 0.95), 0.036, 'iron')
@@ -455,6 +469,7 @@ def house_siding(pal, name, walk, ao, num=12):
     foundation(m, -HW, HW)
     fz(m, -HW, -HW + 0.14, GF, eave, 0.01, 'trim')
     fz(m, HW - 0.14, HW, GF, eave, 0.01, 'trim')
+    TD.siding_trim(m, -HW, HW, eave, GF, UF, [(DOOR[0] - 0.17, DOOR[1] + 0.17)])
     if walk:
         door(m, DOOR[0], DOOR[1], GF, GF + DOOR_H, open_=True)
         window(m, -0.3, 2.3, 1.15, 2.55, shutters=False, grille=True)
@@ -491,6 +506,7 @@ def house_siding(pal, name, walk, ao, num=12):
         cols += [wbox(-HW + 0.05, -5.6, 0, HW - 0.05, FW, GF), wbox(DOOR[0] - 0.1, -6.0, 0, DOOR[1] + 0.1, -5.6, GF / 2)]
         for x in (-2.8, -0.7, 2.8):
             post(m, x, -5.45, GF, 2.95, 0.08, 'trim', seg=6)
+            TD.porch_post(m, x, -5.45, 2.95, GF)
             cols.append(box(x - 0.09, -5.54, GF, x + 0.09, -5.36, 2.95))
         m.prism([(-5.75, 2.9), (FW + 0.01, 2.9), (FW + 0.01, 3.45), (-5.75, 3.08)], -HW + 0.02, HW - 0.02, ['shingle'], hull='full')
         dq(m, -HW + 0.05, HW - 0.05, -5.7, FW - 0.01, 2.895, 'trimD')
@@ -499,8 +515,12 @@ def house_siding(pal, name, walk, ao, num=12):
             pickets_x(m, x0 + 0.05, x1 - 0.05, -5.45, GF + 0.06, GF + 0.85, 0.15, 0.04, 'trim')
             m.bx(x0, x1, -5.5, -5.4, GF, GF + 0.06, 'trim', hull='none', cull='b')
             cols.append(box(x0, -5.5, GF, x1, -5.4, GF + 0.92))
+            TD.rail_cap(m, x0, x1, -5.45, GF + 0.92)
         porch_bench(m, cols, 0.9, 2.5, -4.6, GF)
-    back_facade(m, cols, 'sid', eave, walk, siding=True)
+        TD.nosing(m, -HW + 0.05, HW - 0.05, -5.6, GF)
+        TD.nosing(m, DOOR[0] - 0.1, DOOR[1] + 0.1, -6.0, GF / 2)
+        TD.bx(m, -HW + 0.025, HW - 0.025, -5.82, -5.747, 2.875, 3.06, 'trimD', cull='blrk')     # porch-roof gutter
+    back_facade(m, cols, 'sid', eave, walk, siding=True, gutter=True)
     side_faces(m, 'sid', eave, siding=True)
     if walk:
         interior_shell(m, cols)
@@ -524,10 +544,27 @@ def side_faces(m, body, eave, siding=False, brick=False):
         if brick:
             lines_h(m, rects, GF, eave, 0.6, 'mortar', d=0.004, w=0.02)
         fz(m, a, b, 0.0, GF, 0.008, 'stone')
+        if sx > 0:
+            TD.meter(m, 3.4, 1.55)
+        else:
+            TD.hose_bib(m, -3.6, 0.75)
     m.parent = Matrix.Identity(4)
 
 
-def back_facade(m, cols, body, top, walk, siding=False, brick=False, garage=True):
+def back_services(m, top, walk, siding, gutter, gaps):
+    """lane-side trims and services (back frame): siding trims, a downpipe at the corner with its gutter elbow or a
+    scupper"""
+    if siding:
+        TD.siding_trim(m, -HW, HW, top, GF, UF, gaps)
+    x = -2.8 if walk else 2.75
+    if gutter:
+        zg = top - 0.35 * math.tan(math.radians(28)) - 0.04
+        TD.downpipe(m, x, 0.15, zg, jog=0.46)
+    else:
+        TD.downpipe(m, x, 0.15, top - 0.34)
+
+
+def back_facade(m, cols, body, top, walk, siding=False, brick=False, garage=True, gutter=False):
     """the lane side: a garage door (closed houses), a back door, windows, a deck light"""
     m.parent = frame_back()
     # back frame: local x = -piece x
@@ -548,6 +585,7 @@ def back_facade(m, cols, body, top, walk, siding=False, brick=False, garage=True
         window(m, -1.9, -0.9, UF + 0.6, UF + 1.9)
         window(m, 0.9, 1.9, UF + 0.6, UF + 1.9)
         carriage_lamp(m, 2.95 - 0.95 - 0.2, GF + 1.8)
+        back_services(m, top, walk, siding, gutter, [(-DOOR[1] - 0.17, -DOOR[0] + 0.17)])
     else:
         # garage door: raised panels in four rows
         g0, g1 = -2.6, 0.6
@@ -563,12 +601,15 @@ def back_facade(m, cols, body, top, walk, siding=False, brick=False, garage=True
             fz(m, x + 0.03, x + (g1 - g0 - 0.2) / 4 - 0.03, 0.12 + 3 * 0.55 + 0.1, 0.12 + 3 * 0.55 + 0.3, 0.026, 'glass')
         door(m, 1.3, 2.3, GF, GF + 2.2, transom=False, panels=False)
         carriage_lamp(m, 0.95, 1.9)
+        TD.garage_door_detail(m, g0, g1, [0.605, 1.155, 1.705], -1.375, 2.3)
+        gaps = [(-2.8, 0.75), (1.1, 2.5)]
         for x in (-1.9, 0.0, 1.9):
             if top > 7.0 or x != 0.0:
                 window(m, x - 0.45, x + 0.45, UF + 0.6, UF + 1.9)
         if top > 7.0:
             for x in (-1.9, 1.9):
                 window(m, x - 0.45, x + 0.45, 6.6, 8.0)
+        back_services(m, top, walk, siding, gutter, gaps)
         m.parent = Matrix.Identity(4)
         # the door step at the lane, collision for nothing proud of the wall here
         m.bx(-2.3, -1.3, BW, BW + 0.4, 0.0, GF / 2, 'stone', cull='bf')
@@ -641,6 +682,8 @@ def house_stucco(pal, name, walk, ao, num=14):
         m.bx(DOOR[0] - 0.2, DOOR[1] + 0.2, -5.3, FW, 0.0, GF, 'tileR', cull='b')
         m.bx(DOOR[0] - 0.2, DOOR[1] + 0.2, -5.9, -5.3, 0.0, GF / 2, 'tileR', cull='b')
         cols += [wbox(DOOR[0] - 0.2, -5.3, 0, DOOR[1] + 0.2, FW, GF), wbox(DOOR[0] - 0.2, -5.9, 0, DOOR[1] + 0.2, -5.3, GF / 2)]
+        TD.nosing(m, DOOR[0] - 0.2, DOOR[1] + 0.2, -5.3, GF)
+        TD.nosing(m, DOOR[0] - 0.2, DOOR[1] + 0.2, -5.9, GF / 2)
         for x in (-0.2, 2.2):
             m.bx(x - 0.32, x + 0.32, -5.2, -4.6, 0.0, 0.55, 'tileR')
             shrub(m, x, -4.9, 0.36, z=0.52, c='leafD', c2='leaf')
@@ -673,6 +716,7 @@ def house_brick(pal, name, walk, ao, num=16):
     brick_face(m, rects, top - 0.4)
     foundation(m, -HW, HW, c='stoneD')
     cornice(m, -HW, HW, top - 0.22, brackets=7)
+    TD.brick_trim(m, -HW, HW, GF, [(DOOR[0] - 0.17, DOOR[1] + 0.17)])
     # third storey windows (both styles)
     for x in (-1.9, 0.0, 1.9):
         window(m, x - 0.42, x + 0.42, 6.75, 8.3, grille=True)
@@ -753,6 +797,7 @@ def house_garage(pal, name, ao, num=18):
     for r in range(6):
         fz(m, g0 + 0.04, g1 - 0.04, 0.3 + r * 0.33, 0.33 + r * 0.33, 0.024, 'chrome')
     fz(m, g0 + 0.1, g1 - 0.1, 2.0, 2.25, 0.026, 'glassD')
+    TD.garage_door_detail(m, g0, g1, [], 1.2, 2.35)
     door(m, -2.6, -1.4, GF, GF + 2.3, transom=False, panels=False, trim='trimD')
     fz(m, -2.45, -2.35, GF + 0.3, GF + 2.0, 0.016, 'chrome')
     fbox(m, -2.85, -1.15, GF + 2.45, GF + 2.55, 0.0, 0.9, 'shingleD', hull='full', cull='k')
