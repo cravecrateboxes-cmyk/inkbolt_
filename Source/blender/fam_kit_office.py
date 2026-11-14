@@ -478,6 +478,7 @@ def stand(k):
         k.qy(-0.42, 0.42, z0, z1, -0.423, -1, 'column')
         k.bx(-0.14, 0.14, -0.45, -0.423, z1 - 0.1, z1 - 0.06, 'graphite', ink=False)
         k.qy(-0.06, 0.06, z1 - 0.2, z1 - 0.14, -0.426, -1, 'teal' if i == 0 else 'white')
+    OS.stand_detail(k)
     return k
 
 
@@ -508,6 +509,13 @@ def lateral_file(k, kind):
             lean = 0.12 if i % 2 else -0.1
             k.beam((x, 0, 1.18), (x + lean * 0.6, lean * 0.5, 1.55 + 0.08 * (i % 3)), 0.035, 'leaf' if i % 3 else 'leaf2')
     of_detail.file_fittings(k)
+    for sd in (-1, 1):      # (map asset upgrade) pressed side panels with lips, a toe kick round the sides and back
+        k.qx(-0.22, 0.22, 0.12, 0.9, sd * 0.473, sd, 'column')
+        k.qx(-0.26, 0.26, 0.0, 0.05, sd * 0.473, sd, 'graphite')
+        for z in (0.12, 0.9):
+            k.bx(min(sd * 0.47, sd * 0.482), max(sd * 0.47, sd * 0.482), -0.23, 0.23, z - 0.012, z, 'steel', ink=False)
+    k.qy(-0.42, 0.42, 0.12, 0.9, 0.283, 1, 'column')
+    k.qy(-0.45, 0.45, 0.0, 0.05, 0.283, 1, 'graphite')
     k.col(-0.48, 0.48, -0.29, 0.29, 0, 1.03)
     return k
 

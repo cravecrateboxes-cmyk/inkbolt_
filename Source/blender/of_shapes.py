@@ -145,6 +145,25 @@ def archive_box(k, x0, x1, y0, y1, z0, z1):
     k.qy(cx - 0.035, cx + 0.035, z0 + 0.04, z0 + 0.07, y0 - 0.003, -1, 'graphite')                    # hand hole
 
 
+def stand_detail(k):
+    """Weapon stand (two-drawer lateral file 0.9 x 0.84 x 0.92, oak top): steel drawer surrounds, a lock, a dark
+    toe kick and pressed panels on the sides and back (the stand is seen from every side), an edge band on the top."""
+    for (z0, z1) in ((0.06, 0.48), (0.5, 0.9)):
+        k.bx(-0.43, 0.43, -0.432, -0.417, z0 - 0.012, z0, 'steel', ink=False)
+        k.bx(-0.43, 0.43, -0.432, -0.417, z1, z1 + 0.008 if z1 < 0.9 else z1 + 0.012, 'steel', ink=False)
+        for x in (-0.43, 0.418):
+            k.bx(x, x + 0.012, -0.432, -0.417, z0, z1, 'steel', ink=False)
+    k.bx(0.3, 0.36, -0.43, -0.417, 0.8, 0.86, 'steelDark', ink=False)          # lock
+    for s in (-1, 1):
+        k.qy(-0.44, 0.44, 0.0, 0.05, s * 0.423, s, 'graphite')
+        k.qx(-0.41, 0.41, 0.0, 0.05, s * 0.453, s, 'graphite')
+        k.qx(-0.34, 0.34, 0.14, 0.82, s * 0.453, s, 'column')
+        for z in (0.14, 0.82):                                                   # pressed panel lips
+            k.bx(min(s * 0.45, s * 0.462), max(s * 0.45, s * 0.462), -0.35, 0.35, z - 0.012, z, 'steel', ink=False)
+    k.qy(-0.36, 0.36, 0.14, 0.82, 0.423, 1, 'column')
+    k.bx(-0.465, 0.465, -0.447, -0.437, 0.925, 0.955, 'oak2', ink=False)        # top edge band
+
+
 def soft_box(k, x0, x1, y0, y1, z0, z1, color, c=0.035):
     """Upholstered block: a box with every edge chamfered (convex hull of the corners pulled in along each axis)."""
     c = min(c, (x1 - x0) / 3, (y1 - y0) / 3, (z1 - z0) / 3)
