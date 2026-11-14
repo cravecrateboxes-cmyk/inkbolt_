@@ -73,7 +73,7 @@
       crawler: { parts: { BOT_CRAWLER_Body: 1, BOT_CRAWLER_Leg: 4, BOT_CRAWLER_Light: 1 }, max: 2800 },
       gunner: { parts: { BOT_GUNNER_Body: 1, BOT_GUNNER_Lid: 1, BOT_GUNNER_Gun: 1, BOT_GUNNER_Wheel: 2, BOT_GUNNER_Light: 1 }, max: 3800 },
       bomber: { parts: { BOT_BOMBER_Body: 1, BOT_BOMBER_Roller: 1, BOT_BOMBER_Cap: 1, BOT_BOMBER_Light: 1 }, max: 3000 },
-      drone: { parts: { BOT_DRONE_Body: 1, BOT_DRONE_Lid: 1, BOT_DRONE_Rotor: 4, BOT_DRONE_Gun: 1, BOT_DRONE_Light: 1 }, max: 2800 },
+      drone: { parts: { BOT_DRONE_Body: 1, BOT_DRONE_Lid: 1, BOT_DRONE_Rotor: 4, BOT_DRONE_Gun: 1, BOT_DRONE_Light: 1 }, max: 3450 },
       // Soldier: one torso and one helmet of each shape set (variants are separate meshes, one drawn per robot)
       soldier: { parts: { BOT_SOLDIER_Hips: 1, BOT_SOLDIER_Thigh: 2, BOT_SOLDIER_Shin: 2, BOT_SOLDIER_TorsoA: 1, BOT_SOLDIER_HelmA: 1, BOT_SOLDIER_Visor: 1, BOT_SOLDIER_ArmR: 1, BOT_SOLDIER_ArmL: 1 }, max: 4500 },
       soldierHeavy: { parts: { BOT_SOLDIER_Hips: 1, BOT_SOLDIER_Thigh: 2, BOT_SOLDIER_Shin: 2, BOT_SOLDIER_TorsoB: 1, BOT_SOLDIER_HelmC: 1, BOT_SOLDIER_Visor: 1, BOT_SOLDIER_ArmR: 1, BOT_SOLDIER_ArmL: 1 }, max: 5400 },
@@ -83,7 +83,7 @@
       nade: { parts: { BOT_SOLDIER_Nade: 1 }, max: 300 },
       // levels 20+
       crawler2: { parts: { BOT_CRAWLER_Body2: 1, BOT_CRAWLER_Leg2: 4, BOT_CRAWLER_Light: 1, BOT_CRAWLER_Specks: 1 }, max: 4000 },
-      hawk: { parts: { BOT_HAWK_Body: 1, BOT_HAWK_Fan: 2, BOT_HAWK_Rotor: 2, BOT_HAWK_Gun: 1, BOT_HAWK_Light: 1 }, max: 4800 },
+      hawk: { parts: { BOT_HAWK_Body: 1, BOT_HAWK_Fan: 2, BOT_HAWK_Rotor: 2, BOT_HAWK_Gun: 1, BOT_HAWK_Light: 1 }, max: 5400 },
       // the kusarigama Blade Bot: body, hub, weight, a full 16-segment chain and the sickle
       bladerKusari: { parts: { BOT_BLADER_Body: 1, BOT_BLADER_Hub: 1, BOT_BLADER_Fundo: 1, BOT_BLADER_Chain: 16, BOT_BLADER_Kusari: 1, BOT_BLADER_Light: 1 }, max: 7000 },
       // levels 35+: the Jet Trooper, every part (two legs, two pods on their arms with lids, two flames)

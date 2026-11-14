@@ -650,34 +650,35 @@ D_ARM = 0.30
 
 
 def build_drone(pal):
-    SEG = 12
+    import bot_shapes_air as SA
+    SEG = 16
     p = Part(pal)
-    p.lathe([(0.12, 0.02), (0.188, 0.07), (0.19, 0.09), (0.19, 0.50), (0.182, 0.53), (0.163, 0.56), (0.163, 0.575),
+    p.lathe([(0.12, 0.02), (0.176, 0.045), (0.19, 0.075), (0.19, 0.50), (0.184, 0.527), (0.17, 0.552), (0.163, 0.575),
              (0.0, 0.575)], 'can', seg=SEG)
     p.lathe([(0.0, 0.02), (0.12, 0.02)], 'can2', seg=SEG)                               # bottom (seat of the dome)
-    p.sphere((0, 0, 0.02), 0.11, 'core', seg=(8, 4), scale=(1, 1, 0.62))               # core dome
+    p.sphere((0, 0, 0.02), 0.11, 'core', seg=(12, 4), scale=(1, 1, 0.62))              # core dome
     p.box((0, D_PIVOT[1] + 0.01, 0.0), (0.05, 0.06, 0.05), 'gunmetal')                    # gun gimbal bracket
     p.band(0.18, 0.29, 0.195, 'paper', seg=SEG)                                           # white ribbon
     p.band(0.37, 0.43, 0.196, 'ink', seg=SEG)                                             # sensor slot (all round)
     p.band(0.388, 0.412, 0.2, 'amber', seg=SEG)                                           # sensor strip
     # detail pass: rolled top chime and bottom bead, a seam strip down the back, side vents, a can label with
     # stencil bars, two side cameras over the sensor slot, a gimbal yoke round the gun
-    p.band(0.563, 0.572, 0.168, 'alu', seg=SEG)
+    p.band(0.563, 0.572, 0.17, 'alu', seg=SEG)
     p.band(0.075, 0.09, 0.194, 'can2', seg=SEG)
     for z0, z1 in ((0.095, 0.175), (0.295, 0.365), (0.435, 0.495)):
-        p.on_facet(2, SEG, 0.19, 0.0, (z0 + z1) / 2, (0.016, 0.007, z1 - z0), 'can2')
-    for k in (0, 5):
+        p.on_facet(3, SEG, 0.19, 0.0, (z0 + z1) / 2, (0.016, 0.007, z1 - z0), 'can2')
+    for k in (0, 7):
         with ED.at(p, ED.facet_frame(k, SEG, 0.19, 0.33)):
-            ED.grille(p, 0, 0, 0.07, 0.05, 3, slat='can2')
-    with ED.at(p, ED.facet_frame(10, SEG, 0.19, 0.13)):
-        ED.pad(p, 0, 0, 0.075, 0.07, 0.004, 'paper')
-        ED.stencil(p, -0.005, 0.016, 0.05, 0.008, 3, base=0.004)
-        ED.pad(p, -0.012, -0.004, 0.04, 0.006, 0.003, 'ink', base=0.004)
-        ED.pad(p, -0.006, -0.018, 0.052, 0.006, 0.003, 'ink', base=0.004)
-    for k in (11, 6):
+            ED.grille(p, 0, 0, 0.06, 0.05, 3, slat='can2')
+    with ED.at(p, ED.facet_frame(13, SEG, 0.19, 0.13)):
+        ED.pad(p, 0, 0, 0.06, 0.07, 0.004, 'paper')
+        ED.stencil(p, -0.004, 0.016, 0.04, 0.008, 3, base=0.004)
+        ED.pad(p, -0.01, -0.004, 0.032, 0.006, 0.003, 'ink', base=0.004)
+        ED.pad(p, -0.005, -0.018, 0.042, 0.006, 0.003, 'ink', base=0.004)
+    for k in (15, 8):
         with ED.at(p, ED.facet_frame(k, SEG, 0.19, 0.465)):
             ED.pad(p, 0, 0, 0.04, 0.03, 0.012, 'gunmetal')
-            ED.lamp(p, 0, 0, 0.009, lens='teal', w=0.004, base=0.012, seg=6)
+            ED.lamp(p, 0, 0, 0.009, lens='teal', w=0.004, base=0.012, seg=8)
     for sx in (-1, 1):
         p.box((sx * 0.048, D_PIVOT[1], -0.01), (0.012, 0.04, 0.06), 'gunmetal', deco=True)
     body = p.build('BOT_DRONE_Body', bevel=False)
@@ -685,40 +686,40 @@ def build_drone(pal):
     socket('BOT_DRONE_LID', body, D_LID)
     socket('BOT_DRONE_GUNPIVOT', body, D_PIVOT)
 
-    # lid (origin on the can top): disc, X arms, motor pods; deco: pull tab, telescoping post, antenna
+    # lid (origin on the can top): a rounded disc, round tapered X arms, rounded motor pods inside round rotor
+    # guards; deco: pull tab, telescoping post, antenna
     p = Part(pal)
-    p.cyl((0, 0, 0.0), 0.172, 0.172, 0.022, 'alu', seg=10)
+    SA.lathe_r(p, [(0.172, 0.0), (0.172, 0.013), (0.158, 0.022), (0.0, 0.022)], 'alu', seg=12)
     pods = []
     for k in range(2):
         a = math.radians(45 + 90 * k)
         c, s = D_ARM * math.cos(a), D_ARM * math.sin(a)
-        z = 0.03 + 0.006 * k                                                               # crossing beams at two heights
-        p.beam((-c, -s, z), (c, s, z), 0.03, 'gunmetal')
+        z = 0.03 + 0.006 * k                                                               # crossing arms at two heights
+        p.limb((-c, -s, z), (c, s, z), 0.016, 0.016, 'gunmetal', seg=8)
     for k in range(4):
         a = math.radians(45 + 90 * k)
         x, y = D_ARM * math.cos(a), D_ARM * math.sin(a)
-        p.cyl((x, y, 0.0), 0.046, 0.046, 0.075, 'can2', seg=6)
+        with SA.at_frame(p, Matrix.Translation((x, y, 0.0))):
+            SA.lathe_r(p, [(0.047, 0.0), (0.047, 0.056), (0.03, 0.078)], 'can2', seg=10)                       # motor pod
         pods.append((x, y, 0.092))
-    p.cyl((0, 0, -0.16), 0.03, 0.03, 0.16, 'gunmetal', seg=6, caps=False, deco=True)     # post (shows when lifted)
-    p.box((0, -0.06, 0.026), (0.05, 0.085, 0.008), 'alu', deco=True)                       # pull tab
+    p.cyl((0, 0, -0.16), 0.03, 0.03, 0.16, 'gunmetal', seg=8, caps=False, deco=True)     # post (shows when lifted)
+    p.box((0, -0.06, 0.026), (0.05, 0.085, 0.008), 'alu', deco=True)                        # pull tab
     p.cyl((0.0, 0.08, 0.022), 0.009, 0.009, 0.16, 'ink', seg=4, deco=True)               # antenna
-    # detail pass: rotor guards (a ring on two struts round each rotor disc), motor housings (cooling fins, bell
-    # cap), nav lamps on the pods, bolts where the arms cross the lid, a lamp holder under the light
+    # detail pass: rotor guards (a round ring on two struts round each rotor disc), a cooling band and nav lamp on
+    # each pod, bolts where the arms cross the lid, a lamp holder under the light
     for k in range(4):
         a = math.radians(45 + 90 * k)
         x, y = D_ARM * math.cos(a), D_ARM * math.sin(a)
         p.parent = Matrix.Translation((x, y, 0))
-        p.lathe([(0.19, 0.084), (0.199, 0.084), (0.199, 0.102), (0.19, 0.102), (0.19, 0.084)], 'gunmetal', seg=12, deco=True)
+        p.lathe([(0.19, 0.093), (0.1955, 0.084), (0.201, 0.093), (0.1955, 0.102), (0.19, 0.093)], 'gunmetal', seg=12, deco=True)
         for da in (-50, 50):
             b = a + math.radians(180 + da)
             p.beam((0.04 * math.cos(b), 0.04 * math.sin(b), 0.05), (0.192 * math.cos(b), 0.192 * math.sin(b), 0.09), 0.012, 'gunmetal', deco=True)
-        for z in (0.018, 0.042):
-            p.cyl((0, 0, z), 0.05, 0.05, 0.008, 'gunmetal', seg=6, caps=False, deco=True)
-        p.cyl((0, 0, 0.072), 0.032, 0.028, 0.014, 'gunmetal', seg=6, deco=True)
-        p.box((0.046 * math.cos(a), 0.046 * math.sin(a), 0.06), (0.014, 0.014, 0.012), 'red' if k in (1, 2) else 'teal', rot=(0, 0, math.degrees(a)), deco=True)
+        p.cyl((0, 0, 0.03), 0.0515, 0.0515, 0.01, 'gunmetal', seg=10, caps=False, deco=True)
+        p.box((0.05 * math.cos(a), 0.05 * math.sin(a), 0.045), (0.012, 0.014, 0.012), 'red' if k in (1, 2) else 'teal', rot=(0, 0, math.degrees(a)), deco=True)
         p.parent = Matrix.Identity(4)
     ED.bolt_ring(p, 0, 0, 0.022, 0.135, 4, r=0.01, h=0.006, phase=0.0)
-    p.cyl((0.0, 0.08, 0.145), 0.02, 0.02, 0.025, 'gunmetal', seg=6, deco=True)
+    p.cyl((0.0, 0.08, 0.145), 0.02, 0.02, 0.025, 'gunmetal', seg=8, deco=True)
     lid = p.build('BOT_DRONE_Lid', bevel=False)
     for k, q in enumerate(pods):
         socket('BOT_DRONE_ROTOR%d' % k, lid, q)
@@ -730,21 +731,23 @@ def build_drone(pal):
     for sx in (-1, 1):
         p.box((sx * 0.168, 0, 0.0), (0.036, 0.042, 0.008), 'amber', deco=True)
         p.box((sx * 0.085, sx * 0.012, 0.0), (0.12, 0.012, 0.014), 'gunmetal', deco=True)   # raised leading edge
-    p.cyl((0, 0, -0.008), 0.022, 0.018, 0.02, 'gunmetal', seg=6, deco=True)                # hub cap
+    p.cyl((0, 0, -0.008), 0.022, 0.016, 0.022, 'gunmetal', seg=8, deco=True)                # hub cap
     p.build('BOT_DRONE_Rotor', bevel=False, hull=0.008)
 
-    # gun on its gimbal (origin on the pivot, barrel along -Y)
+    # gun on its gimbal (origin on the pivot, barrel along -Y): a rounded housing, a round barrel and muzzle
     p = Part(pal)
-    p.box((0, 0, 0), (0.08, 0.06, 0.06), 'gunmetal')
-    p.cyl((0, -0.01, 0), 0.026, 0.026, 0.19, 'alu', seg=6, rot=(90, 0, 0))
-    p.cyl((0, -0.17, 0), 0.036, 0.036, 0.04, 'gunmetal', seg=6, rot=(90, 0, 0))
-    p.cyl((0, -0.06, 0), 0.031, 0.031, 0.03, 'amber', seg=6, rot=(90, 0, 0), caps=False, deco=True)
-    p.cyl((0, -0.207, 0), 0.018, 0.018, 0.006, 'ink', seg=6, rot=(90, 0, 0), deco=True)
+    with SA.at_frame(p, SA.frame((0, 0.03, 0), (0, -1, 0))):
+        SA.limb(p, [(0.0, 0.034, 0.025, 0.025), (0.012, 0.04, 0.03, 0.03), (0.072, 0.036, 0.027, 0.027)], 'gunmetal', n=10, e=2.6)
+    p.cyl((0, -0.03, 0), 0.026, 0.024, 0.15, 'alu', seg=10, rot=(90, 0, 0))
+    with SA.at_frame(p, SA.frame((0, -0.17, 0), (0, -1, 0))):
+        SA.limb(p, [(0.0, 0.036, 0.036, 0.036), (0.04, 0.033, 0.033, 0.033)], 'gunmetal', n=10, e=2.0)
+    p.cyl((0, -0.06, 0), 0.0305, 0.0305, 0.03, 'amber', seg=10, rot=(90, 0, 0), caps=False, deco=True)
+    p.cyl((0, -0.207, 0), 0.018, 0.018, 0.006, 'ink', seg=8, rot=(90, 0, 0), deco=True)
     # detail pass: cooling rings on the barrel, ported muzzle brake, ammo box under the breech, a sight on top
     for y in (-0.10, -0.125, -0.15):
-        p.cyl((0, y, 0), 0.03, 0.03, 0.008, 'gunmetal', seg=6, rot=(90, 0, 0), caps=False, deco=True)
+        p.cyl((0, y, 0), 0.0295, 0.0295, 0.008, 'gunmetal', seg=10, rot=(90, 0, 0), caps=False, deco=True)
     for sx in (-1, 1):
-        p.box((sx * 0.034, -0.19, 0), (0.008, 0.014, 0.016), 'ink', deco=True)
+        p.box((sx * 0.035, -0.19, 0), (0.008, 0.014, 0.016), 'ink', deco=True)
     p.box((0, 0.0, -0.038), (0.05, 0.045, 0.028), 'can2', deco=True)
     p.box((0, 0.0, -0.0545), (0.03, 0.03, 0.006), 'amber', deco=True)
     p.box((0, -0.01, 0.036), (0.012, 0.03, 0.016), 'gunmetal', deco=True)
@@ -1278,119 +1281,149 @@ H_PIVOT = (0, -0.20, 0.135)
 
 
 def build_hawk(pal):
-    SEG = 8
-    ph = math.pi / SEG
+    import bot_shapes_air as SA
+    SEG = 16
+    ph = math.pi / 2                                                                           # a ring vertex on the top line
+    FUS = Matrix.Translation((0, 0, H_CEN)) @ Matrix.Rotation(math.radians(90), 4, 'X') @ Matrix.Diagonal(Vector((1, 0.72, 1, 1)))
     p = Part(pal)
-    # fuselage: lathe along the length (lathe z -> -Y), flattened to 72 % of its width
-    p.parent = Matrix.Translation((0, 0, H_CEN)) @ Matrix.Rotation(math.radians(90), 4, 'X') @ Matrix.Diagonal(Vector((1, 0.72, 1, 1)))
-    prof = [(0.0, -0.46), (0.08, -0.45), (0.15, -0.36), (0.20, -0.18), (0.21, 0.02), (0.19, 0.20), (0.14, 0.36), (0.07, 0.47), (0.0, 0.52)]
-    p.lathe(prof, 'hawk', seg=SEG, phase=ph)
+    # fuselage: a smooth lathe along the length (lathe z -> -Y), flattened to 72 % of its width
+    p.parent = FUS
+    prof = [(0.0, -0.46), (0.07, -0.45), (0.14, -0.385), (0.185, -0.26), (0.207, -0.08), (0.205, 0.10), (0.182, 0.26), (0.135, 0.39),
+            (0.07, 0.48), (0.0, 0.52)]
+    SA.lathe_r(p, prof, 'hawk', seg=SEG, phase=ph)
     p.parent = Matrix.Identity(4)
-    top = H_CEN + 0.21 * 0.72 * math.cos(ph)                                                 # flat top face height
-    p.box((0, 0.04, top + 0.022), (0.15, 0.52, 0.045), 'hawk2', bevel=True)                    # dorsal armour spine
-    for sx in (-1, 1):                                                                         # V-tail fins
-        p.parent = Matrix.Translation((sx * 0.045, 0, top + 0.03)) @ Matrix.Rotation(math.radians(-30 * sx), 4, 'Y') @ _YZX
-        p.prism([(0.20, 0.0), (0.40, 0.0), (0.46, 0.16), (0.37, 0.16)], -0.011, 0.011, 'hawk2')
-    p.parent = Matrix.Identity(4)
-    for sx in (-1, 1):                                                                         # stub pylons to the fans
-        p.box((sx * 0.235, H_FAN[1], H_FAN[2]), (0.13, 0.15, 0.04), 'hawk2', bevel=True)
-        p.box((sx * 0.19, -0.01, H_CEN - 0.03), (0.06, 0.26, 0.11), 'hawk', bevel=True)      # intake cheeks
-        p.box((sx * 0.222, -0.13, H_CEN - 0.03), (0.012, 0.05, 0.07), 'ink')                 # intake mouth
-    p.cyl((0, 0.40, H_CEN), 0.085, 0.07, 0.14, 'gunmetal', seg=10, rot=(-90, 0, 0))         # tail thruster
-    p.cyl((0, 0.535, H_CEN), 0.06, 0.06, 0.012, 'plate', seg=10, rot=(-90, 0, 0))           # thruster glow
-    p.sphere((0, 0.17, H_CEN - 0.13), 0.075, 'core', seg=(10, 5), scale=(1, 1.2, 0.6))       # core (belly)
-    p.box((0, H_PIVOT[1] + 0.01, H_PIVOT[2] + 0.04), (0.08, 0.10, 0.05), 'gunmetal')         # turret mount
-    # deco: accent strips along the flanks, panel lines on the spine, thruster ring, vents
-    for sx in (-1, 1):
-        p.box((sx * 0.224, 0.03, H_CEN - 0.03), (0.008, 0.15, 0.02), 'plate', deco=True)       # accent strips on the cheeks
-        p.box((sx * 0.072, -0.08, top + 0.0475), (0.012, 0.30, 0.006), 'plate', deco=True)     # accent strips along the spine
-    for y in (-0.12, 0.08, 0.22):
-        p.box((0, y, top + 0.0475), (0.12, 0.008, 0.006), 'ink', deco=True)
-    p.box((0, -0.04, top + 0.0475), (0.03, 0.10, 0.006), 'hawk3', deco=True)
-    p.cyl((0, 0.47, H_CEN), 0.084, 0.084, 0.03, 'plate2', seg=10, rot=(-90, 0, 0), caps=False, deco=True)
-    # detail pass: panel seam rings round the fuselage, a sensor bezel round the nose eye, a dorsal sensor turret,
-    # intake slats, pylon bolts, a blade antenna under the belly, a collar round the core, cooling rings and nozzle
-    # petals on the thruster, serial stencils on the fins
-    p.parent = Matrix.Translation((0, 0, H_CEN)) @ Matrix.Rotation(math.radians(90), 4, 'X') @ Matrix.Diagonal(Vector((1, 0.72, 1, 1)))
     rp = lambda z: next(r0 + (r1 - r0) * (z - z0) / (z1 - z0) for (r0, z0), (r1, z1) in zip(prof, prof[1:]) if z0 <= z <= z1)
+    ztop = lambda y: H_CEN + rp(-y) * 0.72                                                    # top line height at y
+    # dorsal armour spine: a rounded blister along the top line
+    spine = [(0.30, 0.04, 0.014, 0.016), (0.24, 0.07, 0.03, 0.034), (-0.15, 0.075, 0.03, 0.036), (-0.23, 0.045, 0.016, 0.018)]
+    with SA.at_frame(p, SA.frame((0, 0, 0), (0, -1, 0))):
+        SA.loft(p, [SA.ring_se(a, bf, bb, 10, 2.6, -y, 0, ztop(y) - 0.006) for y, a, bf, bb in spine], 'hawk2')
+    top = ztop(0.0) - 0.006 + 0.036                                                             # spine crest height mid-body
+    for sx in (-1, 1):                                                                         # V-tail fins: tapered lens section
+        p.parent = Matrix.Translation((sx * 0.045, 0, ztop(0.3) - 0.004)) @ Matrix.Rotation(math.radians(-30 * sx), 4, 'Y')
+        rings = []
+        for z, y0, y1, t in ((0.0, 0.20, 0.42, 0.014), (0.205, 0.37, 0.47, 0.008)):
+            m = (y0 + y1) / 2
+            rings.append([(0, y0, z), (-t, y0 + (y1 - y0) * 0.3, z), (-t * 0.6, y0 + (y1 - y0) * 0.75, z), (0, y1, z),
+                          (t * 0.6, y0 + (y1 - y0) * 0.75, z), (t, y0 + (y1 - y0) * 0.3, z)])
+        SA.loft(p, rings, 'hawk2')
+    p.parent = Matrix.Identity(4)
+    for sx in (-1, 1):
+        # stub pylon to the fan: a tapered wing section
+        with SA.at_frame(p, SA.frame((sx * 0.15, H_FAN[1], H_FAN[2]), (sx, 0, 0))):
+            rings = []
+            for z, c, t in ((0.0, 0.085, 0.024), (0.17, 0.065, 0.016)):
+                rings.append([(0, -c, z), (t * 0.8, -c * 0.4, z), (t, 0.2 * c, z), (t * 0.4, c, z), (-t * 0.4, c, z), (-t, 0.2 * c, z),
+                              (-t * 0.8, -c * 0.4, z)])
+            SA.loft(p, rings, 'hawk2')
+        # intake cheek: a rounded pod along the flank, an oval intake mouth at its front
+        with SA.at_frame(p, SA.frame((sx * 0.19, 0.12, H_CEN - 0.03), (0, -1, 0))):
+            SA.limb(p, [(0.0, 0.022, 0.035, 0.035), (0.05, 0.032, 0.054, 0.054), (0.21, 0.032, 0.056, 0.056), (0.26, 0.026, 0.046, 0.046)],
+                    'hawk', n=10, e=2.4)
+            SA.limb(p, [(0.258, 0.017, 0.032, 0.032), (0.264, 0.017, 0.032, 0.032)], 'ink', n=8, e=2.0, deco=True)   # intake mouth
+    with SA.at_frame(p, SA.frame((0, 0.33, H_CEN), (0, 1, 0))):
+        SA.lathe_r(p, [(0.072, 0.0), (0.09, 0.03), (0.088, 0.12), (0.074, 0.205)], 'gunmetal', seg=12)          # tail thruster
+    p.cyl((0, 0.535, H_CEN), 0.06, 0.06, 0.012, 'plate', seg=12, rot=(-90, 0, 0))           # thruster glow
+    p.sphere((0, 0.17, H_CEN - 0.13), 0.075, 'core', seg=(12, 6), scale=(1, 1.2, 0.6))       # core (belly)
+    with SA.at_frame(p, Matrix.Translation((0, H_PIVOT[1] + 0.01, H_PIVOT[2] + 0.015))):
+        SA.slab(p, 0.04, 0.05, 0.05, 0.02, 0.01, 'gunmetal', nc=2)                              # turret mount
+    # deco: accent strips along the cheeks and the spine (KEY colours), panel lines, thruster ring, vents
+    for sx in (-1, 1):
+        p.box((sx * (0.19 + 0.032 + 0.002), 0.03, H_CEN - 0.03), (0.008, 0.15, 0.02), 'plate', deco=True)   # accent strips on the cheeks
+        # spine accents: on the blister flanks, one path point per station
+        pts, nrm = [], []
+        for y, a, bf, bb in spine[1:3]:
+            q, n = SA.se_point(a, bf, bb, 2.6, math.radians(55 if sx > 0 else 125))
+            pts.append((q.x, y, ztop(y) - 0.006 + q.y)); nrm.append((n.x, 0, n.y))
+        SA.sweep(p, pts, nrm, 0.014, 0.004, 'plate', off=-0.001)
+    for y in (-0.12, 0.08, 0.2):
+        pts, nrm = [], []
+        for d in (60, 90, 120):
+            q, n = SA.se_point(0.075 if y < 0.2 else 0.0735, 0.03, 0.036 if y < 0.2 else 0.0355, 2.6, math.radians(d))
+            pts.append((q.x, y, ztop(y) - 0.006 + q.y)); nrm.append((n.x, 0, n.y))
+        SA.sweep(p, pts, nrm, 0.008, 0.004, 'ink', off=-0.001)                                    # spine panel lines
+    p.cyl((0, 0.47, H_CEN), 0.0925, 0.0925, 0.03, 'plate2', seg=12, rot=(-90, 0, 0), caps=False, deco=True)
+    # detail pass: panel seam rings round the fuselage, a sensor bezel round the nose eye, a dorsal sensor turret,
+    # intake slats, a blade antenna under the belly, a collar round the core, cooling rings and nozzle petals
+    p.parent = FUS
     for zc in (-0.27, 0.28):
         p.lathe([(rp(zc - 0.005) + 0.0055, zc - 0.005), (rp(zc + 0.005) + 0.0055, zc + 0.005)], 'ink', seg=SEG, phase=ph, deco=True)
     p.parent = Matrix.Identity(4)
     ly = Vector((0, math.cos(math.radians(-28)), math.sin(math.radians(-28))))
     p.box(tuple(Vector((0, -0.385, H_CEN + 0.07)) + ly * 0.012), (0.19, 0.06, 0.06), 'gunmetal', rot=(-28, 0, 0), deco=True)
-    p.cyl((0, 0.145, top + 0.0425), 0.03, 0.026, 0.022, 'hawk3', seg=8, deco=True)
-    p.box((0, 0.118, top + 0.055), (0.03, 0.012, 0.012), 'lens', deco=True)
-    for sx in (-1, 1):
-        for z in (H_CEN - 0.055, H_CEN - 0.03, H_CEN - 0.005):
-            p.box((sx * 0.222, -0.157, z), (0.020, 0.008, 0.006), 'gunmetal', deco=True)
-        for y in (-0.02, 0.06):
-            p.cyl((sx * 0.25, y, H_FAN[2] + 0.018), 0.01, 0.01, 0.006, 'steel', seg=4, deco=True)
-        p.parent = Matrix.Translation((sx * 0.045, 0, top + 0.03)) @ Matrix.Rotation(math.radians(-30 * sx), 4, 'Y') @ _YZX
-        for i in range(3):
-            p.box((0.31 + 0.025 * i, 0.07, sx * 0.0135), (0.012, 0.03, 0.005), 'hawk3', deco=True)
-        p.parent = Matrix.Identity(4)
+    p.cyl((0, 0.145, top - 0.006), 0.03, 0.022, 0.024, 'hawk3', seg=10, deco=True)
+    p.box((0, 0.118, top + 0.008), (0.03, 0.012, 0.012), 'lens', deco=True)
     p.box((0, -0.06, H_CEN - 0.155), (0.006, 0.07, 0.035), 'hawk2', rot=(25, 0, 0), deco=True)
     p.parent = Matrix.Translation((0, 0.17, H_CEN - 0.145)) @ Matrix.Diagonal(Vector((1, 1.2, 1, 1)))
-    p.cyl((0, 0, 0), 0.082, 0.082, 0.014, 'gunmetal', seg=10, caps=False, deco=True)
+    p.cyl((0, 0, 0), 0.082, 0.082, 0.014, 'gunmetal', seg=12, caps=False, deco=True)
     p.parent = Matrix.Identity(4)
     for y in (0.415, 0.445):
-        p.cyl((0, y, H_CEN), 0.088, 0.088, 0.01, 'ink', seg=10, rot=(-90, 0, 0), caps=False, deco=True)
+        p.cyl((0, y, H_CEN), 0.0935, 0.0935, 0.01, 'ink', seg=12, rot=(-90, 0, 0), caps=False, deco=True)
     for k in range(8):
         a = 2 * math.pi * (k + 0.5) / 8
         p.box((0.074 * math.cos(a), 0.54, H_CEN + 0.074 * math.sin(a)), (0.03, 0.03, 0.008), 'gunmetal',
               rot=(0, -math.degrees(a) + 90, 0), deco=True)
-    body = p.build('BOT_HAWK_Body')
+    body = p.build('BOT_HAWK_Body', bevel=False)
     socket('BOT_HAWK_CORE', body, (0, 0.17, H_CEN - 0.15))
     for i, sx in enumerate((-1, 1)):
         socket('BOT_HAWK_FAN%d' % i, body, (sx * H_FAN[0], H_FAN[1], H_FAN[2]))
     socket('BOT_HAWK_GUNPIVOT', body, H_PIVOT)
     socket('BOT_HAWK_LIGHT', body, (0, -0.385, H_CEN + 0.07))
 
-    # ducted fan (origin = duct centre): a closed duct section turned about Z, stator cross and hub, accent rim
+    # ducted fan (origin = duct centre): a rounded duct section turned about Z, round stator rods and a domed hub,
+    # accent rim
     p = Part(pal)
-    duct = [(0.15, -0.045), (0.185, -0.05), (0.205, -0.01), (0.20, 0.045), (0.17, 0.062), (0.15, 0.05), (0.15, -0.045)]
-    p.lathe(duct, 'hawk2', seg=12)
-    p.beam((-0.155, 0, -0.035), (0.155, 0, -0.035), 0.02, 'gunmetal')
-    p.beam((0, -0.155, -0.03), (0, 0.155, -0.03), 0.02, 'gunmetal')
-    p.cyl((0, 0, -0.05), 0.04, 0.03, 0.05, 'hawk', seg=8)
-    p.lathe([(0.206, 0.0), (0.206, 0.024)], 'plate', seg=12, deco=True)
-    p.cyl((0, 0, -0.056), 0.03, 0.03, 0.008, 'plate2', seg=8, deco=True)
-    # detail pass: twelve bolts round the duct lip, four extra stator vanes, cooling bands on the motor housing
-    for k in range(12):
-        p.on_slope(k, 12, (0.205, -0.01), (0.20, 0.045), 0.82, 0.0, (0.014, 0.007, 0.014), 'gunmetal')
+    duct = [(0.15, -0.045), (0.178, -0.052), (0.2, -0.03), (0.206, 0.0), (0.2, 0.04), (0.172, 0.062), (0.15, 0.05), (0.15, -0.045)]
+    p.lathe(duct, 'hawk2', seg=16)
+    p.cyl((-0.155, 0, -0.035), 0.011, 0.011, 0.31, 'gunmetal', seg=6, rot=(0, 90, 0))
+    p.cyl((0, -0.155, -0.03), 0.011, 0.011, 0.31, 'gunmetal', seg=6, rot=(-90, 0, 0))
+    SA.lathe_r(p, [(0.03, -0.062), (0.042, -0.05), (0.04, -0.012), (0.026, 0.0), (0.0, 0.004)], 'hawk', seg=10)
+    p.lathe([(0.2075, -0.004), (0.2075, 0.02)], 'plate', seg=16, deco=True)
+    p.cyl((0, 0, -0.068), 0.026, 0.026, 0.008, 'plate2', seg=10, deco=True)
+    # detail pass: bolts round the duct lip, four extra stator vanes, cooling bands on the motor housing
+    for k in range(0, 16, 2):
+        p.on_slope(k, 16, (0.206, 0.0), (0.2, 0.04), 0.75, 0.0, (0.014, 0.007, 0.014), 'gunmetal')
     for k in range(4):
         a = math.pi / 4 + math.pi / 2 * k
         p.beam((0.045 * math.cos(a), 0.045 * math.sin(a), -0.02), (0.152 * math.cos(a), 0.152 * math.sin(a), -0.02), 0.012, 'gunmetal', deco=True)
-    for z in (-0.045, -0.03):
-        p.cyl((0, 0, z), 0.043, 0.043, 0.007, 'gunmetal', seg=8, caps=False, deco=True)
+    p.cyl((0, 0, -0.04), 0.0445, 0.0445, 0.008, 'gunmetal', seg=10, caps=False, deco=True)
     p.build('BOT_HAWK_Fan', bevel=False, hull=0.01)
-    # rotor: three blades
+    # rotor: three tapered, twisted blades on a round hub
     p = Part(pal)
     for k in range(3):
         a = 2 * math.pi * k / 3
-        p.box((math.cos(a) * 0.075, math.sin(a) * 0.075, 0.0), (0.12, 0.034, 0.008), 'gunmetal', rot=(18, 0, math.degrees(a)))
-    p.cyl((0, 0, -0.012), 0.026, 0.026, 0.024, 'hawk3', seg=8)
+        p.parent = Matrix.Rotation(a, 4, 'Z')
+        rings = []
+        for x, c, t, tw in ((0.02, 0.016, 0.005, 22), (0.135, 0.022, 0.004, 12)):
+            R = Matrix.Rotation(math.radians(tw), 3, 'X')
+            rings.append([tuple(R @ Vector((x, yy, zz))) for yy, zz in ((-c, 0), (-c * 0.3, t), (c, 0), (-c * 0.3, -t))])
+        SA.loft(p, [[(q[0], q[1], q[2]) for q in r] for r in rings], 'gunmetal')
+        p.parent = Matrix.Identity(4)
+    p.cyl((0, 0, -0.012), 0.026, 0.026, 0.024, 'hawk3', seg=10)
     # detail pass: a spinner cone on the hub, dark blade tips
-    p.cyl((0, 0, 0.012), 0.02, 0.006, 0.02, 'gunmetal', seg=6, deco=True)
+    p.cyl((0, 0, 0.012), 0.02, 0.006, 0.02, 'gunmetal', seg=8, deco=True)
     for k in range(3):
         a = 2 * math.pi * k / 3
-        p.box((math.cos(a) * 0.131, math.sin(a) * 0.131, 0.0), (0.016, 0.042, 0.016), 'gunmetal', rot=(18, 0, math.degrees(a)), deco=True)
+        p.box((math.cos(a) * 0.134, math.sin(a) * 0.134, 0.0), (0.016, 0.048, 0.014), 'gunmetal', rot=(14, 0, math.degrees(a)), deco=True)
     p.build('BOT_HAWK_Rotor', bevel=False, hull=0.006)
-    # chin turret (origin = pivot, barrels along -Y)
+    # chin turret (origin = pivot, barrels along -Y): a smooth ball, two tapered barrels with vented jackets
     p = Part(pal)
-    p.sphere((0, 0, 0), 0.065, 'hawk', seg=(10, 6))
+    p.sphere((0, 0, 0), 0.065, 'hawk', seg=(12, 6))
     for sx in (-1, 1):
-        p.cyl((sx * 0.025, -0.03, -0.005), 0.016, 0.016, 0.16, 'gunmetal', seg=6, rot=(90, 0, 0))
-        p.cyl((sx * 0.025, -0.18, -0.005), 0.021, 0.021, 0.03, 'ink', seg=6, rot=(90, 0, 0))
-    p.cyl((0, -0.035, 0), 0.0675, 0.0675, 0.02, 'plate', seg=10, rot=(90, 0, 0), caps=False, deco=True)
-    # detail pass: vented barrel jackets, side armour cheeks with a sensor lens, an ammo feed on top
+        p.cyl((sx * 0.025, -0.03, -0.005), 0.018, 0.013, 0.16, 'gunmetal', seg=8, rot=(90, 0, 0))
+        p.cyl((sx * 0.025, -0.18, -0.005), 0.02, 0.022, 0.03, 'ink', seg=8, rot=(90, 0, 0))
+    p.cyl((0, -0.035, 0), 0.0675, 0.0675, 0.02, 'plate', seg=12, rot=(90, 0, 0), caps=False, deco=True)
+    # detail pass: vented barrel jackets, curved side cheeks with a sensor lens, an ammo feed on top
     for sx in (-1, 1):
-        p.cyl((sx * 0.025, -0.07, -0.005), 0.021, 0.021, 0.06, 'hawk', seg=6, rot=(90, 0, 0), deco=True)
+        p.cyl((sx * 0.025, -0.07, -0.005), 0.0215, 0.0195, 0.06, 'hawk', seg=8, rot=(90, 0, 0), deco=True)
         for y in (-0.085, -0.105):
             p.box((sx * 0.025, y, 0.0135), (0.008, 0.01, 0.006), 'ink', deco=True)
-        p.box((sx * 0.058, 0.0, 0.0), (0.02, 0.07, 0.05), 'hawk2', deco=True)
-    p.box((0.069, -0.02, 0.008), (0.004, 0.016, 0.016), 'lens', deco=True)
-    p.box((0, 0.01, 0.064), (0.04, 0.05, 0.02), 'gunmetal', deco=True)
+        a0 = -40 if sx > 0 else 140
+        with SA.at_frame(p, Matrix.Rotation(math.radians(90), 4, 'X')):
+            SA.shell(p, [(-0.035, 0.07, 0.07, 0.01), (0.035, 0.07, 0.07, 0.01)], a0, a0 + 80, 'hawk2', k=3, deco=True, cham=1.0)
+    p.box((0.072, -0.02, 0.008), (0.004, 0.016, 0.016), 'lens', deco=True)
+    with SA.at_frame(p, Matrix.Translation((0, 0.01, 0.054))):
+        SA.slab(p, 0.02, 0.025, 0.02, 0.008, 0.004, 'gunmetal', nc=1, deco=True)
     gun = p.build('BOT_HAWK_Gun', bevel=False)
     socket('BOT_HAWK_GUN', gun, (0, -0.21, -0.005))
     # sensor eye (coloured by the game)
