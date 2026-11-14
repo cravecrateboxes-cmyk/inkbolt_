@@ -3,6 +3,8 @@ street outside the lobby (see hotel_base.py for the conventions). Prefab footpri
 origin, the front toward -Y."""
 import math
 
+import hotel_detail as D
+
 from mathutils import Matrix
 
 from hotel_base import (H, DECK, HKit, srt, txt, disc, vdisc, ring, frame_y, legs4, dining_chair, gold_chair, armchair, sofa,
@@ -53,6 +55,10 @@ def reception(k):
         txt(k, city, x, 1.594, 1.8, 0.1, 'gold', font='sans', valign='m', maxw=1.2)
     txt(k, 'THE AURELIAN', 0, 1.594, 2.98, 0.2, 'gold', font='serif', valign='m', maxw=3.0)
     k.pop()
+    D.counter_detail(k, 2.6, -1.0, -1.08, -0.3, 1.08, 1.15, 6, [-2.25 + i * 0.9 for i in range(6)], 0.34, 0.25, 0.92, 2.7)
+    k.push(0, -0.16)
+    D.backdrop_detail(k, 1.6, -2.8, 2.8, [(-2.0, 0.75), (0.0, 0.75), (2.0, 0.75)], 0.3, 3.2, 2.35, 3.4)
+    k.pop()
     k.col(-2.7, 2.7, -1.1, -0.3, 0, 1.15)
     k.col(-2.8, 2.8, 1.44, 1.79, 0, 3.4)
     return k
@@ -77,6 +83,7 @@ def concierge(k):
     for i, c in enumerate(('wine', 'sky', 'cgold', 'emerald')):
         z = 0.5 + i * 0.2
         k.qy(-1.43, -1.27, z, z + 0.14, 0.297, -1, c)
+    D.concierge_detail(k)
     k.col(-1.1, 1.1, -0.45, 0.25, 0, 0.8)
     k.col(-1.45, -1.25, 0.3, 0.6, 0, 1.3)
     return k
@@ -125,6 +132,8 @@ def bar(k):
     for s in (-1, 1):
         x0, x1 = srt(s * (L + 0.06), s * (L + 0.24))
         k.bx(x0, x1, 1.17, 1.96, 0, 3.2, 'walnut2')
+    D.counter_detail(k, L, -1.6, -1.7, -0.85, 1.08, 1.15, 8, [-L + 0.46 + i * 0.97 for i in range(8)], 0.38, 0.22, 0.95, L + 0.08)
+    D.dentils(k, -L + 0.1, L - 0.1, 3.1, 3.203, 1.19, 'cream', 19, w=0.08, d=0.03)
     k.col(-L - 0.08, L + 0.08, -1.8, -0.85, 0, 1.15)
     k.col(-L - 0.24, L + 0.24, 1.17, 1.96, 0, 3.2)
     return k
@@ -138,6 +147,7 @@ def stool(k):
     ring(k, 0.18, 0.3, 8, 0.025, 'gold', ink=False)
     k.cyl(0, 0, 0.72, 0.22, 0.2, 0.08, 'wine', seg=10)
     k.bx(-0.16, 0.16, 0.12, 0.18, 0.8, 1.02, 'wine')
+    D.stool_detail(k)
     k.col(-0.2, 0.2, -0.2, 0.2, 0, 0.82)
     return k
 
@@ -282,6 +292,7 @@ def bell_stand(k):
 def palm_piece(k):
     k.begin()
     palm(k, 0, 0, 1.0)
+    D.urn_detail(k)
     k.col(-0.34, 0.34, -0.34, 0.34, 0, 0.7)
     return k
 
@@ -289,6 +300,7 @@ def palm_piece(k):
 def topiary_piece(k):
     k.begin()
     topiary(k, 0, 0, 1.0)
+    D.planter_detail(k)
     k.col(-0.3, 0.3, -0.3, 0.3, 0, 1.0)
     return k
 
@@ -304,6 +316,7 @@ def ottoman(k):
             k.qz(x - 0.015, x + 0.015, y - 0.015, y + 0.015, 0.423, 1, 'black')
     for (x, y) in ((-0.78, -0.25), (0.78, -0.25), (-0.78, 0.25), (0.78, 0.25)):
         k.cyl(x, y, 0, 0.03, 0.04, 0.1, 'gold', seg=6, ink=False)
+    D.ottoman_detail(k)
     k.col(-0.86, 0.86, -0.33, 0.33, 0, 0.42)
     return k
 
@@ -323,6 +336,7 @@ def console(k):
     k.bx(-0.7, 0.7, 0.4, 0.47, 1.1, 2.6, 'gold')
     k.qy(-0.6, 0.6, 1.2, 2.5, 0.397, -1, 'crystal2')
     k.poly([(-0.4, 0.394, 1.5), (-0.3, 0.394, 1.5), (-0.05, 0.394, 2.2), (-0.15, 0.394, 2.2)], 'glint', (0, -1, 0))
+    D.console_detail(k)
     k.col(-0.85, 0.85, -0.2, 0.25, 0, 0.84)
     return k
 
