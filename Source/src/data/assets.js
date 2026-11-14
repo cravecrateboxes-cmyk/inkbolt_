@@ -50,7 +50,8 @@
     'Conduit', 'JunctionBox', 'Vent', 'Extinguisher', 'SignWarn', 'SignExit', 'SignPlate', 'Bucket', 'TyreOld', 'Sandbags'];
   IB.ASSET_NAMES.dress = IB.DRESS_PIECES.map(function (n) { return 'KIT_DRESS_' + n; });
   IB.ARM_ACTIONS = ['Idle', 'Draw', 'Holster', 'Fire', 'Reload', 'Sprint', 'Slide', 'Throw'];
-  // triangle budgets incl. outline hull (brief 3.2); robots count body + legs + light. A weapon's budget covers
+  // triangle budgets incl. outline hull (brief 3.2); robots count body + legs + light (raised about 2x for the enemy
+  // detail pass: blender/enemy_detail.py, deco detail without its own outline). A weapon's budget covers
   // the gun, its WPN_<ID>_Mag and every rarity layer (WPN_<ID>_L<tiers>, WPN_<ID>_Mag_L<tiers>): more than any one
   // tier ever shows. Guns were rebuilt in the tactical pass (blender/wpn_*.py) at about four times the old detail.
   IB.TRI_BUDGET = {
@@ -62,20 +63,20 @@
       Cloud_A: 300, Cloud_B: 300, Cloud_C: 300, Hill: 300, Tree: 300, SpawnCan: 300, TrailArrow: 300,
       KIT_TOYTOWN_Landmark_WaterTower: 4000 },
     robots: {
-      crawler: { parts: { BOT_CRAWLER_Body: 1, BOT_CRAWLER_Leg: 4, BOT_CRAWLER_Light: 1 }, max: 1200 },
-      gunner: { parts: { BOT_GUNNER_Body: 1, BOT_GUNNER_Lid: 1, BOT_GUNNER_Gun: 1, BOT_GUNNER_Wheel: 2, BOT_GUNNER_Light: 1 }, max: 2000 },
-      bomber: { parts: { BOT_BOMBER_Body: 1, BOT_BOMBER_Roller: 1, BOT_BOMBER_Cap: 1, BOT_BOMBER_Light: 1 }, max: 1400 },
-      drone: { parts: { BOT_DRONE_Body: 1, BOT_DRONE_Lid: 1, BOT_DRONE_Rotor: 4, BOT_DRONE_Gun: 1, BOT_DRONE_Light: 1 }, max: 1200 },
+      crawler: { parts: { BOT_CRAWLER_Body: 1, BOT_CRAWLER_Leg: 4, BOT_CRAWLER_Light: 1 }, max: 2800 },
+      gunner: { parts: { BOT_GUNNER_Body: 1, BOT_GUNNER_Lid: 1, BOT_GUNNER_Gun: 1, BOT_GUNNER_Wheel: 2, BOT_GUNNER_Light: 1 }, max: 3800 },
+      bomber: { parts: { BOT_BOMBER_Body: 1, BOT_BOMBER_Roller: 1, BOT_BOMBER_Cap: 1, BOT_BOMBER_Light: 1 }, max: 3000 },
+      drone: { parts: { BOT_DRONE_Body: 1, BOT_DRONE_Lid: 1, BOT_DRONE_Rotor: 4, BOT_DRONE_Gun: 1, BOT_DRONE_Light: 1 }, max: 2800 },
       // Soldier: one torso and one helmet of each shape set (variants are separate meshes, one drawn per robot)
-      soldier: { parts: { BOT_SOLDIER_Hips: 1, BOT_SOLDIER_Thigh: 2, BOT_SOLDIER_Shin: 2, BOT_SOLDIER_TorsoA: 1, BOT_SOLDIER_HelmA: 1, BOT_SOLDIER_Visor: 1, BOT_SOLDIER_ArmR: 1, BOT_SOLDIER_ArmL: 1 }, max: 4300 },
-      soldierHeavy: { parts: { BOT_SOLDIER_Hips: 1, BOT_SOLDIER_Thigh: 2, BOT_SOLDIER_Shin: 2, BOT_SOLDIER_TorsoB: 1, BOT_SOLDIER_HelmC: 1, BOT_SOLDIER_Visor: 1, BOT_SOLDIER_ArmR: 1, BOT_SOLDIER_ArmL: 1 }, max: 5200 },
+      soldier: { parts: { BOT_SOLDIER_Hips: 1, BOT_SOLDIER_Thigh: 2, BOT_SOLDIER_Shin: 2, BOT_SOLDIER_TorsoA: 1, BOT_SOLDIER_HelmA: 1, BOT_SOLDIER_Visor: 1, BOT_SOLDIER_ArmR: 1, BOT_SOLDIER_ArmL: 1 }, max: 4500 },
+      soldierHeavy: { parts: { BOT_SOLDIER_Hips: 1, BOT_SOLDIER_Thigh: 2, BOT_SOLDIER_Shin: 2, BOT_SOLDIER_TorsoB: 1, BOT_SOLDIER_HelmC: 1, BOT_SOLDIER_Visor: 1, BOT_SOLDIER_ArmR: 1, BOT_SOLDIER_ArmL: 1 }, max: 5400 },
       soldierB: { parts: { BOT_SOLDIER_HelmB: 1 }, max: 950 },
-      blader: { parts: { BOT_BLADER_Body: 1, BOT_BLADER_Hub: 1, BOT_BLADER_Katana: 1, BOT_BLADER_Light: 1 }, max: 1700 },
-      bladerAxe: { parts: { BOT_BLADER_Body: 1, BOT_BLADER_Hub: 1, BOT_BLADER_Axe: 1, BOT_BLADER_Light: 1 }, max: 1700 },
+      blader: { parts: { BOT_BLADER_Body: 1, BOT_BLADER_Hub: 1, BOT_BLADER_Katana: 1, BOT_BLADER_Light: 1 }, max: 3500 },
+      bladerAxe: { parts: { BOT_BLADER_Body: 1, BOT_BLADER_Hub: 1, BOT_BLADER_Axe: 1, BOT_BLADER_Light: 1 }, max: 3500 },
       nade: { parts: { BOT_SOLDIER_Nade: 1 }, max: 300 },
       // levels 20+
-      crawler2: { parts: { BOT_CRAWLER_Body2: 1, BOT_CRAWLER_Leg2: 4, BOT_CRAWLER_Light: 1, BOT_CRAWLER_Specks: 1 }, max: 2200 },
-      hawk: { parts: { BOT_HAWK_Body: 1, BOT_HAWK_Fan: 2, BOT_HAWK_Rotor: 2, BOT_HAWK_Gun: 1, BOT_HAWK_Light: 1 }, max: 3500 }
+      crawler2: { parts: { BOT_CRAWLER_Body2: 1, BOT_CRAWLER_Leg2: 4, BOT_CRAWLER_Light: 1, BOT_CRAWLER_Specks: 1 }, max: 4000 },
+      hawk: { parts: { BOT_HAWK_Body: 1, BOT_HAWK_Fan: 2, BOT_HAWK_Rotor: 2, BOT_HAWK_Gun: 1, BOT_HAWK_Light: 1 }, max: 4800 }
     },
     kitMax: 90000, kitPropMax: 2500   // raised for the tactical look kit detail pass (plan Stage 11.3)
   };
