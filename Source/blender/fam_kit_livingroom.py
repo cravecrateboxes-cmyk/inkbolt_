@@ -30,6 +30,7 @@ from mathutils import Matrix, Vector
 
 from ib_lib import *  # noqa: F401,F403
 import ib_lib
+import lr_detail as LD
 
 FAM = 'kit-livingroom'
 PRE = 'KIT_LIVINGROOM_'
@@ -299,7 +300,7 @@ SCHEMES = {'1': 'paint1', '2': 'paint2', '3': 'paint3'}
 WAINS = 6.0        # wainscot (panelled lower wall) height
 
 
-def wall_module(m, paint, dz):
+def wall_module(m, paint, dz, idx='1'):
     """1 m module, room side -Y at y = -0.5: panelled cream wainscot with a chair rail, painted upper wall, picture
     rail, crown moulding. dz lifts the trims (E/W modules) so inner corners never share a plane."""
     y = -FACE
@@ -314,13 +315,14 @@ def wall_module(m, paint, dz):
     m.bx(-0.5, y - 0.07, 14.2 + dz, 0.5, y + 0.02, 14.32 + dz, 'oak2', flat=True)      # picture rail
     m.bx(-0.5, y - 0.3, 17.2 + dz, 0.5, y + 0.02, 17.6 + dz, 'trim', flat=True)        # crown
     m.bx(-0.5, y - 0.18, 16.9 + dz, 0.5, y + 0.02, 17.2 + dz, 'trim2', flat=True)
+    LD.wall_detail(m, idx, dz, y)
 
 
 def build_walls():
     for s, paint in SCHEMES.items():
         for tag, dz in (('', 0.0), ('_X', 0.006)):
             m = K()
-            wall_module(m, paint, dz)
+            wall_module(m, paint, dz, s)
             finish('Wall%s%s' % (s, tag), m, hull=0.0, strip=True)
     m = K()
     m.bx(-0.5, -0.5, 0.0, 0.5, 0.5, WALL_H, 'trim2', flat=True)
@@ -360,6 +362,7 @@ def build_overlays():
                 m.cy(xx, wy - 0.45 - 0.05 * (i % 2), 0.0, 0.26, 0.2, Z1 + 1.85 - 0.02 * i, 'coral' if i != 1 else 'mustard', seg=7)
             a, b = sorted((sx * (W + 0.3), sx * (W + 1.5)))
             m.colbox(a, wy - 0.8, 0, b, wy, Z1 + 1.8)
+        LD.window_detail(m, wy, W, Z0, Z1)
         m.parent = Matrix.Identity(4)
         sgn = 1 if name == 'Window' else -1
         lift_where(finish(name, m, bevel=0.02),
@@ -419,6 +422,7 @@ def build_lounge(ao):
     m.bx(6.95, -1.38, 1.6, 7.12, 1.18, 4.1, 'knit')
     for z in (2.0, 2.5, 3.0, 3.5):
         m.bx(7.12, -1.42, z, 7.135, 1.22, z + 0.12, 'coral', flat=True)
+    LD.sofa_detail(m)
     finish('Landmark_Sofa', m, bevel=0.06, ao=ao)
 
     # CoffeeTable 8 x 4: top at 2.6 on tapered legs (run under); magazines, a mug, a fruit bowl, the remote
@@ -440,6 +444,7 @@ def build_lounge(ao):
     m.bx(2.4, -1.4, 2.62, 3.3, -1.0, 2.75, 'black', rot=(0, 0, 18))                 # remote
     for i, c in enumerate(('red', 'tblue', 'tgreen')):
         m.cy(2.55 + i * 0.2, -1.22 + i * 0.065, 2.75, 0.05, 0.05, 0.03, c, seg=6, flat=True)
+    LD.coffee_detail(m)
     finish('CoffeeTable', m, bevel=0.03, ao=ao)
 
     # TVStand 12 x 3 against a wall: low walnut console, a big flat TV on its stand, the games console and speakers
@@ -474,6 +479,7 @@ def build_lounge(ao):
         m.bx(sx * 4.6 - 0.45, -1.3, 3.2, sx * 4.6 + 0.45, -0.3, 5.6, 'black')       # speakers
         m.cy(sx * 4.6, -1.3, 4.6, 0.3, 0.3, 0.01, 'steel2', seg=10, rot=(90, 0, 0), flat=True)
         m.cy(sx * 4.6, -1.3, 3.75, 0.18, 0.18, 0.01, 'steel2', seg=8, rot=(90, 0, 0), flat=True)
+    LD.tvstand_detail(m)
     finish('TVStand', m, bevel=0.03, ao=ao, shift=WALL_GAP)
 
     # Controller 3 x 2: a dropped gamepad and its cable (cover the size of a toy car)
@@ -505,6 +511,7 @@ def build_lounge(ao):
         for j in range(12):
             y = -5.5 + j * 1.0
             m.bx(min(sx * 8.0, sx * 8.45), y - 0.18, 0.0, max(sx * 8.0, sx * 8.45), y + 0.18, 0.03, 'cream', flat=True)
+    LD.rug_detail(m)
     finish('Rug', m, hull=0.0, strip=True)
 
     # Bookshelf 6 x 2 against a wall: 12.6 m tall walnut shelving full of books, a plant on top
@@ -525,6 +532,7 @@ def build_lounge(ao):
     m.cy(1.6, 0.0, 12.7, 0.4, 0.5, 0.9, 'pot', seg=8)
     for (dx, dz, r) in ((-0.2, 1.6, 0.6), (0.35, 1.4, 0.45), (0.0, 2.2, 0.4)):
         m.sp(1.6 + dx, 0.0, 12.7 + dz, r, 'leaf' if dz < 2 else 'leaf2', seg=(6, 4), rot=(0, 0, dz * 30))
+    LD.bookshelf_detail(m)
     finish('Bookshelf', m, ao=ao, shift=WALL_GAP)
 
     # Fireplace 10 x 2 against a wall: stone surround, brick firebox with a log fire, walnut mantel with a clock,
@@ -558,6 +566,7 @@ def build_lounge(ao):
     m.bx(-4.2, 0.85, 9.6, 4.2, 0.99, 15.0, 'mustard', bevel=True)                 # mirror frame
     m.bx(-3.8, 0.84, 10.0, 3.8, 0.85, 14.6, 'glass', flat=True)
     m.bx(-3.0, 0.835, 12.2, -1.2, 0.84, 12.4, 'white', flat=True, rot=(0, 40, 0))
+    LD.fireplace_detail(m)
     finish('Fireplace', m, ao=ao, shift=WALL_GAP)
 
     # Plant_Fig 3 x 3: a fiddle-leaf fig in a terracotta pot, 9 m tall
@@ -573,6 +582,7 @@ def build_lounge(ao):
         z = 3.4 + i * 0.6
         r = 1.1 - 0.05 * i
         m.sp(math.cos(a) * r * 0.8, math.sin(a) * r * 0.8, z, 0.75 - 0.03 * i, 'leaf' if i % 2 else 'leaf2', seg=(6, 4), scale=(1.0, 0.45, 1.3), rot=(rnd.uniform(-30, 30), 0, math.degrees(a) + 90))
+    LD.plant_detail(m, 1.25)
     finish('Plant_Fig', m, ao=ao)
 
     # Plant_Snake 2 x 2: snake plant in a cream pot
@@ -584,6 +594,7 @@ def build_lounge(ao):
         a = i * 0.9
         h = 2.6 + (i % 3) * 0.7
         m.box((math.cos(a) * 0.3, math.sin(a) * 0.3, 1.8 + h / 2), (0.32, 0.08, h), 'leaf2' if i % 2 else 'tgreen', rot=(12 * math.sin(a), 12 * math.cos(a), math.degrees(a)), bevel=False)
+    LD.plant_detail(m, 0.8)
     finish('Plant_Snake', m, ao=ao)
 
     # FloorLamp 2 x 2: brass stem, linen drum shade lit warm
@@ -593,6 +604,7 @@ def build_lounge(ao):
     m.cy(0, 0, 0.2, 0.08, 0.08, 8.0, 'mustard', seg=6)
     m.cy(0, 0, 8.0, 1.0, 0.75, 1.9, 'lamp', seg=12, caps=False)
     m.cy(0, 0, 8.02, 0.95, 0.95, 0.01, 'fire2', seg=12, flat=True)
+    LD.lamp_detail(m)
     finish('FloorLamp', m, ao=ao)
 
 
@@ -655,6 +667,7 @@ def build_kitchen(ao):
             m.cy(0.8, 0.9, 6.8, 0.42, 0.42, 0.15, 'walnut', seg=10)
             m.bx(-0.6, -1.7, 5.5, 1.2, -0.5, 5.62, 'oak', rot=(0, 0, -7))
             m.sp(0.6, -1.05, 5.92, 0.3, 'red', seg=(8, 5))
+        LD.counter_detail(m, 'sink' if kw.get('sink') else 'stove' if kw.get('stove') else 'plain')
         finish(name, m, bevel=0.03, ao=ao, shift=WALL_GAP)
 
     # Fridge 5 x 4: a retro mint fridge, 11.5 m, chrome handles, drawings and magnets on the door
@@ -675,6 +688,7 @@ def build_kitchen(ao):
     m.bx(0.1, -1.93, 3.6, 0.9, -1.925, 3.75, 'tgreen', flat=True)
     for (x, z, c) in ((-0.5, 6.4, 'red'), (0.2, 4.95, 'tblue'), (-0.4, 9.9, 'tyellow'), (-1.85, 6.6, 'tgreen')):
         m.cy(x, -1.905, z, 0.16, 0.16, 0.1, c, seg=8, rot=(90, 0, 0))
+    LD.fridge_detail(m)
     finish('Fridge', m, bevel=0.06, ao=ao, shift=WALL_GAP)
 
     # Island 12 x 6: cabinet base 5.4 m, overhanging butcher-block top on the stool side (-Y), a bowl, a board
@@ -695,6 +709,7 @@ def build_kitchen(ao):
     m.bx(1.0, -0.6, 5.5, 3.6, 1.2, 5.65, 'oak', rot=(0, 0, 8))
     for i in range(4):
         m.cy(1.6 + i * 0.5, 0.3, 5.65, 0.22, 0.22, 0.12, 'coral' if i % 2 else 'tgreen', seg=8)
+    LD.island_detail(m)
     finish('Island', m, bevel=0.03, ao=ao)
 
     # Stool 2 x 2: bar stool, seat at 4.4 m on splayed legs (run under), a footrest ring
@@ -708,6 +723,7 @@ def build_kitchen(ao):
         m.beam((x * 0.45, y * 0.45, 3.95), (x * 0.78, y * 0.78, 0.0), 0.14, 'walnut')
         m.colbox(x * 0.78 - 0.1, y * 0.78 - 0.1, 0.0, x * 0.78 + 0.1, y * 0.78 + 0.1, 3.9)
     m.cy(0, 0, 1.5, 0.72, 0.72, 0.1, 'walnut2', seg=10, caps=False)
+    LD.stool_detail(m)
     finish('Stool', m, bevel=0.03, ao=ao)
 
     # DiningTable 10 x 6: top at 4.5 m on turned legs (run under), runner, vase of tulips, plates
@@ -739,6 +755,7 @@ def build_kitchen(ao):
     m.cy(0, 0, 12.9, 0.04, 0.04, 4.95, 'black', seg=4, flat=True)
     m.cy(0, 0, 11.5, 2.0, 0.4, 1.4, 'mustard', seg=12, caps=False)
     m.cy(0, 0, 11.48, 1.95, 1.95, 0.02, 'lamp', seg=12, flat=True)
+    LD.dining_table_detail(m)
     finish('DiningTable', m, bevel=0.03, ao=ao)
 
     # DiningChair 3 x 3: spindle-back chair, seat 2.8 m; faces -Y as authored (flip turns it round)
@@ -756,6 +773,7 @@ def build_kitchen(ao):
     for i in range(4):
         m.cy(-0.6 + i * 0.4, 1.0, 2.83, 0.07, 0.07, 2.6, 'oak2', seg=6)
     m.bx(-1.15, 0.8, 5.4, 1.15, 1.2, 6.0, 'oak', bevel=True)
+    LD.dining_chair_detail(m)
     finish('DiningChair', m, bevel=0.03, ao=ao)
 
     # Sideboard 10 x 3 against a wall: walnut cabinet, a lamp, a bowl, a stack of plates
@@ -776,6 +794,7 @@ def build_kitchen(ao):
     for i in range(5):
         m.cy(2.6, 0.3, 4.9 + i * 0.1, 0.9, 0.9, 0.094, 'white' if i % 2 else 'tile', seg=12)
     m.cy(0.2, 0.0, 4.9, 0.6, 1.0, 0.5, 'coral', seg=12)
+    LD.sideboard_detail(m)
     finish('Sideboard', m, bevel=0.03, ao=ao, shift=WALL_GAP)
 
 
@@ -939,6 +958,7 @@ def build_gate(ao):
         m.bx(-OW - 0.39, y - 0.066, OH, OW + 0.39, y + 0.12, OH + 0.4, 'steel', bevel=True)
         for sx in (-1, 1):
             m.bx(sx * 1.0 - 0.25, y - 0.1, OH + 0.12, sx * 1.0 + 0.25, y - 0.06, OH + 0.3, 'teal', flat=True)
+        LD.gate_detail(m, s, y + 0.06)
         m.cy(0, y + 0.02, 4.6, 0.36, 0.36, 0.04, 'navy', seg=10, rot=(90, 0, 0), flat=True)
         for (px, pz) in ((-0.35, 5.05), (-0.12, 5.2), (0.12, 5.2), (0.35, 5.05)):
             m.cy(px, y + 0.014, pz, 0.12, 0.12, 0.04, 'navy', seg=8, rot=(90, 0, 0), flat=True)
@@ -978,6 +998,7 @@ def hall_base(m, rnd):
     m.bx(x - 0.02, -0.5, 14.2, x + 0.07, 0.5, 14.32, 'oak2', flat=True)
     m.bx(x - 0.02, -0.5, 16.9, x + 0.18, 0.5, 17.2, 'trim2', flat=True)
     m.bx(x - 0.02, -0.5, 17.2, x + 0.3, 0.5, 17.6, 'trim', flat=True)
+    LD.hall_detail(m, x)
 
 
 def build_trail(ao):
@@ -1009,6 +1030,7 @@ def build_trail(ao):
             m.bx(x + 0.004, -0.5, 4.8, x + 0.35, 0.5, 4.95, 'oak')
             m.cy(x + 0.17, 0.1, 4.95, 0.12, 0.14, 0.3, 'pot', seg=8)
             m.sp(x + 0.17, 0.1, 5.45, 0.2, 'leaf', seg=(6, 4))
+            LD.radiator_detail(m, x)
         elif name == 'TrailWall_Shoes':     # a low shoe rack with two pairs of shoes and an umbrella
             m.bx(x + 0.004, -0.48, 0.0, x + 0.45, -0.44, 2.2, 'walnut')
             m.bx(x + 0.004, 0.44, 0.0, x + 0.45, 0.48, 2.2, 'walnut')
@@ -1032,6 +1054,7 @@ def build_hatch(ao):
     for sx in (-1, 1):
         for sy in (-1, 1):
             m.cy(sx * 1.3, sy * 0.86, 0.1, 0.1, 0.1, 0.04, 'teal', seg=8, flat=True)
+    LD.hatch_detail(m)
     finish('Hatch', m, bevel=0.02)
 
 
