@@ -313,3 +313,23 @@ kept); any of it can change later from the owner's play test. Work goes on with 
   (83ea361 to 5d3dabc, never published). Every change to game code is now followed by a level-load check.
 - Kit collision: all kit GLBs compared with their pre-Stage-11 versions: `_COL` / `_WCOL` identical everywhere
   (the arctic mast's detail changed its fitted collision and was removed).
+
+### Stage 11 (continued): Tier C and checks
+
+- Tier C done by workers (three at a time, each in its own worktree, AO-baked, `_COL`/`_WCOL` compared): grove, spire,
+  foundry, parking, hotel, techhq, cargoship, highrise, megastore, townhomes, arctic, resort, scrapyard, seabase,
+  airport, frontier, academy, mossgarden, pelagic, icecream, venetian, toyfactory (airfield7, riviera,
+  observatory, gemmine merged last).
+- Collision of every kit compared with its version before Stage 11 (46 GLBs): identical everywhere.
+- Constraints that limited some passes (by design, kept): kit-foundry is at its theme test's 100,000-triangle cap
+  (flat-quad detail only); kit-cargoship, kit-arctic and kit-townhomes have theme tests capping the GLB at 2.5 MiB
+  (lean detail; townhomes drops hidden faces); kit-highrise was kept to +636 triangles because the map was already
+  over the triangle budget; the bedroom and livingroom tests hard-cap props at 2,000.
+- Budgets raised by passes: frontier props to 6,500 (the general store is a full building at 6,207), venetian
+  props 4,800, grove/coalmine/mossgarden/castle landmark 8,000, seabase total 52,000, megastore/resort props.
+- Kit GLBs over the 4 MB guide: kit-mall 5.3 MB (4.9 MB before), kit-foundry 4.4 MB (4.3 MB before).
+- Triangles in view (section 6, 750,000 on High): datacenter 769,000 at one spot after the rack detail;
+  highrise 915,000 at its zone 2 wall spot (788,000 at the entry before any change). Both for the owner's frame-rate
+  check; trimming the datacenter rack hinges and the highrise city-below would be the first levers.
+- In-game sheets after the pass (`dist/look/s11` vs `cp1`): detail reads up close (column base bolts and guards,
+  shelf label holders, kick plates), nothing floats or flickers; zero page and game errors on all eight maps.
