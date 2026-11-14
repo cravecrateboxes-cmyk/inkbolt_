@@ -26,6 +26,7 @@ from ib_lib import *  # noqa: F401,F403
 import ib_lib
 from fam_kit_smallcity import PM, post_hull, col_box, tile, grid_cells, slant, wheel
 from fam_kit_castle import poly_y
+import city2_detail as CD
 
 FAM = 'kit-city2'
 PRE = 'KIT_CITY2_'
@@ -109,6 +110,7 @@ def window(m, mat, x0, x1, z0, z1, glass):
         ledge(m, x0 - 0.06, x1 + 0.06, 0.04, z1, z1 + 0.16, 'brickD')                # soldier course
     elif mat == 'I':
         ledge(m, x0 - 0.05, x1 + 0.05, 0.05, z1, z1 + 0.12, 'ironD')
+    CD.window_detail(m, mat, x0, x1, z0, z1)
 
 
 def floors(m, mat, n, seed, kind, zmin=0.0):
@@ -133,6 +135,7 @@ def floors(m, mat, n, seed, kind, zmin=0.0):
             flat(m, -0.28, 0.28, 0.02, 0.02, z0 + 0.4, z0 + 2.5, 'trim')
             flat(m, -0.25, 0.25, 0.03, 0.03, z0 + 0.43, z0 + 2.47, glass)
             flat(m, -0.02, 0.02, 0.04, 0.04, z0 + 0.46, z0 + 2.44, 'trim')
+            CD.deco_detail(m, z0)
         else:
             window(m, mat, -0.27, 0.27, z0 + 0.7, z0 + 2.5, glass)
         if mat == 'B' and k == 1:
@@ -236,10 +239,13 @@ def build_facades(pal):
             m = PM(pal)
             body(m, mat, n)
             shopfront(m, mat, shop, sk)
+            CD.ground_detail(m, mat, sk, name, n)
             floors(m, mat, n, seed * 7 + si, name)
             cornice(m, mat, n)
+            CD.cornice_detail(m, mat, n)
             if name.startswith('Esc'):
                 escape(m, n, name[3])
+                CD.escape_detail(m, n, name[3])
             make('%s_%d' % (name, si), m)
         # the El runs into the facade through a dark portal (steel lintel, girder shadow)
         m = PM(pal)
@@ -249,6 +255,8 @@ def build_facades(pal):
         m.det(-0.5, 0.5, 0.025, 0.0, 0.06, 0.36, 'trim', hull='noside')
         floors(m, mat, n, 41 + si, 'Portal', zmin=9.0)
         cornice(m, mat, n)
+        CD.cornice_detail(m, mat, n)
+        CD.portal_detail(m, mat)
         make('Portal_%d' % si, m)
     for mat, n in sorted({(st[0], st[2]) for st in STYLES}):
         pilaster(pal, mat, n)
@@ -271,6 +279,7 @@ def pilaster(pal, mat, n):
     for k in range(1, n):
         z0 = G_H + (k - 1) * U_H
         m.det(-0.18, 0.18, 0.135, 0.02, z0 + 1.2, z0 + 1.8, 'stone', back=-0.48)
+    CD.pilaster_detail(m, n)
     return make('Pilaster_%s%d' % (mat, n), m)
 
 
@@ -436,6 +445,7 @@ def build_hatch(pal, ao):
     for i in range(8):
         a = i / 8 * math.pi * 2 + math.pi / 8
         m.cy((math.cos(a) * 1.17, math.sin(a) * 1.17, 0.1), 0.06, 0.05, 0.06, 'amber', seg=6, hull='none')
+    CD.hatch_detail(m)
     make('Hatch', m, bevel=0.015, ao=ao)
 
 
@@ -543,6 +553,7 @@ def build_lamps(pal, ao):
     m.bx(-0.16, 0.16, -2.0, -1.55, 6.28, 6.32, 'litW', hull='none')
     m.bx(-0.3, 0.3, 0.1, 0.13, 2.6, 3.3, 'awnV')                                                    # street banner
     m.bx(-0.28, 0.28, 0.13, 0.136, 2.85, 2.95, 'neonY', hull='none')
+    CD.lamp_detail(m)
     obj = make('Lamp', m, ao=ao)
     col_box(obj, 0, -0.13, 0.13, -0.13, 0.13, 0, 5.0)
     m = PM(pal)
@@ -555,6 +566,7 @@ def build_lamps(pal, ao):
         m.cy((sx * 0.7, 0, 3.9), 0.07, 0.07, 0.1, 'elD', seg=6)
         m.sp((sx * 0.7, 0, 4.2), 0.24, 'litW', seg=(8, 5))
         m.cy((sx * 0.7, 0, 4.42), 0.05, 0.0, 0.12, 'elD', seg=5, hull='none')
+    CD.lampp_detail(m)
     obj = make('LampP', m, ao=ao)
     col_box(obj, 0, -0.16, 0.16, -0.16, 0.16, 0, 4.4)
 
@@ -584,6 +596,7 @@ def build_furniture(pal, ao):
     for x in (0.11, -0.2):
         m.cy((x, 0, 0.42), 0.055, 0.055, 0.09, 'hydrant', seg=8, rot=(0, 90, 0))
     m.cy((0, -0.1, 0.38), 0.07, 0.07, 0.1, 'chrome', seg=8, rot=(90, 0, 0))
+    CD.hydrant_detail(m)
     obj = make('Hydrant', m, ao=ao)
     col_box(obj, 0, -0.18, 0.18, -0.18, 0.18, 0, 0.8)
     m = PM(pal)                                                                                 # mailbox
@@ -595,6 +608,7 @@ def build_furniture(pal, ao):
     m.cy((0, 0.255, 1.0), 0.24, 0.24, 0.51, 'mailB', seg=12, rot=(90, 0, 0))
     m.bx(-0.13, 0.13, -0.272, -0.25, 0.86, 0.91, 'ink', hull='none')
     m.bx(-0.1, 0.1, -0.268, -0.25, 0.5, 0.68, 'paper', hull='none')
+    CD.mailbox_detail(m)
     obj = make('Mailbox', m, bevel=0.015, ao=ao)
     col_box(obj, 0, -0.25, 0.25, -0.27, 0.27, 0, 1.24)
     m = PM(pal)                                                                                 # newspaper boxes
@@ -606,6 +620,7 @@ def build_furniture(pal, ao):
         m.bx(cx - 0.17, cx + 0.17, -0.203, -0.177, 0.6, 0.92, 'ink', hull='none')
         m.bx(cx - 0.15, cx + 0.15, -0.21, -0.17, 0.62, 0.9, 'paper', hull='none')
         m.bx(cx - 0.12, cx + 0.12, -0.215, -0.165, 0.81, 0.85, 'ink', hull='none')
+    CD.newsbox_detail(m)
     obj = make('NewsBoxes', m, bevel=0.012, ao=ao)
     col_box(obj, 0, -0.45, 0.45, -0.21, 0.21, 0, 1.06)
     m = PM(pal)                                                                                 # wire litter basket
@@ -615,6 +630,7 @@ def build_furniture(pal, ao):
         m.cy((0, 0, z), 0.255, 0.27, 0.04, 'trim', seg=10, hull='none', caps=False)
     m.cy((0, 0, 0.9), 0.3, 0.3, 0.05, 'trim', seg=10)
     m.cy((0, 0, 0.62), 0.24, 0.24, 0.3, 'paper', seg=8, hull='none')
+    CD.trashcan_detail(m)
     obj = make('TrashCan', m, ao=ao)
     col_box(obj, 0, -0.3, 0.3, -0.3, 0.3, 0, 0.95)
 
@@ -669,6 +685,7 @@ def build_steam(pal, ao):
         m.cy((0, 0, 0.02 + k * 0.38), 0.25 - k * 0.02, 0.23 - k * 0.02, 0.38, 'stack' if k % 2 == 0 else 'paintW', seg=10)
     for (x, y, z, r) in ((0.0, 0.0, 1.9, 0.3), (0.12, 0.1, 2.35, 0.38), (-0.08, -0.05, 2.85, 0.45), (0.15, 0.06, 3.3, 0.36)):
         m.sp((x, y, z), r, 'steam', seg=(7, 4))
+    CD.steam_detail(m)
     obj = make('SteamStack', m, ao=ao)
     col_box(obj, 0, -0.26, 0.26, -0.26, 0.26, 0, 1.6)
 
@@ -686,6 +703,7 @@ def build_bench(pal, ao):
         m.bx(-0.95, 0.95, y - 0.055, y + 0.055, 0.42, 0.47, 'wood')
     for z in (0.6, 0.78):
         m.bx(-0.95, 0.95, 0.12, 0.17, z, z + 0.12, 'wood')
+    CD.bench_detail(m)
     obj = make('Bench', m, ao=ao)
     col_box(obj, 0, -0.95, 0.95, -0.28, 0.26, 0, 0.95)
 
@@ -713,6 +731,7 @@ def build_newsstand(pal, ao):
     m.bx(-1.0, 1.0, -1.62, -1.6, 2.2, 2.5, 'neonY', hull='none')                                    # header sign
     for x0, x1 in ((-0.8, -0.3), (-0.15, 0.25), (0.4, 0.8)):
         m.bx(x0, x1, -1.63, -1.62, 2.28, 2.42, 'ink', hull='none')
+    CD.newsstand_detail(m)
     obj = make('Newsstand', m, ao=ao)
     col_box(obj, 0, -1.0, 1.0, -1.45, 1.42, 0, 2.62)
 
@@ -764,6 +783,7 @@ def build_billboard(pal, ao):
         m.bm_((x, -0.55, 4.6), (x, -1.0, 4.9), 0.05, 'elD')
         m.bx(x - 0.2, x + 0.2, -1.15, -0.9, 4.85, 5.05, 'elD')
         m.bx(x - 0.15, x + 0.15, -1.1, -0.95, 5.05, 5.08, 'litW', hull='none')
+    CD.billboard_detail(m)
     obj = make('Billboard', m, ao=ao)
     for i, x in enumerate((-2.0, 2.0)):
         col_box(obj, i, x - 0.3, x + 0.3, 0.15, 0.75, 0, 4.2)
@@ -808,12 +828,14 @@ def el_deck(m, y0, y1, cols):
 def build_el(pal, ao):
     m = PM(pal)
     el_deck(m, -3.0, 3.0, [-2.6])
+    CD.el_detail(m, -3.0, 3.0, [-2.6])
     obj = make('El_A', m, ao=ao)
     for i, sx in enumerate((-1, 1)):
         col_box(obj, i, sx * 1.47 - 0.26, sx * 1.47 + 0.26, -2.86, -2.34, 0, EL_Z)
     # El_B: the same span with a signal mast and a cat-walk lamp
     m = PM(pal)
     el_deck(m, -3.0, 3.0, [-2.6])
+    CD.el_detail(m, -3.0, 3.0, [-2.6])
     m.bx(1.62, 1.72, 0.9, 1.0, EL_Z + 1.18, EL_Z + 3.4, 'trim')
     m.bx(1.55, 1.85, 0.82, 0.98, EL_Z + 2.6, EL_Z + 3.35, 'trim')
     for z, c in ((EL_Z + 3.15, 'red'), (EL_Z + 2.85, 'neonG')):
@@ -852,6 +874,7 @@ def build_eltrain(pal, ao):
     """A 12 m span (4 x 12) carrying a stopped two-car train: silver cars, lit window bands, pink stripe."""
     m = PM(pal)
     el_deck(m, -6.0, 6.0, [-5.6, 0.4])
+    CD.el_detail(m, -6.0, 6.0, [-5.6, 0.4])
     train_car(m, -5.85, -0.15)
     train_car(m, 0.15, 5.85)
     m.bx(-0.6, 0.6, -0.16, 0.16, EL_Z + 1.9, EL_Z + 4.0, 'trim')                                    # gangway
@@ -895,6 +918,7 @@ def build_subway(pal, ao):
     m.bx(-1.15, 1.15, -2.44, -2.42, 1.95, 2.45, 'newsG', hull='none')
     m.bx(-1.15, 1.15, -2.45, -2.44, 2.12, 2.28, 'paper', hull='none')
     m.cy((-0.8, -2.452, 2.2), 0.17, 0.17, 0.01, 'awnR', seg=10, rot=(90, 0, 0), hull='none')
+    CD.subway_detail(m)
     obj = make('Landmark_Subway', m, ao=ao)
     col_box(obj, 0, -1.35, 1.35, -2.45, 2.45, 0, 1.1)
 
