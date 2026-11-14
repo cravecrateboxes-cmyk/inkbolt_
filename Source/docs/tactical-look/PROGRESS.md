@@ -244,3 +244,50 @@ kept); any of it can change later from the owner's play test. Work goes on with 
   mostly because the corner probes missed narrow modules: wall decals are now one module wide at most.
 - Gates: nothing is solid (no world boxes are added, so collision, bounds and nav cannot change); unit tests
   486 pass; the sheets (`dist/look/s9a`) show lit stains and cracks sitting on the floors, none floating.
+
+### Stage 10. Art direction for all maps
+
+- Tour: `look-shots.js` with `ONLY=z0-long,z0-wall,z0-floor,z0-up`, `W=960 H=540` over the 38 non-pilot themes
+  (`dist/look/tour1`, 152 shots): 38 of 38 load, 0 page errors, 0 game errors; draw calls 33 to 95, all inside the
+  desktop budget (230). `look-shots.js` now prints draw calls, triangles, family and dressing counts per plan.
+- Highrise draws 788,000 triangles at its entry (section 6 budget 750,000): open item for Stage 13.
+- Tuning from the sheets and metrics (entries in `looks.js`, each with the reason in a comment):
+  - too bright / clipped: office (52 to 80% clipped), spire (34 to 58%), police (13%), city2 lit windows (10%),
+    livingroom (10%), mossgarden (9%), academy (7%), airport (4%), island sand, castle, venetian, airfield7,
+    garden, smallcity (also warmer sun: late afternoon);
+  - too dark: coalmine (36 to 79% of pixels under 0.06), gemmine (20%), seabase (18%), foundry, megastore,
+    factory2, cargoship (shadowed deck between containers).
+  - Read well with the family preset alone: scrapyard, pelagic, observatory, townhomes, grove, resort, frontier,
+    factory, parking, toyfactory, arctic, hotel, techhq, highrise, riviera, classroom, icecream.
+- Retuned maps re-shot in `dist/look/tour2` (results below when done).
+- Decision: Owner Checkpoint 2 (show the final pilot sheets before rollout) was folded into this pass because the
+  owner asked for all remaining work to go ahead; the rollout is per-theme data only and can be revised from the
+  owner's play test.
+
+### Stage 11. Kit detail
+
+- `blender/kit_base.py` detail helpers (seams, bolts, rivets, kick plates, trims, drip edges, corner guards,
+  conduit, pipes, junction boxes, vents, cable trays, sign plates, window frame depth); parts are ink-free, 3 mm
+  proud and 3 mm embedded, horizontal runs inset 5 mm, so `check_zfight` stays clean. `KIT-BRIEF.md` written.
+- Budgets raised per 11.3 (`kitPropMax` 2,500, `kitMax` 90,000; test defaults prop 2,500, landmark 8,000, total
+  90,000); themes' own budgets raised only where a pass needed it.
+- Exemplar: kit-stronghold (bunker, slit and vent faces, parapets, blast door) by hand.
+- Workers, one kit each in its own worktree (AO-baked builds, `glb_compare` shows only touched pieces, unit tests
+  green), merged into the branch: Tier A metro, datacenter, mall, mountains, bedroom, downtown; Tier B smallcity,
+  classroom, office (coalmine, castle, city2 in progress). Notes from the workers: the committed
+  `fps-kit-smallcity.glb` did not match its source (rebuilt from source); `fps-kit-mall.glb` is 5.3 MB (it was
+  4.9 MB before the pass, already over the 4 MB guide; no test covers it); the bedroom desk's globe, lamp shade and
+  pencil cup lost a few segments to stay under the bedroom test's hard 2,000-triangle prop limit.
+- Owner Checkpoint 3 (after Tier A) folded in for the same reason as Checkpoint 2.
+
+### Stage 12. Effects
+
+- Bullet hits by surface class with the look on (`boom.js impactLook`, class from `Surface.hitClass`: the hit
+  piece's dominant palette class, the floor class, or the level's wall class): sparks and a glint on metal, grit
+  and dust on stone, splinters on wood, clods and a bigger puff on soil, snow and vegetation, a glassy tick on
+  glass, a splash on water. Classic keeps the comic impact unchanged.
+- Tracers 35% faster and 40% thinner with the look on.
+- Bullet holes, splats and scorch marks take the light where they land (`Look.lightAt` into the decal instance
+  colour), so they no longer glow in dark rooms.
+- The muzzle flash already had the ink-edged star, a paper core, the Stage 4 flash light and smoke (`onFire`):
+  kept as is.
