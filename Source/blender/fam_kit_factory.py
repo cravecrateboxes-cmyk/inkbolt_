@@ -29,6 +29,7 @@ from mathutils import Matrix, Vector
 from ib_lib import *  # noqa: F401,F403
 import ib_lib
 from kit_base import Kit, rz, srt, rock_pts, clamp_pts, shutter_hull
+import fac_detail as FD
 
 FAM = 'kit-factory'
 PFX = 'KIT_FACTORY_'
@@ -160,6 +161,7 @@ def wall_body(k, kind, endL=False, endR=False):
 def end_module(k, side):
     k.begin()
     wall_body(k, 'End', endL=side in ('L', 'LR'), endR=side in ('R', 'LR'))
+    FD.wall_detail(k, 'End', -0.497 + (0.14 if side in ('L', 'LR') else 0.0), 0.497 - (0.14 if side in ('R', 'LR') else 0.0))
     return k
 
 
@@ -220,6 +222,7 @@ def wall_module(k, kind):
         k.bx(-0.2, 0.2, -0.75, -0.53, 1.2, 1.9, 'red')
         k.cyl(0, -0.76, 1.55, 0.15, 0.15, 0.02, 'rubber', seg=10, rot=(90, 0, 0), ink=False)
         k.qy(-0.12, 0.12, 2.0, 2.15, -0.536, -1, 'red')
+    FD.wall_detail(k, kind)
     return k
 
 
@@ -235,6 +238,7 @@ def column(k):
     k.bx(-0.3, 0.3, -1.4, -0.94, 7.2, 7.6, 'beam2')            # bracket
     k.qy(-0.18, 0.18, 2.6, 2.9, -0.946, -1, 'label')
     k.qy(-0.1, 0.1, 2.68, 2.82, -0.949, -1, 'ink')
+    FD.column_detail(k)
     return k
 
 
@@ -250,6 +254,7 @@ def corner(k):
     for s in (-1, 1):
         k.qy(-0.5, 0.5, 2.4, 2.45, s * 0.503, s, 'conc2')
         k.qx(-0.5, 0.5, 2.4, 2.45, s * 0.503, s, 'conc2')
+    FD.corner_detail(k)
     return k
 
 
@@ -327,6 +332,7 @@ def gate_frame(k):
             k.qy(x, x + w, 4.45, 4.85, f * 0.743, f, 'ink')
         k.cyl(1.9, f * 0.9, 3.3, 0.12, 0.12, 0.16, 'steelDark', seg=8)
         k.cyl(1.9, f * 0.9, 3.46, 0.1, 0.08, 0.2, 'hot', seg=8)
+    FD.gate_frame_detail(k)
     return k
 
 
@@ -344,6 +350,7 @@ def gate_shutter(k):
     for j in range(8):
         x0 = -1.5 + j * 3 / 8
         k.bx(x0, x0 + 3 / 8, -0.07, 0.07, 0, 0.35, 'ink' if j % 2 else 'hazard', ink=False)
+    FD.gate_shutter_detail(k)
     return k
 
 
@@ -525,6 +532,7 @@ def conveyor(k):
         k.bx(x - 0.03, x + 0.03, -0.41, 0.41, 0.2, 0.26, 'steelDark', ink=False)
     k.bx(-0.5, 0.5, -0.38, 0.38, 0.78, 0.86, 'rubber')
     k.col(-0.5, 0.5, -0.47, 0.47, 0, 1.0)
+    FD.conveyor_detail(k)
     return k
 
 
@@ -552,6 +560,7 @@ def belt_hood(k, kind, L=0.5, W=0.47, H=1.72, rail=0.92, base=None):
     k.qy(-0.18, 0.18, H - 0.3, H - 0.12, -W - 0.003 - 0.003, -1, 'label')
     k.qy(-0.12, 0.12, H - 0.27, H - 0.15, -W - 0.009, -1, 'teal' if kind == 'Feed' else 'red')
     k.col(-L, L, -W, W, 0, H + 0.08)
+    FD.hood_detail(k, kind, L, W, H, rail, base)
     return k
 
 
@@ -610,6 +619,7 @@ def robot_arm(k, x, y, deg, z=0.0, reach=1.0, tool='claw', s=1.0):
     k.push(x, y, deg, z, s=s)
     k.cyl(0, 0, 0, 0.42, 0.42, 0.18, 'steelDark', seg=8)
     k.cyl(0, 0, 0.18, 0.32, 0.28, 0.42, 'arm', seg=8)
+    FD.arm_base_detail(k)
     k.bx(-0.22, 0.22, -0.2, 0.2, 0.55, 0.85, 'arm2')
     sh = Vector((0, 0, 0.75))
     el = Vector((0, -0.55 * reach, 1.75))
@@ -645,6 +655,7 @@ def arm_cell(k, kind):
         gunner(k, -0.35, -0.4, 0.126, gun=False, s=0.7)
     else:
         crawler(k, -0.3, -0.35, 0.126, legs=1, s=0.9)
+    FD.arm_cell_detail(k)
     k.col(-0.9, 0.9, -0.9, 0.9, 0, 1.2)
     return k
 
@@ -740,6 +751,7 @@ def catwalk(k):
     for y in (-3.7, 3.7):
         for x in (-0.8, 0.8):
             k.col(x - 0.08, x + 0.08, y - 0.08, y + 0.08, 0, D)
+    FD.catwalk_detail(k)
     return k
 
 
@@ -759,6 +771,7 @@ def machine(k, kind):
         k.stripes(-1.3, 1.3, 0.02, 0.2, -0.803, -1, 8)
         k.cyl(1.0, 0.4, 2.35, 0.08, 0.08, 0.5, 'steelDark', seg=6)
         k.cyl(1.0, 0.4, 2.85, 0.09, 0.09, 0.1, 'hot', seg=6, ink=False)
+        FD.mill_detail(k)
         k.col(-1.32, 1.32, -1.0, 0.82, 0, 2.35)
     else:
         k.bx(-1.4, 1.4, -0.5, 0.5, 0, 0.9, 'steel2')
@@ -769,6 +782,7 @@ def machine(k, kind):
         k.bx(0.95, 1.35, -0.4, 0.4, 0.98, 1.6, 'panel')
         k.qy(-1.2, -0.7, 1.2, 1.55, -0.453, -1, 'screen')
         k.bx(-1.4, 1.4, -1.0, -0.5, 0, 0.03, 'grate', ink=False)
+        FD.lathe_detail(k)
         k.col(-1.42, 1.42, -0.52, 0.52, 0, 1.7)
     return k
 
@@ -810,6 +824,7 @@ def test_cage(k):
     k.bx(-0.5, 0.5, -1.95, -1.91, 1.4, 1.9, 'label')
     k.qy(-0.4, 0.4, 1.5, 1.8, -1.953, -1, 'red')
     k.cyl(1.9, -1.9, 2.3, 0.1, 0.07, 0.2, 'hot', seg=8)
+    FD.test_cage_detail(k)
     k.col(-1.95, 1.95, 1.85, 1.95, 0, 2.3)
     k.col(-1.95, -1.85, -1.95, 1.95, 0, 2.3)
     k.col(1.85, 1.95, -1.95, 1.95, 0, 2.3)
