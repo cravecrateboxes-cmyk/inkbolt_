@@ -13,11 +13,13 @@ import ac_base as B
 import ac_struct as S
 import ac_rooms as R
 import ac_gym as G
+import ac_detail as D
 
 
 def build_kit_academy(ao):
     pal = Palette(B.FAM)
     k = B.AKit(pal, B.PFX, B.HULL_T)
+    D.install(k)
     S.build_struct(k, ao)
     R.build_rooms(k, ao)
     G.build_gym_yard(k, ao)
