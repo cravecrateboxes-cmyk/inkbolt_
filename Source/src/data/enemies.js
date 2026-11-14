@@ -105,11 +105,12 @@
       range: 9, dashTime: 1.1, spinRev: 19, spinRange: 2.4, weapons: ['katana', 'eaxe', 'kusari'],
       // spawn odds per weapon (IB.bladerWeapon); the kusarigama ('kusari'): a sickle on a chain held by its weight. It
       // closes to kusariRange, whirls the chain around itself (a wide circle that sweeps over the player: kusariDamage
-      // every kusariTick s while he stays inside kusariRadius), then a tell and the sickle flies straight at where he
-      // stood (kusariThrow damage on a hit within 0.65 m; a sidestep beats it) and is reeled back in
+      // every kusariTick s while he stays inside kusariRadius), then a tell (kusariTell s, backing off to kusariThrowRange
+      // m) and the sickle flies straight at where he stood (kusariThrow damage on a hit within 0.65 m; a sidestep beats
+      // it) and is reeled back in
       weaponOdds: { katana: 1 / 3, eaxe: 1 / 3, kusari: 1 / 3 },
-      kusariRange: 4.2, kusariRadius: 2.7, kusariWhirl: 1.8, kusariDamage: 5, kusariTick: 0.4, kusariTell: 0.45,
-      kusariThrow: 16, kusariReach: 7.5, kusariSpeed: 17, kusariCool: [1.6, 2.6],
+      kusariRange: 4.2, kusariRadius: 2.7, kusariWhirl: 1.8, kusariDamage: 5, kusariTick: 0.4, kusariTell: 0.6, kusariThrowRange: 4.5,
+      kusariThrow: 16, kusariReach: 7.5, kusariSpeed: 15, kusariCool: [1.6, 2.6],
       gems: { chip: 3, shard: 0, core: 0 }, cost: 2.5, color: '#8A6CD8',
       radius: 0.48, height: 1.0, coreOffset: [0, 0.67, 0], coreRadius: 0.16,
       meleeDrop: 0.07,

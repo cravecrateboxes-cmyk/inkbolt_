@@ -606,11 +606,14 @@
             sfx('slash', p, 0.5, 1.3);
           }
           if (r.st >= stat(r, 'kusariWhirl', 1.8)) { r.act = 'tell'; r.st = 0; sfx('spinup', r, 0.7, 2); }
-        } else if (r.act === 'tell') {   // the circle tightens, the slit flashes: the throw is coming
+        } else if (r.act === 'tell') {   // the circle tightens, the slit flashes, it backs off to throwing range: the throw is coming
           r.kangV += (17 - r.kangV) * Math.min(1, dt * 6); r.kR += (1.1 - r.kR) * Math.min(1, dt * 6);
+          var tr = stat(r, 'kusariThrowRange', 4.5);
+          if (dist < tr) K.move(-dx, -dz, stat(r, 'stalkSpeed', 2.6) * 1.6);
           var tt = stat(r, 'kusariTell', 0.45) * Math.max(0.8, T.tellMul);
           K.tell(r, Math.min(1, r.st / tt));
-          if (r.st >= tt) {
+          if (r.st >= tt && !r.seesPlayer && r.st >= tt + 1) { r.km = 'pull'; r.act = 'pull'; }   // no clear line: reel in
+          else if (r.st >= tt && r.seesPlayer) {
             // the sickle flies straight at where the player stands now (a touch of lead)
             var ax = p.x + (p.vx || 0) * 0.12, ay = (p.y || 0) + 1.0, az = p.z + (p.vz || 0) * 0.12;
             var ux = ax - r.ks.x, uy = ay - r.ks.y, uz = az - r.ks.z, ul = Math.hypot(ux, uy, uz) || 1, sp = stat(r, 'kusariSpeed', 17);
