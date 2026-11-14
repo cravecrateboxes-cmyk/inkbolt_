@@ -7,6 +7,7 @@ import math
 
 import fam_kit_office as O
 import ib_text
+import techhq_detail as D
 from fam_kit_techhq import BRAND, BRAND_FONT, DECK, glint_x, glint_y, logo_mark, srt
 
 # ---------------------------------------------------------------- small helpers (local frames face -Y)
@@ -47,6 +48,7 @@ def monitor(k, x, y, deg, z0, wide=1.0, content='code', arm=False):
     if arm:
         k.bx(-0.02, 0.02, 0.1, 0.14, 0.0, 0.42, 'steel', ink=False)
         k.bx(-0.015, 0.015, 0.03, 0.1, 0.36, 0.4, 'steel', ink=False)
+        D.arm_clamp(k)
     else:
         k.bx(-0.018, 0.018, 0.04, 0.07, 0.0, 0.2, 'steel', ink=False)
     k.bx(-w, w, 0.0, 0.025, 0.14, 0.5, 'black')
@@ -100,6 +102,7 @@ def desk(k, x0, x1, y0, y1, h, top='wallW', leg='steel'):
     for x in (x0 + 0.15, x1 - 0.15):
         k.bx(x - 0.04, x + 0.04, (y0 + y1) / 2 - 0.05, (y0 + y1) / 2 + 0.05, 0.03, h - 0.03, leg, ink=False)
         k.bx(x - 0.03, x + 0.03, y0 + 0.06, y1 - 0.06, 0, 0.03, leg, ink=False)
+    D.desk_fittings(k, x0, x1, y0, y1, h)
 
 
 def plant_pot(k, x, y, z, s=1.0, kind='monstera', pot='pot'):
@@ -135,6 +138,7 @@ def glass_run(k, ax, fixed, a0, a1, h, frame='wallW', strip='violet'):
         for s in (-1, 1):
             glint_y(k, (a0 + a1) / 2 - 0.2, fixed + s * 0.012, 1.6, 0.7, s)
         k.col(a0, a1, fixed - 0.05, fixed + 0.05, 0, h)
+        D.glass_run_fittings(k, 'x', fixed, a0, a1, h)
     else:
         k.bx(fixed - 0.03, fixed + 0.03, a0, a1, 0, 0.07, frame, ink=False)
         k.bx(fixed - 0.03, fixed + 0.03, a0, a1, h - 0.08, h, frame, ink=False)
@@ -142,6 +146,7 @@ def glass_run(k, ax, fixed, a0, a1, h, frame='wallW', strip='violet'):
         for s in (-1, 1):
             glint_x(k, fixed + s * 0.012, (a0 + a1) / 2 - 0.2, 1.6, 0.7, s)
         k.col(fixed - 0.05, fixed + 0.05, a0, a1, 0, h)
+        D.glass_run_fittings(k, 'y', fixed, a0, a1, h)
 
 
 # ================================================================ reception and showroom (zone 1)
@@ -169,6 +174,7 @@ def reception(k):
         k.beam((1.9 + dx * 0.3, -0.45 + dz * 0.02, 1.35), (1.9 + dx, -0.45, 1.13 + dz), 0.008, 'leaf2', ink=False)
         k.sph(1.9 + dx, -0.45, 1.13 + dz + 0.03, 0.05, c, seg=(5, 3), ink=False)
     k.bx(-0.6, -0.2, -0.6, -0.35, 1.13, 1.16, 'paper', ink=False)
+    D.reception_fittings(k)
     k.col(-2.6, 2.45, -0.75, 0.25, 0, 1.13)
     k.col(-2.0, 2.2, 0.25, 0.7, 0, 0.75)
     return k
@@ -207,6 +213,7 @@ def logo_wall(k):
     k.qy(-1.85, 0.2, 3.3, 5.05, 0.372, 1, 'violetD')
     ib_text.draw(k, BRAND + ' AIR 14', 0.0, 0.366, 2.1, 0.45, 'white', face='y+', font=BRAND_FONT, maxw=5.0)
     ib_text.draw(k, '980 g  /  22 h  /  NyxOS 9', 0.0, 0.366, 1.95 - 0.38, 0.2, 'screen', face='y+', font='cond', maxw=5.5)
+    D.logo_wall_fittings(k, Hw)
     k.col(-7.0, 7.0, -0.42, 0.36, 0, Hw + 0.12)
     return k
 
@@ -386,6 +393,7 @@ def planter(k, v):
         for (x, y, z, r) in ((0.0, 0.0, 1.85, 0.32), (0.2, -0.1, 1.55, 0.26), (-0.18, 0.12, 1.45, 0.27), (0.06, 0.2, 1.25, 0.22)):
             k.sph(x, y, z, r, 'leaf' if r > 0.25 else 'leaf2', seg=(6, 4))
         k.col(-0.3, 0.3, -0.3, 0.3, 0, 0.7)
+        D.planter_fittings(k, 'A')
     else:
         k.bx(-0.38, 0.38, -0.38, 0.38, 0, 0.6, 'terra')
         k.qz(-0.34, 0.34, -0.34, 0.34, 0.603, 1, 'soil')
@@ -393,6 +401,7 @@ def planter(k, v):
             a = i / 10 * math.pi * 2
             k.beam((math.cos(a) * 0.1, math.sin(a) * 0.1, 0.6), (math.cos(a) * 0.42, math.sin(a) * 0.42, 1.25 + 0.1 * (i % 3)), 0.045, 'leafL' if i % 2 else 'leaf')
         k.col(-0.38, 0.38, -0.38, 0.38, 0, 0.6)
+        D.planter_fittings(k, 'B')
     return k
 
 
@@ -412,6 +421,7 @@ def planter_tree(k):
         k.sph(x, y, z, r, c, seg=(7, 4), scale=(1, 1, 0.78 + 0.03 * i))
     k.col(-0.93, 0.93, -0.93, 0.93, 0, 0.6)
     k.col(-0.2, 0.25, -0.15, 0.2, 0.6, 2.0)
+    D.planter_tree_fittings(k)
     return k
 
 
@@ -438,6 +448,7 @@ def pod(k, v):
     k.bx(-0.45, 0.4, -G - 0.03, -G + 0.03, Hp - 0.25, Hp, 'wallW', ink=False)       # door head
     k.bx(-G - 0.1, G + 0.1, -G - 0.1, G + 0.1, Hp, Hp + 0.18, 'oak')
     k.qz(-G + 0.05, G - 0.05, -G + 0.05, G - 0.05, Hp - 0.003, -1, 'felt')
+    D.pod_fascia(k, G, Hp)
     k.cyl(0, 0, Hp - 0.25, 0.4, 0.4, 0.2, 'violet' if v == 'A' else 'mint', seg=8)
     k.cyl(0, 0, Hp - 0.254, 0.32, 0.32, 0.004, 'glow', seg=8, ink=False)
     if v == 'A':
@@ -586,6 +597,7 @@ def dev_desk(k, v):
     hs = {'A': ((0.74, 1.08), (0.74, 0.74)), 'B': ((0.74, 0.74), (0.74, 0.74)), 'C': ((1.08, 1.08), (1.08, 1.08))}[v]
     k.bx(-1.95, 1.95, -0.02, 0.02, 0, 1.25, 'wallW')
     k.bx(-1.94, 1.94, -0.035, 0.035, 0.9, 1.24, 'felt', ink=False)
+    D.divider_fittings(k)
     k.qy(-1.9, 1.9, 1.15, 1.2, -0.038, -1, 'violet' if v != 'B' else 'mint')
     for f, deg in ((-1, 0), (1, 180)):
         for si, sx in enumerate((-0.98, 0.98)):

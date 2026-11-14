@@ -32,6 +32,7 @@ from ib_lib import *  # noqa: F401,F403
 import ib_lib
 import ib_text
 import fam_kit_office as O
+import techhq_detail as D
 
 FAM = 'kit-techhq'
 PFX = 'KIT_TECHHQ_'
@@ -201,6 +202,7 @@ def window(k, kind):
         k.bx(-0.5, 0.5, -0.5, 0.05, 0.42, 0.46, 'oak')
         k.bx(-0.48, 0.48, -0.46, 0.0, 0.46, 0.53, 'cushion', ink=False)
         k.qy(-0.5, 0.5, 0.12, 0.36, -0.503, -1, 'black')                              # toe recess shadow
+    D.window_fittings(k, kind, H, DECK)
     return k
 
 
@@ -251,6 +253,7 @@ def gate_side(k):
         k.qy(x - 0.006, x + 0.006, 0.13, 3.55, -0.563, -1, 'oak2')
     k.bx(-E, E, -0.57, -0.5, 0.004, 0.08, 'black', ink=False)
     k.qy(-0.03, 0.03, 3.7, H - 0.6, -0.503, -1, 'violet')
+    D.gate_side_fittings(k)
     return k
 
 
@@ -304,6 +307,7 @@ def inner_wall(k, kind):
             if len(pts) >= 3:
                 k.poly([(x, -0.503 - 0.0005 * (i % 2), z) for (x, z) in pts], c, (0, -1, 0))
         k.qy(-0.5, 0.5, 6.6, 6.7, -0.503, -1, 'black')
+    D.inner_wall_fittings(k, kind, H)
     return k
 
 
@@ -400,6 +404,7 @@ def glass_wall(k, door=False):
         glint_y(k, -0.25, s * 0.012 if door else s * 0.032, 4.6, 0.8, s)
         if not door:
             glint_y(k, 0.05, s * 0.032, 1.5, 0.75, s)
+    D.glass_wall_fittings(k, door, H, DECK)
     return k
 
 
@@ -421,6 +426,7 @@ def gate_frame(k):
         k.qy(-2.0, 2.0, 3.6, 3.66, y, f, 'violet')
         logo_mark(k, f * 0.825, f * 0.47, 5.0, 1.1, f)
         k.txt(BRAND, 0.0, f * 0.473, 4.25, 0.36, 'graphite', face='y-' if f < 0 else 'y+', font=BRAND_FONT)
+    D.gate_frame_fittings(k)
     return k
 
 
@@ -500,6 +506,7 @@ def trail_wall(k, kind=''):
     k.bx(-0.25, 2.25, -0.5, 0.5, -0.5, -0.004, 'concrete')
     k.bx(-0.25, 2.25, -0.5, 0.5, H + 0.02, H + 0.36, 'concrete')
     k.bx(-0.38, -0.25, -0.5, 0.5, H + 0.36, H + 0.6, 'wallW')
+    D.trail_fittings(k, kind, DECK)
     return k
 
 
@@ -562,6 +569,7 @@ def rail(k, y0, y1):
         x = s * 0.015
         ym = (y0 + y1) / 2
         k.poly([(x, ym - 0.12, 0.35), (x, ym - 0.07, 0.35), (x, ym + 0.08, 0.75), (x, ym + 0.03, 0.75)], 'glint', (s, 0, 0))
+    D.rail_fittings(k, y0, y1)
 
 
 def rails(k):
@@ -576,6 +584,7 @@ def rails(k):
     k.begin()
     k.bx(-0.05, 0.05, -0.05, 0.05, 0, 1.0, 'wallW')
     k.bx(-0.065, 0.065, -0.065, 0.065, 1.0, 1.06, 'oak', ink=False)
+    D.post_fittings(k)
     k.finish('RailPost')
 
 
@@ -587,6 +596,7 @@ def columns(k):
         k.cyl(0, 0, 0, 0.312, 0.312, 0.1, 'black', seg=12, ink=False, caps=False)
         if name == 'Column_Lo':
             k.cyl(0, 0, 1.3, 0.306, 0.306, 0.08, 'violet', seg=12, ink=False, caps=False)
+        D.column_fittings(k, h)
         k.col(-0.3, 0.3, -0.3, 0.3, 0, h)
         k.finish(name)
 
@@ -632,6 +642,7 @@ def stair(k):
             else:
                 a2, b2, top = Y0S + (i - 1) * RUN, Y0S + i * RUN, i * RISE
             k.col(sx * 1.4 - 0.08, sx * 1.4 + 0.08, a2, b2, 0, top + 1.05)
+    D.stair_fittings(k, STEPS, Y0S, Y1S, RUN, RISE, DECK)
     return k
 
 
@@ -655,6 +666,7 @@ def bleacher(k):
         k.bx(SX0, SX1, a, a + 2 * RUN, 0.0 if t == 0 else top - 2 * RISE - 0.01, top, 'oak')
         k.qy(SX0 + 0.02, SX1 - 0.02, top - 2 * RISE + 0.02, top - 0.04, a - 0.003, -1, 'oak2')
         k.col(SX0 - 0.05, SX1, a, a + 2 * RUN, 0, top, True)
+        D.tier_nosing(k, SX0, SX1, a, 2 * RUN, top)
         # cushions: runs of seat pads in the brand colours, a gap here and there
         x = SX0 + 0.15
         j = 0
@@ -664,6 +676,7 @@ def bleacher(k):
             if (t * 3 + j) % 5 != 2:
                 c = ('violet', 'coral', 'sun', 'mint', 'cushion')[(t + j * 2) % 5]
                 k.bx(x, min(x + w, xm), a + 0.12, a + 2 * RUN - 0.15, top, top + 0.09, c, ink=False)
+                D.cushion_piping(k, x, min(x + w, xm), a + 0.12, top)
             x += w + 0.25
             j += 1
     k.bx(-4.8, 4.8, Y1S, 5.0, DECK - 0.4, DECK, 'oak')
@@ -711,6 +724,7 @@ def bleacher(k):
             else:
                 a2, b2, top = Y0S + (i - 1) * RUN, Y0S + i * RUN, (i if sx > 0 else 2 * ((i + 1) // 2)) * RISE
             k.col(sx * 4.92 - 0.08, sx * 4.92 + 0.08, a2, b2, 0, top + 1.1)
+    D.bleacher_clamps(k, STEPS, Y0S, Y1S, DECK)
     return k
 
 
