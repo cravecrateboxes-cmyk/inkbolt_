@@ -254,6 +254,11 @@ function serve() {
     await shot('jets-close-back.png', [-9, 2.0, -22.6, Math.PI, -0.16], 40);
     await pose([{ type: 'blader', x: -9, z: -20, state: 'attack', see: true, set: { weaponId: 'kusari', act: 'whirl', km: 'whirl', kR: 1.6, kangV: 4 }, hold: { state: 'attack', act: 'whirl', st: 0.2, km: 'whirl', kR: 1.6, kangV: 4 } }], 0.3);
     await shot('jets-close-kusari.png', [-9, 2.2, -23.2, Math.PI, -0.38], 42);
+    // a soldier's pelvis close-up (Rocket Soldier: the Soldier's body), standing and mid-stride
+    await pose([{ type: 'rocketeer', x: -9, z: -20, state: 'keep', yaw: Math.PI + 0.35, set: { launcher: 'hothead', trVariant: 0 }, hold: { state: 'idle', cool: 9 } }], 0.3);
+    await shot('soldier-pelvis-front.png', [-9, 1.0, -21.9, Math.PI, -0.02], 34);
+    await pose([{ type: 'rocketeer', x: -9, z: -20, state: 'chase', see: true, yaw: Math.PI - 0.5, set: { launcher: 'hothead', trVariant: 1 } }], 0.45);
+    await shot('soldier-pelvis-stride.png', [-9, 1.0, -21.9, Math.PI, -0.02], 34);
   }
 
   check('no console errors or warnings', logs.length === 0, logs.slice(0, 4).join(' | '));
