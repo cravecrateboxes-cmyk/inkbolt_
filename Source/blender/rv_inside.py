@@ -6,6 +6,8 @@ See rv_base.py for the conventions.
 """
 import math
 
+import rv_detail as RD
+
 from rv_base import H, DECK, RISE, TREAD, RKit, srt, txt, disc, vdisc, frame_y, potted, ring
 from hotel_base import dining_chair, gold_chair, armchair, flowers, table_lamp, legs4, palm
 
@@ -216,6 +218,7 @@ def banquette(k):
         posy(k, tx + 0.25, 0.15, 0.78, 0.35 * 2)
         k.col(tx - 0.4, tx + 0.4, -0.35, 0.35, 0, 0.8)
         k.col(tx - 0.24, tx + 0.24, -0.92, -0.44, 0, 1.0)
+    RD.banquette_detail(k)
     k.col(-1.98, 1.98, 0.45, 0.98, 0, 1.32)
     return k
 
@@ -429,6 +432,7 @@ def reg_desk(k):
     k.bx(0.88, 1.72, 0.5, 0.68, 0.0, 0.08, 'steel2', ink=False)
     for x in (-1.3, 0.0):
         light_chair(k, x, 0.5, 0, 'navy', 'walnut2')
+    RD.regdesk_detail(k)
     k.col(-1.9, 1.9, -0.6, 0.1, 0, 0.8)
     k.col(0.88, 1.72, 0.5, 0.68, 0, 2.1)
     for x in (-1.3, 0.0):
@@ -511,6 +515,7 @@ def g_rail(k, y0, y1):
         for s in (-1, 1):
             k.qx(y - 0.012, y + 0.012, 0.14, 0.94, s * 0.012, s, 'black')
     k.bx(-0.06, 0.06, y0, y1, 0.94, 1.03, 'gold')
+    RD.grail_detail(k, y0, y1)
 
 
 def g_rails(k):
@@ -525,6 +530,7 @@ def g_rails(k):
     k.begin()
     k.bx(-0.1, 0.1, -0.1, 0.1, 0.004, 1.0, 'marble')
     k.bx(-0.12, 0.12, -0.12, 0.12, 1.0, 1.08, 'gold', ink=False)
+    RD.gpost_detail(k)
     k.finish('GRailPost')
 
 
@@ -536,6 +542,7 @@ def g_columns(k):
         k.cyl(0, 0, 0.3, 0.28, 0.25, h - 0.3 - 0.5, 'marble', seg=8)
         k.cyl(0, 0, h - 0.5, 0.25, 0.38, 0.35, 'gold', seg=8, ink=False)
         k.bx(-0.42, 0.42, -0.42, 0.42, h - 0.15, h - 0.004, 'stone2')
+        RD.gcol_detail(k, h)
         k.col(-0.4, 0.4, -0.4, 0.4, 0, h)
         k.finish(name)
 
