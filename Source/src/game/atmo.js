@@ -131,7 +131,7 @@
     pollen: { n: 0.6, col: [1.0, 0.97, 0.75], size: 0.05, fall: 0.03, drift: 0.25 }, snow: { n: 1.2, col: [1.0, 1.0, 1.0], size: 0.08, fall: 0.7, drift: 0.3 },
     embers: { n: 0.5, col: [1.0, 0.55, 0.2], size: 0.06, fall: -0.4, drift: 0.2 } };
   var X = { dust: null, cones: null, kind: null, t: 0 }, BOX = 14;
-  A.extras = X;   // tests
+  Atmo.extras = X;   // tests (look-readability.js hides the dust)
   function dustMat() {
     return new THREE.ShaderMaterial({
       uniforms: { uCol: { value: new THREE.Vector3(1, 1, 1) }, uSize: { value: 0.05 }, uScale: { value: 400 }, uCam: { value: new THREE.Vector3() }, uT: { value: 0 }, uFall: { value: 0 }, uDrift: { value: 0 } },
