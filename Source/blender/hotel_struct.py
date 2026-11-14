@@ -8,6 +8,7 @@ in the bay and the way the engine turns the module). Revolve_A / _B are the same
 import math
 
 from hotel_base import (H, DECK, RH, DROP, HKit, srt, txt, disc, vdisc, ring, sconce, painting, flowers, palm)
+import hotel_detail as D
 
 
 def glints_x(k, x, y0, y1, z0, z1, s=-1, y=None):
@@ -68,6 +69,10 @@ def win_half(k, side, revolve=False):
         k.prism([(x0, z0), (x1, z1), q1, q0] if sx < 0 else [(x0, z0), q0, q1, (x1, z1)], -0.025, 0.025, 'bronze', ink=False)
     for a in ((2.2, 2.75) if sx > 0 else (0.94, 0.39)):
         k.beam((ox + math.cos(a) * 0.16, 0, AZ + math.sin(a) * 0.16), (ox + math.cos(a) * R * 0.93, 0, AZ + math.sin(a) * R * 0.93), 0.03, 'bronze', ink=False)
+    # moulded architrave round the arch on the room face, and a deep marble sill
+    D.arch_architrave(k, ox, AZ, 0.96, 1.1, a0, a1 + (0.012 if sx > 0 else -0.012), 8)
+    if not revolve:
+        D.window_sill(k)
     # keystone half and a gilt rosette in the spandrel
     k.bx(min(oe, oe - sx * 0.14), max(oe, oe - sx * 0.14), -0.56, -0.5, AZ + R - 0.12, H - 0.36, 'stone2')
     vdisc(k, far + sx * 0.18, -0.503, AZ + R + 0.05, 0.11, 'gold', n=10)
@@ -138,6 +143,7 @@ def win_pier(k):
     k.bx(-0.497, 0.497, -0.6, -0.494, H - 0.35, H - 0.004, 'stone2')  # 3 mm in: a corner neighbour's band ends on the wall face
     sconce(k, 0, -0.563, 2.9)
     sconce(k, 0, -0.563, 6.8)
+    D.pier_detail(k)
     return k
 
 
@@ -148,6 +154,7 @@ def core(k):
     k.bx(-0.5, 0.5, -0.5, 0.5, 0, 0.16, 'nero', ink=False)
     k.bx(-0.5, 0.5, -0.5, 0.5, H - 0.33, H - 0.012, 'stone2', ink=False)
     k.bx(-0.5, 0.5, -0.5, 0.5, DECK - 0.34, DECK - 0.06, 'stone2', ink=False)
+    D.core_bands(k)
     return k
 
 
@@ -185,6 +192,7 @@ def panel_face(k, kind, v, dz=0.0):
     for (z0, z1) in ((1.25, DECK - 0.75), (DECK + 0.3, H - 0.7)):
         for (a, b, c, d) in ((-0.4, 0.4, z0, z0 + 0.03), (-0.4, 0.4, z1 - 0.03, z1), (-0.4, -0.37, z0 + 0.03, z1 - 0.03), (0.37, 0.4, z0 + 0.03, z1 - 0.03)):
             k.qy(a, b, c, d, y - 0.006, -1, 'gold')
+    D.wall_face_detail(k, y, dz, kind)
     if kind == 'Sconce':
         sconce(k, 0, y - 0.003, 2.6)
         sconce(k, 0, y - 0.003, 6.7)
@@ -238,6 +246,7 @@ def lift_half(k, side):
         k.bx(ax0, ax1, y - 0.08, y + 0.006, 0, 2.75, 'gold')                     # architrave jamb
         hx0, hx1 = srt(c_, c_ - s_ * 0.7)
         k.bx(hx0, hx1, y - 0.08, y, 2.55, 2.75, 'gold')
+        D.lift_fittings(k, y, c_, s_)
         # floor dial: a half sunburst over the doors
         pts = [(c_, y - 0.01, 2.85)] + [(c_ + math.cos(a) * 0.6, y - 0.01, 2.85 + math.sin(a) * 0.6)
                                          for a in ([math.pi / 2 + i * math.pi / 12 for i in range(7)] if s_ > 0 else [math.pi / 2 - i * math.pi / 12 for i in range(7)])]
@@ -316,6 +325,7 @@ def doorway(k, part, lintel=2.7):
         if part in (side,):
             x0, x1 = srt(xs * 0.494, xs * 0.36)
             k.bx(x0, x1, -0.6, 0.6, 0, lintel + 0.24, 'gold')
+    D.doorway_fittings(k, part, lintel)
     return k
 
 
@@ -485,6 +495,7 @@ def stand(k):
     for (x, y) in ((-0.4, -0.22), (0.4, -0.22), (-0.4, 0.22), (0.4, 0.22)):
         k.cyl(x, y, 0, 0.035, 0.05, 0.72, 'gold', seg=6, ink=False)
     k.bx(-0.4, 0.4, -0.22, 0.22, 0.12, 0.16, 'gold', ink=False)
+    D.stand_detail(k)
     k.col(-0.48, 0.48, -0.3, 0.3, 0, 0.94)
     return k
 
@@ -524,6 +535,7 @@ def grand_stair(k):
         k.prism_y(hr, gx - 0.06, gx + 0.06, 'walnut')
         k.bx(gx - 0.14, gx + 0.14, -4.98, -4.72, 0, 1.25, 'marble2')
         k.sph(gx, -4.86, 1.36, 0.12, 'gold', seg=(8, 5))
+        D.stair_detail(k, gx, y0, y1, DECK)
         for kk in range(n + 2):
             if kk == 0:
                 a2, b2, top = -5.0, y0, 0.03
@@ -544,6 +556,7 @@ def rail(k, y0, y1):
         k.cyl(0, y, 0.14, 0.035, 0.05, 0.4, 'gold', seg=6, ink=False)
         k.cyl(0, y, 0.54, 0.05, 0.03, 0.4, 'gold', seg=6, ink=False)
     k.bx(-0.07, 0.07, y0, y1, 0.94, 1.04, 'walnut')
+    D.rail_detail(k, y0, y1)
 
 
 def rails(k):
@@ -559,6 +572,7 @@ def rails(k):
     k.bx(-0.1, 0.1, -0.1, 0.1, 0.004, 1.0, 'marble')
     k.bx(-0.12, 0.12, -0.12, 0.12, 1.0, 1.08, 'walnut')
     k.sph(0, 0, 1.15, 0.07, 'gold', seg=(6, 4), ink=False)
+    D.post_detail(k)
     k.finish('RailPost')
 
 
@@ -574,6 +588,7 @@ def columns(k):
             k.beam((math.cos(a) * 0.27, math.sin(a) * 0.27, 0.5), (math.cos(a) * 0.245, math.sin(a) * 0.245, h - 0.65), 0.02, 'marble2', ink=False)
         k.cyl(0, 0, h - 0.6, 0.25, 0.4, 0.45, 'gold', seg=12)
         k.bx(-0.44, 0.44, -0.44, 0.44, h - 0.15, h - 0.004, 'stone2')
+        D.column_detail(k, h)
         k.col(-0.4, 0.4, -0.4, 0.4, 0, h)
         k.finish(name)
 

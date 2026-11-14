@@ -21,6 +21,7 @@ from ib_lib import *  # noqa: F401,F403
 import ib_lib
 import ib_text
 import fam_kit_spire as S
+import hotel_detail as D
 
 FAM = 'kit-hotel'
 PFX = 'KIT_HOTEL_'
@@ -197,6 +198,7 @@ def armchair(k, x, y, deg, fab='wine', leg='walnut2', wing=False):
             k.bx(t * 0.36 - 0.025, t * 0.36 + 0.025, yy - 0.025, yy + 0.025, 0, 0.1, leg, ink=False)
     k.bx(-0.28, 0.28, -0.4, 0.2, 0.42, 0.52, fab, ink=False)
     k.qz(-0.25, 0.25, -0.37, 0.17, 0.523, 1, 'cream' if fab != 'cream' else 'silk')
+    D.armchair_detail(k)
     k.pop()
 
 
@@ -224,6 +226,7 @@ def sofa(k, x, y, deg, w=2.0, fab='wine', leg='walnut2', tufts=True):
                 break
             for zz in (0.62, 0.74):
                 k.qy(xx - 0.012, xx + 0.012, zz - 0.012, zz + 0.012, 0.177, -1, 'black')
+    D.sofa_detail(k, hw, w)
     k.pop()
 
 
