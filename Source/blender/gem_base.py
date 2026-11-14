@@ -224,12 +224,17 @@ def floodlight(k, x, y, z, s=-1, w=0.5, h=0.34):
     k.gbx(x - w / 2 + 0.05, x + w / 2 - 0.05, *srt(y + s * 0.004, y + s * 0.03), z - h / 2 + 0.05, z + h / 2 - 0.05, 'lampHot', hull=False)
 
 
-def sign_board(k, x, y, z, w, h, lines, bg='board', fg='chalk', s=-1, rim='hazard', font='display'):
+def sign_board(k, x, y, z, w, h, lines, bg='board', fg='chalk', s=-1, rim='hazard', font='display', bolts=True):
     """Painted board on two pins facing -Y (s=-1): a rim band top and bottom and lines [(text, cap, colour|None)]
     laid out from the top. Lettering: ib_text vector glyphs."""
     import ib_text
     y0, y1 = srt(y, y - s * 0.05)
     k.bx(x - w / 2, x + w / 2, y0, y1, z, z + h, 'plank2')
+    if bolts:   # a bolt in each corner of the border (the bg quad is inset 3 cm)
+        for sx in (-1, 1):
+            for zz in (z + 0.016, z + h - 0.016):
+                k.bx(x + sx * (w / 2 - 0.016) - 0.008, x + sx * (w / 2 - 0.016) + 0.008, *srt(y + s * 0.008, y - s * 0.003),
+                     zz - 0.008, zz + 0.008, 'steel', ink=False)
     yf = y + s * 0.003
     k.qy(x - w / 2 + 0.03, x + w / 2 - 0.03, z + 0.03, z + h - 0.03, yf, s, bg)
     if rim:

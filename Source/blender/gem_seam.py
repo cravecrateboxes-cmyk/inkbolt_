@@ -10,6 +10,7 @@ from mathutils import Vector
 from gem_base import (CM, CEIL, WALL_H, POOL_Z, KINDS, srt, rock_pts, clamp_pts, crystal, cluster, lantern_g, bulb,
                       floodlight, sign_board, stairs_x, deck, rail_x, post, face_loft)
 from foundry_common import oslab, tube
+import gem_detail as GD
 
 STRING_Z = 3.6     # the lamp string along the faces (CM.cable_run height)
 # zone 1 faces: seven profile levels (the coal mine's nine, the upper strata merged), the coal seam the band 1.5 - 3 m
@@ -28,6 +29,7 @@ def cable_flat(k, z=STRING_Z, y=-0.62, sag=0.09, t=0.035):
 
 def string(k, z=STRING_Z, y=-0.62, lit=True):
     cable_flat(k, z=z, y=y)
+    GD.cable_hook(k, z, y)
     if lit:
         bulb(k, 0.0, y - 0.005, z - 0.09)
 
@@ -58,20 +60,23 @@ def seam_wall(k, kind, seed):
         k.beam((0.0, -0.3, 2.65), (0.0, -0.82, 3.26), 0.09, 'timber2')
         lantern_g(k, 0.0, -0.88, 3.25)
         CM.pool(k, 0.0, -1.5, POOL_Z[kind[4:]], 2.1, seed, sx=1.15)
+        GD.lamp_bracket(k)
     elif kind == 'Prop':
         k.bx(-0.13, 0.13, -0.8, -0.54, 0, 4.0, 'timber')
         k.bx(-0.2, 0.2, -0.86, -0.2, 4.0, 4.28, 'timber2')
         k.bx(-0.16, 0.16, -0.74, -0.58, 4.28, 4.4, 'timberEnd', ink=False)
         k.bx(-0.18, 0.18, -0.84, -0.5, 0, 0.12, 'timber2', ink=False)
+        GD.prop_detail(k)
     elif kind.startswith('Sign'):
         if kind == 'SignSeam':
-            sign_board(k, 0.0, -0.6, 1.75, 0.95, 0.95, [('NO.3 SEAM', 0.26, None), ('GLIMMERDEEP', 0.12, 'hazard'), ('LEVEL 7', 0.12, None)])
+            sign_board(k, 0.0, -0.6, 1.75, 0.95, 0.95, [('NO.3 SEAM', 0.26, None), ('GLIMMERDEEP', 0.12, 'hazard'), ('LEVEL 7', 0.12, None)], bolts=False)
         elif kind == 'SignHaul':
-            sign_board(k, 0.0, -0.6, 1.8, 0.95, 0.85, [('HAULAGE', 0.2, 'ink'), ('KEEP CLEAR', 0.15, 'ink'), ('OF CARTS', 0.12, 'ink')], bg='hazard', rim='ink')
+            sign_board(k, 0.0, -0.6, 1.8, 0.95, 0.85, [('HAULAGE', 0.2, 'ink'), ('KEEP CLEAR', 0.15, 'ink'), ('OF CARTS', 0.12, 'ink')], bg='hazard', rim='ink', bolts=False)
         else:
-            sign_board(k, 0.0, -0.6, 1.8, 0.95, 0.85, [('GEM VEIN', 0.2, 'rubyL'), ('REPORT ALL', 0.13, None), ('FINDS', 0.13, None)])
+            sign_board(k, 0.0, -0.6, 1.8, 0.95, 0.85, [('GEM VEIN', 0.2, 'rubyL'), ('REPORT ALL', 0.13, None), ('FINDS', 0.13, None)], bolts=False)
         for x in (-0.36, 0.36):
             k.bx(x - 0.02, x + 0.02, -0.56, -0.3, 2.4, 2.44, 'steelDark', ink=False)
+        GD.sign_wall(k, 0.475, 1.75, 1.75 + (0.95 if kind == 'SignSeam' else 0.85))
     return k
 
 
@@ -111,6 +116,7 @@ def crib(k):
         k.push(0, 0, a)
         k.beam((0.28, 0, CEIL - 1.7), (0.9, 0, CEIL - 0.44), 0.16, 'timber2')
         k.pop()
+    GD.crib_detail(k, CEIL)
     k.col(-0.95, 0.95, -0.95, 0.95, 0, CEIL)
     return k
 
@@ -176,6 +182,7 @@ def steel_arch(k, lamp=False):
         k.bx(-0.018, 0.018, -0.018, 0.018, TOP - 0.85, TOP - 0.12, 'steelDark', ink=False)
         lantern_g(k, 0.0, 0.0, TOP - 0.85)
         CM.pool(k, 0.0, 0.0, POOL_Z['set'] + 0.004, 1.4, 21, sx=1.6)
+    GD.arch_detail(k, W, LEG, TOP, lamp)
     return k
 
 
@@ -187,6 +194,7 @@ def rail(k):
         k.bx(xs - 0.08, xs + 0.08, -0.44, 0.44, 0, CM.SLEEPER_TOP, 'timber2', ink=False)
     for sy in (-1, 1):
         k.bx(-0.5, 0.5, sy * 0.3 - 0.03, sy * 0.3 + 0.03, CM.SLEEPER_TOP, CM.RAIL_TOP, 'steel', ink=False)
+    GD.rail_detail(k, (-0.25, 0.25), 0.0, 0.6, -0.5, 0.5)
     return k
 
 
@@ -216,7 +224,9 @@ def trail_wall(k):
         k.bx(xs - 0.08, xs + 0.08, -0.4, 0.4, 0, CM.SLEEPER_TOP, 'timber2', ink=False)
     for sy in (-1, 1):
         k.bx(-0.5, 0.5, sy * 0.25 - 0.03, sy * 0.25 + 0.03, CM.SLEEPER_TOP, CM.RAIL_TOP, 'steel', ink=False)
+    GD.rail_detail(k, (-0.25, 0.25), 0.0, 0.5, -0.5, 0.5)
     k.pop()
+    GD.trail_post(k, y_mid, ROOF)
     cable_flat(k, z=3.1, y=-0.38)
     return k
 
@@ -240,6 +250,7 @@ def lantern_post(k):
     lantern_g(k, 0.0, -0.62, 2.74)
     k.bx(-0.15, 0.15, -0.15, 0.15, 0, 0.25, 'rock2')
     CM.pool(k, 0.0, -0.6, POOL_Z['post'], 2.2, 41)
+    GD.lamp_post_detail(k)
     k.col(-0.15, 0.15, -0.15, 0.15, 0, 2.2)
     return k
 
@@ -341,6 +352,7 @@ def chute(k):
     CM.pool(k, TX, -1.6, POOL_Z['chute'], 1.6, 31, sx=1.0, sy=1.4)
     # a level board on the bin
     sign_board(k, TX, -2.39, 4.0, 1.5, 0.95, [('BIN 3', 0.28, None), ('NO RIDING', 0.14, 'hazard')], s=-1)
+    GD.chute_detail(k, TX)
     return k
 
 
@@ -392,6 +404,7 @@ def belt_bridge(k):
         k.bx(x - 0.03, x + 0.03, -0.4, 0.26, Z + 2.25, Z + 2.33, 'steelDark', ink=False)
         lantern_g(k, x, -0.36, Z + 2.25, 0.85)
     sign_board(k, 0.0, -1.47, Z + 0.15, 1.7, 0.6, [('BELT 3 - NO RIDING', 0.17, 'ink')], bg='hazard', rim='ink', s=-1)
+    GD.belt_bridge_detail(k, Z, (-9.6, -4.8, 0.0, 4.0, 7.4), BY)
     return k
 
 
@@ -458,6 +471,7 @@ def winch_house(k):
     k.col(-2.2, 2.2, -0.4, 1.8, 0, 1.6)
     k.col(-2.4, -1.75, -1.6, -0.9, 0, 1.2)
     k.col(-0.3, 0.3, -2.2, -1.6, 0, 1.0)
+    GD.winch_detail(k, X0, X1, Y0, Y1, H)
     return k
 
 
@@ -489,4 +503,5 @@ def fan_unit(k):
     sign_board(k, -0.25, 0.25, 1.85, 0.9, 0.5, [('AUX FAN 2', 0.15, 'ink'), ('KEEP RUNNING', 0.1, 'ink')], bg='hazard', rim='ink', s=-1)
     k.col(-1.6, 1.0, YB - 0.62, YB + 0.62, 0, 1.75)
     k.col(1.0, 2.0, Y - 0.5, Y + 0.5, 0, CEIL)
+    GD.fan_detail(k, YB, CEIL)
     return k

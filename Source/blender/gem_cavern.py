@@ -11,6 +11,7 @@ from mathutils import Vector
 
 from gem_base import (CM, CAVE_H, POOL_Z, Z_DECK, KINDS, srt, rock_pts, clamp_pts, crystal, cluster, lantern_g, bulb,
                       floodlight, sign_board, stairs_x, deck, rail_x, rail_y, post, face_loft)
+import gem_detail as GD
 
 # profile levels of the cavern walls; the edge profile leans in toward the top (an overhang that meets the roof)
 LVC = [0.0, 0.7, 1.8, 3.2, 5.0, 7.2, 9.6, 12.2, 14.8, 16.8, CAVE_H]
@@ -92,6 +93,7 @@ def cave_wall(k, kind, seed):
         k.beam((0.0, -0.3, 2.65), (0.0, -0.82, 3.26), 0.09, 'timber2')
         lantern_g(k, 0.0, -0.88, 3.25)
         CM.pool(k, 0.0, -1.5, POOL_Z['c' + kind[4:]], 2.1, seed, sx=1.15)
+        GD.lamp_bracket(k)
     return k
 
 
@@ -143,6 +145,7 @@ def chasm(k, variant, seed):
         k.bxr(0, 0.12, 0, 0.42, 0.3, 0.3, 'steelDark', rot=(-35, 0, 0))
         k.pop()
         k.gbx(-0.16, 0.16, 0.3, 0.33, 2.25, 2.45, 'lampHot', hull=False)
+    GD.chasm_detail(k, variant)
     return k
 
 
@@ -350,6 +353,7 @@ def gallery(k):
         floodlight(k, s * 0.45, 1.5, Z + 2.8, s=-1)
     sign_board(k, 0.0, -2.08, Z - 1.25, 1.8, 0.62, [('GALLERY B', 0.2, None), ('HARD HATS', 0.1, 'hazard')], s=-1)
     CM.pool(k, 0.0, -3.0, POOL_Z['gal'], 2.2, 71, sx=1.8, sy=0.6)
+    GD.gallery_detail(k, Z)
     return k
 
 
@@ -387,6 +391,7 @@ def platform(k):
     lantern_g(k, 2.75, 1.2, Z + 2.3, 0.85)
     k.col(2.65, 2.85, 1.45, 1.65, Z, Z + 2.4)
     CM.pool(k, 0.0, -0.2, POOL_Z['plat'], 1.8, 81, sx=1.4, sy=0.9)
+    GD.platform_detail(k, Z)
     return k
 
 
@@ -427,6 +432,7 @@ def ledge(k):
     k.bx(-3.48, -3.42, -1.47, -1.05, Z + 2.1, Z + 2.17, 'timber2', ink=False)
     lantern_g(k, -3.45, -1.15, Z + 2.1, 0.85)
     k.col(-3.55, -3.35, -1.6, -1.4, Z, Z + 2.2)
+    GD.ledge_detail(k, Z)
     return k
 
 
@@ -453,6 +459,7 @@ def sieve(k):
     k.beam((0.85, 0.0, 1.06), (1.1, 0.0, 1.06), 0.05, 'steelDark')
     k.beam((1.1, 0.0, 1.06), (1.1, -0.15, 0.85), 0.04, 'steel')
     k.col(-0.9, 0.9, -0.8, 0.8, 0, 1.2)
+    GD.sieve_detail(k)
     return k
 
 
@@ -480,6 +487,7 @@ def cut_bench(k):
     k.gcyl(0.48, 0.03, 1.34, 0.065, 0.065, 0.04, 'lampHot', seg=8, hull=False)
     CM.pool(k, 0.3, -0.1, POOL_Z['table'], 0.7, 91, sx=1.3, sy=0.8)
     k.col(-0.95, 0.95, -0.45, 0.45, 0, 1.0)
+    GD.cut_bench_detail(k)
     return k
 
 
@@ -514,6 +522,7 @@ def work_table(k, variant):
     k.gcyl(-0.42, -0.02, 1.23, 0.085, 0.085, 0.04, 'lampHot', seg=8, hull=False)
     CM.pool(k, -0.3, -0.1, POOL_Z['table'], 0.75, 93 + variant, sx=1.3, sy=0.8)
     k.col(-0.95, 0.95, -0.42, 0.42, 0, 0.95)
+    GD.table_detail(k)
     return k
 
 
@@ -574,6 +583,7 @@ def hoist(k):
     lantern_g(k, -0.85, -0.82, 2.3, 0.85)
     CM.pool(k, -0.4, -1.2, POOL_Z['hoist'], 1.5, 99, sx=1.4, sy=0.9)
     sign_board(k, 0.0, -1.75, 1.2, 1.0, 0.5, [('HOIST 2', 0.16, 'ink'), ('KEEP CLEAR', 0.1, 'ink')], bg='hazard', rim='ink', s=-1)
+    GD.hoist_detail(k)
     return k
 
 
