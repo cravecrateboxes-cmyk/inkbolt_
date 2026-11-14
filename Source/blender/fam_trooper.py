@@ -1,11 +1,13 @@
 """INKBOLT trooper family (fps-troopers.glb): the Soldier as one skinned, animated character in SWAT / military kit.
 
-Base: Quaternius' Universal Animation Library mannequin, rig and animations (CC0, third_party/ual/). The mannequin
-is decimated, painted into kit zones (uniform, gloves, boots, balaclava), then dressed with gear built here and
-weighted to the rig: a ballistic helmet with rails, NVG mount and strobe, goggles, headset, a plate carrier with
-mag pouches, radio, patch and hydration pack (with the glowing power cell the player can shoot), a belt with a
-holster, knee pads, and a compact carbine fitted to the right hand in the aiming pose. One mesh, one material, the
-INKBOLT ink outline (_HULL shell) and palette UVs, like every other family.
+Base: Quaternius' Universal Animation Library mannequin, rig and animations (CC0, third_party/ual/). The mannequin's
+pelvis is reshaped like combat trousers (_trouser_pelvis), then it is decimated, painted into kit zones (uniform,
+gloves, boots, balaclava) and dressed with sculpted gear built here (trooper_shapes.py: rounded and chamfered edges,
+curved plates) and weighted to the rig: a rounded ballistic helmet with rails, NVG mount and strobe, curved goggles,
+headset, a plate carrier with SAPI-cut plates wrapping round the ribs, rounded mag pouches, radio, patch and a
+rounded hydration pack (with the round glowing power cell the player can shoot), a belt with a holster and a groin
+protector, domed knee pads, and a chamfered compact carbine fitted to the right hand in the aiming pose. One mesh,
+one material, the INKBOLT ink outline (_HULL shell) and palette UVs, like every other family.
 
 Exported: TROOPER (skinned mesh), TROOPER_Rig (armature), TROOPER_MUZZLE (empty on the right hand), and the
 animations listed in KEEP. Kit colours that the game recolours per soldier (src/game/troops.js VARIANTS):
@@ -13,11 +15,13 @@ uniform, uniform2, vest, vest2, helmet, pad.
 The carbine's vertices carry colour alpha 0 (the game's aMask): the Grenadier hides them and shows TROOPER_GL instead.
 
 Levels 20+ (same rig and animations, one pool of rigs in trooperrig.js):
-  TROOPER_GL     a 6-shot 40 mm grenade launcher skinned to the right hand (the Grenadier); socket TROOPER_GL_MUZZLE
-  TROOPER_MECH   the Robot Trooper: a heavy industrial walker built from rigid bevelled blocks, each skinned 100 % to
-                 one bone: big shoulder blocks around a small low head with one red optic, a wide chest on a narrow
-                 piston waist (back reactor, socket TROOPER_MECH_CORE), segmented piston arms with clamp hands, tall
-                 legs on big flat feet, stencils and hazard marks, its own carbine.
+  TROOPER_GL     a 6-shot 40 mm grenade launcher (round drum, chamfered frame) skinned to the right hand (the
+                 Grenadier); socket TROOPER_GL_MUZZLE
+  TROOPER_MECH   the Robot Trooper: a heavy industrial walker of rigid sculpted armour, each part skinned 100 % to
+                 one bone: domed, layered pauldrons round a small rounded head set low with one red optic, a barrel
+                 chest with pillowed pectoral plates on a narrow piston waist (round back reactor, socket
+                 TROOPER_MECH_CORE), tapered piston arms with round servo joints and clamp hands, tapered legs with
+                 curved thigh plates and shin guards on sculpted feet, stencils and hazard marks, its own carbine.
                  Plate keys mplate / mplate2 / mhaz are recoloured per robot (trooperrig.js MECH_VARIANTS).
 Blender: Z up, the mannequin faces -Y (game +Z).
 """
@@ -31,6 +35,7 @@ from mathutils import Matrix, Vector
 from ib_lib import *  # noqa: F401,F403
 import ib_lib
 import enemy_detail as ED
+import trooper_shapes as S
 
 FAM = 'troopers'
 ib_lib.GLB[FAM] = 'fps-troopers.glb'
@@ -80,6 +85,99 @@ def _bbox(obj, dom, test):
             for i in range(3):
                 lo[i] = min(lo[i], c[i]); hi[i] = max(hi[i], c[i])
     return lo, hi
+
+
+def _trouser_pelvis(body, rig, iters=90, wpasses=16):
+    """Reshape the mannequin's crotch like combat trousers. The base mesh narrows to an anatomical wedge between deep
+    groin creases (a V / cone at the crotch, pinching the ink outline) and has a gluteal cleft; its weights jump from
+    hips to 100 % thigh across the groin. In an ellipsoid round the crotch (falling off smoothly to nothing) this
+    fills the creases and the cleft with one-sided smoothing that only ever moves the surface outward along its normal
+    (concave creases fill, convex forms keep their volume: a soft gusset arching between the legs, a rounded seat,
+    hips flowing into the thighs) and smooths the skin weights there the same way, so the gusset
+    blends hips and upper legs and stretches evenly in the stride and the crouch. Vertices split at UV seams move
+    and weigh together. Rest pose, before the decimation."""
+    me = body.data
+    W = body.matrix_world
+    hz = rig.data.bones['DEF-hips'].head_local.z
+    pts = [W @ v.co for v in me.vertices]
+    mid = [i for i, p in enumerate(pts) if abs(p.x) < 0.012 and hz - 0.2 < p.z < hz]
+    apex = pts[min(mid, key=lambda i: pts[i].z)]
+    ctr = Vector((0.0, apex.y, apex.z + 0.05))
+    rad = Vector((0.15, 0.17, 0.14))
+
+    def fall(p):
+        d = math.sqrt(sum(((p[i] - ctr[i]) / rad[i]) ** 2 for i in range(3)))
+        t = max(0.0, min(1.0, (1.0 - d) / 0.6))
+        return t * t * (3 - 2 * t)
+    # weld seam duplicates into groups; adjacency over the welded groups
+    key = {}
+    grp = []
+    for i, p in enumerate(pts):
+        k = (round(p.x, 5), round(p.y, 5), round(p.z, 5))
+        if k not in key:
+            key[k] = len(grp)
+            grp.append([])
+        grp[key[k]].append(i)
+    gof = [0] * len(pts)
+    for g, vs in enumerate(grp):
+        for i in vs:
+            gof[i] = g
+    nb = [set() for _ in grp]
+    for e in me.edges:
+        a, b = gof[e.vertices[0]], gof[e.vertices[1]]
+        if a != b:
+            nb[a].add(b); nb[b].add(a)
+    pos = [pts[vs[0]].copy() for vs in grp]
+    wf = [fall(p) for p in pos]
+    act = [g for g in range(len(grp)) if wf[g] > 0 and nb[g]]
+    W3 = W.to_3x3()
+    nrm = []
+    for vs in grp:
+        n = sum((W3 @ me.vertices[i].normal for i in vs), Vector())
+        nrm.append(n.normalized() if n.length > 1e-9 else Vector((0, 0, 1)))
+    for it in range(iters):
+        new = {}
+        for g in act:
+            lap = sum((pos[n] for n in nb[g]), Vector()) / len(nb[g]) - pos[g]
+            out = lap.dot(nrm[g])
+            # outward only: a crease (the surface dips below its neighbours) fills, a bulge never shrinks
+            step = nrm[g] * max(0.0, out) * 0.6 + (lap - nrm[g] * out) * 0.25
+            new[g] = pos[g] + step * wf[g]
+        for g, p in new.items():
+            pos[g] = p
+    Wi = W.inverted()
+    for g in act:
+        for i in grp[g]:
+            me.vertices[i].co = Wi @ pos[g]
+    # skin weights: smooth the same way (all groups present), keep the four largest, normalise
+    names = {vg.index: vg.name for vg in body.vertex_groups}
+    wts = [{} for _ in grp]
+    for g in range(len(grp)):
+        for e in me.vertices[grp[g][0]].groups:
+            if e.weight > 0:
+                wts[g][e.group] = e.weight
+    for _ in range(wpasses):
+        new = {}
+        for g in act:
+            acc = {}
+            for n in nb[g]:
+                for k, w in wts[n].items():
+                    acc[k] = acc.get(k, 0.0) + w / len(nb[g])
+            f = 0.5 * wf[g]
+            keys = set(acc) | set(wts[g])
+            new[g] = {k: wts[g].get(k, 0.0) * (1 - f) + acc.get(k, 0.0) * f for k in keys}
+        for g, d in new.items():
+            wts[g] = d
+    for g in act:
+        top = sorted(((w, k) for k, w in wts[g].items() if w > 0.02), reverse=True)[:4]
+        tot = sum(w for w, _ in top) or 1.0
+        for i in grp[g]:
+            for e in list(me.vertices[i].groups):
+                body.vertex_groups[names[e.group]].remove([i])
+            for w, k in top:
+                body.vertex_groups[names[k]].add([i], w / tot, 'REPLACE')
+    print('trouser pelvis: %d vertices reshaped round the crotch at z %.3f' % (sum(len(grp[g]) for g in act), apex.z))
+    return apex
 
 
 def _paint_body(body, pal, dom, boot_z):
@@ -136,18 +234,19 @@ def _carbine(m, deg=False):
     """the compact carbine in its grip frame (x side, y forward along the barrel, z up; origin = grip). Model rotations
     are in degrees; the Soldier's carbine has always been built with radians (deg=False keeps it exactly as it was)"""
     rad = (lambda d: d) if deg else math.radians
-    m.box((0, 0.09, 0.055), (0.048, 0.3, 0.07), 'steel')            # receiver
-    m.box((0, 0.31, 0.055), (0.056, 0.17, 0.062), 'steel2')         # handguard
+    # chamfered along the barrel (and the grips along their length): the outline reads bevelled, not boxy
+    S.rbox(m, (0, 0.09, 0.055), (0.048, 0.3, 0.07), 'steel', cham=0.009, axes='y')            # receiver
+    S.rbox(m, (0, 0.31, 0.055), (0.056, 0.17, 0.062), 'steel2', cham=0.016, axes='y')         # handguard
     m.cyl((0, 0.39, 0.06), 0.012, 0.012, 0.14, 'steel', seg=8, rot=(rad(-90), 0, 0))
-    m.cyl((0, 0.52, 0.06), 0.019, 0.019, 0.05, 'strap', seg=8, rot=(rad(-90), 0, 0))
-    m.box((0, 0.06, 0.105), (0.036, 0.1, 0.034), 'strap')            # optic
+    S.rcyl(m, (0, 0.52, 0.06), 0.019, 0.019, 0.05, 'strap', seg=8, rot=(rad(-90), 0, 0), cham=0.004)
+    S.rbox(m, (0, 0.06, 0.105), (0.036, 0.1, 0.034), 'strap', cham=0.007, axes='y')            # optic
     m.box((0, 0.112, 0.105), (0.026, 0.006, 0.026), 'lens')
-    m.box((0, 0.125, -0.035), (0.034, 0.05, 0.13), 'steel', rot=(rad(14), 0, 0))   # mag
-    m.box((0, -0.005, -0.025), (0.028, 0.04, 0.09), 'strap', rot=(rad(-16), 0, 0))  # grip
-    m.box((0, 0.3, -0.012), (0.026, 0.03, 0.06), 'strap')           # foregrip
+    S.rbox(m, (0, 0.125, -0.035), (0.034, 0.05, 0.13), 'steel', rot=(rad(14), 0, 0), cham=0.007, axes='z')   # mag
+    S.rbox(m, (0, -0.005, -0.025), (0.028, 0.04, 0.09), 'strap', rot=(rad(-16), 0, 0), cham=0.007, axes='z')  # grip
+    S.rbox(m, (0, 0.3, -0.012), (0.026, 0.03, 0.06), 'strap', cham=0.006, axes='z')           # foregrip
     m.cyl((0.034, 0.34, 0.05), 0.012, 0.012, 0.08, 'steel2', seg=8, rot=(rad(-90), 0, 0))   # light
-    m.box((0, -0.15, 0.045), (0.034, 0.17, 0.05), 'steel')          # stock
-    m.box((0, -0.24, 0.035), (0.04, 0.025, 0.09), 'strap')
+    S.rbox(m, (0, -0.15, 0.045), (0.034, 0.17, 0.05), 'steel', cham=0.008, axes='y')          # stock
+    S.rbox(m, (0, -0.24, 0.035), (0.04, 0.025, 0.09), 'strap', cham=0.008, axes='z')
     # detail pass (no outline of its own): top rail ridges, handguard vents, ejection port, charging handle, mag ribs,
     # a sling loop, muzzle ports
     d = getattr(m, 'd', m)
@@ -172,25 +271,26 @@ def _carbine(m, deg=False):
 def _launcher(m):
     """a 6-shot 40 mm revolver grenade launcher (M32-like) in the grip frame; returns the muzzle"""
     R90 = (-90, 0, 0)                                    # cylinder axis -> +y (forward)
-    m.box((0, 0.045, 0.072), (0.05, 0.16, 0.05), 'steel')             # top frame
-    m.box((0, -0.015, 0.03), (0.045, 0.06, 0.07), 'steel2')           # rear frame over the grip
+    S.rbox(m, (0, 0.045, 0.072), (0.05, 0.16, 0.05), 'steel', cham=0.01, axes='y')            # top frame
+    S.rbox(m, (0, -0.015, 0.03), (0.045, 0.06, 0.07), 'steel2', cham=0.01, axes='y')          # rear frame over the grip
     m.cyl((0, 0.17, 0.095), 0.033, 0.033, 0.27, 'glbody', seg=10, rot=R90)          # barrel
-    m.cyl((0, 0.425, 0.095), 0.038, 0.038, 0.035, 'strap', seg=10, rot=R90)          # muzzle ring
+    S.rcyl(m, (0, 0.425, 0.095), 0.038, 0.038, 0.035, 'strap', seg=10, rot=R90, cham=0.006)    # muzzle ring
     m.cyl((0, 0.30, 0.095), 0.036, 0.036, 0.025, 'glround', seg=10, rot=R90)          # warning band
-    m.cyl((0, 0.025, 0.048), 0.068, 0.068, 0.14, 'glbody2', seg=6, rot=R90)          # revolving drum
-    for k in range(6):                                                  # grenade noses in the drum's front face
+    S.rcyl(m, (0, 0.025, 0.048), 0.068, 0.068, 0.14, 'glbody2', seg=12, rot=R90, cham=0.01)    # round revolving drum
+    # detail pass (no outline of its own): grenade noses in the drum's front face, drum flutes, top rail ridges,
+    # barrel rings, a sling swivel, stock rings
+    d = getattr(m, 'd', m)
+    for k in range(6):
         a = math.radians(30 + 60 * k)
-        m.cyl((math.cos(a) * 0.042, 0.163, 0.048 + math.sin(a) * 0.042), 0.015, 0.015, 0.008, 'glround', seg=8, rot=R90)
-    m.cyl((0, 0.163, 0.048), 0.014, 0.014, 0.008, 'steel', seg=8, rot=R90)
-    m.box((0, 0.33, 0.035), (0.03, 0.04, 0.09), 'strap')             # foregrip
-    m.box((0, -0.005, -0.025), (0.028, 0.04, 0.09), 'strap', rot=(-16, 0, 0))  # pistol grip
-    m.box((0, -0.15, 0.065), (0.03, 0.17, 0.035), 'steel')           # stock tube
-    m.box((0, -0.235, 0.045), (0.045, 0.03, 0.10), 'strap')          # butt pad
+        d.cyl((math.cos(a) * 0.042, 0.163, 0.048 + math.sin(a) * 0.042), 0.015, 0.015, 0.008, 'glround', seg=8, rot=R90)
+    d.cyl((0, 0.163, 0.048), 0.014, 0.014, 0.008, 'steel', seg=8, rot=R90)
+    S.rbox(m, (0, 0.33, 0.035), (0.03, 0.04, 0.09), 'strap', cham=0.007, axes='z')             # foregrip
+    S.rbox(m, (0, -0.005, -0.025), (0.028, 0.04, 0.09), 'strap', rot=(-16, 0, 0), cham=0.007, axes='z')  # pistol grip
+    S.rbox(m, (0, -0.15, 0.065), (0.03, 0.17, 0.035), 'steel', cham=0.008, axes='y')           # stock tube
+    S.rbox(m, (0, -0.235, 0.045), (0.045, 0.03, 0.10), 'strap', cham=0.01, axes='z')           # butt pad
     m.box((0.036, 0.21, 0.125), (0.012, 0.05, 0.05), 'tan')          # quadrant sight
     m.box((0, 0.12, 0.145), (0.02, 0.05, 0.025), 'strap')            # leaf sight
-    # detail pass (no outline of its own): drum flutes, top rail ridges, barrel rings, a sling swivel, stock rings
-    d = getattr(m, 'd', m)
-    ap = 0.068 * math.cos(math.pi / 6) + 0.003
+    ap = 0.068 + 0.001                                    # flutes on the round drum, between the grenade chambers
     for k in range(6):
         b = 30 + 60 * k
         r = math.radians(b)
@@ -244,23 +344,25 @@ def _rigid(pal, name, build, bone, hull_t):
 
 
 def build_mech(rig, pal, ht):
-    """the Robot Trooper body: a heavy industrial walker (rest pose = T pose, facing -Y) built from rigid, chunky
-    bevelled blocks, one bone each: big shoulder blocks with a small boxy head set low between them, a wide chest on a
-    narrow piston waist, thick segmented piston arms ending in clamp hands, tall legs on wide flat feet. Worn plates,
-    stencil bars and hazard chevrons. The back reactor cell stays the weak spot (socket TROOPER_MECH_CORE)."""
+    """the Robot Trooper body: a heavy industrial walker (rest pose = T pose, facing -Y) built from rigid, sculpted
+    armour, one bone each: domed, layered pauldrons round a small rounded head set low between them, a barrel chest
+    with pillowed pectoral plates on a narrow piston waist, tapered piston arms with round servo joints and
+    telescoping forearm segments, tapered legs with curved thigh plates and shin guards, sculpted feet. Worn plates,
+    stencil bars and hazard chevrons. The rounded back reactor's glowing cell stays the weak spot (socket
+    TROOPER_MECH_CORE). Every part is skinned 100 % to one bone."""
     B = lambda n: (rig.data.bones[n].head_local.copy(), rig.data.bones[n].tail_local.copy())
     R90X, RY = (90, 0, 0), lambda sx: (0, 90 * sx, 0)
+    RB = (-90, 0, 0)                               # cylinder axis -> +y (out of the back)
     parts = []
     SLIM = 0.8
+    rb, rc, rl = S.rbox, S.rcyl, S.rlimb
+    FF = lambda *a, **k: S.face_frame(*a, on=CUR[0], **k)     # detail frames snap onto the part's surface
+    CUR = [None]
 
     def P(name, bone, fn):
         m = Model(pal)
-        box = m.box
-        # chunky bevels on the big blocks only; thin trim, stencils and claws stay sharp (keeps the GLB small)
-        m.box = lambda loc, size, c, rot=(0, 0, 0), bevel=True: box(loc, size, c, rot, bevel and min(size) >= 0.06)
-        cyl = m.cyl
-        m.cyl = lambda loc, r1, r2, h, c, seg=8, rot=(0, 0, 0): cyl(loc, r1, r2, h, c, seg=min(seg, 8), rot=rot, bevel=r1 >= 0.06)
-        m.d = ED.Deco(pal)          # small detail (bolts, vents, hoses): same bone, no outline of its own
+        m.d = ED.Deco(pal)          # small detail (bolts, vents, stencils): same bone, no outline of its own
+        CUR[0] = m
         fn(m)
         obj = ED.finish('TROOPER_m_' + name, m, m.d, 0.014, ht)
         # slim 20 % across the bone (height and length unchanged); feet only narrower; hands and claws keep the grip
@@ -278,105 +380,110 @@ def build_mech(rig, pal, ht):
         vg.add(list(range(len(obj.data.vertices))), 1.0, 'REPLACE')
         parts.append(obj)
 
-    def stencil(m, x, y, z, w, n=3, c='mframe'):
-        """stencil marks: a row of short painted bars on a front face"""
-        for k in range(n):
-            m.box((x - w / 2 + (k + 0.5) * w / n, y, z), (w / n * 0.6, 0.005, 0.018), c, bevel=False)
+    def bolt(m, F, u, v, r=0.009, c='servo'):
+        with ED.at(m.d, F):
+            m.d.cyl((u, v, -0.002), r, r, 0.007, c, seg=6)
 
-    # ---- pelvis: a heavy block skirt
+    # ---- pelvis: a rounded, tapering skirt with a shield-shaped codpiece and round hip guards
     def hips(m):
-        m.box((0, 0.02, 0.93), (0.34, 0.22, 0.15), 'mframe')
-        m.box((0, -0.10, 0.90), (0.18, 0.04, 0.16), 'mplate', rot=(8, 0, 0))
-        stencil(m, 0, -0.123, 0.92, 0.12, 3, 'mhaz')
+        rb(m, (0, 0.02, 0.93), (0.34, 0.22, 0.15), 'mframe', r=0.05, cuts=(1, 1, 0), bot=(0.86, 0.9), puff=(0, 0.012, 0))
+        cp = dict(rot=(8, 0, 0), cuts=(2, 0, 0), bot=(0.72, 1.0), curve=[('y', 'x', 0.024)], puff=(0, 0.006, 0))
+        rb(m, (0, -0.10, 0.90), (0.18, 0.04, 0.16), 'mplate', cham=0.012, **cp)
+        with ED.at(m.d, FF((0, -0.10, 0.90), (0.18, 0.04, 0.16), '-y', 0, 0.025, **cp)):
+            ED.stencil(m.d, 0, 0, 0.10, 0.018, 3, color='mhaz', top=0.004)
         for sx in (-1, 1):
-            m.box((sx * 0.19, 0.0, 0.91), (0.05, 0.22, 0.18), 'mplate2')
-            m.cyl((sx * 0.218, 0.0, 0.92), 0.05, 0.05, 0.014, 'servo', seg=10, rot=RY(sx))
-        m.box((0, 0.14, 0.95), (0.16, 0.06, 0.10), 'mplate2')
-        for sx in (-1, 1):                                       # detail: side plate bolts, back vent slats
-            for y in (-0.075, 0.075):
-                for z in (0.85, 0.97):
-                    m.d.cyl((sx * 0.213, y, z), 0.009, 0.009, 0.008, 'servo', seg=6, rot=RY(sx))
-        for z in (0.925, 0.945, 0.965):
-            m.d.box((0, 0.1715, z), (0.12, 0.007, 0.01), 'servo')
+            hp = dict(rot=RY(sx), cuts=(1, 1, 0), puff=(0, 0, 0.014), cham=0.016)
+            rb(m, (sx * 0.19, 0.0, 0.91), (0.18, 0.22, 0.05), 'mplate2', **hp)   # local z -> out of the hip
+            rc(m, (sx * 0.213, 0.0, 0.92), 0.05, 0.05, 0.022, 'servo', seg=10, rot=RY(sx), cham=0.008)
+            for y, z in ((-0.075, 0.85), (0.075, 0.975)):
+                if True:
+                    with ED.at(m.d, FF((sx * 0.19, 0.0, 0.91), (0.18, 0.22, 0.05), '+z', -sx * (z - 0.91), y, **hp)):
+                        m.d.cyl((0, 0, -0.002), 0.009, 0.009, 0.007, 'servo', seg=6)
+        rb(m, (0, 0.135, 0.95), (0.16, 0.06, 0.10), 'mplate2', cham=0.02, cuts=(1, 0, 0), puff=(0, 0.008, 0))
+        with ED.at(m.d, FF((0, 0.135, 0.95), (0.16, 0.06, 0.10), '+y', 0, 0, puff=(0, 0.008, 0))):
+            for z in (-0.02, 0.0, 0.02):
+                ED.pad(m.d, 0, z, 0.10, 0.008, 0.004, 'servo')
     P('hips', 'DEF-hips', hips)
 
-    # ---- narrow waist: a chrome column in a servo collar
+    # ---- narrow waist: a chrome column in a rounded servo collar
     def ab(m):
-        m.cyl((0, 0.02, 0.99), 0.06, 0.06, 0.16, 'chrome', seg=10)
-        m.cyl((0, 0.02, 1.005), 0.085, 0.085, 0.04, 'servo', seg=10)
+        rc(m, (0, 0.02, 0.99), 0.06, 0.06, 0.16, 'chrome', seg=10)
+        rc(m, (0, 0.02, 1.005), 0.085, 0.085, 0.04, 'servo', seg=12, cham=0.012)
         for sx in (-1, 1):
-            m.cyl((sx * 0.085, 0.03, 0.98), 0.012, 0.012, 0.18, 'chrome', seg=6)
+            m.d.cyl((sx * 0.085, 0.03, 0.98), 0.012, 0.012, 0.18, 'chrome', seg=6)
     P('ab', 'DEF-spine.001', ab)
 
-    def chest_lo(m):   # tapering belly block
-        m.box((0, 0.02, 1.19), (0.24, 0.20, 0.10), 'mframe')
-        m.box((0, -0.085, 1.195), (0.18, 0.03, 0.07), 'mplate2')
-        m.box((0, -0.101, 1.195), (0.012, 0.005, 0.05), 'cable', bevel=False)
+    def chest_lo(m):   # tapering belly with two layered, curved ab plates
+        core = dict(r=0.04, cuts=(1, 0, 0), bot=(0.82, 0.9), puff=(0.01, 0, 0))
+        rb(m, (0, 0.02, 1.19), (0.25, 0.20, 0.10), 'mframe', **core)
+        for z, w, cz in ((1.214, 0.18, 0.042), (1.172, 0.15, 0.036)):
+            rb(m, (0, -0.083, z), (w, 0.035, cz), 'mplate2', cham=0.01, cuts=(2, 0, 0), curve=[('y', 'x', 0.022)])
         for sx in (-1, 1):                                       # detail: side vent slats
-            for z in (1.17, 1.19, 1.21):
-                m.d.box((sx * 0.1215, 0.02, z), (0.007, 0.12, 0.008), 'servo')
+            with ED.at(m.d, FF((0, 0.02, 1.19), (0.25, 0.20, 0.10), ('+x' if sx > 0 else '-x'), 0, 0, **core)):
+                for z in (-0.02, 0.0, 0.02):
+                    ED.pad(m.d, 0, z, 0.10, 0.008, 0.004, 'servo')
     P('chestlo', 'DEF-spine.002', chest_lo)
 
-    def chest(m):      # the wide chunky torso
-        m.box((0, 0.02, 1.36), (0.54, 0.30, 0.26), 'mframe')
-        m.box((0, -0.14, 1.37), (0.46, 0.04, 0.22), 'mplate', rot=(-4, 0, 0))
-        m.box((0, -0.12, 1.25), (0.36, 0.06, 0.06), 'mplate2')                        # belly lip
+    def chest(m):      # the wide barrel torso, layered plates
+        core = dict(r=0.06, cuts=(1, 1, 0), bot=(0.86, 0.9), puff=(0.012, 0.012, 0))
+        rb(m, (0, 0.02, 1.36), (0.52, 0.28, 0.26), 'mframe', **core)
+        for sx in (-1, 1):                                       # pillowed pectoral plates, outer edges wrapping back
+            pec = dict(rot=(-6, 0, sx * 14), cuts=(1, 0, 1), puff=(0, 0.01, 0), bot=(0.86, 1.0))
+            loc = (sx * 0.112, -0.138, 1.39)
+            rb(m, loc, (0.20, 0.045, 0.19), 'mplate', r=0.018, **pec)
+            with ED.at(m.d, FF(loc, (0.20, 0.045, 0.19), '-y', sx * 0.03, 0.02, **pec)):      # stencil / patch bars
+                ED.stencil(m.d, 0, 0, 0.10 if sx < 0 else 0.07, 0.018, 4 if sx < 0 else 2, color='mframe' if sx < 0 else 'patch', top=0.004)
+            with ED.at(m.d, FF(loc, (0.20, 0.045, 0.19), '-y', sx * 0.04, -0.055, **pec)):     # hazard chevrons
+                ED.chevrons(m.d, 0, 0, 0.07, 0.03, 3, color='mhaz', ink='servo')
+            with ED.at(m.d, FF(loc, (0.20, 0.045, 0.19), '-y', -sx * 0.055, 0.06, **pec)):     # rivet
+                m.d.cyl((0, 0, -0.002), 0.012, 0.012, 0.008, 'servo', seg=6)
+            side = dict(rot=RY(sx), cuts=(1, 0, 0), puff=(0, 0, 0.012))                      # curved side plates
+            rb(m, (sx * 0.272, 0.02, 1.36), (0.18, 0.22, 0.04), 'mplate2', cham=0.014, **side)
+            for y, z in ((-0.06, 1.29), (0.10, 1.43)):
+                if True:
+                    with ED.at(m.d, FF((sx * 0.272, 0.02, 1.36), (0.18, 0.22, 0.04), '+z', -sx * (z - 1.36), y - 0.02, **side)):
+                        m.d.cyl((0, 0, -0.002), 0.01, 0.01, 0.008, 'servo', seg=6)
+        rb(m, (0, -0.145, 1.345), (0.07, 0.05, 0.20), 'mplate2', cham=0.016, cuts=(0, 0, 1), bot=(0.7, 1.0), puff=(0, 0.008, 0))   # keel
+        with ED.at(m.d, FF((0, -0.145, 1.345), (0.07, 0.05, 0.20), '-y', 0, 0.035, bot=(0.7, 1.0), puff=(0, 0.008, 0))):
+            ED.grille(m.d, 0, 0, 0.062, 0.09, 4, color='mframe', slat='servo')
+        rb(m, (0, -0.118, 1.252), (0.38, 0.07, 0.06), 'mplate2', cham=0.02, cuts=(3, 0, 0), curve=[('y', 'x', 0.035)])   # belly lip
+        rb(m, (0, 0.02, 1.497), (0.31, 0.22, 0.034), 'mplate2', cham=0.012, top=(0.9, 0.88))                              # collar
         for sx in (-1, 1):
-            m.box((sx * 0.13, -0.163, 1.40), (0.15, 0.01, 0.12), 'mplate2', bevel=False)   # worn panel
-            for k in range(3):                                                         # hazard chevrons
-                m.box((sx * (0.20 - 0.025 * k), -0.165, 1.31), (0.012, 0.006, 0.05), 'mhaz', rot=(0, 30 * sx, 0), bevel=False)
-            m.box((sx * 0.13, -0.17, 1.44), (0.03, 0.01, 0.03), 'servo')               # rivets
-            m.box((sx * 0.28, 0.02, 1.36), (0.03, 0.22, 0.18), 'mplate2')              # side plates
-        stencil(m, -0.12, -0.17, 1.375, 0.12, 4)
-        stencil(m, 0.12, -0.17, 1.375, 0.08, 2, 'patch')
-        m.box((0, 0.02, 1.495), (0.30, 0.22, 0.03), 'mplate2')                         # collar shelf
-        # back: reactor pack, glowing cell (the weak spot), fins, cables
-        m.box((0, 0.17, 1.375), (0.28, 0.06, 0.22), 'mplate2')
-        m.cyl((0, 0.205, 1.39), 0.055, 0.055, 0.02, 'cell', seg=12, rot=(-90, 0, 0))
-        for z in (1.29, 1.315, 1.465):
-            m.box((0, 0.205, z), (0.22, 0.012, 0.012), 'servo')
-        for sx in (-1, 1):
-            m.beam((sx * 0.11, 0.19, 1.44), (sx * 0.24, 0.14, 1.48), 0.018, 'cable')
-        # detail: a vent grille down the middle of the chest plate, bolted side plates, a bezel round the reactor
-        # cell, cooling slats on the reactor pack, bolts on the collar shelf
-        with ED.at(m.d, ED.axis_frame(Matrix.Rotation(math.radians(-4), 4, 'X') @ Vector((0, -0.02, 0)) + Vector((0, -0.14, 1.37)),
-                                      Matrix.Rotation(math.radians(-4), 3, 'X') @ Vector((0, -1, 0)))):
-            ED.grille(m.d, 0, -0.01, 0.07, 0.15, 5, color='mframe', slat='servo')
-        for sx in (-1, 1):
-            for y in (-0.06, 0.10):
-                for z in (1.29, 1.43):
-                    m.d.cyl((sx * 0.293, y, z), 0.01, 0.01, 0.008, 'servo', seg=6, rot=RY(sx))
-            for z in (1.33, 1.355, 1.38, 1.405):
-                m.d.box((sx * 0.1415, 0.17, z), (0.007, 0.045, 0.01), 'servo')
             for x in (-0.11, 0.11):
-                m.d.cyl((x, sx * 0.08 + 0.02, 1.508), 0.009, 0.009, 0.006, 'servo', seg=6)
-        m.d.cyl((0, 0.198, 1.39), 0.068, 0.068, 0.014, 'mframe', seg=12, rot=(-90, 0, 0))
+                m.d.cyl((x, sx * 0.075 + 0.02, 1.511), 0.009, 0.009, 0.006, 'servo', seg=6)
+        # back: a rounded reactor drum with the glowing cell (the weak spot) in a bezel, flanked by finned coolers
+        rc(m, (0, 0.145, 1.39), 0.095, 0.095, 0.07, 'mplate2', seg=14, rot=RB, cham=0.022)
+        rc(m, (0, 0.205, 1.39), 0.055, 0.052, 0.02, 'cell', seg=12, rot=RB)
+        m.d.cyl((0, 0.212, 1.39), 0.068, 0.068, 0.008, 'mframe', seg=12, rot=RB)
+        for sx in (-1, 1):
+            cool = dict(cuts=(0, 0, 1), puff=(0, 0.008, 0))
+            rb(m, (sx * 0.135, 0.165, 1.375), (0.06, 0.06, 0.22), 'mplate2', cham=0.018, **cool)
+            with ED.at(m.d, FF((sx * 0.135, 0.165, 1.375), (0.06, 0.06, 0.22), '+y', 0, 0, **cool)):
+                for z in (-0.05, 0.0, 0.05):
+                    ED.pad(m.d, 0, z, 0.036, 0.009, 0.004, 'servo')
+            m.d.limb((sx * 0.11, 0.19, 1.47), (sx * 0.24, 0.13, 1.49), 0.011, 0.011, 'cable', seg=6)
     P('chest', 'DEF-spine.003', chest)
 
-    # ---- short neck + small boxy head set low, one red optic
+    # ---- short neck + small rounded head set low, one red optic
     def neck(m):
-        m.cyl((0, 0.0, 1.47), 0.035, 0.035, 0.06, 'chrome', seg=8)
+        rc(m, (0, 0.0, 1.47), 0.035, 0.035, 0.06, 'chrome', seg=10)
     P('neck', 'DEF-neck', neck)
 
     def head(m):
-        m.box((0, -0.02, 1.575), (0.15, 0.16, 0.11), 'mplate')
-        m.box((0, -0.105, 1.585), (0.12, 0.02, 0.05), 'mframe')                         # visor slot
-        m.cyl((0.03, -0.112, 1.585), 0.026, 0.026, 0.02, 'optic', seg=12, rot=R90X)      # the optic (off-centre)
-        m.box((0.022, -0.124, 1.592), (0.01, 0.005, 0.008), 'optichi', bevel=False)
-        m.box((-0.035, -0.117, 1.585), (0.03, 0.006, 0.012), 'mhaz', bevel=False)
-        m.box((0, -0.03, 1.635), (0.12, 0.12, 0.02), 'mplate2')                        # lid
-        m.box((0, -0.10, 1.53), (0.10, 0.03, 0.03), 'servo')                          # chin vent
+        rb(m, (0, -0.02, 1.575), (0.15, 0.16, 0.11), 'mplate', r=0.045, cuts=(1, 1, 0), top=(0.86, 0.88), puff=(0.006, 0.008, 0))
+        S.ell(m, (0, -0.025, 1.62), 0.071, 'mplate2', seg=(12, 5), scale=(1.0, 1.08, 0.38), zmin=0.0)    # domed lid
+        rb(m, (0, -0.086, 1.585), (0.128, 0.04, 0.052), 'mframe', cham=0.012, cuts=(2, 0, 0), curve=[('y', 'x', 0.026)])  # visor band
+        rc(m, (0.03, -0.098, 1.585), 0.03, 0.03, 0.014, 'servo', seg=10, rot=R90X, cham=0.004)          # optic housing
+        S.ell(m, (0.03, -0.117, 1.585), 0.023, 'optic', seg=(8, 4), scale=(1, 1, 0.5), rot=R90X)     # the optic (off-centre)
+        m.d.sphere((0.022, -0.128, 1.592), 0.006, 'optichi', seg=(6, 4), scale=(1, 0.5, 1))
+        m.d.box((-0.035, -0.1065, 1.585), (0.03, 0.006, 0.012), 'mhaz')
+        rb(m, (0, -0.095, 1.535), (0.10, 0.04, 0.034), 'servo', cham=0.012, curve=[('y', 'x', 0.012)])    # chin
         for sx in (-1, 1):
-            m.box((sx * 0.082, -0.02, 1.575), (0.016, 0.10, 0.06), 'servo')
-        # detail: lid bolts, chin vent slats, ear sensor lenses, a stub antenna with a red tip
-        for x in (-0.045, 0.045):
-            for y in (-0.075, 0.015):
-                m.d.cyl((x, y, 1.643), 0.008, 0.008, 0.007, 'servo', seg=6)
-        for x in (-0.03, 0.0, 0.03):
-            m.d.box((x, -0.1165, 1.53), (0.012, 0.007, 0.022), 'mframe')
-        for sx in (-1, 1):
-            m.d.cyl((sx * 0.088, -0.03, 1.575), 0.014, 0.014, 0.006, 'chrome', seg=8, rot=RY(sx))
-        m.d.cyl((0.045, 0.03, 1.643), 0.006, 0.006, 0.022, 'cable', seg=5)
+            rc(m, (sx * 0.07, -0.02, 1.575), 0.032, 0.03, 0.018, 'servo', seg=8, rot=RY(sx), cham=0.005)   # ear discs
+            m.d.cyl((sx * 0.086, -0.02, 1.575), 0.014, 0.014, 0.006, 'chrome', seg=8, rot=RY(sx))
+        for x in (-0.025, 0.0, 0.025):
+            m.d.box((x, -0.116, 1.535), (0.012, 0.007, 0.02), 'mframe')
+        m.d.cyl((0.045, 0.03, 1.625), 0.006, 0.006, 0.037, 'cable', seg=5)
         m.d.cyl((0.045, 0.03, 1.66), 0.01, 0.01, 0.01, 'optic', seg=6)
     P('head', 'DEF-head', head)
 
@@ -384,59 +491,70 @@ def build_mech(rig, pal, ht):
         uh, ut = B('DEF-upper_arm.' + side)
         fh, ft = B('DEF-forearm.' + side)
         hh, htl = B('DEF-hand.' + side)
+        sxf = '+x' if sx > 0 else '-x'
 
-        def shoulder(m, uh=uh, sx=sx):   # the big shoulder block, raised above the head line
+        def shoulder(m, uh=uh, sx=sx, sxf=sxf):   # the big domed pauldron with a curved cap plate layered over it
             x, y, z = uh.x + sx * 0.06, uh.y + 0.01, uh.z + 0.03
-            m.box((x, y, z), (0.20, 0.26, 0.22), 'mplate')
-            m.box((x + sx * 0.02, y, z + 0.115), (0.18, 0.24, 0.02), 'mplate2')
-            m.box((x, y - 0.131, z + 0.04), (0.14, 0.006, 0.03), 'mhaz', bevel=False)
-            stencil(m, x, y - 0.132, z - 0.04, 0.12, 3)
-            m.box((x + sx * 0.101, y, z), (0.006, 0.16, 0.10), 'mplate2', bevel=False)
-            m.cyl((uh.x + sx * 0.19, uh.y, uh.z - 0.01), 0.07, 0.07, 0.04, 'servo', seg=10, rot=RY(sx))
-            # detail: bolts on the top plate, a vent on the back face, a rivet row under the stencil
-            for dx in (-0.065, 0.065):
-                for dy in (-0.09, 0.09):
-                    m.d.cyl((x + sx * 0.02 + dx, y + dy, z + 0.123), 0.009, 0.009, 0.007, 'servo', seg=6)
-            with ED.at(m.d, ED.axis_frame((x, y + 0.13, z), (0, 1, 0))):
-                ED.grille(m.d, 0, 0, 0.12, 0.10, 4, color='mframe', slat='servo')
-            for dx in (-0.06, -0.02, 0.02, 0.06):
-                m.d.cyl((x + dx, y - 0.13, z - 0.075), 0.008, 0.008, 0.007, 'servo', seg=6, rot=(90, 0, 0))
+            base = dict(r=0.06, cuts=(1, 0, 1), puff=(0.016, 0.014, 0.016))
+            rb(m, (x, y, z), (0.19, 0.25, 0.21), 'mplate', **base)
+            cap = dict(cuts=(1, 2, 0), curve=[('z', 'x', -0.035), ('z', 'y', -0.04)])
+            capl = (x + sx * 0.022, y, z + 0.125)
+            rb(m, capl, (0.19, 0.27, 0.03), 'mplate2', cham=0.012, **cap)
+            rb(m, (x + sx * 0.11, y, z - 0.03), (0.04, 0.23, 0.11), 'mplate2', cham=0.014, cuts=(0, 2, 0),
+               curve=[('x', 'y', -sx * 0.03)])                                                               # outer lip
+            with ED.at(m.d, FF((x, y, z), (0.19, 0.25, 0.21), '-y', -sx * 0.01, 0.045, **base)):           # hazard band
+                ED.pad(m.d, 0, 0, 0.12, 0.028, 0.004, 'mhaz')
+            with ED.at(m.d, FF((x, y, z), (0.19, 0.25, 0.21), '-y', -sx * 0.01, -0.035, **base)):
+                ED.stencil(m.d, 0, 0, 0.11, 0.018, 3, color='mframe', top=0.004)
+            with ED.at(m.d, FF((x, y, z), (0.19, 0.25, 0.21), '+y', 0, 0, **base)):                       # back vent
+                ED.grille(m.d, 0, 0, 0.11, 0.09, 4, color='mframe', slat='servo')
+            for dx in (-0.06, 0.06):
+                for dy in (0.0,):
+                    with ED.at(m.d, FF(capl, (0.19, 0.27, 0.03), '+z', dx, dy, **cap)):
+                        m.d.cyl((0, 0, -0.002), 0.009, 0.009, 0.007, 'servo', seg=6)
+            rc(m, (uh.x + sx * 0.19, uh.y, uh.z - 0.01), 0.07, 0.07, 0.04, 'servo', seg=10, rot=RY(sx), cham=0.012)
         P('sh' + side, 'DEF-shoulder.' + side, shoulder)
 
-        def upper(m, uh=uh, ut=ut, sx=sx):
+        def upper(m, uh=uh, ut=ut, sx=sx):   # tapered bicep with an arched plate, a piston and a round elbow servo
             mx = (uh.x + ut.x) / 2 + sx * 0.04
             L = abs(ut.x - uh.x)
-            m.box((mx, uh.y, uh.z), (L * 0.7, 0.13, 0.13), 'mplate2')
-            m.box((mx, uh.y, uh.z + 0.07), (L * 0.5, 0.10, 0.02), 'mplate')
-            m.cyl((mx - sx * L * 0.4, uh.y - 0.08, uh.z - 0.03), 0.014, 0.014, L * 0.8, 'chrome', seg=6, rot=RY(sx))   # piston
-            m.cyl((mx - sx * L * 0.42, uh.y - 0.08, uh.z - 0.03), 0.024, 0.024, 0.08, 'mframe', seg=8, rot=RY(sx))
-            m.cyl((ut.x, ut.y + 0.075, ut.z), 0.07, 0.07, 0.15, 'servo', seg=10, rot=R90X)           # elbow servo
-            m.cyl((ut.x, ut.y + 0.095, ut.z), 0.03, 0.03, 0.19, 'chrome', seg=8, rot=R90X)
-            # detail: bolts at the ends of the top plate, a hose along the back
-            for dx in (-L * 0.2, L * 0.2):
-                m.d.cyl((mx + dx, uh.y, uh.z + 0.079), 0.008, 0.008, 0.006, 'servo', seg=6)
-            ED.cable(m.d, [(mx - sx * L * 0.3, uh.y + 0.072, uh.z + 0.03), (mx, uh.y + 0.08, uh.z), (mx + sx * L * 0.3, uh.y + 0.072, uh.z - 0.03)], 0.016, 'cable')
+            rb(m, (mx, uh.y, uh.z), (0.13, 0.13, L * 0.7), 'mplate2', rot=RY(sx), r=0.045, axes='z', top=(0.84, 0.84))
+            arch = dict(cuts=(1, 2, 0), curve=[('z', 'y', -0.022)], top=None)
+            rb(m, (mx - sx * 0.01, uh.y, uh.z + 0.066), (L * 0.5, 0.11, 0.024), 'mplate', cham=0.009, cuts=(1, 2, 0), curve=[('z', 'y', -0.022)])
+            m.d.limb((mx - sx * L * 0.4, uh.y - 0.075, uh.z - 0.03), (mx + sx * L * 0.42, uh.y - 0.075, uh.z - 0.03), 0.014, 0.014, 'chrome', seg=8)
+            m.d.limb((mx - sx * L * 0.42, uh.y - 0.075, uh.z - 0.03), (mx - sx * L * 0.42 + sx * 0.08, uh.y - 0.075, uh.z - 0.03), 0.024, 0.024, 'mframe', seg=8)
+            rc(m, (ut.x, ut.y + 0.075, ut.z), 0.07, 0.07, 0.15, 'servo', seg=10, rot=R90X, cham=0.018)   # elbow servo
+            m.d.cyl((ut.x, ut.y + 0.095, ut.z), 0.03, 0.03, 0.19, 'chrome', seg=8, rot=R90X)
+            for dx in (-L * 0.15, L * 0.15):
+                with ED.at(m.d, FF((mx - sx * 0.01, uh.y, uh.z + 0.066), (L * 0.5, 0.11, 0.024), '+z', dx, 0, **arch)):
+                    m.d.cyl((0, 0, -0.002), 0.008, 0.008, 0.006, 'servo', seg=6)
+            ED.cable(m.d, [(mx - sx * L * 0.3, uh.y + 0.07, uh.z + 0.025), (mx, uh.y + 0.075, uh.z), (mx + sx * L * 0.3, uh.y + 0.066, uh.z - 0.02)], 0.016, 'cable')
         P('ua' + side, 'DEF-upper_arm.' + side, upper)
 
-        def fore(m, fh=fh, ft=ft, sx=sx):    # thick, segmented forearm
+        def fore(m, fh=fh, ft=ft, sx=sx):    # telescoping, tapered forearm segments under a curved gauntlet plate
             L = abs(ft.x - fh.x)
+            step = (L - 0.06) / 3
             for k in range(3):
-                cx = fh.x + sx * (0.06 + k * (L - 0.06) / 3 + (L - 0.06) / 6)
-                m.box((cx, fh.y, fh.z), ((L - 0.06) / 3 - 0.012, 0.16 - 0.01 * k, 0.15 - 0.01 * k), 'mplate' if k != 1 else 'mplate2')
-            m.box((fh.x + sx * L * 0.5, fh.y - 0.082, fh.z + 0.03), (L * 0.6, 0.006, 0.02), 'mhaz', bevel=False)
-            for dy in (-0.06, 0.06):     # twin pistons over the top
-                m.cyl((fh.x + sx * L * 0.05, fh.y + dy, fh.z + 0.085), 0.013, 0.013, L * 0.9, 'chrome', seg=6, rot=RY(sx))
-            m.cyl((ft.x - sx * 0.025, ft.y, ft.z), 0.05, 0.05, 0.05, 'servo', seg=10, rot=RY(sx))       # wrist collar
-            for k in range(3):                                   # detail: two bolts on the back of each segment
-                cx = fh.x + sx * (0.06 + k * (L - 0.06) / 3 + (L - 0.06) / 6)
-                for dz in (-0.04, 0.04):
-                    m.d.cyl((cx, fh.y + (0.16 - 0.01 * k) / 2 - 0.002, fh.z + dz), 0.009, 0.009, 0.008, 'servo', seg=6, rot=(-90, 0, 0))
+                cx = fh.x + sx * (0.06 + k * step + step / 2)
+                seg_ = dict(rot=RY(sx), r=0.034, axes='z', top=(0.88, 0.88))
+                rb(m, (cx, fh.y, fh.z), (0.15 - 0.012 * k, 0.16 - 0.012 * k, step + 0.006), 'mplate' if k != 1 else 'mplate2', **seg_)
+                for dz in (-0.035, 0.035):
+                    with ED.at(m.d, FF((cx, fh.y, fh.z), (0.15 - 0.012 * k, 0.16 - 0.012 * k, step + 0.006), '+y', -sx * dz, 0, **seg_)):
+                        m.d.cyl((0, 0, -0.002), 0.009, 0.009, 0.008, 'servo', seg=6)
+            gl = dict(rot=RY(sx), cuts=(0, 2, 0), curve=[('x', 'y', 0.02 * sx)], top=(1.0, 0.8))             # top gauntlet plate
+            gloc = (fh.x + sx * L * 0.5, fh.y - 0.005, fh.z + 0.085)
+            rb(m, gloc, (0.03, 0.13, L * 0.62), 'mplate2', cham=0.01, **gl)
+            with ED.at(m.d, FF(gloc, (0.03, 0.13, L * 0.62), '-x' if sx > 0 else '+x', 0, 0, **gl)):
+                ED.pad(m.d, 0, 0.0, 0.02, L * 0.45, 0.004, 'mhaz')
+            for dy in (-0.05, 0.05):     # twin pistons under the arm
+                m.d.limb((fh.x + sx * L * 0.06, fh.y + dy, fh.z - 0.085), (fh.x + sx * L * 0.94, fh.y + dy, fh.z - 0.08), 0.013, 0.013, 'chrome', seg=8)
+            rc(m, (ft.x - sx * 0.025, ft.y, ft.z), 0.05, 0.05, 0.05, 'servo', seg=10, rot=RY(sx), cham=0.012)   # wrist collar
         P('fa' + side, 'DEF-forearm.' + side, fore)
 
-        def hand(m, hh=hh, sx=sx):          # clamp hand: a heavy block with an upper jaw
-            m.box((hh.x + sx * 0.06, hh.y + 0.0, hh.z), (0.12, 0.13, 0.08), 'mframe')
-            m.box((hh.x + sx * 0.07, hh.y + 0.0, hh.z + 0.05), (0.10, 0.12, 0.02), 'mplate2')
-            m.box((hh.x + sx * 0.07, hh.y - 0.066, hh.z), (0.06, 0.006, 0.012), 'mhaz', bevel=False)
+        def hand(m, hh=hh, sx=sx):          # clamp hand: a rounded block with an upper jaw
+            rb(m, (hh.x + sx * 0.06, hh.y + 0.0, hh.z), (0.12, 0.13, 0.08), 'mframe', cham=0.02)
+            rb(m, (hh.x + sx * 0.07, hh.y + 0.0, hh.z + 0.05), (0.10, 0.12, 0.022), 'mplate2', cham=0.008, cuts=(0, 1, 0), curve=[('z', 'y', -0.008)])
+            m.d.box((hh.x + sx * 0.07, hh.y - 0.0655, hh.z), (0.06, 0.006, 0.012), 'mhaz')
         P('hand' + side, 'DEF-hand.' + side, hand)
         for f in ('index', 'middle', 'ring', 'pinky', 'thumb'):
             n1, n2, n3 = ['DEF-%s.0%d.%s' % ('thumb' if f == 'thumb' else 'f_' + f, k, side) for k in (1, 2, 3)]
@@ -449,14 +567,14 @@ def build_mech(rig, pal, ht):
 
             def seg1(m, a=a1, b=b1, t=t):
                 m.parent = _seg_frame(a, b, Vector((0, 0, 1)))
-                m.box((0, 0, (b - a).length / 2), (t + 0.006, t, (b - a).length + 0.01), 'mframe')
+                rb(m, (0, 0, (b - a).length / 2), (t + 0.006, t, (b - a).length + 0.01), 'mframe', cham=0.007, axes='z')
                 m.parent = Matrix.Identity(4)
 
             def seg2(m, a=a2, b=b3, t=t):
                 m.parent = _seg_frame(a, b, Vector((0, 0, 1)))
                 L = (b - a).length
-                m.box((0, 0, L / 2), (t, t * 0.9, L), 'chrome')
-                m.box((0, 0, L * 0.95), (t * 1.2, t * 1.15, 0.02), 'mhaz')   # claw tip
+                rb(m, (0, 0, L / 2), (t, t * 0.9, L), 'chrome', cham=0.006, axes='z', top=(0.8, 0.8))
+                rb(m, (0, 0, L * 0.95), (t * 1.2, t * 1.15, 0.022), 'mhaz', cham=0.007, axes='z')   # claw tip
                 m.parent = Matrix.Identity(4)
             P(f + '1' + side, n1, seg1)
             P(f + '2' + side, n2, seg2)
@@ -466,61 +584,68 @@ def build_mech(rig, pal, ht):
         fo, ftt = B('DEF-foot.' + side)
         to, tot = B('DEF-toe.' + side)
 
-        def thigh(m, th=th, tt=tt, sx=sx):
+        def thigh(m, th=th, tt=tt, sx=sx, sxf=sxf):   # tapered thigh with a curved front plate, round knee servo
             x = (th.x + tt.x) / 2
-            m.box((x, 0.0, (th.z + tt.z) / 2 + 0.01), (0.16, 0.18, th.z - tt.z - 0.10), 'mplate2')
-            m.box((x, -0.095, 0.76), (0.13, 0.02, 0.22), 'mplate')
-            stencil(m, x, -0.107, 0.80, 0.08, 2, 'mhaz')
-            m.cyl((x + sx * 0.095, 0.0, tt.z + 0.05), 0.013, 0.013, 0.30, 'chrome', seg=6)
-            m.cyl((tt.x - sx * 0.10, tt.y, tt.z), 0.075, 0.075, 0.20, 'servo', seg=10, rot=RY(sx))   # knee servo
-            m.cyl((tt.x - sx * 0.11, tt.y, tt.z), 0.03, 0.03, 0.22, 'chrome', seg=8, rot=RY(sx))
-            # detail: bolts on the front plate, a vent on the outer side
-            for dx in (-0.05, 0.05):
-                for z in (0.67, 0.855):
-                    m.d.cyl((x + dx, -0.103, z), 0.009, 0.009, 0.007, 'servo', seg=6, rot=(90, 0, 0))
-            with ED.at(m.d, ED.axis_frame((x - sx * 0.08, 0.0, 0.70), (-sx, 0, 0))):
-                ED.grille(m.d, 0, 0, 0.10, 0.12, 4, color='mframe', slat='servo')
+            core = dict(r=0.05, axes='z', cuts=(0, 0, 1), bot=(0.84, 0.86), puff=(0.01, 0.01, 0))
+            cz = (th.z + tt.z) / 2 + 0.01
+            rb(m, (x, 0.0, cz), (0.16, 0.18, th.z - tt.z - 0.10), 'mplate2', **core)
+            pl = dict(cuts=(2, 0, 1), curve=[('y', 'x', 0.03)], puff=(0, 0.006, 0), bot=(0.78, 1.0))
+            rb(m, (x, -0.096, 0.765), (0.135, 0.026, 0.22), 'mplate', cham=0.011, **pl)
+            with ED.at(m.d, FF((x, -0.096, 0.765), (0.135, 0.026, 0.22), '-y', 0, 0.035, **pl)):
+                ED.stencil(m.d, 0, 0, 0.08, 0.018, 2, color='mhaz', top=0.004)
+            for dx in (-0.04, 0.04):
+                for z in (0.855,):
+                    with ED.at(m.d, FF((x, -0.096, 0.765), (0.135, 0.026, 0.22), '-y', dx * (1 if z > 0.75 else 0.8), z - 0.765, **pl)):
+                        m.d.cyl((0, 0, -0.002), 0.009, 0.009, 0.007, 'servo', seg=6)
+            m.d.limb((x + sx * 0.1, 0.0, tt.z + 0.05), (x + sx * 0.1, 0.0, tt.z + 0.35), 0.013, 0.013, 'chrome', seg=8)
+            rc(m, (tt.x - sx * 0.10, tt.y, tt.z), 0.075, 0.075, 0.20, 'servo', seg=10, rot=RY(sx), cham=0.018)   # knee servo
+            m.d.cyl((tt.x - sx * 0.11, tt.y, tt.z), 0.03, 0.03, 0.22, 'chrome', seg=8, rot=RY(sx))
+            with ED.at(m.d, FF((x, 0.0, cz), (0.16, 0.18, th.z - tt.z - 0.10), '-x' if sx > 0 else '+x', 0, 0.70 - cz, **core)):
+                ED.grille(m.d, 0, 0, 0.10, 0.11, 4, color='mframe', slat='servo')
         P('th' + side, 'DEF-thigh.' + side, thigh)
 
-        def shin(m, sh_=sh_, st=st, sx=sx):  # tall heavy shin
+        def shin(m, sh_=sh_, st=st, sx=sx):  # tall calf tapering to the ankle, a domed knee cap, a curved shin guard
             x = (sh_.x + st.x) / 2
-            m.box((x, -0.075, 0.50), (0.15, 0.05, 0.10), 'mplate2', rot=(10, 0, 0))     # knee cap
-            m.box((x, 0.0, 0.30), (0.18, 0.20, 0.30), 'mplate')
-            m.box((x, -0.103, 0.30), (0.12, 0.008, 0.22), 'mplate2', bevel=False)
-            m.box((x, -0.108, 0.36), (0.08, 0.005, 0.016), 'mhaz', bevel=False)
-            stencil(m, x, -0.108, 0.24, 0.09, 3)
+            rb(m, (x, -0.072, 0.50), (0.15, 0.06, 0.11), 'mplate2', rot=(10, 0, 0), r=0.026, cuts=(1, 0, 0), puff=(0, 0.014, 0))   # knee cap
+            core = dict(r=0.055, axes='z', cuts=(0, 0, 1), bot=(0.8, 0.84), puff=(0.012, 0.012, 0))
+            rb(m, (x, 0.005, 0.30), (0.18, 0.19, 0.30), 'mplate', **core)
+            gd = dict(cuts=(2, 0, 1), curve=[('y', 'x', 0.034)], puff=(0, 0.006, 0), bot=(0.74, 1.0))
+            rb(m, (x, -0.104, 0.31), (0.135, 0.026, 0.25), 'mplate2', cham=0.011, **gd)
+            with ED.at(m.d, FF((x, -0.104, 0.31), (0.135, 0.026, 0.25), '-y', 0, 0.05, **gd)):
+                ED.pad(m.d, 0, 0, 0.08, 0.016, 0.004, 'mhaz')
+            with ED.at(m.d, FF((x, -0.104, 0.31), (0.135, 0.026, 0.25), '-y', 0, -0.06, **gd)):
+                ED.stencil(m.d, 0, 0, 0.07, 0.018, 3, color='mframe', top=0.004)
             for dx in (-0.06, 0.06):
-                m.cyl((x + dx, 0.11, 0.13), 0.016, 0.016, 0.34, 'chrome', seg=6)        # back pistons
-            m.box((x, 0.0, 0.13), (0.14, 0.16, 0.05), 'servo')
-            m.sphere((st.x, st.y, st.z), 0.055, 'servo', seg=(10, 6))
-            # detail: bolts round the front inset, a vent on the outer side
-            for dx in (-0.045, 0.045):
-                for z in (0.20, 0.40):
-                    m.d.cyl((x + dx, -0.105, z), 0.008, 0.008, 0.007, 'servo', seg=6, rot=(90, 0, 0))
-            with ED.at(m.d, ED.axis_frame((x - sx * 0.09, 0.0, 0.32), (-sx, 0, 0))):
-                ED.grille(m.d, 0, 0, 0.12, 0.14, 5, color='mframe', slat='servo')
+                m.d.limb((x + dx, 0.122, 0.13), (x + dx, 0.122, 0.47), 0.016, 0.016, 'chrome', seg=8)    # back pistons
+            rb(m, (x, 0.005, 0.13), (0.14, 0.16, 0.05), 'servo', cham=0.015)
+            S.ell(m, (st.x, st.y, st.z), 0.055, 'servo', seg=(8, 5))
+            with ED.at(m.d, FF((x, 0.005, 0.30), (0.18, 0.19, 0.30), '-x' if sx > 0 else '+x', 0, 0.02, **core)):
+                ED.grille(m.d, 0, 0, 0.11, 0.12, 4, color='mframe', slat='servo')
         P('sh' + side + '2', 'DEF-shin.' + side, shin)
 
-        def foot(m, fo=fo, sx=sx):          # big flat foot
+        def foot(m, fo=fo, sx=sx):          # sculpted foot: a rounded wedge with a round heel
             x = fo.x + sx * 0.01
-            m.box((x, 0.0, 0.045), (0.22, 0.24, 0.09), 'mframe')
-            m.box((x, 0.13, 0.035), (0.18, 0.05, 0.07), 'mplate2')
-            for sx2 in (-1, 1):                                  # detail: tread blocks along both sides, top bolts
-                for y in (-0.08, -0.03, 0.02, 0.07):
-                    m.d.box((x + sx2 * 0.111, y, 0.025), (0.008, 0.03, 0.03), 'servo')
-                for y in (-0.08, 0.06):
-                    m.d.cyl((x + sx2 * 0.08, y, 0.088), 0.009, 0.009, 0.007, 'servo', seg=6)
+            rb(m, (x, 0.0, 0.045), (0.22, 0.24, 0.09), 'mframe', r=0.032, cuts=(0, 1, 0), top=(0.8, 0.9))
+            rb(m, (x, 0.125, 0.04), (0.18, 0.06, 0.08), 'mplate2', r=0.028, axes='xz')
+            rb(m, (x, -0.035, 0.095), (0.14, 0.13, 0.03), 'mplate2', cham=0.01, cuts=(1, 0, 0), rot=(-8, 0, 0), curve=[('z', 'x', -0.01)])   # instep plate
+            for sx2 in (-1, 1):                                  # detail: tread blocks along both sides
+                for y in (-0.06, 0.0, 0.06):
+                    m.d.box((x + sx2 * 0.104, y, 0.03), (0.008, 0.03, 0.026), 'servo')
         P('ft' + side, 'DEF-foot.' + side, foot)
 
-        def toe(m, to=to, sx=sx):
+        def toe(m, to=to, sx=sx):          # rounded toe cap narrowing to the front, three rounded claws
             x = to.x + sx * 0.01
-            m.box((x, -0.20, 0.035), (0.23, 0.16, 0.07), 'mplate2')
+
+            def nose(p):
+                f = max(0.0, (-p.y - 0.01) / 0.07)
+                p.x *= 1 - 0.18 * f * f
+                return p
+            toecap = dict(r=0.03, cuts=(0, 1, 0), top=(0.84, 0.9), warp=nose)
+            rb(m, (x, -0.20, 0.036), (0.23, 0.16, 0.072), 'mplate2', **toecap)
             for k in range(3):
-                m.box((x - 0.07 + 0.07 * k, -0.28, 0.035), (0.05, 0.02, 0.06), 'mframe')
-            m.box((x, -0.20, 0.072), (0.14, 0.08, 0.006), 'mhaz', bevel=False)
-            for dx in (-0.095, 0.095):                           # detail: bolts on the toe plate
-                for y in (-0.15, -0.25):
-                    m.d.cyl((x + dx, y, 0.068), 0.009, 0.009, 0.008, 'servo', seg=6)
+                rb(m, (x - 0.06 + 0.06 * k, -0.274, 0.032), (0.045, 0.035, 0.058), 'mframe', r=0.014, axes='y')
+            with ED.at(m.d, FF((x, -0.20, 0.036), (0.23, 0.16, 0.072), '+z', 0, 0.0, **toecap)):
+                ED.pad(m.d, 0, 0, 0.10, 0.07, 0.004, 'mhaz')
         P('toe' + side, 'DEF-toe.' + side, toe)
     return parts
 
@@ -567,6 +692,9 @@ def BUILD(ao=False):
                 except Exception as e:  # noqa: BLE001
                     print('slot rename failed', e)
 
+    # ---- trouser pelvis (before decimating, on the full mesh): no anatomical V / cone at the crotch
+    crotch = _trouser_pelvis(body, rig)
+
     # ---- decimate (half the triangles; the ink style hides the facets)
     dec = body.modifiers.new('dec', 'DECIMATE'); dec.ratio = 0.5
     body.modifiers.move(body.modifiers.find('dec'), 0)
@@ -591,23 +719,27 @@ def BUILD(ao=False):
     # helmet: a dome cut at the brow, rim, side rails, NVG shroud, strobe, rear pouch
     rx = hs.x * 0.5 * 1.2; ry = hs.y * 0.5 * 1.2; cz = hl.z + hs.z * 0.64
     _flatten(m, Vector((hc.x, hc.y, cz)), 1.0, ry / rx)
-    faces = m.sphere((0, 0, 0), rx, 'helmet', seg=(16, 10), scale=(1, 1, (hh.z - cz + 0.03) / rx))
+    faces = m.sphere((0, 0, 0), rx, 'helmet', seg=(20, 10), scale=(1, 1, (hh.z - cz + 0.03) / rx))   # rounder shell
     cut = [v for v in {v for f in faces for v in f.verts} if v.co.z < cz - 0.004]
     bmesh.ops.delete(m.bm, geom=cut, context='VERTS')
-    m.cyl((0, 0, -0.012), rx * 1.03, rx * 1.03, 0.022, 'helmet', seg=16)
+    S.rcyl(m, (0, 0, -0.012), rx * 1.03, rx * 1.03, 0.022, 'helmet', seg=16, cham=0.007)     # chamfered brim
     m.parent = Matrix.Identity(4)
     for sx in (-1, 1):
-        m.box((hc.x + sx * rx * 0.99, hc.y, cz + 0.03), (0.016, ry * 1.2, 0.022), 'steel')
-        m.cyl((hc.x + sx * (rx + 0.004), hc.y, eye - 0.03), 0.042, 0.042, 0.036, 'vest2', seg=12, rot=(0, math.radians(90 * sx), 0))
-    m.box((hc.x, hc.y + fy * ry * 0.98, cz + 0.045), (0.06, 0.026, 0.05), 'steel')
-    m.box((hc.x, hc.y + fy * (ry * 0.98 + 0.02), cz + 0.03), (0.022, 0.02, 0.03), 'strap')
-    m.box((hc.x, hc.y - fy * ry * 0.95, cz + 0.07), (0.07, 0.04, 0.06), 'vest2')
-    m.box((hc.x, hc.y - fy * ry * 0.62, hh.z + 0.012), (0.022, 0.03, 0.02), 'cell')
-    # goggles: frame, lens, glint, side straps
+        m.box((hc.x + sx * rx * 0.99, hc.y, cz + 0.03), (0.016, ry * 1.2, 0.022), 'steel')                                 # rails
+        S.rcyl(m, (hc.x + sx * (rx + 0.004), hc.y, eye - 0.03), 0.042, 0.038, 0.036, 'vest2', seg=10,
+               rot=(0, math.radians(90 * sx), 0), cham=0.012)                           # chamfered ear cups
+    # NVG mount: a rounded shroud on a chamfered arm; rear counterweight pouch curved to the shell; strobe
+    S.rbox(m, (hc.x, hc.y + fy * ry * 0.98, cz + 0.045), (0.06, 0.026, 0.05), 'steel', r=0.012, axes='y')
+    S.rbox(m, (hc.x, hc.y + fy * (ry * 0.98 + 0.02), cz + 0.03), (0.022, 0.02, 0.03), 'strap', cham=0.005)
+    S.rbox(m, (hc.x, hc.y - fy * ry * 0.95, cz + 0.07), (0.07, 0.04, 0.06), 'vest2', r=0.014, axes='z', cuts=(1, 0, 0),
+           curve=[('y', 'x', fy * 0.012)])
+    S.rbox(m, (hc.x, hc.y - fy * ry * 0.62, hh.z + 0.012), (0.022, 0.03, 0.02), 'cell', cham=0.005)
+    # goggles: a band and lens curved round the face, glint, side straps
     gy = hc.y + fy * (hs.y * 0.5 + 0.004)
-    m.box((hc.x, gy, eye), (hs.x * 0.9, 0.03, 0.07), 'strap')
-    m.box((hc.x, gy + fy * 0.017, eye), (hs.x * 0.78, 0.006, 0.05), 'lens')
-    m.box((hc.x - hs.x * 0.16, gy + fy * 0.021, eye + 0.012), (hs.x * 0.22, 0.004, 0.012), 'lenshi')
+    wrap = lambda w: [('y', 'x', -fy * 0.022 * (w / (hs.x * 0.9)) ** 2)]
+    S.rbox(m, (hc.x, gy, eye), (hs.x * 0.9, 0.03, 0.07), 'strap', cham=0.008, cuts=(2, 0, 0), curve=wrap(hs.x * 0.9))
+    S.rbox(m, (hc.x, gy + fy * 0.017, eye), (hs.x * 0.78, 0.006, 0.05), 'lens', r=0, cuts=(2, 0, 0), curve=wrap(hs.x * 0.78))
+    m.box((hc.x - hs.x * 0.06, gy + fy * (0.020 - 0.022 * (0.78 / 0.9) ** 2 / 9 + 0.0015), eye + 0.012), (hs.x * 0.12, 0.004, 0.012), 'lenshi')   # glint on the lens' flat middle
     for sx in (-1, 1):
         m.box((hc.x + sx * hs.x * 0.5, hc.y, eye), (0.012, hs.y * 0.9, 0.03), 'strap')
     # detail pass (no outline of its own): rail bolts, a flipped-up NVG pair on the mount, a velcro patch on the crown,
@@ -629,30 +761,48 @@ def BUILD(ao=False):
     front = (cl.y if fy < 0 else ch.y); back = (ch.y if fy < 0 else cl.y)
     pz = cl.z + cs.z * 0.5; ph = cs.z * 0.78; pw = cs.x * 0.74
     m = Model(pal)
-    m.box((cc.x, front + fy * 0.025, pz), (pw, 0.06, ph), 'vest')
-    m.box((cc.x, back - fy * 0.025, pz), (pw, 0.06, ph), 'vest')
+    flat = 0.082        # the plates are flat across the middle (pouches, patches) and wrap round the ribs outside it
+
+    def plate(sgn):
+        """SAPI-cut armour plate: chamfered rim, the top corners cut at 45 degrees, the sides curving toward the body"""
+        def fn(p):
+            c = min(0.05, pw * 0.2)
+            over = abs(p.x) + p.z - (pw / 2 + ph / 2 - c)
+            if over > 0:
+                p.z -= over
+            t = max(0.0, (abs(p.x) - flat) / max(1e-6, pw / 2 - flat))
+            p.y += sgn * 0.026 * t * t
+            return p
+        return fn
+    S.rbox(m, (cc.x, front + fy * 0.025, pz), (pw, 0.06, ph), 'vest', cham=0.016, cuts=(4, 0, 0), warp=plate(-fy))
+    S.rbox(m, (cc.x, back - fy * 0.025, pz), (pw, 0.06, ph), 'vest', cham=0.016, cuts=(4, 0, 0), warp=plate(fy))
     for sx in (-1, 1):
-        m.box((cc.x + sx * cs.x * 0.44, cc.y, pz - ph * 0.18), (0.05, abs(front - back) * 0.92, ph * 0.5), 'vest')
+        S.rbox(m, (cc.x + sx * cs.x * 0.44, cc.y, pz - ph * 0.18), (0.05, abs(front - back) * 0.92, ph * 0.5), 'vest',
+               r=0.018, axes='z')                                                           # cummerbunds
         x = cc.x + sx * pw * 0.3
         top = pz + ph / 2
-        m.beam((x, front + fy * 0.02, top - 0.02), (x, cc.y, top + 0.05), 0.045, 'vest')
+        a, b = Vector((x, front + fy * 0.02, top - 0.02)), Vector((x, cc.y, top + 0.05))       # padded shoulder strap
+        m.parent = _seg_frame(a, b, Vector((0, 0, 1)))
+        S.rbox(m, (0, 0, (b - a).length / 2), (0.045, 0.045, (b - a).length), 'vest', r=0.045 * 0.32, axes='z')
+        m.parent = Matrix.Identity(4)
         m.beam((x, cc.y, top + 0.05), (x, back - fy * 0.02, top - 0.02), 0.039, 'vest')
     for i in (-1, 0, 1):
         x = cc.x + i * 0.078
-        m.box((x, front + fy * 0.08, pz - ph * 0.22), (0.066, 0.05, ph * 0.42), 'vest2')
+        S.rbox(m, (x, front + fy * 0.075, pz - ph * 0.22), (0.066, 0.06, ph * 0.42), 'vest2', r=0.014, axes='z')   # mag pouches
         m.box((x, front + fy * 0.08, pz - ph * 0.22 + ph * 0.21 + 0.018), (0.046, 0.028, 0.036), 'steel')
     m.box((cc.x, front + fy * 0.059, pz + ph * 0.3), (pw * 0.55, 0.008, 0.05), 'patch')
     m.box((cc.x, back - fy * 0.059, pz + ph * 0.3), (pw * 0.62, 0.008, 0.06), 'patch')
     # radio + antenna (left back), hydration pack with the power cell (the weak spot)
-    m.box((cc.x - cs.x * 0.36, back - fy * 0.07, pz + ph * 0.05), (0.07, 0.05, 0.14), 'steel2')
+    S.rbox(m, (cc.x - cs.x * 0.36, back - fy * 0.07, pz + ph * 0.05), (0.07, 0.05, 0.14), 'steel2', r=0.014, axes='z')
     m.beam((cc.x - cs.x * 0.38, back - fy * 0.07, pz + ph * 0.05 + 0.07), (cc.x - cs.x * 0.42, back - fy * 0.07, pz + ph * 0.05 + 0.3), 0.012, 'strap')
-    m.box((cc.x + 0.03, back - fy * 0.085, pz - ph * 0.05), (0.2, 0.07, ph * 0.66), 'vest2')
-    m.box((cc.x + 0.03, back - fy * 0.123, pz + ph * 0.08), (0.08, 0.012, 0.08), 'cell')
+    S.rbox(m, (cc.x + 0.03, back - fy * 0.085, pz - ph * 0.05), (0.2, 0.07, ph * 0.66), 'vest2', r=0.024)     # rounded pack
+    S.rcyl(m, (cc.x + 0.03, back - fy * 0.117, pz + ph * 0.08), 0.04, 0.038, 0.015, 'cell', seg=12,
+           rot=(90 * fy, 0, 0))                                             # round power cell
     # detail pass (no outline of its own): MOLLE webbing on the cummerbunds, side-release buckles, bungee bands on the
     # mag pouches, slider buckles on the shoulder straps, a drag handle on the back plate, a velcro admin strip
     d = ED.Deco(pal)
     for sx in (-1, 1):                                    # grenade pouches on the cummerbunds (behind the webbing)
-        m.box((cc.x + sx * (cs.x * 0.44 + 0.052), cc.y - fy * 0.075, pz - ph * 0.2), (0.04, 0.055, 0.075), 'vest2')
+        S.rbox(m, (cc.x + sx * (cs.x * 0.44 + 0.052), cc.y - fy * 0.075, pz - ph * 0.2), (0.04, 0.055, 0.075), 'vest2', cham=0.008, axes='z')
         d.box((cc.x + sx * (cs.x * 0.44 + 0.052), cc.y - fy * 0.075, pz - ph * 0.2 + 0.0405), (0.046, 0.061, 0.012), 'vest')
     for sx in (-1, 1):
         xo = cc.x + sx * (cs.x * 0.44 + 0.025)
@@ -668,7 +818,7 @@ def BUILD(ao=False):
     for i in (-1, 0, 1):
         x = cc.x + i * 0.078
         for dz in (-0.03, 0.02):
-            d.box((x, front + fy * 0.107, pz - ph * 0.22 + dz), (0.06, 0.006, 0.012), 'strap')
+            d.box((x, front + fy * 0.107, pz - ph * 0.22 + dz), (0.046, 0.006, 0.012), 'strap')
     for sx in (-1, 1):
         d.box((cc.x + sx * 0.035, back - fy * 0.02, pz + ph / 2 + 0.012), (0.012, 0.022, 0.03), 'strap')
     d.box((cc.x, back - fy * 0.02, pz + ph / 2 + 0.03), (0.09, 0.03, 0.012), 'strap')
@@ -703,15 +853,15 @@ def BUILD(ao=False):
     _flatten(m, Vector((bc.x, bc.y, bh.z - 0.055)), 1.0, (bs.y * 0.5 + 0.02) / (bs.x * 0.5 + 0.02))
     m.cyl((0, 0, 0), bs.x * 0.5 + 0.02, bs.x * 0.5 + 0.02, 0.05, 'strap', seg=18)
     m.parent = Matrix.Identity(4)
-    m.box((bc.x, bc.y + fy * (bs.y * 0.5 + 0.03), bh.z - 0.03), (0.06, 0.012, 0.045), 'steel')
+    S.rbox(m, (bc.x, bc.y + fy * (bs.y * 0.5 + 0.03), bh.z - 0.03), (0.06, 0.012, 0.045), 'steel', cham=0.004, axes='y')
     tl, th = _bbox(body, dom, lambda n: 'thigh.R' in n)
     tc = (tl + th) / 2
     sxr = 1 if tc.x > bc.x else -1
-    m.box((th.x if sxr > 0 else tl.x, tc.y, th.z - 0.12) if False else (tc.x + sxr * ((th.x - tl.x) * 0.5 + 0.03), tc.y, th.z - 0.13), (0.045, 0.1, 0.17), 'vest2')
-    m.box((tc.x + sxr * ((th.x - tl.x) * 0.5 + 0.03), tc.y - fy * 0.02, th.z - 0.03), (0.03, 0.035, 0.06), 'steel')
-    m.box((bc.x - sxr * bs.x * 0.42, bc.y - fy * bs.y * 0.3, bh.z - 0.12), (0.06, 0.1, 0.12), 'vest2')
+    S.rbox(m, (tc.x + sxr * ((th.x - tl.x) * 0.5 + 0.03), tc.y, th.z - 0.13), (0.045, 0.1, 0.17), 'vest2', r=0.014, axes='z')   # holster
+    S.rbox(m, (tc.x + sxr * ((th.x - tl.x) * 0.5 + 0.03), tc.y - fy * 0.02, th.z - 0.03), (0.03, 0.035, 0.06), 'steel', cham=0.006, axes='z')
+    S.rbox(m, (bc.x - sxr * bs.x * 0.42, bc.y - fy * bs.y * 0.3, bh.z - 0.12), (0.06, 0.1, 0.12), 'vest2', r=0.016, axes='z')   # dump pouch
     lx = -tc.x - sxr * ((th.x - tl.x) * 0.5 + 0.022)          # drop-leg utility pouch on the other thigh
-    m.box((lx, tc.y + fy * 0.01, th.z - 0.16), (0.04, 0.09, 0.11), 'vest2')
+    S.rbox(m, (lx, tc.y + fy * 0.01, th.z - 0.16), (0.04, 0.09, 0.11), 'vest2', r=0.013, axes='x')
     # detail pass (no outline of its own): buckle latch, leg straps over the holster, a holster hood, a medic pouch with
     # a patch on the left front of the belt, a flap on the dump pouch
     d = ED.Deco(pal)
@@ -731,17 +881,22 @@ def BUILD(ao=False):
 
     # knee pads + elbow pads
     m = Model(pal)
-    for side in ('L', 'R'):
-        k = rig.data.bones['DEF-shin.' + side].head_local
-        m.box((k.x, k.y + fy * 0.065, k.z - 0.01), (0.11, 0.045, 0.13), 'pad')
-        m.box((k.x, k.y + fy * 0.09, k.z - 0.01), (0.07, 0.006, 0.07), 'strap')
-        e = rig.data.bones['DEF-forearm.' + side].head_local
-        m.box((e.x, e.y - fy * 0.045, e.z), (0.09, 0.035, 0.08), 'pad')
-    # detail pass (no outline of its own): a hard cap ridge on the knee pads, elbow pad straps
     d = ED.Deco(pal)
+    kf = '+y' if fy > 0 else '-y'
     for side in ('L', 'R'):
+        # knee pads: a domed cap curved round the knee, a strap plate and a hard ridge on it (detail, no outline)
         k = rig.data.bones['DEF-shin.' + side].head_local
-        d.box((k.x, k.y + fy * 0.0905, k.z + 0.045), (0.08, 0.006, 0.012), 'steel')
+        kp = dict(r=0.02, cuts=(1, 0, 0), puff=(0, 0.008, 0), curve=[('y', 'x', -fy * 0.018)], bot=(0.86, 1.0))
+        kl, ks = (k.x, k.y + fy * 0.065, k.z - 0.01), (0.11, 0.045, 0.13)
+        S.rbox(m, kl, ks, 'pad', **kp)
+        with ED.at(d, S.face_frame(kl, ks, kf, 0, 0, on=m, **kp)):
+            ED.pad(d, 0, 0, 0.066, 0.06, 0.004, 'strap')
+        with ED.at(d, S.face_frame(kl, ks, kf, 0, 0.046, on=m, **kp)):
+            ED.pad(d, 0, 0, 0.07, 0.012, 0.004, 'steel')
+        e = rig.data.bones['DEF-forearm.' + side].head_local
+        S.rbox(m, (e.x, e.y - fy * 0.045, e.z), (0.09, 0.035, 0.08), 'pad', cham=0.012, axes='x')
+    # detail pass (no outline of its own): elbow pad straps
+    for side in ('L', 'R'):
         e = rig.data.bones['DEF-forearm.' + side].head_local
         d.box((e.x, e.y - fy * 0.0655, e.z), (0.02, 0.006, 0.086), 'strap')
     gear.append(ED.finish('TROOPER_g_pads', m, d, 0.0, ht))
@@ -758,6 +913,31 @@ def BUILD(ao=False):
         with bpy.context.temp_override(object=g, active_object=g, selected_objects=[g]):
             bpy.ops.object.datalayout_transfer(modifier='dt')
         _apply_mod(g, dt)
+
+    # groin protector: a small rounded flap hanging from under the front of the belt over the crotch. Weighted to the
+    # hips, its lower edge blending a little into both thighs, so it rides the pelvis and eases with the stride.
+    zt, zb = bh.z - 0.05, crotch.z + 0.03
+    def front_at(z):
+        ys = [(body.matrix_world @ v.co).y for v in body.data.vertices
+              if abs(v.co.x - bc.x) < 0.045 and abs(v.co.z - z) < 0.025]
+        return (min(ys) if fy < 0 else max(ys)) if ys else bc.y + fy * bs.y * 0.5
+    ta = Vector((bc.x, front_at(zt) + fy * 0.012, zt))
+    tb = Vector((bc.x, front_at(zb + 0.02) + fy * 0.016, zb))
+    m = Model(pal)
+    m.parent = _seg_frame(ta, tb, F)              # local z down the flap, local y out of the body
+    L = (tb - ta).length
+    S.rbox(m, (0, 0, L / 2), (0.12, 0.014, L), 'pad', cham=0.006, cuts=(2, 0, 1), top=(0.6, 1.0),
+           curve=[('y', 'x', -0.022)], puff=(0, 0.004, 0))
+    m.parent = Matrix.Identity(4)
+    flap = build_object('TROOPER_g_groin', m, 0.0, ht)
+    gh, gl_, gr_ = (flap.vertex_groups.new(name=n) for n in ('DEF-hips', 'DEF-thigh.L', 'DEF-thigh.R'))
+    for v in flap.data.vertices:
+        t = max(0.0, min(1.0, (zt - v.co.z) / (zt - zb)))
+        w = 0.35 * t * t
+        gh.add([v.index], 1.0 - w, 'REPLACE')
+        if w > 0:
+            gl_.add([v.index], w / 2, 'REPLACE'); gr_.add([v.index], w / 2, 'REPLACE')
+    gear.append(flap)
 
     # ---- carbine, fitted in the aiming pose to the right hand, then mapped back to the rest pose
     rig.data.pose_position = 'POSE'

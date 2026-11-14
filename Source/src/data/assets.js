@@ -93,6 +93,6 @@
     kitMax: 90000, kitPropMax: 2500   // raised for the tactical look kit detail pass (plan Stage 11.3)
   };
   IB.DRESS_PIECES.forEach(function (n) { IB.TRI_BUDGET.meshes['KIT_DRESS_' + n] = 300; });
-  // the trooper rig's meshes (blender/fam_trooper.py), with the enemy detail pass
-  Object.assign(IB.TRI_BUDGET.meshes, { TROOPER: 18000, TROOPER_GL: 2000, TROOPER_MECH: 17000 });
+  // the trooper rig's meshes (blender/fam_trooper.py), with the enemy detail pass and the sculpted reshape
+  Object.assign(IB.TRI_BUDGET.meshes, { TROOPER: 20150, TROOPER_GL: 2000, TROOPER_MECH: 19000 });
 })(typeof window !== 'undefined' ? (window.IB = window.IB || {}) : (globalThis.IB = globalThis.IB || {}));
