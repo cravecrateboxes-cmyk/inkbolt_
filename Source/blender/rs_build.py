@@ -5,6 +5,7 @@ the overwater bungalows of the backdrop (see rs_base.py for the conventions)."""
 import math
 import random
 
+import resort_detail as RD
 from rs_base import RKit, TOP, SLAB, leafcol, blob, palm, flowers, rope_sag, tuft  # noqa: F401
 
 
@@ -13,7 +14,7 @@ def thcol(f):
     return 'thatch' if n.z > 0.35 else ('thatch2' if n.z < -0.2 else 'thatch3')
 
 
-def hip_roof(k, x0, x1, y0, y1, ze, rx, zr, th=0.22, col=thcol):
+def hip_roof(k, x0, x1, y0, y1, ze, rx, zr, th=0.22, col=thcol, roll=False):
     """thatched hip roof: eave rectangle at ze (thickness th), ridge from -rx..rx (centre y) at zr"""
     cy = (y0 + y1) / 2
     cx = (x0 + x1) / 2
@@ -22,15 +23,20 @@ def hip_roof(k, x0, x1, y0, y1, ze, rx, zr, th=0.22, col=thcol):
     k.hullp(pts, col)
     if rx > 0.05:
         k.beam((cx - rx - 0.1, cy, zr + 0.02), (cx + rx + 0.1, cy, zr + 0.02), 0.16, 'thatch2')
+    if roll:
+        RD.eave_roll(k, x0, x1, y0, y1, ze, th, rx, zr)
 
 
-def cone_roof(k, x, y, ze, r, zt, seg=8, th=0.18):
+def cone_roof(k, x, y, ze, r, zt, seg=8, th=0.18, roll=True):
     pts = []
     for i in range(seg):
         a = i / seg * 2 * math.pi + math.pi / seg
         pts += [(x + math.cos(a) * r, y + math.sin(a) * r, ze), (x + math.cos(a) * r, y + math.sin(a) * r, ze - th)]
     pts += [(x, y, zt), (x, y, zt - th * 1.5)]
     k.hullp(pts, thcol)
+    if roll:
+        RD.cone_roll(k, x, y, ze, r, th, seg)
+        RD.finial(k, x, y, zt - 0.02, 'thatch2', 'thatch2')
 
 
 def bamboo_post(k, x, y, z0, h, r=0.06, c='bamboo'):
@@ -57,11 +63,13 @@ def build_decks(k, ao):
         k.beam((0, y0, 0.55), (0, y1, 0.55), 0.035, 'rope', ink=False)
         if post:
             k.cyl(0, 0, 0.0, 0.04, 0.04, 1.0, 'bamboo2', seg=4, ink=False)
-    k.begin(); rail(-0.5, 0.5, True); k.col(-0.06, 0.06, -0.5, 0.5, 0.0, 1.06); k.finish('RailFull', ao=ao)
-    k.begin(); rail(-0.5, -0.07, False); k.col(-0.06, 0.06, -0.5, 0.0, 0.0, 1.06); k.finish('RailHalf', ao=ao)
+    k.begin(); rail(-0.5, 0.5, True); RD.rail(k, True); k.col(-0.06, 0.06, -0.5, 0.5, 0.0, 1.06); k.finish('RailFull', ao=ao)
+    k.begin(); rail(-0.5, -0.07, False); RD.rail(k, False); k.col(-0.06, 0.06, -0.5, 0.0, 0.0, 1.06); k.finish('RailHalf', ao=ao)
     k.begin()
     k.cyl(0, 0, 0, 0.08, 0.075, 1.12, 'bamboo', seg=6)
     k.cyl(0, 0, 1.12, 0.09, 0.02, 0.1, 'bamboo2', seg=6)
+    RD.ring(k, 0, 0, 0.0, 0.1, 0.08, 'metal2')
+    RD.ring(k, 0, 0, 0.93, 0.092, 0.04, 'rope')
     k.finish('RailPost', ao=ao)
     # rope bridge [3, 2] along X: plank treads on two stringers, posts at both ends, sagging rope rails
     k.begin()
@@ -76,6 +84,7 @@ def build_decks(k, ao):
             rope_sag(k, (-1.42, y, z), (1.42, y, z), sag, n=2)
         for x in (-0.6, 0.6):
             k.beam((x, y * 0.967, 0.02), (x, y * 0.967, 0.98), 0.025, 'rope', ink=False)
+    RD.bridge_nails(k)
     k.wcol(-1.5, 1.5, -0.9, 0.9, -0.26, 0.0)
     k.col(-1.5, 1.5, -0.98, -0.86, 0.0, 1.1)
     k.col(-1.5, 1.5, 0.86, 0.98, 0.0, 1.1)
@@ -86,6 +95,7 @@ def build_decks(k, ao):
     k.bx(-0.15, 0.15, -0.15, 0.15, 0.3, TOP - SLAB - 0.01, 'wood2')
     for z in (2.0, 4.6):
         k.bx(-0.165, 0.165, -0.165, 0.165, z, z + 0.12, 'rope', ink=False)
+    RD.deckpost(k)
     k.col(-0.16, 0.16, -0.16, 0.16, 0.0, TOP - SLAB)
     k.finish('DeckPost', ao=ao)
 
@@ -111,6 +121,7 @@ def villa(k, W, D, grand=False):
         k.qx(0.07, 0.13, 1.1, 2.2, xf + sx * 0.006, sx, 'wood2')
         xi = x0 - 0.004 if sx > 0 else x1 + 0.004
         k.qx(-0.6, 0.8, 1.1, 2.2, xi, -sx, 'woodD')
+        RD.villa_window(k, sx, hx)
     for i in range(int(W / 0.5) - 1):   # panel seams on the inner face of the back wall
         x = -hx + 0.5 + i * 0.5
         k.qy(x - 0.012, x + 0.012, fl + 0.05, wh - 0.05, hy - t - 0.004, -1, 'bamboo2')
@@ -123,14 +134,15 @@ def villa(k, W, D, grand=False):
         for x in (xa + 0.3, (xa + xb) / 2, xb - 0.05):
             k.cyl(x, -hy + 0.11, fl, 0.035, 0.035, 0.82, 'bamboo2', seg=5)
     k.bx(-hx, hx, -hy, -hy + 0.22, wh, wh + 0.3, 'wood2')
+    RD.villa_front(k, hx, hy, fl, wh)
     # roof
     ov = 0.7
     ze = wh + 0.32
     if grand:
-        hip_roof(k, -hx - ov, hx + ov, -hy - ov, hy + ov, ze, hx * 0.55, ze + 1.4)
-        hip_roof(k, -hx * 0.62, hx * 0.62, -hy * 0.55, hy * 0.55, ze + 0.95, hx * 0.3, ze + 2.6)
+        hip_roof(k, -hx - ov, hx + ov, -hy - ov, hy + ov, ze, hx * 0.55, ze + 1.4, roll=True)
+        hip_roof(k, -hx * 0.62, hx * 0.62, -hy * 0.55, hy * 0.55, ze + 0.95, hx * 0.3, ze + 2.6, roll=True)
     else:
-        hip_roof(k, -hx - ov, hx + ov, -hy - ov, hy + ov, ze, hx * 0.4, ze + 2.0)
+        hip_roof(k, -hx - ov, hx + ov, -hy - ov, hy + ov, ze, hx * 0.4, ze + 2.0, roll=True)
     # bed against the back wall, nightstands with lamps, a rug
     bw = 1.25 if not grand else 1.5
     k.bx(-bw, bw, hy - t - 2.1, hy - t - 0.02, fl, fl + 0.38, 'wood2')
@@ -194,8 +206,9 @@ def build_lobby(k, ao):
         k.bx(-7.0, 7.0, y - 0.18, y + 0.18, 4.25, 4.6, 'woodD')
     for x in xs:
         k.bx(x - 0.16, x + 0.16, -4.6, 4.6, 4.6, 4.85, 'woodD')
-    hip_roof(k, -8.2, 8.2, -6.2, 6.2, 5.05, 5.2, 7.1, th=0.28)
-    hip_roof(k, -5.4, 5.4, -3.7, 3.7, 6.0, 2.6, 8.6, th=0.24)
+    hip_roof(k, -8.2, 8.2, -6.2, 6.2, 5.05, 5.2, 7.1, th=0.28, roll=True)
+    hip_roof(k, -5.4, 5.4, -3.7, 3.7, 6.0, 2.6, 8.6, th=0.24, roll=True)
+    RD.lobby(k, xs, ys)
     # ceiling fans
     for x in (-4.2, 0.0, 4.2):
         k.cyl(x, 0.0, 3.9, 0.03, 0.03, 0.55, 'woodD', seg=5)
@@ -256,6 +269,12 @@ def build_pool(k, ao):
     for i in range(n):   # coping stones
         a, b, c, d = outer[i], outer[(i + 1) % n], inner[(i + 1) % n], inner[i]
         k.hullp([(p[0], p[1], z) for p in (a, b, c, d) for z in (0.0, 0.13)], lambda f: 'stone' if f.normal.z > 0.5 else 'stone2')
+    RD.pool_joints(k, outer, inner)
+    RD.pool_ladder(k, outer, inner, -3.0, 1)
+    RD.pool_ladder(k, outer, inner, -6.0, -1)
+    for gx, gs in ((-1.0, -1), (1.5, 1), (-7.0, 1)):
+        yo, yi = RD.edge_y(outer, gx, gs), RD.edge_y(inner, gx, gs)
+        RD.grille(k, gx, (yo + yi) / 2)
     k.poly([(p[0], p[1], 0.06) for p in inner], 'water', (0, 0, 1))
     k.poly([(p[0] * 0.8, p[1] * 0.72, 0.064) for p in inner], 'water2', (0, 0, 1))
     k.poly([(p[0] * 0.45 - 1.2, p[1] * 0.42, 0.068) for p in inner], 'waterD', (0, 0, 1))
@@ -281,7 +300,9 @@ def build_pool(k, ao):
     k.col(bx - 0.5, bx + 0.5, -0.5, 0.5, 0.0, 1.6)
     for (x, y) in ((bx - H, -H), (bx + H, -H), (bx - H, H), (bx + H, H)):
         bamboo_post(k, x + (0.12 if x < bx else -0.12), y + (0.12 if y < 0 else -0.12), 1.13, 2.1, r=0.09)
+        RD.bamboo_post_fit(k, x + (0.12 if x < bx else -0.12), y + (0.12 if y < 0 else -0.12), 1.13, 2.1, 0.09)
     cone_roof(k, bx, 0.0, 3.25, 3.0, 4.9, seg=8)
+    RD.bar_trim(k, bx, H)
     k.bx(bx - 1.5, bx + 1.5, -H - 0.12, -H - 0.06, 2.75, 3.15, 'woodD', ink=False)
     k.text('SWIM-UP BAR', bx, -H - 0.126, 2.83, 0.26, 'thatch3', maxw=2.8)
     for i in range(10):   # stools round the west, north and south sides
@@ -307,6 +328,7 @@ def build_beach(k, ao):
         for y in (-1.68, 1.68):
             k.cyl(x, y, 0.15, 0.08, 0.075, 2.5, 'wood', seg=6)
     hip_roof(k, -2.0, 2.0, -2.0, 2.0, 2.75, 0.0, 3.75, th=0.12, col=lambda f: 'canvas' if f.normal.z > -0.2 else 'canvas2')
+    RD.cabana(k)
     for e in (-1, 1):   # coral valance under the canopy's eaves
         k.bx(-1.97, 1.97, e * 2.0 - 0.015, e * 2.0 + 0.015, 2.4, 2.66, 'coral', ink=False)
         k.bx(e * 2.0 - 0.015, e * 2.0 + 0.015, -1.97, 1.97, 2.4, 2.66, 'coral', ink=False)
@@ -337,6 +359,7 @@ def build_beach(k, ao):
         k.bxr(0.0, 0.72, 0.62, 0.68, 0.5, 0.1, 'wood3', rot=(-55, 0, 0))
         k.bxr(0.0, 0.69, 0.66, 0.6, 0.42, 0.06, cush, rot=(-55, 0, 0))
         k.bx(-0.3, 0.3, -0.5, -0.1, 0.44, 0.47, 'canvas', ink=False)
+        RD.lounger(k)
         k.col(-0.34, 0.34, -0.9, 0.55, 0.0, 0.44)
         k.col(-0.34, 0.34, 0.55, 0.92, 0.0, 0.85)
         k.finish(name, ao=ao)
@@ -348,6 +371,7 @@ def build_beach(k, ao):
     k.cyl(0.35, -0.3, 0.5, 0.24, 0.24, 0.04, 'wood3', seg=8)
     k.cyl(0.28, -0.25, 0.54, 0.04, 0.035, 0.14, 'bloom', seg=5)
     k.cyl(0.43, -0.36, 0.54, 0.04, 0.035, 0.12, 'coral', seg=5)
+    RD.umbrella(k)
     k.col(-0.05, 0.05, -0.05, 0.05, 0.0, 2.3)
     k.col(0.12, 0.58, -0.53, -0.07, 0.0, 0.54)
     k.finish('Umbrella', ao=ao)
@@ -358,6 +382,7 @@ def build_beach(k, ao):
         k.cyl(0, 0, z, 0.062, 0.062, 0.04, 'bamboo2', seg=6, caps=False, ink=False)
     k.cyl(0, 0, 1.8, 0.07, 0.16, 0.28, 'thatch2', seg=6)
     k.cyl(0, 0, 2.08, 0.1, 0.1, 0.02, 'barkD', seg=6, ink=False)
+    RD.torch(k)
     k.col(-0.08, 0.08, -0.08, 0.08, 0.0, 2.08)
     k.finish('Torch', ao=ao)
     k.begin()
@@ -417,7 +442,7 @@ def build_props(k, ao):
     for sx in (-1, 1):
         k.bx(sx * 1.45 - (0.2 if sx > 0 else 0), sx * 1.45 + (0.2 if sx < 0 else 0), -0.7, 0.75, 0.0, 2.25, 'bamboo')
         k.cyl(sx * 1.35, -0.85, 1.12, 0.06, 0.06, 1.13, 'wood', seg=6)
-    hip_roof(k, -1.9, 1.9, -1.45, 1.35, 2.3, 0.9, 3.25, th=0.14)
+    hip_roof(k, -1.9, 1.9, -1.45, 1.35, 2.3, 0.9, 3.25, th=0.14, roll=True)
     cols = ['cushion', 'coral', 'canvas', 'bloom', 'water2', 'pink']
     for i in range(3):
         for j in range(4):
@@ -427,6 +452,7 @@ def build_props(k, ao):
         k.bx(-1.1 + i * 0.75, -0.5 + i * 0.75, -0.95, -0.65, 1.12, 1.2 + 0.05 * i, cols[i], ink=False)
     k.bx(-1.2, 1.2, -1.006, -0.95, 0.35, 0.85, 'canvas', ink=False)
     k.text('TOWELS', 0.0, -1.012, 0.45, 0.32, 'cushion', maxw=2.0)
+    RD.towelhut(k)
     k.col(-1.5, 1.5, -1.0, 0.95, 0.0, 1.12)
     k.col(-1.45, 1.45, -0.7, 0.95, 1.12, 2.25)
     k.finish('TowelHut', ao=ao)
@@ -439,7 +465,9 @@ def build_props(k, ao):
         k.hullp([(1.15, y, zz) for y in (-0.04, 0.04) for zz in (z, z + 0.3)] + [(1.32, -0.04, z + 0.15), (1.32, 0.04, z + 0.15)], 'wood3')
         k.text(word, 0.66, -0.044, z + 0.08, 0.16, 'woodD', font='cond', maxw=0.95)
         k.text(word, 0.66, 0.044, z + 0.08, 0.16, 'woodD', font='cond', maxw=0.95, face='y+')
+        RD.board_screws(k, z)
         k.pop()
+    RD.signpost(k)
     k.col(-0.08, 0.08, -0.08, 0.08, 0.0, 2.4)
     k.finish('Signpost', ao=ao)
     # supply crates
@@ -453,6 +481,7 @@ def build_props(k, ao):
                 k.qx(-s + 0.03, s - 0.03, s * 0.9, s * 1.1, e * (s + 0.004), e, 'wood2')
             k.pop()
         crate(0, 0, 0, 0.44, 0)
+        RD.crate_nails(k, 0.44)
         k.text('PALMYRA', 0.0, -0.448, 0.5, 0.14, 'woodD', font='cond', maxw=0.8)
         k.text('COVE', 0.0, -0.448, 0.25, 0.12, 'woodD', font='cond', maxw=0.8)
         if stack:
@@ -485,6 +514,7 @@ def build_props(k, ao):
         k.cyl(x, y, 0.87 if y > 0 else 0.92, 0.03, 0.03, top - (0.87 if y > 0 else 0.92), 'metal', seg=5)
     k.hullp([(-0.7, -1.05, 1.62), (0.7, -1.05, 1.9), (-0.7, 1.3, 1.9), (0.7, 1.3, 1.9), (-0.7, -1.05, 1.68), (0.7, -1.05, 1.96), (-0.7, 1.3, 1.96), (0.7, 1.3, 1.96)],
             lambda f: 'leaf' if f.normal.z > 0.3 else 'leafD')
+    RD.cart(k)
     k.col(-0.62, 0.62, -1.36, 1.25, 0.0, 1.3)
     k.col(-1.24, -0.72, -0.46, 0.06, 0.0, 0.17)
     k.finish('GolfCart', ao=ao)
@@ -522,13 +552,14 @@ def build_gate(k, ao):
         blob(k, rnd, sx * 2.55, 0.05, 0.0, 0.5, 0.5, 3.4, leafcol('frond3', 'leaf', 'leafD'), n=6)
         flowers(k, rnd, [(sx * 2.55 + rnd.uniform(-0.2, 0.2), -0.48, rnd.uniform(0.8, 2.8)) for _ in range(3)], 'hibis', 0.1)
     k.bx(-2.4, 2.4, -0.25, 0.25, 4.1, 4.4, 'woodD')
-    hip_roof(k, -2.9, 2.9, -1.0, 1.0, 4.65, 1.9, 5.7, th=0.2)
+    hip_roof(k, -2.9, 2.9, -1.0, 1.0, 4.65, 1.9, 5.7, th=0.2, roll=True)
     k.bx(-1.55, 1.55, -0.33, -0.25, 3.45, 4.05, 'woodD', ink=False)
     k.text('PALMYRA COVE', 0.0, -0.334, 3.58, 0.34, 'thatch3', maxw=2.9, font='serif')
     k.bx(-1.55, 1.55, 0.25, 0.33, 3.45, 4.05, 'woodD', ink=False)
     k.text('PALMYRA COVE', 0.0, 0.334, 3.58, 0.34, 'thatch3', maxw=2.9, face='y+', font='serif')
     for sx in (-1, 1):
         k.cyl(sx * 1.85, -0.38, 2.6, 0.12, 0.1, 0.28, 'teal', seg=6)
+    RD.gate(k)
     k.finish('GateFrame', ao=ao)
     k.begin()
     Hs, n = 3.05, 12
@@ -549,6 +580,7 @@ def build_gate(k, ao):
     for i in range(8):
         a = i / 8 * math.pi * 2
         k.cyl(math.cos(a) * 1.08, math.sin(a) * 1.08, 0.12, 0.06, 0.06, 0.05, 'amber', seg=6)
+    RD.hatch(k)
     k.finish('Hatch', ao=ao)
 
 

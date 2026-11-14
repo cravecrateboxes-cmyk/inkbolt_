@@ -222,7 +222,7 @@
     trail: { wall: 'TrailWall', variants: ['TrailWall_B', 'TrailWall', 'TrailWall_C', 'TrailWall'], height: 2.6 },
     hatch: 'Hatch', stand: 'Crate_A',
     backdrop: { build: buildIsland },
-    budget: { prop: 1600, landmark: 3500, total: 45000 },
+    budget: { prop: 1800, landmark: 5000, total: 45000 },
     allPieces: function () { return PIECES.slice(); },
     levels: {
       resort: {
