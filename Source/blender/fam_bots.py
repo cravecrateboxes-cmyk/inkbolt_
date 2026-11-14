@@ -1671,16 +1671,18 @@ def build_kusari(pal):
 
 
 # ================================================================ JET TROOPER (levels 35+)
-# A tall bipedal combat robot on a jet back unit, built from layered angular plates in near-black armour (the black-ops
-# soldiers' colours): segmented abdomen, layered chest and pauldrons, thigh / shin / knee plates, forearm guards, panel
-# lines and bolts. A sensor-slit helmet (no face, no eyes: one glowing slit). A bullet launcher fixed to the right hand,
-# held low (receiver, rail, magazine, vented barrel shroud, twin barrels with a muzzle brake). On the back unit two
-# glowing thruster nozzles and two telescoping arms (PodArm) that raise a box rocket pod each (Pod): the pod's lid (Lid)
-# flips open on the top front edge to show three tubes with rocket tips inside. Element accents are in the KEY colours
-# 'plate' / 'plate2' (painted per robot by the game: electric blue, acid green, explosive orange): the shoulder line, hex
-# panels, cannon tips, tube rims, the lids' inner faces, nozzle rings; the glowing seams (Seam: abdomen gaps, sternum,
-# nozzle cores) and the sensor slit (Light) are drawn in the light material. Parts are posed like the Soldier's rigid
-# parts (origins on their joints); sockets give the joints, the pod arms, the nozzles, the muzzle and the tube mouths.
+# A tall bipedal combat robot on a jet back unit in sleek, angular hard-surface armour (near-black, the black-ops
+# soldiers' colours): flat faceted plates with one crisp chamfer on every edge, layered over slimmer faceted cores
+# (8-sided where a part must read round), a narrow waist under a broad V-fronted chest, swept angular pauldrons, a slim
+# faceted helmet with a V visor carrying the one sensor slit (no face, no eyes), slender segmented limbs, a sleek flight
+# pack with swept fins. A bullet launcher fixed to the right hand, held low (receiver, rail, magazine, vented barrel
+# shroud, twin barrels with a muzzle brake). On the back unit two glowing thruster nozzles and two telescoping arms
+# (PodArm) that raise an angular rocket pod each (Pod): the pod's lid (Lid) flips open on the top front edge to show
+# three tubes with rocket tips inside. Element accents are in the KEY colours 'plate' / 'plate2' (painted per robot by
+# the game: electric blue, acid green, explosive orange): the shoulder edges, cannon tips, tube rims, the lids' edges;
+# the glowing seams (Seam: abdomen gaps, sternum, nozzle cores) and the sensor slit (Light) are drawn in the light
+# material. Parts are posed like the Soldier's rigid parts (origins on their joints); sockets give the joints, the pod
+# arms, the nozzles, the muzzle and the tube mouths.
 J_HIP = 1.02            # hip joint height
 J_HIPX = 0.13
 J_THIGH = 0.48          # hip -> knee; knee -> sole 0.54
@@ -1724,131 +1726,158 @@ def _bolt(p, loc, axis, r=0.009):
     p.cyl(loc, r, r * 0.8, 0.008, 'gunmetal', seg=6, rot=rot, deco=True)
 
 
+def _drum(p, c, r, w, color, seg=8):
+    """an 8-sided joint drum along X centred on c (shoulder, elbow, hip and knee servos)"""
+    p.cyl((c[0] - w / 2, c[1], c[2]), r, r, w, color, seg=seg, rot=(0, 90, 0))
+
+
+def _mx(poly, s):
+    """an outline mirrored across local X for the s = -1 side"""
+    return [(x * s, y) for x, y in poly]
+
+
 def _jet_arm(p, hand, pole, la, lb, side):
-    """shoulder ball, a tapered upper arm under a curved outer plate, elbow ball, a sculpted gauntlet, wrist ring"""
+    """an 8-sided shoulder drum, a slim faceted upper arm under a flat outer plate, the elbow drum, a faceted gauntlet
+    flared at the back with a layered guard plate, a wrist band"""
     import bot_shapes_air as SA
     e = Vector(_elbow((0, 0, 0), hand, la, lb, pole))
     h = Vector(hand)
     out = Vector((side, 0.0, 0.0))
-    p.sphere((0, 0, 0), 0.088, 'gunmetal', seg=(8, 4))
+    _drum(p, (0, 0, 0), 0.082, 0.15, 'gunmetal')
     L1, L2 = e.length, (h - e).length
     p.parent = _jframe((0, 0, 0), e, out)
-    SA.limb(p, [(0.03, 0.05, 0.05, 0.05), (L1 * 0.45, 0.06, 0.058, 0.064, 0, 0.004), (L1 * 0.95, 0.05, 0.05, 0.05)], 'jet2', n=8, e=2.2)
-    SA.shell(p, [(L1 * 0.14, 0.066, 0.07, 0.012), (L1 * 0.2, 0.076, 0.082, 0.02), (L1 * 0.7, 0.07, 0.078, 0.02),
-                 (L1 * 0.78, 0.06, 0.068, 0.012)], 15, 165, 'jet', k=4)
+    SA.flimb(p, [(0.03, 0.05, 0.05, 0.05, 0.018), (L1 * 0.45, 0.06, 0.058, 0.064, 0.021, 0, 0.004), (L1 * 0.95, 0.05, 0.05, 0.05, 0.018)], 'jet2')
+    SA.plate_at(p, (0, 0.058, L1 * 0.47), (0, 1, 0), (0, 0, 1),
+                [(-0.058, -L1 * 0.33), (0.058, -L1 * 0.33), (0.072, 0.0), (0.06, L1 * 0.36), (-0.06, L1 * 0.36), (-0.072, 0.0)], 0.026, 'jet', z0=-0.01)
     p.parent = Matrix.Identity(4)
-    p.sphere(tuple(e), 0.06, 'gunmetal', seg=(8, 4))
+    _drum(p, tuple(e), 0.058, 0.11, 'gunmetal')
     p.parent = _jframe(e, h, out)
-    SA.limb(p, [(0.02, 0.046, 0.046, 0.05), (L2 * 0.3, 0.064, 0.058, 0.084, 0, 0.012), (L2 * 0.68, 0.062, 0.056, 0.078, 0, 0.01),
-                (L2 * 0.84, 0.048, 0.048, 0.054)], 'jet', n=12, e=2.6)
-    SA.sweep(p, [(0.0, 0.0, L2 * z) for z in (0.36, 0.48, 0.6)], [(0, 1, 0)] * 3, 0.03, 0.005, 'jet3', off=0.088)   # raised guard ridge
-    SA.limb(p, [(L2 * 0.83, 0.058, 0.058, 0.058), (L2 * 0.84 + 0.04, 0.056, 0.056, 0.056)], 'gunmetal', n=10, e=2.0)   # wrist ring
+    SA.flimb(p, [(0.02, 0.046, 0.046, 0.05, 0.016), (L2 * 0.3, 0.062, 0.056, 0.08, 0.022, 0, 0.012), (L2 * 0.68, 0.06, 0.054, 0.076, 0.022, 0, 0.01),
+                 (L2 * 0.84, 0.048, 0.048, 0.054, 0.018)], 'jet')
+    SA.plate_at(p, (0, 0.086, L2 * 0.47), (0, 1, 0), (0, 0, 1),
+                [(-0.045, -L2 * 0.3), (0.045, -L2 * 0.3), (0.054, L2 * 0.12), (0.0, L2 * 0.26), (-0.054, L2 * 0.12)], 0.02, 'jet3', z0=-0.01)   # guard plate
+    SA.flimb(p, [(L2 * 0.83, 0.058, 0.058, 0.058, 0.02), (L2 * 0.84 + 0.04, 0.056, 0.056, 0.056, 0.02)], 'gunmetal')   # wrist band
     p.parent = Matrix.Identity(4)
     return e
 
 
 def build_jet(pal):
     import bot_shapes_air as SA
-    # ---- hips: pelvis core, a rounded belt, a curved codpiece, curved tassets over the hip joints, a rear plate
+    UP, BACK = (0, 0, 1), (0, 1, 0)
+    # ---- hips: a faceted pelvis core, an octagonal belt, an angular codpiece with a layered plate, flat tassets angled
+    # out over the hip joints, a rear plate
     p = Part(pal)
-    SA.limb(p, [(0.905, 0.10, 0.075, 0.075), (0.95, 0.14, 0.10, 0.10), (1.07, 0.15, 0.11, 0.11)], 'jet2', n=8, e=2.6)
-    SA.limb(p, [(1.065, 0.165, 0.122, 0.122), (1.075, 0.175, 0.132, 0.132), (1.125, 0.175, 0.132, 0.132), (1.135, 0.163, 0.12, 0.12)],
-            'jet3', n=10, e=3.0)                                                                           # belt
-    SA.shell(p, [(0.905, 0.05, 0.125, 0.012), (0.925, 0.07, 0.142, 0.02), (1.03, 0.12, 0.152, 0.022), (1.065, 0.12, 0.146, 0.014)],
-             -132, -48, 'jet', k=3)                                                                        # codpiece
-    SA.sweep(p, *SA.se_path(0.1, 0.148, (-112, -101, -90, -79, -68), 0.99), 0.008, 0.005, 'ink', off=-0.001)   # panel line
+    SA.flimb(p, [(0.905, 0.085, 0.07, 0.07, 0.03), (0.95, 0.135, 0.095, 0.095, 0.04), (1.07, 0.145, 0.105, 0.105, 0.045)], 'jet2')
+    SA.flimb(p, [(1.062, 0.16, 0.12, 0.12, 0.05), (1.072, 0.172, 0.132, 0.132, 0.055), (1.128, 0.172, 0.132, 0.132, 0.055),
+                 (1.138, 0.16, 0.12, 0.12, 0.05)], 'jet3')                                                             # belt
+    cod = [(-0.05, -0.085), (0.05, -0.085), (0.095, 0.025), (0.075, 0.075), (-0.075, 0.075), (-0.095, 0.025)]
+    SA.plate_at(p, (0, -0.104, 0.985), (0, -1, -0.18), UP, cod, 0.036, 'jet', z0=-0.012)                                  # codpiece
+    SA.plate_at(p, (0, -0.124, 0.975), (0, -1, -0.18), UP, [(-0.025, -0.07), (0.025, -0.07), (0.05, 0.0), (0.04, 0.05), (-0.04, 0.05), (-0.05, 0.0)],
+                0.012, 'jet3', ch=0.005, z0=-0.001)                                                                    # its layered centre plate
+    tas = [(-0.075, -0.095), (0.075, -0.095), (0.092, 0.02), (0.07, 0.078), (-0.07, 0.078), (-0.092, 0.02)]
     for s in (-1, 1):
-        a0 = -50 if s > 0 else 130
-        SA.shell(p, [(0.855, 0.104, 0.122, 0.012, s * 0.13, -0.01), (0.875, 0.118, 0.136, 0.02, s * 0.13, -0.01),
-                     (1.02, 0.104, 0.122, 0.02, s * 0.13, -0.01), (1.05, 0.092, 0.11, 0.012, s * 0.13, -0.01)], a0, a0 + 100, 'jet', k=3)   # tassets
-    SA.shell(p, [(0.9, 0.11, 0.12, 0.012), (0.92, 0.13, 0.135, 0.02), (1.05, 0.13, 0.142, 0.02)], 52, 128, 'jet', k=3)   # rear plate
+        SA.plate_at(p, (s * 0.192, 0.0, 0.955), (s, 0, -0.35), UP, tas, 0.028, 'jet', z0=-0.01)                          # tassets
+    SA.plate_at(p, (0, 0.122, 0.985), (0, 1, -0.2), UP, [(-0.1, -0.065), (0.1, -0.065), (0.122, 0.035), (0.09, 0.07), (-0.09, 0.07), (-0.122, 0.035)],
+                0.03, 'jet', z0=-0.01)                                                                                 # rear plate
     hips = p.build('BOT_JET_Hips', bevel=False)
     for i, sx in enumerate((-1, 1)):
         socket('BOT_JET_HIP%d' % i, hips, (sx * J_HIPX, 0, J_HIP))
     socket('BOT_JET_WAIST', hips, (0, 0, J_WAIST))
 
-    # ---- thigh (origin on the hip joint): servo ball, a tapered thigh under a wrap-around armour shell with a
-    # layered front plate, the knee axle
+    # ---- thigh (origin on the hip joint): the hip drum, a slim faceted thigh, a long front plate with a layered upper
+    # plate, flat side plates, the knee axle
     p = Part(pal)
-    p.sphere((0, 0, 0), 0.085, 'gunmetal', seg=(8, 4))
-    SA.limb(p, [(-0.45, 0.05, 0.055, 0.055), (-0.2, 0.074, 0.08, 0.084), (-0.04, 0.068, 0.074, 0.078)], 'jet2', n=10, e=2.2)
-    SA.shell(p, [(-0.385, 0.072, 0.084, 0.012, 0, -0.008), (-0.36, 0.084, 0.098, 0.022, 0, -0.008), (-0.12, 0.094, 0.106, 0.022, 0, -0.012),
-                 (-0.07, 0.086, 0.096, 0.014, 0, -0.012)], -165, -15, 'jet', k=5)
-    SA.shell(p, [(-0.27, 0.094, 0.112, 0.016, 0, -0.012), (-0.14, 0.1, 0.12, 0.016, 0, -0.014)], -125, -55, 'jet3', k=3, cham=1.2)   # layered front plate
-    p.cyl((-0.05, 0, -0.44), 0.045, 0.045, 0.10, 'gunmetal', seg=8, rot=(0, 90, 0))
+    _drum(p, (0, 0, 0), 0.078, 0.15, 'gunmetal')
+    SA.flimb(p, [(-0.45, 0.05, 0.055, 0.055, 0.018), (-0.2, 0.072, 0.08, 0.082, 0.026), (-0.04, 0.066, 0.074, 0.076, 0.024)], 'jet2')
+    SA.plate_at(p, (0, -0.1, -0.22), (0, -1, 0.06), UP, [(-0.06, -0.17), (0.06, -0.17), (0.085, -0.06), (0.09, 0.12), (0.06, 0.16), (-0.06, 0.16),
+                                                           (-0.09, 0.12), (-0.085, -0.06)], 0.04, 'jet', z0=-0.026)   # front plate
+    SA.plate_at(p, (0, -0.112, -0.16), (0, -1, 0.06), UP, [(-0.06, -0.06), (0.06, -0.06), (0.072, 0.03), (0.05, 0.075), (-0.05, 0.075), (-0.072, 0.03)],
+                0.016, 'jet3', ch=0.006, z0=-0.004)                                                                     # layered upper plate
+    for s in (-1, 1):
+        SA.plate_at(p, (s * 0.066, 0.004, -0.23), (s, 0, 0), UP, [(-0.05, -0.13), (0.05, -0.13), (0.06, 0.1), (0.0, 0.14), (-0.06, 0.1)],
+                    0.022, 'jet', z0=-0.008)                                                                            # side plates
+    _drum(p, (0, 0, -0.45), 0.044, 0.1, 'gunmetal', seg=6)                                                            # knee axle
     p.build('BOT_JET_Thigh', bevel=False)
 
-    # ---- shin + foot (origin on the knee): knee ball under a domed knee cop, a tapered calf, a curved shin guard,
-    # calf piston, ankle, a sculpted boot
+    # ---- shin + foot (origin on the knee): the knee drum under an angular knee cop, a slim faceted calf, a long flat
+    # shin guard with a raised spine, calf piston, ankle, a faceted boot with an angled toe cap
     p = Part(pal)
-    p.sphere((0, 0, 0), 0.07, 'gunmetal', seg=(8, 4))
-    SA.shell(p, [(-0.125, 0.06, 0.10, 0.012), (-0.10, 0.08, 0.128, 0.026), (0.03, 0.082, 0.13, 0.026), (0.07, 0.06, 0.108, 0.012)],
-             -150, -30, 'jet3', k=3)                                                                        # knee cop
-    SA.limb(p, [(-0.45, 0.042, 0.042, 0.048), (-0.26, 0.056, 0.053, 0.072, 0, 0.008), (-0.05, 0.056, 0.056, 0.06)], 'jet2', n=10, e=2.2)
-    SA.shell(p, [(-0.425, 0.06, 0.07, 0.012, 0, -0.004), (-0.40, 0.07, 0.084, 0.022, 0, -0.004), (-0.19, 0.084, 0.1, 0.024, 0, -0.004),
-                 (-0.145, 0.078, 0.092, 0.014, 0, -0.004)], -165, -15, 'jet', k=5)                         # shin guard
-    SA.sweep(p, *SA.se_path(0.0787, 0.094, (-125, -107, -90, -73, -55), -0.27, cy=-0.004), 0.008, 0.005, 'ink', off=-0.001)
-    p.limb((0, 0.06, -0.18), (0, 0.05, -0.40), 0.018, 0.018, 'steel', seg=6)                      # calf piston
+    _drum(p, (0, 0, 0), 0.066, 0.13, 'gunmetal')
+    SA.plate_at(p, (0, -0.075, -0.03), (0, -1, 0.3), UP, [(-0.06, -0.085), (0.06, -0.085), (0.085, -0.01), (0.06, 0.075), (0.0, 0.095), (-0.06, 0.075),
+                                                           (-0.085, -0.01)], 0.04, 'jet3', z0=-0.014)                   # knee cop
+    SA.flimb(p, [(-0.45, 0.042, 0.042, 0.048, 0.015), (-0.26, 0.056, 0.053, 0.072, 0.02, 0, 0.008), (-0.05, 0.056, 0.056, 0.06, 0.02)], 'jet2')
+    SA.plate_at(p, (0, -0.06, -0.285), (0, -1, 0.04), UP, [(-0.045, -0.15), (0.045, -0.15), (0.072, -0.08), (0.075, 0.1), (0.05, 0.14), (-0.05, 0.14),
+                                                           (-0.075, 0.1), (-0.072, -0.08)], 0.03, 'jet', z0=-0.01)       # shin guard
+    SA.plate_at(p, (0, -0.08, -0.28), (0, -1, 0.04), UP, [(-0.016, -0.12), (0.016, -0.12), (0.022, 0.1), (0.0, 0.125), (-0.022, 0.1)],
+                0.012, 'jet3', ch=0.005, z0=-0.001)                                                                     # its spine
+    p.limb((0, 0.06, -0.18), (0, 0.05, -0.40), 0.018, 0.018, 'steel', seg=6)                                          # calf piston
     with SA.at_frame(p, SA.frame((0, 0.125, 0), (0, -1, 0))):
         rings = []
-        for d, hw, z0, z1, r in ((0.0, 0.055, -0.535, -0.475, 0.02), (0.025, 0.074, -0.54, -0.44, 0.03), (0.17, 0.08, -0.54, -0.445, 0.032),
-                                 (0.3, 0.068, -0.54, -0.49, 0.022), (0.335, 0.048, -0.536, -0.508, 0.01)):
+        for d, hw, z0, z1, r in ((0.0, 0.055, -0.535, -0.475, 0.016), (0.025, 0.074, -0.54, -0.44, 0.024), (0.17, 0.08, -0.54, -0.445, 0.026),
+                                 (0.29, 0.07, -0.54, -0.49, 0.02), (0.335, 0.05, -0.538, -0.512, 0.008)):
             rings.append(SA.ring_rr(hw, (z1 - z0) / 2, r, 1, d, 0, (z0 + z1) / 2))
         SA.loft(p, rings, 'jet2')
+    SA.plate_at(p, (0, -0.12, -0.472), (0, -0.5, 1), BACK, [(-0.06, -0.05), (0.06, -0.05), (0.072, 0.02), (0.045, 0.05), (-0.045, 0.05), (-0.072, 0.02)],
+                0.018, 'jet', z0=-0.006)                                                                                # toe cap
     p.build('BOT_JET_Shin', bevel=False)
 
-    # ---- torso (origin on the waist): a core with a curved, segmented abdomen, a sculpted chest with two curved pec
-    # plates (the sternum seam glows in the groove between them), the gold reactor (weak point) on a round boss, a
-    # collar, domed pauldrons with the element line along their lower edge, the sculpted jet back unit with round
-    # nozzles and the pod-arm hinges
+    # ---- torso (origin on the waist): a narrow faceted waist under three octagonal abdomen bands (the seams glow in
+    # the gaps), a broad V-fronted chest with two angled pec plates (the sternum seam glows in the groove between
+    # them), the gold reactor (weak point) on a hexagonal boss, a faceted collar, swept angular pauldrons (a faceted
+    # cap, a swept top plate, a flat outer plate; the element line along their edges), the flight pack with swept
+    # fins, 8-sided nozzles and the pod-arm hinges
     sx_, sy_, sz_ = J_SHOULDER
     p = Part(pal)
-    SA.limb(p, [(-0.06, 0.13, 0.12, 0.12), (0.2, 0.15, 0.125, 0.13)], 'jet2', n=10, e=2.3)
+    SA.flimb(p, [(-0.06, 0.115, 0.125, 0.11, 0.035), (0.06, 0.112, 0.13, 0.11, 0.035), (0.2, 0.145, 0.13, 0.125, 0.04)], 'jet2')
     for i, (z0, z1) in enumerate(((-0.025, 0.025), (0.04, 0.09), (0.105, 0.155))):
-        a = 0.158 - 0.004 * i
-        SA.shell(p, [(z0, a, 0.15, 0.02), (z1, a, 0.15, 0.02)], -155, -25, 'jet3' if i == 1 else 'jet', k=3, cham=1.0)   # abdomen plates
-    SA.limb(p, [(0.15, 0.17, 0.15, 0.15), (0.185, 0.205, 0.172, 0.17), (0.30, 0.235, 0.178, 0.18), (0.45, 0.232, 0.176, 0.18),
-                (0.53, 0.20, 0.15, 0.16), (0.565, 0.14, 0.10, 0.12)], 'jet', n=14, e=2.6)                 # chest
+        a = 0.138 + 0.004 * i
+        SA.flimb(p, [(z0, a - 0.01, 0.138, 0.118, 0.05), (z0 + 0.01, a, 0.148, 0.128, 0.055), (z1 - 0.01, a, 0.148, 0.128, 0.055),
+                     (z1, a - 0.01, 0.138, 0.118, 0.05)], 'jet3' if i == 1 else 'jet')                                  # abdomen bands
+    SA.flimb(p, [(0.15, 0.15, 0.14, 0.14, 0.05, 0, 0, 0.0, 0.0), (0.19, 0.198, 0.165, 0.165, 0.06, 0, 0, 0.008, 0.0),
+                 (0.30, 0.238, 0.172, 0.175, 0.075, 0, 0, 0.02, 0.0), (0.45, 0.236, 0.17, 0.175, 0.075, 0, 0, 0.02, 0.0),
+                 (0.53, 0.2, 0.145, 0.155, 0.06, 0, 0, 0.008, 0.0), (0.565, 0.14, 0.1, 0.12, 0.04, 0, 0, 0.004, 0.0)], 'jet')   # chest
     for s in (-1, 1):
-        a0 = -82 if s > 0 else -158
-        SA.shell(p, [(0.30, 0.23, 0.188, 0.014), (0.325, 0.248, 0.208, 0.03), (0.465, 0.245, 0.206, 0.03), (0.51, 0.22, 0.182, 0.014)],
-                 a0, a0 + 60, 'jet3', k=3)                                                                  # pec plates
+        pec = [(-0.095, -0.07), (0.06, -0.085), (0.105, -0.02), (0.1, 0.06), (0.04, 0.085), (-0.095, 0.085)]
+        SA.plate_at(p, (s * 0.105, -0.18, 0.41), (s * 0.3, -1, 0.12), UP, _mx(pec, s), 0.032, 'jet3', z0=-0.012)   # pec plates
     with SA.at_frame(p, SA.frame((0, -0.15, 0.255), (0, -1, 0))):
-        SA.lathe_r(p, [(0.072, 0.0), (0.078, 0.03), (0.066, 0.048)], 'jet2', seg=10)                    # reactor boss
+        SA.lathe_r(p, [(0.074, 0.0), (0.08, 0.026), (0.068, 0.042)], 'jet2', seg=6, phase=math.pi / 6)                 # reactor boss
     p.cyl((0, -0.196, 0.255), 0.05, 0.05, 0.03, 'core', seg=12, rot=(90, 0, 0))
     p.cyl((0, -0.194, 0.255), 0.06, 0.06, 0.008, 'gunmetal', seg=12, rot=(90, 0, 0), caps=False, deco=True)
-    SA.limb(p, [(0.5, 0.11, 0.11, 0.11), (0.6, 0.10, 0.10, 0.10)], 'jet3', n=10, e=2.0)                   # collar
-    p.cyl((0, 0, 0.555), 0.114, 0.114, 0.016, 'gunmetal', seg=12, caps=False, deco=True)
+    SA.flimb(p, [(0.5, 0.11, 0.105, 0.105, 0.035), (0.6, 0.1, 0.095, 0.095, 0.03)], 'jet3')                           # collar
+    SA.flimb(p, [(0.548, 0.116, 0.112, 0.112, 0.04), (0.562, 0.116, 0.112, 0.112, 0.04)], 'gunmetal', deco=True)       # collar band
+    top = [(-0.08, -0.16), (0.07, -0.14), (0.1, -0.04), (0.095, 0.11), (0.035, 0.22), (-0.065, 0.17), (-0.09, 0.0)]
+    side = [(-0.13, -0.06), (0.12, -0.06), (0.15, 0.03), (0.11, 0.085), (-0.1, 0.085), (-0.15, 0.025)]
     for s in (-1, 1):
-        # pauldron: a domed shell, its lower edge carrying the shoulder line (element colour)
-        p.parent = Matrix.Translation((s * sx_, sy_, sz_)) @ Matrix.Rotation(math.radians(-s * 12), 4, 'Y')
+        S = Vector((s * sx_, sy_, sz_))
+        # pauldron: a faceted cap over the shoulder drum, a swept top plate angled out, a flat outer plate; the element
+        # line along the outer plate's lower edge and the top plate's outer edge
+        p.parent = Matrix.Translation(S) @ Matrix.Rotation(math.radians(-s * 12), 4, 'Y')
         cx = s * 0.012
-        st = [(-0.075, 0.115, 0.14, 0.14, cx), (-0.05, 0.13, 0.155, 0.155, cx), (0.06, 0.125, 0.15, 0.15, cx), (0.125, 0.10, 0.12, 0.12, cx * 0.5),
-              (0.16, 0.055, 0.07, 0.07, 0)]
-        N = 10
-        SA.limb(p, st, 'jet', n=N, e=2.5)
-        z, a, bf, bb, c = st[1]
-        ks = [k for k in range(N) if math.cos(2 * math.pi * k / N) * s > -0.6]
-        ks = sorted(ks, key=lambda k: (2 * math.pi * k / N - (math.pi if s < 0 else 0) + math.pi) % (2 * math.pi))
-        pts, nrm = [], []
-        for k in ks:
-            q, n = SA.se_point(a, bf, bb, 2.5, 2 * math.pi * k / N, c, 0)
-            pts.append((q.x, q.y, z)); nrm.append((n.x, n.y, 0.0))
-        SA.sweep(p, pts, nrm, 0.012, 0.005, 'plate', off=-0.001)                                    # shoulder line
+        SA.flimb(p, [(-0.07, 0.112, 0.13, 0.13, 0.04, cx, 0), (-0.045, 0.126, 0.148, 0.15, 0.05, cx, 0), (0.05, 0.12, 0.142, 0.146, 0.05, cx, 0),
+                     (0.1, 0.086, 0.104, 0.112, 0.042, cx * 0.5, 0), (0.128, 0.04, 0.05, 0.06, 0.016, 0, 0)], 'jet')
         p.parent = Matrix.Identity(4)
-    # back unit: a sculpted pack, a lighter back panel with vents, round nozzles, the pod-arm hinges
-    SA.limb(p, [(0.10, 0.14, 0.06, 0.06, 0, 0.255), (0.13, 0.17, 0.074, 0.074, 0, 0.255), (0.40, 0.215, 0.084, 0.084, 0, 0.255),
-                (0.48, 0.2, 0.08, 0.08, 0, 0.255), (0.51, 0.168, 0.064, 0.064, 0, 0.255)], 'jet', n=14, e=3.0)
+        SA.plate_at(p, S + Vector((s * 0.06, 0.025, 0.1)), (s * 0.6, 0.08, 1), BACK, _mx(top, s), 0.03, 'jet3', z0=-0.014)
+        F = SA.frame(S + Vector((s * 0.128, 0.01, -0.005)), (s, 0, -0.3), UP)
+        with SA.at_frame(p, F):
+            SA.plate(p, _mx(side, s), 0.026, 'jet', z0=-0.01)
+            SA.sweep(p, [(-0.11 * s, -0.04, 0.016), (0.0, -0.04, 0.016), (0.11 * s, -0.04, 0.016)], [UP] * 3, 0.014, 0.005, 'plate', off=-0.001)
+        with SA.at_frame(p, SA.frame(S + Vector((s * 0.06, 0.025, 0.1)), (s * 0.6, 0.08, 1), BACK)):
+            SA.sweep(p, [(s * 0.077, -0.07, 0.016), (s * 0.08, 0.02, 0.016), (s * 0.075, 0.1, 0.016)], [UP] * 3, 0.012, 0.005, 'plate', off=-0.001)
+    # flight pack: a faceted pack, a chamfered back panel with vents, swept fins, 8-sided nozzles, the pod-arm hinges
+    SA.flimb(p, [(0.10, 0.13, 0.055, 0.055, 0.03, 0, 0.255), (0.13, 0.165, 0.07, 0.07, 0.04, 0, 0.255), (0.40, 0.212, 0.082, 0.082, 0.045, 0, 0.255),
+                 (0.48, 0.196, 0.078, 0.078, 0.045, 0, 0.255), (0.51, 0.162, 0.062, 0.062, 0.035, 0, 0.255)], 'jet')
     with SA.at_frame(p, SA.frame((0, 0.325, 0), (0, 1, 0))):
         SA.loft(p, [SA.ring_rr(0.13, 0.11, 0.03, 1, 0.0, 0, 0.33), SA.ring_rr(0.13, 0.11, 0.03, 1, 0.012, 0, 0.33),
                     SA.ring_rr(0.118, 0.098, 0.022, 1, 0.02, 0, 0.33)], 'jet3')
     for z in (0.27, 0.31, 0.35):
         p.box((0, 0.345, z), (0.18, 0.008, 0.012), 'ink', deco=True)                                        # vent slats
+    fin = [(-0.08, -0.12), (0.04, -0.09), (0.085, 0.09), (0.05, 0.14), (-0.06, 0.04)]
     for s in (-1, 1):
+        SA.plate_at(p, (s * 0.2, 0.275, 0.36), (s, 0.4, 0.0), UP, _mx(fin, s), 0.024, 'jet3', z0=-0.012)          # swept fins
         nx, ny, nz = J_NOZ
         with SA.at_frame(p, Matrix.Translation((s * nx, ny, 0))):
-            SA.lathe_r(p, [(0.062, 0.03), (0.05, 0.075), (0.066, 0.21)], 'gunmetal', seg=10)                # nozzle
-            SA.lathe_r(p, [(0.0575, 0.112), (0.0575, 0.126)], 'jet3', seg=10, deco=True)                      # nozzle band
+            SA.lathe_r(p, [(0.062, 0.03), (0.05, 0.075), (0.066, 0.21)], 'gunmetal', seg=8, phase=math.pi / 8)    # nozzle
+            SA.lathe_r(p, [(0.0585, 0.112), (0.0585, 0.126)], 'jet3', seg=8, phase=math.pi / 8, deco=True)         # nozzle band
         ax, ay, az = J_ARM
         p.box((s * ax, 0.25, az + 0.0096), (0.12, 0.10, 0.008), 'ink', deco=True)                           # arm slot
         p.box((s * ax, ay - 0.006, az + 0.012), (0.09, 0.05, 0.02), 'gunmetal')                           # hinge block
@@ -1865,37 +1894,53 @@ def build_jet(pal):
     p = Part(pal)
     for z in (0.0325, 0.0975):
         p.box((0, -0.138, z), (0.10, 0.01, 0.008), 'light')
-    p.box((0, -0.19, 0.405), (0.014, 0.012, 0.12), 'light')
+    p.box((0, -0.196, 0.405), (0.014, 0.012, 0.12), 'light')
     for s in (-1, 1):
         nx, ny, nz = J_NOZ
-        p.cyl((s * nx, ny, nz - 0.006), 0.042, 0.042, 0.004, 'light', seg=12)                      # nozzle cores
+        p.cyl((s * nx, ny, nz - 0.006), 0.042, 0.042, 0.004, 'light', seg=8, rot=(0, 0, 22.5))                      # nozzle cores
     strip_hull(p.build('BOT_JET_Seam', bevel=False, hull=0.003))
 
-    # ---- head (origin on the neck): a sculpted helmet, no face: a smooth shell, a low crest, a dark curved visor
-    # band carrying the one sensor slit, rounded ear modules, an antenna
+    # ---- head (origin on the neck): a slim faceted helmet, longer than wide, its front a shallow V; a dark V visor band
+    # carrying the one sensor slit, a faceted crest, hexagonal ear modules, an antenna
     p = Part(pal)
-    SA.limb(p, [(-0.05, 0.065, 0.065, 0.065), (0.05, 0.07, 0.07, 0.07)], 'jet3', n=10, e=2.0)
-    p.cyl((0, 0, -0.02), 0.075, 0.075, 0.02, 'gunmetal', seg=10, caps=False, deco=True)
-    SA.limb(p, [(0.005, 0.078, 0.122, 0.085, 0, 0.0), (0.04, 0.104, 0.148, 0.128), (0.13, 0.118, 0.152, 0.145), (0.205, 0.11, 0.142, 0.138),
-                (0.25, 0.08, 0.10, 0.11), (0.275, 0.035, 0.045, 0.055)], 'jet', n=14, e=2.4)
-    VA, VB = 0.1225, 0.1595                                                                                  # visor outline (hugs the shell)
-    SA.shell(p, [(0.08, VA - 0.008, VB - 0.008, 0.01), (0.09, VA, VB, 0.02), (0.16, VA, VB, 0.02), (0.17, VA - 0.008, VB - 0.008, 0.01)],
-             -150, -30, 'jet2', k=6, cham=0.8, e=2.4)                                                       # visor band
-    SA.sweep(p, *SA.se_path(VA, VB, range(-120, -59, 10), 0.125, e=2.4), 0.022, 0.0045, 'ink', off=-0.001)   # the sensor slit
-    with SA.at_frame(p, SA.frame((0, -0.01, 0.235), (0, 1, 0))):                                           # crest
-        SA.loft(p, [SA.ring_rr(0.016, 0.02, 0.012, 1, -0.10, 0, 0.0), SA.ring_rr(0.022, 0.035, 0.016, 1, -0.07, 0, 0.022),
-                    SA.ring_rr(0.022, 0.035, 0.016, 1, 0.07, 0, 0.022), SA.ring_rr(0.016, 0.022, 0.012, 1, 0.12, 0, -0.01)], 'jet3')
+    SA.flimb(p, [(-0.05, 0.06, 0.06, 0.06, 0.02), (0.05, 0.065, 0.065, 0.065, 0.022)], 'jet3')
+    SA.flimb(p, [(-0.03, 0.076, 0.076, 0.076, 0.026), (-0.01, 0.076, 0.076, 0.076, 0.026)], 'gunmetal', deco=True)     # neck band
+    SA.flimb(p, [(0.0, 0.066, 0.10, 0.08, 0.03, 0, 0, 0.01, 0.0), (0.04, 0.092, 0.122, 0.115, 0.045, 0, 0, 0.016, 0.004),
+                 (0.08, 0.102, 0.132, 0.135, 0.05, 0, 0, 0.018, 0.005), (0.17, 0.102, 0.132, 0.138, 0.05, 0, 0, 0.018, 0.005),
+                 (0.22, 0.092, 0.118, 0.128, 0.05, 0, 0, 0.015, 0.004), (0.26, 0.064, 0.08, 0.095, 0.035, 0, 0, 0.01, 0.002),
+                 (0.28, 0.03, 0.035, 0.045, 0.012, 0, 0, 0.004, 0.0)], 'jet')
+    # the V visor: a band across the two front facets and onto the corner chamfers (the helmet's z 0.08-0.17 ring)
+    vpts = [(-0.092, -0.092), (-0.052, -0.132), (0.0, -0.15), (0.052, -0.132), (0.092, -0.092)]
+
+    def vpath():
+        nrm = []
+        for i, q in enumerate(vpts):
+            a, b = Vector(vpts[max(i - 1, 0)]), Vector(vpts[min(i + 1, len(vpts) - 1)])
+            d = (b - a).normalized()
+            n = Vector((d.y, -d.x))
+            if n.y > 0:
+                n = -n
+            nrm.append((n.x, n.y, 0.0))
+        return [(q[0], q[1], 0.125) for q in vpts], nrm
+    SA.sweep(p, *vpath(), 0.078, 0.0105, 'jet2', off=-0.001, deco=False)                                             # visor band
+    sp, sn = vpath()
+    sp = [(q[0] + n[0] * 0.0095, q[1] + n[1] * 0.0095, q[2]) for q, n in zip(sp, sn)]
+    SA.sweep(p, sp, sn, 0.022, 0.0045, 'ink', off=-0.001)                                        # the sensor slit
+    with SA.at_frame(p, SA.frame((0, -0.01, 0.235), (0, 1, 0))):                                                      # crest
+        SA.loft(p, [SA.ring_rr(0.014, 0.02, 0.01, 1, -0.10, 0, 0.0), SA.ring_rr(0.02, 0.035, 0.012, 1, -0.07, 0, 0.022),
+                    SA.ring_rr(0.02, 0.035, 0.012, 1, 0.07, 0, 0.022), SA.ring_rr(0.014, 0.022, 0.01, 1, 0.125, 0, -0.01)], 'jet3')
     for s in (-1, 1):
-        with SA.at_frame(p, SA.frame((s * 0.1, -0.01, 0.12), (s, 0, 0))):
-            SA.lathe_r(p, [(0.045, 0.0), (0.045, 0.026), (0.032, 0.045)], 'jet3', seg=10)                   # ear modules
+        p.cyl((s * 0.094, -0.012, 0.125), 0.045, 0.045, 0.034, 'jet3', seg=6, rot=(0, s * 90, 0))                     # ear modules
+        p.cyl((s * 0.128, -0.012, 0.125), 0.03, 0.026, 0.016, 'gunmetal', seg=6, rot=(0, s * 90, 0))
     p.cyl((0.075, 0.09, 0.2), 0.008, 0.008, 0.15, 'ink', seg=4)
-    p.sphere((0.075, 0.09, 0.355), 0.013, 'gunmetal', seg=(6, 4), deco=True)
+    p.cyl((0.075, 0.09, 0.35), 0.013, 0.004, 0.024, 'gunmetal', seg=4, deco=True)
     head = p.build('BOT_JET_Head', bevel=False)
     socket('BOT_JET_SLIT', head, (0, -0.168, 0.125))
-    # the slit light: a bar curved along the visor, 6 mm proud of the slit (origin = BOT_JET_SLIT)
+    # the slit light: a bar along the V visor, 6 mm proud of the slit (origin = BOT_JET_SLIT)
     p = Part(pal)
-    with SA.at_frame(p, Matrix.Translation((0, 0.168, -0.125))):
-        SA.sweep(p, *SA.se_path(VA, VB, range(-114, -65, 12), 0.125, e=2.4), 0.012, 0.004, 'light', off=0.0045, deco=False)
+    lp = [(q[0] + n[0] * 0.0095, q[1] + n[1] * 0.0095 + 0.168, 0.0) for q, n in zip(*vpath())][1:4]
+    lp = [(lp[0][0] * 0.95, lp[0][1], 0.0), lp[1], (lp[2][0] * 0.95, lp[2][1], 0.0)]
+    SA.sweep(p, lp, sn[1:4], 0.012, 0.004, 'light', off=0.0045, deco=False)
     p.build('BOT_JET_Light', bevel=False, hull=0.004)
 
     # ---- arms (origin on the shoulder); the right one carries the bullet launcher, held low, barrels along -Y
@@ -1905,24 +1950,24 @@ def build_jet(pal):
     with SA.at_frame(p, Matrix.Translation((hx, hy, hz - 0.045))):
         SA.slab(p, 0.045, 0.045, 0.09, 0.02, 0.012, 'jet2', nc=1)                                          # fist
     with SA.at_frame(p, SA.frame((hx, hy + 0.10, hz + 0.065), (0, -1, 0))):                                # receiver
-        SA.loft(p, [SA.ring_rr(0.042, 0.047, 0.022, 2, 0.0), SA.ring_rr(0.05, 0.055, 0.03, 2, 0.014), SA.ring_rr(0.05, 0.055, 0.03, 2, 0.39),
-                    SA.ring_rr(0.044, 0.048, 0.024, 2, 0.40)], 'gunmetal')
+        SA.loft(p, [SA.ring_rr(0.042, 0.047, 0.016, 1, 0.0), SA.ring_rr(0.05, 0.055, 0.022, 1, 0.014), SA.ring_rr(0.05, 0.055, 0.022, 1, 0.39),
+                    SA.ring_rr(0.044, 0.048, 0.016, 1, 0.40)], 'gunmetal')
     p.box((hx, hy - 0.10, hz + 0.126), (0.036, 0.30, 0.012), 'jet3')                                      # top rail
     for k in range(2):
         p.box((hx, hy - 0.16 + 0.1 * k, hz + 0.1355), (0.046, 0.012, 0.008), 'ink', deco=True)
     with SA.at_frame(p, Matrix.Translation((hx, hy - 0.17, hz - 0.12)) @ Matrix.Rotation(math.radians(-12), 4, 'X')):
         p.box((0, 0, 0.07), (0.06, 0.09, 0.14), 'jet2')                                                     # magazine
     with SA.at_frame(p, SA.frame((hx, hy - 0.29, hz + 0.07), (0, -1, 0))):                                 # barrel shroud
-        SA.limb(p, [(0.0, 0.04, 0.04, 0.04), (0.012, 0.046, 0.046, 0.046), (0.205, 0.044, 0.044, 0.044), (0.222, 0.036, 0.036, 0.036)],
-                'jet', n=10, e=2.8)
+        SA.flimb(p, [(0.0, 0.04, 0.04, 0.04, 0.014), (0.012, 0.046, 0.046, 0.046, 0.017), (0.205, 0.044, 0.044, 0.044, 0.016),
+                     (0.222, 0.036, 0.036, 0.036, 0.012)], 'jet')
     for k in range(2):
         for s in (-1, 1):
-            p.box((hx + s * 0.0455, hy - 0.36 - 0.06 * k, hz + 0.07), (0.008, 0.024, 0.044), 'ink', deco=True)   # vents
+            p.box((hx + s * 0.0455, hy - 0.36 - 0.06 * k, hz + 0.07), (0.008, 0.024, 0.03), 'ink', deco=True)   # vents
     for sx in (-0.022, 0.022):
-        p.cyl((hx + sx, hy - 0.50, hz + 0.07), 0.017, 0.017, 0.17, 'steel', seg=8, rot=(90, 0, 0))   # twin barrels
-        p.cyl((hx + sx, hy - 0.655, hz + 0.07), 0.022, 0.022, 0.014, 'plate', seg=8, rot=(90, 0, 0), caps=False, deco=True)   # cannon tips
+        p.cyl((hx + sx, hy - 0.50, hz + 0.07), 0.017, 0.017, 0.17, 'steel', seg=6, rot=(90, 0, 0))   # twin barrels
+        p.cyl((hx + sx, hy - 0.655, hz + 0.07), 0.022, 0.022, 0.014, 'plate', seg=6, rot=(90, 0, 0), caps=False, deco=True)   # cannon tips
     with SA.at_frame(p, SA.frame((hx, hy - 0.595, hz + 0.07), (0, -1, 0))):                                 # muzzle brake
-        SA.limb(p, [(0.0, 0.05, 0.04, 0.04), (0.05, 0.048, 0.038, 0.038)], 'gunmetal', n=10, e=3.0)
+        SA.flimb(p, [(0.0, 0.05, 0.04, 0.04, 0.015), (0.05, 0.048, 0.038, 0.038, 0.014)], 'gunmetal')
     for s in (-1, 1):
         p.box((hx + s * 0.05, hy - 0.62, hz + 0.07), (0.008, 0.026, 0.036), 'ink', deco=True)
     ar = p.build('BOT_JET_ArmR', bevel=False)
@@ -1934,47 +1979,49 @@ def build_jet(pal):
     with SA.at_frame(p, Matrix.Translation((hx, hy, hz - 0.03))):
         SA.slab(p, 0.0425, 0.05, 0.08, 0.02, 0.012, 'jet2', nc=1)                                           # hand
     for x in (-0.025, 0.0, 0.025):
-        p.limb((hx + x, hy - 0.042, hz - 0.025), (hx + x, hy - 0.05, hz - 0.095), 0.011, 0.008, 'gunmetal', seg=6)   # claw fingers
-    p.limb((hx + 0.04, hy - 0.01, hz - 0.005), (hx + 0.055, hy - 0.02, hz - 0.06), 0.012, 0.009, 'gunmetal', seg=6)   # thumb
+        p.limb((hx + x, hy - 0.042, hz - 0.025), (hx + x, hy - 0.05, hz - 0.095), 0.011, 0.008, 'gunmetal', seg=4)   # claw fingers
+    p.limb((hx + 0.04, hy - 0.01, hz - 0.005), (hx + 0.055, hy - 0.02, hz - 0.06), 0.012, 0.009, 'gunmetal', seg=4)   # thumb
     p.build('BOT_JET_ArmL', bevel=False)
 
-    # ---- pod arm (origin = its hinge on the back unit): a telescoping strut that raises the pod (the game stretches
-    # it along its length while the pod rises), a piston, a round bracket at the top (socket BOT_JET_PODTOP)
+    # ---- pod arm (origin = its hinge on the back unit): a telescoping faceted strut that raises the pod (the game
+    # stretches it along its length while the pod rises), a piston, a bracket at the top (socket BOT_JET_PODTOP)
     p = Part(pal)
-    p.cyl((-0.035, 0, 0), 0.028, 0.028, 0.07, 'gunmetal', seg=8, rot=(0, 90, 0))
-    SA.limb(p, [(0.0, 0.03, 0.026, 0.026), (0.2, 0.024, 0.02, 0.02)], 'jet3', n=8, e=2.4)
-    p.cyl((0, 0, 0.19), 0.016, 0.016, 0.06, 'steel', seg=8)
+    p.cyl((-0.035, 0, 0), 0.028, 0.028, 0.07, 'gunmetal', seg=6, rot=(0, 90, 0))
+    SA.flimb(p, [(0.0, 0.03, 0.026, 0.026, 0.01), (0.2, 0.024, 0.02, 0.02, 0.008)], 'jet3')
+    p.cyl((0, 0, 0.19), 0.016, 0.016, 0.06, 'steel', seg=6)
     p.limb((0, 0.03, 0.02), (0, 0.03, 0.20), 0.011, 0.011, 'steel', seg=6)
-    p.cyl((-0.04, 0, 0.255), 0.026, 0.026, 0.08, 'gunmetal', seg=8, rot=(0, 90, 0))
+    p.cyl((-0.04, 0, 0.255), 0.026, 0.026, 0.08, 'gunmetal', seg=6, rot=(0, 90, 0))
     arm = p.build('BOT_JET_PodArm', bevel=False, hull=0.008)
     socket('BOT_JET_PODTOP', arm, (0, 0, J_ARM_LEN))
 
-    # ---- rocket pod (origin = its mount on the arm): a rounded launcher body with chamfered ends, a layered top
-    # plate, three round launcher barrels along -Y (element-colour rims, rocket tips inside); the lid hinges on the top
-    # front edge
+    # ---- rocket pod (origin = its mount on the arm): a sleek angular launcher, wedged at the tail, chamfered all
+    # round, a layered top plate, flat side rails cut back at the front, three 8-sided barrels along -Y (element-colour
+    # rims, rocket tips inside); the lid hinges on the top front edge
     p = Part(pal)
     with SA.at_frame(p, SA.frame((0, 0.10, 0), (0, -1, 0))):
-        SA.loft(p, [SA.ring_rr(0.088, 0.068, 0.04, 3, 0.0, 0, 0.10), SA.ring_rr(0.11, 0.09, 0.058, 3, 0.022, 0, 0.10),
-                    SA.ring_rr(0.11, 0.09, 0.058, 3, 0.318, 0, 0.10), SA.ring_rr(0.096, 0.076, 0.046, 3, 0.338, 0, 0.10)], 'jet2')
-        SA.loft(p, [SA.ring_rr(0.08, 0.012, 0.01, 1, 0.04, 0, 0.19), SA.ring_rr(0.08, 0.012, 0.01, 1, 0.28, 0, 0.19)], 'jet')   # top plate
+        SA.flimb(p, [(0.0, 0.074, 0.054, 0.054, 0.024, 0, 0.10), (0.06, 0.11, 0.09, 0.09, 0.036, 0, 0.10), (0.318, 0.11, 0.09, 0.09, 0.036, 0, 0.10),
+                     (0.338, 0.098, 0.078, 0.078, 0.03, 0, 0.10)], 'jet2')
+        SA.loft(p, [SA.ring_rr(0.08, 0.012, 0.008, 1, 0.04, 0, 0.19), SA.ring_rr(0.08, 0.012, 0.008, 1, 0.28, 0, 0.19)], 'jet')   # top plate
+    rail = [(-0.15, -0.055), (0.1, -0.055), (0.13, 0.0), (0.1, 0.055), (-0.15, 0.055)]
+    for s in (-1, 1):
+        SA.plate_at(p, (s * 0.11, -0.07, 0.10), (s, 0, 0), UP, _mx(rail, -s), 0.018, 'jet', z0=-0.006)               # side rails
     for x in (-0.045, 0.045):
-        p.cyl((x, 0.096, 0.10), 0.03, 0.03, 0.01, 'ink', seg=8, rot=(-90, 0, 0), deco=True)                  # rear exhaust ports
+        p.cyl((x, 0.096, 0.10), 0.03, 0.03, 0.01, 'ink', seg=6, rot=(-90, 0, 0), deco=True)                   # rear exhaust ports
     for x in (-0.068, 0.0, 0.068):
-        p.cyl((x, -0.235, 0.10), 0.032, 0.032, 0.026, 'jet3', seg=10, rot=(90, 0, 0))                     # launcher barrel
-        p.cyl((x, -0.25, 0.10), 0.036, 0.036, 0.016, 'plate', seg=10, rot=(90, 0, 0), caps=False, deco=True)   # rim
-        p.cyl((x, -0.2615, 0.10), 0.024, 0.024, 0.004, 'ink', seg=8, rot=(90, 0, 0), deco=True)      # bore
-        p.cyl((x, -0.252, 0.10), 0.017, 0.0, 0.02, 'red', seg=8, rot=(90, 0, 0), deco=True)         # rocket tip
+        p.cyl((x, -0.235, 0.10), 0.032, 0.032, 0.026, 'jet3', seg=8, rot=(90, 0, 0))                      # launcher barrel
+        p.cyl((x, -0.25, 0.10), 0.036, 0.036, 0.016, 'plate', seg=8, rot=(90, 0, 0), caps=False, deco=True)   # rim
+        p.cyl((x, -0.2615, 0.10), 0.024, 0.024, 0.004, 'ink', seg=6, rot=(90, 0, 0), deco=True)      # bore
+        p.cyl((x, -0.252, 0.10), 0.017, 0.0, 0.02, 'red', seg=6, rot=(90, 0, 0), deco=True)         # rocket tip
     p.box((0, 0.0, 0.0), (0.08, 0.06, 0.03), 'gunmetal')                                         # mount
     pod = p.build('BOT_JET_Pod', bevel=False)
     socket('BOT_JET_LID', pod, (0, -0.28, 0.19))
     for k, x in enumerate((-0.068, 0.0, 0.068)):
         socket('BOT_JET_TUBE%d' % k, pod, (x, -0.30, 0.10))
-    # lid (origin = hinge): a rounded plate with a bevelled outer face, a raised centre rib, its inner edge in the
-    # element colour
+    # lid (origin = hinge): a chamfered plate, a raised centre rib, its inner edge in the element colour
     p = Part(pal)
     with SA.at_frame(p, SA.frame((0, -0.002, 0), (0, -1, 0))):
-        SA.loft(p, [SA.ring_rr(0.115, 0.09, 0.038, 2, 0.0, 0, -0.09), SA.ring_rr(0.115, 0.09, 0.038, 2, 0.012, 0, -0.09),
-                    SA.ring_rr(0.105, 0.08, 0.03, 2, 0.02, 0, -0.09)], 'jet')
+        SA.loft(p, [SA.ring_rr(0.115, 0.09, 0.03, 1, 0.0, 0, -0.09), SA.ring_rr(0.115, 0.09, 0.03, 1, 0.012, 0, -0.09),
+                    SA.ring_rr(0.105, 0.08, 0.024, 1, 0.02, 0, -0.09)], 'jet')
     SA.sweep(p, [(0, -0.022, z) for z in (-0.03, -0.09, -0.15)], [(0, -1, 0)] * 3, 0.03, 0.005, 'jet3', off=-0.001)
     with SA.at_frame(p, SA.frame((0, -0.002, 0), (0, 1, 0))):
         SA.ring_band(p, [(q[0], q[1], 0.0) for q in SA.ring_rr(0.098, 0.074, 0.026, 1, 0.0, 0, -0.09)], lambda q: (0, 0, 1), 0.01, 0.004, 'plate',

@@ -47,7 +47,8 @@
   /* Robot parts come from fps-bots.glb (Blender). Each VIS entry:
        radius (collision + hit capsule), y0/y1 (hit capsule: cylinder from y0 + r/2 to y1 - r/2, sphere caps),
        coreY/coreZ/coreR (weak point sphere, from the CORE socket), eye (sight height), home (engaged state),
-       parts {Name: {count, asset, light}}, sockets(v), pose(r, P) every frame, corpse(v, add) rest pose for the silhouette. */
+       parts {Name: {count, asset, light}}, sockets(v), pose(r, P) every frame, corpse(v, add) rest pose for the silhouette,
+       deathSpin(r) (optional: rad/s its corpse turns while it falls). */
   var VIS = AI.VIS = {
     /* levels 20+ (AI.level >= SKIN2_LEVEL): half the Crawlers wear the advanced skin (Body2 / Leg2: plated shell, sloped
        head ring, wrap-around visor, panel lines; same silhouette, pivots and hit volumes), its armour painted per
@@ -233,7 +234,7 @@
       for (var k = 0; k < CORPSE_CAP; k++) cm.setMatrixAt(k, ZERO);
       scene.add(cm);
       T.corpse = cm; T.corpses = [];
-      for (k = 0; k < CORPSE_CAP; k++) T.corpses.push({ on: false, t: 0, x: 0, y: 0, z: 0, vy: 0, yaw: 0, tip: 1, fy: 0 });
+      for (k = 0; k < CORPSE_CAP; k++) T.corpses.push({ on: false, t: 0, x: 0, y: 0, z: 0, vy: 0, yaw: 0, tip: 1, fy: 0, spin: 0 });
       for (var s = 0; s < CAP; s++) { var r = newRobot(id, s); T.slots.push(r); AI.robots.push(r); }
       AI.types[id] = T; AI.typeList.push(T);
     });
@@ -532,6 +533,7 @@
     for (var i = 0; i < CORPSE_CAP; i++) if (!T.corpses[i].on) { c = T.corpses[i]; c.idx = i; break; }
     if (!c) { var oldest = 0; for (i = 1; i < CORPSE_CAP; i++) if (T.corpses[i].t > T.corpses[oldest].t) oldest = i; c = T.corpses[oldest]; c.idx = oldest; }
     c.on = true; c.t = 0; c.x = r.x; c.y = r.y; c.vy = 0; c.z = r.z; c.yaw = r.yaw; c.tip = Math.random() < 0.5 ? 1 : -1; c.fy = r.fy || 0;
+    c.spin = v.deathSpin ? v.deathSpin(r) : 0;   // a flyer that spins down as it falls (Jet Trooper), rad/s
     var my = r.y + 0.5;
     if (IB.Boom && IB.Boom.ready) IB.Boom.robotDeath(r, quiet);   // comic explosion per type (Drones drop and blow up on impact)
     else if (IB.FX) { IB.FX.chunk(r.x, my, r.z, 3 + ((Math.random() * 4) | 0), 3); IB.FX.puff(r.x, my, r.z, 6, PAL.ink, 0.25, 0.7, 3); }
@@ -1310,7 +1312,7 @@
         var c = T.corpses[i];
         if (!c.on) { T.corpse.setMatrixAt(i, ZERO); continue; }
         c.t += dt;
-        if (c.y > c.fy) { c.vy -= 16 * dt; c.y = Math.max(c.fy, c.y + c.vy * dt); }   // drop to the floor under it
+        if (c.y > c.fy) { c.vy -= 16 * dt; c.y = Math.max(c.fy, c.y + c.vy * dt); c.yaw += (c.spin || 0) * dt; }   // drop to the floor under it (spinning down)
         var y, tip, alpha = 1;
         if (c.t < 0.12) { y = c.y + Math.sin(c.t / 0.12 * Math.PI / 2) * 0.3; tip = 0; }
         else if (c.t < 0.62) { var k = (c.t - 0.12) / 0.5; y = c.y + 0.3 * (1 - k * k); tip = k * k * (Math.PI / 2); }
