@@ -9,6 +9,7 @@ import random
 
 from ic_base import *  # noqa: F401,F403
 import ic_base as B
+import ic_detail as D
 
 
 # ================================================================ walls
@@ -29,6 +30,7 @@ def wall_parlour(m, z0=0.0, seed=0, x0=-0.5, x1=0.5):
     fq(m, x0, x1, -0.5, 4.7, 6.78, 'wallC')
     drip_band(m, x0, x1, -0.503, 4.74, 'choc', n=int(round((x1 - x0) * 2)), depth=0.22, seed=seed)
     fq(m, x0, x1, -0.503, 6.78, H, 'wafD')
+    D.parlour_finish(m, x0, x1, z0)
 
 
 def wall_kitchen(m, z0=0.0, x0=-0.5, x1=0.5):
@@ -46,6 +48,7 @@ def wall_kitchen(m, z0=0.0, x0=-0.5, x1=0.5):
         fq(m, x0, x1, -0.503, 2.4, 2.48, 'steel')
     fq(m, x0, x1, -0.5, max(z0, 2.48), H, 'wallC')
     fq(m, x0, x1, -0.503, 6.4, 6.52, 'pinkD')
+    D.kitchen_finish(m, x0, x1, z0)
 
 
 def ext_point(m, x=0.0, wall=wall_parlour):
@@ -59,8 +62,8 @@ def ext_point(m, x=0.0, wall=wall_parlour):
 
 
 def build_walls(pal, ao):
-    m = new(pal); wall_parlour(m); make('WP', m, ao)
-    m = new(pal); wall_kitchen(m); make('WK', m, ao)
+    m = new(pal); wall_parlour(m); D.socket_plate(m, 0.3, 0.45); D.light_switch(m, -0.3, 1.45); make('WP', m, ao)
+    m = new(pal); wall_kitchen(m); D.socket_plate(m, 0.3, 1.1); D.light_switch(m, -0.3, 1.3); make('WK', m, ao)
     # corner posts: the finish on all four sides
     for S in ('P', 'K'):
         m = new(pal)
@@ -89,6 +92,7 @@ def build_walls(pal, ao):
         m.bx(-0.34, 0.34, -0.64, -0.563, 1.0, 1.08, 'chrome')
         fq(m, -0.38, 0.38, -0.566, 1.45, 1.75, 'cherry')
         text_front(m, 'EMERGENCY EXIT', 0.08, -0.569, 0.0, 1.55, 'white', font='cond', maxw=0.7)
+        D.exit_door_finish(m)
         m.bx(-0.3, 0.3, -0.62, -0.503, 2.45, 2.75, 'white', cull='k')
         make('W%s_Exit' % S, m, ao)
     g = new(pal)
@@ -105,6 +109,7 @@ def build_walls(pal, ao):
 def menu_frame(m, z0, z1):
     m.bx(-0.48, 0.48, -0.56, -0.503, z0, z1, 'wafD', cull='k')
     fq(m, -0.44, 0.44, -0.563, z0 + 0.04, z1 - 0.04, 'screen')
+    D.menu_frame_detail(m, z0, z1)
 
 
 MENUS = {
@@ -153,6 +158,7 @@ def window(m, kind):
         m.bx(x - 0.04 if x > 0 else x, x if x > 0 else x + 0.04, -0.56, -0.45, 0.88, 3.36, 'wafD', hull='none', cull='tb')
     m.bx(-0.025, 0.025, -0.54, -0.45, 0.88, 3.36, 'wafD', hull='none', cull='tbk')
     m.bx(-0.46, 0.46, -0.535, -0.455, 2.66, 2.71, 'wafD', hull='none', cull='lrk')
+    D.window_finish(m)
     if kind == 'B':   # a window decal: a big painted cone with two scoops
         poly(m, [(0.12, -0.476, 1.25), (0.38, -0.476, 1.25), (0.25, -0.476, 0.98)], 'waf', (0, -1, 0))
         fdisc(m, 0.25, -0.48, 1.37, 0.14, 'strawb', seg=10)
