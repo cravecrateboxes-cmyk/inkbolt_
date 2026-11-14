@@ -5,6 +5,7 @@ import math
 
 from cargo_base import *  # noqa: F401,F403
 import ib_text
+import cargo_detail as D
 
 
 def octo(m, x, y, z, r, h, c, seg=8, hull='full'):
@@ -95,6 +96,7 @@ def build_mooring(pal, ao):
             m.cy((x, 0, zc), 0.8, 0.8, 0.05, 'fireR', seg=14, rot=(0, 90, 0), hull='none', caps=False)
         m.cy((0.2, -0.95, 1.5), 0.03, 0.03, 0.25, 'steelD', seg=6)
         m.cy((0.2, -0.95, 1.75), 0.22, 0.22, 0.04, 'fireR', seg=10)
+        D.winch_detail(m)
         make(name, m, ao, cols=[cb(-2.0, -0.8, 0, 1.9, 0.8, 1.8), cb(-1.9, -1.2, 0, 1.9, 1.2, 0.3)])
     # double bitts [2,1]
     m = new(pal)
@@ -104,6 +106,7 @@ def build_mooring(pal, ao):
         m.cy((x, 0, 0.68), 0.28, 0.28, 0.08, 'ink', seg=12)
         m.cy((x, 0, 0.5), 0.223, 0.223, 0.08, 'paper', seg=12, hull='none', caps=False)
     m.bx(-0.48, 0.48, -0.06, 0.06, 0.25, 0.35, 'ink')
+    D.bitts_detail(m)
     make('Bitts', m, ao, cols=[cb(-0.75, -0.28, 0, 0.75, 0.28, 0.76)])
     # rope coil 1x1: a flaked-down mooring line on a grating
     m = new(pal)

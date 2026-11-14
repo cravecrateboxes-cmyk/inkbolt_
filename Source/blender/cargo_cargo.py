@@ -9,11 +9,12 @@ import math
 
 from cargo_base import *  # noqa: F401,F403
 import ib_text
+import cargo_detail as D
 
 CW, CH = 2.44, 2.6
 
 
-def box(m, x, y, z, L, slot, vis, door=1, reefer=False, brand=None):
+def box(m, x, y, z, L, slot, vis, door=1, reefer=False, brand=None, detail=True):
     """one container centred on (x, y), base z, length L along Y. vis: set of faces seen ('l' -X side, 'r' +X side,
     't' top, 'n' +Y end, 's' -Y end). door: +1 doors on the +Y end, -1 on the -Y end."""
     c, cd = ('cWht', 'cWhtD') if reefer else CSLOT[slot]
@@ -60,15 +61,18 @@ def box(m, x, y, z, L, slot, vis, door=1, reefer=False, brand=None):
             for k in range(2):
                 xx = x - 0.4 + k * 0.8
                 f(m, xx - 0.1, xx + 0.1, yf + sy * 0.003, z + 0.2, z + CH - 0.26, cd)
+    if detail:
+        D.container_detail(m, x, y, z, L, door, vis, reefer, int(round(z / CH)))
 
 
 def lashing(m, x, y, z, sy):
     """lashing rods crossed over a stack end (just off the end face at y), turnbuckles at their feet"""
     for sx in (-1, 1):
-        a = (x + sx * 1.0, y + sy * 0.07, z + 0.06)
-        b = (x - sx * 1.05, y + sy * 0.035, z + CH - 0.1)
-        m.bm_(a, b, 0.03, 'galv', hull='none')
-        m.bx(a[0] - 0.04, a[0] + 0.04, a[1] - 0.03, a[1] + 0.03, z, z + 0.3, 'yel', hull='none')
+        o = 0.005 if sx > 0 else 0.0   # the two crossing rods stand 5 mm apart
+        a = (x + sx * 1.0, y + sy * (0.07 + o), z + 0.06)
+        b = (x - sx * 1.05, y + sy * (0.035 + o), z + CH - 0.1)
+        D.flat_rod(m, a, b, sy)
+        m.bx(a[0] - 0.04, a[0] + 0.04, a[1] - 0.03, a[1] + 0.03, z, z + 0.3, 'yel', hull='none', cull='b' + ('f' if sy > 0 else 'k'))
 
 
 def stack(m, rows, L=12.0, vis_end=('n', 's'), seed=0, reefers=(), brands=(), lash=None, z0=0.0):
@@ -226,7 +230,7 @@ def build_cells(pal, ao):
             if t == n - 1:
                 vis.add('t')
             box(m, 0.0, 0.0, t * CH, L, (t * 3 + n) % 4, vis, door=1 if t % 2 else -1, reefer=(extra == 'reefer'),
-                brand=LINE if (n >= 3 and t == 1) else None)
+                brand=LINE if (n >= 3 and t == 1) else None, detail=False)
         if n:
             cols.append(cb(-CW / 2 - 0.02, -L / 2, 0, CW / 2 + 0.02, L / 2, n * CH))
         if extra == 'reefer':   # power cable from the reefer socket on the guide

@@ -27,6 +27,7 @@ import ib_lib
 from fam_kit_smallcity import PM, post_hull
 from parking_base import fq, bq, uq, dq, lq, rq, poly, disc, cb, text_front, text_back, text_side, text_up  # noqa: F401
 import ib_text  # noqa: F401
+import cargo_detail as D
 
 FAM = 'kit-cargoship'
 PFX = 'KIT_CARGOSHIP_'
@@ -103,7 +104,7 @@ def tube(m, a, b, r, c, seg=8, hull='full'):
     m.parent = old
 
 
-def rail_run(m, x0, x1, y, z0, h=1.05, c='yel', post=1.0, toe=True, posts=True):
+def rail_run(m, x0, x1, y, z0, h=1.05, c='yel', post=1.0, toe=True, posts=True, foot=False):
     """guard rail along X at y: posts, a top and a knee rail (and a toe board)"""
     L = x1 - x0
     m.bx(x0, x1, y - 0.03, y + 0.03, z0 + h - 0.05, z0 + h, c, hull='noside' if L > 0.95 else 'full')
@@ -115,6 +116,8 @@ def rail_run(m, x0, x1, y, z0, h=1.05, c='yel', post=1.0, toe=True, posts=True):
         for k in range(n + 1 if L < 0.95 else n):
             px = x0 + (k + 0.5) * L / n if L >= 0.95 else x0 + k * L / n
             m.bx(px - 0.025, px + 0.025, y - 0.025, y + 0.025, z0, z0 + h - 0.05, c, hull='none', cull='bt')
+            if foot:
+                D.post_foot(m, px, y, z0, x0, x1)
 
 
 def rail_y(m, x, y0, y1, z0, h=1.05, c='yel', post=1.0, toe=True):
@@ -131,12 +134,14 @@ def rail_y(m, x, y0, y1, z0, h=1.05, c='yel', post=1.0, toe=True):
         m.bx(x - 0.025, x + 0.025, py - 0.025, py + 0.025, z0, z0 + h - 0.05, c, hull='none', cull='bt')
 
 
-def ladder(m, x, y, z0, z1, w=0.45, c='yel', face=-1, cage=False):
+def ladder(m, x, y, z0, z1, w=0.45, c='yel', face=-1, cage=False, brk=True, emb=0.003):
     """vertical ladder standing off a wall: stiles and rungs (face -1: in front of a -Y facing wall at y)"""
     yo = y + face * 0.16
     for sx in (-1, 1):
         m.bx(x + sx * w / 2 - 0.025, x + sx * w / 2 + 0.025, yo - 0.03, yo + 0.03, z0, z1, c)
         m.bx(x + sx * w / 2 - 0.02, x + sx * w / 2 + 0.02, min(y, yo), max(y, yo), z1 - 0.3, z1 - 0.25, c, hull='none', cull='kf')
+    if brk:
+        D.ladder_brackets(m, x, y, z0, z1, w, face, emb)
     n = int((z1 - z0) / 0.3)
     for k in range(1, n):
         z = z0 + k * 0.3
