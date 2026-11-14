@@ -188,7 +188,7 @@
     // actors: a cool view-space rim, stronger where the local light is dark (readability, plan 8.3)
     '#ifdef IB_ACTOR',
     '  float ibLit = clamp( dot( ibSun + ibAmb + ibLoc, vec3( 0.2126, 0.7152, 0.0722 ) ), 0.0, 1.0 );',
-    '  ibCol += vec3( 0.42, 0.50, 0.66 ) * pow( 1.0 - max( dot( ibNb, ibV ), 0.0 ), 3.0 ) * ( 0.10 + 0.32 * ( 1.0 - ibLit ) );',
+    '  ibCol += vec3( 0.42, 0.50, 0.66 ) * pow( 1.0 - max( dot( ibNb, ibV ), 0.0 ), 2.6 ) * ( 0.12 + 0.42 * ( 1.0 - ibLit ) );',   // readability gate: Soldier at 30 m in the coal mine
     '#endif',
     'ibCol = pow( max( ibCol, vec3( 0.0 ) ), vec3( 1.0 / 2.2 ) );',
     'ibCol = mix( ibCol, ibAlb * uEmBoost, ibEm );',   // emissive cells: unlit, boosted (bloom source above 1.0)

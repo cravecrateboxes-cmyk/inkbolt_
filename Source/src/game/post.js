@@ -100,6 +100,7 @@
       uExpo: { value: 1 }, uBloom: { value: 0 }, uSat: { value: 1 }, uCon: { value: 0 }, uVig: { value: 0 }, uGrain: { value: 0 }, uTime: { value: 0 },
       uLo: { value: new THREE.Vector3(1, 1, 1) }, uHi: { value: new THREE.Vector3(1, 1, 1) }, uRes: { value: new THREE.Vector2(1, 1) } });
     M.compFxaa = M.comp.clone(); M.compFxaa.uniforms = M.comp.uniforms; M.compFxaa.defines = { IB_FXAA: '' };
+    P.M = M;   // tests (look-readability.js switch the grain off)
     M.bright = P.pass(BRIGHT, { t: { value: null }, uThr: { value: 1 }, uKnee: { value: 0.35 } }); 
     M.down = P.pass(DOWN, { t: { value: null }, uPx: { value: new THREE.Vector2() } });
     M.up = P.pass(UP, { t: { value: null }, tAdd: { value: null }, uPx: { value: new THREE.Vector2() } });

@@ -41,7 +41,7 @@ fs.mkdirSync(OUT, { recursive: true });
           let ok = true; for (let d = -1; d <= 1 && ok; d++) for (let e = -1; e <= 1 && ok; e++) if (!IB.Zones.isOpen(Zn, x + d, z + e)) ok = false;
           if (!ok) continue;
           const s = LG.sampleAt(x, 1.0, z); if (!s) continue;
-          const v = 0.2126 * s[0] + 0.7152 * s[1] + 0.0722 * s[2] + s[3] * 0.5;
+          const L = s.local, v = 0.2126 * L[0] + 0.7152 * L[1] + 0.0722 * L[2] + s.sky * 0.5;   // sampleAt -> { local: [r, g, b], sky }
           cands.push({ x, z, v });
         }
         if (!cands.length) return null;
@@ -80,8 +80,13 @@ fs.mkdirSync(OUT, { recursive: true });
               }
               __TEST__.teleportTo(cam.x, cam.z);
               const dx = target.x - cam.x, dz = target.z - cam.z;
-              __TEST__.look(Math.atan2(-dx, -dz), -Math.atan2(0.8, Math.hypot(dx, dz)) * 0);
-            }, { target, cam, type, withBot });
+              __TEST__.look(Math.atan2(-dx, -dz), -Math.atan2(0.8, Math.hypot(dx, dz)));
+              // only the robot may differ between the two shots: no gun, no film grain, no dust motes
+              if (IB.Render.vmScene) IB.Render.vmScene.visible = false;
+              if (IB.Post && IB.Post.M) IB.Post.M.comp.uniforms.uGrain.value = 0;
+              if (IB.Atmo && IB.Atmo.extras && IB.Atmo.extras.dust) IB.Atmo.extras.dust.visible = false;
+              return withBot ? AI.robots.filter(r => r.on).map(r => r.type + '@' + r.x.toFixed(1) + ',' + r.z.toFixed(1)).join(' ') : '';
+            }, { target, cam, type, withBot }).then(v => { if (withBot) console.log('  ', plan, type, D + 'm robots on:', v || 'NONE'); });
             await pg.waitForTimeout(2500);
             const f = path.join(OUT, `${plan}-${type}-${D}m-${withBot ? 'bot' : 'empty'}.png`);
             await pg.screenshot({ path: f, timeout: 600000 });

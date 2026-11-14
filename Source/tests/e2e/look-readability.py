@@ -36,11 +36,19 @@ def main(a, b):
     A = np.asarray(Image.open(a).convert('RGB')).astype(float) / 255
     B = np.asarray(Image.open(b).convert('RGB')).astype(float) / 255
     H, W = A.shape[:2]
-    d = np.abs(A - B).max(axis=2) > 6 / 255
+    d = np.abs(A - B).max(axis=2) > 12 / 255
     by, bx = int(H * 0.12), int(W * 0.12)
     keep = np.zeros_like(d)
     keep[by:H - by, bx:W - bx] = True
     d &= keep
+    # morphological opening (2 px): isolated noise pixels go, the robot's silhouette stays
+    def erode(m):
+        o = m.copy()
+        for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            o &= np.roll(np.roll(m, dy, 0), dx, 1)
+        return o
+    e = erode(erode(d))
+    d = dilate(e, 2) & d
     if d.sum() < 4:
         print(json.dumps({'px': int(d.sum()), 'robot': None, 'ring': None, 'diff': 0}))
         return
