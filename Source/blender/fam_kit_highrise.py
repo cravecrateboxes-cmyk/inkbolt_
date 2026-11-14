@@ -35,6 +35,7 @@ import ib_lib
 import ib_text
 import fam_kit_office as O
 import fam_kit_spire as SP
+import hr_detail as HD
 
 FAM = 'kit-highrise'
 PFX = 'KIT_HIGHRISE_'
@@ -158,6 +159,7 @@ def door(k, S):
     k.qy(0.26, 0.32, 1.18, 1.26, -0.603, -1, 'green')
     k.qy(0.26, 0.32, 1.08, 1.14, -0.603, -1, LED[S])
     k.qy(-0.48, 0.48, 2.42, 2.47, -0.563, -1, LED[S])
+    HD.door(k)
     return k
 
 
@@ -173,6 +175,7 @@ def sign(k, S):
     k.qy(-0.43, 0.43, 3.55, 3.57, -0.563, -1, LED[S])
     text(k, a, 0, -0.563, 3.15, 0.26, 'white', maxw=0.84)
     text(k, b, 0, -0.563, 2.98, 0.08, LED[S], font='cond', maxw=0.84)
+    HD.sign(k)
     return k
 
 
@@ -187,6 +190,7 @@ def logo(k, S):
     star(k, 0, -0.6, 2.75, 0.27, 'white')
     k.qy(-0.46, 0.46, 1.95, 2.25, -0.5095, -1, 'black')
     text(k, 'ZENITH', 0, -0.513, 2.0, 0.2, 'white', maxw=0.8)
+    HD.logo(k)
     return k
 
 
@@ -202,6 +206,7 @@ def lock(k, S):
     k.cyl(0, -0.56, 1.6, 0.06, 0.06, 0.03, 'graphite', seg=10, rot=(90, 0, 0))
     k.cyl(0, -0.591, 1.6, 0.035, 0.035, 0.004, 'red', seg=10, rot=(90, 0, 0), ink=False)
     k.qy(-0.16, 0.16, 1.47, 1.5, -0.563, -1, 'green')
+    HD.lock(k)
     return k
 
 
@@ -400,6 +405,7 @@ def bulk(k, kind):
         k.bx(-0.42, 0.42, -0.55, -0.5, 0, 2.3, 'steelDark')
         k.qy(-0.36, 0.36, 0.02, 2.2, -0.553, -1, 'steel2')
         k.qy(-0.25, 0.25, 1.75, 1.95, -0.556, -1, 'yellow')
+        HD.bulk_door(k)
     elif kind == 'Plain':
         k.qy(0.15, 0.2, 0.0, 3.0, -0.506, -1, 'concrete2')   # rain streak
     return k
@@ -926,6 +932,7 @@ def front_desk(k):
         O.monitor(k, x, 0.15, 180, 0.78, 'screen')
     for x in (-1.1, 1.1):
         O.task_chair(k, x, 0.95, 180)
+    HD.front_desk(k)
     k.col(-2.95, 2.95, -0.62, 0.62, 0, 1.18)
     return k
 
@@ -1127,6 +1134,7 @@ def server_rack(k):
             x = -0.3 + j * 0.06
             k.qy(x, x + 0.025, z + 0.03, z + 0.06, -0.459, -1, ('cyan', 'green', 'blue', 'orange')[(i + j) % 4])
     k.qy(-0.42, 0.42, 2.14, 2.17, -0.453, -1, 'cyan')
+    HD.server_rack(k)
     k.col(-0.42, 0.42, -0.45, 0.45, 0, 2.2)
     return k
 
@@ -1243,6 +1251,7 @@ def hvac(k):
     k.bx(-0.8, 0.8, -0.015, 0.015, 1.77, 1.8, 'graphite', ink=False)
     k.cyl(1.5, 0.5, 0.3, 0.07, 0.07, 0.8, 'galv', seg=6, rot=(0, 90, 0))
     k.cyl(1.5, -0.4, 0.5, 0.05, 0.05, 0.8, 'orange', seg=6, rot=(0, 90, 0))
+    HD.hvac(k)
     k.col(-1.5, 1.5, -1.0, 1.0, 0, 1.75)
     return k
 
@@ -1271,6 +1280,7 @@ def cooling_tower(k):
         k.bx(1.2, 1.6, -2.05, -2.0, z, z + 0.03, 'yellow', ink=False)
     for x in (1.2, 1.6):
         k.bx(x - 0.02, x + 0.02, -2.06, -1.9, 0.0, 3.6, 'yellow', ink=False)
+    HD.cooling_tower(k)
     k.col(-1.9, 1.9, -2.06, 1.9, 0, 3.6)
     return k
 
@@ -1326,6 +1336,7 @@ def machine_room(k):
     k.bx(-2.0, -0.6, 0.0, 1.4, 3.42, 4.0, 'galv')
     k.bx(1.0, 2.4, -1.2, 0.2, 3.42, 3.8, 'steelDark')
     k.cyl(1.7, -0.5, 3.8, 0.35, 0.35, 0.12, 'steel2', seg=10)
+    HD.machine_room(k)
     k.col(-3.0, 3.0, -2.07, 2.0, 0, 3.42)
     k.col(3.0, 3.55, -1.0, 0.8, 0, 1.4)
     return k
@@ -1352,6 +1363,7 @@ def mast(k):
     k.bx(-0.25, -0.2, -0.05, 0.05, 4.0, 5.2, 'white')
     k.cyl(0, 0, 9.0, 0.04, 0.02, 2.4, 'galv', seg=6, ink=False)
     k.sph(0, 0, 11.45, 0.12, 'red', seg=(6, 4))
+    HD.mast(k)
     k.col(-0.9, 0.9, -0.9, 0.9, 0, 1.2)
     return k
 
@@ -1389,6 +1401,7 @@ def gantry(k):
     k.bx(-10.0, -9.95, -0.95, 0.95, 1.7, 2.6, 'yellow')
     k.bx(-8.55, -8.5, -0.95, 0.95, 1.7, 2.6, 'yellow')
     k.bx(-9.6, -9.2, -0.4, 0.3, 1.7, 2.1, 'slate')
+    HD.gantry(k)
     k.col(-1.7, 1.7, -1.3, 1.3, 0, 1.6)
     k.col(-0.75, 0.75, -0.75, 0.75, 1.6, 3.5)
     return k
@@ -1452,6 +1465,7 @@ def roof_duct(k):
     k.qy(-0.5, 0.5, 0.45, 0.47, 0.303, 1, 'steel2')
     k.bx(-0.04, 0.04, -0.34, 0.34, 0.0, 0.2, 'steelDark')
     k.bx(-0.06, 0.06, -0.32, 0.32, 0.75, 0.78, 'steelDark', ink=False)
+    HD.duct(k)
     k.col(-0.5, 0.5, -0.34, 0.34, 0, 0.78)
     return k
 
@@ -1481,6 +1495,7 @@ def roof_hatch(k):
     for x in (-0.25, 0.25):
         k.beam((x, 0.45, 0.42), (x, 0.55, 1.4), 0.03, 'yellow', ink=False)
     k.beam((-0.25, 0.55, 1.4), (0.25, 0.55, 1.4), 0.03, 'yellow', ink=False)
+    HD.hatch(k)
     k.col(-0.48, 0.48, -0.48, 0.48, 0, 0.5)
     return k
 
