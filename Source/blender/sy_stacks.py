@@ -12,6 +12,7 @@ from mathutils import Vector
 from sy_base import (SK, Z, WALL_H, TRAIL_H, CARS, srt, rock_pts, clamp_pts, slab, slab3, oslab, tube, drumx, drumy,
                      hull_box, tbox, pool_disc, sodium_head, text, sign_board, tyre, lattice, scrap_fn, heap, plate, ibeam, cable, vdisc)
 from gem_base import stairs_x, deck, rail_x, rail_y
+import sy_detail as D
 from foundry_common import guard_rail
 
 V = Vector
@@ -201,6 +202,7 @@ def gate_frame(k):
         sodium_head(k, 0.0, f * 0.52, HD - 0.15, s=f, w=0.7, h=0.24)
         k.beacon(2.05 * -f, 0.0, WALL_H - 0.2, r=0.15)
     k.bx(-2.45, 2.45, -0.18, 0.18, WALL_H - 0.4, WALL_H - 0.2, 'rust')
+    D.gate_frame_detail(k)
     return k
 
 
@@ -215,6 +217,7 @@ def gate_shutter(k):
         x0 = -1.5 + j * 3 / 8
         k.bx(x0, x0 + 3 / 8, -0.07, 0.07, 0, 0.36, 'ink' if j % 2 else 'hazard', ink=False)
     k.bx(-1.5, 1.5, -0.07, 0.07, Hs - 0.12, Hs, 'steelDark', ink=False)
+    D.gate_shutter_detail(k)
     return k
 
 
@@ -232,6 +235,7 @@ def trail_wall(k, lamp=False, seed=1):
     if lamp:
         k.bx(-0.06, 0.06, -0.75, -0.05, 4.2, 4.32, 'steelDark')
         sodium_head(k, 0.0, -0.8, 4.0, s=-1, w=0.42, h=0.26)
+    D.trail_wall_detail(k, lamp)
     return k
 
 
@@ -257,6 +261,7 @@ def hatch(k):
     k.beacon(-W + 0.1, C0, H + 0.25, r=0.13)
     sodium_head(k, 0.0, C0 + 0.3, H - 0.1, s=-1, w=0.6, h=0.22)
     pool_disc(k, 0.0, 0.3, Z['hatch'], 1.5, 7)
+    D.hatch_detail(k)
     return k
 
 
@@ -433,6 +438,7 @@ def flood_tower(k):
     k.qx(-0.25, 0.05, 0.9, 1.1, 0.953, 1, 'hazard')
     k.beam((0.7, -0.1, 1.35), (0.42, -0.1, 2.4), 0.04, 'cable', ink=False)
     pool_disc(k, 0.0, 0.0, Z['tower'], 6.2, 11, n=20)
+    D.flood_tower_detail(k)
     k.col(-0.7, 0.7, -0.7, 0.7, 0, 12.75)
     return k
 
@@ -519,6 +525,7 @@ def office(k):
     k.beacon(-2.8, 1.25, ZT + 0.05, r=0.12)
     k.col(X0 - 0.6, X0, -0.5, 0.4, 1.0, 1.7)
     pool_disc(k, -0.4, -3.0, Z['piece2'], 2.0, 21, sx=1.6, sy=0.7)
+    D.office_detail(k)
     return k
 
 
@@ -580,6 +587,7 @@ def baler(k):
     k.col(3.0, 7.0, Y0 + 0.3, Y1 - 0.3, 0, 1.72)
     k.col(-0.8, 2.6, Y1 + 0.3, 6.6, 0, 1.6)
     pool_disc(k, 0.5, -0.8, Z['piece'], 3.0, 31, sx=1.8, sy=0.9)
+    D.baler_detail(k)
     return k
 
 
@@ -649,6 +657,7 @@ def crane(k):
     tbox(k, P2.x + 0.15, P2.y - 0.3, MZ - 0.95, 1.2, 1.3, 0.12, 'glassD', roll=8, pitch=-6, ink=False)
     k.col(cx - 2.6, cx + 2.6, cy - 2.7, cy + 2.0, 0, 3.2)
     k.col(cx - 1.8, cx - 0.3, cy - 0.05, cy + 1.65, 3.2, 6.3)
+    D.crane_detail(k)
     return k
 
 
@@ -919,6 +928,7 @@ def skip(k, seed):
         else:
             heap(k, x, y, 0.5, 0.4, 0.5, seed + i, n=6, top=1, z0=1.24 + 0.01 * i)
     k.col(-1.92, 1.92, -0.94, 0.94, 0, 1.55)
+    D.skip_detail(k, seed)
     return k
 
 
@@ -933,6 +943,7 @@ def barrier(k, seed):
         for s in (-1, 1):
             k.poly([(-0.5, s * 0.2, 0.33), (0.5, s * 0.2, 0.33), (0.5, s * 0.167, 0.48), (-0.5, s * 0.167, 0.48)], 'hazard', (0, s, 0.2))
     k.col(-0.5, 0.5, -0.3, 0.3, 0, 0.8)
+    D.barrier_detail(k)
     return k
 
 

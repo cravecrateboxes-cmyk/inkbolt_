@@ -23,6 +23,7 @@ from mathutils import Matrix, Vector
 from sy_base import (Z, CARS, srt, slab, slab3, oslab, tube, drumx, drumy, frame_at, hull_box, tbox, pool_disc,
                      sodium_head, text, sign_board, plate_ramp, lattice, scrap_fn, heap, plate, ibeam, rock_pts, cable)
 from gem_base import stairs_x, deck, rail_x, rail_y
+import sy_detail as D
 from foundry_common import guard_rail
 
 V = Vector
@@ -409,6 +410,7 @@ def reactor(k, cracked=False):
         sign_board(k, 0.0, -1.73, 0.55, 1.4, 0.7, [('CORE 4', 0.2, None), ('DO NOT OPEN', 0.13, 'crimson2')])
         k.beacon(0.0, 0.0, 4.0, r=0.16)
         pool_disc(k, 0.0, 0.0, Z['blue'], 2.0, 71, c1='poolB', c2='cyanD')
+        D.reactor_detail(k)
         k.col(-1.7, 1.7, -1.7, 1.7, 0, 0.4)
         k.col(-1.3, 1.3, -1.3, 1.3, 0.4, 3.6)
         return k
@@ -462,6 +464,7 @@ def scaffold(k):
     k.bx(5.45, 5.55, 2.0, 2.1, 5.4, 7.05, 'steelDark')
     k.beacon(1.5, 2.05, 7.1, r=0.13)
     k.bx(1.45, 1.55, 2.0, 2.1, 5.4, 7.1, 'steelDark')
+    D.scaffold_detail(k)
     return k
 
 
@@ -485,6 +488,7 @@ def arm(k):
     k.col(-5.8, -1.0, -1.9, 1.9, 0, 3.2)
     k.col(-1.0, 2.8, -0.95, 0.95, 0, 1.9)
     k.col(2.8, 6.4, -0.85, 0.85, 0, 1.75)
+    D.arm_detail(k)
     return k
 
 
@@ -508,6 +512,7 @@ def beacon_post(k):
         k.bx(-0.065, 0.065, -0.065, 0.065, z, z + 0.25, 'ink', ink=False)
     k.beacon(0.0, 0.0, 2.6, r=0.17)
     sign_board(k, 0.0, -0.07, 1.4, 0.55, 0.38, [('DANGER', 0.13, 'crimson2')], rim=None)
+    D.beacon_post_detail(k)
     k.col(-0.32, 0.32, -0.32, 0.32, 0, 2.6)
     return k
 
