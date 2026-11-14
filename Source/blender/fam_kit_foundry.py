@@ -29,6 +29,7 @@ from foundry_common import (FAM, PFX, HULL_T, CEIL, WALL_H, ROOF, Z, FK, srt, sl
                             beacon, floodlamp, downlamp, cable, guard_rail, robot_arm, rivet_row)
 from foundry_bots import skid, spider, hover, hound, gunship, centipede
 import foundry_giants as GI
+import fd_detail as FD
 
 V = Vector
 
@@ -142,6 +143,9 @@ def wall_module(k, kind, cutL=0.0, cutR=0.0, num=None):
         k.bx(-0.3, 0.3, -0.82, -0.5 - PL, 1.2, 2.2, 'crimson')
         k.qy(-0.2, 0.2, 1.45, 1.95, -0.823, -1, 'rubber')
         k.qy(-0.22, 0.22, 2.3, 2.52, -0.506 - PL, -1, 'crimson')
+    FD.wall_extra(k, -0.5 + cutL, 0.5 - cutR, -0.5 - PL, seam=kind in ('Plain', 'Hose', 'Gate', 'GateIn'))
+    if kind == 'Num':
+        FD.num_plate(k)
     return k
 
 
@@ -166,6 +170,7 @@ def pilaster(k):
     for z in (11.0, 14.0, 20.0):
         k.qy(-0.4, 0.4, z - 0.03, z + 0.03, -1.403, -1, 'gun2')
     floodlamp(k, 0.0, -1.5, GZ0 - 1.4, w=0.6, h=0.4, s=-1, c='lamp')
+    FD.pilaster_extra(k)
     k.col(-0.5, 0.5, -1.82, -0.5, 0.0, 5.3)          # the theme sets wall.cols: the buttress collides
     k.col(-0.44, 0.44, -1.5, -0.5, 5.3, WALL_H)
     return k
@@ -261,6 +266,7 @@ def gate_frame(k):
         stencil_num(k, (1, 8), -0.7, HD + 1.7, 0.5, 1.0, 0.4, f * 0.903, f, c='crimson2')
         beacon(k, 2.0, f * 0.55, HD + 1.5, c='alarm', r=0.14)
         beacon(k, -2.0, f * 0.55, HD + 1.5, c='alarm', r=0.14)
+        FD.gate_extra(k, HD, f)
         # the crane girder band and the louvre band run across the gate infill
         y0, y1 = srt(f * 0.25, f * (0.25 + GD))
         k.bx(-2.45, 2.45, y0, y1, GZ0, GZ1, 'gun2', ink=False)
@@ -359,6 +365,7 @@ def line_base(k):
         k.bx(-TL, TL, *srt(f * 0.98, f * 1.12), 0.0, 0.12, 'steel')
         for x in (-5.0, -3.0, -1.0, 1.0, 3.0, 5.0):
             k.bx(x - 0.06, x + 0.06, *srt(f * (LW - 0.06), f * (LW + 0.06)), 0.0, 1.5, 'hazard')
+            FD.fence_plate(k, x, f * LW)
         k.bx(-TL, TL, *srt(f * (LW - 0.012), f * (LW + 0.012)), 0.18, 1.32, 'steel2', ink=False)
         for x in (-4.0, -2.0, 0.0, 2.0, 4.0):
             k.qy(x - 0.6, x + 0.6, 0.5, 1.0, f * (LW + 0.015), f, 'slate2')
@@ -382,6 +389,7 @@ def tunnel(k, n):
         stencil_digit(k, n, x0 + 1.9, 3.5, 0.6, 1.2, yo, f, c='bone')
         for xx in (x0 + 0.6, x1 - 0.6):
             k.qy(xx - 0.05, xx + 0.05, 0.6, H - 0.4, yo + f * 0.003, f, 'slate2')
+        FD.tunnel_rivets(k, x0, x1, yo, f)
     k.hullp([(x0 - 0.05, -W - 0.25, H), (x1 + 0.05, -W - 0.25, H), (x0 - 0.05, W + 0.25, H), (x1 + 0.05, W + 0.25, H),
              (x0 - 0.05, -W + 0.5, H + 0.9), (x1 + 0.05, -W + 0.5, H + 0.9), (x0 - 0.05, W - 0.5, H + 0.9), (x1 + 0.05, W - 0.5, H + 0.9)], 'gun2')
     for xm, sg in ((x0, 1), (x1, -1)):
@@ -517,6 +525,7 @@ def orail_port(k, sg=1):
     for f in (-1, 1):
         yo = f * (W + 0.003)
         k.qy(x0 + 0.2, x1 - 0.2, z0 + 0.2, z0 + 0.6, yo, f, 'crimson')
+        FD.port_rivets(k, x0 + 0.2, x1 - 0.2, z0 + 0.4, yo, f)
         k.stripes(x0 + 0.2, x1 - 0.2, z1 - 0.7, z1 - 0.3, yo, f, 10)
         stencil_digit(k, 3, -0.4, z0 + 1.6, 0.8, 1.6, yo, f, c='bone')
     k.qx(-W + 0.1, W - 0.1, z0 + 0.1, z1 - 0.4, x1 + 0.003, 1, 'steelDark')
@@ -569,6 +578,7 @@ def crate(k, kind):
             stencil_num(k, (5, 0), -0.3, 0.45, 0.22, 0.35, 0.08, f * 0.383, f, c='bone')
         for x in (-0.3, 0.3):
             k.bx(x - 0.05, x + 0.05, -0.42, 0.42, 0.65, 0.75, 'olive2')
+        FD.ammo_crate(k)
     elif kind == 'Bin':
         k.bx(-0.46, 0.46, -0.46, 0.46, 0.0, 0.8, 'gun2')
         k.stripes(-0.42, 0.42, 0.6, 0.75, -0.463, -1, 4)
@@ -707,6 +717,7 @@ def flood_tower(k):
         for f in (-1, 1):
             drumy(k, x, f * 0.68, 0.3, 0.3, 0.14, 'rubber', seg=10)
     k.bx(-0.12, 0.12, -0.12, 0.12, 1.2, 7.4, 'gun2')
+    FD.flood_base(k)
     k.bx(-1.2, 1.2, -0.12, 0.12, 7.4, 7.6, 'steelDark')
     for x in (-0.9, -0.3, 0.3, 0.9):
         k.push(x, -0.15, 0, 7.75)

@@ -16,6 +16,7 @@ the theme places the parts together with the prefab's `with` list. No eyes, no f
 """
 import math
 
+import fd_detail as FD
 from mathutils import Matrix, Vector
 
 from foundry_common import (Z, CEIL, DECK, slab, slab3, oslab, tube, drumx, drumy, stencil_digit, stencil_x, floor_digit,
@@ -755,6 +756,7 @@ def launch_door(k, num):
     k.qy(-7.0, 7.0, H + 0.4, H + 2.2, -1.103, -1, 'crimson')
     stencil_digit(k, 0, -1.2, H + 0.6, 0.9, 1.4, -1.106, -1, c='bone')
     stencil_digit(k, num, 0.3, H + 0.6, 0.9, 1.4, -1.106, -1, c='bone')
+    FD.door_header(k, H)
     for sx in (-1, 1):
         x0, x1 = srt(sx * 0.06, sx * 7.5)
         k.bx(x0, x1, -0.7, 0.2, 0.0, H, 'gun')                                                  # door leaf
