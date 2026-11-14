@@ -216,7 +216,7 @@
     trail: { wall: 'TrailWall', height: 9.4, end: 'Rock_B', endYaw: 0 },   // the hatch room's back wall: a plain face module
     hatch: 'Hatch', stand: 'Stand',
     backdrop: { build: backdrop },
-    budget: { prop: 3200, landmark: 4000, total: 60000 },
+    budget: { prop: 3200, landmark: 8000, total: 90000 },
     allPieces: function () { return PIECES.slice(); },
     levels: {
       gemmine: {
