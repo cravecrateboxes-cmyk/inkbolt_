@@ -291,3 +291,25 @@ kept); any of it can change later from the owner's play test. Work goes on with 
   colour), so they no longer glow in dark rooms.
 - The muzzle flash already had the ink-edged star, a paper core, the Stage 4 flash light and smoke (`onFire`):
   kept as is.
+
+### Release checks (Stage 13, part 1)
+
+- HUD lock (`hud-lock.spec.js`) after all merges: file lock clean; HUD 0 px different at 1280x720, 1920x1080 and
+  844x390; enemy bars within 1/255.
+- `perf.spec.js` (new budgets): desktop 80 draw calls (230), phone upright 71 to 73, sideways 76 (140); 40-robot
+  stress 72 to 80; VFX stress 112 to 119. ALL PASSED. The desktop view needs `LOAD_MS=400000` on the CPU renderer
+  (the 90 s wait was too short at 1920x1080).
+- Fallback chain (`?posttest=b|c|d`, `?webgl1=1`) on stronghold: modes b and c run the post pass, d and WebGL1 run
+  without it (grade in the materials); shadows and the light volume work in all four; no errors. Shots in
+  `dist/look/fb-*`: correct picture in each.
+- `TIER=low` shots (stronghold, metro, mall, bedroom, `dist/look/low`): same mood, no detail textures or post.
+- Unit tests 486 pass after every merge.
+- Enemy readability (`look-readability.js`, darkest open cell with 2 m clear round it, robot isolated with no gun,
+  grain or dust): metro crawler 12 m 0.075, soldier 12 m 0.121, soldier 30 m 0.063; coalmine crawler 12 m 0.090,
+  30 m 0.204, soldier 30 m 0.077 (all pass, gate 0.06). Two fail: metro crawler 30 m (too few pixels to measure)
+  and coalmine soldier 12 m (0.016: the dark armour on dark-brown rock). The actor rim was strengthened once
+  (0.10 + 0.32 -> 0.12 + 0.42 in the dark). Further fix tied to the owner question on soldier armour.
+- Fixed on the way: a test hook in `atmo.js` used an undefined name and broke level load for one commit
+  (83ea361 to 5d3dabc, never published). Every change to game code is now followed by a level-load check.
+- Kit collision: all kit GLBs compared with their pre-Stage-11 versions: `_COL` / `_WCOL` identical everywhere
+  (the arctic mast's detail changed its fitted collision and was removed).
