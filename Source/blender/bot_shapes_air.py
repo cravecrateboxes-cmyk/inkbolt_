@@ -14,6 +14,9 @@ Rounded, chamfered and tapered forms built as lofts (rings of points joined by q
              slanted (chamfered) side edges and inset ends
   sweep      a thin strip of rectangular section along a path on a surface (accent lines, slits, seams)
   lathe_r    a smooth surface of revolution about Z (bells, nozzles, domes) with optional poles
+  ring_ch    chamfered rectangle ring (8 points: one flat 45 degree facet per corner), optional front / back keel
+  flimb      faceted limb / block along local Z from ring_ch stations (hard-surface armour: flat planes, crisp edges)
+  plate      flat armour plate from a convex outline, its top rim chamfered once (layered angular plates)
 
 Edges between faces under 40 degrees shade smooth (ib_lib.build_object), so a ring of 12-16 points reads round in
 the toon bands; a single 45 degree chamfer step stays a crisp chamfer.
@@ -273,3 +276,72 @@ def se_path(a, b, degs, z, e=2.0, cx=0.0, cy=0.0, out=0.0):
         pts.append((q.x, q.y, z))
         nrm.append((n.x, n.y, 0.0))
     return pts, nrm
+
+
+# ---------------------------------------------------------------- faceted hard-surface shapes (Jet Trooper)
+def ring_ch(hw, hdf, hdb=None, ch=0.02, z=0.0, cx=0.0, cy=0.0, kf=None, kb=None):
+    """Chamfered rectangle ring at height z, counter-clockwise from +Z: half width hw, half depth hdf to the front (-y)
+    and hdb to the back (+y), one flat 45 degree chamfer of ch on each corner: 8 points. With kf / kb (even 0) it gets
+    a keel point in the middle of the front / back face, kf / kb proud of it: 10 points (a V-shaped front reads sleek)."""
+    hdb = hdf if hdb is None else hdb
+    c = max(1e-4, min(ch, hw - 1e-4, hdf - 1e-4, hdb - 1e-4))
+    out = [(cx + hw, cy - hdf + c, z), (cx + hw, cy + hdb - c, z), (cx + hw - c, cy + hdb, z)]
+    if kb is not None:
+        out.append((cx, cy + hdb + kb, z))
+    out += [(cx - hw + c, cy + hdb, z), (cx - hw, cy + hdb - c, z), (cx - hw, cy - hdf + c, z), (cx - hw + c, cy - hdf, z)]
+    if kf is not None:
+        out.append((cx, cy - hdf - kf, z))
+    out.append((cx + hw - c, cy - hdf, z))
+    return out
+
+
+def flimb(p, st, color, deco=False, caps=True):
+    """Faceted limb / block along local Z: stations (z, hw, hdf, hdb, ch[, cx, cy[, kf, kb]]) give ring_ch rings
+    (all stations of one call with or without the keel numbers, so the rings match)."""
+    rings = []
+    for s in st:
+        z, hw, hdf, hdb, ch = s[:5]
+        cx, cy = (s[5], s[6]) if len(s) > 6 else (0.0, 0.0)
+        kf, kb = (s[7], s[8]) if len(s) > 8 else (None, None)
+        rings.append(ring_ch(hw, hdf, hdb, ch, z, cx, cy, kf, kb))
+    loft(p, rings, color, caps=caps, deco=deco)
+
+
+def _inset(poly, d):
+    """a convex counter-clockwise polygon moved in by d on every edge (same vertex count)"""
+    n = len(poly)
+    lines = []
+    for i in range(n):
+        (ax, ay), (bx, by) = poly[i], poly[(i + 1) % n]
+        ex, ey = bx - ax, by - ay
+        L = math.hypot(ex, ey) or 1.0
+        nx, ny = -ey / L, ex / L                     # left of the edge = inside for a counter-clockwise polygon
+        lines.append((ax + nx * d, ay + ny * d, ex, ey))
+    out = []
+    for i in range(n):
+        px, py, ux, uy = lines[i - 1]
+        qx, qy, vx, vy = lines[i]
+        den = ux * vy - uy * vx
+        if abs(den) < 1e-12:
+            out.append((qx, qy))
+            continue
+        t = ((qx - px) * vy - (qy - py) * vx) / den
+        out.append((px + ux * t, py + uy * t))
+    return out
+
+
+def plate(p, poly, t, color, ch=None, z0=0.0, deco=False):
+    """Flat armour plate in the current frame: the convex outline poly (local XY) from z0 up to z0 + t along local +Z,
+    the top rim chamfered once by ch (45 degrees): flat planes, crisp edges that catch the light."""
+    if sum(a[0] * b[1] - b[0] * a[1] for a, b in zip(poly, poly[1:] + poly[:1])) < 0:
+        poly = list(reversed(poly))
+    ch = t * 0.4 if ch is None else ch
+    top = _inset(poly, ch)
+    rings = [[(x, y, z0) for x, y in poly], [(x, y, z0 + t - ch) for x, y in poly], [(x, y, z0 + t) for x, y in top]]
+    loft(p, rings, color, deco=deco)
+
+
+def plate_at(p, origin, normal, up, poly, t, color, ch=None, z0=0.0, deco=False):
+    """plate() in a frame at origin whose local +Z is normal (local +Y leans to up)"""
+    with at_frame(p, frame(origin, normal, up)):
+        plate(p, poly, t, color, ch=ch, z0=z0, deco=deco)

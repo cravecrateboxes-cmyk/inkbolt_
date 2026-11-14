@@ -39,6 +39,11 @@ test('rows: Jet Trooper and Rocket Soldier arrive on level 35, registered and le
   assert.ok(V.speed <= 18 && V.homeT <= 0.6 && V.scatter > 0, 'rockets steer briefly and fly slowly enough to dodge');
   assert.ok(V.near < V.far && V.above >= 1.5);
   assert.ok(j.lowCeiling > 4 && j.dashSpeed > j.speed * 1.8 && j.dashTime > 0, 'indoors: stays on its feet and dashes');
+  assert.ok(j.skim > 0 && j.skim < 0.5 && j.hopHeight > j.skim && j.hopHeight < 1.2, 'indoors: skims low, hops on its ground boosts');
+  // outdoors: quick, frequent sideways boost-dashes of a few metres; a short climb before the volley's lock (extra warning)
+  const AD = j.airDash;
+  assert.ok(AD.speed > j.speed * 2 && AD.time <= 0.5 && AD.speed * AD.time >= 3 && AD.every[0] >= 1.2 && AD.every[0] < AD.every[1], 'boost-dash');
+  assert.ok(V.rise >= 0.5 && V.rise <= 1.5 && V.riseTime > 0 && V.riseTime <= 0.5, 'the climb before the volley');
   // Rocket Soldier: a Soldier's body (health, shield, armour, drops), no grenades, a launcher instead of the carbine
   const r = E.rocketeer;
   assert.deepEqual([r.hp, r.shield, r.armour, r.weaponDrops], [s.hp, s.shield, s.armour, s.weaponDrops]);

@@ -2,7 +2,9 @@
 // level with AI.setLevel(35) and the render loop paused, the real Player / AI / projectile code is stepped at 1/60 s:
 //   Jet Trooper: one element per robot on its accents; flies outdoors; raises and opens its pods, locks on (red ring,
 //     beeps) for 0.8-1 s, fires a 6-rocket volley that hurts the player (electric / acid also over time), cools down;
-//     a strafing player takes less; indoors it stays on its feet and dashes; it falls and dies, rolls a drop;
+//     a strafing player takes less; it hovers with a figure-8 bob, leans and banks about its core, swings its legs,
+//     boost-dashes sideways often, climbs and steadies for the volley, the pods kick back; a hit jolts it, shot down
+//     it spins; indoors it skims low and ground-boosts with a hop; it falls and dies, rolls a drop;
 //   Rocket Soldier: the Soldier's body with a Murmur or a Hothead (the player's models), shouldered to fire, rockets
 //     hurt the player, far slower than a Soldier's bursts;
 //   Blade Bot kusarigama: whirls the chain around the player (damage ticks), throws the sickle (a hit standing still,
@@ -96,35 +98,123 @@ function serve() {
     check('the volley cools down 6-9 s and the rockets hurt the player' + (elem !== 'boom' ? ' (and ' + elem + ' over time)' : ''),
       s.volleys === 1 && s.vcool > 0 && s.rocketHits > 0 && s.dmg > 0 && (elem === 'shock' ? s.shock > 0 : elem === 'acid' ? s.acid > 0 : true), JSON.stringify(s));
   }
-  // dodging: standing still vs strafing hard during the volley
+  // dodging: standing still vs strafing hard during the volley (6 m/s, straight or jinking every 50 / 70 / 90 / 120
+  // frames: one jink rhythm alone can happen to carry the player back into the locked spot)
   let s = await pg.evaluate(() => {
-    const run = (strafe) => {
-      const [slot] = __stage([['jet', 1, 11]]), r = IB.AI.types.jet.slots[slot];
+    const run = (flip, k) => {
+      const [slot] = __stage([['jet', (k % 3) - 1, 11]]), r = IB.AI.types.jet.slots[slot];
       r.elem = 'boom'; r.vcool = 0.3; r.cool = 99;
-      let dir = 1;
+      let dir = k % 2 ? 1 : -1;
       __sim(6, (i, p) => {
         r.cool = 99;   // rockets only
-        if (!strafe) return;
-        p.x += dir * 6 / 60; if (i % 70 === 0) dir = -dir;   // a jinking sidestep, 6 m/s
+        if (flip < 0) return;
+        p.x += dir * 6 / 60; if (flip > 0 && i % flip === 0) dir = -dir;   // a sidestep, 6 m/s
         return 'move';
       });
-      return +__hits.filter(h => h.type === 'jet').reduce((a, h) => a + h.d, 0).toFixed(1);
+      return __hits.filter(h => h.type === 'jet').reduce((a, h) => a + h.d, 0);
     };
-    let still = 0, moving = 0; for (let k = 0; k < 3; k++) { still += run(false); moving += run(true); }
-    return { still, moving };
+    let still = 0, moving = 0;
+    for (let k = 0; k < 5; k++) still += run(-1, k);
+    [0, 50, 70, 90, 120].forEach((f, k) => { moving += run(f, k) + run(f, k + 1); });
+    return { still: +(still / 5).toFixed(1), moving: +(moving / 10).toFixed(1) };   // per volley
   });
   check('the rockets are dodgeable: a strafing player takes much less than one standing still', s.moving < s.still * 0.6, JSON.stringify(s));
-  // indoors: low ceiling -> on its feet, dashes
+  // the hover: a figure-8 bob, the body leaning and banking into its moves (about the core: the weak point stays where
+  // the game aims), legs swinging behind, flames following the effort, and frequent sideways boost-dashes
+  s = await pg.evaluate(() => {
+    const [slot] = __stage([['jet', 3, 11]]), T = IB.AI.types.jet, r = T.slots[slot], v = IB.AI.VIS.jet;
+    const m = new THREE.Matrix4(), c = new THREE.Vector3(), Pt = T.parts.Torso;
+    const o = { bob: [9, -9], pitch: [0, 0], roll: [0, 0], legP: [0, 0], thrust: [9, 0], lat: [9, -9], dashes: 0, coreErr: 0, coreErrBank: 0, maxRoll: 0, dashSnap: 0 };
+    const rng = (a, x) => { a[0] = Math.min(a[0], x); a[1] = Math.max(a[1], x); };
+    __sim(1.5, () => { r.vcool = 99; r.cool = 99; });
+    const d0 = r.dashes, SECS = 12;
+    let lastAct = r.act, dashFrom = null;
+    __sim(SECS, (i) => {
+      r.vcool = 99; r.cool = 99;   // the hover and the dashes alone (no shots)
+      rng(o.bob, v.bob(r)); rng(o.pitch, r.pitch); rng(o.roll, r.roll); rng(o.legP, r.legP); rng(o.thrust, r.thrust); rng(o.lat, r.f8 || 0);
+      if (r.act === 'dash' && lastAct !== 'dash') dashFrom = [r.x, r.z, i];
+      if (r.act !== 'dash' && lastAct === 'dash' && dashFrom) { o.dashSnap = Math.max(o.dashSnap, Math.hypot(r.x - dashFrom[0], r.z - dashFrom[1])); dashFrom = null; }
+      lastAct = r.act;
+      if (i % 6 === 1) {   // just after a sync: the drawn torso's core vs the game's weak point
+        Pt.mesh.getMatrixAt(slot * Pt.count, m);
+        c.set(0, v.coreY - v.waist[1], v.coreZ).applyMatrix4(m);
+        const sy = Math.sin(r.yaw), cy = Math.cos(r.yaw), e = Math.hypot(c.x - (r.x + sy * v.coreZ), c.y - (r.y + v.coreY), c.z - (r.z + cy * v.coreZ));
+        o.coreErr = Math.max(o.coreErr, e); if (Math.abs(r.roll) > 0.2 || Math.abs(r.pitch) > 0.2) o.coreErrBank = Math.max(o.coreErrBank, e);
+        o.maxRoll = Math.max(o.maxRoll, Math.abs(r.roll));
+      }
+    });
+    o.dashes = r.dashes - d0; o.perMin = +(o.dashes / SECS * 60).toFixed(1);
+    for (const k of ['bob', 'pitch', 'roll', 'legP', 'thrust', 'lat']) o[k] = o[k].map(x => +x.toFixed(3));
+    o.coreErr = +o.coreErr.toFixed(4); o.coreErrBank = +o.coreErrBank.toFixed(4); o.maxRoll = +o.maxRoll.toFixed(2); o.dashSnap = +o.dashSnap.toFixed(2);
+    return o;
+  });
+  check('it hovers with a visible figure-8 bob (up-down and side-to-side)', s.bob[1] - s.bob[0] > 0.3 && s.lat[1] - s.lat[0] > 0.3, JSON.stringify([s.bob, s.lat]));
+  check('it pitches and banks into its moves (springs), its legs swing behind, the flames follow the effort',
+    s.pitch[1] - s.pitch[0] > 0.25 && s.roll[1] - s.roll[0] > 0.5 && s.maxRoll > 0.3 && s.legP[1] - s.legP[0] > 0.2 && s.thrust[1] > s.thrust[0] * 2, JSON.stringify(s));
+  check('it boost-dashes sideways often (several m each), outdoors', s.dashes >= 3 && s.dashSnap > 3, JSON.stringify([s.dashes, s.perMin, s.dashSnap]));
+  check('lean and bank turn about the chest core: the drawn core stays on the weak point', s.coreErr < 0.01 && s.coreErrBank < 0.01, JSON.stringify([s.coreErr, s.coreErrBank]));
+  // the volley ("flight core"): it climbs, holds steady while the lock runs, the pods kick back as they fire, then it
+  // dashes (up to three tries: a lock it aborts because a roof or wall broke its sight of the player does not count)
+  s = await pg.evaluate(() => {
+    let o = null;
+    for (let a = 0; a < 3; a++) {
+      const [slot] = __stage([['jet', 2, 9]]), r = IB.AI.types.jet.slots[slot];
+      r.vcool = 99; r.cool = 99; r.dashCool = 99;
+      __sim(2, () => { r.vcool = 99; r.cool = 99; r.dashCool = 99; });
+      o = { y0: +r.y.toFixed(2), hy0: +r.hy.toFixed(2), yLock: 0, hyLock: 0, rollLock: 0, kick: 0, rise: 0, dashAfter: -1, aborts: 0, tries: a + 1 };
+      r.vcool = 0; let t = 0, volleyEnd = -1, locked = false;
+      __sim(8, (i) => {
+        r.cool = 99; t = i / 60;
+        if (r.act === 'rise' && !locked) o.rise++;
+        if (r.act === 'abort') o.aborts = 1;
+        if (r.act === 'volley' && r.state === 'windup') { locked = true; o.yLock = Math.max(o.yLock, r.y); o.hyLock = Math.max(o.hyLock, r.hy); o.rollLock = Math.max(o.rollLock, Math.abs(r.roll), Math.abs(r.pitch)); }
+        if (r.act === 'volley' && r.state === 'attack') o.kick = Math.max(o.kick, r.pk0, r.pk1);
+        if (r.volleys && r.act !== 'volley' && volleyEnd < 0) volleyEnd = t;
+        if (volleyEnd >= 0 && r.act === 'dash' && o.dashAfter < 0) o.dashAfter = +(t - volleyEnd).toFixed(2);
+      });
+      o.yLock = +o.yLock.toFixed(2); o.hyLock = +o.hyLock.toFixed(2); o.rollLock = +o.rollLock.toFixed(2); o.volleys = r.volleys;
+      if (o.volleys === 1 && !o.aborts && r.ceil - r.fy > 8) break;   // and in the open (no roof clamping its climb)
+    }
+    return o;
+  });
+  check('before the volley it climbs higher and holds steady through the lock, pods kick back as they fire, then it dashes again',
+    s.rise >= 18 && s.rise <= 24 && s.hyLock > s.hy0 + 0.7 && s.yLock > s.y0 + 0.4 && s.rollLock < 0.25 && s.kick > 0.5 && s.volleys === 1 && s.dashAfter >= 0 && s.dashAfter < 2.5, JSON.stringify(s));
+  // a hit jolts it; shot out of the air it spins down
+  s = await pg.evaluate(() => {
+    const T = IB.AI.types.jet; let r = null;
+    for (let a = 0; a < 3; a++) {   // in the open air (not squeezed under a deck or roof it drifted below)
+      r = T.slots[__stage([['jet', 2, 9 + a]])[0]];
+      r.vcool = 99; r.cool = 99; r.dashCool = 99;
+      __sim(2, () => { r.vcool = 99; r.cool = 99; r.dashCool = 99; });
+      if (r.y - r.fy > 2) break;
+    }
+    const v0 = [r.pitchV, r.rollV];
+    IB.AI.damage(r, 4, {});
+    const kick = Math.hypot(r.pitchV - v0[0], r.rollV - v0[1]);   // the jolt: a spin-rate kick on the body springs
+    const yaw0 = r.yaw, h = r.y - r.fy;
+    IB.AI.damage(r, r.hp + r.shield + 5, {});
+    const cp = T.corpses.find(c => c.on && c.t === 0);
+    const spin = cp ? cp.spin : 0;
+    __sim(0.4);
+    return { kick: +kick.toFixed(2), h: +h.toFixed(2), spin: +spin.toFixed(2), turned: cp ? +Math.abs(cp.yaw - yaw0).toFixed(2) : 0, dead: !r.on };
+  });
+  check('a hit jolts it (a quick pitch / roll kick), and shot out of the air it spins down', s.kick > 1 && s.h > 2 && s.dead && Math.abs(s.spin) > 5 && s.turned > 1.5, JSON.stringify(s));
+  // indoors: low ceiling -> it skims low, banks, and ground-boosts across the room with a hop
   s = await pg.evaluate(() => {
     const env = IB.Game.level.theme.env, c0 = env.ceiling; env.ceiling = { height: 3.6 };   // an indoor room height
     const [slot] = __stage([['jet', 3, 8]]), r = IB.AI.types.jet.slots[slot];
-    r.vcool = 99; let maxY = 0, maxSp = 0;
-    __sim(2.5, () => { r.vcool = 99; });   // it lands (it was spawned at its flying height)
-    __sim(10, () => { r.vcool = 99; maxY = Math.max(maxY, r.y - r.fy); maxSp = Math.max(maxSp, Math.hypot(r.vx, r.vz)); });
+    r.vcool = 99; let maxY = 0, maxSp = 0, sumY = 0, n = 0, hop = 0, roll = 0;
+    __sim(2.5, () => { r.vcool = 99; });   // it comes down (it was spawned at its flying height)
+    __sim(10, () => {
+      r.vcool = 99; const h = r.y - r.fy; maxY = Math.max(maxY, h); maxSp = Math.max(maxSp, Math.hypot(r.vx, r.vz));
+      if (r.act === 'dash') hop = Math.max(hop, h); else { sumY += h; n++; }
+      roll = Math.max(roll, Math.abs(r.roll));
+    });
     env.ceiling = c0;
-    return { low: r.low, endY: +(r.y - r.fy).toFixed(2), maxY: +maxY.toFixed(2), dashes: r.dashes, maxSp: +maxSp.toFixed(1) };
+    return { low: r.low, endY: +(r.y - r.fy).toFixed(2), avgY: +(sumY / Math.max(1, n)).toFixed(2), maxY: +maxY.toFixed(2), hop: +hop.toFixed(2), dashes: r.dashes, maxSp: +maxSp.toFixed(1), roll: +roll.toFixed(2) };
   });
   check('indoors (low ceiling) a Jet Trooper stays low on its feet and dashes fast across the room', s.low && s.maxY < 1.2 && s.dashes >= 1 && s.maxSp > 7, JSON.stringify(s));
+  check('indoors it skims just off the floor with the same banking, and its ground boosts hop', s.avgY > 0.05 && s.avgY < 0.5 && s.hop > s.avgY + 0.15 && s.roll > 0.2, JSON.stringify(s));
   s = await pg.evaluate(() => {
     const seen = {}; for (let i = 0; i < 30; i++) { const [slot] = __stage([['jet', 2, 9]]); const r = IB.AI.types.jet.slots[slot]; seen[r.elem] = r.tintHex.toString(16); }
     const [slot] = __stage([['jet', 2, 9]]), r = IB.AI.types.jet.slots[slot];
@@ -216,6 +306,7 @@ function serve() {
       const G = IB.Game, p = G.player;
       __stage([]); p.x = -9; p.z = -24; const made = [];
       if (IB.Boom && IB.Boom.clear) IB.Boom.clear(); G.trauma = 0; G.shake = 0;   // no leftover blasts, scorch or shake in the shot
+      if (IB.FX && IB.FX.clear) IB.FX.clear();   // nor puffs, ink splats or gems from the runs above
       list.forEach(o => {
         const slot = __TEST__.spawnRobot(o.type, o.x, o.z), r = IB.AI.types[o.type].slots[slot];
         r.zone = G.zone; r.yaw = o.yaw !== undefined ? o.yaw : Math.PI; r.aim = 0; r.state = o.state || 'pose'; r.seesPlayer = !!o.see;
@@ -259,6 +350,43 @@ function serve() {
     await shot('soldier-pelvis-front.png', [-9, 1.0, -21.9, Math.PI, -0.02], 34);
     await pose([{ type: 'rocketeer', x: -9, z: -20, state: 'chase', see: true, yaw: Math.PI - 0.5, set: { launcher: 'hothead', trVariant: 1 } }], 0.45);
     await shot('soldier-pelvis-stride.png', [-9, 1.0, -21.9, Math.PI, -0.02], 34);
+    // motion filmstrip (dist/look/northstar/jet-motion.png): a Jet Trooper hovering, boost-dashing, climbing for its
+    // volley, locking on and firing, 8 frames 0.45 s apart, seen from the player's side (the camera follows it half way
+    // between frames, so a dash shows as a jump across the frame)
+    const strip = await pg.evaluate(() => {
+      const G = IB.Game, p = G.player, R = IB.Render;
+      document.getElementById('hud').style.visibility = 'hidden';
+      if (IB.Boom && IB.Boom.clear) IB.Boom.clear(); if (IB.FX && IB.FX.clear) IB.FX.clear(); G.trauma = 0; G.shake = 0;
+      const [slot] = __stage([['jet', 3, 10]]), r = IB.AI.types.jet.slots[slot];
+      r.elem = 'shock'; r.tint.set(r.def.elementColors.shock); r.tintHex = r.tint.getHex();
+      const hold = () => { r.cool = 99; };
+      r.vcool = 99; r.dashCool = 99; __sim(1.2, () => { hold(); r.vcool = 99; r.dashCool = 99; });
+      r.dashCool = 0.15; r.vcool = 1.25;
+      const W = 320, H = 240, cols = 4, cv = document.createElement('canvas'); cv.width = W * cols; cv.height = H * 2;
+      const g = cv.getContext('2d'), el = R.renderer.domElement, sw = el.height * W / H, t0 = performance.now();
+      const dx0 = r.x - p.x, dz0 = r.z - p.z, d0 = Math.hypot(dx0, dz0) || 1;
+      const off = [-dx0 / d0 * 6 + dz0 / d0 * 1.5, 0.5, -dz0 / d0 * 6 - dx0 / d0 * 1.5], cam = [r.x + off[0], r.y + off[1], r.z + off[2]], look = [r.x, r.y + 1.1, r.z];
+      let t = 0;
+      for (let f = 0; f < 8; f++) {
+        const step = f ? 0.45 : 0.15; __sim(step, hold); t += step;
+        const tgt = [r.x + off[0], r.y + off[1], r.z + off[2]], at = [r.x, r.y + 1.1, r.z];
+        for (let k = 0; k < 3; k++) { cam[k] += (tgt[k] - cam[k]) * 0.5; look[k] += (at[k] - look[k]) * 0.5; }
+        R.camera.position.set(cam[0], cam[1], cam[2]); R.camera.fov = 42; R.camera.updateProjectionMatrix();
+        R.camera.lookAt(look[0], look[1], look[2]); R.camera.updateMatrixWorld();
+        IB.AI.sync(); R.render(false);
+        const x = (f % cols) * W, y = ((f / cols) | 0) * H;
+        g.drawImage(el, (el.width - sw) / 2, 0, sw, el.height, x, y, W, H);
+        g.fillStyle = 'rgba(20,22,28,0.72)'; g.fillRect(x, y, W, 22);
+        g.fillStyle = '#FFE2A8'; g.font = 'bold 13px sans-serif';
+        const act = r.act === 'volley' ? (r.state === 'windup' ? 'lock-on' : r.state === 'attack' ? 'volley: fire' : 'volley: recover') : r.act === 'rise' ? 'climb for volley' : r.act === 'dash' ? 'boost-dash' : 'hover / strafe';
+        g.fillText(t.toFixed(2) + ' s  ' + act + '  roll ' + (r.roll * 57.3).toFixed(0) + '° pitch ' + (r.pitch * 57.3).toFixed(0) + '°', x + 6, y + 15);
+        g.strokeStyle = '#1c1e24'; g.lineWidth = 2; g.strokeRect(x + 1, y + 1, W - 2, H - 2);
+      }
+      return { png: cv.toDataURL('image/png'), ms: Math.round(performance.now() - t0) };
+    });
+    const sdir = path.join(__dirname, '../../dist/look/northstar'); fs.mkdirSync(sdir, { recursive: true });
+    fs.writeFileSync(path.join(sdir, 'jet-motion.png'), Buffer.from(strip.png.split(',')[1], 'base64'));
+    console.log('wrote', path.join(sdir, 'jet-motion.png'), strip.ms + ' ms');
   }
 
   check('no console errors or warnings', logs.length === 0, logs.slice(0, 4).join(' | '));

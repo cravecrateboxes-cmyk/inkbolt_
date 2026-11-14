@@ -6,16 +6,24 @@
    (hips, legs, torso, sensor-slit head, the launcher arm, the free arm, two telescoping pod arms, two pods, their lids,
    glowing seams and two jet flames). Each one rolls an element (IB.jetElement: shock / acid / boom) painted on its
    accents (key-tint material: r.tint) and carried by its rockets.
-     - Outdoors it flies at its hover height (VIS flying) and orbits the player in its keep band like a Hawk, firing
-       4-round bursts from the hand launcher (r.muzzleW, placed every frame by its pose).
-     - Indoors (the ceiling less than def.lowCeiling m over its floor: r.low) it lands and walks, and every few seconds
-       skims low on its jets and dashes fast across the room (act 'dash').
-     - Rocket volley (act 'volley'): within def.volley.near m of the player, or within .far m while at least .above m
-       higher, and off its cooldown, it takes an attack token, raises both pods on their arms and opens the lids, and
-       locks on: for .lock s (never under 0.8 s) a red ring closes on the player and a red beam joins its slit to him,
-       with rising beeps. Then the 6 tubes fire .gap s apart at the spot it locked (with a little scatter): the rockets
-       steer only for their first .homeT s, so moving beats them. Cooldown .cool s (not shortened by the level tempo).
-       Losing sight of the player for 0.5 s during the lock aborts the volley.
+     - Outdoors it flies at its hover height (VIS flying), drifting up and down every few seconds, and orbits the
+       player in its keep band like a Hawk, firing 4-round bursts from the hand launcher (r.muzzleW, placed every
+       frame by its pose). Every def.airDash.every s it boost-dashes sideways (act 'dash': def.airDash.speed m/s for
+       .time s, most of the speed at once, a thruster burst, a tilt and a warm exhaust trail).
+     - Hover feel: a figure-8 drift (side to side, and up and down twice as fast: VIS.jet.bob), the body pitching into
+       its advance and rolling into its strafes on springs about the chest core (the weak point stays put), legs
+       dangling and swinging behind the motion, the free arm swaying, the gun arm following the player, flames that
+       grow with the effort (climbing, braking, boosting) and flicker at idle. A hit jolts it; shot out of the air it
+       spins down (VIS.jet.deathSpin, ai.js corpses).
+     - Indoors (the ceiling less than def.lowCeiling m over its floor: r.low) it skims low (def.skim m) with the same
+       banking, and every few seconds ground-boosts across the room (act 'dash') with a short hop (def.hopHeight m).
+     - Rocket volley ("flight core"): within def.volley.near m of the player, or within .far m while at least .above m
+       higher, and off its cooldown, it takes an attack token and climbs .rise m higher for .riseTime s (act 'rise'),
+       holding steady; then (act 'volley') the pods snap up on their arms and the lids open, and it locks on: for .lock
+       s (never under 0.8 s) a red ring closes on the player and a red beam joins its slit to him, with rising beeps.
+       Then the 6 tubes fire .gap s apart at the spot it locked (with a little scatter), each pod kicking back: the
+       rockets steer only for their first .homeT s, so moving beats them. Cooldown .cool s (not shortened by the level
+       tempo), and it drops straight back into its dashes. Losing sight of the player for 0.5 s during the lock aborts.
    Enemy rockets (IB.EnemyRockets): pooled, drawn with the launchers' PROJ_Rocket model, an exhaust glow in the rocket's
    colour and a smoke trail; they burst on the world, near the player (or, from a rogue, near a robot) or at the end of
    their life through IB.Projectiles.explode (explosive damage to the player and robots, cover halves it). Elements:
@@ -32,7 +40,12 @@
 
   // ======================================================================= JET TROOPER
   function jk(n) { return K.sock('BOT_JET_' + n); }
-  var BASE_C = 1.1;   // the body banks about this height (m)
+  /* Hover feel: a figure-8 drift (side to side at W8 rad/s, up and down twice as fast: bob m, lat m), springy body
+     pitch / roll (into the move, out of the hits and recoil) about the chest core, legs and the free arm swinging on
+     softer springs behind the body's motion */
+  var W8 = 1.45, BOB_AIR = 0.24, BOB_LOW = 0.04, LAT_AIR = 0.24, LAT_LOW = 0.05;
+  var PITCH_K = 70, PITCH_C = 10, LEG_K = 28, LEG_C = 3.6, ARM_K = 36, ARM_C = 5;
+  var MAX_PITCH = 0.5, MAX_ROLL = 0.55, MAX_ACC = 25;
   VIS.jet = {
     radius: 0.4, y0: 0.05, y1: 1.98, coreR: 0.1, shadow: 0.6, eye: 1.75, home: 'keep', flying: true, centre: 0, minFly: 0, climb: 2.4,
     parts: {
@@ -61,46 +74,64 @@
       r.maxShield = r.shield = (d.shield || 0) * (AI.hpMul || 1); r.shT = 99; r.shFx = 0;
       r.hover = (d.hover || 4) + ((r.slot % 3) - 1) * 0.45;
       r.hy = r.hyT = r.hover;
-      r.lean = 0; r.legDir = 1; r.pod = 0; r.lidA = 0; r.podAim = 0; r.thrust = 0.6; r.air = 1; r.legMove = 0; r.act = ''; r.low = false;
-      r.vcool = rnd(2.5, 4.5); r.dashCool = rnd(1.5, 3.5); r.dashX = 0; r.dashZ = 1; r.dashT = 0; r.lostT = 0; r.beepT = 0;
-      r.lockX = r.lockY = r.lockZ = 0; r.lockK = 0; r.puffT = 0; r.aim = -0.2; r.volleys = 0; r.dashes = 0;
+      r.legDir = 1; r.pod = 0; r.lidA = 0; r.podAim = 0; r.thrust = 0.6; r.air = 1; r.legMove = 0; r.act = ''; r.low = false;
+      r.vcool = rnd(2.5, 4.5); r.dashCool = rnd(1.2, 2.6); r.dashX = 0; r.dashZ = 1; r.dashT = 0; r.lostT = 0; r.beepT = 0;
+      r.lockX = r.lockY = r.lockZ = 0; r.lockK = 0; r.puffT = 0; r.aim = -0.2; r.volleys = 0; r.dashes = 0; r.riseT = 0;
+      // motion state: body pitch / roll springs, leg and arm swing springs, figure-8 drift, thrust burst, recoil
+      r.pitch = r.pitchV = r.roll = r.rollV = 0; r.legP = r.legPV = r.legR = r.legRV = r.legK = 0; r.armP = r.armPV = r.armR = r.armRV = 0;
+      r.pvf = r.pvs = r.af = r.as = 0; r.py = r.y || 0; r.vy = 0; r.f8 = null; r.steady = 1; r.burst = 0; r.pk0 = r.pk1 = 0; r.jolt = 0;
+      r.altOff = 0; r.altT = rnd(1.5, 3); r.spdK = 1;
       if (!r.muzzleW) { r.muzzleW = { x: 0, y: 0, z: 0, set: false }; r.tubeW = []; for (var i = 0; i < 6; i++) r.tubeW.push({ x: 0, y: 0, z: 0 }); }
       r.muzzleW.set = false;
     },
-    onDamage: function (r, dmg, opts) { return VIS.soldier.onDamage(r, dmg, opts); },
-    noStagger: function (r) { return r.act === 'volley' && (r.state === 'windup' || r.state === 'attack'); },
-    bob: function (r) { return r.hy > 0.6 ? Math.sin(r.idleT * 1.7 + r.slot) * 0.1 : 0; },
+    // a hit: the shield soaks it as a Soldier's does, and the body jolts away from it (springs settle it in ~0.4 s)
+    onDamage: function (r, dmg, opts) {
+      var left = VIS.soldier.onDamage(r, dmg, opts);
+      jolt(r, Math.min(1, 0.35 + 5 * dmg / Math.max(1, r.maxHp + r.maxShield)) * (left > 0 ? 1 : 0.75), opts);
+      return left;
+    },
+    noStagger: function (r) { return r.act === 'rise' || (r.act === 'volley' && (r.state === 'windup' || r.state === 'attack')); },
+    // the hover bob: the up-and-down half of the figure-8 (calmer while it holds the volley steady)
+    bob: function (r) { return Math.sin(r.idleT * W8 * 2 + r.slot * 3.4) * (r.hy > 0.6 ? BOB_AIR : BOB_LOW) * r.steady; },
+    // shot out of the air it spins down (ai.js corpses): rad/s about its vertical, the way it was rolling
+    deathSpin: function (r) { return r.y - (r.fy || 0) > 0.9 ? (r.roll >= 0 ? 1 : -1) * rnd(7, 10) : 0; },
     pose: function (r, P) {
-      var v = VIS.jet, air = r.air, mv = r.legMove, ph = r.walk * 1.9, i, k;
-      function base() { return P.root().t(0, BASE_C, 0).rx(r.bankX).rz(r.bankZ + r.wob).t(0, -BASE_C, 0); }
+      var v = VIS.jet, air = r.air, mv = r.legMove, ph = r.walk * 1.9, i, k, cy = v.coreY, cz = v.coreZ;
+      var pit = r.pitch, rol = r.roll + r.wob;
+      // the body pitches and rolls about the chest core, so the weak point stays where the game aims at it
+      function base() { return P.root().t(0, cy, cz).rx(pit).rz(rol).t(0, -cy, -cz); }
       base().emit('Hips', 0);
-      // legs: walking on the ground, a bent-knee hang in the air
+      // legs: walking on the ground; in the air a bent-knee hang that trails and swings behind the body's motion
       for (i = 0; i < 2; i++) {
         var sd = i ? 1 : -1, s = Math.sin(ph + i * Math.PI) * r.legDir, sw = s * 0.5 * mv;
-        var knee = Math.max(0, Math.cos(ph + i * Math.PI) * r.legDir) * 0.9 * mv + air * (0.75 + 0.12 * i + 0.06 * Math.sin(r.idleT * 2.1 + i * 1.3));
-        base().tv(v.hips[i]).rz(sd * 0.07 * air).rx(-sw - air * (0.32 + 0.1 * i)).emit('Thigh', i).t(0, -v.thigh, 0).rx(knee).emit('Shin', i);
+        var knee = Math.max(0, Math.cos(ph + i * Math.PI) * r.legDir) * 0.9 * mv + air * (0.75 + 0.12 * i + 0.07 * Math.sin(r.idleT * 2.1 + i * 1.3) + r.legK);
+        var lp = air * (r.legP * (1 - 0.15 * i) + 0.05 * Math.sin(r.idleT * 1.6 + i * 2.1)), lr = air * r.legR * (1 + 0.2 * sd);
+        base().tv(v.hips[i]).rz(sd * 0.07 * air + lr).rx(-sw - air * (0.32 + 0.1 * i) + lp).emit('Thigh', i).t(0, -v.thigh, 0).rx(knee).emit('Shin', i);
       }
-      // torso, seams, head (the slit tilts with the aim)
-      base().tv(v.waist).rx(r.lean).emit('Torso', 0).emit('Seam', 0).push().tv(v.neck).rx(-r.aim * 0.4).emit('Head', 0).tv(v.slit).emit('Light', 0).pop();
-      // the launcher arm aims; the muzzle's world spot is kept for the shots
-      P.push().tv(v.sh[0]).rx(-r.aim * 0.9).t(0, 0, -r.kick * 0.03).emit('ArmR', 0).tv(v.muzzle).pos(r.muzzleW).pop();
+      // torso, seams, head (the slit tilts with the aim and keeps nearer level than the body)
+      base().tv(v.waist).emit('Torso', 0).emit('Seam', 0).push().tv(v.neck).rx(-r.aim * 0.4 - pit * 0.5).rz(-rol * 0.45).emit('Head', 0).tv(v.slit).emit('Light', 0).pop();
+      // the launcher arm aims (the body's pitch and some of its roll taken out); the muzzle's world spot is kept for the shots
+      P.push().tv(v.sh[0]).rx(-r.aim * 0.9 - pit).rz(-rol * 0.5).t(0, 0, -r.kick * 0.03).emit('ArmR', 0).tv(v.muzzle).pos(r.muzzleW).pop();
       r.muzzleW.set = true;
-      P.push().tv(v.sh[1]).rx(-air * 0.2 + Math.sin(ph) * 0.25 * mv).rz(air * 0.14).emit('ArmL', 0).pop();
-      // pods: the arms telescope up (and splay a little), the pods pitch to the target, the lids flip open
+      P.push().tv(v.sh[1]).rx(-air * 0.2 + Math.sin(ph) * 0.25 * mv + air * (r.armP + 0.05 * Math.sin(r.idleT * 1.3 + 0.7))).rz(air * (0.14 + r.armR)).emit('ArmL', 0).pop();
+      // pods: the arms telescope up (and splay a little), the pods pitch to the target and kick back as they fire,
+      // the lids flip open
       var e = r.pod, ext = 0.35 + 0.65 * e;
       for (i = 0; i < 2; i++) {
         var sx = i ? 1 : -1;
-        base().tv(v.waist).rx(r.lean).tv(v.arm[i]).rz(sx * 0.2 * e).push().s(1, ext, 1).emit('PodArm', i).pop()
-          .t(0, v.podTop * ext, 0).rz(-sx * 0.2 * e).rx(-r.podAim * e);
+        base().tv(v.waist).tv(v.arm[i]).rz(sx * 0.2 * e).push().s(1, ext, 1).emit('PodArm', i).pop()
+          .t(0, v.podTop * ext, 0).rz(-sx * 0.2 * e).rx(-r.podAim * e).t(0, 0, -0.055 * (i ? r.pk1 : r.pk0));
         P.emit('Pod', i);
         for (k = 0; k < 3; k++) P.push().tv(v.tubes[k]).pos(r.tubeW[i * 3 + k]).pop();
         P.tv(v.lid).rx(-1.95 * r.lidA).emit('Lid', i);
       }
-      // jet flames, scaled by the thrust (none while it stands)
+      // jet flames: length and width follow the effort (r.thrust), flickering; the nozzle on the outside of a roll
+      // burns harder (none while it stands)
+      var diff = K.clamp(r.rollV * 0.12, -0.35, 0.35);
       for (i = 0; i < 2; i++) {
-        var f = r.thrust * (0.9 + 0.2 * Math.random());
+        var f = Math.min(2, r.thrust * (0.86 + 0.28 * Math.random()) * (1 + (i ? diff : -diff)));
         if (f < 0.04) { P.hide('Flame', i); continue; }
-        base().tv(v.waist).rx(r.lean).tv(v.noz[i]).s(0.7 + 0.45 * f, 0.35 + 1.25 * f, 0.7 + 0.45 * f).emit('Flame', i);
+        base().tv(v.waist).tv(v.noz[i]).s(0.7 + 0.42 * f, 0.35 + 1.25 * f, 0.7 + 0.42 * f).emit('Flame', i);
       }
     },
     lightColor: slitColor,
@@ -124,48 +155,88 @@
   function seamColor(r) { return r.state === 'idle' ? 0x3A4048 : r.tintHex; }
   var _fc = [0xFFE6A0, 0xFFB64A, 0xFFF4D8];
   function flameColor(r) { return _fc[(Math.random() * 3) | 0]; }
+  // a hit's jolt (j 0..1): the body snaps away from the hit (knockback direction, else backward), dips, flames flare
+  function jolt(r, j, opts) {
+    var kx = (opts && opts.kx) || 0, kz = (opts && opts.kz) || 0, sy = Math.sin(r.yaw), cy = Math.cos(r.yaw);
+    var kf = kx * sy + kz * cy, ks = kx * cy - kz * sy, kl = Math.hypot(kf, ks);
+    if (kl < 1e-3) { kf = -1; ks = rnd(-0.7, 0.7); kl = Math.hypot(kf, ks); }
+    r.pitchV += kf / kl * 6 * j; r.rollV -= ks / kl * 5 * j;
+    r.legPV -= kf / kl * 3 * j; r.jolt = Math.max(r.jolt, j);
+    if (r.y - (r.fy || 0) > 0.3) r.y -= 0.05 * j;
+  }
 
   function pitchTo(fromY, p, d) { return Math.atan2(p.y + 1.0 - fromY, Math.max(0.6, d)); }
 
+  /* a boost-dash sideways to the player (outdoors a short, fast snap in the air; indoors a ground boost with a hop):
+     the side with open floor 5 m out, a little in or out toward its keep band */
+  function startDash(r, dx, dz, dist, rad, zone, air) {
+    var def = r.def, AD = def.airDash || {}, side = Math.random() < 0.6 ? -r.sdir : r.sdir;
+    var ux = -dz / dist * side + dx / dist * rad * 0.4, uz = dx / dist * side + dz / dist * rad * 0.4, ul = Math.hypot(ux, uz) || 1;
+    ux /= ul; uz /= ul;
+    var open = function (x, z) { return !zone || !IB.Zones.isOpen || IB.Zones.isOpen(zone, x, z); };
+    if (!open(r.x + ux * 5, r.z + uz * 5)) {
+      ux = -ux; uz = -uz;
+      if (air && !open(r.x + ux * 5, r.z + uz * 5)) { r.dashCool = 0.6; return false; }
+    }
+    var spd = air ? AD.speed || 11 : def.dashSpeed || 10;
+    r.dashX = ux; r.dashZ = uz; r.dashT = air ? AD.time || 0.36 : def.dashTime || 0.6; r.act = 'dash'; r.dashes++; r.burst = 1;
+    r.sdir = (ux * -dz + uz * dx) / dist >= 0 ? 1 : -1;   // carry on orbiting the way it dashed
+    r.vx = ux * spd * 0.8; r.vz = uz * spd * 0.8;          // the snap: most of the speed at once
+    var ls = ux * Math.cos(r.yaw) - uz * Math.sin(r.yaw); r.rollV -= ls * 2.4; r.legRV += ls * 2;
+    r.hyT = air ? r.hyT + 0.25 : def.hopHeight || 0.7;
+    K.setState(r, 'attack'); K.play('rotor', r, 0.9);
+    var by = air ? r.y + 1.05 : r.fy + 0.1, bx = r.x - Math.sin(r.yaw) * 0.3, bz = r.z - Math.cos(r.yaw) * 0.3;
+    if (IB.FX) IB.FX.puff(bx, by, bz, air ? 5 : 6, air ? 0xFFC060 : PAL.paper, 0.1, 0.4, 2.5);
+    if (air && IB.Boom && IB.Boom.muzzle) IB.Boom.muzzle(bx, r.y + 1.0, bz, 0.5);
+    return true;
+  }
+
   function thinkJet(r, dt, ctx, zone, dx, dz, dist) {
-    var p = ctx.player, def = r.def, T = K.tempo(), speed = def.speed || 4.6, VL = def.volley, wu = (def.windup || 0.45) * T.tellMul;
+    var p = ctx.player, def = r.def, T = K.tempo(), speed = def.speed || 4.6, VL = def.volley, AD = def.airDash || {}, wu = (def.windup || 0.45) * T.tellMul;
     var kd = def.keepDistance || [9, 16], mid = (kd[0] + kd[1]) / 2;
     r.low = (r.ceil - r.fy) < (def.lowCeiling || 6.5);
     r.vcool -= dt; r.dashCool -= dt;
-    if (r.act !== 'dash') r.hyT = r.low ? 0 : r.hover;
+    // hover height: its own (outdoors, drifting up and down every few s) or a low skim indoors; higher for the volley
+    r.altT -= dt;
+    if (r.altT <= 0) { r.altT = rnd(2.2, 4.5); r.altOff = rnd(-1.0, 0.4); }
+    var hb = r.low ? def.skim || 0.22 : r.hover + r.altOff;
+    if (r.act === 'rise' || (r.act === 'volley' && r.state !== 'recover')) hb = r.low ? hb + 0.5 : r.hover + Math.max(0, r.altOff) + (VL.rise || 0.9);
+    if (r.act !== 'dash') r.hyT = hb;
     var rad = K.clamp((dist - mid) / 4, -1, 1), tx = -dz / dist * r.sdir, tz = dx / dist * r.sdir;
     var ox = tx * 0.85 + dx / dist * rad, oz = tz * 0.85 + dz / dist * rad;
     r.thinkT -= dt;
-    if (r.thinkT <= 0 || r.bump > 0.25) { r.thinkT = 1.5 + Math.random() * 2; if (r.bump > 0.25 || Math.random() < 0.6) r.sdir = -r.sdir; r.bump = 0; }
-    if (p.alive) K.turnTo(r, Math.atan2(dx, dz), r.act === 'volley' ? 8 : 6, dt);
+    if (r.thinkT <= 0 || r.bump > 0.25) { r.thinkT = 1.5 + Math.random() * 2; if (r.bump > 0.25 || Math.random() < 0.6) r.sdir = -r.sdir; r.bump = 0; r.spdK = rnd(0.8, 1.2); }
+    if (p.alive) K.turnTo(r, Math.atan2(dx, dz), r.act === 'volley' || r.act === 'rise' ? 8 : 6, dt);
     var above = r.y - (p.y || 0), podY = r.y + 1.75;
     switch (r.state) {
       case 'keep': {
-        r.aim += (-0.15 - r.aim) * Math.min(1, dt * 4);
+        // the gun arm follows the player, held a little low between bursts
+        var aimT = r.seesPlayer && p.alive ? pitchTo(r.y + 1.3, p, dist) * 0.7 - 0.06 : -0.15;
+        r.aim += (aimT - r.aim) * Math.min(1, dt * 3);
+        if (r.act === 'rise') {
+          // Flight Core: it climbs a little higher and steadies, then the pods snap open and the lock runs
+          K.move(ox, oz, speed * 0.15);
+          r.riseT -= dt;
+          if (!p.alive || (!r.token && !K.takeToken(r))) { if (r.token) K.releaseToken(r); r.act = ''; break; }
+          if (r.riseT <= 0) { r.act = 'volley'; K.setState(r, 'windup'); r.lostT = 0; r.beepT = 0; r.lockK = 0; K.play('servo', r, 0.8); }
+          break;
+        }
         if (!p.alive) break;
         var inV = (dist >= 4 && dist <= VL.near) || (dist <= VL.far && above >= VL.above);
         if (r.vcool <= 0 && r.seesPlayer && inV && K.takeToken(r)) {
-          r.act = 'volley'; K.setState(r, 'windup'); r.lostT = 0; r.beepT = 0; r.lockK = 0; K.play('servo', r, 0.8);
+          r.act = 'rise'; r.riseT = VL.riseTime || 0.35; r.burst = Math.max(r.burst, 0.6);
           break;
         }
-        if (r.low && r.dashCool <= 0 && r.seesPlayer && dist < 20) {
-          // indoors: a fast skim across the room, sideways to the player, onto open floor
-          var side = Math.random() < 0.5 ? -1 : 1, ux = -dz / dist * side + dx / dist * rad * 0.4, uz = dx / dist * side + dz / dist * rad * 0.4, ul = Math.hypot(ux, uz) || 1;
-          ux /= ul; uz /= ul;
-          if (zone && IB.Zones.isOpen && !IB.Zones.isOpen(zone, r.x + ux * 4, r.z + uz * 4)) { ux = -ux; uz = -uz; }
-          r.dashX = ux; r.dashZ = uz; r.dashT = def.dashTime || 0.6; r.act = 'dash'; r.hyT = 0.45; r.dashes++;
-          K.setState(r, 'attack'); K.play('rotor', r, 0.9);
-          if (IB.FX) IB.FX.puff(r.x, r.fy + 0.1, r.z, 6, PAL.paper, 0.12, 0.4, 2.5);
-          break;
-        }
+        // boost-dashes: outdoors a snap sideways every few s; indoors a ground boost across the room
+        if (r.dashCool <= 0 && r.seesPlayer && dist < 20 && startDash(r, dx, dz, dist, rad, zone, !r.low)) break;
         if (!r.seesPlayer && r.lost > 1.5) K.towardPlayer(r, ctx, zone, dx, dz, dist, speed);
-        else K.move(ox, oz, speed * (r.low ? 0.6 : 1));
+        else K.move(ox, oz, speed * (r.low ? 0.6 : r.spdK));
         if (K.canFire(r, ctx, dist)) { r.act = 'gun'; K.setState(r, 'windup'); K.play('servo', r, 0.5); }
         break;
       }
       case 'windup':
         if (r.act === 'volley') {
-          K.move(ox, oz, speed * 0.25);
+          K.move(ox, oz, speed * 0.1);   // it holds steady while it locks on: readable, fair
           var lock = Math.max(0.8, Math.min(1.0, (VL.lock || 0.95) * T.tellMul));
           r.podAim += (pitchTo(podY, p, dist) - r.podAim) * Math.min(1, dt * 8);
           r.lockX = p.x; r.lockY = p.y || 0; r.lockZ = p.z; r.lockK = Math.min(1, r.st / lock);
@@ -195,8 +266,12 @@
           if (r.shots < VL.rockets && r.shotT <= 0) { fireVolleyRocket(r, ctx, r.shots); r.shots++; r.shotT = VL.gap; }
           if (r.shots >= VL.rockets && r.shotT <= -0.25) K.setState(r, 'recover');
         } else if (r.act === 'dash') {
-          K.mv.x = r.dashX; K.mv.z = r.dashZ; K.mv.s = def.dashSpeed || 10;
-          if (r.st >= r.dashT || (r.st > 0.12 && r.bump > 0.12)) { r.act = ''; r.dashCool = rnd(3, 5.5); r.hyT = r.low ? 0 : r.hover; K.setState(r, 'keep'); r.thinkT = 0; }
+          K.mv.x = r.dashX; K.mv.z = r.dashZ; K.mv.s = r.low ? def.dashSpeed || 10 : AD.speed || 11;
+          if (r.low && r.st > r.dashT * 0.45) r.hyT = def.skim || 0.22;   // the hop comes down: it skims out of the boost
+          if (r.st >= r.dashT || (r.st > 0.12 && r.bump > 0.12)) {
+            r.act = ''; r.dashCool = r.low ? rnd(2.6, 4.6) : rnd((AD.every || [1.6, 3])[0], (AD.every || [1.6, 3])[1]);
+            K.setState(r, 'keep'); r.thinkT = 0;
+          }
         } else {
           K.move(ox, oz, speed);
           r.aim += (pitchTo(r.y + 1.3, p, dist) - r.aim) * Math.min(1, dt * 10);
@@ -215,7 +290,7 @@
         r.aim += (-0.15 - r.aim) * Math.min(1, dt * 3);
         var rt = r.act === 'volley' || r.act === 'abort' ? 0.7 : (def.recover || 0.75);
         if (r.st >= rt) {
-          if (r.act === 'volley') r.vcool = rnd(VL.cool[0], VL.cool[1]);
+          if (r.act === 'volley') { r.vcool = rnd(VL.cool[0], VL.cool[1]); r.dashCool = Math.min(r.dashCool, rnd(0.2, 0.7)); }   // then straight back to agile
           else if (r.act === 'abort') r.vcool = 2.5;
           else r.cool = (1.2 + Math.random() * 1.5) * T.coolMul;
           r.act = ''; K.setState(r, 'keep'); r.thinkT = 0;
@@ -247,32 +322,68 @@
       elem: r.elem, color: r.tintHex, sc: 0.62, dot: J.dot
     });
     if (IB.FX) IB.FX.puff(x, y, z, 2, PAL.paper, 0.08, 0.25, 1.5);
+    // recoil: the firing pod kicks back, the body rocks back and toward that side
+    if (ti < 3) r.pk0 = 1; else r.pk1 = 1;
+    r.pitchV -= 1.5; r.rollV += (ti < 3 ? 1 : -1) * 1.1;
     r.kick = 1;
   }
+
+  // a spring toward target T (stiffness k, damping c): value r[key], its rate r[kv]
+  function spring(r, key, kv, T, k, c, dt) { r[kv] += ((T - r[key]) * k - r[kv] * c) * dt; r[key] += r[kv] * dt; }
 
   function tickJet(r, dt) {
     r.shFx -= dt;
     if (r.maxShield > 0) { r.shT += dt; if (r.shT >= stat(r, 'shieldDelay', 5) && r.shield < r.maxShield) r.shield = Math.min(r.maxShield, r.shield + stat(r, 'shieldRate', 14) * (AI.hpMul || 1) * dt); }
     var vol = r.act === 'volley' && (r.state === 'windup' || r.state === 'attack' || (r.state === 'recover' && r.st < 0.35));
-    r.pod += ((vol ? 1 : 0) - r.pod) * Math.min(1, dt * (vol ? 6 : 4));
-    r.lidA += (((vol && r.pod > 0.55) ? 1 : 0) - r.lidA) * Math.min(1, dt * 9);
+    r.pod += ((vol ? 1 : 0) - r.pod) * Math.min(1, dt * (vol ? 10 : 4));            // the pods snap up and open
+    r.lidA += (((vol && r.pod > 0.5) ? 1 : 0) - r.lidA) * Math.min(1, dt * 14);
     if (!vol) r.podAim *= Math.max(0, 1 - dt * 3);
+    r.pk0 = Math.max(0, r.pk0 - dt * 7); r.pk1 = Math.max(0, r.pk1 - dt * 7);
     // hover height eases to its target (a climb or a landing), never snaps
     var dh = r.hyT - r.hy, st = 2.4 * dt; r.hy += dh > st ? st : dh < -st ? -st : dh;
+    // indoors a ground boost is a hop: an arc up to def.hopHeight m and back down over the boost
+    if (r.act === 'dash' && r.low && r.state === 'attack') { var hop = r.fy + (r.def.hopHeight || 0.7) * Math.sin(Math.PI * Math.min(1, r.st / r.dashT)); if (r.y < hop) r.y = hop; }
     var air = K.clamp((r.y - r.fy) / 0.45, 0, 1);
     r.air += (air - r.air) * Math.min(1, dt * 8);
-    var hs = Math.hypot(r.vx, r.vz);
-    var th = air > 0.05 || r.hyT > r.hy + 0.05 ? 0.55 + 0.4 * Math.min(1, hs / 5) + (r.act === 'dash' ? 0.6 : 0) + (r.hyT > r.hy + 0.1 ? 0.35 : 0) : 0;
-    r.thrust += (th - r.thrust) * Math.min(1, dt * 10);
-    var fwd = r.vx * Math.sin(r.yaw) + r.vz * Math.cos(r.yaw);
-    r.legDir = fwd < -0.3 ? -1 : 1;
+    // steady while it climbs for and holds the volley; the figure-8's side-to-side half (the bob is VIS.jet.bob)
+    var calm = r.act === 'rise' || (r.act === 'volley' && r.state !== 'recover');
+    r.steady += ((calm ? 0.3 : 1) - r.steady) * Math.min(1, dt * 3);
+    var sy = Math.sin(r.yaw), cy = Math.cos(r.yaw);
+    var lat = Math.sin(r.idleT * W8 + r.slot * 1.7) * (r.hy > 0.6 ? LAT_AIR : LAT_LOW) * r.steady;
+    if (r.f8 !== null && r.state !== 'stagger' && r.state !== 'blinded') { r.x += cy * (lat - r.f8); r.z -= sy * (lat - r.f8); }
+    r.f8 = lat;
+    // local velocity (forward / to its left) and a smoothed acceleration; vertical speed
+    var hs = Math.hypot(r.vx, r.vz), vf = r.vx * sy + r.vz * cy, vs = r.vx * cy - r.vz * sy, idt = 1 / Math.max(dt, 1e-4);
+    r.af += (K.clamp((vf - r.pvf) * idt, -MAX_ACC, MAX_ACC) - r.af) * Math.min(1, dt * 8);
+    r.as += (K.clamp((vs - r.pvs) * idt, -MAX_ACC, MAX_ACC) - r.as) * Math.min(1, dt * 8);
+    r.pvf = vf; r.pvs = vs;
+    r.vy += ((r.y - r.py) * idt - r.vy) * Math.min(1, dt * 6); r.py = r.y;
+    // body: pitch into the advance (back when it brakes), roll into the strafe; calmer while it holds the volley
+    var bk = calm ? 0.45 : 1;
+    spring(r, 'pitch', 'pitchV', K.clamp(vf * 0.055 + r.af * 0.03, -0.35, 0.42) * bk, PITCH_K, PITCH_C, dt);
+    spring(r, 'roll', 'rollV', K.clamp(-vs * 0.06 - r.as * 0.025, -0.5, 0.5) * bk, PITCH_K, PITCH_C, dt);
+    r.pitch = K.clamp(r.pitch, -MAX_PITCH, MAX_PITCH); r.roll = K.clamp(r.roll, -MAX_ROLL, MAX_ROLL);
+    // legs dangle on softer springs: dragged back by the speed, left behind by the acceleration, hanging nearer
+    // plumb than the body; knees tuck as it climbs or boosts
+    spring(r, 'legP', 'legPV', K.clamp(vf * 0.05 + r.af * 0.05, -0.35, 0.6) - r.pitch * 0.55, LEG_K, LEG_C, dt);
+    spring(r, 'legR', 'legRV', K.clamp(-vs * 0.04 - r.as * 0.04, -0.4, 0.4) - r.roll * 0.55, LEG_K, LEG_C, dt);
+    r.legK += (K.clamp(r.vy * 0.12, -0.15, 0.35) + (r.act === 'dash' ? 0.3 : 0) - r.legK) * Math.min(1, dt * 6);
+    spring(r, 'armP', 'armPV', K.clamp(vf * 0.03 + r.af * 0.04, -0.3, 0.4) - r.pitch * 0.3, ARM_K, ARM_C, dt);
+    spring(r, 'armR', 'armRV', K.clamp(-vs * 0.025 - r.as * 0.03, -0.25, 0.35), ARM_K, ARM_C, dt);
+    // thrust follows the effort: hovering, speed, climbing, braking or boosting hard; a flicker at idle
+    r.burst = Math.max(0, r.burst - dt * 2.5); r.jolt = Math.max(0, r.jolt - dt * 4);
+    var flying = air > 0.05 || r.hyT > r.hy + 0.05, acc = Math.min(1, Math.hypot(r.af, r.as) / 10);
+    var th = flying ? 0.5 + 0.3 * Math.min(1, hs / 5) + 0.6 * K.clamp(r.vy / 2, -0.4, 1) + 0.45 * acc + (r.act === 'dash' ? 0.7 : 0) + 0.7 * r.burst +
+      0.4 * r.jolt + 0.1 * Math.sin(r.idleT * 29 + r.slot) * Math.sin(r.idleT * 7.3) : 0;
+    r.thrust += (th - r.thrust) * Math.min(1, dt * 12);
+    r.legDir = vf < -0.3 ? -1 : 1;
     r.legMove += (((1 - air) * Math.min(1, hs / 2.6)) - r.legMove) * Math.min(1, dt * 7);
-    r.lean = 0;
-    // exhaust: smoke puffs under the nozzles while it flies
+    // exhaust: smoke puffs under the nozzles while it flies, a quick warm trail while it boosts
     r.puffT -= dt;
     if (r.thrust > 0.3 && r.puffT <= 0 && IB.FX) {
-      r.puffT = 0.09;
-      IB.FX.puff(r.x - Math.sin(r.yaw) * 0.32, r.y + 1.05, r.z - Math.cos(r.yaw) * 0.32, 1, Math.random() < 0.35 ? 0xFFC060 : 0xE9E4F0, 0.08, 0.3, 0.6, 1.5);
+      var boost = r.act === 'dash' || r.burst > 0.5;
+      r.puffT = boost ? 0.035 : 0.09;
+      IB.FX.puff(r.x - sy * 0.32, r.y + 1.05, r.z - cy * 0.32, 1, boost || Math.random() < 0.35 ? 0xFFC060 : 0xE9E4F0, boost ? 0.1 : 0.08, 0.3, 0.6, 1.5);
     }
   }
   BEH.jet = { think: thinkJet, tick: tickJet };

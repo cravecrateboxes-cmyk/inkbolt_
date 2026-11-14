@@ -167,10 +167,12 @@
 
   /* ---- levels 35+ (levelplans.js lateWaves35 turns a share of the hawks / robot troopers into these)
      Jet Trooper (game/jets.js): an advanced robot soldier on a jet back unit. Outdoors it flies at `hover` m and orbits
-     like a Hawk, firing bursts from its hand launcher; indoors (ceiling under lowCeiling m over its floor) it stays on
-     its feet and now and then skims low and dashes across the room (dashSpeed for dashTime s). Its rocket volley:
-     whenever it is within volley.near m of the player, or within volley.far m and at least volley.above m higher, it
-     raises and opens its two pods (3 tubes each) and locks on (a red ring shrinking on the player, rising beeps) for
+     like a Hawk, firing bursts from its hand launcher, and boost-dashes sideways every airDash.every s (airDash.speed
+     m/s for airDash.time s); indoors (ceiling under lowCeiling m over its floor) it skims low (skim m) and now and then
+     ground-boosts across the room (dashSpeed for dashTime s) with a hop (hopHeight m). Its rocket volley: whenever it
+     is within volley.near m of the player, or within volley.far m and at least volley.above m higher, it climbs
+     volley.rise m (volley.riseTime s) and holds steady, raises and opens its two pods (3 tubes each) and locks on (a
+     red ring shrinking on the player, rising beeps) for
      volley.lock s, then fires 6 rockets (volley.gap s apart) at the spot it locked plus a little scatter: dodgeable by
      moving. Cooldown volley.cool s. Every rocket deals explosive damage (volley.damage at the centre, volley.radius m);
      each Jet Trooper rolls one element (elements: odds), shown on its accents: shock (electric: + electric damage over
@@ -178,10 +180,11 @@
   ENEMIES.jet = {
     id: 'jet', name: 'Jet Trooper', built: 'Armoured robot soldier on a jet back unit, two rising rocket pods (3 tubes each), a hand-held bullet launcher', first: 35,
     hp: 100, shield: 40, shieldPool: true, shieldDelay: 5, shieldRate: 14, speed: 4.6, chargeSpeed: 0, dashSpeed: 10, dashTime: 0.6,
+    airDash: { every: [1.6, 3.0], time: 0.36, speed: 11 }, skim: 0.22, hopHeight: 0.7,
     attack: '4-round launcher bursts; a locked-on 6-rocket volley (electric, acid or explosive)', damage: 5, bolts: 4, boltSpeed: 40,
     windup: 0.45, recover: 0.75, range: 26, keepDistance: [9, 16], flying: true, hover: 4.2, lowCeiling: 6.5,
     volley: { rockets: 6, near: 14, far: 22, above: 2.2, lock: 0.95, gap: 0.09, cool: [6.5, 9], damage: 13, robotDamage: 6, radius: 2.3,
-      speed: 15, turn: 2.2, homeT: 0.45, scatter: 1.1 },
+      speed: 15, turn: 2.2, homeT: 0.45, scatter: 1.1, rise: 0.9, riseTime: 0.35 },
     elements: { shock: 1 / 3, acid: 1 / 3, boom: 1 / 3 },
     elementColors: { shock: '#3FC8FF', acid: '#6BE03A', boom: '#FF7A1E' },
     elementDot: { shock: { dps: 4, time: 2.5 }, acid: { dps: 3.2, time: 4 } }, boomMul: 1.35, boomRadiusMul: 1.25,
