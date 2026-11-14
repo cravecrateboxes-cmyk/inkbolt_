@@ -1076,6 +1076,20 @@ def build_backdrop(pal):
             for k in range(3):
                 x = x0 + 1.4 + k * 2.6
                 m.bx(x - 0.55, x + 0.55, -5.08, -4.95, z, z + 1.6, 'glassD', hull='none')
+                if f:                                                       # sills and lintels (upper floors)
+                    m.bx(x - 0.7, x + 0.7, -5.2, -4.95, z - 0.16, z - 0.02, 'stoneC', hull='none')
+                    m.bx(x - 0.66, x + 0.66, -5.14, -4.95, z + 1.66, z + 1.86, 'stoneC', hull='none')
+        # (map asset upgrade) a cornice under the cap, a painted shop front with a door on the ground floor,
+        # chimney stacks on the roof so the row no longer reads as three plain boxes
+        m.bx(x0 + 0.03, x0 + 7.97, -5.22, -4.95, h - 0.55, h - 0.2, 'stoneC', hull='none')
+        shop = ('shopTeal', 'shopBurg', 'shopGreen')[i]
+        m.bx(x0 + 0.4, x0 + 7.6, -5.1, -4.95, 0.0, 2.2, shop, hull='none', cull='b')
+        m.bx(x0 + 0.8, x0 + 5.0, -5.14, -5.1 + 0.003, 0.5, 1.9, 'glassD', hull='none')
+        m.bx(x0 + 5.6, x0 + 6.8, -5.14, -5.1 + 0.003, 0.0, 2.0, 'wood', hull='none', cull='b')
+        m.bx(x0 + 0.4, x0 + 7.6, -5.16, -5.1 + 0.003, 2.2, 2.45, 'awnCream', hull='none')
+        for cx in (x0 + 1.6, x0 + 6.3 - i * 0.8):
+            m.bx(cx - 0.45, cx + 0.45, 1.5, 2.3, h - 0.1, h + 1.7 + 0.2 * i, 'brickR')
+            m.bx(cx - 0.55, cx + 0.55, 1.4, 2.4, h + 1.7 + 0.2 * i, h + 1.9 + 0.2 * i, 'stoneC')
     make('Backdrop_Row', m)
     m = PM(pal)                                                    # church tower and steeple
     m.bx(-3.5, 3.5, -3.5, 3.5, 0, 24, 'stoneS')
