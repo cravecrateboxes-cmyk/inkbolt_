@@ -10,6 +10,7 @@ from mathutils import Euler
 from ven_base import *  # noqa: F401,F403
 from ven_base import (kit, done, arch_curve, glints, flowers, balustrade_x, text, steps, lantern_glow)
 from ven_campo import chair, bistro_table, parasol, awning
+import ven_detail as D
 
 
 # ================================================================ the merchants' loggia (roof terrace) [16, 6]
@@ -267,6 +268,7 @@ def build_small(pal, ao):
     k.beam((0.62, 0, 2.0), (0.3, 0, 2.25), 0.038, 'iron')
     k.beam((-0.3, 0, 2.25), (0.3, 0, 2.25), 0.05, 'iron')
     k.cyl(0, -0.03, 2.08, 0.1, 0.1, 0.06, 'iron', seg=8, rot=(-90, 0, 0))
+    D.well_joints(k)
     k.col(-0.68, 0.68, -0.68, 0.68, 0.0, 0.96)
     done(k, 'Well', ao)
     # lamp post (1 cell): a cast-iron column with a lantern; its glow companion
@@ -277,6 +279,7 @@ def build_small(pal, ao):
         a = i * math.pi * 2 / 3
         k.beam((math.cos(a) * 0.1, math.sin(a) * 0.1, 2.85), (math.cos(a) * 0.165, math.sin(a) * 0.165, 3.29), 0.025, 'iron', ink=False)
     k.cyl(0, 0, 3.29, 0.21, 0.04, 0.16, 'iron', seg=6)
+    D.lamp_post_detail(k)
     k.col(-0.14, 0.14, -0.14, 0.14, 0.0, 2.8)
     done(k, 'LampPost', ao)
     k = kit(pal).begin()
@@ -343,9 +346,14 @@ def build_small(pal, ao):
             bx = -1.05 + i * 0.52
             k.lathe(bx, y, z, [(0.16, 0.0), (0.2, 0.3), (0.0, 0.3)], 'chrome', seg=6)
             flowers(k, rnd, bx - 0.18, bx + 0.18, y - 0.18, y + 0.18, z + 0.3, 5, (cols[(i + row * 2) % 6], cols[(i + row * 2) % 6], 'leafL'))
+            D.bucket_hoops(k, bx, y, z)
     for x in (-1.35, 1.35):
         k.bxc(x - 0.04, x + 0.04, 0.72, 0.8, 0.75, 2.3, 'woodD', cull='tb')
         k.bxc(x - 0.04, x + 0.04, -0.8, -0.72, 0.75, 2.1, 'woodD', cull='tb')
+        D.post_pegs(k, x, 0.76, (1.2, 1.75), hw=0.04)
+        D.post_pegs(k, x, -0.76, (1.2, 1.7), hw=0.04)
+        D.rope_wrap(k, x, 0.76, 2.0, r=0.062)
+        D.rope_wrap(k, x, -0.76, 1.85, r=0.062)
     k.bxr(0, 0.0, 2.2, 3.0, 1.75, 0.04, 'canvas', rot=(6.5, 0, 0))
     k.col(-1.4, 1.4, -0.8, 0.8, 0.0, 1.4)
     done(k, 'FlowerStall', ao)
@@ -363,7 +371,13 @@ def build_small(pal, ao):
             k.hullp([(cx - 0.26, -0.45, 0.98), (cx + 0.26, -0.45, 0.98), (cx + 0.26, 0.45, 0.98), (cx - 0.26, 0.45, 0.98), (cx - 0.1, -0.15, 1.1), (cx + 0.08, 0.2, 1.09)], c, ink=False)
         for x in (-1.36, 1.36):
             k.bxc(x - 0.03, x + 0.03, 0.62, 0.68, 0.8, 2.3, 'woodD', cull='tb')
+            D.post_pegs(k, x, 0.65, (1.25, 1.85), hw=0.03)
+            D.rope_wrap(k, x, 0.65, 2.1, r=0.05)
         awning(k, -1.5, 1.5, 0.66, 2.3, 1.45, 'canvas', aw)
+        for xx in (-1.45, 1.45):
+            D.beam_tie(k, xx, -0.2, 1.652)
+        for y in (-0.55, 0.55):
+            D.bx(k, -1.25, 1.25, y - 0.015, y + 0.015, 0.2, 0.25, 'woodD')
         k.col(-1.4, 1.4, -0.7, 0.7, 0.0, 1.05)
         done(k, name, ao)
     # paving: cobbles (1 cell, three tones in a running bond) and the white Istrian bands

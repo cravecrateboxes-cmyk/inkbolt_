@@ -8,6 +8,7 @@ import random
 from ven_base import *  # noqa: F401,F403
 from ven_base import (kit, done, arch_curve, arched_opening, rect_opening, glints, flower_box, flowers, wall_lantern,
                       lantern_glow, balustrade_x, baluster, text, wall_parts)
+import ven_detail as D
 
 Y = -0.5   # the facade plane
 
@@ -31,12 +32,15 @@ def bands(k, H, gf, x0=-0.5, x1=0.5, ends=(False, False), cornice=True, roof=Tru
             c2 = ('l' if (a > x0 or not ends[0]) else '') + ('r' if (b < x1 or not ends[1]) else '')
             k.bxc(a, b, Y - 0.035, Y, 0.0, 0.5, 'stone', cull='bk' + ('' if gap else c2) + (cl if not gap else ''), ink=False)
             k.poly([(a, Y - 0.039, 0.0), (b, Y - 0.039, 0.0), (b, Y - 0.039, 0.06), (a, Y - 0.039, 0.06)], 'stoneD', (0, -1, 0))
+            D.plinth_lip(k, a, b)
     if string:
         k.bxc(x0, x1, Y - 0.06, Y, gf - 0.08, gf + 0.06, 'stone', cull='k' + cl, ink=False)
+        D.string_lip(k, x0, x1, gf)
     if cornice:
         k.bxc(x0, x1, Y - 0.1, Y, H - 0.4, H - 0.26, 'stone', cull='kt' + cl)
         k.bxc(x0, x1, Y - 0.28, Y, H - 0.26, H, 'stone', cull='k' + cl)
-        # dentils under the cornice's lip
+        D.dentils(k, x0, x1, H)
+        D.cornice_bead(k, x0, x1, H)
     if roof:
         # tiles from the eave back over the module: a slope up toward +Y, and the eave's tile edge
         e0, e1 = (x0 + (0.004 if ends[0] else 0.0), x1 - (0.004 if ends[1] else 0.0))
@@ -51,8 +55,9 @@ def shutters(k, x0, x1, z0, z1, open_=True, c='shut'):
     lw = min(w, 0.49 - w - 0.06)   # an open leaf stays inside the 1 m module centred on the window (the frame: 6 cm)
     leaves = ((x0 - 0.06 - lw, x0 - 0.06), (x1 + 0.06, x1 + 0.06 + lw)) if open_ else ((x0 + 0.004, x0 + w - 0.004), (x0 + w + 0.004, x1 - 0.004))
     yb = Y - 0.004
-    for (a, b) in leaves:
+    for li, (a, b) in enumerate(leaves):
         k.bxc(a, b, yb - 0.035, yb, z0, z1, c, cull='ktb', ink=False)
+        D.shutter_hinges(k, (a, b), z0, z1, (li == 1) if open_ else (li == 0), yb)
         for i in (1, 3):
             z = z0 + (z1 - z0) * i / 4
             k.poly([(a + 0.03, yb - 0.039, z), (b - 0.03, yb - 0.039, z), (b - 0.03, yb - 0.039, z + 0.05), (a + 0.03, yb - 0.039, z + 0.05)], 'shutD', (0, -1, 0))
@@ -73,6 +78,7 @@ def window(k, rnd, x0, x1, z0, z1, kind='open', box=False, back='glass', bars=Fa
         shutters(k, x0, x1, z0, z1, open_=kind == 'open')
     if box:
         flower_box(k, rnd, x0 - 0.06, x1 + 0.06, Y - 0.075, z0 - 0.07 - 0.17, trail=0.5)
+    D.window_dress(k, x0, x1, z0, z1, box=box)
 
 
 def door(k, x0, x1, top, kind='round'):
@@ -86,6 +92,7 @@ def door(k, x0, x1, top, kind='round'):
             k.qy(a, b, c0, c1, yd, -1, 'woodD')
             k.qy(a + 0.03, b - 0.03, c0 + 0.03, c1 - 0.03, yd - 0.003, -1, 'wood')
     k.cyl(xm + 0.12, yd - 0.01, 1.25, 0.035, 0.035, 0.012, 'gold', seg=6, rot=(90, 0, 0), ink=False)
+    D.door_detail(k, x0, x1, top, yd, cr)
     k.bxc(x0 - 0.08, x1 + 0.08, Y - 0.14, Y + 0.2, 0.0, 0.1, 'stone', cull='bk')
     return cr
 
@@ -104,6 +111,7 @@ def shop(k, rnd, x0, x1, top, sign=None):
         k.qy(gx - 0.05, gx + 0.05, 0.95, 0.95 + 0.12 + 0.08 * (i % 2), yd - 0.012, -1, c)
     k.qy(x0 + 0.04, x1 - 0.04, 0.9, 0.94, yd - 0.004, -1, 'woodD')
     glints(k, x0, x1, 1.1, top, yd - 0.016)
+    D.shop_detail(k, x0, x1, top)
     return cr
 
 
@@ -115,6 +123,7 @@ def balcony(k, rnd, x0, x1, z, depth=0.55, ends=(False, False), flowers_=True):
         k.prism_xz([(cx - 0.08, z - 0.14), (cx + 0.08, z - 0.14), (cx + 0.06, z - 0.42), (cx - 0.06, z - 0.42)], Y - depth * 0.8, Y, 'stoneD', cull='k')
     balustrade_x(k, x0 + (0.04 if ends[0] else 0.0), x1 - (0.04 if ends[1] else 0.0), yf + 0.1, z, h=0.95, every=0.33, w=0.14,
                  ends=ends)
+    D.balcony_detail(k, x0, x1, z, depth)
     for side, on in ((0, ends[0]), (1, ends[1])):
         if not on:
             continue
@@ -172,6 +181,8 @@ def house(k, rnd, H, kind, inner=None, chimney=False, roof=True):
         k.cyl(0, Y - 0.004, pn[0] + 0.9, 0.16, 0.16, 0.03, 'stone', seg=8, rot=(90, 0, 0), ink=False)
     if kind == 'PierL':
         wall_lantern(k, 0.0, Y, 2.55)
+    if kind in ('Pier', 'PierL'):
+        D.drainpipe(k, -0.4 if inner == 'R' else 0.4, H, gf)
     if kind == 'Quoin':
         z, i = 0.5, 0
         while z < top - 0.05:

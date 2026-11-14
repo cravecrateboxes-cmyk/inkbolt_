@@ -10,6 +10,7 @@ from mathutils import Euler
 
 from ven_base import *  # noqa: F401,F403
 from ven_base import (kit, done, arch_curve, flowers, baluster, steps, wall_lantern)
+import ven_detail as D
 
 ARCH_SPRING = 2.55     # cloister columns: the abacus top
 COL_STEP = 3           # columns stand every 3 m round both rings of the cloister
@@ -70,6 +71,7 @@ def build_cloister(pal, ao):
     k.hullp([(-0.17, -0.17, 2.02), (0.17, -0.17, 2.02), (0.17, 0.17, 2.02), (-0.17, 0.17, 2.02),
              (-0.26, -0.26, 2.4), (0.26, -0.26, 2.4), (0.26, 0.26, 2.4), (-0.26, 0.26, 2.4)], 'stone')
     k.bxc(-0.28, 0.28, -0.28, 0.28, 2.4, ARCH_SPRING, 'stone', cull='t')
+    D.column_detail(k)
     k.col(-0.2, 0.2, -0.2, 0.2, 0.0, ARCH_SPRING)
     done(k, 'Column', ao)
     k = kit(pal).begin()
@@ -87,6 +89,7 @@ def build_cloister(pal, ao):
             qa, qb = out(pa), out(pb)
             k.poly([(pa[0], yf, pa[1]), (qa[0], yf, qa[1]), (qb[0], yf, qb[1]), (pb[0], yf, pb[1])], 'stone', (0, f, 0))
         k.poly([(-1.5, yf + f * 0.004, top - 0.12), (1.5, yf + f * 0.004, top - 0.12), (1.5, yf + f * 0.004, top), (-1.5, yf + f * 0.004, top)], 'stone', (0, f, 0))
+    D.arch_detail(k, cur, ARCH_SPRING, top)
     done(k, 'Arch', ao)
 
 

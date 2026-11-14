@@ -422,6 +422,9 @@ def steps(k, x0, x1, y0, n, z0=0.0, dir_=1, c='stone', nose='stoneD', cols=True,
             k.bxc(x0, x1, lo, hi, z0, za, c, cull='b' + ('k' if dir_ > 0 else 'f') + sides, ink=ink)
             yr = lo - 0.004 if dir_ > 0 else hi + 0.004
             k.poly([(x0 + 0.01, yr, za - 0.05), (x1 - 0.01, yr, za - 0.05), (x1 - 0.01, yr, za - 0.012), (x0 + 0.01, yr, za - 0.012)], nose, (0, -dir_, 0))
+        if visual:
+            import ven_detail
+            ven_detail.nosing(k, x0, x1, lo, hi, za, dir_)
         if cols:
             k.wcol(x0, x1, lo, hi, z0, za)
     return y0 + dir_ * n * TREAD
