@@ -2672,7 +2672,7 @@
     backdrop: { ring: [
       { piece: 'Backdrop_Cavern', count: 4, radius: [58, 58], scale: [1, 1], squeezeX: 0.36, face: true }
     ] },
-    budget: { prop: 2000, landmark: 4000, total: 70000 },
+    budget: { prop: 2500, landmark: 8000, total: 90000 },
     allPieces: function () {
       var out = WALLS.concat(['CeilRock', 'GateFrame', 'GateShutter', 'TrailWall', 'Hatch', 'Stand', 'Backdrop_Cavern']);
       var sym = this.symbols;

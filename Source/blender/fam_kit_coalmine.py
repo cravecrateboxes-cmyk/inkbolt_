@@ -24,6 +24,7 @@ from mathutils import Matrix, Vector
 from ib_lib import *  # noqa: F401,F403
 import ib_lib
 from kit_base import Kit, rz, srt, rock_pts, clamp_pts, shutter_hull
+import cm_detail as CD
 
 FAM = 'kit-coalmine'
 PFX = 'KIT_COALMINE_'
@@ -130,6 +131,7 @@ def cable_run(k, z=3.6, y=-0.62):
     k.beam((-0.5, y, z), (0.0, y, z - 0.09), 0.035, 'cable', ink=False)
     k.beam((0.0, y + 0.007, z - 0.09), (0.5, y + 0.007, z), 0.035, 'cable', ink=False)
     k.bx(-0.02, 0.02, y + 0.03, y + 0.22, z - 0.12, z - 0.07, 'steelDark', ink=False)
+    CD.cable_hook(k, z, y)
 
 
 def pool(k, x, y, z, r, seed, sx=1.0, sy=1.0):
@@ -161,6 +163,7 @@ def wall_module(k, kind, seed):
         k.beam((0.0, -0.3, 2.65), (0.0, -0.82, 3.26), 0.09, 'timber2')
         lantern(k, 0.0, -0.88, 3.25)
         pool(k, 0.0, -1.5, POOL_Z[kind[4:]], 2.1, seed, sx=1.15)
+        CD.lamp_bracket(k)
     elif kind == 'Prop':
         # roof prop against the wall: post, cap wedged into the rock, wedges
         k.bx(-0.13, 0.13, -0.8, -0.54, 0, 4.0, 'timber')
@@ -168,6 +171,7 @@ def wall_module(k, kind, seed):
         k.bx(-0.16, 0.16, -0.74, -0.58, 4.28, 4.4, 'timberEnd', ink=False)
         k.qy(-0.13, 0.13, 3.95, 4.0, -0.803, -1, 'timberEnd')
         k.bx(-0.18, 0.18, -0.84, -0.5, 0, 0.12, 'timber2', ink=False)
+        CD.prop_detail(k)
     elif kind == 'Sign':
         # painted level board on two pins: amber diamond, arrow, number blocks
         k.bx(-0.42, 0.42, -0.62, -0.56, 2.0, 2.8, 'plank')
@@ -178,6 +182,7 @@ def wall_module(k, kind, seed):
         k.qy(0.1, 0.32, 2.6, 2.66, -0.626, -1, 'chalk')
         for x in (-0.36, 0.36):
             k.bx(x - 0.02, x + 0.02, -0.66, -0.3, 2.65, 2.69, 'steelDark', ink=False)
+        CD.sign_detail(k)
     elif kind == 'Open':
         pass
     return k
@@ -285,6 +290,7 @@ def gate_frame(k):
         for s in (-1, 1):
             lantern(k, s * 2.3, f * 0.86, 3.2)
             k.bx(s * 2.3 - 0.03, s * 2.3 + 0.03, *srt(f * 0.62, f * 0.9), 3.17, 3.22, 'steelDark', ink=False)
+    CD.gate_detail(k)
     return k
 
 
@@ -311,11 +317,13 @@ def track(k, x0, x1, y=0.0, gauge=0.6, sleepers=None, ballast=True, sl=1.0):
     """Narrow-gauge track along local X from x0 to x1 centred on y."""
     if ballast:
         k.qz(x0, x1, y - 0.5 * sl, y + 0.5 * sl, Z_BALLAST, 1, 'dust')
-    for xs in (sleepers if sleepers is not None else [x0 + (x1 - x0) * (i + 0.5) / max(1, round((x1 - x0) * 2)) for i in range(max(1, round((x1 - x0) * 2)))]):
+    sl_x = sleepers if sleepers is not None else [x0 + (x1 - x0) * (i + 0.5) / max(1, round((x1 - x0) * 2)) for i in range(max(1, round((x1 - x0) * 2)))]
+    for xs in sl_x:
         k.bx(xs - 0.08, xs + 0.08, y - 0.46 * sl, y + 0.46 * sl, 0, SLEEPER_TOP, 'timber2', ink=False)
     for s in (-1, 1):
         k.bx(x0, x1, y + s * gauge / 2 - 0.02, y + s * gauge / 2 + 0.02, SLEEPER_TOP, RAIL_TOP - 0.025, 'steelDark', ink=False)
         k.bx(x0, x1, y + s * gauge / 2 - 0.036, y + s * gauge / 2 + 0.036, RAIL_TOP - 0.025, RAIL_TOP, 'steel', ink=False)
+    CD.track_detail(k, sl_x, y, gauge, SLEEPER_TOP, x0, x1)
 
 
 def trail_wall(k):
@@ -343,6 +351,7 @@ def trail_wall(k):
     k.push(0, -0.82, 0)
     track(k, -0.5, 0.5, 0.0, gauge=0.5, sleepers=[-0.25, 0.25], sl=0.9)
     k.pop()
+    CD.trail_post(k, y_mid, ROOF)
     cable_run(k, z=3.1, y=-0.38)
     return k
 
@@ -394,6 +403,7 @@ def hatch(k):
         for z in (5.0, 6.6, 8.2):
             k.bx(*srt(s * 0.72, s * 0.77), -1.5, 2.7, z, z + 0.22, 'timber', ink=False)
     k.bx(-0.9, 0.9, -1.53, -0.97, ROOF + 0.05, WALL_H - 0.05, 'plank2')        # front of the shaft (over the drift end)
+    CD.hatch_detail(k)
     # signal bell board on the west wall
     k.bx(-2.74, -2.68, 0.6, 1.4, 1.3, 2.1, 'board')
     k.qx(0.66, 1.34, 1.36, 1.42, -2.677, 1, 'hazard')
@@ -531,6 +541,7 @@ def lantern_post(k, kind):
         k.cyl(0.35, 0.3, 0, 0.22, 0.22, 0.3, 'mach2', seg=8, rot=(0, 0, 0))
         k.cyl(0.35, 0.3, 0.3, 0.12, 0.12, 0.004, 'cable', seg=8, ink=False)
         pool(k, 0.0, -1.2, POOL_Z['work'], 2.3, 43, sx=0.9, sy=1.2)
+    (CD.lamp_post_detail if kind == 'Post' else CD.work_light_detail)(k)
     k.col(-0.15, 0.15, -0.15, 0.15, 0, 2.2)
     return k
 
@@ -561,6 +572,7 @@ def crib(k):
         k.push(0, 0, a)
         k.beam((0.28, 0, CEIL - 1.7), (0.9, 0, CEIL - 0.44), 0.16, 'timber2')
         k.pop()
+    CD.crib_detail(k, CEIL)
     k.col(-0.95, 0.95, -0.95, 0.95, 0, CEIL)
     return k
 
@@ -575,6 +587,7 @@ def roof_jack(k):
     k.bx(-0.06, 0.06, -0.23, -0.17, 1.0, 2.6, 'rubber', ink=False)
     k.bx(-0.33, 0.33, -0.33, 0.33, CEIL - 0.5, CEIL - 0.36, 'steelDark')
     k.bx(-0.48, 0.48, -0.2, 0.2, CEIL - 0.36, CEIL + 0.1, 'timber')
+    CD.roof_jack_detail(k, CEIL)
     k.col(-0.3, 0.3, -0.3, 0.3, 0, CEIL)
     return k
 
@@ -596,6 +609,7 @@ def conveyor(k, variant):
         x = -0.32 + i * 0.32 + rnd.uniform(-0.05, 0.05)
         k.hullp(rock_pts(rnd, (x, rnd.uniform(-0.1, 0.1)), 0.14, 0.12, 0.16, z0=1.0, n=4, top=1), 'coal')
     k.bx(-0.5, 0.5, -0.33, 0.33, 0.45, 0.5, 'rubber', ink=False)   # return belt
+    CD.conveyor_detail(k)
     k.col(-0.5, 0.5, -0.47, 0.47, 0, 1.15)
     return k
 
@@ -628,6 +642,7 @@ def cart_body(k, coal=True, tip=0.0):
         for i in range(3):
             x, y = rnd.uniform(-0.3, 0.3), rnd.uniform(-0.5, 0.5)
             k.hullp(rock_pts(rnd, (x, y), 0.12, 0.1, 0.13, z0=1.36, n=4, top=1), 'coal')
+    CD.cart_detail(k)
     k.pop()
 
 
@@ -648,6 +663,7 @@ def timber_drift(k, variant):
     'Rail' variants carry the track along the drift (centred on the cell at local x = +0.5)."""
     k.begin()
     timber_set(k, 2.72, cap_z=3.92)
+    CD.set_detail(k, 2.72, 3.92, variant in ('Lamp', 'RailLamp'))
     for i in range(13):
         x0 = -3.3 + i * 0.508
         k.bx(x0 + 0.006, x0 + 0.5, -0.5, 0.5, 4.26, 4.32, 'plank' if i % 2 else 'plank2', ink=False)
@@ -871,6 +887,7 @@ def shack(k):
     k.qy(0.83, 0.87, 1.08, 1.82, Y0 - 0.066, -1, 'timber2')
     k.qy(0.28, 1.42, 1.43, 1.47, Y0 - 0.069, -1, 'timber2')
     k.bx(-1.08, -0.98, Y0 - 0.45, Y0, 2.3, 2.38, 'steelDark')
+    CD.shack_detail(k, Y0)
     lantern(k, -1.03, Y0 - 0.42, 2.34, 0.85)
     pool(k, -0.4, Y0 - 1.2, POOL_Z['shack'], 1.4, 27, sx=1.4, sy=0.8)
     k.bx(X1, X1 + 0.05, -0.6, 0.9, 1.0, 1.9, 'board')
