@@ -92,7 +92,7 @@
     castle: { family: 'urban-ext', type: 'ext-day', floor: { cls: 8, gloss: 0.08 }, sunI: 1.3, albCeil: 0.74 },   // pale sandstone: keep it off white
     city2: { family: 'urban-ext', type: 'ext-dusk', exposure: 0.9, bloom: { amount: 0.38 } },   // lit windows everywhere: keep them off white
     factory: { family: 'ind-int', type: 'int-ind' },
-    livingroom: { family: 'giant-room', type: 'int-lit' },
+    livingroom: { family: 'giant-room', type: 'int-lit', sunI: 1.2, exposure: 0.94, grid: { intensity: 0.8 } },   // window sun and lamp glow clipped (10%)
     garden: { family: 'wild-ext', type: 'ext-day', floor: { cls: 7, gloss: 0.06 }, sunI: 1.25 },
     factory2: { family: 'ind-int', type: 'int-ind', indoorAmb: 0.42, grid: { intensity: 1.25 } },   // heavy plant at dusk: was murky (mean 0.21)
     island: { family: 'wild-ext', type: 'ext-day', floor: { cls: 6, gloss: 0.04 }, sunI: 1.15, albCeil: 0.70 },   // white sand: keep the beach off white
@@ -116,9 +116,9 @@
     scrapyard: { family: 'mil-ext', type: 'ext-night', sky: { sunDisc: false }, sunI: 0.6, ambI: 0.25, wet: 0.5 },
     seabase: { family: 'dark-int', type: 'int-dark', wet: 0.4, indoorAmb: 0.40, ambI: 0.40, grid: { intensity: 1.3 }, exposure: 1.08 },   // was 0.10 mean, 18% near black
     stronghold: { family: 'mil-ext', type: 'ext-dusk', sky: { sunDisc: false }, sunI: 1.5, ambI: 0.38, ambSky: [0.62, 0.60, 0.72], ambGround: [0.52, 0.40, 0.30], sunColor: '#FFD6AE', indoorAmb: 0.8, grid: { intensity: 2.0 }, floor: { cls: 1, gloss: 0.12 }, albSat: 1.0, fog: { length: 260, sunGlow: [1.0, 0.72, 0.48] } },
-    airport: { family: 'civic-int', type: 'int-lit' },
+    airport: { family: 'civic-int', type: 'int-lit', grid: { intensity: 0.72 } },   // a hot pool under the check-in boards
     frontier: { family: 'wild-ext', type: 'ext-day' },
-    academy: { family: 'civic-int', type: 'int-lit' },
+    academy: { family: 'civic-int', type: 'int-lit', exposure: 0.92, grid: { intensity: 0.7 }, albCeil: 0.74 },   // pale plaster and ceiling glow clipped
     mossgarden: { family: 'wild-ext', type: 'ext-day', sunI: 1.2, exposure: 0.92, albCeil: 0.74 },   // pale glasshouse and stream: keep under white
     pelagic: { family: 'mil-ext', type: 'ext-day', floor: { cls: 3, gloss: 0.3 } },
     icecream: { family: 'civic-int', type: 'int-lit', ambI: 0.70, indoorAmb: 0.70 },
