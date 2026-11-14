@@ -20434,14 +20434,14 @@ window.IB = window.IB || {}; IB.TEX_DATA = {"decals.webp": "data:image/webp;base
       grade: { sat: 0.98, contrast: 0.20, lo: [0.95, 1.0, 1.07], hi: [1.03, 1.0, 0.97] } },
     'wild-ext': { type: 'ext-day', sunI: 1.4, ambI: 0.46, ambGround: [0.30, 0.34, 0.24], fog: { length: 150 }, dust: 'pollen',
       grade: { sat: 1.0, contrast: 0.18, lo: [0.97, 1.0, 1.04], hi: [1.03, 1.0, 0.96] } },
-    'ind-int': { type: 'int-ind', ambI: 0.40, indoorAmb: 0.30, ambFloor: 0.025, fog: { length: 110 }, dust: 'beams',
+    'ind-int': { type: 'int-ind', ambI: 0.44, indoorAmb: 0.40, ambFloor: 0.035, fog: { length: 110 }, dust: 'beams',
       grade: { sat: 0.95, contrast: 0.22, lo: [0.94, 1.0, 1.08], hi: [1.06, 1.0, 0.92] }, floor: { cls: 1, gloss: 0.2 } },
-    'dark-int': { type: 'int-dark', ambI: 0.34, indoorAmb: 0.20, ambFloor: 0.02, fog: { length: 55 }, dust: 'heavy', grid: { intensity: 0.55 },
+    'dark-int': { type: 'int-dark', ambI: 0.42, indoorAmb: 0.42, ambFloor: 0.06, fog: { length: 55 }, dust: 'heavy', grid: { intensity: 0.55 },
       grade: { sat: 1.0, contrast: 0.28, lo: [0.93, 1.0, 1.09], hi: [1.05, 1.0, 0.93] }, bloom: { amount: 0.65, knee: 0.3 }, vignette: 0.42 },
     'civic-int': { type: 'int-lit', ambI: 0.50, indoorAmb: 0.55, ambFloor: 0.03, fog: { length: 320 },
       grade: { sat: 0.97, contrast: 0.18, lo: [0.98, 1.0, 1.03], hi: [1.02, 1.0, 0.98] }, floor: { cls: 10, gloss: 0.45 }, vignette: 0.28 },
-    'giant-room': { type: 'int-lit', ambI: 0.55, indoorAmb: 0.60, ambSky: [0.80, 0.74, 0.66], ambGround: [0.40, 0.33, 0.27], ambFloor: 0.05,
-      fog: { length: 420, sunGlow: [1.0, 0.88, 0.70] }, dust: 'motes', floor: { cls: 4, gloss: 0.22 },
+    'giant-room': { type: 'int-lit', ambI: 0.62, indoorAmb: 0.78, ambSky: [0.80, 0.74, 0.66], ambGround: [0.46, 0.39, 0.32], ambFloor: 0.07,
+      fog: { length: 1200, sunGlow: [0.35, 0.31, 0.25] }, dust: 'motes', floor: { cls: 4, gloss: 0.22 }, bloom: { amount: 0.18, knee: 0.55 }, grid: { intensity: 0.6 },
       grade: { sat: 1.0, contrast: 0.16, lo: [0.99, 1.0, 1.02], hi: [1.04, 1.0, 0.95] }, vignette: 0.28 }
   };
 
@@ -20490,20 +20490,20 @@ window.IB = window.IB || {}; IB.TEX_DATA = {"decals.webp": "data:image/webp;base
     smallcity: { family: 'urban-ext', type: 'ext-day', sunI: 1.35, sunColor: '#FFDDB4', ambI: 0.38 },   // late afternoon: a warmer, lower-key sun
     classroom: { family: 'giant-room', type: 'int-lit' },
     office: { family: 'civic-int', type: 'int-lit', ambI: 0.30, indoorAmb: 0.30, grid: { intensity: 0.28 }, exposure: 0.88, albCeil: 0.70 },   // white open-plan floor under rows of light panels: was 52-80% clipped
-    bedroom: { family: 'giant-room', type: 'int-lit', floor: { cls: 4, gloss: 0.24 }, ambI: 0.66, indoorAmb: 0.72, albSat: 1.0, grade: { sat: 1.06, contrast: 0.14 } },
-    coalmine: { family: 'dark-int', type: 'int-dark', indoorAmb: 0.55, ambI: 0.42, ambFloor: 0.05, grid: { intensity: 2.2 }, exposure: 1.15 },   // was 36-79% near black: lamps on rock need help to read
+    bedroom: { family: 'giant-room', type: 'int-lit', floor: { cls: 4, gloss: 0.24 }, ambI: 0.66, indoorAmb: 0.80, albSat: 1.0, grade: { sat: 1.06, contrast: 0.14 } },
+    coalmine: { family: 'dark-int', type: 'int-dark', indoorAmb: 0.85, ambI: 0.50, ambFloor: 0.09, grid: { intensity: 2.4 }, exposure: 1.2 },   // was 36-79% near black: lamps on rock need help to read
     castle: { family: 'urban-ext', type: 'ext-day', floor: { cls: 8, gloss: 0.08 }, sunI: 1.3, albCeil: 0.74 },   // pale sandstone: keep it off white
     city2: { family: 'urban-ext', type: 'ext-dusk', exposure: 0.9, bloom: { amount: 0.38 } },   // lit windows everywhere: keep them off white
     factory: { family: 'ind-int', type: 'int-ind' },
-    livingroom: { family: 'giant-room', type: 'int-lit', sunI: 1.2, exposure: 0.94, grid: { intensity: 0.8 } },   // window sun and lamp glow clipped (10%)
+    livingroom: { family: 'giant-room', type: 'int-lit', sunI: 1.15, grid: { intensity: 0.5 } },   // owner: looked dark and hazy (lamp and window glare): less glow, no indoor haze, more fill
     garden: { family: 'wild-ext', type: 'ext-day', floor: { cls: 7, gloss: 0.06 }, sunI: 1.25 },
-    factory2: { family: 'ind-int', type: 'int-ind', indoorAmb: 0.42, grid: { intensity: 1.25 } },   // heavy plant at dusk: was murky (mean 0.21)
+    factory2: { family: 'ind-int', type: 'int-ind', indoorAmb: 0.58, ambFloor: 0.05, grid: { intensity: 1.3 } },   // owner: dark maps too dark   // heavy plant at dusk: was murky (mean 0.21)
     island: { family: 'wild-ext', type: 'ext-day', floor: { cls: 6, gloss: 0.04 }, sunI: 1.15, albCeil: 0.70 },   // white sand: keep the beach off white
     mall: { family: 'civic-int', type: 'int-lit', floor: { cls: 10, gloss: 0.40 }, ambI: 0.42, indoorAmb: 0.45, grid: { intensity: 0.72 }, grade: { sat: 1.0, contrast: 0.22 } },
     police: { family: 'ind-int', type: 'int-ind', exposure: 0.86, albCeil: 0.72, indoorAmb: 0.24 },   // white tiled floor clipped
     grove: { family: 'wild-ext', type: 'ext-day', floor: { cls: 6, gloss: 0.04 } },
     spire: { family: 'civic-int', type: 'int-lit', ambI: 0.32, indoorAmb: 0.32, grid: { intensity: 0.32 }, exposure: 0.9, albCeil: 0.72 },   // white atrium: was 34-58% clipped
-    foundry: { family: 'ind-int', type: 'int-ind', indoorAmb: 0.48, grid: { intensity: 1.4 } },   // 30 m halls: lamps far from the floor
+    foundry: { family: 'ind-int', type: 'int-ind', indoorAmb: 0.62, ambFloor: 0.05, grid: { intensity: 1.5 } },   // owner: dark maps too dark   // 30 m halls: lamps far from the floor
     parking: { family: 'ind-int', type: 'int-ind', wet: 0.5 },
     hotel: { family: 'civic-int', type: 'int-lit' },
     techhq: { family: 'civic-int', type: 'int-lit' },
@@ -20511,13 +20511,13 @@ window.IB = window.IB || {}; IB.TEX_DATA = {"decals.webp": "data:image/webp;base
     datacenter: { family: 'ind-int', type: 'int-ind', floor: { cls: 10, gloss: 0.4 }, grid: { emit: {} } },
     downtown: { family: 'urban-ext', type: 'ext-day', floor: { cls: 12, gloss: 0.12 }, sunI: 1.35, ambI: 0.38 },
     highrise: { family: 'civic-int', type: 'int-lit' },
-    gemmine: { family: 'dark-int', type: 'int-dark', indoorAmb: 0.42, ambI: 0.40, ambFloor: 0.04, grid: { intensity: 1.5 }, exposure: 1.08 },
+    gemmine: { family: 'dark-int', type: 'int-dark', indoorAmb: 0.65, ambI: 0.46, ambFloor: 0.07, grid: { intensity: 1.6 }, exposure: 1.12 },   // owner: dark maps too dark
     megastore: { family: 'ind-int', type: 'int-lit', ambI: 0.50, indoorAmb: 0.60, grid: { intensity: 1.2 } },
     townhomes: { family: 'urban-ext', type: 'ext-day' },
     arctic: { family: 'dark-int', type: 'int-dark', floor: { cls: 13, gloss: 0.3 } },
     resort: { family: 'wild-ext', type: 'ext-day' },
     scrapyard: { family: 'mil-ext', type: 'ext-night', sky: { sunDisc: false }, sunI: 0.6, ambI: 0.25, wet: 0.5 },
-    seabase: { family: 'dark-int', type: 'int-dark', wet: 0.4, indoorAmb: 0.40, ambI: 0.40, grid: { intensity: 1.3 }, exposure: 1.08 },   // was 0.10 mean, 18% near black
+    seabase: { family: 'dark-int', type: 'int-dark', wet: 0.4, indoorAmb: 0.58, ambI: 0.46, ambFloor: 0.06, grid: { intensity: 1.4 }, exposure: 1.1 },   // owner: dark maps too dark   // was 0.10 mean, 18% near black
     stronghold: { family: 'mil-ext', type: 'ext-dusk', sky: { sunDisc: false }, sunI: 1.5, ambI: 0.38, ambSky: [0.62, 0.60, 0.72], ambGround: [0.52, 0.40, 0.30], sunColor: '#FFD6AE', indoorAmb: 0.8, grid: { intensity: 2.0 }, floor: { cls: 1, gloss: 0.12 }, albSat: 1.0, fog: { length: 260, sunGlow: [1.0, 0.72, 0.48] } },
     airport: { family: 'civic-int', type: 'int-lit', grid: { intensity: 0.72 } },   // a hot pool under the check-in boards
     frontier: { family: 'wild-ext', type: 'ext-day' },
@@ -20526,7 +20526,7 @@ window.IB = window.IB || {}; IB.TEX_DATA = {"decals.webp": "data:image/webp;base
     pelagic: { family: 'mil-ext', type: 'ext-day', floor: { cls: 3, gloss: 0.3 } },
     icecream: { family: 'civic-int', type: 'int-lit', ambI: 0.70, indoorAmb: 0.70 },
     venetian: { family: 'urban-ext', type: 'ext-day', sunI: 1.3, sunColor: '#FFE2BE', albCeil: 0.76 },   // late afternoon on pale paving
-    metro: { family: 'dark-int', type: 'int-dark', wet: 0.2, ambI: 0.24, indoorAmb: 0.16, grid: { intensity: 0.36 }, floor: { cls: 10, gloss: 0.35 } },
+    metro: { family: 'dark-int', type: 'int-dark', wet: 0.2, ambI: 0.36, indoorAmb: 0.40, grid: { intensity: 0.45 }, floor: { cls: 10, gloss: 0.35 } },
     toyfactory: { family: 'ind-int', type: 'int-lit', ambI: 0.55, indoorAmb: 0.55 },
     airfield7: { family: 'mil-ext', type: 'ext-day', floor: { cls: 12, gloss: 0.12 }, sunI: 1.4, exposure: 0.95 },   // hazy steppe: pale apron, keep it under white
     riviera: { family: 'civic-int', type: 'int-lit' },
