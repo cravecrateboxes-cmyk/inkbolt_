@@ -23,7 +23,7 @@ const pct = (a, p) => { const s = a.slice().sort((x, y) => x - y); return s[Math
     const ctx = await browser.newContext({ viewport: { width: v.w, height: v.h }, hasTouch: v.touch, isMobile: v.touch, deviceScaleFactor: 1 });
     const pg = await ctx.newPage();
     await pg.goto(url);
-    await pg.waitForFunction(() => window.__TEST__ && __TEST__.state().alive >= 3, null, { timeout: 90000 });
+    await pg.waitForFunction(() => window.__TEST__ && __TEST__.state().alive >= 3, null, { timeout: +(process.env.LOAD_MS || 90000) });
     await pg.evaluate(() => { IB.Game.guard.on = false; IB.Game.player.protect = 999; });
     // scripted combat: fire Buzz at the nearest robot for 8 s while sampling frames
     const s = await pg.evaluate(() => new Promise(done => {

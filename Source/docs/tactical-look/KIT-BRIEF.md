@@ -28,6 +28,14 @@ broken up by the tiling detail texture of Stage 5).
 Piece names, origins, footprints, `_COL` / `_WCOL` boxes, socket empties, the faces robots walk on, wall module
 mating edges, palette cell order.
 
+## Collision fitted from the mesh
+
+`blender/col_fit.py` lists pieces per kit (e.g. `Mast_*`, `FuelTank` in kit-arctic) whose `_COL` boxes are re-cut
+from the visible mesh at export. Detail on those pieces can change their collision, which changes play. After a
+build, compare the `_COL` / `_WCOL` node names, positions and scales with the previous GLB (the arctic mast's guy
+wires turned five fitted boxes into one; that detail was taken out). The kit pass is done only when collision
+is identical.
+
 ## Budgets
 
 Per prop 2,500 triangles, landmark 8,000, kit total 90,000 (`IB.TRI_BUDGET.kitPropMax`, `kitMax`; raise the

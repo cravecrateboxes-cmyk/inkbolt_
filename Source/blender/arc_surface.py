@@ -138,7 +138,7 @@ def build_trench(pal, ao):
             m.cy((0, 0, top), 0.04, 0.04, 1.6, 'steelK', seg=5)
             m.cy((0, 0, top + 1.6), 0.08, 0.08, 0.08, 'redE', seg=6)
             hullp(m, [(-w, -w - 0.05, top * 0.62), (w, -w - 0.05, top * 0.62), (0.0, -w - 0.12, top * 0.66)], 'frost', hull='none')
-        AD.mast_a(m, top, w, lean)
+        pass   # AD.mast_a (guy wires) left out: col_fit fits Mast_* collision to the mesh, and the wires changed it
         m.parent = old
         if lean:
             m.cy((0.55, -0.6, 0.25), 0.45, 0.12, 0.2, 'panelW', seg=10, rot=(20, -60, 0))
