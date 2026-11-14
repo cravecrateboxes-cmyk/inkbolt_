@@ -65,7 +65,7 @@ def quad_y(m, x0, x1, z0, z1, y, color):
     f.material_index = m.pal.index(color)
 
 
-def block_coursing(m, z0=5.63, z1=15.45, yf=-0.42, course=1.2, color='paperDk'):
+def block_coursing(m, z0=5.63, z1=15.45, yf=-0.42, course=1.2, color='steel'):
     """Painted block wall on the cream upper wall of a 1 m module: a mortar line every course, running bond (a joint
     in the middle of the module on odd courses, half joints at both module edges on even courses, so neighbouring
     modules complete each other). Flat quads 6 mm proud; joints stop where the lines start (no overlap)."""
@@ -74,10 +74,10 @@ def block_coursing(m, z0=5.63, z1=15.45, yf=-0.42, course=1.2, color='paperDk'):
     while zs[-1] + course < z1 - 0.3:
         zs.append(zs[-1] + course)
     for z in zs[1:]:
-        quad_y(m, -0.495, 0.495, z - 0.012, z + 0.012, y, color)
+        quad_y(m, -0.495, 0.495, z - 0.016, z + 0.016, y, color)
         m.flat()
     for k, (za, zb) in enumerate(zip(zs[:-1], zs[1:])):
-        lo, hi = za + (0.012 if k else 0.0), zb - 0.012
+        lo, hi = za + (0.016 if k else 0.0), zb - 0.016
         if k % 2:
             quad_y(m, -0.012, 0.012, lo, hi, y, color)
             m.flat()
