@@ -102,7 +102,14 @@
       id: 'blader', name: 'Blade Bot', built: 'Hover saucer with a spinning blade arm (katana or Voltaxe)', first: 3,
       hp: 70, shield: 0, speed: 1.6, stalkSpeed: 2.6, chargeSpeed: 12, attack: 'Spin-up, dash, contact cuts',
       damage: 18, spinDamage: 7, shockDps: 4, shockTime: 2, windup: 0.8, recover: 1.4, dizzyMul: 1.35,
-      range: 9, dashTime: 1.1, spinRev: 19, spinRange: 2.4, weapons: ['katana', 'eaxe'],
+      range: 9, dashTime: 1.1, spinRev: 19, spinRange: 2.4, weapons: ['katana', 'eaxe', 'kusari'],
+      // spawn odds per weapon (IB.bladerWeapon); the kusarigama ('kusari'): a sickle on a chain held by its weight. It
+      // closes to kusariRange, whirls the chain around itself (a wide circle that sweeps over the player: kusariDamage
+      // every kusariTick s while he stays inside kusariRadius), then a tell and the sickle flies straight at where he
+      // stood (kusariThrow damage on a hit within 0.65 m; a sidestep beats it) and is reeled back in
+      weaponOdds: { katana: 1 / 3, eaxe: 1 / 3, kusari: 1 / 3 },
+      kusariRange: 4.2, kusariRadius: 2.7, kusariWhirl: 1.8, kusariDamage: 5, kusariTick: 0.4, kusariTell: 0.45,
+      kusariThrow: 16, kusariReach: 7.5, kusariSpeed: 17, kusariCool: [1.6, 2.6],
       gems: { chip: 3, shard: 0, core: 0 }, cost: 2.5, color: '#8A6CD8',
       radius: 0.48, height: 1.0, coreOffset: [0, 0.67, 0], coreRadius: 0.16,
       meleeDrop: 0.07,
@@ -156,6 +163,79 @@
     radius: 0.45, height: 0.6, coreOffset: [0, 0.17, 0.17], coreRadius: 0.12,
     notes: 'Its accent colour tells its rounds: white normal, blue shock, green acid, orange explosive'
   };
+
+  /* ---- levels 35+ (levelplans.js lateWaves35 turns a share of the hawks / robot troopers into these)
+     Jet Trooper (game/jets.js): an advanced robot soldier on a jet back unit. Outdoors it flies at `hover` m and orbits
+     like a Hawk, firing bursts from its hand launcher; indoors (ceiling under lowCeiling m over its floor) it stays on
+     its feet and now and then skims low and dashes across the room (dashSpeed for dashTime s). Its rocket volley:
+     whenever it is within volley.near m of the player, or within volley.far m and at least volley.above m higher, it
+     raises and opens its two pods (3 tubes each) and locks on (a red ring shrinking on the player, rising beeps) for
+     volley.lock s, then fires 6 rockets (volley.gap s apart) at the spot it locked plus a little scatter: dodgeable by
+     moving. Cooldown volley.cool s. Every rocket deals explosive damage (volley.damage at the centre, volley.radius m);
+     each Jet Trooper rolls one element (elements: odds), shown on its accents: shock (electric: + electric damage over
+     time on the player), acid (+ acid damage over time) or boom (plain explosive: boomMul more blast, a wider one). */
+  ENEMIES.jet = {
+    id: 'jet', name: 'Jet Trooper', built: 'Armoured robot soldier on a jet back unit, two rising rocket pods (3 tubes each), a hand-held bullet launcher', first: 35,
+    hp: 100, shield: 40, shieldPool: true, shieldDelay: 5, shieldRate: 14, speed: 4.6, chargeSpeed: 0, dashSpeed: 10, dashTime: 0.6,
+    attack: '4-round launcher bursts; a locked-on 6-rocket volley (electric, acid or explosive)', damage: 5, bolts: 4, boltSpeed: 40,
+    windup: 0.45, recover: 0.75, range: 26, keepDistance: [9, 16], flying: true, hover: 4.2, lowCeiling: 6.5,
+    volley: { rockets: 6, near: 14, far: 22, above: 2.2, lock: 0.95, gap: 0.09, cool: [6.5, 9], damage: 13, robotDamage: 6, radius: 2.3,
+      speed: 15, turn: 2.2, homeT: 0.45, scatter: 1.1 },
+    elements: { shock: 1 / 3, acid: 1 / 3, boom: 1 / 3 },
+    elementColors: { shock: '#3FC8FF', acid: '#6BE03A', boom: '#FF7A1E' },
+    elementDot: { shock: { dps: 4, time: 2.5 }, acid: { dps: 3.2, time: 4 } }, boomMul: 1.35, boomRadiusMul: 1.25,
+    pullResist: 1,
+    gems: { chip: 5, shard: 0, core: 0 }, cost: 4.5, color: '#FF7A1E',
+    radius: 0.42, height: 2.0, coreOffset: [0, 1.36, 0.22], coreRadius: 0.1,
+    weaponDrops: { gray: 0.06, green: 0.03, blue: 0.02, purple: 0.008, orange: 0.0017 },
+    notes: 'Watch its pods: when they rise and the red ring closes on you, move. Its accents tell the rocket element'
+  };
+  /* Rocket Soldier: a Soldier (same kit, armour, shield, rifle butt and weapon drops; no grenades) shouldering a
+     launcher: it spawns with a Murmur or a Hothead (launchers: odds), rests the stock on its shoulder to fire, and
+     fires far slower than a Soldier or the player's launchers. Hothead: `hothead.rockets` heavy rockets `gap` s apart;
+     Murmur: `murmur.rockets` small missiles that home in a little (turn rad/s for homeT s) -- strafe to shake them. */
+  ENEMIES.rocketeer = {
+    id: 'rocketeer', name: 'Rocket Soldier', built: 'Soldier with a Murmur or Hothead rocket launcher on its shoulder', first: 35,
+    hp: 80, shield: 60, shieldPool: true, shieldDelay: 3.5, shieldRate: 24, speed: 2.9, chargeSpeed: 0,
+    attack: 'Shoulder-fired rockets (Hothead) or a homing missile salvo (Murmur), rifle-butt strike', damage: 22,
+    rockets: true, launchers: { hothead: 0.5, murmur: 0.5 },
+    hothead: { rockets: 2, gap: 1.1, damage: 22, robotDamage: 10, radius: 3.0, speed: 21, turn: 0, homeT: 0, fireEvery: [5.5, 7.5], scale: 1 },
+    murmur: { rockets: 4, gap: 0.24, damage: 9, robotDamage: 5, radius: 2.1, speed: 12, turn: 1.6, homeT: 1.3, fireEvery: [6.5, 8.5], scale: 0.62 },
+    minRange: 6, windup: 0.8, recover: 0.9, range: 26, keepDistance: [10, 18], usesCover: true, grenades: 0,
+    meleeDamage: 14, meleeRange: 2.2, meleeWindup: 0.4, meleeKnock: 6, pullResist: 1,
+    gems: { chip: 4, shard: 0, core: 0 }, cost: 4, color: '#F26B1D',
+    armour: ['#EEF1F5', '#9EA5B0', '#6F95D8', '#9B7BD8', '#474C59', '#C46C6C'], torsos: ['A', 'B'], helmets: ['A', 'B', 'C'],
+    radius: 0.36, height: 1.88, coreOffset: [0, 1.32, 0.17], coreRadius: 0.11,
+    weaponDrops: { gray: 0.12, green: 0.06, blue: 0.04, purple: 0.016, orange: 0.0034 },
+    notes: 'It shoulders the launcher before it fires: break line of sight or keep strafing'
+  };
+  // the Singularity (Void can, game/gear.js) cannot drag flyers or the shoulder-braced Rocket Soldier (1 = 100 % resist)
+  ENEMIES.drone.pullResist = 1;
+  ENEMIES.hawk.pullResist = 1;
+
+  /* weighted pick from {key: odds} with x in [0, 1) (odds need not sum to 1) */
+  function pickOdds(odds, x) {
+    var keys = Object.keys(odds), tot = 0, i;
+    for (i = 0; i < keys.length; i++) tot += odds[keys[i]];
+    var acc = 0, t = x * tot;
+    for (i = 0; i < keys.length; i++) { acc += odds[keys[i]]; if (t < acc) return keys[i]; }
+    return keys[keys.length - 1];
+  }
+  IB.pickOdds = pickOdds;
+  // a Blade Bot's weapon (katana, Voltaxe or kusarigama), a Jet Trooper's element, a Rocket Soldier's launcher
+  IB.bladerWeapon = function (x) { var b = ENEMIES.blader; return pickOdds(b.weaponOdds || { katana: 1, eaxe: 1 }, x); };
+  IB.jetElement = function (x) { return pickOdds(ENEMIES.jet.elements, x); };
+  IB.rocketeerLauncher = function (x) { return pickOdds(ENEMIES.rocketeer.launchers, x); };
+  /* one Jet Trooper rocket for element elem at damage multiplier dmgMul (r.dmgMul x the late explosives' ease-off):
+     explosive damage at the blast centre, its radius, and the damage over time it leaves on the player it reaches
+     ({kind 'shock' | 'acid', dps, time} or null; game/jets.js hands it to IB.Troops.dot) */
+  IB.jetRocket = function (elem, dmgMul) {
+    var J = ENEMIES.jet, V = J.volley, boom = elem === 'boom', d = J.elementDot[elem];
+    return { damage: V.damage * (dmgMul || 1) * (boom ? J.boomMul : 1), radius: V.radius * (boom ? J.boomRadiusMul : 1),
+      dot: d ? { kind: elem, dps: d.dps * (dmgMul || 1), time: d.time } : null };
+  };
+  // 1 = the Singularity cannot pull this robot type at all
+  IB.pullResist = function (type) { var e = ENEMIES[type]; return (e && e.pullResist) || 0; };
 
   var BOSSES = {
     skimmer: {
@@ -214,7 +294,7 @@
   };
 
   IB.ENEMIES = ENEMIES;
-  IB.ENEMY_ORDER = ['crawler', 'gunner', 'bomber', 'tosser', 'drone', 'shieldbot', 'bruiser', 'binhive', 'soldier', 'blader', 'mech', 'grenadier', 'hawk'];
+  IB.ENEMY_ORDER = ['crawler', 'gunner', 'bomber', 'tosser', 'drone', 'shieldbot', 'bruiser', 'binhive', 'soldier', 'blader', 'mech', 'grenadier', 'hawk', 'jet', 'rocketeer'];
   IB.BOSSES = BOSSES;
   IB.BOSS_ORDER = ['skimmer', 'dumpstertank', 'cartcolossus', 'compactorprime'];
   IB.BOSS_RULES = BOSS_RULES;

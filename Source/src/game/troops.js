@@ -22,7 +22,7 @@
    blade smear arcs and the player's shock from the Voltaxe. Test hooks: IB.Troops.stats(), IB.Troops.grenades. */
 (function (IB) {
   'use strict';
-  var AI = IB.AI, K = AI.K, VIS = AI.VIS, BEH = AI.BEH, PAL = IB.PAL, TAU = Math.PI * 2, G = 16;
+  var AI = IB.AI, K = AI.K, VIS = AI.VIS, BEH = AI.BEH, PAL = IB.PAL, TAU = Math.PI * 2, G = 16, KCHAIN = 16;
   var Tr = IB.Troops = { grenades: [], smears: [], shock: { left: 0, tick: 0, dps: 0, src: { x: 0, z: 0, type: 'blader', proj: true } },
     stats: null, nadeCap: 12, liveNadeMax: 2 };
   var _tmp = [], _c = null;
@@ -134,6 +134,10 @@
      and its rigid fallback parts, hit volumes and death. */
   VIS.mech = Object.assign({}, VIS.soldier);
   VIS.grenadier = Object.assign({}, VIS.soldier);
+  // Rocket Soldier (levels 35+): the Soldier's body and brain, a Murmur or a Hothead on its shoulder (trooperrig.js)
+  VIS.rocketeer = Object.assign({}, VIS.soldier, {
+    init: function (r, opts) { VIS.soldier.init(r, opts); r.launcher = IB.rocketeerLauncher ? IB.rocketeerLauncher(Math.random()) : 'hothead'; r.nades = 0; }
+  });
 
   // world position of a point given in a shoulder's arm space (aim rig rotated by th, pushed along its z)
   var _w = { x: 0, y: 0, z: 0 };
@@ -148,7 +152,7 @@
   function liveNades() { var n = 0; for (var i = 0; i < Tr.grenades.length; i++) if (Tr.grenades[i].on) n++; return n; }
 
   function thinkSoldier(r, dt, ctx, zone, dx, dz, dist) {
-    var p = ctx.player, def = r.def, speed = def.speed || 3.2, T = K.tempo(), lv = K.offLevel(r, p, zone), GL = !!def.launcher;
+    var p = ctx.player, def = r.def, speed = def.speed || 3.2, T = K.tempo(), lv = K.offLevel(r, p, zone), GL = !!def.launcher, RL = !!def.rockets;
     var wuF = (def.windup || 0.45) * T.tellMul, wuN = (def.grenadeWindup || 0.6) * T.tellMul, wuM = (def.meleeWindup || 0.4) * T.tellMul;
     var k;
     r.ncool -= dt; r.mcool -= dt;
@@ -166,7 +170,7 @@
           r.act = 'melee'; K.setState(r, 'windup'); K.play('servo', r, 0.6);
         } else if (r.seesPlayer && r.nades > 0 && r.ncool <= 0 && dist > gr[0] && dist < gr[1] && liveNades() < Tr.liveNadeMax && K.takeToken(r)) {
           r.act = 'nade'; K.setState(r, 'windup'); r.holdNade = true; K.play('clank', r, 0.8);
-        } else if ((!GL || dist > def.minRange) && K.canFire(r, ctx, dist)) { r.act = GL ? 'gl' : 'fire'; K.setState(r, 'windup'); K.play(GL ? 'clank' : 'servo', r, 0.45); }
+        } else if ((!(GL || RL) || dist > def.minRange) && K.canFire(r, ctx, dist)) { r.act = RL ? 'rl' : GL ? 'gl' : 'fire'; K.setState(r, 'windup'); K.play(GL || RL ? 'clank' : 'servo', r, 0.45); }
         break;
       }
       case 'windup':
@@ -182,6 +186,12 @@
           r.throwL = -2.5 * ease(r.st / wuN);
           K.tell(r, r.st / wuN);
           if (r.st >= wuN) { throwNade(r, p); K.setState(r, 'attack'); }
+        } else if (r.act === 'rl') {   // Rocket Soldier: shoulders the launcher (trooperrig.js r.shoulder), aims, a long tell
+          K.turnTo(r, Math.atan2(dx, dz), 8, dt);
+          r.aim += (aimAt(r, p) + (r.launcher === 'murmur' ? 0.2 : 0.02) - r.aim) * Math.min(1, dt * 7);
+          K.tell(r, r.st / wuF);
+          K.move(-dz * r.sdir, dx * r.sdir, speed * 0.15);
+          if (r.st >= wuF) { K.setState(r, 'attack'); r.shots = 0; r.shotT = 0; }
         } else if (r.act === 'gl') {   // Grenadier: brings the launcher up, aims high, a longer tell
           K.turnTo(r, Math.atan2(dx, dz), 9, dt);
           r.aim += (aimAt(r, p) + 0.12 - r.aim) * Math.min(1, dt * 7);
@@ -212,6 +222,13 @@
         } else if (r.act === 'nade') {
           r.throwL += (0.5 - r.throwL) * Math.min(1, dt * 22);   // follow-through
           if (r.st >= 0.25) K.setState(r, 'recover');
+        } else if (r.act === 'rl') {
+          var RLd = def[r.launcher] || def.hothead;
+          K.turnTo(r, Math.atan2(dx, dz), 6, dt);
+          r.aim += (aimAt(r, p) + (r.launcher === 'murmur' ? 0.2 : 0.02) - r.aim) * Math.min(1, dt * 6);
+          r.shotT -= dt;
+          if (r.shots < RLd.rockets && r.shotT <= 0) { fireRocket(r, p, RLd); r.shots++; r.shotT = RLd.gap; }
+          if (r.shots >= RLd.rockets && r.shotT <= -0.3) K.setState(r, 'recover');
         } else if (r.act === 'gl') {
           r.kick *= Math.max(0, 1 - dt * 5);
           if (r.st >= 0.3) K.setState(r, 'recover');
@@ -236,6 +253,7 @@
           K.setState(r, 'keep'); r.thinkT = 0;
           if (r.act === 'melee') r.mcool = 1.4 + Math.random() * 0.8;
           else if (r.act === 'nade') { var ge = def.grenadeEvery || [6, 10]; r.ncool = rnd(ge[0], ge[1]) * T.coolMul * (IB.Damage && IB.Damage.lateBoom ? IB.Damage.lateBoom() : { dmg: 1, cool: 1 }).cool; r.cool = Math.max(r.cool, 0.6); }
+          else if (r.act === 'rl') { var rf = (def[r.launcher] || def.hothead).fireEvery; r.cool = rnd(rf[0], rf[1]); }   // flat: slower than every other soldier
           else if (r.act === 'gl') { var fe = def.fireEvery || [3.4, 5]; r.cool = rnd(fe[0], fe[1]) * T.coolMul * (IB.Damage && IB.Damage.lateBoom ? IB.Damage.lateBoom() : { dmg: 1, cool: 1 }).cool; }
           else r.cool = (1.1 + Math.random() * 1.3) * T.coolMul;
           r.act = '';
@@ -249,7 +267,32 @@
     if (r.state !== 'windup' || r.act !== 'nade') r.holdNade = false;
   }
   BEH.soldier = { think: thinkSoldier, tick: tickSoldier };
-  BEH.mech = BEH.grenadier = BEH.soldier;
+  BEH.mech = BEH.grenadier = BEH.rocketeer = BEH.soldier;
+
+  /* Rocket Soldier (levels 35+): a rocket from its launcher's muzzle (trooperrig.js r.muzzleW). Hothead: a heavy rocket
+     straight at the player's feet / chest with a little lead; Murmur: a small missile that pops up and steers at the
+     player for homeT s at most `turn` rad/s (strafing shakes it). Damage eases off like every explosive on levels 20+. */
+  function fireRocket(r, p, L) {
+    var ER = IB.EnemyRockets; if (!ER) return;
+    var m = r.muzzleW || armPoint(r, 0, VIS.soldier.muzzle, -r.aim + r.rigPitch, r.rigPush);
+    var lb = IB.Damage && IB.Damage.lateBoom ? IB.Damage.lateBoom().dmg : 1, mul = r.rogue > 0 ? AI.rogueDmgMul : 1;
+    var o = { speed: L.speed, turn: L.turn, homeT: L.homeT, R: L.radius, dmg: L.damage * r.dmgMul * lb, rdmg: L.robotDamage * (AI.hpMul || 1) * mul, sc: L.scale || 1 };
+    var sy = Math.sin(r.yaw), cy = Math.cos(r.yaw), SL = r.sloppy ? 1.8 : 1, dx, dy, dz, tx, ty, tz;
+    if (r.launcher === 'murmur') {
+      var side = (r.shots % 2 ? 1 : -1) * rnd(0.15, 0.4);
+      dx = sy + cy * side; dy = 0.55; dz = cy - sy * side;
+      tx = p.x; ty = (p.y || 0) + 1.0; tz = p.z;
+      o.track = true; o.color = 0xFFD86A; o.sound = 'missile';
+    } else {
+      var d = Math.hypot(p.x - m.x, p.z - m.z), t = d / L.speed;
+      tx = p.x + (p.vx || 0) * t * 0.4 + rnd(-0.5, 0.5) * SL; tz = p.z + (p.vz || 0) * t * 0.4 + rnd(-0.5, 0.5) * SL; ty = (p.y || 0) + 0.7;
+      dx = tx - m.x; dy = ty - m.y; dz = tz - m.z;
+      o.color = 0xFFB21E; o.sound = 'rocket';
+    }
+    ER.fire(r, m.x, m.y, m.z, dx, dy, dz, tx, ty, tz, o);
+    if (IB.FX) { IB.FX.puff(m.x, m.y, m.z, 4, PAL.paper, 0.1, 0.35, 1.6); IB.FX.puff(m.x - sy * 0.9, m.y + 0.05, m.z - cy * 0.9, 3, 0xE9E4F0, 0.12, 0.45, 1.2); }   // back blast
+    r.kick = 1; Tr.rockets = (Tr.rockets || 0) + 1;
+  }
 
   /* a carbine round: a fast tracer bullet; now and then (def.specialRounds odds) an explosive, shock or acid round,
      which also hurts over time on a hit (projectiles.js special(), Tr.dot) */
@@ -374,15 +417,18 @@
     radius: 0.48, y0: 0.15, y1: 0.95, coreR: 0.16, shadow: 0.6, eye: 0.6, home: 'stalk',
     parts: { Body: { count: 1, asset: 'BOT_BLADER_Body' }, Hub: { count: 1, asset: 'BOT_BLADER_Hub' },
       Katana: { count: 1, asset: 'BOT_BLADER_Katana', opt: true }, Axe: { count: 1, asset: 'BOT_BLADER_Axe', opt: true },
+      Fundo: { count: 1, asset: 'BOT_BLADER_Fundo', opt: true }, Kusari: { count: 1, asset: 'BOT_BLADER_Kusari', opt: true },
+      Chain: { count: KCHAIN, asset: 'BOT_BLADER_Chain', opt: true },
       Light: { count: 1, light: true, asset: 'BOT_BLADER_Light' } },
     sockets: function (v) {
       var c = bk('CORE'); v.coreY = c[1]; v.coreZ = c[2];
-      v.hub = bk('HUB'); v.grip = bk('GRIP'); v.light = bk('LIGHT');
+      v.hub = bk('HUB'); v.grip = bk('GRIP'); v.light = bk('LIGHT'); v.chain = bk('CHAIN');
     },
     init: function (r) {
       var W = r.def.weapons || ['katana', 'eaxe'];
-      r.weaponId = W[(Math.random() * W.length) | 0];
+      r.weaponId = IB.bladerWeapon ? IB.bladerWeapon(Math.random()) : W[(Math.random() * W.length) | 0];   // katana, Voltaxe or kusarigama
       r.reach = r.weaponId === 'eaxe' ? 1.32 : 1.5;
+      kusariInit(r);
       r.hub = Math.random() * TAU; r.spinV = 3; r.bspin = 0; r.bspinV = 0; r.act = ''; r.hitT = 0; r.lean = 0; r.dashX = 0; r.dashZ = 1;
       r.swishT = 0; r.starT = 0;
     },
@@ -393,8 +439,10 @@
       var v = VIS.blader, bob = Math.sin(r.idleT * 2.6 + r.slot) * 0.03 - r.crouch * 0.08;
       P.root().t(0, bob, 0).ry(r.bspin).rx(r.lean).rz(r.wob).emit('Body', 0);
       P.push().tv(v.light).emit('Light', 0).pop();
+      if (r.weaponId === 'kusari') { poseKusari(r, P, v); return; }
       var wn = r.weaponId === 'eaxe' ? 'Axe' : 'Katana';
       P.tv(v.hub).ry(r.hub).emit('Hub', 0).tv(v.grip).rx(0.45).emit(wn, 0).hide(wn === 'Axe' ? 'Katana' : 'Axe', 0);
+      P.hide('Fundo', 0).hide('Kusari', 0); for (var ci = 0; ci < KCHAIN; ci++) P.hide('Chain', ci);
     },
     lightColor: function (r) {
       if (r.state === 'windup' || r.state === 'attack') return (r.st * 16 | 0) % 2 ? PAL.red : PAL.paper;
@@ -413,7 +461,7 @@
         else if (hs > 0.3) K.turnTo(r, Math.atan2(r.vx, r.vz), 5, dt);
       }
       // body spin: whirls during the dash and the spin slash, settles back facing forward after
-      if (dashing) r.bspinV += (26 - r.bspinV) * Math.min(1, dt * 6); else r.bspinV *= Math.max(0, 1 - dt * 3);
+      if (dashing && r.weaponId !== 'kusari') r.bspinV += (26 - r.bspinV) * Math.min(1, dt * 6); else r.bspinV *= Math.max(0, 1 - dt * 3);   // the kusarigama swings the chain, not the body
       r.bspin += r.bspinV * dt;
       if (r.bspinV < 2) r.bspin = K.wrapAngle(r.bspin) * Math.max(0, 1 - dt * 3);
       r.lean += ((dashing && r.act === 'dash' ? 0.22 : r.state === 'windup' ? -0.12 : 0) - r.lean) * Math.min(1, dt * 6);
@@ -509,7 +557,152 @@
     r.hub += r.spinV * dt;
     if (r.hub > TAU * 64) r.hub -= TAU * 64;
   }
-  BEH.blader = { think: thinkBlader, tick: tickBlader };
+  BEH.blader = { think: function (r, dt, ctx, zone, dx, dz, dist) { if (r.weaponId === 'kusari') thinkKusari(r, dt, ctx, zone, dx, dz, dist); else thinkBlader(r, dt, ctx, zone, dx, dz, dist); },
+    tick: function (r, dt, ctx) { tickBlader(r, dt); if (r.weaponId === 'kusari') tickKusari(r, dt, ctx); } };
+
+  /* ---- the kusarigama (third Blade Bot weapon, 'kusari'): the hub's clamp holds the weight, a chain (up to KCHAIN
+     segments of BOT_BLADER_Chain, as many as its length needs) runs to the sickle. r.km: 'hang' (dangles under the
+     clamp and swings), 'whirl' (circles the bot at r.kR m, angle r.kang, the hub turning with it), 'throw' (flies
+     straight at the spot the player stood on, r.kv), 'pull' (reeled back in). r.ks: the sickle's world position, r.cs:
+     where the chain leaves the weight (kept by the pose). Attack: spin up (windup, a flashing tell), whirl around the
+     player for kusariWhirl s (a cut every kusariTick s while he stays inside the circle), a short tell as the circle
+     tightens, then the throw; a sidestep beats it (0.65 m). */
+  function kusariInit(r) {
+    r.km = 'hang'; r.kR = 0.6; r.kang = 0; r.kangV = 0; r.kTick = 0; r.kTicks = 0; r.kHits = 0; r.kHit = false; r.kLen = 0.6; r.kFly = 0;
+    if (!r.ks) { r.ks = { x: 0, y: 0, z: 0 }; r.cs = { x: 0, y: 0, z: 0 }; r.kv = { x: 0, y: 0, z: 0 }; r.kt = { x: 0, y: 0, z: 0 }; }
+    r.ks.x = r.x; r.ks.y = r.y + 0.3; r.ks.z = r.z; r.cs.x = r.x; r.cs.y = r.y + 0.84; r.cs.z = r.z;
+  }
+  function thinkKusari(r, dt, ctx, zone, dx, dz, dist) {
+    var p = ctx.player, def = r.def, T = K.tempo(), lv = K.offLevel(r, p, zone), R = stat(r, 'kusariRadius', 2.7);
+    var tx = -dz / dist * r.sdir, tz = dx / dist * r.sdir;
+    switch (r.state) {
+      case 'stalk':
+        r.spinV += ((r.seesPlayer ? 5 : 2.5) - r.spinV) * Math.min(1, dt * 2);
+        if (!p.alive) break;
+        K.towardPlayer(r, ctx, zone, dx, dz, dist, r.seesPlayer ? stat(r, 'stalkSpeed', 2.6) : (def.speed || 1.6));
+        if (r.seesPlayer && !lv && dist < stat(r, 'kusariRange', 4.2) && r.cool <= 0 && (K.takeToken(r) || dist < 2)) {
+          r.act = 'whirl'; K.setState(r, 'windup'); r.km = 'whirl'; r.kang = Math.atan2(-(r.ks.z - r.z), r.ks.x - r.x); r.kangV = 3;
+          sfx('spinup', r, 0.8, 1.3);
+        }
+        break;
+      case 'windup': {   // the chain pays out and spins up into a wide circle
+        var w = 0.6 * T.tellMul;
+        r.kangV += (13 - r.kangV) * Math.min(1, dt * 4); r.kR += (R - r.kR) * Math.min(1, dt * 4);
+        K.tell(r, Math.min(1, r.st / w));
+        if (dist > R * 0.8) K.move(dx, dz, 1.6); else if (dist < 1.6) K.move(-dx, -dz, 1.4);
+        if (r.st >= w) { K.setState(r, 'attack'); r.kTick = 0.1; }
+        break;
+      }
+      case 'attack':
+        if (r.act === 'whirl') {
+          // circles around the player with the chain sweeping over him: a cut every kusariTick s while he is inside it
+          var rad = K.clamp((dist - R * 0.65) / 1.5, -1, 1);
+          K.move(tx * 0.8 + dx / dist * rad, tz * 0.8 + dz / dist * rad, stat(r, 'stalkSpeed', 2.6));
+          r.kTick -= dt;
+          if (r.kTick <= 0 && dist <= R + 0.45 && dist > 0.5 && Math.abs((p.y || 0) + 0.9 - r.ks.y) < 1.4) {
+            r.kTick = stat(r, 'kusariTick', 0.4); r.kTicks++;
+            ctx.hurt(r, stat(r, 'kusariDamage', 5) * r.dmgMul);
+            if (IB.Boom && IB.Boom.ready) IB.Boom.sparks(p.x, (p.y || 0) + 1.0, p.z, 0, 0.4, 0, 6);
+            sfx('slash', p, 0.5, 1.3);
+          }
+          if (r.st >= stat(r, 'kusariWhirl', 1.8)) { r.act = 'tell'; r.st = 0; sfx('spinup', r, 0.7, 2); }
+        } else if (r.act === 'tell') {   // the circle tightens, the slit flashes: the throw is coming
+          r.kangV += (17 - r.kangV) * Math.min(1, dt * 6); r.kR += (1.1 - r.kR) * Math.min(1, dt * 6);
+          var tt = stat(r, 'kusariTell', 0.45) * Math.max(0.8, T.tellMul);
+          K.tell(r, Math.min(1, r.st / tt));
+          if (r.st >= tt) {
+            // the sickle flies straight at where the player stands now (a touch of lead)
+            var ax = p.x + (p.vx || 0) * 0.12, ay = (p.y || 0) + 1.0, az = p.z + (p.vz || 0) * 0.12;
+            var ux = ax - r.ks.x, uy = ay - r.ks.y, uz = az - r.ks.z, ul = Math.hypot(ux, uy, uz) || 1, sp = stat(r, 'kusariSpeed', 17);
+            r.kv.x = ux / ul * sp; r.kv.y = uy / ul * sp; r.kv.z = uz / ul * sp;
+            r.kt.x = ax; r.kt.y = ay; r.kt.z = az; r.kFly = ul + 1.5;
+            r.km = 'throw'; r.act = 'throw'; r.st = 0; r.kHit = false;
+            sfx('slash', r, 1, 0.8);
+          }
+        } else if (r.km === 'hang') K.setState(r, 'recover');   // thrown and reeled back in (tickKusari)
+        break;
+      case 'recover':
+        if (r.token) K.releaseToken(r);
+        r.spinV *= Math.max(0, 1 - dt * 2.2);
+        if (r.st >= 0.6) { var kc = def.kusariCool || [1.6, 2.6]; K.setState(r, 'stalk'); r.cool = rnd(kc[0], kc[1]) * T.coolMul; r.act = ''; }
+        break;
+    }
+  }
+  function tickKusari(r, dt, ctx) {
+    var cx = r.x, cy = r.y + 0.84, cz = r.z;
+    if (r.km === 'throw' && r.state !== 'attack') r.km = 'pull';   // staggered or blinded mid-throw: reel in
+    if (r.km === 'whirl' && r.state !== 'windup' && r.state !== 'attack') r.km = 'hang';
+    if (r.km === 'whirl') {
+      r.kang += r.kangV * dt;
+      var tx = cx + Math.cos(r.kang) * r.kR, ty = cy + 0.05 * Math.sin(r.kang * 2), tz = cz - Math.sin(r.kang) * r.kR;
+      var f = Math.min(1, dt * 18); r.ks.x += (tx - r.ks.x) * f; r.ks.y += (ty - r.ks.y) * f; r.ks.z += (tz - r.ks.z) * f;
+      r.hub = r.kang - r.yaw - r.bspin;   // the weight points at the sickle
+      r.swishT -= dt; if (r.swishT <= 0) { r.swishT = Math.PI / Math.max(4, r.kangV); sfx('swish', r, 0.5, 0.7 + Math.random() * 0.2); }
+    } else if (r.km === 'throw') {
+      var ox = r.ks.x, oy = r.ks.y, oz = r.ks.z, sp = Math.hypot(r.kv.x, r.kv.y, r.kv.z) || 1;
+      r.ks.x += r.kv.x * dt; r.ks.y += r.kv.y * dt; r.ks.z += r.kv.z * dt; r.kFly -= sp * dt;
+      var p = ctx.player, Pj = IB.Projectiles;
+      if (!r.kHit && p && p.alive && Pj && Pj.segHitsCapsule && Pj.segHitsCapsule(ox, oy, oz, r.ks.x, r.ks.y, r.ks.z, p.x, (p.y || 0) + 0.35, (p.y || 0) + 1.35, p.z, 0.35, 0.3)) {
+        r.kHit = true; r.kHits++;
+        ctx.hurt(r, stat(r, 'kusariThrow', 16) * r.dmgMul);
+        if (!p.robot) { var hx = r.x - p.x, hz = r.z - p.z, hl = Math.hypot(hx, hz) || 1; p.knockX = (p.knockX || 0) + hx / hl * 3; p.knockZ = (p.knockZ || 0) + hz / hl * 3; }   // the chain tugs him in
+        if (IB.Boom && IB.Boom.ready) { IB.Boom.sparks(r.ks.x, r.ks.y, r.ks.z, -r.kv.x / sp, 0.3, -r.kv.z / sp, 10); IB.Boom.word('SHNK!', p.x, (p.y || 0) + 2.0, p.z, 1.1); }
+        sfx('slash', p, 1, 1.1);
+        r.km = 'pull';
+      }
+      var W = ctx.world, wall = W && W.ray ? W.ray(ox, oy, oz, r.kv.x / sp, r.kv.y / sp, r.kv.z / sp, sp * dt + 0.05) : null;
+      var floor = W && W.floorAt ? W.floorAt(r.ks.x, r.ks.z, r.ks.y + 0.3) : 0;
+      if (r.km === 'throw' && (wall || r.ks.y < floor + 0.05)) { if (IB.Boom && IB.Boom.ready) IB.Boom.sparks(r.ks.x, r.ks.y, r.ks.z, 0, 0.5, 0, 6); sfx('clank', r.ks, 0.8); r.km = 'pull'; }
+      if (r.kFly <= 0 || Math.hypot(r.ks.x - cx, r.ks.z - cz) > stat(r, 'kusariReach', 7.5)) r.km = 'pull';
+      r.hub = Math.atan2(-(r.ks.z - cz), r.ks.x - cx) - r.yaw - r.bspin;
+    } else if (r.km === 'pull') {
+      var bx = r.cs.x - r.ks.x, by = r.cs.y - 0.5 - r.ks.y, bz = r.cs.z - r.ks.z, bl = Math.hypot(bx, by, bz), step = 14 * dt;
+      if (bl <= Math.max(step, 0.3)) r.km = 'hang';
+      else { r.ks.x += bx / bl * step; r.ks.y += by / bl * step; r.ks.z += bz / bl * step; }
+      r.hub = Math.atan2(-(r.ks.z - cz), r.ks.x - cx) - r.yaw - r.bspin;
+    } else {
+      // hang: the sickle dangles half a metre under the weight and swings a little
+      var sw = Math.sin(r.idleT * 2.3 + r.slot) * 0.12, g = Math.min(1, dt * 7);
+      var hx2 = r.cs.x + sw * Math.cos(r.yaw), hy2 = r.cs.y - 0.55, hz2 = r.cs.z - sw * Math.sin(r.yaw);
+      r.ks.x += (hx2 - r.ks.x) * g; r.ks.y += (hy2 - r.ks.y) * g; r.ks.z += (hz2 - r.ks.z) * g;
+      r.kangV *= Math.max(0, 1 - dt * 3); r.kR += (0.6 - r.kR) * Math.min(1, dt * 3);
+    }
+    r.kLen = Math.hypot(r.ks.x - r.cs.x, r.ks.y - r.cs.y, r.ks.z - r.cs.z);
+  }
+  /* pose: the hub and the weight in the clamp (level), then the chain and the sickle in world space */
+  var _km = null, _kq = null, _kv = null, _ks = null, _kx = null, _ky = null, _kz = null, _kup = null, _kp = [];
+  function poseKusari(r, P, v) {
+    if (!_km) {
+      _km = new THREE.Matrix4(); _kq = new THREE.Quaternion(); _kv = new THREE.Vector3(0, 0, 1); _ks = new THREE.Vector3(); _kx = new THREE.Vector3();
+      _ky = new THREE.Vector3(); _kz = new THREE.Vector3(); _kup = new THREE.Vector3(0, 1, 0);
+      for (var q = 0; q <= KCHAIN; q++) _kp.push(new THREE.Vector3());
+    }
+    P.tv(v.hub).ry(r.hub).emit('Hub', 0).tv(v.grip).emit('Fundo', 0).tv(v.chain).pos(r.cs).hide('Katana', 0).hide('Axe', 0);
+    var a = r.cs, b = r.ks, Lx = b.x - a.x, Ly = b.y - a.y, Lz = b.z - a.z, L = Math.hypot(Lx, Ly, Lz) || 0.001;
+    var n = Math.max(2, Math.min(KCHAIN, Math.ceil(L / 0.2))), i;
+    // a bend: the whirling chain trails its sweep, a thrown one ripples, a hanging one barely curves
+    var hl = Math.hypot(Lx, Lz) || 0.001, px = -Lz / hl, pz = Lx / hl;
+    var bend = r.km === 'whirl' ? -0.16 * L : r.km === 'throw' ? 0.1 * L * Math.sin(r.st * 22) : 0.03, sag = r.km === 'hang' ? 0 : r.km === 'whirl' ? 0.05 : 0.1;
+    for (i = 0; i <= n; i++) {
+      var t = i / n, sn = Math.sin(t * Math.PI);
+      _kp[i].set(a.x + Lx * t + px * bend * sn, a.y + Ly * t - sag * sn * L, a.z + Lz * t + pz * bend * sn);
+    }
+    for (i = 0; i < KCHAIN; i++) {
+      if (i >= n) { P.hide('Chain', i); continue; }
+      _kz.subVectors(_kp[i + 1], _kp[i]); var sl = _kz.length() || 0.001; _kz.divideScalar(sl);
+      _kq.setFromUnitVectors(_kv, _kz);
+      _km.compose(_kp[i], _kq, _ks.set(1, 1, sl / 0.2));
+      P.mat(_km).emit('Chain', i);
+    }
+    // the sickle: its handle runs on along the chain, the blade lies flat and leads the swing
+    _kz.subVectors(_kp[n], _kp[n - 1]).normalize();
+    if (r.km === 'whirl') _kx.set(-Math.sin(r.kang), 0, -Math.cos(r.kang)); else _kx.crossVectors(_kup, _kz);
+    _kx.addScaledVector(_kz, -_kx.dot(_kz)); if (_kx.lengthSq() < 1e-6) _kx.set(1, 0, 0); _kx.normalize();
+    _ky.crossVectors(_kz, _kx);
+    _km.makeBasis(_kx, _ky, _kz).setPosition(b.x, b.y, b.z);
+    P.mat(_km).emit('Kusari', 0);
+  }
+
 
   // ======================================================================= HAWK (levels 20+)
   /* An advanced aerial robot: armoured fuselage, two ducted fans that vector with its flight (Fan, Rotor), a chin
@@ -658,7 +851,7 @@
     scene.add(ringMesh);
     for (var i = 0; i < n; i++) Tr.grenades.push({ on: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, t: 0, fuse: 2, rest: false, spin: 0, rx: 0, rz: 0, R: 3.4, dmg: 0, rdmg: 0, src: { x: 0, z: 0, type: 'soldier', proj: true } });
   }
-  var SMEAR_COL = { katana: new THREE.Color(0xDCEBFF), eaxe: new THREE.Color(0x6FEFFF) };
+  var SMEAR_COL = { katana: new THREE.Color(0xDCEBFF), eaxe: new THREE.Color(0x6FEFFF), kusari: new THREE.Color(0xFFE2D6) };
   var _t = 0;
   function syncRuntime() {
     if (!smear) return;
@@ -666,10 +859,12 @@
     var n = 0, ic = smear.geometry.attributes.iCol, T = AI.types.blader, i;
     if (T) for (i = 0; i <= T.hi; i++) {
       var r = T.slots[i]; if (!r.on || n >= SMEAR_CAP) continue;
-      var k = K.clamp((r.spinV - 30) / 70, 0, 1); if (k <= 0.02) continue;
+      var kus = r.weaponId === 'kusari';
+      var k = kus ? (r.km === 'whirl' ? K.clamp((r.kangV - 6) / 8, 0, 1) * K.clamp((r.kR - 0.8) / 1.2, 0, 1) : 0) : K.clamp((r.spinV - 30) / 70, 0, 1); if (k <= 0.02) continue;
       var v = VIS.blader, bob = Math.sin(r.idleT * 2.6 + r.slot) * 0.03 - r.crouch * 0.08, yaw = r.yaw + r.bspin, sy = Math.sin(yaw), cy = Math.cos(yaw);
       _v4.set(r.x + v.hub[0] * cy + v.hub[2] * sy, r.y + bob + v.hub[1] + 0.02, r.z - v.hub[0] * sy + v.hub[2] * cy);
-      _q4.setFromAxisAngle(_up, yaw + r.hub); _s4.set(r.reach + 0.04, 1, r.reach + 0.04);
+      if (kus) { _v4.set(r.x, r.ks.y, r.z); _q4.setFromAxisAngle(_up, r.kang); _s4.set(r.kR + 0.25, 1, r.kR + 0.25); }   // the whirling chain's sweep
+      else { _q4.setFromAxisAngle(_up, yaw + r.hub); _s4.set(r.reach + 0.04, 1, r.reach + 0.04); }
       _m4.compose(_v4, _q4, _s4); smear.setMatrixAt(n, _m4);
       var c = SMEAR_COL[r.weaponId] || SMEAR_COL.katana; ic.setXYZW(n, c.r, c.g, c.b, 0.92 * k);
       n++;
@@ -729,11 +924,12 @@
 
   Tr.stats = function () {
     var out = { nades: liveNades(), shock: +Tr.shock.left.toFixed(2), acid: +Tr.acid.left.toFixed(2), smears: smear ? smear.count : 0, soldiers: [], bladers: [],
-      mechs: [], grenadiers: [], hawks: [], shells: Tr.shells || 0 };
+      mechs: [], grenadiers: [], hawks: [], rocketeers: [], shells: Tr.shells || 0, rockets: Tr.rockets || 0 };
     AI.robots.forEach(function (r) {
       if (!r.on) return;
       if (r.type === 'soldier') out.soldiers.push({ slot: r.slot, state: r.state, act: r.act, hp: +r.hp.toFixed(1), shield: +r.shield.toFixed(1), nades: r.nades, armour: r.armour, torso: r.torso, helm: r.helm });
-      if (r.type === 'blader') out.bladers.push({ slot: r.slot, state: r.state, act: r.act, weapon: r.weaponId, spinRev: +(r.spinV / TAU).toFixed(1) });
+      if (r.type === 'blader') out.bladers.push({ slot: r.slot, state: r.state, act: r.act, weapon: r.weaponId, spinRev: +(r.spinV / TAU).toFixed(1), km: r.km || '', chain: r.kLen ? +r.kLen.toFixed(2) : 0, kTicks: r.kTicks || 0, kHits: r.kHits || 0 });
+      if (r.type === 'rocketeer') out.rocketeers.push({ slot: r.slot, state: r.state, act: r.act, launcher: r.launcher, hp: +r.hp.toFixed(1), shield: +r.shield.toFixed(1), shoulder: +(r.shoulder || 0).toFixed(2), variant: r.trVariant });
       if (r.type === 'mech' || r.type === 'grenadier') out[r.type + 's'].push({ slot: r.slot, state: r.state, act: r.act, hp: +r.hp.toFixed(1), shield: +r.shield.toFixed(1), nades: r.nades, variant: r.trVariant });
       if (r.type === 'hawk') out.hawks.push({ slot: r.slot, state: r.state, round: r.round, tint: r.tintHex, hp: +r.hp.toFixed(1), y: +r.y.toFixed(2) });
     });

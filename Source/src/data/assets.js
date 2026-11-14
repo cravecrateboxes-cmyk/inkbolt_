@@ -22,7 +22,14 @@
       // levels 20+: the Crawler's advanced skin and the Hawk
       'BOT_CRAWLER_Body2', 'BOT_CRAWLER_Leg2', 'BOT_CRAWLER_Specks',
       'BOT_HAWK_Body', 'BOT_HAWK_Fan', 'BOT_HAWK_Rotor', 'BOT_HAWK_Gun', 'BOT_HAWK_Light',
-      'BOT_HAWK_CORE', 'BOT_HAWK_FAN0', 'BOT_HAWK_FAN1', 'BOT_HAWK_GUNPIVOT', 'BOT_HAWK_GUN', 'BOT_HAWK_LIGHT'],
+      'BOT_HAWK_CORE', 'BOT_HAWK_FAN0', 'BOT_HAWK_FAN1', 'BOT_HAWK_GUNPIVOT', 'BOT_HAWK_GUN', 'BOT_HAWK_LIGHT',
+      // the Blade Bot's kusarigama (weight, chain segment, sickle)
+      'BOT_BLADER_Fundo', 'BOT_BLADER_Chain', 'BOT_BLADER_Kusari', 'BOT_BLADER_CHAIN',
+      // levels 35+: the Jet Trooper (game/jets.js)
+      'BOT_JET_Hips', 'BOT_JET_Thigh', 'BOT_JET_Shin', 'BOT_JET_Torso', 'BOT_JET_Seam', 'BOT_JET_Head', 'BOT_JET_Light', 'BOT_JET_ArmR', 'BOT_JET_ArmL',
+      'BOT_JET_PodArm', 'BOT_JET_Pod', 'BOT_JET_Lid', 'BOT_JET_Flame',
+      'BOT_JET_HIP0', 'BOT_JET_HIP1', 'BOT_JET_WAIST', 'BOT_JET_NECK', 'BOT_JET_SHOULDER0', 'BOT_JET_SHOULDER1', 'BOT_JET_ARM0', 'BOT_JET_ARM1',
+      'BOT_JET_NOZ0', 'BOT_JET_NOZ1', 'BOT_JET_CORE', 'BOT_JET_SLIT', 'BOT_JET_MUZZLE', 'BOT_JET_PODTOP', 'BOT_JET_LID', 'BOT_JET_TUBE0', 'BOT_JET_TUBE1', 'BOT_JET_TUBE2'],
     // the trooper rig: the Soldier, the Grenadier's launcher and the Robot Trooper on one armature
     troopers: ['TROOPER', 'TROOPER_Rig', 'TROOPER_MUZZLE', 'TROOPER_CORE', 'TROOPER_GL', 'TROOPER_GL_MUZZLE', 'TROOPER_MECH', 'TROOPER_MECH_CORE']
   };
@@ -75,7 +82,12 @@
       nade: { parts: { BOT_SOLDIER_Nade: 1 }, max: 300 },
       // levels 20+
       crawler2: { parts: { BOT_CRAWLER_Body2: 1, BOT_CRAWLER_Leg2: 4, BOT_CRAWLER_Light: 1, BOT_CRAWLER_Specks: 1 }, max: 2200 },
-      hawk: { parts: { BOT_HAWK_Body: 1, BOT_HAWK_Fan: 2, BOT_HAWK_Rotor: 2, BOT_HAWK_Gun: 1, BOT_HAWK_Light: 1 }, max: 3500 }
+      hawk: { parts: { BOT_HAWK_Body: 1, BOT_HAWK_Fan: 2, BOT_HAWK_Rotor: 2, BOT_HAWK_Gun: 1, BOT_HAWK_Light: 1 }, max: 3500 },
+      // the kusarigama Blade Bot: body, hub, weight, a full 16-segment chain and the sickle
+      bladerKusari: { parts: { BOT_BLADER_Body: 1, BOT_BLADER_Hub: 1, BOT_BLADER_Fundo: 1, BOT_BLADER_Chain: 16, BOT_BLADER_Kusari: 1, BOT_BLADER_Light: 1 }, max: 5200 },
+      // levels 35+: the Jet Trooper, every part (two legs, two pods on their arms with lids, two flames)
+      jet: { parts: { BOT_JET_Hips: 1, BOT_JET_Thigh: 2, BOT_JET_Shin: 2, BOT_JET_Torso: 1, BOT_JET_Seam: 1, BOT_JET_Head: 1, BOT_JET_Light: 1, BOT_JET_ArmR: 1,
+        BOT_JET_ArmL: 1, BOT_JET_PodArm: 2, BOT_JET_Pod: 2, BOT_JET_Lid: 2, BOT_JET_Flame: 2 }, max: 9500 }
     },
     kitMax: 90000, kitPropMax: 2500   // raised for the tactical look kit detail pass (plan Stage 11.3)
   };

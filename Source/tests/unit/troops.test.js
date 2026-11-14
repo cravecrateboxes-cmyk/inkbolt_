@@ -25,12 +25,12 @@ test('soldier row: armoured trooper with a shield pool, grenades, melee and weap
   assert.ok(s.windup >= 0.35 && s.windup <= 0.9);
 });
 
-test('blade bot row: slow patrol, fast dizzy-ending dash, a katana or a Voltaxe that can drop', () => {
+test('blade bot row: slow patrol, fast dizzy-ending dash, a katana, a Voltaxe (both can drop) or a kusarigama', () => {
   const b = E.blader;
   assert.deepEqual([b.first, b.hp, b.speed, b.damage, b.gems.chip, b.cost], [3, 70, 1.6, 18, 3, 2.5]);
   assert.ok(b.chargeSpeed >= 3 * b.stalkSpeed && b.stalkSpeed > b.speed, 'slow normally, dashes fast');
   assert.ok(b.spinRev >= 15 && b.spinRev <= 25, 'blade spins 15-25 rev/s');
-  assert.deepEqual(b.weapons, ['katana', 'eaxe']);
+  assert.deepEqual(b.weapons, ['katana', 'eaxe', 'kusari']);
   assert.equal(b.meleeDrop, 0.07);
   assert.ok(b.recover >= 1 && b.dizzyMul > 1, 'a dizzy window to punish');
   assert.ok(b.shockDps > 0 && b.shockTime > 0, 'the axe shocks');
@@ -80,7 +80,8 @@ test('campaign waves: Soldiers from level 4, Blade Bots from level 7, growing wi
     // measured per zone: levels 26+ have 2 zones instead of 3, so the totals per level step down there
     const nz = p.zones.length, sz = s / nz, bz = b / nz;
     if (L >= 4) assert.ok(sz >= lastS - 1e-9 && bz >= lastB - 1e-9, id + ' grows (per zone)');
-    const all = p.zones.reduce((a, z) => a + z.waves.reduce((b2, w) => b2 + w.reduce((c, e) => c + e[1], 0), 0), 0) / nz;
+    // levels 30+ thin out the Crawlers on purpose (levelplans.js lateWaves35): the climb is measured before that cut
+    const all = (p.zones.reduce((a, z) => a + z.waves.reduce((b2, w) => b2 + w.reduce((c, e) => c + e[1], 0), 0), 0) + (p.crawlerCut || 0)) / nz;
     assert.ok(all >= (globalThis.__lastAll || 0) - 1e-9, id + ' has at least as many robots per zone as the level before');
     globalThis.__lastAll = all;
     // the first wave of the first zone stays as it was (no new robots while the player settles in)

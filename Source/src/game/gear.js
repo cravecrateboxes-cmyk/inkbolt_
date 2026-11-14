@@ -342,13 +342,15 @@
       if (IB.FX) { var a = Math.random() * 6.28, rr = 0.6 + Math.random() * v.R * 0.4; IB.FX.puff(v.x + Math.cos(a) * rr, v.y, v.z + Math.sin(a) * rr, 1, 0x9A5BFF, 0.06, 0.18, 0.5); }
       AI.robots.forEach(function (o) {
         if (!o.on || o === v.r || o.state === 'spawn' || o.state === 'pose' || o.rogue > 0 || (IB.AI.VIS[o.type] && IB.AI.VIS[o.type].flying && o.y > 2)) return;
+        // flyers (Drone, Hawk, Jet Trooper) and the shoulder-braced Rocket Soldier resist the pull (data/enemies.js pullResist)
+        var res = IB.pullResist ? IB.pullResist(o.type) : 0; if (res >= 1) return;
         var dx = v.x - o.x, dz = v.z - o.z, d = Math.hypot(dx, dz);
         if (d > v.R) return;
         // how hard it is pulled (0..1): the bodies lean, drag, lift and flail by it (trooperrig.js, AI.sync)
-        var k = Math.min(1, 0.45 + 0.6 * (1 - d / v.R)) * Math.min(1, v.t / 0.25);
+        var k = Math.min(1, 0.45 + 0.6 * (1 - d / v.R)) * Math.min(1, v.t / 0.25) * (1 - res);
         if (k > (o.pullTgt || 0)) { o.pullTgt = k; o.pullX = v.x; o.pullZ = v.z; }
         if (d < 1.1) return;
-        var step = Math.min(d - 1.1, dt * (3 + 6 * (1 - d / v.R))), nx = o.x + dx / d * step, nz = o.z + dz / d * step;
+        var step = Math.min(d - 1.1, dt * (3 + 6 * (1 - d / v.R)) * (1 - res)), nx = o.x + dx / d * step, nz = o.z + dz / d * step;
         var zi = Z.zoneAt(L, nx, nz);
         if (zi >= 0 && Z.isOpen(L.zones[zi], nx, nz)) { o.x = nx; o.z = nz; }
       });

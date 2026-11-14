@@ -44,9 +44,9 @@
        light robots (crawler, drone, bomber, gunner); soldiers and blade bots keep their count, so the shooting
        grows faster than the danger.
      - The next wave drops in when 6 or fewer are left (game.js WAVE_NEXT), so there is little dead time. */
-  IB.MIN_LEVEL = { soldier: 4, blader: 7, bomber: 4, mech: 20, hawk: 20, grenadier: 20 };   // no exploding Bombers before level 4
+  IB.MIN_LEVEL = { soldier: 4, blader: 7, bomber: 4, mech: 20, hawk: 20, grenadier: 20, jet: 35, rocketeer: 35 };   // no exploding Bombers before level 4
   // what a robot named too early becomes (the levels 20+ robots step back to the robots they replace)
-  var EARLIER = { soldier: 'gunner', mech: 'gunner', hawk: 'drone', grenadier: 'soldier' };
+  var EARLIER = { soldier: 'gunner', mech: 'gunner', hawk: 'drone', grenadier: 'soldier', jet: 'hawk', rocketeer: 'mech' };
   var LIGHT = { crawler: 1, drone: 1, bomber: 1, gunner: 1, mech: 1, hawk: 1 };
   var ELITE_MUL = 2.5;   // Soldiers and Blade Bots: 2.5x the theme files' counts, light robots make room
   IB.WAVE_MUL = function (L) { return 1.15 + 0.45 * Math.min(1, Math.max(0, (L - 1) / 12)); };
@@ -92,6 +92,7 @@
       });
     });    smooth(p);
     IB.lateWaves(p, L);
+    IB.lateWaves35(p, L);
   }
   /* Levels 20+ (LATE.level): the new robots take over from the old light ones, after the counts above are settled (so
      the level-to-level climb is measured on the same robots as levels 1-19):
@@ -134,6 +135,53 @@
         return order.filter(function (k) { return out[k] > 0; }).map(function (k) { return [k, out[k]]; });
       });
     });
+    return p;
+  };
+  /* Levels 30+ (LATE35): the small grey bots (Crawlers) thin out -- from level 30 each level keeps a smaller share of
+     its Crawlers (IB.crawlerShare: 0.85 on 30 down to 0.4 from 35 on); the cut is counted in p.crawlerCut, so the
+     level-to-level climb (measured before the cut, smooth() above) carries on through the tougher robots.
+     Levels 35+: a share of the Hawks become Jet Troopers ('jet', LATE35.jet) and a share of the Robot Troopers become
+     Rocket Soldiers ('rocketeer', LATE35.rocketeer), one for one, carried across the level like lateWaves (error
+     diffusion); the opening wave of the first zone stays as it was. A wave keeps at least one Crawler if it had some.
+     Theme option: plan.lateRobots === false keeps the old robots. Idempotent (p.late35Done). Returns the plan. */
+  var LATE35 = IB.LATE35 = { cutFrom: 30, level: 35, jet: 0.3, rocketeer: 0.2, crawler: [0.85, 0.76, 0.67, 0.58, 0.49, 0.4] };
+  IB.crawlerShare = function (L) {
+    if (L < LATE35.cutFrom) return 1;
+    var C = LATE35.crawler; return C[Math.min(C.length - 1, L - LATE35.cutFrom)];
+  };
+  IB.lateWaves35 = function (p, L) {
+    if (!p || L < LATE35.cutFrom || p.lateRobots === false || p.late35Done) return p;
+    p.late35Done = true;
+    var keep = IB.crawlerShare(L), acc = { crawler: [0, 0], jet: [0, 0], rocketeer: [0, 0] }, cut = 0;
+    function share(k, n, f) {
+      var a = acc[k]; a[0] += n;
+      var c = Math.max(0, Math.min(n, Math.round(a[0] * f) - a[1]));
+      a[1] += c;
+      return c;
+    }
+    (p.zones || []).forEach(function (z, zi) {
+      z.waves = (z.waves || []).map(function (w, wi) {
+        var opening = zi === 0 && wi === 0;
+        var out = [];
+        w.forEach(function (e) {
+          var id = e[0], n = e[1];
+          if (id === 'crawler') {
+            var k = share('crawler', n, keep);
+            if (n > 0 && k < 1) { acc.crawler[1] += 1 - k; k = 1; }   // a wave that had Crawlers keeps one
+            cut += n - k; out.push([id, k]);
+          } else if (!opening && L >= LATE35.level && (id === 'hawk' || id === 'mech')) {
+            var nk = id === 'hawk' ? 'jet' : 'rocketeer', c = share(nk, n, LATE35[nk]);
+            if (n - c > 0) out.push([id, n - c]);
+            if (c > 0) out.push([nk, c]);
+          } else out.push([id, n]);
+        });
+        // merge repeated ids (a theme wave may already name the new robots)
+        var m = {}, order = [];
+        out.forEach(function (e) { if (!(e[0] in m)) { m[e[0]] = 0; order.push(e[0]); } m[e[0]] += e[1]; });
+        return order.filter(function (k) { return m[k] > 0; }).map(function (k) { return [k, m[k]]; });
+      });
+    });
+    p.crawlerCut = cut;
     return p;
   };
   IB.CAMPAIGN = ORDER.filter(function (id) { return P[id]; });

@@ -38,7 +38,13 @@
     { name: 'Sand', c: ['#A8996F', '#83775A', '#D9452F'] },
     { name: 'Arctic', c: ['#C3C9D1', '#8F97A2', '#E0482F'] }
   ];
-  TR.TYPES = { soldier: 1, grenadier: 1, mech: 1 };
+  TR.TYPES = { soldier: 1, grenadier: 1, mech: 1, rocketeer: 1 };
+  /* Rocket Soldier (levels 35+): the Soldier's body with its carbine hidden (like the Grenadier) and the player's own
+     launcher model (fps-weapons WPN_HOTHEAD / WPN_MURMUR with its cassette, drawn LAUNCHER_SCALE up): carried in the
+     right hand, tube forward and low; shouldered while it aims and fires (r.shoulder 0..1 eases between the two): the
+     launcher's stock (rest point RL_REST, launcher space) sits on top of the right shoulder and the tube follows the
+     aim. r.muzzleW = the launcher's muzzle socket. On death the launcher stays in the falling hand. */
+  var LAUNCHER_SCALE = 1.3, RL_REST = { hothead: [0, -0.02, 0.24], murmur: [0, -0.02, 0.17] };
   var UPPER = /spine00[23]|neck|head|shoulder|upper_arm|forearm|hand|f_(index|middle|pinky|ring)|thumb/;
   var LOW = { idle: 'Idle_Loop', walk: 'Walk_Loop', jog: 'Jog_Fwd_Loop', sprint: 'Sprint_Loop', cidle: 'Crouch_Idle_Loop', cwalk: 'Crouch_Fwd_Loop' };
   var UP = { ready: 'Pistol_Idle_Loop', aimN: 'Pistol_Aim_Neutral', aimU: 'Pistol_Aim_Up', aimD: 'Pistol_Aim_Down' };
@@ -123,7 +129,7 @@
       spine: [bones['DEF-spine001'], bones['DEF-spine002'], bones['DEF-spine003']], var: -1,
       neck: bones['DEF-neck'], head: bones['DEF-head'], arm: [bones['DEF-upper_armL'], bones['DEF-upper_armR']],
       fore: [bones['DEF-forearmL'], bones['DEF-forearmR']], thigh: [bones['DEF-thighL'], bones['DEF-thighR']],
-      shin: [bones['DEF-shinL'], bones['DEF-shinR']], pYaw: null, mixer: new THREE.AnimationMixer(root),
+      shin: [bones['DEF-shinL'], bones['DEF-shinR']], pYaw: null, mixer: new THREE.AnimationMixer(root), handR: bones['DEF-handR'], rl: null, rlId: '',
       low: {}, up: {}, one: {}, death: null, os: null, osT: 0, osDur: 0, r: null, t: 0, sink: 0 };
     mesh.material = mats[0]; if (R.mech) R.mech.visible = false; if (R.gl) R.gl.visible = false;
     Object.keys(clips.low).forEach(function (k) { var a = R.mixer.clipAction(clips.low[k]); a.play(); a.setEffectiveWeight(0); R.low[k] = a; });
@@ -137,13 +143,14 @@
   // the rig's look for its robot: Soldier (kit colourway), Grenadier (same kit, launcher instead of the carbine) or
   // Robot Trooper (robot body in a colourway of its own); every mesh of one robot shares one flash uniform
   function dress(R, r) {
-    var mech = r.type === 'mech' && R.mech, gren = r.type === 'grenadier' && R.gl, n = mech ? TR.MECH_VARIANTS.length : TR.VARIANTS.length;
+    var mech = r.type === 'mech' && R.mech, gren = r.type === 'grenadier' && R.gl, rl = r.type === 'rocketeer', n = mech ? TR.MECH_VARIANTS.length : TR.VARIANTS.length;
     var v = r.trVariant; if (v === undefined || v >= n) v = r.trVariant = (Math.random() * n) | 0;
-    var key = (mech ? 'm' : gren ? 'g' : 's') + v;
+    var key = (mech ? 'm' : gren ? 'g' : rl ? 'r' : 's') + v;
     if (!R.mats) R.mats = {};
     if (!R.mats[key]) {
       if (mech) R.mats[key] = [soldierMat(mats.mtex[v])];
       else if (gren) { var a = soldierMat(mats.tex[v], !!R.mesh.geometry.attributes.aMask); R.mats[key] = [a, soldierMat(mats.tex[v], false, { value: a.userData.fx })]; }
+      else if (rl) { var b = soldierMat(mats.tex[v], !!R.mesh.geometry.attributes.aMask); R.mats[key] = [b, launcherMat({ value: b.userData.fx })]; }
       else R.mats[key] = [soldierMat(mats.tex[v])];
     }
     var M = R.mats[key];
@@ -151,6 +158,64 @@
     if (mech) R.mech.material = M[0]; else R.mesh.material = M[0];
     if (gren) R.gl.material = M[1];
     R.fx = M[0].userData.fx; R.type = r.type;
+    // the Rocket Soldier's launcher (one group per rig and launcher model, made on first use)
+    if (R.rl) R.rl.visible = false;
+    if (rl) {
+      var id = r.launcher === 'murmur' ? 'murmur' : 'hothead';
+      R.rls = R.rls || {};
+      if (!R.rls[id]) R.rls[id] = makeLauncher(id);
+      R.rl = R.rls[id]; R.rlId = id;
+      if (R.rl) { R.rl.traverse(function (o) { if (o.isMesh) o.material = M[1]; }); if (R.rl.parent !== scene) scene.attach(R.rl); R.rl.visible = true; }
+    } else { R.rl = null; R.rlId = ''; }
+  }
+  // a launcher group in launcher space (forward -Z, grip at the origin) at LAUNCHER_SCALE: body + cassette, muzzle node
+  function makeLauncher(id) {
+    var A = IB.Assets, K = 'WPN_' + id.toUpperCase();
+    if (!A.geo[K]) return null;
+    var g = new THREE.Group(), body = new THREE.Mesh(A.geo[K], null);
+    body.frustumCulled = false; g.add(body);
+    if (A.geo[K + '_Mag'] && A.node[K + '_MAG']) { var mg = new THREE.Mesh(A.geo[K + '_Mag'], null); mg.position.copy(A.node[K + '_MAG'].position); mg.frustumCulled = false; g.add(mg); }
+    g.scale.setScalar(LAUNCHER_SCALE);
+    g.userData.muzzle = A.node[K + '_MUZZLE'] ? A.node[K + '_MUZZLE'].position.clone() : new THREE.Vector3(0, 0.07, -0.4);
+    g.userData.rest = new THREE.Vector3().fromArray(RL_REST[id]);
+    g.visible = false; scene.add(g);
+    return g;
+  }
+  /* the launcher's material: the weapons palette in the robots' look, sharing the soldier's flash / rogue uniform */
+  function launcherMat(U) {
+    var A = IB.Assets, m = IB.Render.toonMaterial({ map: A.palette.weapons, uni: IB.Render.robotOutline, baked: A.BAKED.weapons, look: 'actor', surf: IB.Surface && IB.Surface.surf('weapons') });
+    var base = m.onBeforeCompile, key = m.customProgramCacheKey;
+    m.onBeforeCompile = function (sh) {
+      base(sh);
+      sh.uniforms.uTrFx = U;
+      sh.fragmentShader = sh.fragmentShader.replace('uniform vec3 uInk;', 'uniform vec3 uInk;\nuniform vec3 uTrFx;')
+        .replace('if ( vHull > 0.5 ) gl_FragColor = vec4( uInk, 1.0 );',
+          'gl_FragColor.rgb = mix( gl_FragColor.rgb, vec3( 1.0 ), uTrFx.x );\ngl_FragColor.rgb = mix( gl_FragColor.rgb, vec3( 0.07, 0.78, 0.71 ), uTrFx.y );\nif ( vHull > 0.5 ) gl_FragColor = vec4( uInk, 1.0 );');
+    };
+    m.customProgramCacheKey = function () { return key() + 'trl'; };
+    return m;
+  }
+  /* carry (hand, low and forward) <-> shoulder (stock on the right shoulder, the tube along the aim) */
+  var _lq = new THREE.Quaternion(), _lq2 = new THREE.Quaternion(), _le = new THREE.Euler(0, 0, 0, 'YXZ'), _lp = new THREE.Vector3(), _lp2 = new THREE.Vector3(), _lr = new THREE.Vector3();
+  function placeLauncher(R, r, dt) {
+    var g = R.rl; if (!g) return;
+    var up = r.act === 'rl' && (r.state === 'windup' || r.state === 'attack' || (r.state === 'recover' && r.st < 0.45));
+    r.shoulder = (r.shoulder || 0) + ((up ? 1 : 0) - (r.shoulder || 0)) * Math.min(1, dt * (up ? 7 : 4));
+    var k = r.shoulder * r.shoulder * (3 - 2 * r.shoulder), yaw = r.yaw + Math.PI;
+    // carry: grip in the right hand, tube level-ish and forward
+    if (R.handR) R.handR.getWorldPosition(_lp); else _lp.set(r.x, r.y + 1.0, r.z);
+    _le.set(-0.3, yaw, 0); _lq.setFromEuler(_le);
+    // shoulder: the rest point on top of the right shoulder, tube along the aim (a little recoil kick)
+    if (R.arm[1]) R.arm[1].getWorldPosition(_lp2); else _lp2.set(r.x, r.y + 1.45, r.z);
+    _lp2.y += 0.1;
+    _le.set(Math.max(-0.6, Math.min(0.6, r.aim || 0)) + (r.kick || 0) * 0.12, yaw, 0); _lq2.setFromEuler(_le);
+    _lr.copy(g.userData.rest).multiplyScalar(LAUNCHER_SCALE).applyQuaternion(_lq2);
+    _lp2.sub(_lr);
+    g.position.copy(_lp).lerp(_lp2, k);
+    g.quaternion.copy(_lq).slerp(_lq2, k);
+    g.updateMatrixWorld(true);
+    _lr.copy(g.userData.muzzle).applyMatrix4(g.matrixWorld);
+    r.muzzleW = r.muzzleW || {}; r.muzzleW.x = _lr.x; r.muzzleW.y = _lr.y; r.muzzleW.z = _lr.z;
   }
   function take(r) {
     var R = TR.pool.pop() || makeRig();
@@ -162,7 +227,7 @@
     TR.live[r.type + r.slot] = R;
     return R;
   }
-  function release(R) { R.root.visible = false; R.r = null; R.mixer.stopAllAction(); restart(R); TR.pool.push(R); }
+  function release(R) { R.root.visible = false; R.r = null; R.mixer.stopAllAction(); restart(R); if (R.rl) { if (R.rl.parent !== scene) scene.attach(R.rl); R.rl.visible = false; R.rl = null; } TR.pool.push(R); }
   function restart(R) {
     Object.keys(R.low).forEach(function (k) { R.low[k].play(); R.low[k].setEffectiveWeight(0); });
     Object.keys(R.up).forEach(function (k) { R.up[k].play(); R.up[k].setEffectiveWeight(0); });
@@ -347,6 +412,7 @@
       fx.y = r.rogue > 0 ? (r.rogue < 3 && Math.sin(r.rogue * 16) > 0 ? 0.25 : 0.55) : r.wet > 0 ? 0 : 0;
       R.root.updateMatrixWorld(true);
       var mz = t === 'grenadier' && R.glMuzzle ? R.glMuzzle : R.muzzle;
+      if (t === 'rocketeer' && R.rl) { placeLauncher(R, r, dt); mz = null; }
       if (mz) { mz.getWorldPosition(_v); r.muzzleW = r.muzzleW || {}; r.muzzleW.x = _v.x; r.muzzleW.y = _v.y; r.muzzleW.z = _v.z; }
       if (R.handL) { R.handL.getWorldPosition(_v); r.handLW = r.handLW || {}; r.handLW.x = _v.x; r.handLW.y = _v.y; r.handLW.z = _v.z; }
     }
@@ -358,6 +424,7 @@
     Object.keys(R.low).forEach(function (k) { R.low[k].fadeOut(0.15); });
     Object.keys(R.up).forEach(function (k) { R.up[k].fadeOut(0.15); });
     if (R.os) R.os.fadeOut(0.1);
+    if (R.rl && R.handR) R.handR.attach(R.rl);   // the launcher falls with the hand
     R.death.reset(); R.death.timeScale = 1.25; R.death.setEffectiveWeight(1); R.death.fadeIn(0.1); R.death.play();
     R.fx.set(0, 0, 0);
     R.t = 0; R.sink = 0; R.y0 = r.fy || r.y || 0; R.r = null;

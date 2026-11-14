@@ -51,6 +51,11 @@ ib_lib.PALETTES['bots'] = BASE + [
     # Hawk (levels 20+): graphite armoured fuselage, lighter dorsal plates, steel; its accents are drawn in the KEY
     # colours 'plate' / 'plate2' and take the colour of its round type in the game
     ('hawk', '#363B47'), ('hawk2', '#59606F'), ('hawk3', '#8C95A4'),
+    # Jet Trooper (levels 35+): near-black armour like the black-ops soldiers (jet / jet2 / jet3); its element accents
+    # (shoulder line, hex panels, pod tubes) are drawn in the KEY colours 'plate' / 'plate2' and painted by the game
+    ('jet', '#2A2D34'), ('jet2', '#1D1F24'), ('jet3', '#40454F'), ('jetglow', '#FFE2A8'),
+    # Blade Bot kusarigama: oiled wooden handle, dark iron chain and weight
+    ('kwood', '#7A5233'), ('chain', '#6C7480'),
 ]
 
 
@@ -995,6 +1000,375 @@ def build_hawk(pal):
     p.build('BOT_HAWK_Light', bevel=False, hull=0.006)
 
 
+# ================================================================ BLADE BOT: KUSARIGAMA (third weapon)
+# The hub's clamp holds the iron weight (Fundo, along +X like the other weapons; socket BOT_BLADER_CHAIN where the chain
+# leaves it). The chain is drawn by the game as a run of Chain segments (two interlocking links, 0.2 m along game +Z,
+# stretched to fit) out to the sickle (Kusari: origin = its chain ring, the handle runs out along game +Z, the curved
+# kama blade at the far end with its edge turned back toward the chain).
+def _torus(p, R, rr, color, seg=8, rs=4, deco=False):
+    prof = [(R + rr * math.cos(2 * math.pi * k / rs), rr * math.sin(2 * math.pi * k / rs)) for k in range(rs + 1)]
+    p.lathe(prof, color, seg=seg, deco=deco)
+
+
+def build_kusari(pal):
+    # weight in the clamp: grip through the clamp, an octagonal iron weight with an amber band, the chain ring
+    p = Part(pal)
+    p.cyl((-0.08, 0, 0), 0.021, 0.021, 0.19, 'ink', seg=8, rot=(0, 90, 0))
+    p.cyl((0.105, 0, 0), 0.046, 0.046, 0.10, 'gunmetal', seg=8, rot=(0, 90, 0))
+    p.cyl((0.205, 0, 0), 0.03, 0.018, 0.02, 'gunmetal', seg=8, rot=(0, 90, 0))
+    p.cyl((0.14, 0, 0), 0.05, 0.05, 0.02, 'amber', seg=8, rot=(0, 90, 0), caps=False, deco=True)
+    p.parent = Matrix.Translation((0.238, 0, 0)) @ Matrix.Rotation(math.radians(90), 4, 'X')
+    _torus(p, 0.016, 0.006, 'chain', seg=6)
+    p.parent = Matrix.Identity(4)
+    fundo = p.build('BOT_BLADER_Fundo', bevel=False, hull=0.008)
+    socket('BOT_BLADER_CHAIN', fundo, (0.25, 0, 0))
+
+    # chain segment: two interlocking oval links, 0.2 m along Blender -Y (game +Z)
+    p = Part(pal)
+    p.parent = Matrix.Translation((0, -0.05, 0)) @ Matrix.Diagonal(Vector((1, 1.7, 1, 1)))
+    _torus(p, 0.03, 0.009, 'chain', seg=6)
+    p.parent = Matrix.Translation((0, -0.15, 0)) @ Matrix.Rotation(math.radians(90), 4, 'Y') @ Matrix.Diagonal(Vector((1, 1.7, 1, 1)))
+    _torus(p, 0.03, 0.009, 'chain', seg=6)
+    p.parent = Matrix.Identity(4)
+    p.build('BOT_BLADER_Chain', bevel=False, hull=0.005)
+
+    # sickle: ring, wrapped wooden handle out along -Y, steel ferrule, curved kama blade along +X (edge toward +Y)
+    p = Part(pal)
+    K = Matrix.Diagonal(Vector((1.4, 1.4, 1.4, 1)))          # drawn 40 % up so it reads at fighting range
+    p.parent = K @ Matrix.Rotation(math.radians(90), 4, 'Y')
+    _torus(p, 0.018, 0.006, 'chain', seg=6)
+    p.parent = K
+    p.cyl((0, -0.022, 0), 0.016, 0.02, 0.025, 'gunmetal', seg=8, rot=(90, 0, 0))
+    p.cyl((0, -0.045, 0), 0.021, 0.024, 0.33, 'kwood', seg=8, rot=(90, 0, 0))
+    for y in (-0.09, -0.15, -0.21, -0.27):
+        p.cyl((0, y, 0), 0.026, 0.026, 0.018, 'ink', seg=8, rot=(90, 0, 0), caps=False, deco=True)
+    p.cyl((0, -0.37, 0), 0.03, 0.03, 0.05, 'steel', seg=8, rot=(90, 0, 0))
+    p.parent = K @ Matrix.Translation((0, -0.395, 0))
+    st = []
+    n = 7
+    for i in range(n):
+        t = i / (n - 1)
+        x = 0.012 + 0.31 * t
+        curve = 0.13 * t * t
+        w = 0.074 - 0.04 * t
+        st.append((x, -w / 2 + curve, w / 2 + curve, 0.008 - 0.003 * t))
+    p.blade(st, (0.37, 0.19, 0.0), 'blade', 'paper')
+    p.parent = K
+    p.box((-0.03, -0.395, 0), (0.05, 0.044, 0.03), 'steel')                                 # spine knob behind the blade
+    p.build('BOT_BLADER_Kusari', bevel=False, hull=0.009)
+
+
+# ================================================================ JET TROOPER (levels 35+)
+# A tall bipedal combat robot on a jet back unit, built from layered angular plates in near-black armour (the black-ops
+# soldiers' colours): segmented abdomen, layered chest and pauldrons, thigh / shin / knee plates, forearm guards, panel
+# lines and bolts. A sensor-slit helmet (no face, no eyes: one glowing slit). A bullet launcher fixed to the right hand,
+# held low (receiver, rail, magazine, vented barrel shroud, twin barrels with a muzzle brake). On the back unit two
+# glowing thruster nozzles and two telescoping arms (PodArm) that raise a box rocket pod each (Pod): the pod's lid (Lid)
+# flips open on the top front edge to show three tubes with rocket tips inside. Element accents are in the KEY colours
+# 'plate' / 'plate2' (painted per robot by the game: electric blue, acid green, explosive orange): the shoulder line, hex
+# panels, cannon tips, tube rims, the lids' inner faces, nozzle rings; the glowing seams (Seam: abdomen gaps, sternum,
+# nozzle cores) and the sensor slit (Light) are drawn in the light material. Parts are posed like the Soldier's rigid
+# parts (origins on their joints); sockets give the joints, the pod arms, the nozzles, the muzzle and the tube mouths.
+J_HIP = 1.02            # hip joint height
+J_HIPX = 0.13
+J_THIGH = 0.48          # hip -> knee; knee -> sole 0.54
+J_WAIST = 1.10
+J_SHOULDER = (0.33, 0.02, 0.47)    # torso local (left = +x; the right arm is -x)
+J_NECK = (0, 0.0, 0.60)
+J_ARM = (0.135, 0.29, 0.50)        # pod arm hinge on top of the back unit (torso space), left one +x
+J_ARM_LEN = 0.27                   # hinge -> pod pivot, fully raised
+J_NOZ = (0.105, 0.32, 0.03)        # nozzle exits in torso space
+J_HAND_R = (-0.03, -0.24, -0.46)   # right hand in right-shoulder space (gun held low, pointing forward)
+J_HAND_L = (0.05, -0.12, -0.54)
+
+
+def _hexp(p, centre, nrm, r, t, color, rot=0.0):
+    """a flat hexagonal accent panel (deco, t thick) standing 3 mm proud of a surface facing nrm ('-y', '+x', ...)"""
+    c = Vector(centre)
+    R = {'-y': Matrix.Rotation(math.radians(90), 4, 'X'), '+y': Matrix.Rotation(math.radians(-90), 4, 'X'),
+         '+x': Matrix.Rotation(math.radians(90), 4, 'Y'), '-x': Matrix.Rotation(math.radians(-90), 4, 'Y'),
+         '+z': Matrix.Identity(4)}[nrm]
+    old = p.parent
+    p.parent = old @ Matrix.Translation(c) @ R @ Matrix.Rotation(rot, 4, 'Z')
+    poly = [(r * math.cos(math.pi / 6 + k * math.pi / 3), r * math.sin(math.pi / 6 + k * math.pi / 3)) for k in range(6)]
+    p.prism(poly, 0.003, 0.003 + t, color, deco=True)
+    p.parent = old
+
+
+def _jframe(a, b, out):
+    """a frame at a: local Z runs to b, local Y leans toward `out` (the outer side of a limb)"""
+    a, b, out = Vector(a), Vector(b), Vector(out)
+    z = (b - a).normalized()
+    y = (out - z * out.dot(z)).normalized()
+    x = y.cross(z)
+    M = Matrix((x, y, z)).transposed().to_4x4()
+    M.translation = a
+    return M
+
+
+def _bolt(p, loc, axis, r=0.009):
+    """a small bolt head (deco) whose base sits at loc on a face pointing along axis ('+x', '-x', '-y', '+y', '+z')"""
+    rot = {'+x': (0, 90, 0), '-x': (0, -90, 0), '-y': (90, 0, 0), '+y': (-90, 0, 0), '+z': (0, 0, 0)}[axis]
+    p.cyl(loc, r, r * 0.8, 0.008, 'gunmetal', seg=6, rot=rot, deco=True)
+
+
+def _jet_arm(p, hand, pole, la, lb, side):
+    """shoulder ball, upper arm with a layered outer plate, elbow, forearm with a layered guard and a wrist ring"""
+    e = Vector(_elbow((0, 0, 0), hand, la, lb, pole))
+    h = Vector(hand)
+    out = Vector((side, 0.0, 0.0))
+    p.sphere((0, 0, 0), 0.088, 'gunmetal', seg=(8, 5))
+    p.limb((0, 0, 0), tuple(e), 0.058, 0.052, 'jet3')
+    L1, L2 = e.length, (h - e).length
+    p.parent = _jframe((0, 0, 0), e, out)
+    p.box((0, 0.025, L1 * 0.47), (0.13, 0.08, L1 * 0.6), 'jet', bevel=True)
+    p.box((0, 0.069, L1 * 0.42), (0.09, 0.02, L1 * 0.38), 'jet2')
+    p.box((0, 0.0825, L1 * 0.42), (0.045, 0.008, L1 * 0.22), 'plate', deco=True)
+    p.parent = Matrix.Identity(4)
+    p.sphere(tuple(e), 0.06, 'gunmetal', seg=(8, 5))
+    p.limb(tuple(e), tuple(e + (h - e) * 0.9), 0.05, 0.046, 'jet3')
+    p.parent = _jframe(e, h, out)
+    p.box((0, 0.03, L2 * 0.5), (0.135, 0.08, L2 * 0.66), 'jet', bevel=True)                      # forearm guard
+    p.box((0, 0.075, L2 * 0.46), (0.095, 0.02, L2 * 0.44), 'jet2')
+    p.box((0, 0.0885, L2 * 0.46), (0.022, 0.008, L2 * 0.34), 'plate', deco=True)
+    p.box((0, -0.0135, L2 * 0.32), (0.10, 0.008, 0.012), 'ink', deco=True)                      # panel line
+    p.cyl((0, 0, L2 * 0.86), 0.06, 0.06, 0.04, 'gunmetal', seg=8)                                  # wrist ring
+    p.parent = Matrix.Identity(4)
+    return e
+
+
+def build_jet(pal):
+    # ---- hips: pelvis core, bolted belt, layered codpiece, two-layer tassets, rear plate
+    p = Part(pal)
+    p.box((0, 0, J_HIP + 0.01), (0.30, 0.22, 0.16), 'jet3')
+    p.box((0, 0, J_HIP + 0.09), (0.34, 0.25, 0.05), 'jet2', bevel=True)
+    for x in (-0.12, -0.04, 0.04, 0.12):
+        _bolt(p, (x, -0.122, J_HIP + 0.09), '-y', 0.011)
+    sprism(p, [(-0.14, 0.93), (-0.13, 1.08), (-0.02, 1.08), (-0.05, 0.90)], -0.085, 0.085, 'jet', bevel=True)
+    sprism(p, [(-0.165, 0.96), (-0.155, 1.05), (-0.12, 1.05), (-0.13, 0.95)], -0.05, 0.05, 'jet2')
+    p.box((0, -0.166, 1.0), (0.04, 0.008, 0.04), 'plate', deco=True)
+    for s in (-1, 1):
+        p.box((s * 0.19, -0.016, J_HIP - 0.03), (0.07, 0.22, 0.20), 'jet', rot=(0, s * 14, 0), bevel=True)
+        p.box((s * 0.228, -0.02, J_HIP - 0.07), (0.035, 0.17, 0.13), 'jet2', rot=(0, s * 20, 0))
+    p.box((0, 0.125, J_HIP - 0.02), (0.24, 0.04, 0.16), 'jet', bevel=True)
+    p.box((0, 0.1485, J_HIP - 0.02), (0.18, 0.008, 0.012), 'ink', deco=True)
+    hips = p.build('BOT_JET_Hips', bevel=False)
+    for i, sx in enumerate((-1, 1)):
+        socket('BOT_JET_HIP%d' % i, hips, (sx * J_HIPX, 0, J_HIP))
+    socket('BOT_JET_WAIST', hips, (0, 0, J_WAIST))
+
+    # ---- thigh (origin on the hip joint): servo ball, strut, layered front plate, side plates with hex + bolts
+    p = Part(pal)
+    p.sphere((0, 0, 0), 0.085, 'gunmetal', seg=(10, 6))
+    p.limb((0, 0, -0.02), (0, 0, -J_THIGH + 0.02), 0.066, 0.056, 'jet3')
+    sprism(p, [(-0.135, -0.06), (-0.115, -0.37), (-0.05, -0.41), (-0.02, -0.36), (-0.03, -0.08)], -0.07, 0.07, 'jet', bevel=True)
+    sprism(p, [(-0.155, -0.10), (-0.14, -0.26), (-0.11, -0.27), (-0.12, -0.10)], -0.045, 0.045, 'jet2')
+    p.box((0, 0.065, -0.22), (0.10, 0.05, 0.26), 'jet2')
+    p.cyl((-0.05, 0, -0.44), 0.045, 0.045, 0.10, 'gunmetal', seg=8, rot=(0, 90, 0))
+    p.box((0, -0.131, -0.32), (0.12, 0.008, 0.008), 'ink', deco=True)
+    for s in (-1, 1):
+        p.box((s * 0.079, -0.02, -0.22), (0.022, 0.16, 0.26), 'jet2', bevel=True)
+        _hexp(p, (s * 0.09, -0.02, -0.17), '+x' if s > 0 else '-x', 0.028, 0.005, 'plate')
+        _bolt(p, (s * 0.087, -0.08, -0.31), '+x' if s > 0 else '-x')
+        _bolt(p, (s * 0.087, 0.04, -0.31), '+x' if s > 0 else '-x')
+    p.build('BOT_JET_Thigh', bevel=False)
+
+    # ---- shin + foot (origin on the knee): layered knee cap, shin guard, side plates, calf piston, armoured boot
+    p = Part(pal)
+    p.sphere((0, 0, 0), 0.07, 'gunmetal', seg=(10, 6))
+    sprism(p, [(-0.115, 0.07), (-0.13, -0.07), (-0.075, -0.13), (-0.01, -0.06), (-0.01, 0.07)], -0.075, 0.075, 'jet', bevel=True)
+    sprism(p, [(-0.14, 0.03), (-0.145, -0.05), (-0.11, -0.08), (-0.10, 0.03)], -0.045, 0.045, 'jet2')
+    p.box((0, -0.147, -0.01), (0.04, 0.008, 0.04), 'plate', deco=True)
+    p.limb((0, 0, -0.05), (0, 0, -0.43), 0.056, 0.048, 'jet3')
+    p.box((0, 0.07, -0.13), (0.08, 0.06, 0.10), 'jet2')
+    p.limb((0, 0.06, -0.18), (0, 0.05, -0.40), 0.018, 0.018, 'steel', seg=6)                      # calf piston
+    sprism(p, [(-0.09, -0.13), (-0.075, -0.41), (0.0, -0.43), (0.0, -0.14)], -0.068, 0.068, 'jet', bevel=True)
+    p.box((0, -0.088, -0.20), (0.11, 0.008, 0.008), 'ink', deco=True)
+    p.box((0, -0.0825, -0.335), (0.11, 0.008, 0.008), 'ink', deco=True)
+    p.box((0, -0.0855, -0.27), (0.03, 0.008, 0.09), 'plate2', deco=True)
+    for s in (-1, 1):
+        p.box((s * 0.079, -0.01, -0.27), (0.022, 0.13, 0.22), 'jet2')
+        _bolt(p, (s * 0.087, -0.05, -0.18), '+x' if s > 0 else '-x')
+        _hexp(p, (s * 0.09, 0.0, -0.32), '+x' if s > 0 else '-x', 0.024, 0.005, 'plate')
+    p.sphere((0, 0, -0.46), 0.05, 'gunmetal', seg=(8, 5))
+    sprism(p, [(-0.21, -0.54), (-0.18, -0.46), (-0.05, -0.44), (0.10, -0.47), (0.12, -0.54)], -0.08, 0.08, 'jet2', bevel=True)
+    sprism(p, [(-0.225, -0.53), (-0.20, -0.475), (-0.12, -0.465), (-0.11, -0.53)], -0.065, 0.065, 'jet')
+    p.box((0, 0.11, -0.50), (0.10, 0.05, 0.07), 'gunmetal')
+    p.box((0, -0.045, -0.545), (0.15, 0.31, 0.008), 'ink', deco=True)
+    p.build('BOT_JET_Shin', bevel=False)
+
+    # ---- torso (origin on the waist): segmented abdomen, a broad chest with layered pecs and a sternum plate, the gold
+    # reactor (weak point), layered pauldrons with the shoulder line, the jet back unit (tanks, vents, nozzles, arm hinges)
+    sx_, sy_, sz_ = J_SHOULDER
+    p = Part(pal)
+    p.cyl((0, 0, -0.06), 0.13, 0.15, 0.26, 'jet3', seg=8)
+    for i, z in enumerate((0.0, 0.065, 0.13)):
+        p.box((0, -0.115, z), (0.22 - 0.012 * i, 0.06, 0.05), 'jet2')                 # abdomen segments
+    sprism(p, [(-0.17, 0.16), (-0.19, 0.44), (-0.09, 0.56), (0.15, 0.56), (0.16, 0.18)], -0.235, 0.235, 'jet', bevel=True)
+    for s in (-1, 1):
+        sprism(p, [(-0.205, 0.29), (-0.215, 0.46), (-0.15, 0.52), (-0.12, 0.42), (-0.15, 0.28)], s * 0.025, s * 0.20, 'jet2')
+        _bolt(p, (s * 0.17, -0.2105, 0.42), '-y')
+    sprism(p, [(-0.193, 0.20), (-0.20, 0.30), (-0.15, 0.31), (-0.15, 0.19)], -0.07, 0.07, 'jet3')
+    p.cyl((0, -0.196, 0.255), 0.05, 0.05, 0.03, 'core', seg=10, rot=(90, 0, 0))
+    p.cyl((0, -0.192, 0.255), 0.064, 0.064, 0.022, 'gunmetal', seg=10, rot=(90, 0, 0), caps=False, deco=True)
+    p.cyl((0, 0, 0.52), 0.11, 0.10, 0.08, 'jet3', seg=8)                                          # collar
+    p.cyl((0, 0, 0.555), 0.115, 0.115, 0.016, 'gunmetal', seg=8, caps=False, deco=True)
+    p.box((0, -0.176, 0.185), (0.30, 0.008, 0.012), 'ink', deco=True)
+    for s in (-1, 1):
+        _hexp(p, (s * 0.165, -0.178, 0.235), '-y', 0.03, 0.006, 'plate')
+        # pauldron: main block, top layer with the shoulder line, a lower lip, bolts, a hex on the front
+        p.parent = Matrix.Translation((s * sx_, sy_, sz_)) @ Matrix.Rotation(math.radians(-s * 12), 4, 'Y')
+        p.box((0, 0, 0.05), (0.22, 0.28, 0.15), 'jet')
+        p.box((0, 0, 0.135), (0.18, 0.24, 0.03), 'jet2')
+        p.box((s * 0.02, 0, -0.045), (0.20, 0.26, 0.05), 'jet2')
+        p.box((0, 0, 0.1535), (0.15, 0.22, 0.008), 'plate', deco=True)                           # shoulder line
+        p.box((s * 0.1135, 0.0, 0.06), (0.008, 0.24, 0.025), 'plate', deco=True)
+        for y in (-0.09, 0.09):
+            _bolt(p, (s * 0.107, y, 0.0), '+x' if s > 0 else '-x')
+        _hexp(p, (0, -0.14, 0.05), '-y', 0.034, 0.006, 'plate2')
+        p.parent = Matrix.Identity(4)
+    # back unit
+    p.box((0, 0.25, 0.31), (0.40, 0.16, 0.38), 'jet2')
+    p.box((0, 0.335, 0.30), (0.30, 0.03, 0.26), 'jet3')
+    for z in (0.22, 0.255, 0.29, 0.325):
+        p.box((0, 0.3535, z), (0.22, 0.008, 0.012), 'ink', deco=True)                               # vent slats
+    p.box((0, 0.3535, 0.40), (0.20, 0.008, 0.02), 'plate', deco=True)
+    for s in (-1, 1):
+        p.cyl((s * 0.215, 0.25, 0.16), 0.045, 0.045, 0.30, 'jet3', seg=8)                          # side tanks
+        p.cyl((s * 0.215, 0.25, 0.30), 0.05, 0.05, 0.02, 'plate2', seg=8, caps=False, deco=True)
+        nx, ny, nz = J_NOZ
+        p.cyl((s * nx, ny, nz + 0.05), 0.05, 0.065, 0.14, 'gunmetal', seg=10)                      # nozzle
+        p.cyl((s * nx, ny, nz), 0.06, 0.052, 0.06, 'jet3', seg=10)                                  # bell
+        p.cyl((s * nx, ny, nz + 0.11), 0.07, 0.07, 0.03, 'plate', seg=10, caps=False, deco=True)  # nozzle ring
+        ax, ay, az = J_ARM
+        p.box((s * ax, 0.25, az), (0.14, 0.13, 0.008), 'ink', deco=True)                           # arm slot
+        p.box((s * ax, ay - 0.006, az + 0.012), (0.09, 0.05, 0.02), 'gunmetal')                           # hinge block
+    torso = p.build('BOT_JET_Torso', bevel=True)
+    socket('BOT_JET_CORE', torso, (0, -0.215, 0.255))
+    socket('BOT_JET_NECK', torso, J_NECK)
+    socket('BOT_JET_SHOULDER0', torso, (-sx_, sy_, sz_))
+    socket('BOT_JET_SHOULDER1', torso, (sx_, sy_, sz_))
+    for i, s in enumerate((-1, 1)):
+        socket('BOT_JET_ARM%d' % i, torso, (s * J_ARM[0], J_ARM[1], J_ARM[2] + 0.02))
+        socket('BOT_JET_NOZ%d' % i, torso, (s * J_NOZ[0], J_NOZ[1], J_NOZ[2] - 0.01))
+
+    # ---- glowing seams (light material, element colour; origin on the waist like the torso)
+    p = Part(pal)
+    for z in (0.0325, 0.0975):
+        p.box((0, -0.138, z), (0.17, 0.01, 0.008), 'light')
+    p.box((0, -0.19, 0.405), (0.014, 0.012, 0.12), 'light')
+    for s in (-1, 1):
+        nx, ny, nz = J_NOZ
+        p.cyl((s * nx, ny, nz - 0.006), 0.042, 0.042, 0.004, 'light', seg=10)                      # nozzle cores
+    strip_hull(p.build('BOT_JET_Seam', bevel=False, hull=0.003))
+
+    # ---- head (origin on the neck): a sensor-slit helmet, no face: helmet shell, crest, faceplate with one slit,
+    # ear modules, chin guard, antenna, panel lines
+    p = Part(pal)
+    p.cyl((0, 0, -0.05), 0.065, 0.07, 0.10, 'jet3', seg=8)
+    p.cyl((0, 0, -0.02), 0.076, 0.076, 0.02, 'gunmetal', seg=8, caps=False, deco=True)
+    sprism(p, [(-0.15, 0.04), (-0.135, 0.20), (-0.05, 0.26), (0.10, 0.25), (0.14, 0.16), (0.12, 0.03)], -0.115, 0.115, 'jet', bevel=True)
+    sprism(p, [(-0.10, 0.24), (-0.04, 0.285), (0.11, 0.27), (0.12, 0.22)], -0.025, 0.025, 'jet2')
+    sprism(p, [(-0.165, 0.06), (-0.155, 0.16), (-0.12, 0.17), (-0.13, 0.05)], -0.09, 0.09, 'jet2', bevel=True)
+    sprism(p, [(-0.14, 0.02), (-0.13, 0.07), (-0.06, 0.07), (-0.07, 0.0)], -0.075, 0.075, 'jet3')
+    p.box((0, -0.162, 0.125), (0.15, 0.008, 0.022), 'ink', deco=True)                               # the sensor slit
+    for s in (-1, 1):
+        p.cyl((s * 0.112, -0.01, 0.12), 0.045, 0.045, 0.033, 'gunmetal', seg=8, rot=(0, s * 90, 0))   # ear modules
+        p.cyl((s * 0.142, -0.01, 0.12), 0.03, 0.03, 0.008, 'plate', seg=8, rot=(0, s * 90, 0), deco=True)
+        p.box((s * 0.1185, 0.03, 0.205), (0.008, 0.16, 0.008), 'ink', deco=True)
+    p.cyl((0.075, 0.09, 0.2), 0.008, 0.008, 0.15, 'ink', seg=4)
+    p.sphere((0.075, 0.09, 0.355), 0.013, 'plate', seg=(6, 4))
+    head = p.build('BOT_JET_Head', bevel=True)
+    socket('BOT_JET_SLIT', head, (0, -0.168, 0.125))
+    p = Part(pal)
+    p.box((0, 0, 0), (0.13, 0.006, 0.012), 'light')
+    p.build('BOT_JET_Light', bevel=False, hull=0.004)
+
+    # ---- arms (origin on the shoulder); the right one carries the bullet launcher, held low, barrels along -Y
+    p = Part(pal)
+    _jet_arm(p, J_HAND_R, (0.2, 1.0, -0.3), 0.30, 0.32, -1)
+    hx, hy, hz = J_HAND_R
+    p.box((hx, hy, hz), (0.09, 0.09, 0.09), 'jet2', bevel=True)                                   # fist
+    p.box((hx, hy - 0.10, hz + 0.065), (0.10, 0.40, 0.11), 'gunmetal', bevel=True)               # receiver
+    p.box((hx, hy - 0.10, hz + 0.126), (0.04, 0.30, 0.012), 'jet3')                               # top rail
+    for k in range(5):
+        p.box((hx, hy - 0.22 + 0.06 * k, hz + 0.1355), (0.05, 0.012, 0.008), 'ink', deco=True)
+    p.box((hx, hy - 0.17, hz - 0.055), (0.06, 0.09, 0.15), 'jet2', rot=(-12, 0, 0))             # magazine
+    p.box((hx + 0.0335, hy - 0.17, hz - 0.06), (0.008, 0.05, 0.09), 'plate', rot=(-12, 0, 0), deco=True)
+    p.box((hx, hy - 0.40, hz + 0.07), (0.09, 0.22, 0.09), 'jet', bevel=True)                      # barrel shroud
+    for k in range(4):
+        for s in (-1, 1):
+            p.box((hx + s * 0.0485, hy - 0.33 - 0.045 * k, hz + 0.07), (0.008, 0.02, 0.05), 'ink', deco=True)   # vents
+        p.box((hx, hy - 0.34 - 0.05 * k, hz + 0.1185), (0.06, 0.016, 0.008), 'ink', deco=True)
+    for sx in (-0.022, 0.022):
+        p.cyl((hx + sx, hy - 0.50, hz + 0.07), 0.017, 0.017, 0.17, 'steel', seg=6, rot=(90, 0, 0))   # twin barrels
+        p.cyl((hx + sx, hy - 0.655, hz + 0.07), 0.022, 0.022, 0.014, 'plate', seg=8, rot=(90, 0, 0), caps=False, deco=True)   # cannon tips
+    p.box((hx, hy - 0.62, hz + 0.07), (0.10, 0.05, 0.075), 'gunmetal')                           # muzzle brake
+    for s in (-1, 1):
+        p.box((hx + s * 0.0535, hy - 0.62, hz + 0.07), (0.008, 0.03, 0.04), 'ink', deco=True)
+        p.box((hx + s * 0.0545, hy - 0.10, hz + 0.075), (0.008, 0.26, 0.02), 'plate', deco=True)   # element stripes
+    ar = p.build('BOT_JET_ArmR', bevel=False)
+    socket('BOT_JET_MUZZLE', ar, (hx, hy - 0.69, hz + 0.07))
+
+    p = Part(pal)
+    _jet_arm(p, J_HAND_L, (-0.2, 1.0, -0.3), 0.31, 0.31, 1)
+    hx, hy, hz = J_HAND_L
+    p.box((hx, hy, hz + 0.01), (0.085, 0.10, 0.08), 'jet2', bevel=True)                           # hand
+    for x in (-0.025, 0.0, 0.025):
+        p.box((hx + x, hy - 0.042, hz - 0.06), (0.018, 0.03, 0.07), 'gunmetal')                     # claw fingers
+    p.box((hx + 0.05, hy - 0.01, hz - 0.03), (0.02, 0.03, 0.06), 'gunmetal')                        # thumb
+    p.box((hx, hy, hz + 0.0555), (0.05, 0.06, 0.008), 'plate', deco=True)
+    p.build('BOT_JET_ArmL', bevel=False)
+
+    # ---- pod arm (origin = its hinge on the back unit): a telescoping strut that raises the pod (the game stretches
+    # it along its length while the pod rises), a piston, a bracket at the top (socket BOT_JET_PODTOP)
+    p = Part(pal)
+    p.cyl((-0.035, 0, 0), 0.028, 0.028, 0.07, 'gunmetal', seg=8, rot=(0, 90, 0))
+    p.box((0, 0, 0.12), (0.05, 0.04, 0.22), 'jet3')
+    p.box((0, 0, 0.175), (0.034, 0.054, 0.12), 'steel')
+    p.limb((0, 0.03, 0.02), (0, 0.03, 0.20), 0.011, 0.011, 'steel', seg=6)
+    p.box((0, 0, 0.255), (0.07, 0.06, 0.03), 'gunmetal')
+    p.box((0, -0.0245, 0.07), (0.02, 0.008, 0.08), 'plate2', deco=True)
+    arm = p.build('BOT_JET_PodArm', bevel=False, hull=0.008)
+    socket('BOT_JET_PODTOP', arm, (0, 0, J_ARM_LEN))
+
+    # ---- rocket pod (origin = its mount on the arm): a box with layered top armour, side rails, three tubes along -Y
+    # with accent rims and rocket tips inside; the lid hinges on the top front edge
+    p = Part(pal)
+    p.box((0, -0.07, 0.10), (0.22, 0.34, 0.18), 'jet2', bevel=True)
+    p.box((0, -0.05, 0.198), (0.18, 0.26, 0.02), 'jet')
+    _hexp(p, (0, -0.13, 0.208), '+z', 0.028, 0.005, 'plate')
+    for x in (-0.07, 0.07):
+        _bolt(p, (x, 0.04, 0.205), '+z')
+    for s in (-1, 1):
+        p.box((s * 0.115, -0.07, 0.10), (0.012, 0.30, 0.05), 'jet3')
+        p.box((s * 0.125, -0.07, 0.10), (0.008, 0.20, 0.02), 'plate', deco=True)
+    p.box((0, 0.105, 0.10), (0.16, 0.012, 0.12), 'ink', deco=True)                                # rear exhaust grille
+    for x in (-0.068, 0.0, 0.068):
+        p.cyl((x, -0.24, 0.10), 0.032, 0.032, 0.02, 'jet3', seg=8, rot=(90, 0, 0))                # tube mouth
+        p.cyl((x, -0.25, 0.10), 0.036, 0.036, 0.014, 'plate', seg=8, rot=(90, 0, 0), caps=False, deco=True)   # rim
+        p.cyl((x, -0.2615, 0.10), 0.024, 0.024, 0.004, 'ink', seg=8, rot=(90, 0, 0), deco=True)     # bore
+        p.cyl((x, -0.252, 0.10), 0.017, 0.0, 0.02, 'red', seg=8, rot=(90, 0, 0), deco=True)         # rocket tip
+    p.box((0, 0.0, 0.0), (0.08, 0.06, 0.03), 'gunmetal')                                         # mount
+    pod = p.build('BOT_JET_Pod', bevel=False)
+    socket('BOT_JET_LID', pod, (0, -0.28, 0.19))
+    for k, x in enumerate((-0.068, 0.0, 0.068)):
+        socket('BOT_JET_TUBE%d' % k, pod, (x, -0.30, 0.10))
+    # lid (origin = hinge): outer plate with a stripe and bolts, the inner face in the accent colour
+    p = Part(pal)
+    p.box((0, -0.012, -0.09), (0.23, 0.02, 0.18), 'jet')
+    p.box((0, -0.0255, -0.09), (0.13, 0.008, 0.022), 'plate', deco=True)
+    p.box((0, 0.0015, -0.09), (0.19, 0.008, 0.15), 'plate', deco=True)
+    for x in (-0.09, 0.09):
+        _bolt(p, (x, -0.019, -0.03), '-y', 0.008)
+    p.build('BOT_JET_Lid', bevel=False)
+
+    # ---- jet flame (origin = nozzle exit, pointing down): drawn in the light material, scaled by the thrust
+    p = Part(pal)
+    p.cyl((0, 0, -0.42), 0.0, 0.055, 0.42, 'jetglow', seg=8)
+    p.build('BOT_JET_Flame', bevel=False, hull=0.004)
+
+
 # ================================================================ BOTS
 def build_bots(ao):
     pal = Palette('bots')
@@ -1006,6 +1380,8 @@ def build_bots(ao):
     build_blader(pal)
     build_crawler2(pal)
     build_hawk(pal)
+    build_kusari(pal)
+    build_jet(pal)
     export('bots')
 
 

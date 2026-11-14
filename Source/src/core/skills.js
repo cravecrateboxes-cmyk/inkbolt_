@@ -176,7 +176,12 @@
     while (lv < IB.PLAYER_LEVEL_CAP && xp >= IB.XP.need(lv + 1)) lv++;
     return lv;
   }
-  function killXp(type, L) { var b = IB.XP.kill[type] || IB.XP.killDefault; return Math.round(b * (1 + IB.XP.levelMul * (Math.max(1, L || 1) - 1))); }
+  function killXp(type, L) {
+    var b = IB.XP.kill[type] || IB.XP.killDefault;
+    // levels 30+: the Crawlers thin out (levelplans.js crawlerShare), each one pays that much more (the level's XP holds)
+    if (type === 'crawler' && IB.crawlerShare) b /= IB.crawlerShare(L || 1);
+    return Math.round(b * (1 + IB.XP.levelMul * (Math.max(1, L || 1) - 1)));
+  }
   function clearXp(L) { return IB.XP.clear(L); }
   // a save slot's level-ups gained (what the skill functions take)
   function gained(slot) { return levelFromXp(slot && slot.xp) - 1; }
