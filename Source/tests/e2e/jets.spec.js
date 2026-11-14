@@ -172,7 +172,7 @@ function serve() {
           if (mode === 'dodge' && r.act === 'tell') dir = i % 2 ? -1 : 1;
         });
         o.ticks += r.kTicks; o.hits += r.kHits; o.dmg += __hits.filter(h => h.type === 'blader').reduce((a, h) => a + h.d, 0);
-        o.chain = o.chain || (IB.AI.types.blader.parts.Chain.mesh.visible && IB.AI.types.blader.parts.Kusari.mesh.visible && IB.AI.types.blader.parts.Fundo.mesh.visible);
+        o.chain = o.chain || (IB.AI.types.blader.parts.Chain.mesh.visible && (IB.AI.types.blader.parts.Kusari.mesh.visible || (IB.AI.types.blader.parts.Kusari2 && IB.AI.types.blader.parts.Kusari2.mesh.visible)) && IB.AI.types.blader.parts.Fundo.mesh.visible);
       }
       o.dmg = +o.dmg.toFixed(1);
       out[mode] = o;

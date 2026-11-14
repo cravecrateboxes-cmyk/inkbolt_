@@ -413,12 +413,18 @@
 
   // ======================================================================= BLADE BOT
   function bk(n) { return K.sock('BOT_BLADER_' + n); }
+  var BWEAP = ['Katana', 'Axe', 'Kusari', 'Katana2', 'Axe2', 'Kusari2'];
+  function bladerHide(P, keep) { for (var i = 0; i < BWEAP.length; i++) if (BWEAP[i] !== keep) P.hide(BWEAP[i], 0); }
   VIS.blader = {
     radius: 0.48, y0: 0.15, y1: 0.95, coreR: 0.16, shadow: 0.6, eye: 0.6, home: 'stalk',
     parts: { Body: { count: 1, asset: 'BOT_BLADER_Body' }, Hub: { count: 1, asset: 'BOT_BLADER_Hub' },
       Katana: { count: 1, asset: 'BOT_BLADER_Katana', opt: true }, Axe: { count: 1, asset: 'BOT_BLADER_Axe', opt: true },
       Fundo: { count: 1, asset: 'BOT_BLADER_Fundo', opt: true }, Kusari: { count: 1, asset: 'BOT_BLADER_Kusari', opt: true },
       Chain: { count: KCHAIN, asset: 'BOT_BLADER_Chain', opt: true },
+      // the levels 30+ skin (AI.bladerSkin): same sockets, pivots and hit volumes; the chain and the weight are shared
+      Body2: { count: 1, asset: 'BOT_BLADER_Body2', opt: true }, Hub2: { count: 1, asset: 'BOT_BLADER_Hub2', opt: true },
+      Katana2: { count: 1, asset: 'BOT_BLADER_Katana2', opt: true }, Axe2: { count: 1, asset: 'BOT_BLADER_Axe2', opt: true },
+      Kusari2: { count: 1, asset: 'BOT_BLADER_Kusari2', opt: true },
       Light: { count: 1, light: true, asset: 'BOT_BLADER_Light' } },
     sockets: function (v) {
       var c = bk('CORE'); v.coreY = c[1]; v.coreZ = c[2];
@@ -430,19 +436,19 @@
       r.reach = r.weaponId === 'eaxe' ? 1.32 : 1.5;
       kusariInit(r);
       r.hub = Math.random() * TAU; r.spinV = 3; r.bspin = 0; r.bspinV = 0; r.act = ''; r.hitT = 0; r.lean = 0; r.dashX = 0; r.dashZ = 1;
-      r.swishT = 0; r.starT = 0;
+      r.swishT = 0; r.starT = 0; r.skin = AI.bladerSkin ? AI.bladerSkin(AI.level || 1) : 0;
     },
     onDamage: function (r, dmg) { return r.state === 'recover' && r.act === 'dash' ? dmg * stat(r, 'dizzyMul', 1.35) : dmg; },
     noStagger: function (r) { return r.state === 'windup' || r.state === 'attack'; },
     onPlayerKill: function (r) { if (IB.WeaponDrops && IB.WeaponDrops.melee) IB.WeaponDrops.melee(r, r.weaponId); },
     pose: function (r, P) {
-      var v = VIS.blader, bob = Math.sin(r.idleT * 2.6 + r.slot) * 0.03 - r.crouch * 0.08;
-      P.root().t(0, bob, 0).ry(r.bspin).rx(r.lean).rz(r.wob).emit('Body', 0);
+      var v = VIS.blader, bob = Math.sin(r.idleT * 2.6 + r.slot) * 0.03 - r.crouch * 0.08, s2 = r.skin === 1 ? '2' : '';
+      P.root().t(0, bob, 0).ry(r.bspin).rx(r.lean).rz(r.wob).emit('Body' + s2, 0).hide(s2 ? 'Body' : 'Body2', 0).hide(s2 ? 'Hub' : 'Hub2', 0);
       P.push().tv(v.light).emit('Light', 0).pop();
-      if (r.weaponId === 'kusari') { poseKusari(r, P, v); return; }
-      var wn = r.weaponId === 'eaxe' ? 'Axe' : 'Katana';
-      P.tv(v.hub).ry(r.hub).emit('Hub', 0).tv(v.grip).rx(0.45).emit(wn, 0).hide(wn === 'Axe' ? 'Katana' : 'Axe', 0);
-      P.hide('Fundo', 0).hide('Kusari', 0); for (var ci = 0; ci < KCHAIN; ci++) P.hide('Chain', ci);
+      if (r.weaponId === 'kusari') { poseKusari(r, P, v, s2); return; }
+      var wn = (r.weaponId === 'eaxe' ? 'Axe' : 'Katana') + s2;
+      P.tv(v.hub).ry(r.hub).emit('Hub' + s2, 0).tv(v.grip).rx(0.45).emit(wn, 0);
+      bladerHide(P, wn); P.hide('Fundo', 0); for (var ci = 0; ci < KCHAIN; ci++) P.hide('Chain', ci);
     },
     lightColor: function (r) {
       if (r.state === 'windup' || r.state === 'attack') return (r.st * 16 | 0) % 2 ? PAL.red : PAL.paper;
@@ -675,13 +681,15 @@
   }
   /* pose: the hub and the weight in the clamp (level), then the chain and the sickle in world space */
   var _km = null, _kq = null, _kv = null, _ks = null, _kx = null, _ky = null, _kz = null, _kup = null, _kp = [];
-  function poseKusari(r, P, v) {
+  function poseKusari(r, P, v, s2) {
     if (!_km) {
       _km = new THREE.Matrix4(); _kq = new THREE.Quaternion(); _kv = new THREE.Vector3(0, 0, 1); _ks = new THREE.Vector3(); _kx = new THREE.Vector3();
       _ky = new THREE.Vector3(); _kz = new THREE.Vector3(); _kup = new THREE.Vector3(0, 1, 0);
       for (var q = 0; q <= KCHAIN; q++) _kp.push(new THREE.Vector3());
     }
-    P.tv(v.hub).ry(r.hub).emit('Hub', 0).tv(v.grip).emit('Fundo', 0).tv(v.chain).pos(r.cs).hide('Katana', 0).hide('Axe', 0);
+    s2 = s2 || '';
+    P.tv(v.hub).ry(r.hub).emit('Hub' + s2, 0).tv(v.grip).emit('Fundo', 0).tv(v.chain).pos(r.cs);
+    bladerHide(P, 'Kusari' + s2);
     var a = r.cs, b = r.ks, Lx = b.x - a.x, Ly = b.y - a.y, Lz = b.z - a.z, L = Math.hypot(Lx, Ly, Lz) || 0.001;
     var n = Math.max(2, Math.min(KCHAIN, Math.ceil(L / 0.2))), i;
     // a bend: the whirling chain trails its sweep, a thrown one ripples, a hanging one barely curves
@@ -704,7 +712,7 @@
     _kx.addScaledVector(_kz, -_kx.dot(_kz)); if (_kx.lengthSq() < 1e-6) _kx.set(1, 0, 0); _kx.normalize();
     _ky.crossVectors(_kz, _kx);
     _km.makeBasis(_kx, _ky, _kz).setPosition(b.x, b.y, b.z);
-    P.mat(_km).emit('Kusari', 0);
+    P.mat(_km).emit('Kusari' + s2, 0);
   }
 
 

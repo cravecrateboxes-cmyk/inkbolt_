@@ -25,6 +25,8 @@
       'BOT_HAWK_CORE', 'BOT_HAWK_FAN0', 'BOT_HAWK_FAN1', 'BOT_HAWK_GUNPIVOT', 'BOT_HAWK_GUN', 'BOT_HAWK_LIGHT',
       // the Blade Bot's kusarigama (weight, chain segment, sickle)
       'BOT_BLADER_Fundo', 'BOT_BLADER_Chain', 'BOT_BLADER_Kusari', 'BOT_BLADER_CHAIN',
+      // levels 30+: the Blade Bot's advanced skin (same sockets as the normal skin)
+      'BOT_BLADER_Body2', 'BOT_BLADER_Hub2', 'BOT_BLADER_Katana2', 'BOT_BLADER_Axe2', 'BOT_BLADER_Kusari2',
       // levels 35+: the Jet Trooper (game/jets.js)
       'BOT_JET_Hips', 'BOT_JET_Thigh', 'BOT_JET_Shin', 'BOT_JET_Torso', 'BOT_JET_Seam', 'BOT_JET_Head', 'BOT_JET_Light', 'BOT_JET_ArmR', 'BOT_JET_ArmL',
       'BOT_JET_PodArm', 'BOT_JET_Pod', 'BOT_JET_Lid', 'BOT_JET_Flame',
@@ -70,22 +72,26 @@
       Cloud_A: 300, Cloud_B: 300, Cloud_C: 300, Hill: 300, Tree: 300, SpawnCan: 300, TrailArrow: 300,
       KIT_TOYTOWN_Landmark_WaterTower: 4000 },
     robots: {
-      crawler: { parts: { BOT_CRAWLER_Body: 1, BOT_CRAWLER_Leg: 4, BOT_CRAWLER_Light: 1 }, max: 2800 },
-      gunner: { parts: { BOT_GUNNER_Body: 1, BOT_GUNNER_Lid: 1, BOT_GUNNER_Gun: 1, BOT_GUNNER_Wheel: 2, BOT_GUNNER_Light: 1 }, max: 3800 },
-      bomber: { parts: { BOT_BOMBER_Body: 1, BOT_BOMBER_Roller: 1, BOT_BOMBER_Cap: 1, BOT_BOMBER_Light: 1 }, max: 3000 },
+      crawler: { parts: { BOT_CRAWLER_Body: 1, BOT_CRAWLER_Leg: 4, BOT_CRAWLER_Light: 1 }, max: 3200 },
+      gunner: { parts: { BOT_GUNNER_Body: 1, BOT_GUNNER_Lid: 1, BOT_GUNNER_Gun: 1, BOT_GUNNER_Wheel: 2, BOT_GUNNER_Light: 1 }, max: 4500 },
+      bomber: { parts: { BOT_BOMBER_Body: 1, BOT_BOMBER_Roller: 1, BOT_BOMBER_Cap: 1, BOT_BOMBER_Light: 1 }, max: 3500 },
       drone: { parts: { BOT_DRONE_Body: 1, BOT_DRONE_Lid: 1, BOT_DRONE_Rotor: 4, BOT_DRONE_Gun: 1, BOT_DRONE_Light: 1 }, max: 3450 },
       // Soldier: one torso and one helmet of each shape set (variants are separate meshes, one drawn per robot)
       soldier: { parts: { BOT_SOLDIER_Hips: 1, BOT_SOLDIER_Thigh: 2, BOT_SOLDIER_Shin: 2, BOT_SOLDIER_TorsoA: 1, BOT_SOLDIER_HelmA: 1, BOT_SOLDIER_Visor: 1, BOT_SOLDIER_ArmR: 1, BOT_SOLDIER_ArmL: 1 }, max: 4500 },
       soldierHeavy: { parts: { BOT_SOLDIER_Hips: 1, BOT_SOLDIER_Thigh: 2, BOT_SOLDIER_Shin: 2, BOT_SOLDIER_TorsoB: 1, BOT_SOLDIER_HelmC: 1, BOT_SOLDIER_Visor: 1, BOT_SOLDIER_ArmR: 1, BOT_SOLDIER_ArmL: 1 }, max: 5400 },
       soldierB: { parts: { BOT_SOLDIER_HelmB: 1 }, max: 950 },
-      blader: { parts: { BOT_BLADER_Body: 1, BOT_BLADER_Hub: 1, BOT_BLADER_Katana: 1, BOT_BLADER_Light: 1 }, max: 3500 },
-      bladerAxe: { parts: { BOT_BLADER_Body: 1, BOT_BLADER_Hub: 1, BOT_BLADER_Axe: 1, BOT_BLADER_Light: 1 }, max: 3500 },
+      blader: { parts: { BOT_BLADER_Body: 1, BOT_BLADER_Hub: 1, BOT_BLADER_Katana: 1, BOT_BLADER_Light: 1 }, max: 3900 },
+      bladerAxe: { parts: { BOT_BLADER_Body: 1, BOT_BLADER_Hub: 1, BOT_BLADER_Axe: 1, BOT_BLADER_Light: 1 }, max: 3950 },
       nade: { parts: { BOT_SOLDIER_Nade: 1 }, max: 300 },
       // levels 20+
-      crawler2: { parts: { BOT_CRAWLER_Body2: 1, BOT_CRAWLER_Leg2: 4, BOT_CRAWLER_Light: 1, BOT_CRAWLER_Specks: 1 }, max: 4000 },
+      crawler2: { parts: { BOT_CRAWLER_Body2: 1, BOT_CRAWLER_Leg2: 4, BOT_CRAWLER_Light: 1, BOT_CRAWLER_Specks: 1 }, max: 4600 },
       hawk: { parts: { BOT_HAWK_Body: 1, BOT_HAWK_Fan: 2, BOT_HAWK_Rotor: 2, BOT_HAWK_Gun: 1, BOT_HAWK_Light: 1 }, max: 5400 },
       // the kusarigama Blade Bot: body, hub, weight, a full 16-segment chain and the sickle
-      bladerKusari: { parts: { BOT_BLADER_Body: 1, BOT_BLADER_Hub: 1, BOT_BLADER_Fundo: 1, BOT_BLADER_Chain: 16, BOT_BLADER_Kusari: 1, BOT_BLADER_Light: 1 }, max: 7000 },
+      bladerKusari: { parts: { BOT_BLADER_Body: 1, BOT_BLADER_Hub: 1, BOT_BLADER_Fundo: 1, BOT_BLADER_Chain: 16, BOT_BLADER_Kusari: 1, BOT_BLADER_Light: 1 }, max: 7300 },
+      // levels 30+: the Blade Bot's advanced skin, each weapon (chain and weight shared with the normal skin)
+      bladerSkin2: { parts: { BOT_BLADER_Body2: 1, BOT_BLADER_Hub2: 1, BOT_BLADER_Katana2: 1, BOT_BLADER_Light: 1 }, max: 4250 },
+      bladerSkin2Axe: { parts: { BOT_BLADER_Body2: 1, BOT_BLADER_Hub2: 1, BOT_BLADER_Axe2: 1, BOT_BLADER_Light: 1 }, max: 4550 },
+      bladerSkin2Kusari: { parts: { BOT_BLADER_Body2: 1, BOT_BLADER_Hub2: 1, BOT_BLADER_Fundo: 1, BOT_BLADER_Chain: 16, BOT_BLADER_Kusari2: 1, BOT_BLADER_Light: 1 }, max: 7850 },
       // levels 35+: the Jet Trooper, every part (two legs, two pods on their arms with lids, two flames)
       jet: { parts: { BOT_JET_Hips: 1, BOT_JET_Thigh: 2, BOT_JET_Shin: 2, BOT_JET_Torso: 1, BOT_JET_Seam: 1, BOT_JET_Head: 1, BOT_JET_Light: 1, BOT_JET_ArmR: 1,
         BOT_JET_ArmL: 1, BOT_JET_PodArm: 2, BOT_JET_Pod: 2, BOT_JET_Lid: 2, BOT_JET_Flame: 2 }, max: 12000 }

@@ -215,83 +215,81 @@ class Part:
 # Tin can on 4 spring legs, kitted out a touch tactical: corrugated tin, dark gunmetal rim and webbing belt with two
 # drab pouches, a bolted front plate under a hooded visor slot, whip + stub antennas (light), gold core dome (weak point).
 def build_crawler(pal):
+    import bot_shapes_ground as SG
+    PH, SEG = -math.pi / 16, 16       # 16-sided shell, facet centres every 22.5 deg (facet 12 = front -Y, 4 = back)
+    R = 0.326                         # shell radius on its straight part
+    PROF = [(0.0, 0.30), (0.27, 0.30), (0.316, 0.322), (R, 0.375), (0.334, 0.505), (R, 0.63), (0.302, 0.712), (0.0, 0.716)]
+    rz = lambda z: next(a[0] + (b[0] - a[0]) * (z - a[1]) / (b[1] - a[1]) for a, b in zip(PROF[2:], PROF[3:]) if z <= b[1])
+    fr = lambda k, z, r=None: ED.facet_frame(k, SEG, r or rz(z), z, phase=PH)
     p = Part(pal)
-    p.cyl((0, 0, 0.30), 0.32, 0.31, 0.42, 'tin', seg=10, bevel=True)
-    p.cyl((0, 0, 0.72), 0.35, 0.35, 0.05, 'trim', seg=10, bevel=True)                 # rolled top rim
-    p.box((0, -0.31, 0.60), (0.34, 0.07, 0.07), 'ink')                                  # sensor slot (front = -Y)
-    p.box((0, -0.349, 0.60), (0.22, 0.02, 0.03), 'amber')
-    p.sphere((0, 0, 0.77), 0.14, 'core', seg=(8, 4), scale=(1, 1, 0.6))
-    p.cyl((0.12, 0.08, 0.76), 0.018, 0.018, 0.3, 'ink', seg=3)
-    # deco: webbing belt + pouches, corrugation ridges, front plate, visor hood, seam rivets, stub antenna, core seat ring
-    p.cyl((0, 0, 0.405), 0.335, 0.335, 0.065, 'trim', seg=10, caps=False, deco=True)
-    p.cyl((0, 0, 0.585), 0.326, 0.326, 0.016, 'tin2', seg=10, caps=False, deco=True)
-    for k in (4, 0):                                                                     # pouches hung on the belt
-        p.on_facet(k, 10, 0.335, 0.002, 0.405, (0.13, 0.055, 0.12), 'pouch')
-    p.on_facet(7, 10, 0.32, 0.003, 0.505, (0.22, 0.012, 0.09), 'tin3')                 # bolted front plate
-    for x in (-0.085, 0.085):
-        p.box((x, -0.3225, 0.505), (0.022, 0.012, 0.022), 'trim', deco=True)
-    p.box((0, -0.322, 0.649), (0.38, 0.10, 0.024), 'trim', rot=(-8, 0, 0), deco=True)   # visor hood over the slot
-    p.cyl((-0.15, 0.09, 0.755), 0.014, 0.014, 0.13, 'ink', seg=4, deco=True)            # stub antenna
-    p.box((-0.15, 0.09, 0.895), (0.04, 0.04, 0.03), 'trim', deco=True)
-    for z in (0.47, 0.54):
-        p.on_facet(8, 10, 0.32, 0.003, z, (0.022, 0.008, 0.022), 'tin2')                # seam rivets
-    p.cyl((0, 0, 0.77), 0.152, 0.152, 0.02, 'gunmetal', seg=10, caps=False, deco=True)
-    # detail pass: rolled base bead, hip mounts with pivot pins, lid bolts, hinge and latch, a bezel round the sensor
-    # slot, back vent and rivets, pouch flaps and buckles, hazard stencil, serial plate, antenna collar, lamp holder
-    rz = lambda z: 0.32 - (z - 0.30) * (0.01 / 0.42)                                   # can radius at height z
-    p.cyl((0, 0, 0.318), 0.327, 0.327, 0.022, 'trim', seg=10, caps=False, deco=True)
-    for x, y in [(-0.25, -0.25), (0.25, -0.25), (0.25, 0.25), (-0.25, 0.25)]:
-        a = math.atan2(y, x)
+    # sculpted can: rounded base, straight corrugated wall, rolled shoulder under a domed rim; gold core dome on top
+    p.lathe(PROF, 'tin', seg=SEG, phase=PH)
+    p.lathe([(0.0, 0.712), (0.342, 0.716), (0.354, 0.742), (0.33, 0.77), (0.0, 0.79)], 'trim', seg=SEG, phase=PH)
+    p.sphere((0, 0, 0.77), 0.14, 'core', seg=(12, 5), scale=(1, 1, 0.6))
+    p.cyl((0.12, 0.08, 0.76), 0.018, 0.018, 0.3, 'ink', seg=6)                          # whip antenna (light)
+    SG.arc_plate(p, 0.30, 0.352, 0.565, 0.635, 238, 302, 4, 'ink', c=0.012)                # wrap-around sensor visor
+    # ---- deco: visor lens, brow and lip, webbing belt + pouches, corrugation ridge, base bead, core seat
+    SG.arc_plate(p, 0.345, 0.357, 0.585, 0.615, 246, 294, 4, 'amber', deco=True)
+    SG.arc_plate(p, 0.30, 0.37, 0.64, 0.656, 234, 306, 4, 'trim', c=0.006, deco=True)
+    p.lathe([(0.338, 0.3725), (0.338, 0.4375)], 'trim', seg=SEG, phase=PH, deco=True)
+    p.lathe([(0.337, 0.577), (0.337, 0.593)], 'tin2', seg=SEG, phase=PH, deco=True)
+    p.lathe([(0.152, 0.763), (0.152, 0.79)], 'gunmetal', seg=SEG, deco=True)
+    for k in (7, 1):                                                                     # rounded pouches on the belt
+        with ED.at(p, fr(k, 0.405, 0.338)):
+            SG.rbox(p, (0, -0.005, 0.025), (0.13, 0.12, 0.054), 'pouch', r=0.022, n=1, c=0.012, deco=True)
+            p.box((0, 0.03, 0.056), (0.136, 0.05, 0.012), 'pouch', deco=True)
+            ED.pad(p, 0, 0.012, 0.03, 0.024, 0.004, 'steel', base=0.062)
+    # hip mounts with pivot pins, rim bolts, lid hinge and latch
+    for k in (10, 14, 2, 6):
+        with ED.at(p, fr(k, 0.35, 0.321)):
+            SG.rbox(p, (0, 0, 0.02), (0.08, 0.07, 0.05), 'trim', r=0.018, n=1, deco=True)
+        a = math.radians(22.5 * k)
         u, t = Vector((math.cos(a), math.sin(a), 0)), Vector((-math.sin(a), math.cos(a), 0))
-        p.box(tuple(u * 0.3175 + Vector((0, 0, 0.35))), (0.075, 0.07, 0.06), 'trim', rot=(0, 0, math.degrees(a)), deco=True)
         c = u * 0.345 + Vector((0, 0, 0.33))
-        p.limb(tuple(c - t * 0.05), tuple(c + t * 0.05), 0.02, 0.02, 'steel', seg=6, deco=True)
-    ED.bolt_ring(p, 0, 0, 0.77, 0.30, 10, r=0.012, h=0.007, phase=0.2)
+        p.limb(tuple(c - t * 0.05), tuple(c + t * 0.05), 0.02, 0.02, 'steel', seg=8, caps=False, deco=True)
+    ED.bolt_ring(p, 0, 0, 0.772, 0.30, 8, r=0.012, h=0.007, phase=0.2, seg=5)
     for x in (-0.07, 0.07):
-        p.limb((x - 0.03, 0.352, 0.745), (x + 0.03, 0.352, 0.745), 0.016, 0.016, 'gunmetal', seg=6, deco=True)
-    p.box((0, -0.341, 0.735), (0.07, 0.02, 0.04), 'steel', deco=True)
-    p.box((0, -0.354, 0.72), (0.03, 0.012, 0.05), 'gunmetal', deco=True)
-    for sx in (-1, 1):
-        p.box((sx * 0.178, -0.30, 0.60), (0.016, 0.104, 0.086), 'trim', deco=True)
-    p.box((0, -0.2995, 0.556), (0.336, 0.099, 0.014), 'trim', deco=True)
-    with ED.at(p, ED.facet_frame(2, 10, rz(0.66), 0.66)):
-        ED.grille(p, 0, 0, 0.15, 0.07, 4, slat='tin2')
-    with ED.at(p, ED.facet_frame(2, 10, rz(0.528), 0.528)):                            # back battery box
-        ED.pad(p, 0, 0, 0.16, 0.08, 0.03, 'trim')
-        ED.grille(p, 0, 0, 0.12, 0.05, 3, slat='tin2', base=0.03)
-    for k in (1, 3, 5):                                                                   # bolted side armour plates
-        with ED.at(p, ED.facet_frame(k, 10, rz(0.528), 0.528)):
-            ED.pad(p, 0, 0, 0.15, 0.085, 0.006, 'tin3')
-            ED.bolts(p, [(sx * 0.06, sy * 0.03) for sx in (-1, 1) for sy in (-1, 1)], r=0.009, top=0.004, color='tin2', seg=4, base=0.006)
-    for k in (4, 0):
-        p.on_facet(k, 10, 0.335, 0.052, 0.446, (0.142, 0.008, 0.045), 'pouch')
-        p.on_facet(k, 10, 0.335, 0.059, 0.42, (0.024, 0.006, 0.09), 'trim')
-        p.on_facet(k, 10, 0.335, 0.064, 0.425, (0.032, 0.006, 0.022), 'steel')
-    with ED.at(p, ED.facet_frame(6, 10, rz(0.525), 0.525)):
+        p.limb((x - 0.03, 0.366, 0.745), (x + 0.03, 0.366, 0.745), 0.016, 0.016, 'gunmetal', seg=6, deco=True)
+    SG.rbox(p, (0, -0.351, 0.735), (0.07, 0.02, 0.04), 'steel', r=0.008, n=1, deco=True)
+    p.box((0, -0.364, 0.72), (0.03, 0.012, 0.05), 'gunmetal', deco=True)
+    # back vent and battery box, side armour (curved, bolted), front plate, hazard stencil, serial plate, rivets
+    with ED.at(p, ED.slope_frame(4, SEG, (R, 0.63), (0.302, 0.712), 0.43, phase=PH)):
+        ED.grille(p, 0, 0, 0.12, 0.06, 3, slat='tin2')
+    with ED.at(p, fr(4, 0.528)):
+        ED.pad(p, 0, 0, 0.12, 0.08, 0.03, 'trim')
+    for a in (45, 135, 180, 270):
+        w = 18 if a == 270 else 16
+        z0, z1 = (0.47, 0.54) if a == 270 else (0.49, 0.566)
+        SG.arc_plate(p, 0.322, 0.346, z0, z1, a - w, a + w, 2, 'tin3', c=0.006, deco=True)
+        for da in ((-w / 2, w / 2) if a == 270 else ()):
+            q = math.radians(a + da)
+            n = Vector((math.cos(q), math.sin(q), 0))
+            ap = 0.346 * math.cos(math.radians(w / 2)) - 0.0005
+            with ED.at(p, ED.axis_frame(tuple(n * ap + Vector((0, 0, (z0 + z1) / 2))), tuple(n))):
+                ED.bolts(p, [(0, -0.022), (0, 0.022)] if a != 270 else [(0, 0)], r=0.009, top=0.004, color='tin2', seg=6)
+    with ED.at(p, fr(10, 0.525)):
         ED.chevrons(p, 0, 0, 0.10, 0.05, 4)
-    with ED.at(p, ED.facet_frame(9, 10, rz(0.53), 0.53)):
+    with ED.at(p, fr(15, 0.53)):
         ED.serial_plate(p, 0, 0, 0.08, 0.035)
-    p.cyl((0.12, 0.08, 0.765), 0.03, 0.03, 0.03, 'gunmetal', seg=6, deco=True)
-    p.cyl((0.12, 0.08, 0.995), 0.028, 0.028, 0.035, 'gunmetal', seg=6, deco=True)
+    p.cyl((0.12, 0.08, 0.765), 0.03, 0.03, 0.03, 'gunmetal', seg=8, deco=True)            # antenna collar, lamp holder
+    p.cyl((0.12, 0.08, 0.995), 0.028, 0.028, 0.035, 'gunmetal', seg=8, deco=True)
+    p.cyl((-0.15, 0.09, 0.755), 0.014, 0.014, 0.13, 'ink', seg=6, deco=True)             # stub antenna, ball tip
+    p.sphere((-0.15, 0.09, 0.895), 0.022, 'trim', seg=(5, 3), deco=True)
     body = p.build('BOT_CRAWLER_Body')
     socket('BOT_CRAWLER_CORE', body, (0, 0, 0.82))
     for i, (x, y) in enumerate([(-0.25, -0.25), (0.25, -0.25), (0.25, 0.25), (-0.25, 0.25)]):
         socket('BOT_CRAWLER_HIP%d' % i, body, (x, y, 0.33))
+    # leg: ball hip joint, tapered strut inside a coil spring, domed foot
     p = Part(pal)
+    p.sphere((0, 0, 0), 0.042, 'trim', seg=(6, 4), deco=True)
+    SG.tlimb(p, (0, 0, -0.01), (0, 0, -0.315), 0.03, 0.018, 'gunmetal', seg=8)
     for i in range(3):
-        p.box(((0.035 if i % 2 else -0.035), 0, -0.05 - i * 0.085), (0.13, 0.06, 0.04), 'spring', deco=True)
-    p.box((0, 0, -0.15), (0.03, 0.03, 0.3), 'gunmetal')
-    p.cyl((0, 0, -0.355), 0.09, 0.07, 0.05, 'gunmetal', seg=5)
-    # detail pass: hip knuckle, hydraulic piston behind the spring, ankle collar, three toe claws
-    p.cyl((-0.04, 0, 0), 0.03, 0.03, 0.08, 'trim', seg=6, rot=(0, 90, 0), deco=True)
-    ED.piston(p, (0, 0.045, -0.03), (0, 0.045, -0.29), 0.014, 0.008, k=0.5, body='trim', rod='steel')
-    p.cyl((0, 0, -0.315), 0.028, 0.028, 0.03, 'trim', seg=6, deco=True)
-    for a in (-90, 30, 150):
-        r = math.radians(a)
-        p.box((0.085 * math.cos(r), 0.085 * math.sin(r), -0.34), (0.05, 0.03, 0.022), 'trim', rot=(0, 0, a), deco=True)
+        with ED.at(p, Matrix.Translation((0, 0, -0.07 - i * 0.075)) @ Matrix.Rotation(math.radians(12 if i % 2 else -12), 4, 'X')):
+            p.cyl((0, 0, -0.011), 0.05, 0.05, 0.022, 'spring', seg=8, caps=False, deco=True)
+    p.lathe([(0.0, -0.355), (0.088, -0.355), (0.095, -0.34), (0.066, -0.314), (0.0, -0.30)], 'gunmetal', seg=8)
     p.build('BOT_CRAWLER_Leg', bevel=False, hull=0.01)
     p = Part(pal)
-    p.box((0, 0, 0), (0.09, 0.09, 0.09), 'light')
+    p.sphere((0, 0, 0), 0.05, 'light', seg=(6, 4))
     p.build('BOT_CRAWLER_Light', bevel=False, hull=0.008)
 
 
@@ -363,85 +361,87 @@ def hazard(p, frame, w, h, color='amber', n=5, t=0.004):
 
 
 def build_gunner(pal):
+    import bot_shapes_ground as SG
     P_ = G_PROF
     p = Part(pal)
-    # hull: angular core prism, side armour sponsons (stepped out), glacis cheek plates
-    sprism(p, P_, -G_HW, G_HW, 'bin')
-    sprism(p, [(-0.207, 0.068), (0.249, 0.068), (0.354, 0.33), (-0.333, 0.33)], -G_HW - 0.01, G_HW + 0.01, 'gunmetal')  # dark chassis
+    # hull: sculpted core (filleted profile, chamfered sides), side armour sponsons (stepped out), glacis cheek plates
+    SG.sprism2(p, P_, -G_HW, G_HW, 'bin', c=0.035, r=[0.0, 0.0, 0.0, 0.06, 0.10, 0.11, 0.05, 0.04], n=1)
+    SG.sprism2(p, [(-0.207, 0.068), (0.249, 0.068), (0.354, 0.33), (-0.333, 0.33)], -G_HW - 0.01, G_HW + 0.01, 'gunmetal',
+               c=0.02)                                                                    # dark chassis
     spon = [(-0.300, 0.33), (0.190, 0.33), (0.240, 0.42), (0.240, 0.83), (-0.255, 0.86), (-0.320, 0.60)]
     for sx in (-1, 1):                                                                     # flared 7 deg: wider at the shoulder
         p.parent = Matrix.Translation((sx * 0.25, 0, 0.33)) @ Matrix.Rotation(math.radians(7 * sx), 4, 'Y') @ Matrix.Translation((-sx * 0.25, 0, -0.33))
-        sprism(p, spon, sx * 0.225, sx * 0.300, 'bin2')
-        p.box((sx * 0.301, -0.04, 0.47), (0.008, 0.30, 0.03), 'ink', deco=True)          # vision cut + amber tick
-        p.box((sx * 0.301, -0.04, 0.52), (0.008, 0.30, 0.015), 'amber', deco=True)
+        SG.sprism2(p, spon, sx * 0.225, sx * 0.300, 'bin2', c=(0, 0.016), r=[0.0, 0.04, 0.04, 0.08, 0.08, 0.06], n=1)
+        p.box((sx * 0.301, -0.04, 0.47), (0.008, 0.28, 0.03), 'ink', deco=True)          # vision cut + amber tick
+        p.box((sx * 0.301, -0.04, 0.52), (0.008, 0.28, 0.015), 'amber', deco=True)
         for y in (-0.20, 0.10):
-            p.cyl((sx * 0.296, y, 0.40), 0.016, 0.016, 0.008, 'steel', seg=6, rot=(0, sx * 90, 0), deco=True)
+            p.cyl((sx * 0.296, y, 0.40), 0.016, 0.016, 0.008, 'steel', seg=4, rot=(0, sx * 90, 0), deco=True)
     p.parent = Matrix.Identity(4)
-    # rear power pack (carries the antenna) and the drive axle housing
+    # rear power pack (carries the antenna) and the round drive axle housing
     pack = [(0.300, 0.56), (0.470, 0.60), (0.500, 0.70), (0.470, 0.925), (0.300, 0.925)]
-    sprism(p, pack, -0.27, 0.27, 'gunmetal')
-    p.box((0, 0.30, 0.125), (0.56, 0.09, 0.09), 'gunmetal')
+    SG.sprism2(p, pack, -0.27, 0.27, 'gunmetal', c=0.025, r=[0.0, 0.04, 0.05, 0.07, 0.0], n=1)
+    p.cyl((-0.28, 0.30, 0.125), 0.05, 0.05, 0.56, 'gunmetal', seg=10, rot=(0, 90, 0))
     # core: gold battery lying along X (the gun's trunnion), in an armoured cradle
     px, py, pz = G_PIVOT
-    p.cyl((-0.17, py, pz), 0.075, 0.075, 0.34, 'core', seg=10, rot=(0, 90, 0))
+    p.cyl((-0.17, py, pz), 0.075, 0.075, 0.34, 'core', seg=12, rot=(0, 90, 0))
     for sx in (-1, 1):
-        sprism(p, [(-0.300, 0.73), (py, 0.745), (py - 0.03, 0.80), (-0.29, 0.86)], sx * 0.185, sx * 0.235, 'gunmetal')
+        SG.sprism2(p, [(-0.300, 0.73), (py, 0.745), (py - 0.03, 0.80), (-0.29, 0.86)], sx * 0.185, sx * 0.235, 'gunmetal',
+                   r=[0.0, 0.02, 0.02, 0.0], n=1)
         # front claw skids
-        sprism(p, [(-0.30, 0.0), (-0.12, 0.0), (-0.10, 0.06), (-0.22, 0.14), (-0.33, 0.04)], sx * 0.12, sx * 0.22, 'gunmetal', bevel=False)
-    # 4-cell rocket pod on the right shoulder
+        SG.sprism2(p, [(-0.30, 0.0), (-0.12, 0.0), (-0.10, 0.06), (-0.22, 0.14), (-0.33, 0.04)], sx * 0.12, sx * 0.22, 'gunmetal',
+                   r=[0.0, 0.0, 0.0, 0.03, 0.03], n=1)
+    # 4-cell rocket pod on the right shoulder: a rounded launcher box
     pod = [(-0.27, 0.70), (0.13, 0.70), (0.16, 0.78), (0.13, 0.86), (-0.27, 0.86)]
-    sprism(p, pod, 0.315, 0.440, 'gunmetal')
+    SG.sprism2(p, pod, 0.315, 0.440, 'gunmetal', c=(0, 0.018), r=[0.0, 0.04, 0.04, 0.04, 0.035], n=1)
     lx, ly, lz = G_LIGHT
-    p.cyl((lx, ly, 0.935), 0.012, 0.012, lz - 0.935 - 0.04, 'ink', seg=4)                    # antenna whip
+    p.cyl((lx, ly, 0.935), 0.012, 0.012, lz - 0.935 - 0.04, 'ink', seg=6)                    # antenna whip
     # ---- deco
-    hazard(p, on_edge(P_, 7, 0.55, 0.009), 0.40, 0.15)                                # lower glacis chevrons
+    hazard(p, on_edge(P_, 7, 0.55, 0.009), 0.38, 0.15)                                # lower glacis chevrons
     p.parent = on_edge(P_, 6, 0.5, 0.0)                                                   # bolted chest plate + intake slits
-    p.box((0, 0, 0.004), (0.36, 0.25, 0.010), 'bin2', deco=True)
+    SG.rbox(p, (0, 0, 0.004), (0.36, 0.23, 0.010), 'bin2', r=0.03, n=2, deco=True)
     for x in (-0.06, 0.0, 0.06):
         p.box((x, 0.0, 0.0105), (0.022, 0.15, 0.006), 'ink', deco=True)
     for x in (-0.15, 0.15):
-        for y in (-0.095, 0.095):
-            p.cyl((x, y, 0.006), 0.014, 0.014, 0.008, 'steel', seg=6, deco=True)
+        for y in (-0.085, 0.085):
+            p.cyl((x, y, 0.006), 0.014, 0.014, 0.008, 'steel', seg=4, deco=True)
     p.parent = Matrix.Identity(4)
-    for sx in (-1, 1):                                                                     # sponson bolts + vision cut
-        p.cyl((sx * 0.13 - 0.02, py, pz), 0.081, 0.081, 0.04, 'core2', seg=10, rot=(0, 90, 0), caps=False, deco=True)
-    p.cyl((0.165, py, pz), 0.03, 0.03, 0.03, 'steel', seg=6, rot=(0, 90, 0), deco=True)   # + terminal
+    for sx in (-1, 1):                                                                     # battery clamp bands
+        p.cyl((sx * 0.13 - 0.02, py, pz), 0.081, 0.081, 0.04, 'core2', seg=12, rot=(0, 90, 0), caps=False, deco=True)
+    p.cyl((0.165, py, pz), 0.03, 0.03, 0.03, 'steel', seg=8, rot=(0, 90, 0), deco=True)   # + terminal
     for i in range(4):                                                                    # rocket pod tubes + red tips
         y0, z0 = -0.27, (0.745, 0.815)[i % 2]
         x0 = (0.407, 0.348)[i // 2]
         p.cyl((x0, y0 + 0.004, z0), 0.024, 0.024, 0.012, 'ink', seg=6, rot=(90, 0, 0), deco=True)
-        p.cyl((x0, y0 - 0.004, z0), 0.012, 0.006, 0.014, 'red', seg=6, rot=(90, 0, 0), deco=True)
+        p.cyl((x0, y0 - 0.004, z0), 0.012, 0.006, 0.014, 'red', seg=4, rot=(90, 0, 0), deco=True)
     p.box((0.443, -0.05, 0.78), (0.008, 0.20, 0.035), 'amber', deco=True)
     for t in (0.2, 0.4, 0.6, 0.8):                                                        # power pack cooling slats
         p.parent = on_edge(pack, 2, t, 0.0)
         p.box((0, 0, 0.0015), (0.40, 0.018, 0.006), 'ink', deco=True)
     p.parent = Matrix.Identity(4)
-    p.box((0, 0.347, 0.45), (0.40, 0.008, 0.10), 'ink', deco=True)                       # rear hull vent
+    p.box((0, 0.347, 0.45), (0.38, 0.008, 0.10), 'ink', deco=True)                       # rear hull vent
     p.cyl((lx, ly, 0.92), 0.03, 0.022, 0.035, 'steel', seg=6, deco=True)                  # antenna base
-    p.box((0, -0.02, 0.962), (0.44, 0.52, 0.006), 'ink', deco=True)                       # dark bay (shows when the cowl lifts)
+    p.box((0, -0.02, 0.962), (0.40, 0.44, 0.006), 'ink', deco=True)                       # dark bay (shows when the cowl lifts)
     # detail pass: twin lamps on the chest plate, serial plates and rivet rows on the sponsons, exhaust stubs and
     # a grab rail on the power pack, skid bolts, pod rivets, hinge brackets, tow hook, battery cables in the bay
     with ED.at(p, on_edge(P_, 6, 0.5, 0.0)):
         for x in (-0.11, 0.11):
-            ED.lamp(p, x, 0.0, 0.02, lens='sticker', w=0.006, base=0.009)
+            ED.lamp(p, x, 0.0, 0.02, lens='sticker', w=0.006, base=0.009, seg=6)
     for sx in (-1, 1):
         p.parent = Matrix.Translation((sx * 0.25, 0, 0.33)) @ Matrix.Rotation(math.radians(7 * sx), 4, 'Y') @ Matrix.Translation((-sx * 0.25, 0, -0.33))
         p.box((sx * 0.3015, 0.12, 0.62), (0.007, 0.10, 0.06), 'sticker', deco=True)
         for z, w in ((0.632, 0.07), (0.608, 0.045)):
             p.box((sx * 0.3055, 0.115, z), (0.006, w, 0.01), 'ink', deco=True)
-        for y in (-0.24, -0.14, -0.04, 0.06, 0.16):
-            p.cyl((sx * 0.296, y, 0.775), 0.012, 0.012, 0.008, 'steel', seg=6, rot=(0, sx * 90, 0), deco=True)
     p.parent = Matrix.Identity(4)
     for x in (-0.17, 0.17):
         p.cyl((x, 0.40, 0.92), 0.026, 0.026, 0.05, 'gunmetal', seg=6, deco=True)
         p.cyl((x, 0.40, 0.967), 0.015, 0.015, 0.006, 'ink', seg=6, deco=True)
     for sx in (-1, 1):
         for y in (-0.25, -0.17):
-            p.cyl((sx * 0.217, y, 0.03), 0.011, 0.011, 0.008, 'steel', seg=6, rot=(0, sx * 90, 0), deco=True)
+            p.cyl((sx * 0.217, y, 0.03), 0.011, 0.011, 0.008, 'steel', seg=4, rot=(0, sx * 90, 0), deco=True)
         p.cyl((0.437, -0.20 + 0.10 * (sx + 1), 0.73), 0.009, 0.009, 0.007, 'steel', seg=4, rot=(0, 90, 0), deco=True)
         p.box((sx * 0.20, 0.335, 0.965), (0.05, 0.04, 0.03), 'gunmetal', deco=True)
-    p.box((0, 0.355, 0.20), (0.08, 0.03, 0.05), 'gunmetal', deco=True)
-    p.box((0, 0.378, 0.195), (0.03, 0.03, 0.03), 'steel', deco=True)
+    SG.rbox(p, (0, 0.355, 0.20), (0.08, 0.03, 0.05), 'gunmetal', r=0.012, n=1, deco=True)
+    p.box((0, 0.374, 0.195), (0.03, 0.03, 0.03), 'steel', deco=True)
     ED.cable(p, [(0.12, -0.36, 0.905), (0.12, -0.20, 0.968), (0.05, 0.10, 0.968)], 0.018, 'rubber')
     ED.cable(p, [(-0.12, -0.36, 0.905), (-0.12, -0.20, 0.972), (-0.05, 0.10, 0.972)], 0.018, 'red')
     body = p.build('BOT_GUNNER_Body')
@@ -452,79 +452,82 @@ def build_gunner(pal):
     for i, sx in enumerate((-1, 1)):
         socket('BOT_GUNNER_WHEEL%d' % i, body, (sx * G_WHEEL[0], G_WHEEL[1], G_WHEEL[2]))
 
-    # armoured cowl (origin on the hinge axis; extends toward -Y): a wedge with a sloped brow and a hanging front lip
+    # armoured cowl (origin on the hinge axis; extends toward -Y): a rounded wedge with a sloped brow and a hanging lip
     p = Part(pal)
     cowl = [(0.012, -0.020), (0.012, 0.045), (-0.07, 0.085), (-0.58, 0.085), (-0.735, 0.030), (-0.755, -0.035),
             (-0.705, -0.075), (-0.640, -0.020)]
-    sprism(p, cowl, -0.315, 0.315, 'bin')
-    sprism(p, [(-0.05, 0.07), (-0.56, 0.07), (-0.50, 0.115), (-0.10, 0.115)], -0.17, 0.17, 'bin2')   # raised spine plate
+    SG.sprism2(p, cowl, -0.315, 0.315, 'bin', c=0.035, r=[0.0, 0.0, 0.09, 0.07, 0.012, 0.012, 0.02, 0.0], n=1)
+    SG.sprism2(p, [(-0.05, 0.07), (-0.56, 0.07), (-0.50, 0.115), (-0.10, 0.115)], -0.17, 0.17, 'bin2', c=0.014,
+               r=[0.0, 0.0, 0.03, 0.03], n=1)                                               # raised spine plate
     p.parent = on_edge(cowl, 3, 0.5, 0.0)                                                 # brow: sensor slit
-    p.box((0, 0, 0.004), (0.46, 0.05, 0.008), 'ink', deco=True)
-    p.box((0, 0, 0.010), (0.36, 0.018, 0.006), 'amber', deco=True)
+    SG.rbox(p, (0, 0, 0.004), (0.46, 0.05, 0.008), 'ink', r=0.02, n=1, deco=True)
+    SG.rbox(p, (0, 0, 0.010), (0.36, 0.018, 0.006), 'amber', r=0.008, n=1, deco=True)
     p.parent = Matrix.Identity(4)
-    hazard(p, on_edge(cowl, 4, 0.5, 0.0), 0.50, 0.045, n=5)                                 # lip hazard band
+    hazard(p, on_edge(cowl, 4, 0.5, 0.0), 0.48, 0.040, n=5)                                 # lip hazard band
     for sx in (-1, 1):
-        p.cyl((sx * 0.30 - 0.05, 0, 0.0), 0.028, 0.028, 0.10, 'gunmetal', seg=6, rot=(0, 90, 0), deco=True)  # knuckles
+        p.cyl((sx * 0.30 - 0.05, 0, 0.0), 0.028, 0.028, 0.10, 'gunmetal', seg=8, rot=(0, 90, 0), deco=True)  # knuckles
         for y in (-0.15, -0.45):
-            p.cyl((sx * 0.25, y, 0.081), 0.014, 0.014, 0.008, 'steel', seg=6, deco=True)  # bolts
+            p.cyl((sx * 0.25, y, 0.081), 0.014, 0.014, 0.008, 'steel', seg=5, deco=True)  # bolts
     # detail pass: panel seams across the cowl, a grab handle on the spine, spine bolts
     for sx in (-1, 1):
         for y in (-0.30, -0.60):
-            p.box((sx * 0.245, y, 0.086), (0.12, 0.012, 0.006), 'ink', deco=True)
-    for x in (-0.05, 0.05):
-        p.box((x, -0.12, 0.125), (0.015, 0.009, 0.025), 'steel', deco=True)
-    p.box((0, -0.12, 0.135), (0.14, 0.015, 0.015), 'steel', deco=True)
-    for y in (-0.25, -0.40, -0.52):
-        for x in (-0.13, 0.13):
-            p.cyl((x, y, 0.113), 0.01, 0.01, 0.006, 'steel', seg=4, deco=True)
+            p.box((sx * 0.225, y, 0.086), (0.10, 0.012, 0.006), 'ink', deco=True)
+    p.limb((-0.05, -0.12, 0.112), (-0.05, -0.12, 0.137), 0.008, 0.008, 'steel', seg=6, deco=True)
+    p.limb((0.05, -0.12, 0.112), (0.05, -0.12, 0.137), 0.008, 0.008, 'steel', seg=6, deco=True)
+    p.limb((-0.07, -0.12, 0.137), (0.07, -0.12, 0.137), 0.009, 0.009, 'steel', seg=6, deco=True)
+    for y in (-0.25, -0.40):
+        for x in (-0.12, 0.12):
+            p.cyl((x, y, 0.113), 0.01, 0.01, 0.006, 'steel', seg=5, deco=True)
     p.build('BOT_GUNNER_Lid')
 
-    # twin autocannon (origin on the battery axis; barrels along -Y)
+    # twin autocannon (origin on the battery axis; barrels along -Y): round collar, rounded receiver and shroud
     p = Part(pal)
-    p.cyl((-0.05, 0, 0), 0.092, 0.092, 0.10, 'gunmetal', seg=8, rot=(0, 90, 0))           # clamp collar
-    p.box((0, -0.14, 0.01), (0.15, 0.15, 0.14), 'gunmetal', bevel=True)                   # receiver
-    p.box((0, -0.29, 0.0), (0.12, 0.17, 0.07), 'bin2', bevel=True)                         # barrel shroud
+    p.cyl((-0.05, 0, 0), 0.092, 0.092, 0.10, 'gunmetal', seg=12, rot=(0, 90, 0))          # clamp collar
+    SG.rbox(p, (0, -0.14, 0.01), (0.15, 0.14, 0.15), 'gunmetal', r=0.03, n=1, c=0.012, rot=(90, 0, 0))   # receiver
+    SG.rbox(p, (0, -0.29, 0.0), (0.12, 0.07, 0.17), 'bin2', r=0.03, n=2, rot=(90, 0, 0))        # barrel shroud
     for sx in (-1, 1):
-        p.cyl((sx * 0.032, -0.20, 0), 0.025, 0.025, 0.27, 'steel', seg=6, rot=(90, 0, 0))  # barrels
-        p.cyl((sx * 0.032, -0.445, 0), 0.036, 0.036, 0.06, 'gunmetal', seg=6, rot=(90, 0, 0))   # muzzle brakes
-        p.cyl((sx * 0.032, -0.500, 0), 0.016, 0.016, 0.009, 'ink', seg=6, rot=(90, 0, 0), deco=True)  # bores
-        p.box((sx * 0.062, -0.29, 0.0), (0.006, 0.12, 0.016), 'ink', deco=True)          # shroud cooling slots
-    p.box((0, -0.29, 0.037), (0.10, 0.12, 0.006), 'ink', deco=True)
-    p.box((0, -0.12, 0.082), (0.11, 0.05, 0.006), 'amber', deco=True)                     # receiver hazard band
+        p.cyl((sx * 0.032, -0.20, 0), 0.025, 0.025, 0.27, 'steel', seg=8, rot=(90, 0, 0), caps=False)  # barrels
+        p.cyl((sx * 0.032, -0.445, 0), 0.031, 0.031, 0.06, 'gunmetal', seg=10, rot=(90, 0, 0))   # muzzle brakes
+        p.cyl((sx * 0.032, -0.500, 0), 0.016, 0.016, 0.009, 'ink', seg=8, rot=(90, 0, 0), deco=True)  # bores
+        p.box((sx * 0.062, -0.29, 0.0), (0.006, 0.11, 0.012), 'ink', deco=True)          # shroud cooling slots
+    p.box((0, -0.29, 0.037), (0.05, 0.11, 0.006), 'ink', deco=True)
+    p.box((0, -0.14, 0.087), (0.09, 0.05, 0.006), 'amber', deco=True)                     # receiver hazard band
     # detail pass: barrel cooling rings, side ammo drum with a feed chute, receiver bolts and top rail slots
     for sx in (-1, 1):
-        for y in (-0.385, -0.415):
-            p.cyl((sx * 0.032, y, 0), 0.031, 0.031, 0.012, 'gunmetal', seg=6, rot=(90, 0, 0), caps=False, deco=True)
-        for y in (-0.09, -0.19):
-            p.cyl((sx * 0.073, y, 0.045), 0.01, 0.01, 0.006, 'steel', seg=4, rot=(0, sx * 90, 0), deco=True)
-    p.cyl((-0.073, -0.14, -0.02), 0.05, 0.05, 0.025, 'bin2', seg=8, rot=(0, -90, 0), deco=True)
-    p.cyl((-0.096, -0.14, -0.02), 0.022, 0.022, 0.006, 'steel', seg=6, rot=(0, -90, 0), deco=True)
-    p.box((-0.085, -0.145, 0.03), (0.016, 0.04, 0.03), 'gunmetal', deco=True)
-    for y in (-0.08, -0.19):
-        p.box((0, y, 0.0815), (0.06, 0.012, 0.007), 'ink', deco=True)
+        for y in (-0.40,):
+            p.cyl((sx * 0.032, y, 0), 0.030, 0.030, 0.014, 'gunmetal', seg=8, rot=(90, 0, 0), caps=False, deco=True)
+        for y in (-0.085,):
+            p.cyl((sx * 0.073, y, 0.035), 0.01, 0.01, 0.006, 'steel', seg=5, rot=(0, sx * 90, 0), deco=True)
+    p.cyl((-0.073, -0.14, -0.02), 0.05, 0.05, 0.025, 'bin2', seg=10, rot=(0, -90, 0), deco=True)
+    p.box((-0.085, -0.145, 0.034), (0.016, 0.04, 0.03), 'gunmetal', deco=True)
+    for y in (-0.10, -0.18):
+        p.box((0, y, 0.0865), (0.04, 0.012, 0.007), 'ink', deco=True)
     gun = p.build('BOT_GUNNER_Gun', bevel=False)
     socket('BOT_GUNNER_GUN', gun, (0, -0.51, 0))
 
-    # wheel (origin on the axle; axis X; symmetric so the game mirrors it for the other side)
+    # wheel (origin on the axle; axis X; symmetric so the game mirrors it for the other side): a round tyre with
+    # rolled shoulders, tread lugs, an armoured hub with an axle nut
     p = Part(pal)
     w = 0.075
-    p.cyl((-w / 2, 0, 0), G_WHEEL_R, G_WHEEL_R, w, 'rubber', seg=8, rot=(0, 90, 0))
-    p.cyl((-w / 2 - 0.004, 0, 0), 0.072, 0.072, w + 0.008, 'bin2', seg=6, rot=(0, 90, 0), deco=True)     # armoured hub
-    p.cyl((-w / 2 - 0.01, 0, 0), 0.026, 0.026, w + 0.02, 'gunmetal', seg=6, rot=(0, 90, 0), deco=True)   # axle nut
-    # detail pass: tread lugs on every tyre facet, five hub bolts on each face
-    ap = G_WHEEL_R * math.cos(math.pi / 8)
-    for j in range(8):
-        b = math.radians(22.5 + 45 * j)
+    AX = Matrix.Rotation(math.radians(90), 4, 'Y')                                       # lathe axis Z -> X
+    p.parent = AX
+    p.lathe([(0.0, -w / 2), (0.108, -w / 2), (G_WHEEL_R, -0.02), (G_WHEEL_R, 0.02), (0.108, w / 2), (0.0, w / 2)], 'rubber', seg=12)
+    p.parent = Matrix.Identity(4)
+    p.cyl((-w / 2 - 0.005, 0, 0), 0.072, 0.072, w + 0.01, 'bin2', seg=10, rot=(0, 90, 0), deco=True)   # armoured hub
+    p.cyl((-w / 2 - 0.012, 0, 0), 0.026, 0.026, w + 0.024, 'gunmetal', seg=8, rot=(0, 90, 0), deco=True)   # axle nut
+    ap = G_WHEEL_R * math.cos(math.pi / 12)
+    for j in range(6):
+        b = math.radians(15 + 60 * j)
         r = ap + 0.005
-        p.box((0, r * math.cos(b), r * math.sin(b)), (0.066, 0.03, 0.014), 'rubber', rot=(math.degrees(b) - 90, 0, 0), deco=True)
+        p.box((0, r * math.cos(b), r * math.sin(b)), (0.05, 0.03, 0.014), 'rubber', rot=(math.degrees(b) - 90, 0, 0), deco=True)
     for sx in (-1, 1):
-        for j in range(5):
-            b = 2 * math.pi * j / 5
-            p.cyl((sx * 0.0395, 0.048 * math.cos(b), 0.048 * math.sin(b)), 0.009, 0.009, 0.007, 'steel', seg=6, rot=(0, sx * 90, 0), deco=True)
+        for j in range(3):
+            b = math.pi / 2 + 2 * math.pi / 3 * j
+            p.cyl((sx * 0.0405, 0.046 * math.cos(b), 0.046 * math.sin(b)), 0.009, 0.009, 0.007, 'steel', seg=4, rot=(0, sx * 90, 0), deco=True)
     p.build('BOT_GUNNER_Wheel', bevel=False)
 
     p = Part(pal)
-    p.box((0, 0, 0), (0.08, 0.08, 0.08), 'light')
+    p.sphere((0, 0, 0), 0.045, 'light', seg=(6, 4))
     p.build('BOT_GUNNER_Light', bevel=False, hull=0.008)
 
 
@@ -537,99 +540,96 @@ B_CAP = (0, 0, 0.865)
 
 
 def build_bomber(pal):
-    SEG = 12
+    import bot_shapes_ground as SG
+    SEG, PH = 16, -math.pi / 16          # facet centres every 22.5 deg (facet 12 = front -Y)
+    AX = Matrix.Translation(B_AXLE) @ Matrix.Rotation(math.radians(90), 4, 'Y')       # local Z -> world X, on the axle
     p = Part(pal)
-    for sx in (-1, 1):                                                                  # fork side plates
-        p.box((sx * 0.262, 0, 0.21), (0.03, 0.09, 0.20), 'gunmetal')
-    p.box((0, 0, 0.285), (0.53, 0.11, 0.03), 'gunmetal')                                 # cross bar
-    p.cyl((0, 0, 0.29), 0.235, 0.235, 0.03, 'alu', seg=SEG)                              # cradle disc
-    p.lathe([(0.0, 0.316), (0.15, 0.316), (0.205, 0.335), (0.223, 0.37), (0.225, 0.62), (0.212, 0.665),
-             (0.165, 0.725), (0.105, 0.775), (0.076, 0.80), (0.074, 0.87), (0.0, 0.87)], 'glass', seg=SEG)
-    cy = -0.307                                                                          # core canister
-    p.cyl((0, cy, 0.39), 0.066, 0.066, 0.19, 'core', seg=8)
-    p.cyl((0, cy, 0.58), 0.066, 0.04, 0.03, 'core', seg=8)
-    p.cyl((0, cy, 0.36), 0.04, 0.066, 0.03, 'core', seg=8)
-    # ---- deco: label, straps, neck ring + sensor strip, glints, hub caps, canister band + valve
-    p.band(0.43, 0.55, 0.232, 'label', seg=SEG)
-    p.band(0.456, 0.47, 0.236, 'teal', seg=SEG)
+    for sx in (-1, 1):                                                                  # rounded fork side plates
+        SG.sprism2(p, SG.rrect(0.09, 0.21, 0.038, n=2, cy=0.20), sx * 0.247, sx * 0.277, 'gunmetal', c=(0.0, 0.008))
+    SG.rbox(p, (0, 0, 0.285), (0.03, 0.11, 0.53), 'gunmetal', r=0.012, n=1, c=0.01, rot=(0, 90, 0))   # cross bar
+    p.lathe([(0.0, 0.29), (0.236, 0.29), (0.236, 0.31), (0.226, 0.32), (0.0, 0.32)], 'alu', seg=12)   # cradle disc
+    BOT = [(0.0, 0.316), (0.15, 0.316), (0.205, 0.333), (0.223, 0.368), (0.225, 0.62), (0.214, 0.662), (0.188, 0.703),
+           (0.148, 0.74), (0.105, 0.771), (0.08, 0.792), (0.074, 0.81), (0.074, 0.87), (0.0, 0.87)]
+    p.lathe(BOT, 'glass', seg=SEG, phase=PH)
+    cy = -0.307                                                                          # core canister (one rounded can)
+    p.parent = Matrix.Translation((0, cy, 0))
+    p.lathe([(0.0, 0.36), (0.04, 0.36), (0.066, 0.39), (0.066, 0.58), (0.04, 0.61), (0.0, 0.61)], 'core', seg=10)
+    p.parent = Matrix.Identity(4)
+    # ---- deco: label, straps, neck ring + sensor strip, glints, hub caps, canister band + valve, roller housing
+    p.lathe([(0.232, 0.43), (0.232, 0.55)], 'label', seg=SEG, phase=PH, deco=True)
+    p.lathe([(0.236, 0.456), (0.236, 0.47)], 'teal', seg=SEG, phase=PH, deco=True)
     for z in (0.405, 0.555):
-        p.band(z, z + 0.022, 0.24, 'gunmetal', seg=SEG)
-    p.band(0.795, 0.812, 0.088, 'ink', seg=8)
-    p.band(0.822, 0.840, 0.082, 'amber', seg=8)
+        p.lathe([(0.24, z), (0.24, z + 0.022)], 'gunmetal', seg=SEG, phase=PH, deco=True)
+    p.lathe([(0.088, 0.795), (0.088, 0.812)], 'ink', seg=SEG, phase=PH, deco=True)
+    p.lathe([(0.082, 0.822), (0.082, 0.840)], 'amber', seg=SEG, phase=PH, deco=True)
     # comic highlight: one streak down the left-front of the shoulder and body
-    p.on_slope(7, SEG, (0.212, 0.665), (0.165, 0.725), 0.5, 0.004, (0.03, 0.006, 0.058), 'paper')
-    p.on_slope(7, SEG, (0.165, 0.725), (0.105, 0.775), 0.45, 0.004, (0.024, 0.006, 0.04), 'paper')
-    p.on_facet(7, SEG, 0.225, 0.004, 0.604, (0.03, 0.006, 0.034), 'paper')
+    p.on_slope(10, SEG, (0.214, 0.662), (0.188, 0.703), 0.5, 0.004, (0.03, 0.006, 0.042), 'paper', phase=PH)
+    p.on_slope(10, SEG, (0.188, 0.703), (0.148, 0.74), 0.45, 0.004, (0.026, 0.006, 0.045), 'paper', phase=PH)
+    p.on_facet(10, SEG, 0.225, 0.004, 0.596, (0.03, 0.006, 0.034), 'paper', phase=PH)
     for sx in (-1, 1):
-        p.cyl((sx * 0.277, 0, 0.13), 0.045, 0.045, 0.014, 'alu', seg=6, rot=(0, sx * 90, 0), deco=True)
-    p.cyl((0, cy, 0.465), 0.072, 0.072, 0.02, 'core2', seg=8, caps=False, deco=True)
-    p.cyl((0, cy, 0.61), 0.016, 0.016, 0.03, 'gunmetal', seg=6, deco=True)
-    # detail pass: roller mudguards, bolted fork plates with a slot, cradle bolts, moulded flutes on the shoulder,
-    # neck thread rings, a pressure gauge and a hose from the canister valve to the neck, a second canister clamp,
-    # explosive diamonds and a barcode on the label
-    for sy in (-1, 1):
-        arc = [(sy * r * math.cos(math.radians(a)), B_AXLE[2] + r * math.sin(math.radians(a)))
-               for r, angs in ((0.165, range(18, 79, 12)), (0.155, range(78, 17, -12))) for a in angs]
-        sprism(p, arc, -0.20, 0.20, 'steel', deco=True)
+        p.cyl((sx * 0.277, 0, 0.13), 0.045, 0.045, 0.014, 'alu', seg=10, rot=(0, sx * 90, 0), deco=True)
+    p.cyl((0, cy, 0.465), 0.072, 0.072, 0.02, 'core2', seg=10, caps=False, deco=True)
+    p.cyl((0, cy, 0.60), 0.016, 0.016, 0.04, 'gunmetal', seg=6, deco=True)
+    # rounded roller housing over the drum (chamfered steel fender on the fork), fork bolts and slot, cradle bolts,
+    # moulded flutes on the shoulder, a neck thread ring, a pressure gauge and a hose from the canister valve to the
+    # neck, a second canister clamp, explosive diamonds and a barcode on the label
+    SG.arc_plate(p, 0.150, 0.168, -0.20, 0.20, 105, 255, 8, 'steel', c=0.006, deco=True, frame=AX)
     for sx in (-1, 1):
         for y in (-0.025, 0.025):
-            p.cyl((sx * 0.275, y, 0.285), 0.009, 0.009, 0.008, 'steel', seg=6, rot=(0, sx * 90, 0), deco=True)
-        p.box((sx * 0.2785, 0, 0.225), (0.007, 0.04, 0.035), 'ink', deco=True)
-    ED.bolt_ring(p, 0, 0, 0.32, 0.222, 8, r=0.01, h=0.007, phase=math.pi / 8, seg=5)
-    for k in range(0, SEG, 2):
-        p.on_slope(k, SEG, (0.212, 0.665), (0.165, 0.725), 0.5, 0.003, (0.034, 0.006, 0.05), 'glass2')
-    for z in (0.848, 0.858):
-        p.band(z, z + 0.006, 0.081, 'glass2', seg=8)
-    p.cyl((0, cy, 0.525), 0.072, 0.072, 0.02, 'core2', seg=8, caps=False, deco=True)
-    p.cyl((0, cy - 0.064, 0.43), 0.026, 0.026, 0.008, 'gunmetal', seg=8, rot=(90, 0, 0), deco=True)
-    p.cyl((0, cy - 0.070, 0.43), 0.02, 0.02, 0.005, 'paper', seg=8, rot=(90, 0, 0), deco=True)
-    p.box((0.006, cy - 0.0765, 0.435), (0.004, 0.004, 0.018), 'ink', rot=(0, 30, 0), deco=True)
+            p.cyl((sx * 0.275, y, 0.27), 0.009, 0.009, 0.008, 'steel', seg=4, rot=(0, sx * 90, 0), deco=True)
+        p.box((sx * 0.2785, 0, 0.21), (0.007, 0.022, 0.05), 'ink', deco=True)
+    ED.bolt_ring(p, 0, 0, 0.32, 0.218, 6, r=0.008, h=0.007, phase=math.pi / 6, seg=4)
+    for k in range(1, SEG, 2):
+        p.on_slope(k, SEG, (0.214, 0.662), (0.188, 0.703), 0.5, 0.003, (0.03, 0.006, 0.04), 'glass2', phase=PH)
+    p.lathe([(0.081, 0.850), (0.081, 0.858)], 'glass2', seg=SEG, phase=PH, deco=True)
+    p.cyl((0, cy, 0.525), 0.072, 0.072, 0.02, 'core2', seg=10, caps=False, deco=True)
+    p.cyl((0, cy - 0.061, 0.43), 0.026, 0.026, 0.009, 'gunmetal', seg=8, rot=(90, 0, 0), deco=True)
+    p.cyl((0, cy - 0.068, 0.43), 0.02, 0.02, 0.005, 'paper', seg=8, rot=(90, 0, 0), deco=True)
     ED.cable(p, [(0, cy, 0.632), (0, -0.25, 0.70), (0, -0.20, 0.735), (0, -0.12, 0.765)], 0.016, 'rubber')
-    for k in (5, 11):
-        with ED.at(p, ED.facet_frame(k, SEG, 0.232, 0.51)):
+    for k in (7, 15):
+        with ED.at(p, ED.facet_frame(k, SEG, 0.232, 0.51, phase=PH)):
             ED.pad(p, 0, 0, 0.042, 0.042, 0.004, 'red', base=0.0, rot=45)
             ED.pad(p, 0, 0, 0.012, 0.012, 0.003, 'ink', base=0.004)
-    with ED.at(p, ED.facet_frame(2, SEG, 0.232, 0.51)):
-        for i, w in enumerate((0.004, 0.008, 0.003, 0.006, 0.004, 0.009, 0.003)):
-            ED.pad(p, -0.024 + 0.008 * i, 0, w, 0.04, 0.003, 'ink')
+    with ED.at(p, ED.facet_frame(3, SEG, 0.232, 0.51, phase=PH)):
+        for i, w in enumerate((0.004, 0.009, 0.005, 0.008)):
+            ED.pad(p, -0.021 + 0.014 * i, 0, w, 0.04, 0.003, 'ink')
     body = p.build('BOT_BOMBER_Body', bevel=False)
     socket('BOT_BOMBER_CORE', body, (0, cy, 0.48))
     socket('BOT_BOMBER_AXLE', body, B_AXLE)
     socket('BOT_BOMBER_CAP', body, B_CAP)
 
-    # roller drum (origin on the axle, axis X)
+    # roller drum (origin on the axle, axis X): rounded rubber drum with rolled ends, steel rings, tread lugs
     p = Part(pal)
-    p.cyl((-0.22, 0, 0), B_ROLLER_R, B_ROLLER_R, 0.44, 'rubber', seg=10, rot=(0, 90, 0))
+    p.parent = Matrix.Rotation(math.radians(90), 4, 'Y')
+    p.lathe([(0.0, -0.22), (0.115, -0.22), (B_ROLLER_R, -0.205), (B_ROLLER_R, 0.205), (0.115, 0.22), (0.0, 0.22)], 'rubber', seg=12)
+    p.parent = Matrix.Identity(4)
     for x in (-0.12, 0.12):
-        p.cyl((x - 0.012, 0, 0), B_ROLLER_R + 0.006, B_ROLLER_R + 0.006, 0.024, 'steel', seg=10, rot=(0, 90, 0),
+        p.cyl((x - 0.012, 0, 0), B_ROLLER_R + 0.006, B_ROLLER_R + 0.006, 0.024, 'steel', seg=12, rot=(0, 90, 0),
               caps=False, deco=True)
-    p.cyl((-0.228, 0, 0), 0.06, 0.06, 0.456, 'alu', seg=6, rot=(0, 90, 0), deco=True)    # end hubs (one through-rod)
-    # detail pass: tread lugs on every facet (three rows between the steel rings), hub bolts on both ends
-    ap = B_ROLLER_R * math.cos(math.pi / 10)
-    for j in range(10):
-        b = math.radians(36 * j)
+    p.cyl((-0.228, 0, 0), 0.06, 0.06, 0.456, 'alu', seg=10, rot=(0, 90, 0), deco=True)    # end hubs (one through-rod)
+    ap = B_ROLLER_R * math.cos(math.pi / 12)
+    for j in range(6):
+        b = math.radians(15 + 60 * j)
         for x, w in ((0.0, 0.18), (-0.172, 0.06), (0.172, 0.06)):
             r = ap + 0.004
             p.box((x, r * math.cos(b), r * math.sin(b)), (w, 0.028, 0.012), 'rubber', rot=(math.degrees(b) - 90, 0, 0), deco=True)
     for sx in (-1, 1):
         for j in range(4):
             b = math.pi / 4 + math.pi / 2 * j
-            p.cyl((sx * 0.226, 0.034 * math.cos(b), 0.034 * math.sin(b)), 0.009, 0.009, 0.008, 'steel', seg=5, rot=(0, sx * 90, 0), deco=True)
+            p.cyl((sx * 0.226, 0.034 * math.cos(b), 0.034 * math.sin(b)), 0.009, 0.009, 0.008, 'steel', seg=4, rot=(0, sx * 90, 0), deco=True)
     p.build('BOT_BOMBER_Roller', bevel=False)
 
-    # crimp cap + fuse wick (origin on the neck top)
+    # crimp cap + fuse wick (origin on the neck top): a rounded cap over a crimped skirt, a round fuse cord
     p = Part(pal)
-    p.cyl((0, 0, 0.0), 0.088, 0.088, 0.05, 'capred', seg=10)
+    p.lathe([(0.0, 0.0), (0.08, 0.0), (0.088, 0.008), (0.088, 0.04), (0.078, 0.05), (0.0, 0.052)], 'capred', seg=14)
     pts = [(0, 0, 0.06), (0.02, 0.005, 0.10), (0.006, -0.01, 0.14), (0.022, 0.0, 0.175)]
     for a, b in zip(pts, pts[1:]):
-        p.beam(a, b, 0.016, 'wick')
-    p.cyl((0, 0, -0.012), 0.095, 0.095, 0.02, 'capred', seg=10, caps=False, deco=True)   # crimp skirt
-    p.cyl((0, 0, 0.046), 0.026, 0.02, 0.025, 'alu', seg=6, deco=True)                     # wick holder
-    # detail pass: crimp teeth round the skirt, knurled grip ridges, a crimp ring on the wick holder
-    for k in range(10):
-        p.on_facet(k, 10, 0.095, 0.0, -0.002, (0.014, 0.008, 0.018), 'red')
-        p.on_facet(k, 10, 0.088, 0.0, 0.034, (0.012, 0.007, 0.022), 'capred', phase=math.pi / 10)
-    p.cyl((0, 0, 0.056), 0.025, 0.025, 0.008, 'gunmetal', seg=6, caps=False, deco=True)
+        p.limb(a, b, 0.009, 0.009, 'wick', seg=5)
+    p.cyl((0, 0, -0.012), 0.095, 0.095, 0.02, 'capred', seg=14, caps=False, deco=True)   # crimp skirt
+    p.cyl((0, 0, 0.046), 0.026, 0.02, 0.025, 'alu', seg=8, deco=True)                     # wick holder
+    for k in range(0, 14, 2):
+        p.on_facet(k, 14, 0.095, 0.0, -0.002, (0.014, 0.008, 0.018), 'red')                # crimp teeth
+    p.cyl((0, 0, 0.056), 0.029, 0.029, 0.008, 'gunmetal', seg=8, caps=False, deco=True)
     cap = p.build('BOT_BOMBER_Cap', bevel=False)
     socket('BOT_BOMBER_WICK', cap, (0.022, 0.0, 0.185))
 
@@ -1002,124 +1002,123 @@ def build_soldier(pal):
 #   Axe (Voltaxe): steel shaft with grips, gunmetal head, battery, teal coils, wide blade with a glowing edge.
 X_HUB = (0, 0, 0.84)
 X_GRIP = (0.47, 0, 0)
+X_SAU = [(0.0, 0.155), (0.235, 0.158), (0.345, 0.238), (0.45, 0.332), (0.482, 0.372), (0.488, 0.43), (0.482, 0.484),
+         (0.452, 0.522), (0.42, 0.55), (0.28, 0.61), (0.17, 0.63), (0.0, 0.635)]      # saucer profile (r, z)
 
 
 def build_blader(pal):
-    SEG = 12
-    ph = math.radians(15)
+    import bot_shapes_ground as SG
+    SEG, PH = 16, -math.pi / 16          # facet centres every 22.5 deg (facet 12 = front -Y, under the sensor bar)
+    CR = ((0.42, 0.55), (0.28, 0.61))                                                     # the crown slope
     p = Part(pal)
-    p.lathe([(0.0, 0.16), (0.24, 0.16), (0.34, 0.24), (0.49, 0.38), (0.49, 0.48), (0.42, 0.55), (0.28, 0.61),
-             (0.17, 0.63), (0.0, 0.63)], 'violet', seg=SEG, phase=ph)
-    p.sphere((0, 0, 0.62), 0.17, 'core', seg=(10, 5), scale=(1, 1, 0.68))
-    p.cyl((0, 0, 0.70), 0.045, 0.045, 0.16, 'gunmetal', seg=8)                                # hub post
-    # ---- deco: rim band, hazard chevrons, under-thruster glow, vents, core seat
-    p.band(0.383, 0.40, 0.497, 'violet2', seg=SEG, phase=ph)
-    p.band(0.46, 0.477, 0.497, 'violet2', seg=SEG, phase=ph)
-    for k in range(SEG):
-        if k % 2 == 0:
-            p.on_slope(k, SEG, (0.34, 0.24), (0.49, 0.38), 0.55, 0.004, (0.07, 0.006, 0.08), 'amber', phase=ph)
-    p.cyl((0, 0, 0.152), 0.18, 0.18, 0.008, 'teal', seg=10, deco=True)
-    p.cyl((0, 0, 0.142), 0.08, 0.08, 0.008, 'paper', seg=8, deco=True)
-    for k in (2, 5, 8, 11):
-        p.on_slope(k, SEG, (0.42, 0.55), (0.28, 0.61), 0.5, 0.004, (0.05, 0.006, 0.05), 'ink', phase=ph)
-    p.cyl((0, 0, 0.625), 0.18, 0.18, 0.02, 'gunmetal', seg=10, caps=False, deco=True)
-    # detail pass: a bezel round the sensor slot, rim bolts between the bands, a seam band on the shoulder, bolts on
-    # the crown, three thruster nozzles under the saucer, hub post collar and slip rings
-    with ED.at(p, ED.facet_frame(8, SEG, 0.49, 0.43, phase=ph)):
-        ED.pad(p, 0, 0, 0.25, 0.052, 0.004, 'gunmetal')
-    for k in range(SEG):
-        if k in (7, 8, 9):
+    # smooth saucer: rolled rim, rounded underside, a gold core dome on the crown and a round hub post
+    p.lathe(X_SAU, 'violet', seg=SEG, phase=PH)
+    p.sphere((0, 0, 0.62), 0.17, 'core', seg=(12, 5), scale=(1, 1, 0.68))
+    p.cyl((0, 0, 0.70), 0.045, 0.045, 0.16, 'gunmetal', seg=12)                              # hub post
+    # ---- deco: rim bands, hazard chevrons, under-thruster glow, crown vents, core seat
+    for z0, z1 in ((0.383, 0.40), (0.46, 0.477)):
+        p.lathe([(0.496, z0), (0.496, z1)], 'violet2', seg=SEG, phase=PH, deco=True)
+    for k in range(0, SEG, 2):
+        p.on_slope(k, SEG, (0.345, 0.238), (0.45, 0.332), 0.55, 0.004, (0.07, 0.006, 0.07), 'amber', phase=PH)
+    p.cyl((0, 0, 0.150), 0.18, 0.18, 0.008, 'teal', seg=12, deco=True)
+    p.cyl((0, 0, 0.140), 0.08, 0.08, 0.008, 'paper', seg=10, deco=True)
+    p.lathe([(0.18, 0.62), (0.18, 0.645)], 'gunmetal', seg=SEG, deco=True)
+    # detail pass: a curved bezel behind the sensor bar, rim bolts between the bands, curved crown armour plates with
+    # vents between them, crown bolts, three thruster nozzles under the saucer, hub post collar and slip rings
+    SG.arc_plate(p, 0.466, 0.484, 0.403, 0.457, 254, 286, 2, 'gunmetal', deco=True)
+    for k in range(0, SEG, 2):
+        if k == 12:
             continue
-        with ED.at(p, ED.facet_frame(k, SEG, 0.49, 0.43, phase=ph)):
-            ED.bolts(p, [(-0.07, 0), (0.07, 0)], r=0.011, top=0.006, color='violet2', seg=4)
-    (r0, z0), (r1, z1) = (0.49, 0.48), (0.42, 0.55)
-    n = Vector((z1 - z0, r0 - r1)).normalized() * 0.004
-    p.lathe([(r0 + (r1 - r0) * t + n.x, z0 + (z1 - z0) * t + n.y) for t in (0.42, 0.58)], 'violet2', seg=SEG, phase=ph, deco=True)
+        with ED.at(p, ED.facet_frame(k, SEG, 0.488, 0.43, phase=PH)):
+            ED.bolt(p, 0, 0, r=0.011, top=0.006, color='violet2', seg=4)
+    (r0, z0), (r1, z1) = CR
+    nrm = Vector((z1 - z0, r0 - r1)).normalized()
+    plate = lambda t0, t1, d0, d1: [(r0 + (r1 - r0) * t + nrm.x * d, z0 + (z1 - z0) * t + nrm.y * d) for t, d in
+                                    ((t0, d0), (t1, d0), (t1, d1), (t0, d1))]
+    for a in (0, 90, 180, 270):                                                           # curved crown armour
+        SG.sweep(p, plate(0.12, 0.86, -0.006, 0.008), math.radians(a - 33.75), math.radians(a + 33.75), 3, 'violet2', deco=True)
+    for k in (2, 6, 10, 14):                                                              # vents between the plates
+        with ED.at(p, ED.slope_frame(k, SEG, CR[0], CR[1], 0.5, phase=PH)):
+            for y in (-0.014, 0.0, 0.014):
+                ED.pad(p, 0, y, 0.05, 0.006, 0.003, 'gunmetal', base=0.004)
+            ED.pad(p, 0, 0, 0.06, 0.042, 0.004, 'ink', base=0.0)
     for k in range(1, SEG, 2):
-        p.on_slope(k, SEG, (0.28, 0.61), (0.17, 0.63), 0.5, 0.0, (0.022, 0.006, 0.022), 'gunmetal', phase=ph)
-    for k in range(SEG):                                                                    # crown armour plates + vent slats
-        with ED.at(p, ED.slope_frame(k, SEG, (0.42, 0.55), (0.28, 0.61), 0.5, phase=ph)):
-            if k in (2, 5, 8, 11):
-                for y in (-0.014, 0.0, 0.014):
-                    ED.pad(p, 0, y, 0.044, 0.006, 0.003, 'gunmetal', base=0.010)
-            else:
-                ED.pad(p, 0, 0, 0.12, 0.08, 0.006, 'violet2')
-                ED.bolts(p, [(-0.045, 0.025), (0.045, 0.025)], r=0.009, top=0.004, color='gunmetal', seg=4, base=0.006)
+        p.on_slope(k, SEG, (0.28, 0.61), (0.17, 0.63), 0.5, 0.0, (0.022, 0.006, 0.022), 'gunmetal', phase=PH)
     for j in range(3):
         a = math.radians(90 + 120 * j)
         x, y = 0.15 * math.cos(a), 0.15 * math.sin(a)
-        p.cyl((x, y, 0.13), 0.04, 0.032, 0.04, 'gunmetal', seg=8, deco=True)
-        p.cyl((x, y, 0.124), 0.026, 0.026, 0.008, 'teal', seg=8, deco=True)
-    p.cyl((0, 0, 0.66), 0.055, 0.055, 0.03, 'steel', seg=8, deco=True)
+        p.cyl((x, y, 0.128), 0.04, 0.032, 0.04, 'gunmetal', seg=8, deco=True)
+        p.cyl((x, y, 0.122), 0.026, 0.026, 0.008, 'teal', seg=8, deco=True)
+    p.cyl((0, 0, 0.66), 0.055, 0.055, 0.03, 'steel', seg=12, deco=True)
     for z in (0.75, 0.80):
-        p.cyl((0, 0, z), 0.05, 0.05, 0.012, 'amber', seg=8, caps=False, deco=True)
+        p.cyl((0, 0, z), 0.05, 0.05, 0.012, 'amber', seg=12, caps=False, deco=True)
     body = p.build('BOT_BLADER_Body')
     socket('BOT_BLADER_CORE', body, (0, 0, 0.67))
     socket('BOT_BLADER_HUB', body, X_HUB)
     socket('BOT_BLADER_LIGHT', body, (0, -0.48, 0.43))
 
+    # hub: a rounded drum on the post, one tapered chamfered arm through it (the weapon clamp on +X, a rounded
+    # counterweight on -X)
     p = Part(pal)
-    p.cyl((0, 0, -0.04), 0.12, 0.12, 0.08, 'steel', seg=10)
-    p.box((0.27, 0, 0), (0.38, 0.06, 0.05), 'gunmetal')
-    p.box((-0.20, 0, 0), (0.26, 0.06, 0.05), 'gunmetal')
-    p.cyl((-0.34, 0, -0.05), 0.07, 0.07, 0.10, 'amber', seg=8)
-    p.box((X_GRIP[0], 0, 0), (0.08, 0.09, 0.08), 'violet2', bevel=True)
-    p.cyl((0, 0, 0.04), 0.06, 0.06, 0.008, 'amber', seg=8, deco=True)
-    p.cyl((-0.34, 0, 0.05), 0.04, 0.04, 0.008, 'ink', seg=6, deco=True)
-    # detail pass: lightening holes in the arms, a hydraulic piston over the weapon arm, clamp bolts and jaw slit,
+    p.lathe([(0.0, -0.04), (0.11, -0.04), (0.12, -0.028), (0.12, 0.028), (0.11, 0.04), (0.0, 0.04)], 'steel', seg=12)
+    SG.cprism(p, [(-0.33, -0.028), (-0.06, -0.034), (0.08, -0.034), (0.45, -0.026), (0.45, 0.026), (0.08, 0.034),
+                  (-0.06, 0.034), (-0.33, 0.028)], -0.025, 0.025, 'gunmetal', c=0.01)
+    p.parent = Matrix.Translation((-0.34, 0, 0))
+    p.lathe([(0.0, -0.05), (0.06, -0.05), (0.07, -0.038), (0.07, 0.038), (0.06, 0.05), (0.0, 0.05)], 'amber', seg=10)
+    p.parent = Matrix.Identity(4)
+    SG.rbox(p, (X_GRIP[0], 0, 0), (0.08, 0.09, 0.08), 'violet2', r=0.022, n=1, c=0.012)
+    p.cyl((0, 0, 0.038), 0.06, 0.06, 0.008, 'amber', seg=12, deco=True)
+    p.cyl((-0.34, 0, 0.048), 0.04, 0.04, 0.008, 'ink', seg=8, deco=True)
+    # detail pass: lightening slots in the arm, a hydraulic piston over the weapon arm, clamp bolts and jaw slit,
     # weight plates on the counterweight, bolts round the hub drum
+    for x in (0.17, 0.26, 0.35, -0.16, -0.25):
+        p.box((x, 0, 0.026), (0.05, 0.016, 0.006), 'ink', deco=True)
     for sy in (-1, 1):
-        for x in (0.16, 0.25, 0.34, -0.15, -0.24):
-            p.box((x, sy * 0.0315, 0), (0.045 if x > 0 else 0.04, 0.005, 0.024), 'ink', deco=True)
-        for x in (0.45, 0.49):
-            p.cyl((x, sy * 0.045, 0.022), 0.009, 0.009, 0.006, 'steel', seg=4, rot=(sy * -90, 0, 0), deco=True)
-    ED.piston(p, (0.10, 0, 0.045), (0.40, 0, 0.045), 0.012, 0.007, k=0.55, body='gunmetal', rod='steel')
+        for x in (0.458, 0.482):
+            p.cyl((x, sy * 0.043, 0.022), 0.009, 0.009, 0.006, 'steel', seg=4, rot=(sy * -90, 0, 0), deco=True)
+    ED.piston(p, (0.10, 0, 0.045), (0.40, 0, 0.045), 0.012, 0.007, k=0.55, body='gunmetal', rod='steel', seg=6)
     for x in (0.10, 0.40):
         p.box((x, 0, 0.034), (0.022, 0.016, 0.022), 'gunmetal', deco=True)
-    p.box((X_GRIP[0] + 0.0, 0, 0.0425), (0.07, 0.012, 0.006), 'ink', deco=True)
-    for z in (-0.03, -0.065):
-        p.cyl((-0.34, 0, z), 0.074, 0.074, 0.008, 'gunmetal', seg=8, caps=False, deco=True)
-    ED.bolt_ring(p, 0, 0, 0.04, 0.095, 8, r=0.01, h=0.006, phase=math.pi / 8, seg=4)
+    p.box((X_GRIP[0] + 0.0, 0, 0.0425), (0.04, 0.012, 0.006), 'ink', deco=True)
+    p.cyl((-0.34, 0, -0.03), 0.074, 0.074, 0.008, 'gunmetal', seg=10, caps=False, deco=True)
+    ED.bolt_ring(p, 0, 0, 0.04, 0.09, 6, r=0.01, h=0.006, phase=math.pi / 6, seg=4)
     hub = p.build('BOT_BLADER_Hub', bevel=False)
     socket('BOT_BLADER_GRIP', hub, X_GRIP)
 
-    # katana (origin = clamp centre; the clamp hides the middle of the handle)
+    # katana (origin = clamp centre; the clamp hides the middle of the handle): round wrapped handle, rolled
+    # tsuba, habaki, a blade with a chamfered spine, flats, a ridge line and a ground edge (pale temper line)
     p = Part(pal)
-    p.cyl((-0.14, 0, 0), 0.022, 0.022, 0.26, 'ink', seg=8, rot=(0, 90, 0))
-    for xb in (-0.10, -0.06, 0.06):
-        p.cyl((xb, 0, 0), 0.026, 0.026, 0.012, 'paper', seg=8, rot=(0, 90, 0), caps=False, deco=True)
-    p.cyl((-0.16, 0, 0), 0.027, 0.027, 0.022, 'steel', seg=8, rot=(0, 90, 0))
-    p.cyl((0.12, 0, 0), 0.065, 0.065, 0.02, 'gunmetal', seg=12, rot=(0, 90, 0))
-    p.box((0.155, 0.0, 0), (0.035, 0.05, 0.026), 'amber')
+    XA = Matrix.Rotation(math.radians(90), 4, 'Y')                                      # lathe axis Z -> X
+    p.cyl((-0.15, 0, 0), 0.022, 0.022, 0.27, 'ink', seg=8, rot=(0, 90, 0))
+    p.parent = Matrix.Translation((-0.16, 0, 0)) @ XA
+    p.lathe([(0.0, -0.012), (0.022, -0.012), (0.028, -0.004), (0.028, 0.012), (0.0, 0.012)], 'steel', seg=8)   # pommel
+    p.parent = Matrix.Translation((0.13, 0, 0)) @ XA
+    p.lathe([(0.0, -0.01), (0.058, -0.01), (0.066, -0.003), (0.066, 0.003), (0.058, 0.01), (0.0, 0.01)], 'gunmetal', seg=14)  # tsuba
+    p.parent = Matrix.Identity(4)
+    SG.rbox(p, (0.1525, 0.0, 0), (0.026, 0.05, 0.035), 'amber', r=0.008, n=1, rot=(0, 90, 0))   # habaki
     st = []
     n = 7
     for i in range(n):
         t = i / (n - 1)
-        x = 0.17 + 0.82 * t
+        x = 0.165 + 0.825 * t
         sori = -0.07 * t * t
         w = 0.068 - 0.014 * t
-        st.append((x, -w / 2 + sori, w / 2 + sori, 0.009 - 0.002 * t))
-    p.blade(st, (1.06, -0.07 - 0.005, 0.0), 'blade', 'paper')
-    # detail pass: diamond ito wrap on four sides of the handle, seppa washers and a ring on the guard, a fuller
-    # (bo-hi) groove line along both flats of the blade near the spine
-    for j in range(4):
-        b = math.radians(22.5 + 90 * j)
-        for i, x in enumerate((-0.12, -0.08, -0.04, 0.0, 0.04, 0.08)):
-            p.parent = Matrix.Rotation(b - math.pi / 2, 4, 'X')
-            p.box((x, 0, 0.0215), (0.013, 0.013, 0.006), 'paper', rot=(0, 0, 45), deco=True)
-            p.parent = Matrix.Identity(4)
-    for x in (0.109, 0.142):
-        p.cyl((x, 0, 0), 0.034, 0.034, 0.006, 'amber', seg=8, rot=(0, 90, 0), deco=True)
-    for x in (0.117, 0.137):
-        p.cyl((x, 0, 0), 0.052, 0.052, 0.006, 'ink', seg=12, rot=(0, 90, 0), caps=False, deco=True)
+        st.append((x, -w / 2 + sori, w / 2 + sori, 0.0095 - 0.0025 * t, 0.66))
+    SG.blade(p, st, (1.06, -0.07 - 0.005, 0.0), 'blade', 'paper')
+    # detail pass: criss-cross ito wrap rings on the handle, seppa washers and a ring on the guard, a fuller (bo-hi)
+    # groove line along both flats of the blade near the spine
+    for i, x in enumerate((-0.115, -0.085, -0.055, 0.055, 0.085)):
+        p.cyl((x - 0.005, 0, 0), 0.026, 0.026, 0.010, 'paper', seg=8, rot=(0, 90, 22 if i % 2 else -22), caps=False, deco=True)
+    for x in (0.111, 0.141):
+        p.cyl((x - 0.002, 0, 0), 0.034, 0.034, 0.006, 'amber', seg=10, rot=(0, 90, 0), deco=True)
+    p.cyl((0.117, 0, 0), 0.05, 0.05, 0.006, 'ink', seg=14, rot=(0, 90, 0), caps=False, deco=True)
     for sz in (-1, 1):
         for a, b in zip(st[1:], st[2:]):
             if b[0] > 0.86:
                 break
             pts = []
-            for (x, yb, ye, t), s_ in ((a, 0.14), (b, 0.14), (b, 0.42), (a, 0.42)):
-                ys, yh = yb + (ye - yb) * 0.3, yb + (ye - yb) * 0.72
-                pts.append(Vector((x, ys + (yh - ys) * s_, sz * (t + (t * 0.5 - t) * s_))))
+            for (x, yb, ye, t, _), f in ((a, 0.16), (b, 0.16), (b, 0.36), (a, 0.36)):
+                pts.append(Vector((x, yb + (ye - yb) * f, sz * t)))
             o = sum(pts, Vector()) / 4
             u = (pts[1] - pts[0]).normalized()
             nrm = (pts[1] - pts[0]).cross(pts[3] - pts[0]).normalized()
@@ -1136,38 +1135,208 @@ def build_blader(pal):
             p.parent = Matrix.Identity(4)
     p.build('BOT_BLADER_Katana', bevel=False, hull=0.01)
 
-    # electric axe
+    # electric axe: round shaft with wrapped grip, rounded head with the battery, chamfered blade with a ground
+    # bevel inside the glowing edge
     p = Part(pal)
-    p.cyl((-0.10, 0, 0), 0.024, 0.024, 0.90, 'steel', seg=8, rot=(0, 90, 0))
-    p.cyl((-0.12, 0, 0), 0.03, 0.03, 0.03, 'gunmetal', seg=8, rot=(0, 90, 0))
-    p.cyl((0.08, 0, 0), 0.029, 0.029, 0.22, 'ink', seg=8, rot=(0, 90, 0), caps=False)
-    p.box((0.70, 0.0, 0), (0.12, 0.085, 0.075), 'gunmetal', bevel=True)
-    p.box((0.70, -0.065, 0), (0.08, 0.05, 0.055), 'teal')
-    p.prism([(0.62, 0.02), (0.78, 0.02), (0.83, 0.13), (0.85, 0.25), (0.70, 0.29), (0.55, 0.25), (0.57, 0.13)], -0.014, 0.014, 'steel')
+    p.cyl((-0.10, 0, 0), 0.024, 0.024, 0.90, 'steel', seg=10, rot=(0, 90, 0))
+    p.cyl((-0.12, 0, 0), 0.03, 0.03, 0.03, 'gunmetal', seg=10, rot=(0, 90, 0))
+    p.cyl((0.08, 0, 0), 0.029, 0.029, 0.22, 'ink', seg=10, rot=(0, 90, 0), caps=False)
+    SG.rbox(p, (0.70, 0.0, 0), (0.12, 0.085, 0.075), 'gunmetal', r=0.025, n=1, c=0.012)
+    SG.rbox(p, (0.70, -0.065, 0), (0.08, 0.05, 0.055), 'teal', r=0.012, n=1, c=0.008)
+    SG.cprism(p, SG.fillet([(0.62, 0.02), (0.78, 0.02), (0.83, 0.13), (0.85, 0.25), (0.70, 0.29), (0.55, 0.25), (0.57, 0.13)],
+                           [0.0, 0.0, 0.03, 0.02, 0.0, 0.02, 0.03], n=1), -0.014, 0.014, 'steel', c=0.007)
     p.prism([(0.55, 0.235), (0.70, 0.27), (0.85, 0.235), (0.855, 0.255), (0.70, 0.295), (0.545, 0.255)], -0.019, 0.019, 'lens')
-    p.prism([(0.67, -0.06), (0.70, -0.17), (0.73, -0.06)], -0.01, 0.01, 'steel')
+    SG.cprism(p, [(0.67, -0.06), (0.70, -0.17), (0.73, -0.06)], -0.01, 0.01, 'steel', c=0.005)
     for xc in (0.56, 0.60):
-        p.cyl((xc, 0, 0), 0.036, 0.036, 0.014, 'teal', seg=8, rot=(0, 90, 0), caps=False, deco=True)
+        p.cyl((xc, 0, 0), 0.036, 0.036, 0.014, 'teal', seg=10, rot=(0, 90, 0), caps=False, deco=True)
     # detail pass: wrapped grip rings, head bolts and hazard stencils on both faces, a bevel line along the blade
     # inside the glowing edge, a power cable from the battery over the head, a pommel cap
-    for x in (0.10, 0.145, 0.19, 0.235, 0.28):
-        p.cyl((x, 0, 0), 0.033, 0.033, 0.009, 'gunmetal', seg=8, rot=(0, 90, 0), caps=False, deco=True)
+    for x in (0.12, 0.19, 0.26):
+        p.cyl((x, 0, 0), 0.033, 0.033, 0.009, 'gunmetal', seg=10, rot=(0, 90, 0), caps=False, deco=True)
     for sz in (-1, 1):
-        for x in (0.655, 0.745):
-            for y in (-0.025, 0.025):
-                p.cyl((x, y, sz * 0.0355), 0.008, 0.008, 0.008, 'steel', seg=4, rot=(0, 0 if sz > 0 else 180, 0), deco=True)
         p.box((0.70, 0.0, sz * 0.0385), (0.05, 0.03, 0.006), 'amber', deco=True)
-        for x in (0.687, 0.70, 0.713):
+        for x in (0.69, 0.71):
             p.box((x, 0.0, sz * 0.0435), (0.005, 0.024, 0.004), 'ink', rot=(0, 0, 30), deco=True)
         p.prism([(0.575, 0.205), (0.70, 0.235), (0.825, 0.205), (0.83, 0.217), (0.70, 0.249), (0.57, 0.217)],
                 *(sorted((sz * 0.0125, sz * 0.018))), 'gunmetal', deco=True)
     ED.cable(p, [(0.68, -0.09, 0.02), (0.68, -0.05, 0.052), (0.70, 0.03, 0.052), (0.72, 0.06, 0.02)], 0.012, 'ink')
-    p.cyl((-0.13, 0, 0), 0.034, 0.03, 0.012, 'amber', seg=8, rot=(0, 90, 0), deco=True)
+    p.cyl((-0.13, 0, 0), 0.034, 0.03, 0.012, 'amber', seg=10, rot=(0, 90, 0), deco=True)
     p.build('BOT_BLADER_Axe', bevel=False, hull=0.01)
 
     p = Part(pal)
-    p.box((0, 0, 0), (0.20, 0.02, 0.035), 'light')
+    SG.rbox(p, (0, 0, 0), (0.20, 0.035, 0.02), 'light', r=0.008, n=1, rot=(90, 0, 0))
     p.build('BOT_BLADER_Light', bevel=False, hull=0.006)
+    build_blader2(pal)                                                                   # the levels 30+ skin
+
+
+# ================================================================ BLADE BOT, ADVANCED SKIN (levels 30+)
+# Same saucer, hub, pivots, sockets and hit volumes as the Blade Bot (the parts are swapped in by the game, the sockets
+# stay on Body / Hub / Fundo): a tactical refit in the same violet family. Body2: segmented rim armour, a wrap-around
+# sensor visor round the lit sensor bar (Light), dark crown plates with cyan sensor lenses between them, a swept sensor
+# fin with a glowing leading edge, a cyan ring round the gold core, a few amber hazard tabs kept for fun. Hub2: an
+# armoured drum with a sensor ring, plated arms, an armoured counterweight. Sharper weapons with glowing cyan edges:
+# Katana2 (straighter blade with a clipped tanto point, octagonal guard, segmented grip), Axe2 (crescent blade with
+# horned tips, a longer spike, armoured head), Kusari2 (narrower sickle with a long point, dark handle). The chain
+# and the weight (Fundo) are shared with the normal skin.
+def build_blader2(pal):
+    import bot_shapes_ground as SG
+    SEG, PH = 16, -math.pi / 16
+    CR = ((0.42, 0.55), (0.28, 0.61))
+    p = Part(pal)
+    p.lathe(X_SAU, 'violet', seg=SEG, phase=PH)
+    p.sphere((0, 0, 0.62), 0.17, 'core', seg=(12, 5), scale=(1, 1, 0.68))
+    p.cyl((0, 0, 0.70), 0.045, 0.045, 0.16, 'gunmetal', seg=12)                              # hub post
+    # swept sensor fin on the back of the crown (clear of the spinning hub)
+    SG.sprism2(p, [(0.20, 0.585), (0.36, 0.555), (0.37, 0.585), (0.27, 0.735), (0.235, 0.735)], -0.012, 0.012, 'gunmetal',
+               c=0.004, r=[0.0, 0.0, 0.01, 0.015, 0.01], n=1)
+    # sensor visor pods either side of the lit sensor bar (the Light part sits between them, on a bezel)
+    for a0, a1 in ((236, 257), (283, 304)):
+        SG.arc_plate(p, 0.46, 0.50, 0.398, 0.462, a0, a1, 2, 'ink', c=0.008)
+    # ---- deco: visor lenses, rim armour segments, crown plates and sensor lenses, fin edge, core ring, belly
+    for a0, a1 in ((240, 253), (287, 300)):
+        SG.arc_plate(p, 0.494, 0.506, 0.418, 0.442, a0, a1, 2, 'lens', deco=True)
+    SG.arc_plate(p, 0.466, 0.484, 0.403, 0.457, 257, 283, 2, 'gunmetal', deco=True)
+    for a in (330, 30, 90, 150, 210):
+        SG.arc_plate(p, 0.476, 0.506, 0.386, 0.474, a - 22, a + 22, 2, 'violet2', c=0.009, deco=True)
+        for da in (-11, 11):
+            q = math.radians(a + da)
+            n = Vector((math.cos(q), math.sin(q), 0))
+            with ED.at(p, ED.axis_frame(tuple(n * (0.506 * math.cos(math.radians(11)) - 0.0005) + Vector((0, 0, 0.43))), tuple(n))):
+                ED.bolt(p, 0, 0, r=0.009, top=0.004, color='steel', seg=4)
+    (r0, z0), (r1, z1) = CR
+    nrm = Vector((z1 - z0, r0 - r1)).normalized()
+    plate = lambda t0, t1, d0, d1: [(r0 + (r1 - r0) * t + nrm.x * d, z0 + (z1 - z0) * t + nrm.y * d) for t, d in
+                                    ((t0, d0), (t1, d0), (t1, d1), (t0, d1))]
+    for a in (0, 90, 180, 270):                                                           # dark crown armour
+        SG.sweep(p, plate(0.08, 0.9, -0.006, 0.01), math.radians(a - 33.75), math.radians(a + 33.75), 3, 'gunmetal', deco=True)
+    for k in (2, 6, 10, 14):                                                              # cyan sensor lenses between them
+        with ED.at(p, ED.slope_frame(k, SEG, CR[0], CR[1], 0.5, phase=PH)):
+            ED.lamp(p, 0, 0, 0.018, lens='lens', rim='gunmetal', w=0.008, seg=6)
+    SG.sprism2(p, [(0.268, 0.725), (0.358, 0.58), (0.372, 0.586), (0.282, 0.732)], -0.0155, 0.0155, 'lens', deco=True)
+    p.lathe([(0.18, 0.62), (0.18, 0.645)], 'gunmetal', seg=SEG, deco=True)
+    p.lathe([(0.188, 0.627), (0.188, 0.638)], 'lens', seg=SEG, deco=True)
+    for k in (2, 6, 10, 14):                                                              # amber hazard tabs (the fun)
+        p.on_slope(k, SEG, (0.345, 0.238), (0.45, 0.332), 0.55, 0.004, (0.07, 0.006, 0.07), 'amber', phase=PH)
+    for k in (0, 4, 8, 12):
+        with ED.at(p, ED.slope_frame(k, SEG, (0.345, 0.238), (0.45, 0.332), 0.55, phase=PH)):
+            ED.grille(p, 0, 0, 0.08, 0.05, 3, color='ink', slat='gunmetal')
+    p.cyl((0, 0, 0.150), 0.18, 0.18, 0.008, 'lens', seg=12, deco=True)
+    p.cyl((0, 0, 0.140), 0.08, 0.08, 0.008, 'paper', seg=10, deco=True)
+    for j in range(3):
+        a = math.radians(90 + 120 * j)
+        x, y = 0.15 * math.cos(a), 0.15 * math.sin(a)
+        p.cyl((x, y, 0.128), 0.04, 0.032, 0.04, 'gunmetal', seg=8, deco=True)
+        p.cyl((x, y, 0.122), 0.026, 0.026, 0.008, 'lens', seg=8, deco=True)
+    p.cyl((0, 0, 0.66), 0.055, 0.055, 0.03, 'steel', seg=12, deco=True)
+    p.cyl((0, 0, 0.75), 0.05, 0.05, 0.012, 'amber', seg=12, caps=False, deco=True)
+    p.cyl((0, 0, 0.80), 0.05, 0.05, 0.012, 'lens', seg=12, caps=False, deco=True)
+    p.build('BOT_BLADER_Body2')
+
+    # hub: dark armoured drum with a cyan sensor ring, plated arm, armoured amber counterweight, plated clamp
+    p = Part(pal)
+    p.lathe([(0.0, -0.04), (0.11, -0.04), (0.12, -0.028), (0.12, 0.028), (0.11, 0.04), (0.0, 0.04)], 'gunmetal', seg=12)
+    SG.cprism(p, [(-0.33, -0.028), (-0.06, -0.034), (0.08, -0.034), (0.45, -0.026), (0.45, 0.026), (0.08, 0.034),
+                  (-0.06, 0.034), (-0.33, 0.028)], -0.025, 0.025, 'gunmetal', c=0.01)
+    p.parent = Matrix.Translation((-0.34, 0, 0))
+    p.lathe([(0.0, -0.05), (0.06, -0.05), (0.07, -0.038), (0.07, 0.038), (0.06, 0.05), (0.0, 0.05)], 'amber', seg=10)
+    p.parent = Matrix.Identity(4)
+    SG.rbox(p, (X_GRIP[0], 0, 0), (0.08, 0.09, 0.08), 'violet2', r=0.022, n=1, c=0.012)
+    p.cyl((0, 0, -0.008), 0.124, 0.124, 0.016, 'lens', seg=12, caps=False, deco=True)
+    p.cyl((0, 0, 0.038), 0.07, 0.07, 0.008, 'violet2', seg=12, deco=True)
+    p.cyl((0, 0, 0.044), 0.03, 0.03, 0.008, 'lens', seg=8, deco=True)
+    for x0, x1 in ((0.12, 0.40), (-0.30, -0.10)):                                         # side armour on the arms
+        for sy in (-1, 1):
+            xm, w = (x0 + x1) / 2, x1 - x0
+            ym = sy * (0.034 - (xm - 0.08) / 0.37 * 0.008 if xm > 0 else 0.034 - (-0.06 - xm) / 0.27 * 0.006)
+            SG.rbox(p, (xm, ym + sy * 0.004, 0), (w, 0.028, 0.012), 'violet2', r=0.012, n=1, rot=(sy * -90, 0, 0), deco=True)
+    p.cyl((-0.34, 0, -0.03), 0.074, 0.074, 0.008, 'gunmetal', seg=10, caps=False, deco=True)
+    p.cyl((-0.34, 0, 0.02), 0.074, 0.074, 0.008, 'gunmetal', seg=10, caps=False, deco=True)
+    p.cyl((-0.34, 0, 0.048), 0.04, 0.04, 0.008, 'ink', seg=8, deco=True)
+    p.box((X_GRIP[0], 0, 0.0425), (0.05, 0.014, 0.006), 'lens', deco=True)
+    for sy in (-1, 1):
+        for x in (0.458, 0.482):
+            p.cyl((x, sy * 0.043, 0.022), 0.009, 0.009, 0.006, 'steel', seg=4, rot=(sy * -90, 0, 0), deco=True)
+    ED.piston(p, (0.10, 0, 0.045), (0.40, 0, 0.045), 0.012, 0.007, k=0.55, body='gunmetal', rod='steel', seg=6)
+    for x in (0.10, 0.40):
+        p.box((x, 0, 0.034), (0.022, 0.016, 0.022), 'gunmetal', deco=True)
+    ED.bolt_ring(p, 0, 0, 0.04, 0.095, 6, r=0.01, h=0.006, phase=math.pi / 6, seg=4)
+    p.build('BOT_BLADER_Hub2', bevel=False)
+
+    # katana: straighter blade with a clipped (tanto) point and a glowing cyan edge, octagonal guard, segmented grip
+    p = Part(pal)
+    XA = Matrix.Rotation(math.radians(90), 4, 'Y')
+    p.cyl((-0.15, 0, 0), 0.022, 0.022, 0.27, 'ink', seg=8, rot=(0, 90, 0))
+    p.parent = Matrix.Translation((-0.16, 0, 0)) @ XA
+    p.lathe([(0.0, -0.012), (0.022, -0.012), (0.028, -0.004), (0.028, 0.012), (0.0, 0.012)], 'gunmetal', seg=8)
+    p.parent = Matrix.Identity(4)
+    SG.sprism2(p, SG.squircle(0.064, 0.064, 8, 2.0, phase=math.pi / 8), 0.12, 0.14, 'gunmetal', c=0.005)   # guard
+    SG.rbox(p, (0.1525, 0.0, 0), (0.026, 0.05, 0.035), 'steel', r=0.006, n=1, rot=(0, 90, 0))
+    st = []
+    n = 7
+    for i in range(n):
+        t = i / (n - 1)
+        x = 0.165 + 0.80 * t
+        sori = -0.035 * t * t
+        w = 0.066 - 0.024 * t
+        st.append((x, -w / 2 + sori, w / 2 + sori, 0.0095 - 0.0025 * t, 0.6))
+    SG.blade(p, st, (1.065, -0.052, 0.0), 'blade', 'lens')
+    for x in (-0.12, -0.08, 0.06, 0.09):
+        p.cyl((x - 0.006, 0, 0), 0.026, 0.026, 0.012, 'gunmetal', seg=8, rot=(0, 90, 0), caps=False, deco=True)
+    p.cyl((-0.176, 0, 0), 0.016, 0.016, 0.006, 'lens', seg=8, rot=(0, 90, 0), deco=True)   # pommel light
+    p.cyl((0.141, 0, 0), 0.036, 0.036, 0.004, 'violet2', seg=8, rot=(0, 90, 0), deco=True)
+    p.build('BOT_BLADER_Katana2', bevel=False, hull=0.01)
+
+    # electric axe: crescent blade with horned tips and a glowing edge, longer spike, armoured head
+    p = Part(pal)
+    p.cyl((-0.10, 0, 0), 0.024, 0.024, 0.90, 'gunmetal', seg=10, rot=(0, 90, 0))
+    p.cyl((-0.12, 0, 0), 0.03, 0.03, 0.03, 'steel', seg=10, rot=(0, 90, 0))
+    p.cyl((0.08, 0, 0), 0.029, 0.029, 0.22, 'ink', seg=10, rot=(0, 90, 0), caps=False)
+    SG.rbox(p, (0.70, 0.0, 0), (0.12, 0.085, 0.075), 'gunmetal', r=0.025, n=1, c=0.012)
+    SG.rbox(p, (0.70, -0.065, 0), (0.08, 0.05, 0.055), 'teal', r=0.012, n=1, c=0.008)
+    SG.cprism(p, SG.fillet([(0.62, 0.02), (0.78, 0.02), (0.835, 0.12), (0.876, 0.292), (0.70, 0.262), (0.524, 0.292),
+                            (0.565, 0.12)], [0.0, 0.0, 0.03, 0.0, 0.0, 0.0, 0.03], n=1), -0.014, 0.014, 'steel', c=0.007)
+    p.prism([(0.54, 0.272), (0.70, 0.244), (0.86, 0.272), (0.876, 0.296), (0.70, 0.268), (0.524, 0.296)], -0.019, 0.019, 'lens')
+    SG.cprism(p, [(0.665, -0.06), (0.70, -0.205), (0.735, -0.06)], -0.011, 0.011, 'steel', c=0.005)
+    for xc in (0.56, 0.60):
+        p.cyl((xc, 0, 0), 0.036, 0.036, 0.014, 'lens', seg=10, rot=(0, 90, 0), caps=False, deco=True)
+    for x in (0.12, 0.19, 0.26):
+        p.cyl((x, 0, 0), 0.033, 0.033, 0.009, 'gunmetal', seg=10, rot=(0, 90, 0), caps=False, deco=True)
+    for sz in (-1, 1):
+        SG.rbox(p, (0.70, 0.0, sz * 0.0395), (0.09, 0.06, 0.008), 'violet2', r=0.012, n=1, deco=True)
+        p.box((0.70, 0.0, sz * 0.0455), (0.05, 0.012, 0.006), 'lens', deco=True)
+        p.prism([(0.58, 0.215), (0.70, 0.19), (0.82, 0.215), (0.828, 0.228), (0.70, 0.204), (0.572, 0.228)],
+                *(sorted((sz * 0.0125, sz * 0.018))), 'gunmetal', deco=True)
+    ED.cable(p, [(0.68, -0.09, 0.02), (0.68, -0.05, 0.052), (0.70, 0.03, 0.052), (0.72, 0.06, 0.02)], 0.012, 'ink')
+    p.cyl((-0.13, 0, 0), 0.034, 0.03, 0.012, 'lens', seg=10, rot=(0, 90, 0), deco=True)
+    p.build('BOT_BLADER_Axe2', bevel=False, hull=0.01)
+
+    # sickle: dark handle with wraps and a cyan ring, a narrower kama blade with a long point and a glowing edge
+    p = Part(pal)
+    K = Matrix.Diagonal(Vector((1.4, 1.4, 1.4, 1)))
+    YA = Matrix.Rotation(math.radians(90), 4, 'X')
+    p.parent = K @ Matrix.Rotation(math.radians(90), 4, 'Y')
+    _torus(p, 0.018, 0.006, 'chain', seg=6)
+    p.parent = K
+    p.cyl((0, -0.022, 0), 0.016, 0.021, 0.025, 'steel', seg=10, rot=(90, 0, 0))
+    SG.tlimb(p, (0, -0.045, 0), (0, -0.375, 0), 0.021, 0.025, 'gunmetal', seg=10)
+    for y in (-0.09, -0.15, -0.21, -0.27):
+        p.cyl((0, y, 0), 0.028, 0.028, 0.018, 'ink', seg=10, rot=(90, 0, 0), caps=False, deco=True)
+    p.cyl((0, -0.33, 0), 0.029, 0.029, 0.01, 'lens', seg=10, rot=(90, 0, 0), caps=False, deco=True)
+    p.parent = K @ Matrix.Translation((0, -0.37, 0)) @ YA
+    p.lathe([(0.0, 0.0), (0.026, 0.0), (0.031, 0.007), (0.031, 0.043), (0.026, 0.05), (0.0, 0.05)], 'steel', seg=8)
+    p.parent = K @ Matrix.Translation((0, -0.395, 0))
+    st = []
+    n = 7
+    for i in range(n):
+        t = i / (n - 1)
+        x = 0.012 + 0.32 * t
+        curve = 0.14 * t * t
+        w = 0.066 - 0.042 * t
+        st.append((x, -w / 2 + curve, w / 2 + curve, 0.0085 - 0.003 * t, 0.6))
+    SG.blade(p, st, (0.385, 0.205, 0.0), 'blade', 'lens')
+    p.parent = K
+    SG.cprism(p, [(-0.005, -0.37), (-0.06, -0.395), (-0.005, -0.42)], -0.012, 0.012, 'steel', c=0.005)   # back spike
+    p.build('BOT_BLADER_Kusari2', bevel=False, hull=0.009)
 
 
 # ================================================================ CRAWLER, ADVANCED SKIN (levels 20+)
@@ -1177,95 +1346,99 @@ def build_blader(pal):
 # and grey per crawler (ai.js keyMat2: 66 % grey / 33 % black or the other way round). Specks: white flecks and a
 # stencil chevron drawn over some of them (its own part, so most crawlers draw none).
 def build_crawler2(pal):
-    SEG = 10
+    import bot_shapes_ground as SG
+    PH, SEG = -math.pi / 16, 16       # 16-sided shell, facet centres every 22.5 deg (facet 12 = front -Y, 4 = back)
+    R = 0.324
+    PROF = [(0.0, 0.30), (0.29, 0.30), (0.318, 0.315), (R, 0.345), (R, 0.59), (0.316, 0.618), (0.292, 0.665),
+            (0.262, 0.708), (0.25, 0.73), (0.0, 0.734)]
+    rs = lambda z: next(a[0] + (b[0] - a[0]) * (z - a[1]) / (b[1] - a[1]) for a, b in zip(PROF[1:], PROF[2:]) if z <= b[1])
+    fr = lambda k, z, r=None, out=0.0: ED.facet_frame(k, SEG, r or rs(z), z, phase=PH, out=out)
     p = Part(pal)
-    p.cyl((0, 0, 0.30), 0.32, 0.31, 0.30, 'plate', seg=SEG, bevel=True)                  # lower shell
-    p.cyl((0, 0, 0.60), 0.31, 0.25, 0.13, 'plate', seg=SEG, bevel=True)                  # sloped head ring
-    p.cyl((0, 0, 0.73), 0.255, 0.255, 0.035, 'plate2', seg=SEG, bevel=True)              # head cap rim
-    p.sphere((0, 0, 0.77), 0.14, 'core', seg=(8, 4), scale=(1, 1, 0.6))
-    p.cyl((0.12, 0.08, 0.76), 0.018, 0.018, 0.3, 'ink', seg=3)                           # whip antenna (light)
-    p.cyl((0, 0, 0.255), 0.30, 0.32, 0.05, 'plate2', seg=SEG, bevel=True)                # belly armour skirt
-    # deco: belt band (plate2), visor band + glowing strip, panel lines, side armour, bolts, core seat
-    p.cyl((0, 0, 0.405), 0.33, 0.33, 0.07, 'plate2', seg=SEG, caps=False, deco=True)
-    p.cyl((0, 0, 0.50), 0.317, 0.317, 0.012, 'ink', seg=SEG, caps=False, deco=True)         # panel line
-    p.on_slope(7, SEG, (0.31, 0.60), (0.25, 0.73), 0.45, 0.004, (0.30, 0.012, 0.075), 'ink')      # visor slot
-    for k in (6, 8):
-        p.on_slope(k, SEG, (0.31, 0.60), (0.25, 0.73), 0.45, 0.004, (0.16, 0.012, 0.05), 'ink')
-    p.on_slope(7, SEG, (0.31, 0.60), (0.25, 0.73), 0.45, 0.017, (0.22, 0.008, 0.028), 'lens')    # visor strip
-    for k in (6, 8):
-        p.on_slope(k, SEG, (0.31, 0.60), (0.25, 0.73), 0.45, 0.017, (0.10, 0.008, 0.022), 'lens')
-    for k in (2, 4, 0, 9, 5):
-        p.on_facet(k, SEG, 0.335, 0.002, 0.405, (0.12, 0.05, 0.11), 'plate2')             # side armour on the belt
-    for k in range(SEG):
-        if k % 2:
-            p.on_facet(k, SEG, 0.31, 0.003, 0.55, (0.012, 0.008, 0.08), 'ink')           # vertical panel lines
-    for k in (1, 3, 7):
-        p.on_facet(k, SEG, 0.31, 0.003, 0.335, (0.028, 0.008, 0.028), 'gunmetal')       # bolts
-    p.cyl((-0.15, 0.09, 0.755), 0.014, 0.014, 0.13, 'ink', seg=4, deco=True)            # stub antenna
-    p.box((-0.15, 0.09, 0.895), (0.04, 0.04, 0.03), 'plate2', deco=True)
-    p.cyl((0, 0, 0.765), 0.152, 0.152, 0.02, 'gunmetal', seg=10, caps=False, deco=True)
-    # detail pass: hip mounts with pivot pins, cap rim bolts, head ring vents, chin grille, back heat sink, rivets on
-    # the shell plates, bolted belt armour, serial plate, antenna collar and lamp holder (plates keep the key colours)
-    rz = lambda z: 0.32 - (z - 0.30) * (0.01 / 0.30)
-    for x, y in [(-0.25, -0.25), (0.25, -0.25), (0.25, 0.25), (-0.25, 0.25)]:
-        a = math.atan2(y, x)
+    # one sculpted armour shell rolling into the sloped head, a rounded belly bowl and a rolled head cap (plate2)
+    p.lathe(PROF, 'plate', seg=SEG, phase=PH)
+    p.lathe([(0.0, 0.25), (0.27, 0.25), (0.325, 0.27), (0.336, 0.30), (0.30, 0.318), (0.0, 0.318)], 'plate2', seg=SEG, phase=PH)
+    p.lathe([(0.0, 0.724), (0.244, 0.726), (0.27, 0.744), (0.255, 0.764), (0.0, 0.768)], 'plate2', seg=SEG, phase=PH)
+    p.sphere((0, 0, 0.77), 0.14, 'core', seg=(12, 5), scale=(1, 1, 0.6))
+    p.cyl((0.12, 0.08, 0.76), 0.018, 0.018, 0.3, 'ink', seg=6)                           # whip antenna (light)
+    # wrap-around visor on the head slope: ink housing (outlined) with a glowing lens strip
+    vis = lambda z0, z1, d0, d1: [(rs(z0) + d0, z0), (rs(z0) + d1, z0), (rs(z1) + d1, z1), (rs(z1) + d0, z1)]
+    SG.sweep(p, vis(0.635, 0.692, -0.02, 0.012), math.radians(230), math.radians(310), 6, 'ink')
+    # ---- deco: lens, belt band (plate2), panel line, belt armour, panel lines, bolts, core seat
+    SG.sweep(p, vis(0.648, 0.678, 0.006, 0.019), math.radians(238), math.radians(302), 6, 'lens', deco=True)
+    p.lathe([(0.335, 0.37), (0.335, 0.44)], 'plate2', seg=SEG, phase=PH, deco=True)
+    p.lathe([(0.329, 0.494), (0.329, 0.506)], 'ink', seg=SEG, phase=PH, deco=True)
+    ARM = (7, 1, 15, 4, 9)
+    for k in ARM:                                                                         # rounded belt armour, bolted
+        with ED.at(p, fr(k, 0.405, 0.335)):
+            SG.rbox(p, (0, 0, 0.024), (0.12, 0.11, 0.052), 'plate2', r=0.022, n=1, c=0.01, deco=True)
+            ED.bolts(p, [(sx * 0.04, 0.035) for sx in (-1, 1)], r=0.01, top=0.005, color='gunmetal', seg=6, base=0.05)
+    for k in range(1, SEG, 2):
+        p.on_facet(k, SEG, R, 0.003, 0.55, (0.012, 0.008, 0.08), 'ink', phase=PH)        # vertical panel lines
+    for k in (0, 4, 8):
+        p.on_facet(k, SEG, 0.321, 0.003, 0.33, (0.028, 0.008, 0.028), 'gunmetal', phase=PH)   # bolts
+    p.cyl((-0.15, 0.09, 0.755), 0.014, 0.014, 0.13, 'ink', seg=6, deco=True)             # stub antenna, ball tip
+    p.sphere((-0.15, 0.09, 0.895), 0.022, 'plate2', seg=(5, 3), deco=True)
+    p.lathe([(0.152, 0.758), (0.152, 0.785)], 'gunmetal', seg=SEG, deco=True)
+    # hip mounts with pivot pins, cap rim bolts, head ring vents, chin grille, back heat sink, rivets, serial plate,
+    # antenna collar and lamp holder (plates keep the key colours)
+    for k in (10, 14, 2, 6):
+        with ED.at(p, fr(k, 0.355, 0.322)):
+            SG.rbox(p, (0, 0, 0.02), (0.08, 0.07, 0.05), 'gunmetal', r=0.018, n=1, deco=True)
+        a = math.radians(22.5 * k)
         u, t = Vector((math.cos(a), math.sin(a), 0)), Vector((-math.sin(a), math.cos(a), 0))
-        p.box(tuple(u * 0.3175 + Vector((0, 0, 0.355))), (0.075, 0.07, 0.06), 'gunmetal', rot=(0, 0, math.degrees(a)), deco=True)
         c = u * 0.345 + Vector((0, 0, 0.33))
-        p.limb(tuple(c - t * 0.05), tuple(c + t * 0.05), 0.02, 0.02, 'steel', seg=6, deco=True)
-    ED.bolt_ring(p, 0, 0, 0.765, 0.212, 8, r=0.011, h=0.007, color='gunmetal', phase=0.3)
-    for k in (1, 2, 3):                                                                   # head ring vents
-        with ED.at(p, ED.slope_frame(k, SEG, (0.31, 0.60), (0.25, 0.73), 0.5)):
-            ED.grille(p, 0, 0, 0.09, 0.06, 3, color='ink', slat='gunmetal')
-    with ED.at(p, ED.facet_frame(7, SEG, rz(0.555), 0.555)):                             # chin grille under the visor
-        ED.grille(p, 0, 0, 0.12, 0.05, 3, color='ink', slat='gunmetal', base=0.009)   # over the panel line
-    with ED.at(p, ED.facet_frame(2, SEG, rz(0.553), 0.553)):                             # back heat sink
-        ED.pad(p, 0, 0, 0.15, 0.07, 0.006, 'gunmetal')
-        for i in range(5):
-            ED.pad(p, -0.06 + 0.03 * i, 0, 0.008, 0.06, 0.02, 'ink', base=0.006)
-    for k in (0, 4, 6, 8):                                                                # rivets on the shell plates
-        with ED.at(p, ED.facet_frame(k, SEG, rz(0.555), 0.555)):
-            ED.bolts(p, [(sx * 0.07, sy * 0.03) for sx in (-1, 1) for sy in (-1, 1)], r=0.009, top=0.004, color='gunmetal', seg=4)
-    for k in (2, 4, 0, 9, 5):                                                             # bolted belt armour
-        with ED.at(p, ED.facet_frame(k, SEG, 0.335, 0.405, out=0.052)):
-            ED.bolts(p, [(sx * 0.042, 0.035) for sx in (-1, 1)], r=0.01, top=0.005, color='gunmetal', seg=6)
-    with ED.at(p, ED.facet_frame(0, SEG, rz(0.535), 0.535)):
+        p.limb(tuple(c - t * 0.05), tuple(c + t * 0.05), 0.02, 0.02, 'steel', seg=8, caps=False, deco=True)
+    ED.bolt_ring(p, 0, 0, 0.766, 0.212, 8, r=0.011, h=0.007, color='gunmetal', phase=0.3, seg=5)
+    for k in (3, 4, 5):
+        with ED.at(p, ED.slope_frame(k, SEG, (0.316, 0.618), (0.292, 0.665), 0.5, phase=PH)):
+            ED.grille(p, 0, 0, 0.09, 0.04, 2, color='ink', slat='gunmetal')
+    with ED.at(p, fr(12, 0.555)):                                                          # chin grille under the visor
+        ED.grille(p, 0, 0, 0.11, 0.05, 3, color='ink', slat='gunmetal', base=0.009)      # over the panel line
+    with ED.at(p, fr(4, 0.553)):                                                           # back heat sink
+        ED.pad(p, 0, 0, 0.11, 0.07, 0.006, 'gunmetal')
+        for i in range(4):
+            ED.pad(p, -0.039 + 0.026 * i, 0, 0.008, 0.06, 0.02, 'ink', base=0.006)
+    for k in (2, 7, 10, 14):                                                               # rivets on the shell plates
+        with ED.at(p, fr(k, 0.555)):
+            ED.bolts(p, [(sx * 0.04, sx * 0.03) for sx in (-1, 1)], r=0.009, top=0.004, color='gunmetal', seg=4)
+    with ED.at(p, fr(0, 0.535)):
         ED.serial_plate(p, 0, 0, 0.07, 0.03, color='paper')
-    p.cyl((0.12, 0.08, 0.765), 0.03, 0.03, 0.03, 'gunmetal', seg=6, deco=True)
-    p.cyl((0.12, 0.08, 0.995), 0.028, 0.028, 0.035, 'gunmetal', seg=6, deco=True)
+    p.cyl((0.12, 0.08, 0.765), 0.03, 0.03, 0.03, 'gunmetal', seg=8, deco=True)
+    p.cyl((0.12, 0.08, 0.995), 0.028, 0.028, 0.035, 'gunmetal', seg=8, deco=True)
     p.build('BOT_CRAWLER_Body2')
-    # legs: armoured thigh guard and a wide plated foot, same pivot and length
+    # legs: ball hip, rounded thigh guard, armoured tapered strut with a curved shin guard, coil, domed plated foot
     p = Part(pal)
-    p.box((0, 0, -0.02), (0.11, 0.08, 0.07), 'plate2', bevel=True)
+    p.sphere((0, 0, 0), 0.04, 'gunmetal', seg=(6, 4), deco=True)
+    SG.rbox(p, (0, 0, -0.02), (0.11, 0.08, 0.07), 'plate2', r=0.024, n=1, c=0.012)
+    SG.tlimb(p, (0, 0, -0.05), (0, 0, -0.32), 0.03, 0.02, 'plate', seg=8, e=3.0)
+    SG.arc_plate(p, 0.024, 0.036, -0.29, -0.19, 225, 315, 3, 'plate2', deco=True)
     for i in range(2):
-        p.box(((0.03 if i % 2 else -0.03), 0, -0.10 - i * 0.075), (0.11, 0.055, 0.035), 'gunmetal', deco=True)
-    p.box((0, 0, -0.17), (0.034, 0.034, 0.30), 'plate')
-    p.box((0, -0.022, -0.25), (0.044, 0.01, 0.09), 'plate2', deco=True)
-    p.cyl((0, 0, -0.355), 0.095, 0.07, 0.05, 'plate2', seg=6)
-    # detail pass: hip knuckle, hydraulic piston, ankle collar, toe claws, knee bolts
-    p.cyl((-0.05, 0, 0), 0.026, 0.026, 0.10, 'gunmetal', seg=6, rot=(0, 90, 0), deco=True)
-    ED.piston(p, (0, 0.045, -0.06), (0, 0.045, -0.29), 0.014, 0.008, k=0.5, body='gunmetal', rod='steel')
-    p.cyl((0, 0, -0.315), 0.029, 0.029, 0.03, 'gunmetal', seg=6, deco=True)
-    for a in (-90, 30, 150):
-        r = math.radians(a)
-        p.box((0.088 * math.cos(r), 0.088 * math.sin(r), -0.34), (0.05, 0.03, 0.022), 'gunmetal', rot=(0, 0, a), deco=True)
-    for x in (-0.03, 0.03):
-        p.cyl((x, -0.0395, -0.02), 0.009, 0.009, 0.006, 'gunmetal', seg=4, rot=(90, 0, 0), deco=True)
+        with ED.at(p, Matrix.Translation((0, 0, -0.09 - i * 0.065)) @ Matrix.Rotation(math.radians(12 if i % 2 else -12), 4, 'X')):
+            p.cyl((0, 0, -0.01), 0.048, 0.048, 0.02, 'gunmetal', seg=8, caps=False, deco=True)
+    p.lathe([(0.0, -0.355), (0.096, -0.355), (0.07, -0.318), (0.0, -0.30)], 'plate2', seg=8)
     p.build('BOT_CRAWLER_Leg2', bevel=False, hull=0.01)
-    # specks: white flecks and a stencil chevron, 4 mm proud of the shell (drawn over Body2, no outline)
+    # specks: white flecks and a stencil chevron, 6 mm off the shell (drawn over Body2, no outline); the flecks keep
+    # the old layout (facet of the 10-sided shell, height, angle off the facet centre, size), moved onto the 16 facets
     p = Part(pal)
-    # flecks on the shell (facet k, height z, angle off the facet centre, size); white chips on the belt armour;
-    # a stencil chevron on the head ring
     rnd = [(0, 0.47, 0.05, 0.03), (1, 0.535, 0.1, 0.022), (2, 0.57, -0.06, 0.036), (3, 0.475, -0.1, 0.02),
            (4, 0.555, 0.04, 0.03), (5, 0.535, -0.1, 0.026), (6, 0.565, 0.08, 0.022), (8, 0.53, -0.05, 0.034),
            (9, 0.47, 0.1, 0.026), (0, 0.575, -0.07, 0.018), (4, 0.47, -0.08, 0.028), (2, 0.53, 0.07, 0.02),
            (6, 0.48, -0.06, 0.028), (8, 0.575, 0.07, 0.018), (1, 0.475, -0.08, 0.024), (9, 0.56, -0.06, 0.03)]
+    hw = R * math.sin(math.pi / SEG)
     for k, z, d, sz in rnd:
-        p.on_facet(k, SEG, 0.312, 0.006, z, (sz * 1.6, 0.006, sz * 1.25), 'paper', phase=d, deco=False)
-    for k, z, w in ((2, 0.39, 0.05), (4, 0.42, 0.035), (9, 0.395, 0.04), (5, 0.385, 0.03)):
-        p.on_facet(k, SEG, 0.335, 0.056, z, (w, 0.006, w * 0.7), 'paper', deco=False)    # on the belt armour
-    for k in (3, 4):
-        p.on_slope(k, SEG, (0.31, 0.60), (0.25, 0.73), 0.3, 0.004, (0.10, 0.006, 0.03), 'paper', deco=False)
+        a = 2 * math.pi * (k + 0.5) / 10 + d
+        k16 = int(round(a / (2 * math.pi / SEG))) % SEG
+        da = (a - k16 * 2 * math.pi / SEG + math.pi) % (2 * math.pi) - math.pi
+        lim = hw - sz * 0.8 - 0.004
+        x = max(-lim, min(lim, da * R))
+        with ED.at(p, fr(k16, z, R)):
+            p.box((x, 0, 0.009), (sz * 1.6, sz * 1.25, 0.006), 'paper')
+    for k, z, w in ((4, 0.39, 0.05), (7, 0.42, 0.035), (15, 0.395, 0.04), (9, 0.385, 0.03)):   # on the belt armour
+        with ED.at(p, fr(k, 0.405, 0.335)):
+            p.box((0, z - 0.405, 0.0545), (w, w * 0.7, 0.006), 'paper')
+    for k in (6, 7):                                                                       # stencil on the head slope
+        with ED.at(p, ED.slope_frame(k, SEG, (0.316, 0.618), (0.292, 0.665), 0.35, phase=PH)):
+            p.box((0, 0, 0.007), (0.10, 0.03, 0.006), 'paper')
     strip_hull(p.build('BOT_CRAWLER_Specks', bevel=False, hull=0.001))
 
 
@@ -1443,12 +1616,16 @@ def _torus(p, R, rr, color, seg=8, rs=4, deco=False):
 
 
 def build_kusari(pal):
-    # weight in the clamp: grip through the clamp, an octagonal iron weight with an amber band, the chain ring
+    import bot_shapes_ground as SG
+    XA = Matrix.Rotation(math.radians(90), 4, 'Y')                                      # lathe axis Z -> X
+    # weight in the clamp: grip through the clamp, a smooth bullet-shaped iron weight with an amber band, the chain ring
     p = Part(pal)
     p.cyl((-0.08, 0, 0), 0.021, 0.021, 0.19, 'ink', seg=8, rot=(0, 90, 0))
-    p.cyl((0.105, 0, 0), 0.046, 0.046, 0.10, 'gunmetal', seg=8, rot=(0, 90, 0))
-    p.cyl((0.205, 0, 0), 0.03, 0.018, 0.02, 'gunmetal', seg=8, rot=(0, 90, 0))
-    p.cyl((0.14, 0, 0), 0.05, 0.05, 0.02, 'amber', seg=8, rot=(0, 90, 0), caps=False, deco=True)
+    p.parent = XA
+    p.lathe([(0.0, 0.105), (0.036, 0.105), (0.046, 0.116), (0.048, 0.155), (0.043, 0.19), (0.03, 0.208), (0.016, 0.224),
+             (0.0, 0.226)], 'gunmetal', seg=12)
+    p.lathe([(0.053, 0.14), (0.053, 0.16)], 'amber', seg=12, deco=True)
+    p.parent = Matrix.Identity(4)
     p.parent = Matrix.Translation((0.238, 0, 0)) @ Matrix.Rotation(math.radians(90), 4, 'X')
     _torus(p, 0.016, 0.006, 'chain', seg=6)
     p.parent = Matrix.Identity(4)
@@ -1464,17 +1641,20 @@ def build_kusari(pal):
     p.parent = Matrix.Identity(4)
     p.build('BOT_BLADER_Chain', bevel=False, hull=0.005)
 
-    # sickle: ring, wrapped wooden handle out along -Y, steel ferrule, curved kama blade along +X (edge toward +Y)
+    # sickle: ring, tapered wrapped wooden handle out along -Y, rounded steel ferrule and collar, curved kama blade
+    # along +X (edge toward +Y) with a chamfered spine and a ground edge
     p = Part(pal)
     K = Matrix.Diagonal(Vector((1.4, 1.4, 1.4, 1)))          # drawn 40 % up so it reads at fighting range
+    YA = Matrix.Rotation(math.radians(90), 4, 'X')           # lathe axis Z -> -Y
     p.parent = K @ Matrix.Rotation(math.radians(90), 4, 'Y')
     _torus(p, 0.018, 0.006, 'chain', seg=6)
     p.parent = K
-    p.cyl((0, -0.022, 0), 0.016, 0.02, 0.025, 'gunmetal', seg=8, rot=(90, 0, 0))
-    p.cyl((0, -0.045, 0), 0.021, 0.024, 0.33, 'kwood', seg=8, rot=(90, 0, 0))
+    p.cyl((0, -0.022, 0), 0.016, 0.021, 0.025, 'gunmetal', seg=10, rot=(90, 0, 0))
+    SG.tlimb(p, (0, -0.045, 0), (0, -0.375, 0), 0.021, 0.025, 'kwood', seg=10)
     for y in (-0.09, -0.15, -0.21, -0.27):
-        p.cyl((0, y, 0), 0.026, 0.026, 0.018, 'ink', seg=8, rot=(90, 0, 0), caps=False, deco=True)
-    p.cyl((0, -0.37, 0), 0.03, 0.03, 0.05, 'steel', seg=8, rot=(90, 0, 0))
+        p.cyl((0, y, 0), 0.028, 0.028, 0.018, 'ink', seg=10, rot=(90, 0, 0), caps=False, deco=True)
+    p.parent = K @ Matrix.Translation((0, -0.37, 0)) @ YA
+    p.lathe([(0.0, 0.0), (0.026, 0.0), (0.031, 0.007), (0.031, 0.043), (0.026, 0.05), (0.0, 0.05)], 'steel', seg=10)
     p.parent = K @ Matrix.Translation((0, -0.395, 0))
     st = []
     n = 7
@@ -1483,10 +1663,10 @@ def build_kusari(pal):
         x = 0.012 + 0.31 * t
         curve = 0.13 * t * t
         w = 0.074 - 0.04 * t
-        st.append((x, -w / 2 + curve, w / 2 + curve, 0.008 - 0.003 * t))
-    p.blade(st, (0.37, 0.19, 0.0), 'blade', 'paper')
+        st.append((x, -w / 2 + curve, w / 2 + curve, 0.0085 - 0.003 * t, 0.6))
+    SG.blade(p, st, (0.37, 0.19, 0.0), 'blade', 'paper')
     p.parent = K
-    p.box((-0.03, -0.395, 0), (0.05, 0.044, 0.03), 'steel')                                 # spine knob behind the blade
+    SG.rbox(p, (-0.03, -0.395, 0), (0.05, 0.044, 0.03), 'steel', r=0.012, n=1, c=0.006)   # spine knob behind the blade
     p.build('BOT_BLADER_Kusari', bevel=False, hull=0.009)
 
 
