@@ -507,7 +507,9 @@ def lateral_file(k, kind):
         for i in range(9):
             x = -0.34 + i * 0.085
             lean = 0.12 if i % 2 else -0.1
-            k.beam((x, 0, 1.18), (x + lean * 0.6, lean * 0.5, 1.55 + 0.08 * (i % 3)), 0.035, 'leaf' if i % 3 else 'leaf2')
+            for j, dy in enumerate((-0.06, 0.05)):     # (map asset upgrade) pointed, bent grass blades in two rows
+                tip = (x + lean * 0.6 + 0.03 * j, dy + lean * 0.5 * (1 if j else -1), 1.5 + 0.08 * ((i + j) % 3))
+                OS.blade(k, (x + 0.02 * j, dy, 1.17), tip, 0.06, 'leaf' if (i + j) % 3 else 'leaf2', bend=(lean * 0.15, dy * 0.4))
     of_detail.file_fittings(k)
     for sd in (-1, 1):      # (map asset upgrade) pressed side panels with lips, a toe kick round the sides and back
         k.qx(-0.22, 0.22, 0.12, 0.9, sd * 0.473, sd, 'column')
