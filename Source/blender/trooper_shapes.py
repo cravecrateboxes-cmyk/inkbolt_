@@ -1,5 +1,6 @@
 """INKBOLT sculpted shape helpers for the trooper family (fam_trooper.py): rounded / chamfered boxes, curved armour
-plates, tapered limbs and rounded cylinders, emitted into an ib_lib.Model (or an enemy_detail.Deco) like Model.box.
+plates, chamfered prisms (angular plates cut from a polygon), tapered limbs and rounded or faceted cylinders,
+emitted into an ib_lib.Model (or an enemy_detail.Deco) like Model.box.
 
 Every shape is modelled in a small bmesh of its own (subdivided, bevelled with bmesh.ops.bevel, then warped in its
 local frame), then copied into the Model with the Model's parent and the shape's loc / rot, as ONE shape (one
@@ -182,11 +183,12 @@ def rbox(m, loc, size, color, rot=(0, 0, 0), r=0.02, seg=2, axes=None, cuts=(0, 
     return emit(m, bm, ib_lib.mat_trs(loc, rot), color)
 
 
-def rcyl(m, loc, r1, r2, h, color, seg=12, rot=(0, 0, 0), cham=0.0, cseg=1, caps=True, cuts=0, warp=None):
-    """Z frustum with its base at loc (as Model.cyl), rims chamfered (cseg 1) or rounded (cseg 2) by cham"""
+def rcyl(m, loc, r1, r2, h, color, seg=12, rot=(0, 0, 0), cham=0.0, cseg=1, caps=True, cuts=0, warp=None, phase=0.0):
+    """Z frustum with its base at loc (as Model.cyl), rims chamfered (cseg 1) or rounded (cseg 2) by cham; phase
+    turns the sides about the axis (degrees: 180 / seg puts a flat, not a corner, on the local x / y axes)"""
     bm = bmesh.new()
     bmesh.ops.create_cone(bm, cap_ends=caps, cap_tris=False, segments=seg, radius1=r1, radius2=r2, depth=h,
-                          matrix=Matrix.Translation((0, 0, h / 2)))
+                          matrix=Matrix.Translation((0, 0, h / 2)) @ Matrix.Rotation(math.radians(phase), 4, 'Z'))
     if cuts:
         es = [e for e in bm.edges if abs((e.verts[1].co - e.verts[0].co).normalized().z) > 0.5]
         bmesh.ops.subdivide_edges(bm, edges=es, cuts=cuts, use_grid_fill=False)
@@ -195,6 +197,34 @@ def rcyl(m, loc, r1, r2, h, color, seg=12, rot=(0, 0, 0), cham=0.0, cseg=1, caps
     if warp:
         for v in bm.verts:
             v.co = warp(Vector(v.co))
+    return emit(m, bm, ib_lib.mat_trs(loc, rot), color)
+
+
+def prism(m, loc, poly, depth, color, axis='y', rot=(0, 0, 0), cham=0.0, s0=None, s1=None, min_deg=25.0):
+    """an angular plate: the convex polygon poly [(u, v), ...] (around the origin, in the plane across `axis`:
+    u, v = x, z for axis y; y, z for axis x; x, y for axis z) extruded `depth` along `axis`, centred on loc. s0 / s1
+    = (fu, fv) scale the cap on the -axis / +axis side (a raked plate whose outer face is smaller than its base).
+    Every edge sharper than min_deg is chamfered by cham with ONE segment: flat faces, crisp bevelled edges."""
+    k = AX[axis]
+    i, j = [n for n in range(3) if n != k]
+    bm = bmesh.new()
+
+    def cap(w, sc):
+        out = []
+        for u, v in poly:
+            p = [0.0, 0.0, 0.0]
+            p[i], p[j], p[k] = u * sc[0], v * sc[1], w
+            out.append(bm.verts.new(p))
+        return out
+    a, b = cap(-depth / 2, s0 or (1, 1)), cap(depth / 2, s1 or (1, 1))
+    n = len(poly)
+    bm.faces.new(a)
+    bm.faces.new(b[::-1])
+    for q in range(n):
+        bm.faces.new((a[q], b[q], b[(q + 1) % n], a[(q + 1) % n]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    if cham > 0:
+        _bevel(bm, min(cham, depth * 0.45), 1, min_deg=min_deg)
     return emit(m, bm, ib_lib.mat_trs(loc, rot), color)
 
 
