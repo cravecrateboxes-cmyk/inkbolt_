@@ -37209,19 +37209,25 @@ IB.DECALS = {"grid":8,"names":["oil","oil2","water","water2","rust","leak","soot
         ' ibCol *= clamp( ibGw.a * 0.85 + dot( ibGw.rgb * ibGw.rgb * 4.0 * uGridI, vec3( 0.2126, 0.7152, 0.0722 ) ) * 0.6 + 0.12, 0.12, 1.0 ); }\n' +
         'vec3 outgoingLight = ibCol + totalEmissiveRadiance;');
   }
-  /* outMax (optional): outline width cap for a gun shown enlarged in the world (IB.Render.toonMaterial) */
-  GS.material = function (gunId, tier, uni, outMax) {
+  /* outMax (optional): outline width cap for a gun shown enlarged in the world (IB.Render.toonMaterial).
+     rim (optional): { uRimC: {value: Color}, uRimA: {value: 0..1} } a glancing-angle rim of that colour over the lit gun
+     (the loot glow on a gun lying on the floor, game/wdrops.js): the caller owns the uniforms, so each rim set gets its
+     own material (one program for all of them) */
+  var skinTex = {};
+  GS.material = function (gunId, tier, uni, outMax, rim) {
     var R = IB.Render, A = IB.Assets;
     uni = uni || R.worldOutline;
     tier = tier || 'gray';
     if (!D() || !A.palette || !A.palette.weapons) return R.toonMaterial({ uni: uni, map: A.palette && A.palette.weapons, baked: A.BAKED ? A.BAKED.weapons : 0, outMax: outMax });
     if (!uni._skinId) uni._skinId = 'u' + (GS._u = (GS._u || 0) + 1);
-    var key = gunId + '|' + tier + '|' + uni._skinId + (outMax ? '|' + outMax : '');
+    if (rim && !rim._id) rim._id = 'r' + (GS._r = (GS._r || 0) + 1);
+    var key = gunId + '|' + tier + '|' + uni._skinId + (outMax ? '|' + outMax : '') + (rim ? '|' + rim._id : '');
     if (GS.cache[key]) return GS.cache[key];
-    var sk = D().skin(gunId, tier);
-    var mat = R.toonMaterial({ uni: uni, map: texture(sk), baked: A.BAKED ? A.BAKED.weapons : 0, outMax: outMax });
+    var sk = D().skin(gunId, tier), tk = gunId + '|' + tier;
+    var T = skinTex[tk] || (skinTex[tk] = { map: texture(sk), surf: surfTexture(sk) });   // shared by every material of this skin
+    var mat = R.toonMaterial({ uni: uni, map: T.map, baked: A.BAKED ? A.BAKED.weapons : 0, outMax: outMax });
     var U = { uPat: { value: D().PATTERNS[sk.pat.type] || 0 }, uPatS: { value: sk.pat.scale }, uPatC: { value: C(sk.pat.col) },
-      uGlowC: { value: C(sk.glow) }, uShim: { value: sk.shimmer }, uTime: time, uSurf: { value: surfTexture(sk) },
+      uGlowC: { value: C(sk.glow) }, uShim: { value: sk.shimmer }, uTime: time, uSurf: { value: T.surf },
       uShimC: { value: C(sk.shimCol || '#FFEBB3') }, uPatGlow: { value: sk.patGlow || 0 },
       uGradC: { value: C(sk.grad ? sk.grad.from : '#FFFFFF') }, uGradY: { value: new THREE.Vector2(sk.grad ? sk.grad.y0 : 0, sk.grad ? sk.grad.y1 : 1) } };
     var inner = mat.onBeforeCompile, key0 = mat.customProgramCacheKey;
@@ -37236,8 +37242,14 @@ IB.DECALS = {"grid":8,"names":["oil","oil2","water","water2","rust","leak","soot
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + FRAG_PARS)
         .replace('#include <map_fragment>', FRAG_MAP).replace('if ( vHull > 0.5 )', FRAG_END)
         .replace('vec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance;', FRAG_LIGHT);
+      if (rim) {   // after the light (and the world light volume): the rim still shows in a dark room
+        sh.uniforms.uRimC = rim.uRimC; sh.uniforms.uRimA = rim.uRimA;
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uRimC; uniform float uRimA;')
+          .replace('vec3 outgoingLight = ibCol + totalEmissiveRadiance;', 'float ibRim = pow( 1.0 - max( dot( ibNn, ibV ), 0.0 ), 2.2 );\n' +
+            'ibCol += uRimC * ( ibRim * 0.9 + 0.08 ) * uRimA;\nvec3 outgoingLight = ibCol + totalEmissiveRadiance;');
+      }
     };
-    mat.customProgramCacheKey = function () { return key0() + 'skin'; };
+    mat.customProgramCacheKey = function () { return key0() + 'skin' + (rim ? 'rim' : ''); };
     mat.userData.skin = sk;
     GS.cache[key] = mat;
     return mat;
@@ -37333,14 +37345,30 @@ IB.DECALS = {"grid":8,"names":["oil","oil2","water","water2","rust","leak","soot
     return { line: line, old: old, carried: carried, key: key };
   };
 
-  /* The gun beam: taller, wider and brighter than any gear beam, so a gun reads as a gun from across the zone.
-     Layers, in the tier colour: a soft shaft of light that always faces you (darker toward its edges, so it reads on
-     a white wall as well as in a dark hall), a bright core, ribbons of light winding up round it, a glowing floor
-     disc, two ground rings (one breathing, one spreading out and fading) and sparks drifting up. Textures are drawn
-     once and shared (also by the gear beams in game/drops.js); each drop owns only its materials (their colour). */
+  /* The loot glow: one designed effect per tier, taller, wider and brighter than any gear beam, so a gun reads as a
+     gun (and its rarity at a glance) from across the zone. Every gun on the floor is drawn by three shared batches,
+     whatever the number of drops (three draw calls in all, none while no gun lies anywhere):
+       beam    one camera-facing card per drop: a soft shaft (gaussian across, a bright core, slow streaks climbing
+               it) that is brightest at the foot and thins out to nothing well before its top, so it has no top edge;
+               under a ceiling it is cut down to fit
+       floor   one flat card per drop: a soft pool of light and inked rings, one (Standard, Tuned), two (Rare, Epic)
+               or three (Legendary, the outer one dashed and turning, Epic's too); Rare and up send a ripple out
+       motes   one point cloud: slow sparks rising round the beam, Rare 4, Epic 7, Legendary 10
+     plus a gentle rim of the tier colour on the turning gun (GunSkins.material rim, one material per drop slot).
+     One envelope per drop drives all of it: life (spawn eases out over SPAWN_T, take eases in over OUT_T), the idle
+     breath (one phase for beam, rings, motes and rim), the distance fade (the scene fog at the drop, so the glow goes
+     with the gun it marks) and a mote fade that cross-fades the fine sparks out with distance (no LOD switch). The
+     glow is premultiplied (emission plus partial cover, which keeps the tier colour on a bright sky or white wall and
+     gives the rings an ink edge), never fogged, writes no depth, and its instances keep one fixed order: overlapping
+     drops blend the same every frame, so nothing sorts or flickers. */
   var BEAM_H = 7.5;
-  function tex(w, h, draw) { var t = IB.Render.canvasTex(w, h, draw); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; }
+  // per rank (gray .. orange; melee weapons rank 0): beam height (m) and motes. Beam width, brightness and the floor
+  // radius and rings follow the rank in the shaders below
+  var LOOKS = [{ h: 5.4, motes: 0 }, { h: 5.9, motes: 0 }, { h: 6.4, motes: 4 }, { h: 6.9, motes: 7 }, { h: BEAM_H, motes: 10 }];
+  WD.LOOKS = LOOKS;
+  var SPAWN_T = 0.5, OUT_T = 0.4, MOTES = 10, MELEE_COL = '#FFC23A';
   // a shaft of light seen from the side: soft across (bright middle, darker rim), bright at the foot, gone at the top
+  // (the gear beams in game/drops.js use it and the spark below)
   function shaftTex(tight) {
     var t = IB.Render.canvasTex(64, 128, function (c) {
       c.clearRect(0, 0, 64, 128);
@@ -37353,37 +37381,6 @@ IB.DECALS = {"grid":8,"names":["oil","oil2","water","water2","rust","leak","soot
     });
     return t;
   }
-  function ribbonTex() {   // slanted ribbons of light that tile in both directions (they wind up the core as it scrolls)
-    return tex(128, 128, function (c) {
-      c.clearRect(0, 0, 128, 128);
-      for (var k = 0; k < 3; k++) {
-        var x0 = k * 128 / 3;
-        for (var y = 0; y < 128; y++) {
-          var u = (x0 + y * 0.5 + 6 * Math.sin(y / 128 * Math.PI * 2 + k)) % 128, wd = 6 + 3 * Math.sin(y / 128 * Math.PI * 4 + k * 2);
-          for (var o = -128; o <= 128; o += 128) {
-            if (u + o + wd < 0 || u + o - wd > 128) continue;
-            var g = c.createLinearGradient(u + o - wd, 0, u + o + wd, 0);
-            g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.5, 'rgba(255,255,255,0.95)'); g.addColorStop(1, 'rgba(255,255,255,0)');
-            c.fillStyle = g; c.fillRect(u + o - wd, y, wd * 2, 1);
-          }
-        }
-      }
-    });
-  }
-  function fadeTex() {   // vertical fade used as the alpha of the ribbons (they die out toward the top)
-    return tex(8, 128, function (c) {
-      var g = c.createLinearGradient(0, 0, 0, 128);
-      g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(0.45, 'rgba(110,110,110,1)'); g.addColorStop(1, 'rgba(255,255,255,1)');
-      c.fillStyle = g; c.fillRect(0, 0, 8, 128);
-    });
-  }
-  function discTex() {
-    return IB.Render.canvasTex(128, 128, function (c) {
-      var g = c.createRadialGradient(64, 64, 0, 64, 64, 64);
-      g.addColorStop(0, 'rgba(255,255,255,0.95)'); g.addColorStop(0.3, 'rgba(255,255,255,0.5)'); g.addColorStop(0.65, 'rgba(255,255,255,0.16)'); g.addColorStop(1, 'rgba(255,255,255,0)');
-      c.fillStyle = g; c.fillRect(0, 0, 128, 128);
-    });
-  }
   function sparkTex() {
     return IB.Render.canvasTex(32, 32, function (c) {
       var g = c.createRadialGradient(16, 16, 0, 16, 16, 16);
@@ -37391,46 +37388,149 @@ IB.DECALS = {"grid":8,"names":["oil","oil2","water","water2","rust","leak","soot
       c.fillStyle = g; c.fillRect(0, 0, 32, 32);
     });
   }
-  // translucent, unlit, never fogged, drawn over the world without writing depth
-  function glow(map, extra) {
-    var o = { map: map, transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false };
-    if (extra) for (var k in extra) o[k] = extra[k];
-    return new THREE.MeshBasicMaterial(o);
-  }
-  WD.beamTextures = function () { return WD.tex || (WD.tex = { shaft: shaftTex(false), coreShaft: shaftTex(true), ribbon: ribbonTex(), fade: fadeTex(), disc: discTex(), spark: sparkTex() }); };
-  WD.glowMaterial = glow;
-  // turn a shaft plane (it stands on the drop, facing +z) toward the camera
+  WD.beamTextures = function () { return WD.tex || (WD.tex = { shaft: shaftTex(false), spark: sparkTex() }); };
+  // turn a shaft plane (it stands on the drop, facing +z) toward the camera (the gear beams)
   WD.faceCamera = function (mesh, x, z) { var c = IB.Render && IB.Render.camera; if (c) mesh.rotation.y = Math.atan2(c.position.x - x, c.position.z - z); };
-  var SPARKS = 14;
+
+  /* ---- the three glow batches (shaders) ----
+     Per drop (instance) attributes: aP = (x, floor y, z, beam height), aC = (tier colour, rank), aE = (life, breath,
+     fade, seed). Motes carry aP, aC, aS = (angle, radius, phase, speed) and aM = (life x fade x mote fade, breath). */
+  var GLOW_PARS = 'uniform float uT; attribute vec4 aP; attribute vec4 aC; attribute vec4 aE;\n';
+  var BEAM_V = GLOW_PARS + [
+    'varying vec2 vUv; varying vec3 vCol; varying float vA, vRank, vH, vSeed;',
+    'void main() {',
+    '  float life = aE.x, rank = aC.w;',
+    '  vec2 d = cameraPosition.xz - aP.xz; float L = length( d );',
+    '  vec2 f = L > 1e-3 ? d / L : vec2( 0.0, 1.0 );',
+    '  vec3 right = vec3( f.y, 0.0, -f.x );',
+    '  float H = aP.w * ( 0.3 + 0.7 * life ), w = ( 1.3 + 0.12 * rank ) * ( 0.45 + 0.55 * life );',   // grows out of the floor, sinks back
+    '  vec3 p = aP.xyz + right * ( position.x * w ) + vec3( 0.0, position.y * H, 0.0 );',
+    '  vec3 v = normalize( cameraPosition - p );',
+    // standing in (or next to) the beam thins it, so it never washes the screen; seen from high above the flat card
+    // hands over to the floor glow
+    '  float nearF = mix( 0.3, 1.0, smoothstep( 0.35, 2.4, L ) ), steep = mix( 0.2, 1.0, 1.0 - smoothstep( 0.7, 0.95, abs( v.y ) ) );',
+    '  vA = life * aE.z * nearF * steep * ( 0.86 + 0.14 * aE.y );',
+    '  vUv = uv; vCol = aC.rgb; vRank = rank; vH = H; vSeed = aE.w;',
+    '  gl_Position = projectionMatrix * viewMatrix * vec4( p, 1.0 );',
+    '}'].join('\n');
+  var BEAM_F = [
+    'uniform float uT; varying vec2 vUv; varying vec3 vCol; varying float vA, vRank, vH, vSeed;',
+    'void main() {',
+    '  float x = vUv.x * 2.0 - 1.0, y = vUv.y, x2 = x * x;',
+    '  float halo = exp( -x2 * 4.0 ) * ( 1.0 - x2 ), core = exp( -x2 * ( 40.0 - vRank * 3.0 ) );',
+    // brightest at the foot, an even shaft, then a long smooth fall over its upper half that reaches zero with zero
+    // slope at the top: no edge anywhere
+    '  float vert = ( 1.0 - 0.6 * y ) * ( 1.0 - smoothstep( 0.4, 1.0, y ) ) * smoothstep( 0.0, 0.03, y );',
+    // slow soft streaks climbing the shaft (the comic speed-line), stronger the rarer
+    '  float s = sin( ( y * vH * 0.8 - uT * ( 0.55 + 0.08 * vRank ) + x * 0.9 + vSeed * 7.0 ) * 6.2832 );',
+    '  float band = 1.0 + smoothstep( 0.3, 1.0, s ) * ( 0.12 + 0.06 * vRank ) * ( 1.0 - x2 );',
+    '  vec3 hot = mix( vCol, vec3( 1.0 ), 0.15 );',
+    '  float I = 0.68 + 0.06 * vRank;',
+    '  vec3 e = ( vCol * halo * 0.8 + hot * core * 0.9 ) * vert * band * I;',
+    // a good part of what lies behind is covered, so the tier colour holds against a bright sky or a white wall
+    '  float cover = ( halo * 0.55 + core * 0.6 ) * vert;',
+    '  gl_FragColor = vec4( e * vA, cover * vA );',
+    '}'].join('\n');
+  var FLOOR_V = GLOW_PARS + [
+    'varying vec2 vQ; varying vec3 vCol; varying float vA, vRank, vR, vBr, vSeed;',
+    'void main() {',
+    '  float life = aE.x, rank = aC.w;',
+    '  vR = ( 1.3 + 0.12 * rank ) * ( 0.55 + 0.45 * life );',   // the rings open out as the gun lands, close as it goes
+    '  vec3 p = aP.xyz + vec3( position.x * vR, 0.05, position.z * vR );',
+    '  vQ = position.xz; vCol = aC.rgb; vRank = rank; vBr = aE.y; vSeed = aE.w; vA = life * aE.z;',
+    '  gl_Position = projectionMatrix * viewMatrix * vec4( p, 1.0 );',
+    '}'].join('\n');
+  var FLOOR_F = [
+    'uniform float uT; varying vec2 vQ; varying vec3 vCol; varying float vA, vRank, vR, vBr, vSeed;',
+    'float band( float r, float c, float w ) { float k = ( r - c ) / w; return exp( -k * k ); }',
+    'void main() {',
+    '  float q = length( vQ ), r = q * vR, edge = 1.0 - smoothstep( 0.8, 1.0, q );',
+    '  float pool = exp( -r * r * 1.9 ) * ( 0.3 + 0.08 * vBr );',
+    '  float r0 = 0.6 + 0.035 * vBr, ring = band( r, r0, 0.045 ), ink = band( r, r0 + 0.075, 0.03 );',
+    '  float ang = atan( vQ.y, vQ.x ), dash = smoothstep( 0.15, 0.6, 0.5 + 0.5 * cos( ang * 9.0 - uT * 0.5 + vSeed * 6.0 ) );',
+    '  float r1 = r0 + 0.27, r2 = r0 + 0.5;',
+    '  float ring1 = step( 1.5, vRank ) * band( r, r1, 0.03 ) * ( vRank > 2.5 && vRank < 3.5 ? dash : 1.0 );',
+    '  float ring2 = step( 3.5, vRank ) * band( r, r2, 0.028 ) * dash;',
+    '  float ink1 = step( 1.5, vRank ) * band( r, r1 + 0.06, 0.022 ) + step( 3.5, vRank ) * band( r, r2 + 0.055, 0.02 );',
+    // Rare and up: a ripple runs out over the floor; it starts and ends at nothing (no ring pops in or out)
+    '  float ph = fract( uT * 0.4 + vSeed ), rip = step( 1.5, vRank ) * band( r, 0.55 + ph * ( vR * 0.78 - 0.55 ), 0.07 ) * pow( sin( 3.14159 * ph ), 2.0 ) * 0.55;',
+    '  float lit = ring * ( 0.85 + 0.15 * vBr ) + ring1 * 0.75 + ring2 * 0.65;',
+    '  float I = 0.8 + 0.07 * vRank;',
+    '  vec3 e = vCol * ( pool + rip + lit ) * I;',
+    // the rings mostly replace the floor under them (so the tier colour holds on a pale floor) and carry an ink
+    // edge (the comic outline); the pool tints a little
+    '  float cover = min( 1.0, lit * 0.8 + rip * 0.5 + ink * 0.55 + ink1 * 0.45 + pool * 0.3 );',
+    '  gl_FragColor = vec4( e, cover ) * ( vA * edge );',
+    '}'].join('\n');
+  var MOTE_V = [
+    'uniform float uT, uSize, uScale; attribute vec4 aP; attribute vec4 aC; attribute vec4 aS; attribute vec4 aM;',
+    'varying vec3 vCol; varying float vA;',
+    'void main() {',
+    '  float ph = fract( aS.z + uT * 0.085 * aS.w ), ang = aS.x + uT * ( 0.25 + 0.2 * aS.w ), rr = aS.y * ( 1.0 - 0.45 * ph );',
+    '  vec3 p = aP.xyz + vec3( cos( ang ) * rr, 0.25 + ph * aP.w * 0.7 * ( 0.3 + 0.7 * aM.x ), sin( ang ) * rr );',
+    '  vec4 mv = viewMatrix * vec4( p, 1.0 ); float dz = max( -mv.z, 0.1 ), px = uSize * uScale / dz;',
+    '  gl_PointSize = max( px, 1.6 );',
+    // each spark fades in at the foot and out near the top (none pops at the wrap); a spark smaller than a couple of
+    // pixels dims instead of shimmering
+    '  vA = aM.x * pow( sin( 3.14159 * ph ), 1.5 ) * min( 1.0, px / 1.6 ) * ( 0.8 + 0.2 * aM.y );',
+    '  vCol = mix( aC.rgb, vec3( 1.0 ), 0.3 );',
+    '  gl_Position = projectionMatrix * mv;',
+    '}'].join('\n');
+  var MOTE_F = 'varying vec3 vCol; varying float vA; void main() { vec2 q = gl_PointCoord - 0.5; float a = smoothstep( 0.25, 0.02, dot( q, q ) ) * vA; if ( a < 0.004 ) discard; gl_FragColor = vec4( vCol * a, a * 0.3 ); }';
+  function glowMat(v, f, extra) {
+    var o = { uniforms: { uT: WD.glowT }, vertexShader: v, fragmentShader: f, transparent: true, depthWrite: false, fog: false,
+      blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor };
+    if (extra) for (var k in extra) o[k] = extra[k];
+    return new THREE.ShaderMaterial(o);
+  }
+  WD.glowT = { value: 0 };
+  // the batches, sized for `cap` drops (regrown when more lie about)
+  function buildBatches(cap) {
+    var B = WD.batch, scene = WD.scene;
+    if (B) { [B.beam, B.floor, B.motes].forEach(function (m) { scene.remove(m); m.geometry.dispose(); }); }
+    // per-drop data: one set of buffers, read by both the beam and the floor cards
+    var per = {}; ['aP', 'aC', 'aE'].forEach(function (k) { per[k] = new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4).setUsage(THREE.DynamicDrawUsage); });
+    function inst(src) {
+      var g = new THREE.InstancedBufferGeometry(); g.setIndex(src.index);
+      ['position', 'uv'].forEach(function (k) { g.setAttribute(k, src.attributes[k]); });
+      for (var k in per) g.setAttribute(k, per[k]);
+      g.instanceCount = 0;
+      return g;
+    }
+    var bq = new THREE.PlaneGeometry(1, 1); bq.translate(0, 0.5, 0);
+    var fq = new THREE.PlaneGeometry(2, 2); fq.rotateX(-Math.PI / 2);
+    var mats = WD.glowMats || (WD.glowMats = {
+      beam: glowMat(BEAM_V, BEAM_F, { side: THREE.DoubleSide }),
+      floor: glowMat(FLOOR_V, FLOOR_F, { polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }),
+      motes: glowMat(MOTE_V, MOTE_F, { uniforms: { uT: WD.glowT, uSize: { value: 0.15 }, uScale: { value: 300 } } })
+    });
+    var beam = new THREE.Mesh(inst(bq), mats.beam), floor = new THREE.Mesh(inst(fq), mats.floor);
+    var mg = new THREE.BufferGeometry(), nm = cap * MOTES;
+    ['position', 'aP', 'aC', 'aS', 'aM'].forEach(function (k, j) { mg.setAttribute(k, new THREE.BufferAttribute(new Float32Array(nm * (j ? 4 : 3)), j ? 4 : 3).setUsage(THREE.DynamicDrawUsage)); });
+    mg.setDrawRange(0, 0);
+    var motes = new THREE.Points(mg, mats.motes);
+    // fixed order after the world: floor glow, then beams, then motes; never culled (one box would not hold them)
+    floor.renderOrder = 2; beam.renderOrder = 3; motes.renderOrder = 4;
+    [beam, floor, motes].forEach(function (m) { m.frustumCulled = false; m.visible = false; scene.add(m); });
+    WD.batch = { cap: cap, beam: beam, floor: floor, motes: motes };
+  }
   WD.init = function (scene) {
     WD.scene = scene;
-    var T = WD.beamTextures();
-    var haloGeo = new THREE.PlaneGeometry(2.1, BEAM_H); haloGeo.translate(0, BEAM_H / 2, 0);
-    var hotGeo = new THREE.PlaneGeometry(0.62, BEAM_H * 0.92); hotGeo.translate(0, BEAM_H * 0.46, 0);
-    var coreGeo = new THREE.CylinderGeometry(0.16, 0.3, BEAM_H * 0.8, 16, 1, true); coreGeo.translate(0, BEAM_H * 0.4, 0);
-    var ringGeo = new THREE.RingGeometry(0.62, 0.8, 40), waveGeo = new THREE.RingGeometry(0.86, 0.96, 40), discGeo = new THREE.PlaneGeometry(3, 3);
-    WD.addSlot = function (i) {
+    WD.beamTextures();
+    WD.addSlot = function () {
       var grp = new THREE.Group(); grp.visible = false; scene.add(grp);
-      var fx = new THREE.Group(); grp.add(fx);   // everything that glows (scaled as the drop pops in)
-      var halo = new THREE.Mesh(haloGeo, glow(T.shaft, { opacity: 0.6 })); halo.renderOrder = 3; fx.add(halo);
-      var hot = new THREE.Mesh(hotGeo, glow(T.coreShaft, { opacity: 0.9 })); hot.renderOrder = 4; fx.add(hot);
-      var coreTex = T.ribbon.clone(); coreTex.needsUpdate = true; coreTex.repeat.set(2, 2.5);
-      var core = new THREE.Mesh(coreGeo, glow(coreTex, { opacity: 0.7, alphaMap: T.fade })); core.renderOrder = 5; fx.add(core);
-      var disc = new THREE.Mesh(discGeo, glow(T.disc, { opacity: 0.6 })); disc.rotation.x = -Math.PI / 2; disc.position.y = 0.04; disc.renderOrder = 2; fx.add(disc);
-      var ring = new THREE.Mesh(ringGeo, glow(null, { opacity: 0.95 })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.05; ring.renderOrder = 3; fx.add(ring);
-      var wave = new THREE.Mesh(waveGeo, glow(null, { opacity: 0.6 })); wave.rotation.x = -Math.PI / 2; wave.position.y = 0.045; wave.renderOrder = 3; fx.add(wave);
-      var sp = new Float32Array(SPARKS * 3), seed = [];
-      for (var k = 0; k < SPARKS; k++) seed.push([Math.random() * Math.PI * 2, 0.18 + Math.random() * 0.5, Math.random(), 0.5 + Math.random() * 0.8]);
-      var sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(sp, 3));
-      var sparks = new THREE.Points(sg, new THREE.PointsMaterial({ map: T.spark, size: 0.2, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.95, fog: false }));
-      sparks.frustumCulled = false; sparks.renderOrder = 5; fx.add(sparks);
       var spin = new THREE.Group(); spin.position.y = 0.95; grp.add(spin);
-      WD.list.push({ on: false, grp: grp, fx: fx, halo: halo, hot: hot, core: core, coreTex: coreTex, disc: disc, ring: ring, wave: wave, sparks: sparks, seed: seed,
-        spin: spin, mesh: null, id: null, tier: null, melee: false, x: 0, z: 0, t: 0, level: 1, roll: null });
+      var seed = [];
+      for (var k = 0; k < MOTES; k++) seed.push([Math.random() * Math.PI * 2, 0.2 + Math.random() * 0.45, (k + Math.random() * 0.8) / MOTES, 0.6 + Math.random() * 0.8]);
+      // the rim on the turning gun: this slot's own uniforms (GunSkins.material makes one material per slot)
+      var rim = { uRimC: { value: new THREE.Color() }, uRimA: { value: 0 } };
+      WD.list.push({ on: false, out: -1, grp: grp, spin: spin, seed: seed, rim: rim, phase: Math.random(), mesh: null, id: null, tier: null, melee: false,
+        x: 0, z: 0, y: 0, t: 0, gt: 0, life: 0, level: 1, roll: null, col: new THREE.Color(), rank: 0, beamH: BEAM_H });
     };
     for (var i0 = 0; i0 < CAP; i0++) WD.addSlot(i0);
+    buildBatches(CAP);
   };
-  WD.clear = function () { WD.list.forEach(function (d) { d.on = false; d.grp.visible = false; }); if (IB.HUD && IB.HUD.peek) IB.HUD.peek('drop', null); };
+  WD.clear = function () { WD.list.forEach(function (d) { d.on = false; d.out = -1; d.grp.visible = false; }); if (IB.HUD && IB.HUD.peek) IB.HUD.peek('drop', null); };
 
   // enemies that never drop guns or armour: the grey crawler and the exploding bomber
   var NO_GUN = { crawler: 1, bomber: 1 };
@@ -37438,15 +37538,22 @@ IB.DECALS = {"grid":8,"names":["oil","oil2","water","water2","rust","leak","soot
   function def0(id) { return IB.WEAPONS && IB.WEAPONS[id]; }
   function G0() { return IB.Game; }
   var OUT_MAX = 0.006;   // ink outline cap for the turning gun (it is drawn 1.7x): it keeps its size at any distance
+  // the beam is cut down under a ceiling or deck above the drop: its fall to nothing ends 0.4 m past it, so the
+  // ceiling meets almost no light (no hard line where it cuts the beam)
+  function beamHeight(x, floor, z, h) {
+    var w = G0() && G0().level && G0().level.world, hit = w && w.ray ? w.ray(x, floor + 1.2, z, 0, 1, 0, h) : null;
+    return hit ? Math.max(1.6, Math.min(h, 1.2 + hit.t + 0.4)) : h;
+  }
   function spawn(id, tier, x, z, melee, y, level, roll) {
     var A = IB.Assets, node = 'WPN_' + id.toUpperCase();
     if (!A.geo[node]) return null;
-    var d = null; for (var i = 0; i < WD.list.length; i++) if (!WD.list[i].on) { d = WD.list[i]; break; }
+    // a free slot (not one still fading out from a pickup: that one finishes its fade)
+    var d = null; for (var i = 0; i < WD.list.length; i++) if (!WD.list[i].on && WD.list[i].out < 0) { d = WD.list[i]; break; }
     // list full: one more slot. A dropped gun is never removed; it stays until the player takes it or leaves
     if (!d) { WD.addSlot(WD.list.length); d = WD.list[WD.list.length - 1]; }
     if (d.mesh) d.spin.remove(d.mesh);
     if (!WD.mat) WD.mat = IB.Render.toonMaterial({ map: A.palette.weapons, baked: A.BAKED ? A.BAKED.weapons : 0, outMax: OUT_MAX, look: 'actor', surf: IB.Surface && IB.Surface.surf('weapons') });
-    d.mesh = new THREE.Mesh(G0() && G0().gunGeo && !melee ? G0().gunGeo(id, tier) : A.get(node), !melee && IB.GunSkins ? IB.GunSkins.material(id, tier, null, OUT_MAX) : WD.mat);   // rarity skin, magazine in
+    d.mesh = new THREE.Mesh(G0() && G0().gunGeo && !melee ? G0().gunGeo(id, tier) : A.get(node), !melee && IB.GunSkins ? IB.GunSkins.material(id, tier, null, OUT_MAX, d.rim) : WD.mat);   // rarity skin (with this slot's rim), magazine in
     d.mesh.scale.setScalar(melee ? 1.5 : 1.7);
     if (melee) d.mesh.rotation.set(0, 0, 0.5); else d.mesh.rotation.set(0, 0, 0);
     d.spin.add(d.mesh);
@@ -37454,12 +37561,11 @@ IB.DECALS = {"grid":8,"names":["oil","oil2","water","water2","rust","leak","soot
     d.on = true; d.id = id; d.tier = tier; d.melee = !!melee; d.x = x; d.z = z; d.t = 0; d.y = floor;
     d.level = Math.max(1, level || curLevel()); d.roll = roll || null;
     if (!d.roll && !melee && IB.GunLevel && def0(id) && def0(id).wyrm) d.roll = IB.GunLevel.wyrmRoll(def0(id), playerLv());
-    d.grp.position.set(x, floor, z); d.grp.visible = true; d.fx.scale.set(0.01, 0.01, 0.01);
-    var c = new THREE.Color(melee ? '#FFC23A' : WD.tier(tier).color), hot = c.clone().lerp(new THREE.Color(0xffffff), 0.6);
-    d.halo.material.color.copy(c); d.disc.material.color.copy(c); d.wave.material.color.copy(c); d.ring.material.color.copy(c);
-    d.hot.material.color.copy(hot); d.core.material.color.copy(hot); d.sparks.material.color.copy(hot);
-    // the rarer the gun, the taller and fuller its beam (a melee weapon gets the plain one)
-    d.rank = melee ? 0 : WD.tier(tier).rank; d.tall = 0.72 + 0.07 * d.rank; d.wide = 0.9 + 0.06 * d.rank;
+    d.grp.position.set(x, floor, z); d.grp.visible = true; d.spin.scale.setScalar(0.001);
+    d.out = -1; d.gt = 0; d.life = 0;
+    // the rarer the gun, the taller and fuller its glow (a melee weapon gets the plain one, in gold)
+    d.rank = melee ? 0 : WD.tier(tier).rank; d.col.set(melee ? MELEE_COL : WD.tier(tier).color); d.rim.uRimC.value.copy(d.col); d.rim.uRimA.value = 0;
+    d.beamH = beamHeight(x, floor, z, LOOKS[d.rank].h);
     if (IB.Audio) IB.Audio.play('pickup', { pos: { x: x, z: z }, pitch: 0.7, gain: 0.6 });
     return d;
   }
@@ -37516,7 +37622,7 @@ IB.DECALS = {"grid":8,"names":["oil","oil2","water","water2","rust","leak","soot
     var s = G.slot, def = IB.WEAPONS[d.id], HUD = IB.HUD;
     if (!d.on || !s) return false;
     var x = d.x, z = d.z, y = d.y;
-    d.on = false; d.grp.visible = false;
+    d.on = false; d.out = 0;   // gone for the game at once; the glow and the gun ease out over OUT_T (WD.update)
     if (d.melee) {
       s.melee = s.melee || [];
       if (s.melee.indexOf(d.id) < 0) s.melee.push(d.id);
@@ -37529,7 +37635,7 @@ IB.DECALS = {"grid":8,"names":["oil","oil2","water","water2","rust","leak","soot
       if (HUD.toast) HUD.toast(r.line, 2.4, 'tick:gear');   // the gun in hand stays in hand: the new one waits on its key
     }
     if (IB.Audio) IB.Audio.play('pickup');
-    if (IB.FX) IB.FX.puff(x, (y || 0) + 0.9, z, 10, parseInt((d.melee ? '#FFC23A' : WD.tier(d.tier).color).slice(1), 16), 0.14, 0.45, 3.5);
+    if (IB.FX) IB.FX.puff(x, (y || 0) + 0.9, z, 10, parseInt((d.melee ? MELEE_COL : WD.tier(d.tier).color).slice(1), 16), 0.14, 0.45, 3.5);
     if (G.store) G.store.save(s);
     return true;
   }
@@ -37561,33 +37667,70 @@ IB.DECALS = {"grid":8,"names":["oil","oil2","water","water2","rust","leak","soot
       gun: { id: best.id, tier: best.tier, level: best.level, roll: best.roll, melee: best.melee, wx: best.x, wy: (best.y || 0) + 1.9, wz: best.z } };
   };
 
+  /* The shared envelope of one drop, all its parts read it: life 0..1 (spawn eases out, a take eases in), breath
+     0..1 (the idle pulse), fade (fog at the drop's distance) and the motes' distance fade. */
+  function ease(k) { k = k < 0 ? 0 : k > 1 ? 1 : k; return 1 - (1 - k) * (1 - k) * (1 - k); }   // ease out (cubic)
+  function smooth(a, b, x) { var k = (x - a) / (b - a); k = k < 0 ? 0 : k > 1 ? 1 : k; return k * k * (3 - 2 * k); }
+  WD.envelope = function (d, t, cam) {
+    var inn = ease(d.gt / SPAWN_T), out = d.out < 0 ? 1 : 1 - smooth(0, 1, d.out / OUT_T);
+    var e = { life: inn * out, inn: inn, out: d.out < 0 ? 0 : smooth(0, 1, d.out / OUT_T), breath: 0.5 + 0.5 * Math.sin(t * 2.4 + d.phase * 6.2832), fade: 1, motes: 1 };
+    if (cam) {
+      var dx = cam.x - d.x, dy = cam.y - d.y - 1, dz = cam.z - d.z, dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      var fog = IB.Render && IB.Render.scene && IB.Render.scene.fog, f = 0;
+      if (fog) f = IB.Look && IB.Look.on && IB.Atmo && IB.Atmo.fogAmount ? IB.Atmo.fogAmount(dist, d.y + 2, fog.near, fog.far) : smooth(fog.near, fog.far, dist);
+      // the glow goes with the fogged gun it marks, a little slower (it is light), and is gone at the fog wall
+      e.fade = (1 - 0.75 * f) * (fog ? 1 - smooth(fog.far * 0.85, fog.far, dist) : 1);
+      e.motes = 1 - smooth(18, 32, dist);   // the fine sparks cross-fade out with distance
+    }
+    return e;
+  };
+  var _cam = new THREE.Vector3();
   WD.update = function (dt, t, G) {
-    var p = G.player;
+    var p = G.player, B = WD.batch, cam = IB.Render && IB.Render.camera ? IB.Render.camera.getWorldPosition(_cam) : null;
     if (IB.GunSkins) IB.GunSkins.tick(t);
+    WD.glowT.value = t;
+    if (B && WD.list.length > B.cap) buildBatches(Math.max(WD.list.length, B.cap * 2));
+    B = WD.batch;
+    var bp = B && B.beam.geometry.attributes, mp = B && B.motes.geometry.attributes, n = 0, m = 0;
     for (var i = 0; i < WD.list.length; i++) {
-      var d = WD.list[i]; if (!d.on) continue;
-      d.t += dt;
-      var pop = d.t < 0.22 ? d.t / 0.22 * 1.12 : d.t < 0.36 ? 1.12 - (d.t - 0.22) / 0.14 * 0.12 : 1;   // the beam shoots up, overshoots, settles
-      d.fx.scale.set(Math.max(0.01, pop) * d.wide, Math.max(0.01, pop * pop) * d.tall, Math.max(0.01, pop) * d.wide);
-      d.spin.rotation.y = t * 1.5 + i; d.spin.position.y = 0.95 + Math.sin(t * 2.2 + i) * 0.09;
-      var br = 0.5 + 0.5 * Math.sin(t * 2.6 + i * 1.7);   // slow breath
-      WD.faceCamera(d.halo, d.x, d.z); d.hot.rotation.y = d.halo.rotation.y;
-      d.halo.material.opacity = 0.66 + 0.16 * br;
-      d.hot.material.opacity = 0.78 + 0.18 * br;
-      d.core.material.opacity = 0.55 + 0.25 * br;
-      d.coreTex.offset.y = -(t * 0.42 + i * 0.13) % 1; d.coreTex.offset.x = (t * 0.11 + i * 0.3) % 1;   // ribbons climb and wind round
-      d.core.rotation.y = t * 0.35 + i;
-      d.disc.material.opacity = 0.5 + 0.22 * br; d.disc.scale.setScalar(0.9 + 0.12 * br);
-      var k = 1 + 0.06 * br; d.ring.scale.set(k, k, k); d.ring.rotation.z = t * 0.5;
-      var wv = (t * 0.55 + i * 0.37) % 1;   // a ring spreading out over the floor and fading
-      d.wave.scale.setScalar(0.9 + wv * 1.5); d.wave.material.opacity = 0.6 * (1 - wv) * (1 - wv);
-      var sp = d.sparks.geometry.attributes.position, sd = d.seed, top = BEAM_H * 0.8;
-      for (var n = 0; n < sd.length; n++) {
-        var ph = (sd[n][2] + t * 0.16 * sd[n][3]) % 1, ang = sd[n][0] + t * (0.5 + sd[n][3] * 0.5), rr = sd[n][1] * (1 - ph * 0.55);
-        sp.setXYZ(n, Math.cos(ang) * rr, 0.15 + ph * top, Math.sin(ang) * rr);
+      var d = WD.list[i]; if (!d.on && d.out < 0) continue;
+      if (d.on) d.t += dt;   // gameplay clock (E is offered from 0.35 s), untouched by the glow
+      d.gt += dt;
+      if (d.out >= 0) { d.out += dt; if (d.out >= OUT_T) { d.out = -1; d.grp.visible = false; continue; } }
+      var e = WD.envelope(d, t, cam), L = LOOKS[d.rank];
+      d.life = e.life;
+      // the gun: it grows in as it settles from a little above, turns and bobs, and on a take shrinks and lifts away
+      var bob = Math.sin(t * 2.2 + i) * 0.09 * (0.4 + 0.6 * e.inn);
+      d.spin.rotation.y = t * 1.5 + i;
+      d.spin.position.y = 0.95 + bob + (1 - e.inn) * 0.55 + e.out * 0.45;
+      d.spin.scale.setScalar(Math.max(0.001, e.inn * (1 - e.out)));
+      d.rim.uRimA.value = 0.5 * e.life * (0.8 + 0.2 * e.breath);
+      if (!B) continue;
+      var c = d.col, k4 = n * 4;
+      bp.aP.array[k4] = d.x; bp.aP.array[k4 + 1] = d.y; bp.aP.array[k4 + 2] = d.z; bp.aP.array[k4 + 3] = d.beamH;
+      bp.aC.array[k4] = c.r; bp.aC.array[k4 + 1] = c.g; bp.aC.array[k4 + 2] = c.b; bp.aC.array[k4 + 3] = d.rank;
+      bp.aE.array[k4] = e.life; bp.aE.array[k4 + 1] = e.breath; bp.aE.array[k4 + 2] = e.fade; bp.aE.array[k4 + 3] = d.phase;
+      n++;
+      var mf = e.life * e.fade * e.motes;
+      if (L.motes && mf > 0.002) for (var j = 0; j < L.motes; j++) {
+        var sd = d.seed[j], q4 = m * 4;
+        mp.aP.array[q4] = d.x; mp.aP.array[q4 + 1] = d.y; mp.aP.array[q4 + 2] = d.z; mp.aP.array[q4 + 3] = d.beamH;
+        mp.aC.array[q4] = c.r; mp.aC.array[q4 + 1] = c.g; mp.aC.array[q4 + 2] = c.b; mp.aC.array[q4 + 3] = d.rank;
+        mp.aS.array[q4] = sd[0]; mp.aS.array[q4 + 1] = sd[1]; mp.aS.array[q4 + 2] = sd[2]; mp.aS.array[q4 + 3] = sd[3];
+        mp.aM.array[q4] = mf; mp.aM.array[q4 + 1] = e.breath;
+        m++;
       }
-      sp.needsUpdate = true;
-      d.sparks.material.opacity = 0.75 + 0.2 * br;
+    }
+    if (B) {
+      bp.aP.needsUpdate = bp.aC.needsUpdate = bp.aE.needsUpdate = true;   // shared with the floor cards
+      B.beam.geometry.instanceCount = B.floor.geometry.instanceCount = n;
+      B.beam.visible = B.floor.visible = n > 0;
+      mp.aP.needsUpdate = mp.aC.needsUpdate = mp.aS.needsUpdate = mp.aM.needsUpdate = true;
+      B.motes.geometry.setDrawRange(0, m); B.motes.visible = m > 0;
+      if (IB.Render && IB.Render.renderer) {   // sparks are sized in render-target pixels (the post target may be smaller)
+        var h = IB.Post && IB.Post.on && IB.Post.h ? IB.Post.h : IB.Render.height * (IB.Render.pixelRatio || 1);
+        B.motes.material.uniforms.uScale.value = h * 0.5;
+      }
     }
     // weapon card for the drop you walk up to and look at (HUD peek panel; rebuilt only when the target changes)
     var best = null, bs = 0;

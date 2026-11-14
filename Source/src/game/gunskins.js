@@ -241,19 +241,25 @@
         ' ibCol *= clamp( ibGw.a * 0.85 + dot( ibGw.rgb * ibGw.rgb * 4.0 * uGridI, vec3( 0.2126, 0.7152, 0.0722 ) ) * 0.6 + 0.12, 0.12, 1.0 ); }\n' +
         'vec3 outgoingLight = ibCol + totalEmissiveRadiance;');
   }
-  /* outMax (optional): outline width cap for a gun shown enlarged in the world (IB.Render.toonMaterial) */
-  GS.material = function (gunId, tier, uni, outMax) {
+  /* outMax (optional): outline width cap for a gun shown enlarged in the world (IB.Render.toonMaterial).
+     rim (optional): { uRimC: {value: Color}, uRimA: {value: 0..1} } a glancing-angle rim of that colour over the lit gun
+     (the loot glow on a gun lying on the floor, game/wdrops.js): the caller owns the uniforms, so each rim set gets its
+     own material (one program for all of them) */
+  var skinTex = {};
+  GS.material = function (gunId, tier, uni, outMax, rim) {
     var R = IB.Render, A = IB.Assets;
     uni = uni || R.worldOutline;
     tier = tier || 'gray';
     if (!D() || !A.palette || !A.palette.weapons) return R.toonMaterial({ uni: uni, map: A.palette && A.palette.weapons, baked: A.BAKED ? A.BAKED.weapons : 0, outMax: outMax });
     if (!uni._skinId) uni._skinId = 'u' + (GS._u = (GS._u || 0) + 1);
-    var key = gunId + '|' + tier + '|' + uni._skinId + (outMax ? '|' + outMax : '');
+    if (rim && !rim._id) rim._id = 'r' + (GS._r = (GS._r || 0) + 1);
+    var key = gunId + '|' + tier + '|' + uni._skinId + (outMax ? '|' + outMax : '') + (rim ? '|' + rim._id : '');
     if (GS.cache[key]) return GS.cache[key];
-    var sk = D().skin(gunId, tier);
-    var mat = R.toonMaterial({ uni: uni, map: texture(sk), baked: A.BAKED ? A.BAKED.weapons : 0, outMax: outMax });
+    var sk = D().skin(gunId, tier), tk = gunId + '|' + tier;
+    var T = skinTex[tk] || (skinTex[tk] = { map: texture(sk), surf: surfTexture(sk) });   // shared by every material of this skin
+    var mat = R.toonMaterial({ uni: uni, map: T.map, baked: A.BAKED ? A.BAKED.weapons : 0, outMax: outMax });
     var U = { uPat: { value: D().PATTERNS[sk.pat.type] || 0 }, uPatS: { value: sk.pat.scale }, uPatC: { value: C(sk.pat.col) },
-      uGlowC: { value: C(sk.glow) }, uShim: { value: sk.shimmer }, uTime: time, uSurf: { value: surfTexture(sk) },
+      uGlowC: { value: C(sk.glow) }, uShim: { value: sk.shimmer }, uTime: time, uSurf: { value: T.surf },
       uShimC: { value: C(sk.shimCol || '#FFEBB3') }, uPatGlow: { value: sk.patGlow || 0 },
       uGradC: { value: C(sk.grad ? sk.grad.from : '#FFFFFF') }, uGradY: { value: new THREE.Vector2(sk.grad ? sk.grad.y0 : 0, sk.grad ? sk.grad.y1 : 1) } };
     var inner = mat.onBeforeCompile, key0 = mat.customProgramCacheKey;
@@ -268,8 +274,14 @@
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + FRAG_PARS)
         .replace('#include <map_fragment>', FRAG_MAP).replace('if ( vHull > 0.5 )', FRAG_END)
         .replace('vec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance;', FRAG_LIGHT);
+      if (rim) {   // after the light (and the world light volume): the rim still shows in a dark room
+        sh.uniforms.uRimC = rim.uRimC; sh.uniforms.uRimA = rim.uRimA;
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uRimC; uniform float uRimA;')
+          .replace('vec3 outgoingLight = ibCol + totalEmissiveRadiance;', 'float ibRim = pow( 1.0 - max( dot( ibNn, ibV ), 0.0 ), 2.2 );\n' +
+            'ibCol += uRimC * ( ibRim * 0.9 + 0.08 ) * uRimA;\nvec3 outgoingLight = ibCol + totalEmissiveRadiance;');
+      }
     };
-    mat.customProgramCacheKey = function () { return key0() + 'skin'; };
+    mat.customProgramCacheKey = function () { return key0() + 'skin' + (rim ? 'rim' : ''); };
     mat.userData.skin = sk;
     GS.cache[key] = mat;
     return mat;
