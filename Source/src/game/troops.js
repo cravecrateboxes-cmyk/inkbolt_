@@ -609,7 +609,8 @@
         } else if (r.act === 'tell') {   // the circle tightens, the slit flashes, it backs off to throwing range: the throw is coming
           r.kangV += (17 - r.kangV) * Math.min(1, dt * 6); r.kR += (1.1 - r.kR) * Math.min(1, dt * 6);
           var tr = stat(r, 'kusariThrowRange', 4.5);
-          if (dist < tr) K.move(-dx, -dz, stat(r, 'stalkSpeed', 2.6) * 1.6);
+          if (!r.seesPlayer) K.move(dx, dz, stat(r, 'stalkSpeed', 2.6));   // backed out of sight: step back in to get the line again
+          else if (dist < tr) K.move(-dx, -dz, stat(r, 'stalkSpeed', 2.6) * 1.6);
           var tt = stat(r, 'kusariTell', 0.45) * Math.max(0.8, T.tellMul);
           K.tell(r, Math.min(1, r.st / tt));
           if (r.st >= tt && !r.seesPlayer && r.st >= tt + 1) { r.km = 'pull'; r.act = 'pull'; }   // no clear line: reel in
