@@ -9,6 +9,7 @@ import random
 
 from ic_base import *  # noqa: F401,F403
 import ic_base as B
+import ic_detail as D
 
 # ---------------------------------------------------------------- the four flavour sets (two rows of six per cabinet)
 # (front row: named on the glass rail; back row: colour chips on the step, named on a strip on the front) --
@@ -82,6 +83,7 @@ def build_dip(pal, ao):
         for (y, z) in (Y[1], Y[4]):
             m.bm_((-0.985, y, z), (0.985, y, z), 0.022, 'chrome', hull='none')
         m.bx(-0.98, 0.98, -0.97, -0.9, 0.9, 0.93, 'chrome')
+        D.dip_finish(m)
         make('Dip_' + key, m, ao, cols=[cb(-1.0, -0.95, 0.0, 1.0, 0.58, 0.95), cb(-1.0, -0.95, 0.95, 1.0, 0.05, 1.38)])
     g = new(pal)
     for (a, b) in zip(Y[:-1], Y[1:]):
@@ -97,6 +99,7 @@ def counter_body(m, x0, x1, en, top='woodL', zt=CT, back=0.55):
     front_panel(m, x0, x1, -0.95, 0.12, zt - 0.05, en)
     m.bx(x0, x1, -1.0, back + 0.03, zt - 0.05, zt, top, cull='b')
     bq(m, x0 + 0.05, x1 - 0.05, back + 0.003, 0.2, zt - 0.15, 'steel')
+    D.counter_finish(m, x0, x1, zt)
 
 
 def build_counter_end(pal, ao):
@@ -297,6 +300,7 @@ def build_stool(pal, ao):
     m.bx(-0.03, 0.03, -0.03, 0.03, 0.04, 0.7, 'chrome', hull='none', cull='tb')
     m.cy((0, 0, 0.29), 0.16, 0.16, 0.025, 'chrome', seg=8, caps=False, hull='none')
     m.cy((0, 0, 0.7), 0.2, 0.19, 0.1, 'lilac', seg=8)
+    D.stool_finish(m)
     make('Stool', m, ao, cols=[cb(-0.2, -0.2, 0.0, 0.2, 0.2, 0.8)])
 
 
@@ -406,6 +410,7 @@ def build_cakefreezer(pal, ao):
     poly(g, [(0.02, -0.462, 0.23), (0.92, -0.462, 0.23), (0.92, -0.462, 1.83), (0.02, -0.462, 1.83)], 'glassA', (0, -1, 0))
     for x0 in (-0.92, 0.02):
         streaks(g, [(x0, -0.465, 0.23), (x0 + 0.9, -0.465, 0.23), (x0 + 0.9, -0.465, 1.83), (x0, -0.465, 1.83)], n=1, w=0.1)
+    D.cakefreezer_finish(m)
     make('CakeFreezer', m, ao, cols=[cb(-0.98, -0.52, 0.0, 0.98, 0.45, 2.15)])
     make_glow('CakeFreezer_Glass', g)
 
@@ -524,6 +529,7 @@ def build_booth(pal, ao):
     uq(m, -0.83, -0.7, -0.05, 0.05, 0.883, 'white')
     m.cy((0.25, -0.1, 0.75), 0.08, 0.05, 0.12, 'glassL', seg=6, hull='none')
     m.sp((0.25, -0.1, 0.89), 0.07, 'strawb', seg=(6, 2), hull='none')
+    D.booth_finish(m)
     make('Booth', m, ao, cols=[cb(-1.0, -1.48, 0.0, 1.0, -0.95, 0.5), cb(-1.0, -1.48, 0.5, 1.0, -1.3, 1.26),
                                cb(-1.0, 0.95, 0.0, 1.0, 1.48, 0.5), cb(-1.0, 1.3, 0.5, 1.0, 1.48, 1.26), cb(-0.9, -0.4, 0.0, 0.9, 0.4, 0.75)])
 
@@ -561,6 +567,7 @@ def build_tables(pal, ao):
         heart_chair(m, math.cos(a) * 0.68, math.sin(a) * 0.68, a - math.pi / 2 + math.pi)
     m.cy((0.1, 0.05, 0.76), 0.04, 0.05, 0.12, 'pinkD', seg=6, hull='none')
     m.sp((0.1, 0.05, 0.9), 0.05, 'mintF', seg=(6, 2), hull='none')
+    D.bistro_finish(m, 0.45)
     make('Table4', m, ao, cols=[cb(-0.45, -0.45, 0.0, 0.45, 0.45, 0.76)] +
          [cb(math.cos(k * math.pi / 2 + math.pi / 4) * 0.68 - 0.2, math.sin(k * math.pi / 2 + math.pi / 4) * 0.68 - 0.2, 0.0,
              math.cos(k * math.pi / 2 + math.pi / 4) * 0.68 + 0.2, math.sin(k * math.pi / 2 + math.pi / 4) * 0.68 + 0.2, 0.52) for k in range(4)])
@@ -578,6 +585,7 @@ def build_tables(pal, ao):
         m.sp((-0.1 + k * 0.1, 0.0, 0.84), 0.05, c, seg=(6, 2), hull='none')
     for s in (-1, 1):
         m.bm_((-0.16, s * 0.05, 0.81), (0.16, s * 0.05, 0.81), 0.03, 'lemon', hull='none')
+    D.sq_table_finish(m)
     make('Table2', m, ao, cols=[cb(-0.36, -0.36, 0.0, 0.36, 0.36, 0.76), cb(-0.2, -0.88, 0.0, 0.2, -0.48, 0.52), cb(-0.2, 0.48, 0.0, 0.2, 0.88, 0.52)])
 
 
@@ -788,6 +796,7 @@ def build_vestibule(pal, ao):
     bq(m, -1.2, 1.2, 0.203, 2.7, 3.12, 'pinkD')
     text_back(m, 'COME AGAIN', 0.26, 0.206, 0.0, 2.78, 'white', maxw=2.2)
     m.bx(-1.85, 1.85, -0.15, 0.15, 0.0, 0.02, 'steelD', hull='none', cull='b')
+    D.vdoor_finish(m)
     make('VDoor', m, ao, cols=[cb(-2.0, -0.12, 0.0, -1.85, 0.2, VH), cb(1.85, -0.12, 0.0, 2.0, 0.2, VH)])
     make_glow('VDoor_G', g)
 

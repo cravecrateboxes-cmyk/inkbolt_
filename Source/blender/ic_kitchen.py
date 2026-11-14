@@ -8,6 +8,7 @@ import random
 
 from ic_base import *  # noqa: F401,F403
 import ic_base as B
+import ic_detail as D
 
 
 def legs(m, x0, x1, y0, y1, z1, c='steel', t=0.04):
@@ -43,6 +44,7 @@ def build_churn(pal, ao):
     for k, c in enumerate(('exitG', 'cherry', 'lemon')):
         fdisc(g, -0.25 + k * 0.035, -0.604, 1.55, 0.012, c, seg=6)
     text_front(m, 'CHURN-O-MATIC', 0.07, -0.553, 0.28, 1.6, 'steelD', font='cond', maxw=0.6)
+    D.churn_finish(m)
     # a trolley of empty tubs beside it (east)
     m.bx(0.72, 0.98, -0.45, 0.35, 0.55, 0.58, 'steel')
     legs(m, 0.75, 0.95, -0.42, 0.32, 0.55, t=0.015)
@@ -82,6 +84,7 @@ def build_tanks(pal, ao):
             m.bx(-r - 0.04, -r + 0.02, -0.03, 0.03, z0 + 0.2, z1 - 0.2, 'glassL', hull='none')
         else:   # a step stool
             m.bx(0.45, 0.85, -0.95, -0.7, 0.0, 0.35, 'hazY')
+        D.tank_finish(m, r, z0, z1, tall)
         cols = [cb(-r, -r, 0.0, r, r, z1 + 0.25), cb(-0.12, -r - 0.27, 0.0, 0.12, -r + 0.05, 0.4)]
         if tall:
             cols.append(cb(-0.12, -0.12, z1 + 0.25, 0.12, 0.12, z1 + 0.66))
@@ -111,6 +114,7 @@ def build_blastfreezer(pal, ao):
     fq(g, -0.5, -0.1, -0.863, 2.19, 2.26, 'screen')
     text_front(g, '-35C', 0.05, -0.866, -0.3, 2.2, 'neonB', font='cond')
     text_front(m, 'BLAST FREEZER', 0.06, -0.863, 0.25, 2.2, 'white', font='cond', maxw=0.55)
+    D.blast_finish(m)
     make('BlastFreezer', m, ao, cols=[cb(-1.5, -0.95, 0.0, 1.5, 0.95, 2.3), cb(-0.7, -0.6, 2.3, 0.7, 0.6, 2.75)])
     make_glow('BlastFreezer_LED', g)
 
@@ -166,6 +170,7 @@ def build_walkin(pal, ao):
     m.bx(0.75, 1.05, -0.14, -0.103, 1.5, 1.7, 'black')
     fq(g, 0.78, 1.02, -0.143, 1.53, 1.67, 'screen')
     text_front(g, '-20', 0.08, -0.146, 0.9, 1.56, 'neonB', font='cond')
+    D.coldroom_finish(m)
     make('FreezerDoor', m, ao, cols=[cb(-1.5, -0.14, 0.0, -0.57, 0.14, UNDER), cb(0.57, -0.14, 0.0, 1.5, 0.14, UNDER),
                                      cb(-0.65, -0.14, 2.27, 0.65, 0.14, UNDER), cb(0.45, 0.14, 0.0, 0.62, 1.3, 2.25)])
     make_glow('FreezerDoor_LED', g)
@@ -224,6 +229,7 @@ def build_prep(pal, ao):
     for k in range(2):
         m.cy((-0.7 + k * 1.4, 0.0, 0.24), 0.14, 0.12, 0.35, 'white', seg=8)
         m.cy((-0.7 + k * 1.4, 0.0, 0.59), 0.05, 0.05, 0.06, 'sky', seg=6)
+    D.prep_finish(m)
     make('PrepTable_A', m, ao, cols=[cb(-1.45, -0.9, 0.0, 1.45, 0.9, 0.92), cb(-1.1, -0.3, 0.92, -0.65, 0.15, 1.55)])
     m = new(pal); prep_table(m)
     m.cy((-0.6, 0.0, 0.92), 0.06, 0.06, 0.12, 'steel', seg=6, hull='none')
@@ -242,6 +248,7 @@ def build_prep(pal, ao):
         x = -0.9 + k * 0.7
         m.bx(x - 0.25, x + 0.25, -0.3, 0.3, 0.24, 0.5, 'white', cull='b')
         fq(m, x - 0.25, x + 0.25, -0.303, 0.38, 0.44, 'pinkD')
+    D.prep_finish(m)
     make('PrepTable_B', m, ao, cols=[cb(-1.45, -0.9, 0.0, 1.45, 0.9, 0.92), cb(-0.86, -0.26, 0.92, -0.34, 0.26, 1.33)])
 
 
