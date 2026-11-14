@@ -911,6 +911,19 @@ def build_ropebridge(pal, ao):
                      rock_col(0, H))
         rock += hull(m, clamp_pts([(x + cx, y, z) for x, y, z in rock_pts(rr, (sx * 0.35, -0.05), 1.1, 1.0, H * 0.2, z0=H * 0.8, n=6, top=3, waist=(0.5, 0.8))], 6.95, 1.95),
                      rock_col(0, H, snow=0.5))
+        # (map asset upgrade) fractured slabs and ledges on the upper tower so it reads as jointed rock, not three
+        # stacked lumps; all above 2.4 m, clear of the fitted collision band near the ground; own random stream
+        cr = random.Random(seed + 900)
+        for k in range(6):
+            a = k / 6 * 2 * math.pi + cr.uniform(-0.3, 0.3)
+            z0 = cr.uniform(2.4, H * 0.72)
+            hz = cr.uniform(0.9, 1.8)
+            rad = 1.25 - 0.45 * (z0 / H)
+            if math.cos(a) * sx < -0.4 and z0 + hz > 6.8:
+                continue          # keep clear of the timber cribbing the deck lands on
+            c = (cx + math.cos(a) * rad, math.sin(a) * rad * 0.95)
+            rock += hull(m, clamp_pts([(x, y, z) for x, y, z in rock_pts(cr, c, cr.uniform(0.45, 0.7), cr.uniform(0.4, 0.6), hz, z0=z0, n=6, top=2,
+                                                                       waist=(0.35, 0.7))], 6.95, 1.95), rock_col(0, H))
         # a wind-bent spruce on the summit
         tx, ty = cx + sx * 0.75, 0.55
         tz = top_z(rock, tx, ty) or H
