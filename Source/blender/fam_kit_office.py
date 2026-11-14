@@ -999,6 +999,9 @@ def lounge(k, variant):
     k.cyl(1.6, 1.2, 0.0, 0.14, 0.14, 0.03, 'graphite', seg=8, ink=False)
     k.cyl(1.6, 1.2, 0.03, 0.015, 0.015, 1.45, 'graphite', seg=5, ink=False)
     k.cyl(1.6, 1.2, 1.4, 0.2, 0.14, 0.28, 'glow', seg=10)
+    k.cyl(1.6, 1.2, 1.392, 0.206, 0.206, 0.018, 'graphite', seg=10, ink=False)     # shade rims and a finial
+    k.cyl(1.6, 1.2, 1.672, 0.146, 0.146, 0.016, 'graphite', seg=10, ink=False)
+    k.cyl(1.6, 1.2, 1.688, 0.03, 0.012, 0.06, 'graphite', seg=6, ink=False)
     k.col(-1.1, 1.1, 0.6, 1.4, 0, 0.85)
     for s in (-1, 1):
         x0, x1 = srt(s * 1.12, s * 1.88)
