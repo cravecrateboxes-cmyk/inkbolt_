@@ -635,7 +635,7 @@
     trail: { wall: 'TrailWall', variants: ['TrailWall_B', 'TrailWall', 'TrailWall_C', 'TrailWall_D'], height: 2.6 },
     hatch: 'Hatch', stand: KS + 'Crate_A',
     backdrop: { build: buildLand },
-    budget: { prop: 4800, landmark: 4000, total: 60000 },
+    budget: { prop: 6000, landmark: 4000, total: 60000 },
     allPieces: function () { return PIECES.slice(); }, borrowed: BORROWED,
     levels: {
       airfield7: {

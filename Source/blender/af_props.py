@@ -5,6 +5,7 @@ import math
 
 from af_base import *  # noqa: F401,F403
 from af_base import new, make, text, hazard, plate, tyre_stack
+import af_detail as D
 
 
 def build_lights(pal, ao):
@@ -13,6 +14,7 @@ def build_lights(pal, ao):
         m.cy((0.0, 0.0, 0.0), 0.09, 0.07, 0.22, 'yellow', seg=6)
         m.cy((0.0, 0.0, 0.22), 0.08, 0.05, 0.1, c, seg=6)
         m.bx(-0.16, 0.16, -0.16, 0.16, 0.0, 0.03, 'concD', hull='none', cull='b')
+        D.light_base(m)
         make(name, m, ao)
 
 
@@ -29,6 +31,7 @@ def build_signs(pal, ao):
         for x in (-0.7, 0.7):
             m.bx(x - 0.04, x + 0.04, -0.04, 0.04, 0.0, 0.35, 'steelD', cull='b')
             m.bx(x - 0.12, x + 0.12, -0.12, 0.12, 0.0, 0.05, 'concD', hull='none', cull='b')
+        D.sign_detail(m)
         make(name, m, ao, cols=[cb(-0.95, -0.18, 0.35, 0.95, 0.18, 1.15)])
 
 
@@ -54,6 +57,7 @@ def build_windsock(pal, ao):
         r = r1
         z = z1
     m.cy((0.0, 0.0, H + 0.1), 0.1, 0.1, 0.12, 'lampR', seg=8)
+    D.windsock_base(m)
     make('Windsock', m, ao, cols=[cb(-0.35, -0.35, 0.0, 0.35, 0.35, H)])
 
 
@@ -67,6 +71,7 @@ def build_mast(pal, ao):
         m.bx(x - 0.23, x + 0.23, -0.42, -0.1, 7.45, 7.95, 'dark', cull='')
         fq(m, x - 0.21, x + 0.21, -0.423, 7.5, 7.9, 'lamp')
     m.bx(-0.2, 0.2, 0.12, 0.4, 1.0, 1.6, 'steelD', cull='')
+    D.mast_detail(m)
     make('LightMast', m, ao, cols=[cb(-0.3, -0.3, 0.0, 0.3, 0.3, 0.25), cb(-0.13, -0.13, 0.25, 0.13, 0.4, 7.7)])
 
 
@@ -111,6 +116,7 @@ def build_ground(pal, ao):
     m.cy((-0.3, 0.86, 0.9), 0.22, 0.22, 0.12, 'black', seg=10, rot=(-90, 0, 0))
     for (x, y) in ((-0.55, -0.6), (0.55, -0.6), (-0.55, 0.6), (0.55, 0.6)):
         wheel(m, x, y, 0.22, 0.22, 0.12, c='tire', hub='steel', seg=8)
+    D.gpu(m)
     make('GPU', m, ao, cols=[cb(-0.68, -1.0, 0.0, 0.68, 0.98, 1.3)])
     # tyre stacks
     m = new(pal)

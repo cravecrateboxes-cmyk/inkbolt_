@@ -9,6 +9,7 @@ from mathutils import Matrix, Vector
 
 from af_base import *  # noqa: F401,F403
 from af_base import new, make, text, hazard, plate, box_lines
+import af_detail as D
 
 
 # ---------------------------------------------------------------- generic lofts
@@ -370,6 +371,7 @@ def build_transport(pal, ao):
         a, b = sorted((s * 1.7, s * 2.05))
         cols.append(cb(a, HOLD1, 2.0, b, 10.8, 4.6))
     cols.append(cb(-1.6, 11.0, 3.6, 1.6, 13.9, 4.7))
+    D.transport(m, TA, HOLD0, HOLD1)
     make('Transport', m, ao, cols=cols)
 
 
@@ -411,6 +413,7 @@ def build_bowser(pal, ao):
     vdisc(m, 0.0, 4.264, 1.68, 0.3, 'black', seg=10, face=1)
     text(m, 'NO SMOKING', 0.0, 3.955, 2.27, 0.1, 'white', face='y+', font='cond', maxw=1.6)
     wheels(m, (-1.12, 1.12), (-3.0, 1.0, 2.4), 0.55, 0.55, 0.32)
+    D.bowser(m)
     make('Bowser', m, ao, cols=[cb(-1.3, -4.05, 0.0, 1.3, -2.25, 2.85), cb(-1.25, -2.25, 0.0, 1.25, 3.95, 2.95)])
 
 
@@ -446,6 +449,7 @@ def build_tender(pal, ao):
     m.cy((0.0, -5.75, 1.1), 0.08, 0.1, 0.2, 'steel', seg=6, rot=(90, 0, 0))
     m.bx(-0.9, 0.9, 4.75, 4.85, 1.0, 2.6, 'steelD', cull='')
     wheels(m, (-1.2, 1.2), (-3.4, 1.6, 3.3), 0.6, 0.6, 0.36)
+    D.tender(m)
     make('Tender', m, ao, cols=[cb(-1.45, -5.0, 0.0, 1.45, 4.85, 3.05)])
 
 
@@ -488,6 +492,7 @@ def build_caravan(pal, ao):
     m.bm_((0.0, Y0, 0.6), (0.0, Y0 - 0.45, 0.45), 0.08, 'steelD')
     for (x, y) in ((-0.9, -2.2), (0.9, 2.2), (-0.9, 2.2), (0.9, -2.2)):
         m.cy((x, y, 0.0), 0.05, 0.05, 0.45, 'steelD', seg=5)
+    D.caravan(m, X, Y0, Y1, Z0, Z1)
     make('Caravan', m, ao, cols=[cb(-X, Y0, 0.0, X, Y1, Z1 + 1.05), cb(-X - 0.5, -0.45, 0.0, -X, 0.45, 0.42)])
 
 
@@ -506,6 +511,7 @@ def build_tug(pal, ao):
     wheels(m, (-0.72, 0.72), (-0.85, 0.85), 0.33, 0.33, 0.24)
     text(m, 'TUG 3', 0.803, 0.0, 0.45, 0.2, 'black', face='x+', font='cond')
     text(m, 'TUG 3', -0.803, 0.0, 0.45, 0.2, 'black', face='x-', font='cond')
+    D.tug(m)
     make('Tug', m, ao, cols=[cb(-0.85, -1.42, 0.0, 0.85, 1.55, 1.05)])
 
 
@@ -530,6 +536,7 @@ def build_trailer(pal, ao):
     m.bm_((0.0, -1.7, 0.6), (0.0, -2.4, 0.45), 0.08, 'odD')
     m.cy((0.0, -2.4, 0.0), 0.05, 0.05, 0.45, 'steelD', seg=5)
     wheels(m, (-0.78, 0.78), (-1.0, 1.0), 0.32, 0.32, 0.2)
+    D.trailer(m)
     make('MunTrailer', m, ao, cols=[cb(-0.9, -1.75, 0.0, 0.9, 1.75, 1.8)])
 
 
